@@ -20,7 +20,7 @@ export interface User {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED';
+export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING';
 
 export interface Vehicle {
   id: string;
@@ -51,13 +51,16 @@ export interface Hold {
 
 // ── Releases ─────────────────────────────────────────────────────────────────
 
+export type ReleaseType = 'EXCEPTION' | 'PRE_EXISTING';
+
 export interface Release {
   id: string;
   holdId: string;
-  approvedById: string;    // User.id — Manager only
-  approvedAt: string;      // ISO timestamp
+  approvedById: string;      // User.id — Manager only
+  approvedAt: string;        // ISO timestamp
+  releaseType: ReleaseType;
   reason: string;
-  expectedReturn: string;  // ISO date
-  actualReturn?: string;   // ISO date — set when vehicle is returned
+  expectedReturn?: string;   // ISO date — required for EXCEPTION, omitted for PRE_EXISTING
+  actualReturn?: string;     // ISO date — set when vehicle is returned
   notes: string;
 }

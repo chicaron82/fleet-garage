@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus } from '../types';
+import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus, ReleaseType } from '../types';
 import { supabase } from '../lib/supabase';
 
 // ── Row mappers ───────────────────────────────────────────────────────────────
@@ -23,8 +23,9 @@ function mapRelease(row: Record<string, unknown>): Release {
     holdId:         row.hold_id as string,
     approvedById:   row.approved_by_id as string,
     approvedAt:     row.approved_at as string,
+    releaseType:    ((row.release_type as string) ?? 'EXCEPTION') as ReleaseType,
     reason:         row.reason as string,
-    expectedReturn: row.expected_return as string,
+    expectedReturn: (row.expected_return as string) ?? undefined,
     actualReturn:   (row.actual_return as string) ?? undefined,
     notes:          row.notes as string,
   };
@@ -172,13 +173,17 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const releaseId = `r${Date.now()}`;
     const fullRelease: Release = { ...release, id: releaseId };
 
+    const newVehicleStatus: VehicleStatus =
+      release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
+
     await supabase.from('releases').insert({
       id:              releaseId,
       hold_id:         holdId,
       approved_by_id:  release.approvedById,
       approved_at:     release.approvedAt,
+      release_type:    release.releaseType ?? 'EXCEPTION',
       reason:          release.reason,
-      expected_return: release.expectedReturn,
+      expected_return: release.expectedReturn ?? null,
       actual_return:   release.actualReturn ?? null,
       notes:           release.notes,
     });
@@ -186,7 +191,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const hold = holds.find(h => h.id === holdId);
     if (hold) {
-      await supabase.from('vehicles').update({ status: 'OUT_ON_EXCEPTION' }).eq('id', hold.vehicleId);
+      await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
     }
 
     setHolds(prev => prev.map(h =>
@@ -194,7 +199,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     ));
     if (hold) {
       setVehicles(prev => prev.map(v =>
-        v.id === hold.vehicleId ? { ...v, status: 'OUT_ON_EXCEPTION' } : v
+        v.id === hold.vehicleId ? { ...v, status: newVehicleStatus } : v
       ));
     }
   };

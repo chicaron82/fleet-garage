@@ -2,8 +2,9 @@ import type { VehicleStatus, HoldStatus } from '../types';
 
 const VEHICLE_CONFIG: Record<VehicleStatus, { label: string; className: string }> = {
   HELD:            { label: 'Held',          className: 'bg-red-50 text-red-700 border-red-200' },
-  OUT_ON_EXCEPTION:{ label: 'On Exception', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  OUT_ON_EXCEPTION:{ label: 'On Exception',  className: 'bg-amber-50 text-amber-700 border-amber-200' },
   RETURNED:        { label: 'Returned',      className: 'bg-gray-100 text-gray-600 border-gray-200' },
+  PRE_EXISTING:    { label: 'Pre-existing',  className: 'bg-blue-50 text-blue-700 border-blue-200' },
 };
 
 const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {

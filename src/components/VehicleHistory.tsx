@@ -71,7 +71,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
 
           {/* Actions */}
           <div className="mt-4 flex gap-2 flex-wrap">
-            {vehicle.status === 'RETURNED' && (
+            {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING') && (
               <button
                 onClick={() => onNewHold(vehicleId)}
                 className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
@@ -154,25 +154,39 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 </div>
 
                 {/* Release Record */}
-                {hold.release && (
-                  <div className="p-4 bg-amber-50 border-t border-amber-100">
-                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Release Approval</p>
-                    <p className="text-xs text-amber-900">
-                      Approved by <span className="font-semibold">{getName(hold.release.approvedById)}</span>
-                      {' '}· {getEmpId(hold.release.approvedById)} ({getRole(hold.release.approvedById)}) · {fmt(hold.release.approvedAt)}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">Reason: {hold.release.reason}</p>
-                    <p className="text-xs text-amber-700 mt-0.5">
-                      Expected return: {fmtDate(hold.release.expectedReturn)}
-                      {hold.release.actualReturn && (
-                        <> · Returned: {fmtDate(hold.release.actualReturn)}</>
+                {hold.release && (() => {
+                  const isPre = hold.release.releaseType === 'PRE_EXISTING';
+                  return (
+                    <div className={`p-4 border-t ${isPre ? 'bg-blue-50 border-blue-100' : 'bg-amber-50 border-amber-100'}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isPre ? 'text-blue-800' : 'text-amber-800'}`}>
+                        {isPre ? 'Pre-existing — Cleared for Rental' : 'Release Approval'}
+                      </p>
+                      <p className={`text-xs ${isPre ? 'text-blue-900' : 'text-amber-900'}`}>
+                        Approved by <span className="font-semibold">{getName(hold.release.approvedById)}</span>
+                        {' '}· {getEmpId(hold.release.approvedById)} ({getRole(hold.release.approvedById)}) · {fmt(hold.release.approvedAt)}
+                      </p>
+                      <p className={`text-xs mt-1 ${isPre ? 'text-blue-700' : 'text-amber-700'}`}>
+                        Reason: {hold.release.reason}
+                      </p>
+                      {hold.release.expectedReturn && (
+                        <p className={`text-xs mt-0.5 ${isPre ? 'text-blue-700' : 'text-amber-700'}`}>
+                          Expected return: {fmtDate(hold.release.expectedReturn)}
+                          {hold.release.actualReturn && (
+                            <> · Returned: {fmtDate(hold.release.actualReturn)}</>
+                          )}
+                        </p>
                       )}
-                    </p>
-                    {hold.release.notes && (
-                      <p className="text-xs text-amber-600 mt-1 italic">"{hold.release.notes}"</p>
-                    )}
-                  </div>
-                )}
+                      {isPre && !hold.release.expectedReturn && (
+                        <p className="text-xs text-blue-600 mt-0.5">No repair planned — renting as-is</p>
+                      )}
+                      {hold.release.notes && (
+                        <p className={`text-xs mt-1 italic ${isPre ? 'text-blue-600' : 'text-amber-600'}`}>
+                          "{hold.release.notes}"
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>

@@ -19,6 +19,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
   const held = vehicles.filter(v => v.status === 'HELD').length;
   const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
   const returned = vehicles.filter(v => v.status === 'RETURNED').length;
+  const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
 
   const filtered = vehicles.filter(v =>
     search === '' ||
@@ -62,7 +63,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <p className="text-2xl font-bold text-red-600">{held}</p>
             <p className="text-xs text-gray-500 mt-0.5">Currently Held</p>
@@ -70,6 +71,10 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <p className="text-2xl font-bold text-amber-500">{onException}</p>
             <p className="text-xs text-gray-500 mt-0.5">On Exception</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+            <p className="text-2xl font-bold text-blue-600">{preExisting}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Pre-existing</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <p className="text-2xl font-bold text-green-600">{returned}</p>

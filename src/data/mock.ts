@@ -95,6 +95,7 @@ export const HOLDS: Hold[] = [
       holdId: 'h2',
       approvedById: 'u6', // Sandra (Branch Manager)
       approvedAt: '2026-03-29T11:45:00',
+      releaseType: 'EXCEPTION' as const,
       reason: 'Fleet shortage — critical rental demand. Windshield does not affect drivability. Customer informed and accepted.',
       expectedReturn: '2026-04-08',
       notes: 'Customer signed exception waiver. Vehicle must return by Apr 8 for scheduled repair.',
@@ -115,6 +116,7 @@ export const HOLDS: Hold[] = [
       holdId: 'h3',
       approvedById: 'u7', // Trevor (Operations Manager)
       approvedAt: '2026-03-12T08:30:00',
+      releaseType: 'EXCEPTION' as const,
       reason: 'High-demand weekend. Bumper damage is cosmetic only. Customer accepted vehicle condition.',
       expectedReturn: '2026-03-17',
       actualReturn: '2026-03-16',
@@ -136,6 +138,7 @@ export const HOLDS: Hold[] = [
       holdId: 'h4',
       approvedById: 'u6', // Sandra
       approvedAt: '2026-02-15T10:20:00',
+      releaseType: 'EXCEPTION' as const,
       reason: 'Interior cosmetic issue only. Fleet shortage. Vehicle cleared for rental.',
       expectedReturn: '2026-02-18',
       actualReturn: '2026-02-19',
@@ -168,6 +171,7 @@ export const HOLDS: Hold[] = [
       holdId: 'h6',
       approvedById: 'u6', // Sandra (Branch Manager)
       approvedAt: '2025-11-15T09:00:00',
+      releaseType: 'EXCEPTION' as const,
       reason: 'Cosmetic only. Fleet at critical shortage. Customer accepted known damage.',
       expectedReturn: '2025-11-20',
       actualReturn: '2025-11-19',
