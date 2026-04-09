@@ -8,8 +8,8 @@ export const USERS: User[] = [
   { id: 'u3', employeeId: 'VSA-003', name: 'Priya S.',       role: 'Lead VSA',           password: 'demo' },
   { id: 'u4', employeeId: 'CSR-001', name: 'Jamie L.',       role: 'CSR',                password: 'demo' },
   { id: 'u5', employeeId: 'HIR-001', name: 'Dana K.',        role: 'HIR',                password: 'demo' },
-  { id: 'u6', employeeId: 'MGR-001', name: 'Sandra V.',      role: 'Branch Manager',     password: 'demo' },
-  { id: 'u7', employeeId: 'OPS-001', name: 'Trevor W.',      role: 'Operations Manager', password: 'demo' },
+  { id: 'u6', employeeId: 'MGR-001', name: 'Angadbir S.',   role: 'Branch Manager',     password: 'demo' },
+  { id: 'u7', employeeId: 'OPS-001', name: 'Manpreep K.',   role: 'Operations Manager', password: 'demo' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────
