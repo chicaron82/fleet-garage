@@ -20,7 +20,7 @@ export interface User {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus = 'IN_FLEET' | 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED';
+export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED';
 
 export interface Vehicle {
   id: string;
@@ -44,6 +44,7 @@ export interface Hold {
   flaggedById: string;     // User.id
   flaggedAt: string;       // ISO timestamp
   notes: string;
+  photos?: string[];       // base64 JPEG data URLs, canvas-compressed
   status: HoldStatus;
   release?: Release;
 }

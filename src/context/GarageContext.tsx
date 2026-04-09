@@ -1,39 +1,105 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import type { Vehicle, Hold, Release } from '../types';
-import { VEHICLES, HOLDS } from '../data/mock';
+import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus } from '../types';
+import { supabase } from '../lib/supabase';
 
-const LS_VEHICLES = 'fg_vehicles';
-const LS_HOLDS    = 'fg_holds';
+// ── Row mappers ───────────────────────────────────────────────────────────────
 
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
+function mapVehicle(row: Record<string, unknown>): Vehicle {
+  return {
+    id:           row.id as string,
+    unitNumber:   row.unit_number as string,
+    licensePlate: row.license_plate as string,
+    make:         row.make as string,
+    model:        row.model as string,
+    year:         row.year as number,
+    color:        row.color as string,
+    status:       row.status as VehicleStatus,
+  };
 }
+
+function mapRelease(row: Record<string, unknown>): Release {
+  return {
+    id:             row.id as string,
+    holdId:         row.hold_id as string,
+    approvedById:   row.approved_by_id as string,
+    approvedAt:     row.approved_at as string,
+    reason:         row.reason as string,
+    expectedReturn: row.expected_return as string,
+    actualReturn:   (row.actual_return as string) ?? undefined,
+    notes:          row.notes as string,
+  };
+}
+
+function mapHold(row: Record<string, unknown>): Hold {
+  const releases = row.releases as Record<string, unknown>[] | undefined;
+  return {
+    id:                 row.id as string,
+    vehicleId:          row.vehicle_id as string,
+    damageDescription:  row.damage_description as string,
+    flaggedById:        row.flagged_by_id as string,
+    flaggedAt:          row.flagged_at as string,
+    notes:              row.notes as string,
+    photos:             (row.photos as string[]) ?? [],
+    status:             row.status as HoldStatus,
+    release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
+  };
+}
+
+// ── Photo helpers ─────────────────────────────────────────────────────────────
+
+function base64ToBlob(base64: string): Blob {
+  const [header, data] = base64.split(',');
+  const mime = header.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg';
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+async function uploadPhoto(base64: string, holdId: string): Promise<string | null> {
+  const blob = base64ToBlob(base64);
+  const path = `${holdId}/${Date.now()}.jpg`;
+  const { error } = await supabase.storage
+    .from('damage-photos')
+    .upload(path, blob, { contentType: 'image/jpeg' });
+  if (error) return null;
+  return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
 
 interface GarageContextValue {
   vehicles: Vehicle[];
   holds: Hold[];
+  loading: boolean;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
-  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => string;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string) => void;
-  addRelease: (holdId: string, release: Omit<Release, 'id'>) => void;
+  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[]) => Promise<void>;
+  addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
 
 export function GarageProvider({ children }: { children: React.ReactNode }) {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => load(LS_VEHICLES, VEHICLES));
-  const [holds, setHolds] = useState<Hold[]>(() => load(LS_HOLDS, HOLDS));
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [holds, setHolds] = useState<Hold[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { localStorage.setItem(LS_VEHICLES, JSON.stringify(vehicles)); }, [vehicles]);
-  useEffect(() => { localStorage.setItem(LS_HOLDS,    JSON.stringify(holds));    }, [holds]);
+  useEffect(() => {
+    async function load() {
+      const [{ data: vData }, { data: hData }] = await Promise.all([
+        supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
+        supabase.from('holds').select('*, releases(*)').order('flagged_at', { ascending: false }),
+      ]);
+      setVehicles((vData ?? []).map(mapVehicle));
+      setHolds((hData ?? []).map(mapHold));
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
 
@@ -47,37 +113,85 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
 
-  const addVehicle = (vehicle: Omit<Vehicle, 'id' | 'status'>): string => {
+  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status'>): Promise<string> => {
     const id = `v${Date.now()}`;
-    setVehicles(prev => [...prev, { ...vehicle, id, status: 'IN_FLEET' }]);
+    await supabase.from('vehicles').insert({
+      id,
+      unit_number:   vehicle.unitNumber,
+      license_plate: vehicle.licensePlate,
+      make:          vehicle.make,
+      model:         vehicle.model,
+      year:          vehicle.year,
+      color:         vehicle.color,
+      status:        'HELD',
+    });
+    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD' };
+    setVehicles(prev => [newVehicle, ...prev]);
     return id;
   };
 
-  const addHold = (
+  const addHold = async (
     vehicleId: string,
     damageDescription: string,
     notes: string,
     flaggedById: string,
+    photos?: string[],
   ) => {
-    const newHold: Hold = {
-      id: `h${Date.now()}`,
-      vehicleId,
-      damageDescription,
-      flaggedById,
-      flaggedAt: new Date().toISOString(),
+    const holdId = `h${Date.now()}`;
+    const flaggedAt = new Date().toISOString();
+
+    // Upload photos, collect public URLs
+    const photoUrls: string[] = [];
+    for (const base64 of photos ?? []) {
+      const url = await uploadPhoto(base64, holdId);
+      if (url) photoUrls.push(url);
+    }
+
+    await supabase.from('holds').insert({
+      id:                 holdId,
+      vehicle_id:         vehicleId,
+      damage_description: damageDescription,
+      flagged_by_id:      flaggedById,
+      flagged_at:         flaggedAt,
       notes,
-      status: 'ACTIVE',
+      photos:             photoUrls,
+      status:             'ACTIVE',
+    });
+    await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
+
+    const newHold: Hold = {
+      id: holdId, vehicleId, damageDescription,
+      flaggedById, flaggedAt, notes,
+      photos: photoUrls, status: 'ACTIVE',
     };
-    setHolds(prev => [...prev, newHold]);
+    setHolds(prev => [newHold, ...prev]);
     setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
   };
 
-  const addRelease = (holdId: string, release: Omit<Release, 'id'>) => {
-    const fullRelease: Release = { ...release, id: `r${Date.now()}` };
+  const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
+    const releaseId = `r${Date.now()}`;
+    const fullRelease: Release = { ...release, id: releaseId };
+
+    await supabase.from('releases').insert({
+      id:              releaseId,
+      hold_id:         holdId,
+      approved_by_id:  release.approvedById,
+      approved_at:     release.approvedAt,
+      reason:          release.reason,
+      expected_return: release.expectedReturn,
+      actual_return:   release.actualReturn ?? null,
+      notes:           release.notes,
+    });
+    await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
+
+    const hold = holds.find(h => h.id === holdId);
+    if (hold) {
+      await supabase.from('vehicles').update({ status: 'OUT_ON_EXCEPTION' }).eq('id', hold.vehicleId);
+    }
+
     setHolds(prev => prev.map(h =>
       h.id === holdId ? { ...h, status: 'RELEASED', release: fullRelease } : h
     ));
-    const hold = holds.find(h => h.id === holdId);
     if (hold) {
       setVehicles(prev => prev.map(v =>
         v.id === hold.vehicleId ? { ...v, status: 'OUT_ON_EXCEPTION' } : v
@@ -87,7 +201,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <GarageContext.Provider value={{
-      vehicles, holds,
+      vehicles, holds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold,
       addVehicle, addHold, addRelease,

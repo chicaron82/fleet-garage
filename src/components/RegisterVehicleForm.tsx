@@ -48,13 +48,13 @@ export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
   const canSubmit = unit.trim() && plate.trim() && make && model && year &&
     Number(year) > 1990 && color && !submitting;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
     setSubmitting(true);
-    setTimeout(() => {
-      const id = addVehicle({
+    try {
+      const id = await addVehicle({
         unitNumber: unit.trim(),
         licensePlate: plate.trim().toUpperCase(),
         make,
@@ -63,7 +63,9 @@ export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
         color,
       });
       onSuccess(id);
-    }, 400);
+    } catch {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -77,7 +79,7 @@ export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
           ← Back
         </button>
         <span className="text-gray-300">|</span>
-        <span className="font-semibold text-gray-900 text-sm">Register Vehicle</span>
+        <span className="font-semibold text-gray-900 text-sm">Add to Ledger</span>
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -178,7 +180,7 @@ export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
               disabled={!canSubmit}
               className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 disabled:text-gray-400 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
-              {submitting ? 'Registering…' : 'Register Vehicle'}
+              {submitting ? 'Adding…' : 'Add to Ledger'}
             </button>
           </div>
 

@@ -8,11 +8,12 @@ import { USERS } from '../data/mock';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onNewHold: () => void;
+  onRegisterAndFlag: () => void;
 }
 
-export function Dashboard({ onSelectVehicle, onNewHold }: Props) {
+export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
   const { user, logout } = useAuth();
-  const { vehicles, holds } = useGarage();
+  const { vehicles, holds, loading } = useGarage();
   const [search, setSearch] = useState('');
 
   const held = vehicles.filter(v => v.status === 'HELD').length;
@@ -102,6 +103,9 @@ export function Dashboard({ onSelectVehicle, onNewHold }: Props) {
 
         {/* Vehicle List */}
         <div className="space-y-2">
+          {loading && (
+            <p className="text-center text-gray-400 text-sm py-8">Loading…</p>
+          )}
           {filtered.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
             return (
@@ -118,12 +122,12 @@ export function Dashboard({ onSelectVehicle, onNewHold }: Props) {
                       <span className="text-gray-500 text-xs">{vehicle.licensePlate}</span>
                     </div>
                     <p className="text-sm text-gray-600">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
-                    {latestHold && vehicle.status !== 'IN_FLEET' && (
+                    {latestHold && (
                       <p className="text-xs text-gray-400 mt-1.5 truncate">
                         {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
                       </p>
                     )}
-                    {latestHold && vehicle.status !== 'IN_FLEET' && (
+                    {latestHold && (
                       <p className="text-xs text-gray-400 mt-0.5">
                         Flagged by {getFlaggedBy(latestHold.flaggedById)}
                       </p>
@@ -134,8 +138,19 @@ export function Dashboard({ onSelectVehicle, onNewHold }: Props) {
               </button>
             );
           })}
-          {filtered.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-8">No vehicles match your search.</p>
+          {filtered.length === 0 && search.trim().length >= 2 && (
+            <div className="text-center py-8 space-y-3">
+              <p className="text-gray-400 text-sm">"{search}" not in the system.</p>
+              <button
+                onClick={onRegisterAndFlag}
+                className="text-sm font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer"
+              >
+                + Add to ledger &amp; flag →
+              </button>
+            </div>
+          )}
+          {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (
+            <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
           )}
         </div>
       </div>

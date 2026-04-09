@@ -46,24 +46,14 @@ export const VEHICLES: Vehicle[] = [
     status: 'RETURNED',
   },
   {
-    id: 'v4',
-    unitNumber: 'HRZ-6614',
-    licensePlate: 'MRW 102',
-    make: 'Nissan',
-    model: 'Altima',
-    year: 2023,
-    color: 'Blue',
-    status: 'IN_FLEET',
-  },
-  {
-    id: 'v6',
-    unitNumber: '5428735',
-    licensePlate: 'LFJ108',
-    make: 'Chevrolet',
-    model: 'Malibu LT',
-    year: 2024,
-    color: 'White',
-    status: 'IN_FLEET',
+    id: 'v7',
+    unitNumber: '5513130',
+    licensePlate: 'LJF684',
+    make: 'Tesla',
+    model: 'Model Y',
+    year: 2022,
+    color: 'Black',
+    status: 'HELD',
   },
   {
     id: 'v5',
@@ -158,9 +148,41 @@ export const HOLDS: Hold[] = [
     id: 'h5',
     vehicleId: 'v5',
     damageDescription: 'Missing driver-side mirror cap. Mirror glass intact. Clip housing broken.',
-    flaggedById: 'u1', // Ronnie
+    flaggedById: 'u1', // Aaron
     flaggedAt: '2026-04-07T08:55:00',
     notes: 'Noticed during lot walk. Not on last return inspection. Part ordered.',
+    status: 'ACTIVE',
+  },
+
+  // v7 — 5513130 (Tesla Model Y) — RETURNED hold, damage let go twice before
+  {
+    id: 'h6',
+    vehicleId: 'v7',
+    damageDescription: 'Dent — major / crumple',
+    flaggedById: 'u3', // Priya (Lead VSA)
+    flaggedAt: '2025-11-14T10:20:00',
+    notes: 'Rear liftgate / bumper area. Impact dent, no paint break. Previously documented.',
+    status: 'RETURNED',
+    release: {
+      id: 'r4',
+      holdId: 'h6',
+      approvedById: 'u6', // Sandra (Branch Manager)
+      approvedAt: '2025-11-15T09:00:00',
+      reason: 'Cosmetic only. Fleet at critical shortage. Customer accepted known damage.',
+      expectedReturn: '2025-11-20',
+      actualReturn: '2025-11-19',
+      notes: 'Customer signed exception waiver. Damage pre-dates current rental cycle.',
+    },
+  },
+
+  // v7 — 5513130 — Currently HELD again (same dent, re-flagged by Aaron)
+  {
+    id: 'h7',
+    vehicleId: 'v7',
+    damageDescription: 'Dent — major / crumple',
+    flaggedById: 'u1', // Aaron
+    flaggedAt: '2026-04-08T11:30:00',
+    notes: 'Same rear liftgate dent. Pre-existing — has been on this vehicle for months. Flagging again for new staff awareness.',
     status: 'ACTIVE',
   },
 ];

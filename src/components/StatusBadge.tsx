@@ -1,10 +1,9 @@
 import type { VehicleStatus, HoldStatus } from '../types';
 
 const VEHICLE_CONFIG: Record<VehicleStatus, { label: string; className: string }> = {
-  IN_FLEET:        { label: 'In Fleet',       className: 'bg-green-50 text-green-700 border-green-200' },
-  HELD:            { label: 'Held',            className: 'bg-red-50 text-red-700 border-red-200' },
-  OUT_ON_EXCEPTION:{ label: 'On Exception',   className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  RETURNED:        { label: 'Returned',        className: 'bg-gray-100 text-gray-600 border-gray-200' },
+  HELD:            { label: 'Held',          className: 'bg-red-50 text-red-700 border-red-200' },
+  OUT_ON_EXCEPTION:{ label: 'On Exception', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  RETURNED:        { label: 'Returned',      className: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {

@@ -30,13 +30,13 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
   const finalReason = reason === '__custom__' ? customReason.trim() : reason;
   const canSubmit = finalReason && expectedReturn && !submitting;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
     setSubmitting(true);
-    setTimeout(() => {
-      addRelease(holdId, {
+    try {
+      await addRelease(holdId, {
         holdId,
         approvedById: user!.id,
         approvedAt: new Date().toISOString(),
@@ -45,7 +45,9 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
         notes,
       });
       onClose();
-    }, 400);
+    } catch {
+      setSubmitting(false);
+    }
   };
 
   return (

@@ -10,7 +10,7 @@ export type Screen =
   | { name: 'dashboard' }
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string }
-  | { name: 'register-vehicle' };
+  | { name: 'register-vehicle'; fromHold?: boolean };
 
 export default function App() {
   const { user } = useAuth();
@@ -34,7 +34,7 @@ export default function App() {
         vehicleId={screen.vehicleId}
         onBack={() => setScreen({ name: 'dashboard' })}
         onSuccess={(vehicleId) => setScreen({ name: 'vehicle', vehicleId })}
-        onRegisterNew={() => setScreen({ name: 'register-vehicle' })}
+        onRegisterNew={() => setScreen({ name: 'register-vehicle', fromHold: true })}
       />
     );
   }
@@ -42,8 +42,12 @@ export default function App() {
   if (screen.name === 'register-vehicle') {
     return (
       <RegisterVehicleForm
-        onBack={() => setScreen({ name: 'dashboard' })}
-        onSuccess={(vehicleId) => setScreen({ name: 'vehicle', vehicleId })}
+        onBack={() =>
+          screen.fromHold
+            ? setScreen({ name: 'new-hold' })
+            : setScreen({ name: 'dashboard' })
+        }
+        onSuccess={(vehicleId) => setScreen({ name: 'new-hold', vehicleId })}
       />
     );
   }
@@ -52,6 +56,7 @@ export default function App() {
     <Dashboard
       onSelectVehicle={(vehicleId) => setScreen({ name: 'vehicle', vehicleId })}
       onNewHold={() => setScreen({ name: 'new-hold' })}
+      onRegisterAndFlag={() => setScreen({ name: 'register-vehicle' })}
     />
   );
 }

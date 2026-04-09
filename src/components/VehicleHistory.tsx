@@ -29,6 +29,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const { user } = useAuth();
   const { getVehicle, getHoldsForVehicle, getActiveHold } = useGarage();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null); // holdId
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
@@ -70,7 +71,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
 
           {/* Actions */}
           <div className="mt-4 flex gap-2 flex-wrap">
-            {vehicle.status === 'IN_FLEET' && (
+            {vehicle.status === 'RETURNED' && (
               <button
                 onClick={() => onNewHold(vehicleId)}
                 className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
@@ -132,6 +133,24 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   {hold.notes && (
                     <p className="text-xs text-gray-400 mt-1.5 italic">"{hold.notes}"</p>
                   )}
+                  {hold.photos && hold.photos.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {hold.photos.map((src, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setLightboxSrc(src)}
+                          className="cursor-pointer"
+                        >
+                          <img
+                            src={src}
+                            alt={`Damage photo ${i + 1}`}
+                            className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Release Record */}
@@ -159,6 +178,26 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <img
+            src={lightboxSrc}
+            alt="Damage photo"
+            className="max-w-full max-h-full rounded-xl object-contain"
+          />
+          <button
+            className="absolute top-4 right-4 text-white text-2xl leading-none opacity-70 hover:opacity-100 transition cursor-pointer"
+            onClick={() => setLightboxSrc(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
