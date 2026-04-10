@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
@@ -10,6 +10,28 @@ interface Props {
   vehicleId: string;
   onBack: () => void;
   onNewHold: (vehicleId: string) => void;
+}
+
+const MAX_PHOTOS = 4;
+
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = 800;
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function fmt(iso: string) {
@@ -27,9 +49,28 @@ function fmtDate(iso: string) {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold } = useGarage();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold } = useGarage();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null); // holdId
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null); // holdId
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const pendingHoldId = useRef<string | null>(null);
+
+  const handleAddPhotoClick = (holdId: string) => {
+    pendingHoldId.current = holdId;
+    photoInputRef.current?.click();
+  };
+
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length || !pendingHoldId.current) return;
+    const holdId = pendingHoldId.current;
+    setUploadingFor(holdId);
+    const compressed = await Promise.all(files.map(compressImage));
+    await addPhotosToHold(holdId, compressed);
+    setUploadingFor(null);
+    e.target.value = '';
+  };
 
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
@@ -133,24 +174,39 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   {hold.notes && (
                     <p className="text-xs text-gray-400 mt-1.5 italic">"{hold.notes}"</p>
                   )}
-                  {hold.photos && hold.photos.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {hold.photos.map((src, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setLightboxSrc(src)}
-                          className="cursor-pointer"
-                        >
-                          <img
-                            src={src}
-                            alt={`Damage photo ${i + 1}`}
-                            className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+                    {(hold.photos ?? []).map((src, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setLightboxSrc(src)}
+                        className="cursor-pointer"
+                      >
+                        <img
+                          src={src}
+                          alt={`Damage photo ${i + 1}`}
+                          className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition"
+                        />
+                      </button>
+                    ))}
+                    {(hold.photos ?? []).length < MAX_PHOTOS && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddPhotoClick(hold.id)}
+                        disabled={uploadingFor === hold.id}
+                        className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingFor === hold.id ? (
+                          <span className="text-xs">…</span>
+                        ) : (
+                          <>
+                            <span className="text-lg leading-none">+</span>
+                            <span className="text-xs leading-none">Photo</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Release Record */}
@@ -192,6 +248,17 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Hidden photo input */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        onChange={handlePhotoSelected}
+        className="hidden"
+      />
 
       {/* Lightbox */}
       {lightboxSrc && (

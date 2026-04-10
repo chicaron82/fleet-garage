@@ -80,6 +80,7 @@ interface GarageContextValue {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[]) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
+  addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -204,12 +205,30 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) return;
+
+    const uploadedUrls: string[] = [];
+    for (const base64 of newPhotos) {
+      const url = await uploadPhoto(base64, holdId);
+      if (url) uploadedUrls.push(url);
+    }
+    if (uploadedUrls.length === 0) return;
+
+    const merged = [...(hold.photos ?? []), ...uploadedUrls];
+    await supabase.from('holds').update({ photos: merged }).eq('id', holdId);
+    setHolds(prev => prev.map(h =>
+      h.id === holdId ? { ...h, photos: merged } : h
+    ));
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold,
-      addVehicle, addHold, addRelease,
+      addVehicle, addHold, addRelease, addPhotosToHold,
     }}>
       {children}
     </GarageContext.Provider>
