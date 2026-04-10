@@ -8,7 +8,7 @@ import { USERS } from '../data/mock';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onNewHold: () => void;
-  onRegisterAndFlag: () => void;
+  onRegisterAndFlag: (prefill?: string) => void;
 }
 
 export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
@@ -147,7 +147,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
             <div className="text-center py-8 space-y-3">
               <p className="text-gray-400 text-sm">"{search}" not in the system.</p>
               <button
-                onClick={onRegisterAndFlag}
+                onClick={() => onRegisterAndFlag(search)}
                 className="text-sm font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer"
               >
                 + Add to ledger &amp; flag →

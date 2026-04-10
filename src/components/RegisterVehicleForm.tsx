@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
 
 interface Props {
+  prefill?: string;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
 }
@@ -34,11 +35,20 @@ const MAKES = Object.keys(MAKES_MODELS).sort();
 
 const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition bg-white';
 
-export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
-  const { addVehicle } = useGarage();
+function classifyPrefill(value?: string): { unit: string; plate: string } {
+  if (!value) return { unit: '', plate: '' };
+  // All digits → unit number; anything with letters → license plate
+  return /^\d+$/.test(value)
+    ? { unit: value, plate: '' }
+    : { unit: '', plate: value };
+}
 
-  const [unit, setUnit] = useState('');
-  const [plate, setPlate] = useState('');
+export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
+  const { addVehicle } = useGarage();
+  const seed = classifyPrefill(prefill);
+
+  const [unit, setUnit] = useState(seed.unit);
+  const [plate, setPlate] = useState(seed.plate);
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
@@ -95,6 +105,7 @@ export function RegisterVehicleForm({ onBack, onSuccess }: Props) {
                 <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">Unit #</label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={unit}
                   onChange={e => setUnit(e.target.value.toUpperCase())}
                   placeholder="e.g. 5428735"

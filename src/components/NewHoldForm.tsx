@@ -8,7 +8,7 @@ interface Props {
   vehicleId?: string;   // pre-selected from VehicleHistory → "Flag Damage"
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
-  onRegisterNew?: () => void;
+  onRegisterNew?: (prefill?: string) => void;
 }
 
 const DAMAGE_PRESETS = [
@@ -196,7 +196,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     {onRegisterNew && (
                       <button
                         type="button"
-                        onClick={onRegisterNew}
+                        onClick={() => onRegisterNew(unitSearch)}
                         className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer whitespace-nowrap ml-3"
                       >
                         + Add to ledger →

@@ -10,7 +10,7 @@ export type Screen =
   | { name: 'dashboard' }
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string }
-  | { name: 'register-vehicle'; fromHold?: boolean };
+  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string };
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -70,7 +70,7 @@ export default function App() {
           vehicleId={screen.vehicleId}
           onBack={() => navigate({ name: 'dashboard' })}
           onSuccess={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
-          onRegisterNew={() => navigate({ name: 'register-vehicle', fromHold: true })}
+          onRegisterNew={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
         />
         {showLogoutConfirm && <LogoutConfirm onConfirm={() => { setShowLogoutConfirm(false); logout(); }} onCancel={() => setShowLogoutConfirm(false)} />}
       </>
@@ -81,6 +81,7 @@ export default function App() {
     return (
       <>
         <RegisterVehicleForm
+          prefill={screen.prefill}
           onBack={() =>
             screen.fromHold
               ? navigate({ name: 'new-hold' })
@@ -98,7 +99,7 @@ export default function App() {
       <Dashboard
         onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
         onNewHold={() => navigate({ name: 'new-hold' })}
-        onRegisterAndFlag={() => navigate({ name: 'register-vehicle' })}
+        onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', prefill })}
       />
       {showLogoutConfirm && <LogoutConfirm onConfirm={() => { setShowLogoutConfirm(false); logout(); }} onCancel={() => setShowLogoutConfirm(false)} />}
     </>
