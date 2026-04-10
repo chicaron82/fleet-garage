@@ -15,7 +15,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
   Nissan:          ['Altima', 'Frontier', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
   Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Santa Fe', 'Sonata', 'Tucson'],
-  Kia:             ['Forte', 'K5', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
+  Kia:             ['Carnival', 'Forte', 'K5', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango'],
   Chrysler:        ['300', 'Pacifica'],
