@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus, ReleaseType } from '../types';
+import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType } from '../types';
 import { supabase } from '../lib/supabase';
 
 // ── Row mappers ───────────────────────────────────────────────────────────────
@@ -36,6 +36,8 @@ function mapHold(row: Record<string, unknown>): Hold {
   return {
     id:                 row.id as string,
     vehicleId:          row.vehicle_id as string,
+    holdType:           ((row.hold_type as string) ?? 'damage') as HoldType,
+    detailReason:       (row.detail_reason as DetailReason) ?? undefined,
     damageDescription:  row.damage_description as string,
     flaggedById:        row.flagged_by_id as string,
     flaggedAt:          row.flagged_at as string,
@@ -78,7 +80,7 @@ interface GarageContextValue {
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[]) => Promise<void>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
 }
@@ -138,6 +140,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     notes: string,
     flaggedById: string,
     photos?: string[],
+    holdType: HoldType = 'damage',
+    detailReason?: DetailReason,
   ) => {
     const holdId = `h${Date.now()}`;
     const flaggedAt = new Date().toISOString();
@@ -152,6 +156,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     await supabase.from('holds').insert({
       id:                 holdId,
       vehicle_id:         vehicleId,
+      hold_type:          holdType,
+      detail_reason:      detailReason ?? null,
       damage_description: damageDescription,
       flagged_by_id:      flaggedById,
       flagged_at:         flaggedAt,
@@ -162,8 +168,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
 
     const newHold: Hold = {
-      id: holdId, vehicleId, damageDescription,
-      flaggedById, flaggedAt, notes,
+      id: holdId, vehicleId, holdType, detailReason,
+      damageDescription, flaggedById, flaggedAt, notes,
       photos: photoUrls, status: 'ACTIVE',
     };
     setHolds(prev => [newHold, ...prev]);

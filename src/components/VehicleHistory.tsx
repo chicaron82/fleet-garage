@@ -254,7 +254,6 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         ref={photoInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         onChange={handlePhotoSelected}
         className="hidden"

@@ -36,15 +36,25 @@ export interface Vehicle {
 // ── Holds ────────────────────────────────────────────────────────────────────
 
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED';
+export type HoldType = 'damage' | 'detail';
+export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
+
+export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
+  'too-dirty': 'Too dirty',
+  'pet-hair':  'Pet hair',
+  'smoke-vape': 'Smoke / vape',
+};
 
 export interface Hold {
   id: string;
   vehicleId: string;
-  damageDescription: string;
-  flaggedById: string;     // User.id
-  flaggedAt: string;       // ISO timestamp
+  holdType: HoldType;
+  detailReason?: DetailReason;
+  damageDescription: string;   // for damage holds; "Detail required — X" for detail holds
+  flaggedById: string;         // User.id
+  flaggedAt: string;           // ISO timestamp
   notes: string;
-  photos?: string[];       // base64 JPEG data URLs, canvas-compressed
+  photos?: string[];
   status: HoldStatus;
   release?: Release;
 }

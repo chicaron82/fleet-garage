@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
+import type { HoldType, DetailReason } from '../types';
+import { DETAIL_REASON_LABELS } from '../types';
 
 interface Props {
   vehicleId?: string;   // pre-selected from VehicleHistory → "Flag Damage"
@@ -56,8 +58,10 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
 
+  const [holdType, setHoldType] = useState<HoldType>('damage');
   const [damageType, setDamageType] = useState('');
   const [customDamage, setCustomDamage] = useState('');
+  const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +82,11 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
     : [];
 
   const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
-  const finalDamage = damageType === 'Other' ? customDamage.trim() : damageType;
-  const canSubmit = selectedVehicle && finalDamage && !alreadyHeld && !submitting;
+  const finalDamage = holdType === 'detail'
+    ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}`
+    : damageType === 'Other' ? customDamage.trim() : damageType;
+  const canSubmit = selectedVehicle && !alreadyHeld && !submitting &&
+    (holdType === 'damage' ? !!finalDamage : !!detailReason);
 
   const handleSelectVehicle = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
@@ -100,7 +107,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
 
     setSubmitting(true);
     try {
-      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos);
+      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdType, detailReason || undefined);
       onSuccess(selectedVehicle.id);
     } catch {
       setSubmitting(false);
@@ -204,14 +211,43 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             )}
           </div>
 
-          {/* Damage Details */}
+          {/* Hold Details */}
           {selectedVehicle && !alreadyHeld && (
             <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                Damage Details
+                What are you flagging?
               </h2>
 
+              {/* Hold Type Toggle */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setHoldType('damage'); setDetailReason(''); }}
+                  className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
+                    holdType === 'damage'
+                      ? 'border-yellow-400 bg-yellow-50 text-gray-900'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="block font-semibold">Damage</span>
+                  <span className="block text-xs opacity-70 mt-0.5">Dents, scratches, glass…</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setHoldType('detail'); setDamageType(''); setCustomDamage(''); }}
+                  className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
+                    holdType === 'detail'
+                      ? 'border-yellow-400 bg-yellow-50 text-gray-900'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="block font-semibold">Detail Issue</span>
+                  <span className="block text-xs opacity-70 mt-0.5">Dirt, pet hair, smoke…</span>
+                </button>
+              </div>
+
               {/* Damage Type */}
+              {holdType === 'damage' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
                   Damage Type *
@@ -242,6 +278,32 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   />
                 )}
               </div>
+              )}
+
+              {/* Detail Reason */}
+              {holdType === 'detail' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+                  Detail Reason *
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(Object.entries(DETAIL_REASON_LABELS) as [DetailReason, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setDetailReason(key)}
+                      className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
+                        detailReason === key
+                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 font-medium'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -294,7 +356,6 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={handlePhotoAdd}
                   className="hidden"
                 />

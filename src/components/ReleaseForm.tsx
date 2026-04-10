@@ -27,9 +27,19 @@ const PRE_EXISTING_REASONS = [
   'Insurance write-off pending — vehicle in use',
 ];
 
+const DETAIL_EXCEPTION_REASONS = [
+  'Vacuumed / cleaned in-house — cleared',
+  'Contract closed — detail not pursued',
+  'Acceptable for rental as-is',
+  'Sent for professional detail',
+];
+
 export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
   const { user } = useAuth();
-  const { addRelease } = useGarage();
+  const { addRelease, holds } = useGarage();
+
+  const hold = holds.find(h => h.id === holdId);
+  const isDetailHold = hold?.holdType === 'detail';
 
   const [releaseType, setReleaseType] = useState<ReleaseType>('EXCEPTION');
   const [reason, setReason] = useState('');
@@ -38,7 +48,9 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const reasons = releaseType === 'EXCEPTION' ? EXCEPTION_REASONS : PRE_EXISTING_REASONS;
+  const reasons = releaseType === 'EXCEPTION'
+    ? (isDetailHold ? DETAIL_EXCEPTION_REASONS : EXCEPTION_REASONS)
+    : PRE_EXISTING_REASONS;
   const finalReason = reason === '__custom__' ? customReason.trim() : reason;
   const needsReturn = releaseType === 'EXCEPTION';
   const canSubmit = finalReason && (!needsReturn || expectedReturn) && !submitting;
