@@ -79,18 +79,7 @@ export function LoginScreen() {
           </button>
         </form>
 
-        {/* Demo hint */}
-        <div className="mt-6 pt-5 border-t border-gray-100">
-          <p className="text-xs text-gray-400 text-center mb-2">Demo accounts · password: <code className="bg-gray-100 px-1 rounded">demo</code></p>
-          <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-500">
-            <button onClick={() => { setEmployeeId('331965'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">331965 · VSA</button>
-            <button onClick={() => { setEmployeeId('VSA-003'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">VSA-003 · Lead VSA</button>
-            <button onClick={() => { setEmployeeId('CSR-001'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">CSR-001 · CSR</button>
-            <button onClick={() => { setEmployeeId('HIR-001'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">HIR-001 · HIR</button>
-            <button onClick={() => { setEmployeeId('MGR-001'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">MGR-001 · Branch Mgr</button>
-            <button onClick={() => { setEmployeeId('OPS-001'); setPassword('demo'); }} className="text-left px-2 py-1.5 rounded hover:bg-gray-50 transition cursor-pointer">OPS-001 · Ops Mgr</button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
