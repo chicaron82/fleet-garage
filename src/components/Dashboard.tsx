@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { UserProfileMenu } from './UserProfileMenu';
 import { USERS } from '../data/mock';
 
 interface Props {
@@ -37,26 +38,17 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
     USERS.find(u => u.id === userId)?.name ?? 'Unknown';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top Nav */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10 transition-colors">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-yellow-400 rounded flex items-center justify-center">
+          <div className="w-7 h-7 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors">
             <span className="text-black font-bold text-xs">FG</span>
           </div>
-          <span className="font-semibold text-gray-900 text-sm">Fleet Garage</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-xs font-medium text-gray-900">{user!.name}</p>
-            <p className="text-xs text-gray-400">{user!.role} · {user!.employeeId}</p>
-          </div>
-          <button
-            onClick={logout}
-            className="text-xs text-gray-400 hover:text-gray-700 transition cursor-pointer"
-          >
-            Sign out
-          </button>
+          <UserProfileMenu />
         </div>
       </nav>
 
@@ -64,21 +56,21 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-bold text-red-600">{held}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Currently Held</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+            <p className="text-2xl font-bold text-red-600 dark:text-red-500">{held}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Currently Held</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
             <p className="text-2xl font-bold text-amber-500">{onException}</p>
-            <p className="text-xs text-gray-500 mt-0.5">On Exception</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">On Exception</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">{preExisting}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Pre-existing</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{preExisting}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Pre-existing</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-bold text-green-600">{returned}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Returned</p>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+            <p className="text-2xl font-bold text-green-600 dark:text-green-500">{returned}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Returned</p>
           </div>
         </div>
 
@@ -89,11 +81,11 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
             placeholder="Search unit #, plate, make…"
             value={search}
             onChange={e => setSearch(e.target.value.toUpperCase())}
-            className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+            className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition-all uppercase shadow-sm"
           />
           <button
             onClick={onNewHold}
-            className="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+            className="px-4 py-2.5 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 text-black font-semibold text-sm rounded-lg transition-colors cursor-pointer whitespace-nowrap shadow-sm"
           >
             + Flag Vehicle
           </button>
@@ -101,7 +93,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
 
         {/* Management banner */}
         {canRelease(user!.role) && onException > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
             ⚠️ <strong>{onException}</strong> vehicle{onException > 1 ? 's are' : ' is'} currently out on exception and may need a return follow-up.
           </div>
         )}
@@ -109,7 +101,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
         {/* Vehicle List */}
         <div className="space-y-2">
           {loading && (
-            <p className="text-center text-gray-400 text-sm py-8">Loading…</p>
+            <p className="text-center text-gray-400 text-sm py-8 transition-colors">Loading…</p>
           )}
           {filtered.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
@@ -117,23 +109,23 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
               <button
                 key={vehicle.id}
                 onClick={() => onSelectVehicle(vehicle.id)}
-                className="w-full bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-yellow-400 hover:shadow-sm transition-all cursor-pointer"
+                className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900 text-sm">{vehicle.unitNumber}</span>
-                      <span className="text-gray-400 text-xs">·</span>
-                      <span className="text-gray-500 text-xs">{vehicle.licensePlate}</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
+                      <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">{vehicle.licensePlate}</span>
                     </div>
-                    <p className="text-sm text-gray-600">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                     {latestHold && (
-                      <p className="text-xs text-gray-400 mt-1.5 truncate">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 truncate transition-colors">
                         {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
                       </p>
                     )}
                     {latestHold && (
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
                         Flagged by {getFlaggedBy(latestHold.flaggedById)}
                       </p>
                     )}

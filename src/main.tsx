@@ -3,14 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
+import { PreferencesProvider } from './context/PreferencesContext.tsx'
 import { GarageProvider } from './context/GarageContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <GarageProvider>
-        <App />
-      </GarageProvider>
+      <PreferencesProvider>
+        <GarageProvider>
+          <App />
+        </GarageProvider>
+      </PreferencesProvider>
     </AuthProvider>
   </StrictMode>,
 )

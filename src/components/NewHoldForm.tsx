@@ -115,24 +115,24 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+      <nav className="bg-white dark:bg-gray-900 transition-colors border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={onBack}
-          className="text-gray-500 hover:text-gray-900 transition cursor-pointer text-sm flex items-center gap-1"
+          className="text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 transition cursor-pointer text-sm flex items-center gap-1"
         >
           ← Back
         </button>
         <span className="text-gray-300">|</span>
-        <span className="font-semibold text-gray-900 text-sm">Flag Damage</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Flag Damage</span>
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
         <form onSubmit={handleSubmit} className="space-y-5">
 
           {/* Vehicle Selection */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
+          <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+            <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
               Vehicle
             </h2>
 
@@ -140,24 +140,24 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-gray-900">{selectedVehicle.unitNumber}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedVehicle.unitNumber}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-0.5">
                       {selectedVehicle.year} {selectedVehicle.make} {selectedVehicle.model} · {selectedVehicle.color}
                     </p>
-                    <p className="text-sm text-gray-400 mt-0.5">Plate: {selectedVehicle.licensePlate}</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {selectedVehicle.licensePlate}</p>
                   </div>
                   {!preselectedId && (
                     <button
                       type="button"
                       onClick={() => setSelectedVehicleId(null)}
-                      className="text-xs text-gray-400 hover:text-gray-700 transition cursor-pointer"
+                      className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition cursor-pointer"
                     >
                       Change
                     </button>
                   )}
                 </div>
                 {alreadyHeld && (
-                  <div className="mt-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                  <div className="mt-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg text-xs text-red-700 dark:text-red-400">
                     This vehicle already has an active hold. Only one active hold per vehicle is allowed.
                   </div>
                 )}
@@ -170,7 +170,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   value={unitSearch}
                   onChange={e => setUnitSearch(e.target.value.toUpperCase())}
                   autoFocus
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
                 />
                 {searchResults.length > 0 && (
                   <div className="space-y-1">
@@ -179,20 +179,20 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                         key={v.id}
                         type="button"
                         onClick={() => handleSelectVehicle(v.id)}
-                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
+                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
                       >
-                        <span className="font-medium text-gray-900">{v.unitNumber}</span>
-                        <span className="text-gray-400 mx-2">·</span>
-                        <span className="text-gray-500">{v.licensePlate}</span>
-                        <span className="text-gray-400 mx-2">·</span>
-                        <span className="text-gray-500">{v.year} {v.make} {v.model}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
+                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
+                        <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{v.licensePlate}</span>
+                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
+                        <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{v.year} {v.make} {v.model}</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {noResults && (
-                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-xs text-gray-500">"{unitSearch}" not in the system.</p>
+                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">"{unitSearch}" not in the system.</p>
                     {onRegisterNew && (
                       <button
                         type="button"
@@ -205,7 +205,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   </div>
                 )}
                 {unitSearch.trim().length < 2 && (
-                  <p className="text-xs text-gray-400">Type at least 2 characters to search.</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Type at least 2 characters to search.</p>
                 )}
               </div>
             )}
@@ -213,8 +213,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
 
           {/* Hold Details */}
           {selectedVehicle && !alreadyHeld && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
+              <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                 What are you flagging?
               </h2>
 
@@ -225,8 +225,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   onClick={() => { setHoldType('damage'); setDetailReason(''); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     holdType === 'damage'
-                      ? 'border-yellow-400 bg-yellow-50 text-gray-900'
-                      : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                      ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
                   }`}
                 >
                   <span className="block font-semibold">Damage</span>
@@ -237,8 +237,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   onClick={() => { setHoldType('detail'); setDamageType(''); setCustomDamage(''); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     holdType === 'detail'
-                      ? 'border-yellow-400 bg-yellow-50 text-gray-900'
-                      : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                      ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
                   }`}
                 >
                   <span className="block font-semibold">Detail Issue</span>
@@ -249,7 +249,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               {/* Damage Type */}
               {holdType === 'damage' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Damage Type *
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -260,8 +260,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       onClick={() => setDamageType(preset)}
                       className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
                         damageType === preset
-                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 font-medium'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
                       }`}
                     >
                       {preset}
@@ -274,7 +274,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     placeholder="Describe the damage…"
                     value={customDamage}
                     onChange={e => setCustomDamage(e.target.value)}
-                    className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                    className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
                   />
                 )}
               </div>
@@ -283,7 +283,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               {/* Detail Reason */}
               {holdType === 'detail' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Detail Reason *
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -294,8 +294,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       onClick={() => setDetailReason(key)}
                       className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
                         detailReason === key
-                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 font-medium'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
                       }`}
                     >
                       {label}
@@ -307,7 +307,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Notes (optional)
                 </label>
                 <textarea
@@ -315,13 +315,13 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   placeholder="Location, customer context, circumstances…"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
                 />
               </div>
 
               {/* Photos */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Photos (optional · max {MAX_PHOTOS})
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -330,7 +330,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       <img
                         src={src}
                         alt={`Damage photo ${i + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                        className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
                       />
                       <button
                         type="button"
@@ -345,7 +345,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                      className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
                     >
                       <span className="text-xl leading-none">+</span>
                       <span className="text-xs">Photo</span>
@@ -362,8 +362,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               </div>
 
               {/* Flagging as */}
-              <div className="bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-500">
-                Flagging as <span className="font-medium text-gray-700">{user!.name}</span> · {user!.role}
+              <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                Flagging as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
               </div>
             </div>
           )}
@@ -373,14 +373,14 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             <button
               type="button"
               onClick={onBack}
-              className="flex-1 py-3 border border-gray-300 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-50 transition cursor-pointer"
+              className="flex-1 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 disabled:text-gray-400 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 dark:text-gray-500 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
               {submitting ? 'Flagging…' : 'Flag Damage'}
             </button>

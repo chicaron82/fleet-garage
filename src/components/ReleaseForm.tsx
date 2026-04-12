@@ -87,20 +87,20 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
   const isException = releaseType === 'EXCEPTION';
 
   return (
-    <div className={`bg-white rounded-xl border overflow-hidden ${isException ? 'border-amber-200' : 'border-blue-200'}`}>
-      <div className={`px-5 py-4 border-b ${isException ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+    <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${isException ? 'border-amber-200 dark:border-amber-800/50' : 'border-blue-200'}`}>
+      <div className={`px-5 py-4 border-b ${isException ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className={`font-semibold text-sm ${isException ? 'text-amber-900' : 'text-blue-900'}`}>
               Approve Release
             </h3>
-            <p className={`text-xs mt-0.5 ${isException ? 'text-amber-700' : 'text-blue-700'}`}>
+            <p className={`text-xs mt-0.5 ${isException ? 'text-amber-700 dark:text-amber-400' : 'text-blue-700'}`}>
               {isException ? 'Vehicle will move to Out on Exception status' : 'Vehicle will be marked Pre-existing — renting as-is'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className={`transition text-lg leading-none cursor-pointer ${isException ? 'text-amber-400 hover:text-amber-700' : 'text-blue-400 hover:text-blue-700'}`}
+            className={`transition text-lg leading-none cursor-pointer ${isException ? 'text-amber-400 hover:text-amber-700 dark:text-amber-400' : 'text-blue-400 hover:text-blue-700'}`}
           >
             ×
           </button>
@@ -111,7 +111,7 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
 
         {/* Release Type Toggle */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
             Release Type *
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -120,8 +120,8 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
               onClick={() => handleTypeChange('EXCEPTION')}
               className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                 isException
-                  ? 'border-amber-400 bg-amber-50 text-amber-900'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/30 text-amber-900'
+                  : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
               }`}
             >
               <span className="block text-sm font-semibold">Exception</span>
@@ -133,7 +133,7 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
               className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                 !isException
                   ? 'border-blue-400 bg-blue-50 text-blue-900'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
               }`}
             >
               <span className="block text-sm font-semibold">Pre-existing</span>
@@ -144,13 +144,13 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
 
         {/* Release Reason */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
             Reason *
           </label>
           <select
             value={reason}
             onChange={e => setReason(e.target.value)}
-            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white ${
+            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white dark:bg-gray-900 transition-colors ${
               isException ? 'focus:ring-amber-400' : 'focus:ring-blue-400'
             }`}
           >
@@ -166,7 +166,7 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
               placeholder="Describe the release reason…"
               value={customReason}
               onChange={e => setCustomReason(e.target.value)}
-              className={`mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${
+              className={`mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${
                 isException ? 'focus:ring-amber-400' : 'focus:ring-blue-400'
               }`}
             />
@@ -176,7 +176,7 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
         {/* Expected Return Date — EXCEPTION only */}
         {isException && (
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
               Expected Return Date *
             </label>
             <input
@@ -184,14 +184,14 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
               value={expectedReturn}
               onChange={e => setExpectedReturn(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
             />
           </div>
         )}
 
         {/* Notes */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
             Notes (optional)
           </label>
           <textarea
@@ -199,15 +199,15 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
             placeholder="Additional context for the record…"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition resize-none ${
+            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition resize-none ${
               isException ? 'focus:ring-amber-400' : 'focus:ring-blue-400'
             }`}
           />
         </div>
 
         {/* Approver info */}
-        <div className="bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-500">
-          Approving as <span className="font-medium text-gray-700">{user!.name}</span> · {user!.role}
+        <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          Approving as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
         </div>
 
         {/* Actions */}
@@ -215,14 +215,14 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-50 transition cursor-pointer"
+            className="flex-1 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`flex-1 py-2.5 disabled:bg-gray-200 disabled:text-gray-400 font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed ${
+            className={`flex-1 py-2.5 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 dark:text-gray-500 font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed ${
               isException
                 ? 'bg-amber-500 hover:bg-amber-400 text-white'
                 : 'bg-blue-500 hover:bg-blue-400 text-white'
