@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { vehicles, holds, loading } = useGarage();
   const [search, setSearch] = useState('');
 
