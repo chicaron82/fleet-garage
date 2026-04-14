@@ -12,10 +12,10 @@ const COLORS = ['White', 'Black', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 'Bro
 const MAKES_MODELS: Record<string, string[]> = {
   Chevrolet:       ['Blazer', 'Colorado', 'Equinox', 'Malibu', 'Malibu LT', 'Silverado', 'Tahoe', 'Trax', 'Traverse'],
   Ford:            ['Bronco Sport', 'Edge', 'Escape', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
-  Toyota:          ['4Runner', 'Camry', 'Camry LE', 'Corolla', 'Highlander', 'RAV4', 'Tacoma'],
+  Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Corolla', 'Corolla Cross', 'Corolla Hybrid', 'Highlander', 'RAV4', 'Tacoma'],
   Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
   Nissan:          ['Altima', 'Frontier', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
-  Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Santa Fe', 'Sonata', 'Tucson'],
+  Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson'],
   Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango'],
