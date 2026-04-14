@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import type { Vehicle, Hold, Release, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType } from '../types';
 import { supabase } from '../lib/supabase';
 
 // ── Row mappers ───────────────────────────────────────────────────────────────
@@ -31,8 +31,19 @@ function mapRelease(row: Record<string, unknown>): Release {
   };
 }
 
+function mapRepair(row: Record<string, unknown>): Repair {
+  return {
+    id:            row.id as string,
+    holdId:        row.hold_id as string,
+    repairedById:  row.repaired_by_id as string,
+    repairedAt:    row.repaired_at as string,
+    notes:         (row.notes as string) ?? '',
+  };
+}
+
 function mapHold(row: Record<string, unknown>): Hold {
   const releases = row.releases as Record<string, unknown>[] | undefined;
+  const repairs  = row.repairs  as Record<string, unknown>[] | undefined;
   return {
     id:                 row.id as string,
     vehicleId:          row.vehicle_id as string,
@@ -45,6 +56,7 @@ function mapHold(row: Record<string, unknown>): Hold {
     photos:             (row.photos as string[]) ?? [],
     status:             row.status as HoldStatus,
     release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
+    repair:             repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
   };
 }
 
@@ -83,6 +95,7 @@ interface GarageContextValue {
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
+  markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -96,7 +109,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       const [{ data: vData }, { data: hData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
-        supabase.from('holds').select('*, releases(*)').order('flagged_at', { ascending: false }),
+        supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
       ]);
       setVehicles((vData ?? []).map(mapVehicle));
       setHolds((hData ?? []).map(mapHold));
@@ -229,12 +242,40 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     ));
   };
 
+  const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
+    const repairId = `rep${Date.now()}`;
+    const fullRepair: Repair = { ...repair, id: repairId };
+
+    await supabase.from('repairs').insert({
+      id:              repairId,
+      hold_id:         holdId,
+      repaired_by_id:  repair.repairedById,
+      repaired_at:     repair.repairedAt,
+      notes:           repair.notes,
+    });
+    await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
+
+    const hold = holds.find(h => h.id === holdId);
+    if (hold) {
+      await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+    }
+
+    setHolds(prev => prev.map(h =>
+      h.id === holdId ? { ...h, status: 'REPAIRED' as const, repair: fullRepair } : h
+    ));
+    if (hold) {
+      setVehicles(prev => prev.map(v =>
+        v.id === hold.vehicleId ? { ...v, status: 'CLEAR' as const } : v
+      ));
+    }
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold,
-      addVehicle, addHold, addRelease, addPhotosToHold,
+      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired,
     }}>
       {children}
     </GarageContext.Provider>

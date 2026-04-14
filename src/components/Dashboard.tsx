@@ -17,10 +17,11 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
   const { vehicles, holds, loading } = useGarage();
   const [search, setSearch] = useState('');
 
-  const held = vehicles.filter(v => v.status === 'HELD').length;
+  const held        = vehicles.filter(v => v.status === 'HELD').length;
   const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
-  const returned = vehicles.filter(v => v.status === 'RETURNED').length;
+  const returned    = vehicles.filter(v => v.status === 'RETURNED').length;
   const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
+  const cleared     = vehicles.filter(v => v.status === 'CLEAR').length;
 
   const filtered = vehicles.filter(v =>
     search === '' ||
@@ -55,7 +56,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
       <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
             <p className="text-2xl font-bold text-red-600 dark:text-red-500">{held}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Currently Held</p>
@@ -69,8 +70,12 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Pre-existing</p>
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-500">{returned}</p>
+            <p className="text-2xl font-bold text-gray-500 dark:text-gray-400">{returned}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Returned</p>
+          </div>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+            <p className="text-2xl font-bold text-green-600 dark:text-green-500">{cleared}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Repaired</p>
           </div>
         </div>
 

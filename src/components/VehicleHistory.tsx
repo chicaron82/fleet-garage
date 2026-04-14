@@ -49,8 +49,11 @@ function fmtDate(iso: string) {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold } = useGarage();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired } = useGarage();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null); // holdId
+  const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null); // holdId
+  const [repairNotes, setRepairNotes] = useState('');
+  const [repairing, setRepairing] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null); // holdId
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -112,7 +115,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
 
           {/* Actions */}
           <div className="mt-4 flex gap-2 flex-wrap">
-            {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING') && (
+            {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING' || vehicle.status === 'CLEAR') && (
               <button
                 onClick={() => onNewHold(vehicleId)}
                 className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
@@ -121,12 +124,20 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </button>
             )}
             {activeHold && canRelease(user!.role) && (
-              <button
-                onClick={() => setShowReleaseForm(activeHold.id)}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-              >
-                Approve Release
-              </button>
+              <>
+                <button
+                  onClick={() => { setShowReleaseForm(activeHold.id); setShowRepairConfirm(null); }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                >
+                  Approve Release
+                </button>
+                <button
+                  onClick={() => { setShowRepairConfirm(activeHold.id); setShowReleaseForm(null); }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                >
+                  ✓ Mark as Repaired
+                </button>
+              </>
             )}
             {activeHold && !canRelease(user!.role) && (
               <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm rounded-lg">
@@ -143,6 +154,58 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             vehicleId={vehicleId}
             onClose={() => setShowReleaseForm(null)}
           />
+        )}
+
+        {/* Repair Confirm */}
+        {showRepairConfirm && (
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/40 p-5 space-y-4">
+            <h2 className="text-xs font-semibold text-green-800 dark:text-green-300 uppercase tracking-widest">
+              Confirm Repair
+            </h2>
+            <p className="text-sm text-green-900 dark:text-green-200">
+              This marks the damage as fully repaired. The vehicle will be set to <strong>Clear</strong> and returned to service.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">
+                Notes (optional)
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Repair details, shop, completion date…"
+                value={repairNotes}
+                onChange={e => setRepairNotes(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-green-300 dark:border-green-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowRepairConfirm(null); setRepairNotes(''); }}
+                className="flex-1 py-2.5 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 font-medium text-sm rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={repairing}
+                onClick={async () => {
+                  setRepairing(true);
+                  await markRepaired(showRepairConfirm, {
+                    holdId: showRepairConfirm,
+                    repairedById: user!.id,
+                    repairedAt: new Date().toISOString(),
+                    notes: repairNotes.trim(),
+                  });
+                  setShowRepairConfirm(null);
+                  setRepairNotes('');
+                  setRepairing(false);
+                }}
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+              >
+                {repairing ? 'Saving…' : 'Confirm Repair'}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Damage History */}
@@ -243,6 +306,20 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                     </div>
                   );
                 })()}
+                {hold.repair && (
+                  <div className="p-4 border-t bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40">
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-green-800 dark:text-green-300">
+                      ✓ Damage Repaired
+                    </p>
+                    <p className="text-xs text-green-900 dark:text-green-200">
+                      Confirmed by <span className="font-semibold">{getName(hold.repair.repairedById)}</span>
+                      {' '}· {getEmpId(hold.repair.repairedById)} ({getRole(hold.repair.repairedById)}) · {fmt(hold.repair.repairedAt)}
+                    </p>
+                    {hold.repair.notes && (
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-1 italic">"{hold.repair.notes}"</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

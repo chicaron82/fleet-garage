@@ -20,7 +20,7 @@ export interface User {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING';
+export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
 
 export interface Vehicle {
   id: string;
@@ -35,7 +35,7 @@ export interface Vehicle {
 
 // ── Holds ────────────────────────────────────────────────────────────────────
 
-export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED';
+export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
 export type HoldType = 'damage' | 'detail';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 
@@ -57,6 +57,7 @@ export interface Hold {
   photos?: string[];
   status: HoldStatus;
   release?: Release;
+  repair?: Repair;
 }
 
 // ── Releases ─────────────────────────────────────────────────────────────────
@@ -72,5 +73,15 @@ export interface Release {
   reason: string;
   expectedReturn?: string;   // ISO date — required for EXCEPTION, omitted for PRE_EXISTING
   actualReturn?: string;     // ISO date — set when vehicle is returned
+  notes: string;
+}
+
+// ── Repairs ──────────────────────────────────────────────────────────────────
+
+export interface Repair {
+  id: string;
+  holdId: string;
+  repairedById: string;   // User.id — Manager only
+  repairedAt: string;     // ISO timestamp
   notes: string;
 }
