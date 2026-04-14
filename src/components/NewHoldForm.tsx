@@ -18,6 +18,7 @@ const DAMAGE_PRESETS = [
   'Dent — major / crumple',
   'Cracked windshield',
   'Windshield chip',
+  'Windshield chip — repaired (scar remaining)',
   'Broken glass (window / mirror)',
   'Bumper damage — cosmetic',
   'Bumper damage — structural',
@@ -61,7 +62,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
 
   const [holdType, setHoldType] = useState<HoldType>('damage');
-  const [damageType, setDamageType] = useState('');
+  const [damageTypes, setDamageTypes] = useState<string[]>([]);
   const [customDamage, setCustomDamage] = useState('');
   const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
   const [notes, setNotes] = useState('');
@@ -86,9 +87,18 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
   const finalDamage = holdType === 'detail'
     ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}`
-    : damageType === 'Other' ? customDamage.trim() : damageType;
+    : damageTypes
+        .map(t => t === 'Other' ? customDamage.trim() : t)
+        .filter(Boolean)
+        .join('; ');
   const canSubmit = selectedVehicle && !alreadyHeld && !submitting &&
     (holdType === 'damage' ? !!finalDamage : !!detailReason);
+
+  const toggleDamageType = (preset: string) => {
+    setDamageTypes(prev =>
+      prev.includes(preset) ? prev.filter(p => p !== preset) : [...prev, preset]
+    );
+  };
 
   const handleSelectVehicle = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
@@ -236,7 +246,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setHoldType('detail'); setDamageType(''); setCustomDamage(''); }}
+                  onClick={() => { setHoldType('detail'); setDamageTypes([]); setCustomDamage(''); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     holdType === 'detail'
                       ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
@@ -251,17 +261,24 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               {/* Damage Type */}
               {holdType === 'damage' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Damage Type *
-                </label>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                    Damage Type *
+                  </label>
+                  {damageTypes.length > 0 && (
+                    <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                      {damageTypes.length} selected
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {DAMAGE_PRESETS.map(preset => (
                     <button
                       key={preset}
                       type="button"
-                      onClick={() => setDamageType(preset)}
+                      onClick={() => toggleDamageType(preset)}
                       className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                        damageType === preset
+                        damageTypes.includes(preset)
                           ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
                           : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
                       }`}
@@ -270,7 +287,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     </button>
                   ))}
                 </div>
-                {damageType === 'Other' && (
+                {damageTypes.includes('Other') && (
                   <input
                     type="text"
                     placeholder="Describe the damage…"
