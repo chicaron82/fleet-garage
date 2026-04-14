@@ -27,30 +27,20 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   });
 
   const [avatarBase64, setAvatarState] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState<string | undefined>(user?.id);
 
-  // Load user data on login
-  useEffect(() => {
+  // Derive state from props to avoid standard React cascading renders via useEffect
+  if (user?.id !== prevUserId) {
+    setPrevUserId(user?.id);
     if (!user) {
-      document.documentElement.classList.remove('dark');
-      return;
-    }
-    
-    // Load config
-    const savedPrefs = localStorage.getItem(`fg_prefs_${user.id}`);
-    if (savedPrefs) {
-      setPrefs(JSON.parse(savedPrefs));
+      setPrefs({ darkMode: false, notifyNewFlags: true, notifyReleases: true });
+      setAvatarState(null);
     } else {
-      setPrefs({
-        darkMode: false,
-        notifyNewFlags: true,
-        notifyReleases: true,
-      });
+      const savedPrefs = localStorage.getItem(`fg_prefs_${user.id}`);
+      setPrefs(savedPrefs ? JSON.parse(savedPrefs) : { darkMode: false, notifyNewFlags: true, notifyReleases: true });
+      setAvatarState(localStorage.getItem(`fg_avatar_${user.id}`) || null);
     }
-
-    // Load avatar
-    const savedAvatar = localStorage.getItem(`fg_avatar_${user.id}`);
-    setAvatarState(savedAvatar || null);
-  }, [user]);
+  }
 
   // Handle Dark mode DOM changes globally
   useEffect(() => {
@@ -89,6 +79,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePreferences() {
   const ctx = useContext(PreferencesContext);
   if (!ctx) throw new Error('usePreferences must be used within a PreferencesProvider');
