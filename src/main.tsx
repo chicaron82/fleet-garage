@@ -4,15 +4,12 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { PreferencesProvider } from './context/PreferencesContext.tsx'
-import { GarageProvider } from './context/GarageContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
       <PreferencesProvider>
-        <GarageProvider>
-          <App />
-        </GarageProvider>
+        <App />
       </PreferencesProvider>
     </AuthProvider>
   </StrictMode>,

@@ -1,11 +1,9 @@
-import { useState, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useGarage } from '../context/GarageContext';
-import type { HoldType, DetailReason } from '../types';
+import { useNewHold } from '../hooks/useNewHold';
 import { DETAIL_REASON_LABELS } from '../types';
+import type { DetailReason } from '../types';
 
 interface Props {
-  vehicleId?: string;   // pre-selected from VehicleHistory → "Flag Damage"
+  vehicleId?: string;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
   onRegisterNew?: (prefill?: string) => void;
@@ -31,99 +29,13 @@ const DAMAGE_PRESETS = [
   'Other',
 ];
 
-const MAX_PHOTOS = 4;
-
-function compressImage(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxWidth = 800;
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
-      };
-      img.src = e.target!.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
-  const { user } = useAuth();
-  const { vehicles, getActiveHold, addHold } = useGarage();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [unitSearch, setUnitSearch] = useState('');
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
-
-  const [holdType, setHoldType] = useState<HoldType>('damage');
-  const [damageTypes, setDamageTypes] = useState<string[]>([]);
-  const [customDamage, setCustomDamage] = useState('');
-  const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
-  const [notes, setNotes] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  const selectedVehicle = selectedVehicleId
-    ? vehicles.find(v => v.id === selectedVehicleId)
-    : null;
-
-  const alreadyHeld = selectedVehicleId
-    ? !!getActiveHold(selectedVehicleId)
-    : false;
-
-  const searchResults = unitSearch.trim().length >= 2
-    ? vehicles.filter(v =>
-        v.unitNumber.toUpperCase().includes(unitSearch) ||
-        v.licensePlate.toUpperCase().includes(unitSearch)
-      ).slice(0, 5)
-    : [];
-
-  const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
-  const finalDamage = holdType === 'detail'
-    ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}`
-    : damageTypes
-        .map(t => t === 'Other' ? customDamage.trim() : t)
-        .filter(Boolean)
-        .join('; ');
-  const canSubmit = selectedVehicle && !alreadyHeld && !submitting &&
-    (holdType === 'damage' ? !!finalDamage : !!detailReason);
-
-  const toggleDamageType = (preset: string) => {
-    setDamageTypes(prev =>
-      prev.includes(preset) ? prev.filter(p => p !== preset) : [...prev, preset]
-    );
-  };
-
-  const handleSelectVehicle = (vehicleId: string) => {
-    setSelectedVehicleId(vehicleId);
-    setUnitSearch('');
-  };
-
-  const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file);
-    setPhotos(prev => [...prev, compressed]);
-    e.target.value = '';
-  };
+  const h = useNewHold(preselectedId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !selectedVehicle) return;
-
-    setSubmitting(true);
-    try {
-      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdType, detailReason || undefined);
-      onSuccess(selectedVehicle.id);
-    } catch {
-      setSubmitting(false);
-    }
+    const id = await h.submit();
+    if (id) onSuccess(id);
   };
 
   return (
@@ -131,7 +43,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
       <nav className="bg-white dark:bg-gray-900 transition-colors border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={onBack}
-          className="text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 transition cursor-pointer text-sm flex items-center gap-1"
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer text-sm flex items-center gap-1"
         >
           ← Back
         </button>
@@ -148,27 +60,27 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               Vehicle
             </h2>
 
-            {selectedVehicle ? (
+            {h.selectedVehicle ? (
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedVehicle.unitNumber}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-0.5">
-                      {selectedVehicle.year} {selectedVehicle.make} {selectedVehicle.model} · {selectedVehicle.color}
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{h.selectedVehicle.unitNumber}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      {h.selectedVehicle.year} {h.selectedVehicle.make} {h.selectedVehicle.model} · {h.selectedVehicle.color}
                     </p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {selectedVehicle.licensePlate}</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {h.selectedVehicle.licensePlate}</p>
                   </div>
-                  {!preselectedId && (
+                  {!h.preselectedId && (
                     <button
                       type="button"
-                      onClick={() => setSelectedVehicleId(null)}
-                      className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition cursor-pointer"
+                      onClick={h.clearVehicle}
+                      className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
                     >
                       Change
                     </button>
                   )}
                 </div>
-                {alreadyHeld && (
+                {h.alreadyHeld && (
                   <div className="mt-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg text-xs text-red-700 dark:text-red-400">
                     This vehicle already has an active hold. Only one active hold per vehicle is allowed.
                   </div>
@@ -179,36 +91,36 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 <input
                   type="text"
                   placeholder="Search by unit # or plate…"
-                  value={unitSearch}
-                  onChange={e => setUnitSearch(e.target.value.toUpperCase())}
+                  value={h.unitSearch}
+                  onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
                   autoFocus
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
                 />
-                {searchResults.length > 0 && (
+                {h.searchResults.length > 0 && (
                   <div className="space-y-1">
-                    {searchResults.map(v => (
+                    {h.searchResults.map(v => (
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => handleSelectVehicle(v.id)}
+                        onClick={() => h.selectVehicle(v.id)}
                         className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
                       >
                         <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
-                        <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{v.licensePlate}</span>
+                        <span className="text-gray-500 dark:text-gray-400">{v.licensePlate}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
-                        <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{v.year} {v.make} {v.model}</span>
+                        <span className="text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
                       </button>
                     ))}
                   </div>
                 )}
-                {noResults && (
+                {h.noResults && (
                   <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">"{unitSearch}" not in the system.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">"{h.unitSearch}" not in the system.</p>
                     {onRegisterNew && (
                       <button
                         type="button"
-                        onClick={() => onRegisterNew(unitSearch)}
+                        onClick={() => onRegisterNew(h.unitSearch)}
                         className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer whitespace-nowrap ml-3"
                       >
                         + Add to ledger →
@@ -216,7 +128,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     )}
                   </div>
                 )}
-                {unitSearch.trim().length < 2 && (
+                {h.unitSearch.trim().length < 2 && (
                   <p className="text-xs text-gray-400 dark:text-gray-500">Type at least 2 characters to search.</p>
                 )}
               </div>
@@ -224,7 +136,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
           </div>
 
           {/* Hold Details */}
-          {selectedVehicle && !alreadyHeld && (
+          {h.selectedVehicle && !h.alreadyHeld && (
             <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
               <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                 What are you flagging?
@@ -234,11 +146,11 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => { setHoldType('damage'); setDetailReason(''); }}
+                  onClick={() => h.switchHoldType('damage')}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
-                    holdType === 'damage'
+                    h.holdType === 'damage'
                       ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
                   <span className="block font-semibold">Damage</span>
@@ -246,11 +158,11 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setHoldType('detail'); setDamageTypes([]); setCustomDamage(''); }}
+                  onClick={() => h.switchHoldType('detail')}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
-                    holdType === 'detail'
+                    h.holdType === 'detail'
                       ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
                   <span className="block font-semibold">Detail Issue</span>
@@ -259,15 +171,15 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               </div>
 
               {/* Damage Type */}
-              {holdType === 'damage' && (
+              {h.holdType === 'damage' && (
               <div>
                 <div className="flex items-baseline justify-between mb-1.5">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                     Damage Type *
                   </label>
-                  {damageTypes.length > 0 && (
+                  {h.damageTypes.length > 0 && (
                     <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
-                      {damageTypes.length} selected
+                      {h.damageTypes.length} selected
                     </span>
                   )}
                 </div>
@@ -276,23 +188,23 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       key={preset}
                       type="button"
-                      onClick={() => toggleDamageType(preset)}
+                      onClick={() => h.toggleDamageType(preset)}
                       className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                        damageTypes.includes(preset)
+                        h.damageTypes.includes(preset)
                           ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
-                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                       }`}
                     >
                       {preset}
                     </button>
                   ))}
                 </div>
-                {damageTypes.includes('Other') && (
+                {h.damageTypes.includes('Other') && (
                   <input
                     type="text"
                     placeholder="Describe the damage…"
-                    value={customDamage}
-                    onChange={e => setCustomDamage(e.target.value)}
+                    value={h.customDamage}
+                    onChange={e => h.setCustomDamage(e.target.value)}
                     className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
                   />
                 )}
@@ -300,7 +212,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               )}
 
               {/* Detail Reason */}
-              {holdType === 'detail' && (
+              {h.holdType === 'detail' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Detail Reason *
@@ -310,11 +222,11 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setDetailReason(key)}
+                      onClick={() => h.setDetailReason(key)}
                       className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
-                        detailReason === key
+                        h.detailReason === key
                           ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
-                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                       }`}
                     >
                       {label}
@@ -332,8 +244,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 <textarea
                   rows={3}
                   placeholder="Location, customer context, circumstances…"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
+                  value={h.notes}
+                  onChange={e => h.setNotes(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
                 />
               </div>
@@ -341,10 +253,10 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               {/* Photos */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Photos (optional · max {MAX_PHOTOS})
+                  Photos (optional · max {h.MAX_PHOTOS})
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {photos.map((src, i) => (
+                  {h.photos.map((src, i) => (
                     <div key={i} className="relative">
                       <img
                         src={src}
@@ -353,17 +265,17 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       />
                       <button
                         type="button"
-                        onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                        onClick={() => h.removePhoto(i)}
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
                       >
                         ×
                       </button>
                     </div>
                   ))}
-                  {photos.length < MAX_PHOTOS && (
+                  {h.photos.length < h.MAX_PHOTOS && (
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => h.fileInputRef.current?.click()}
                       className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
                     >
                       <span className="text-xl leading-none">+</span>
@@ -372,17 +284,17 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   )}
                 </div>
                 <input
-                  ref={fileInputRef}
+                  ref={h.fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handlePhotoAdd}
+                  onChange={h.handlePhotoAdd}
                   className="hidden"
                 />
               </div>
 
               {/* Flagging as */}
-              <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                Flagging as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
+              <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                Flagging as <span className="font-medium text-gray-700 dark:text-gray-300">{h.user.name}</span> · {h.user.role}
               </div>
             </div>
           )}
@@ -392,16 +304,16 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             <button
               type="button"
               onClick={onBack}
-              className="flex-1 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors transition cursor-pointer"
+              className="flex-1 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!canSubmit}
-              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 dark:text-gray-500 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+              disabled={!h.canSubmit}
+              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
-              {submitting ? 'Flagging…' : 'Flag Damage'}
+              {h.submitting ? 'Flagging…' : 'Flag Damage'}
             </button>
           </div>
 

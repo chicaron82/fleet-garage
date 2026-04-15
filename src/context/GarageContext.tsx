@@ -131,8 +131,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status'>): Promise<string> => {
-    const id = `v${Date.now()}`;
-    await supabase.from('vehicles').insert({
+    const id = crypto.randomUUID();
+    const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,
       license_plate: vehicle.licensePlate,
@@ -142,6 +142,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       color:         vehicle.color,
       status:        'HELD',
     });
+    if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD' };
     setVehicles(prev => [newVehicle, ...prev]);
     return id;
@@ -156,7 +157,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     holdType: HoldType = 'damage',
     detailReason?: DetailReason,
   ) => {
-    const holdId = `h${Date.now()}`;
+    const holdId = crypto.randomUUID();
     const flaggedAt = new Date().toISOString();
 
     // Upload photos, collect public URLs
@@ -166,7 +167,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       if (url) photoUrls.push(url);
     }
 
-    await supabase.from('holds').insert({
+    const { error } = await supabase.from('holds').insert({
       id:                 holdId,
       vehicle_id:         vehicleId,
       hold_type:          holdType,
@@ -178,7 +179,10 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       photos:             photoUrls,
       status:             'ACTIVE',
     });
-    await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
+    if (error) throw new Error(`Failed to add hold: ${error.message}`);
+
+    const { error: vError } = await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
+    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
     const newHold: Hold = {
       id: holdId, vehicleId, holdType, detailReason,
@@ -190,13 +194,13 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
-    const releaseId = `r${Date.now()}`;
+    const releaseId = crypto.randomUUID();
     const fullRelease: Release = { ...release, id: releaseId };
 
     const newVehicleStatus: VehicleStatus =
       release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
 
-    await supabase.from('releases').insert({
+    const { error } = await supabase.from('releases').insert({
       id:              releaseId,
       hold_id:         holdId,
       approved_by_id:  release.approvedById,
@@ -207,11 +211,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       actual_return:   release.actualReturn ?? null,
       notes:           release.notes,
     });
-    await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
+    if (error) throw new Error(`Failed to add release: ${error.message}`);
+
+    const { error: hError } = await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
+    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
 
     const hold = holds.find(h => h.id === holdId);
     if (hold) {
-      await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
+      const { error: vError } = await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
+      if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
     }
 
     setHolds(prev => prev.map(h =>
@@ -236,28 +244,33 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     if (uploadedUrls.length === 0) return;
 
     const merged = [...(hold.photos ?? []), ...uploadedUrls];
-    await supabase.from('holds').update({ photos: merged }).eq('id', holdId);
+    const { error } = await supabase.from('holds').update({ photos: merged }).eq('id', holdId);
+    if (error) throw new Error(`Failed to update photos: ${error.message}`);
     setHolds(prev => prev.map(h =>
       h.id === holdId ? { ...h, photos: merged } : h
     ));
   };
 
   const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
-    const repairId = `rep${Date.now()}`;
+    const repairId = crypto.randomUUID();
     const fullRepair: Repair = { ...repair, id: repairId };
 
-    await supabase.from('repairs').insert({
+    const { error } = await supabase.from('repairs').insert({
       id:              repairId,
       hold_id:         holdId,
       repaired_by_id:  repair.repairedById,
       repaired_at:     repair.repairedAt,
       notes:           repair.notes,
     });
-    await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
+    if (error) throw new Error(`Failed to add repair: ${error.message}`);
+
+    const { error: hError } = await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
+    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
 
     const hold = holds.find(h => h.id === holdId);
     if (hold) {
-      await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+      const { error: vError } = await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+      if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
     }
 
     setHolds(prev => prev.map(h =>
