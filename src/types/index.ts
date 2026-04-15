@@ -97,7 +97,8 @@ export type Screen =
   | { name: 'new-hold'; vehicleId?: string }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
   | { name: 'trips' }
+  | { name: 'check-in' }
   | { name: 'inventory' }
   | { name: 'lost-and-found' };
 
-export type Module = 'fleet-garage' | 'trips' | 'inventory' | 'lost-and-found';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found';

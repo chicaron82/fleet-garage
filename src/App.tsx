@@ -10,6 +10,7 @@ import { RegisterVehicleForm } from './components/RegisterVehicleForm';
 import { TripsView } from './components/TripsView';
 import { InventoryView } from './components/InventoryView';
 import { LostAndFoundView } from './components/LostAndFoundView';
+import { CheckInView } from './components/CheckInView';
 import { LogoutConfirm } from './components/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
 import type { Screen } from './types';
@@ -86,6 +87,8 @@ export default function App() {
             onSuccess={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
           />
         );
+      case 'check-in':
+        return <CheckInView />;
       case 'trips':
         return <TripsView />;
       case 'inventory':
