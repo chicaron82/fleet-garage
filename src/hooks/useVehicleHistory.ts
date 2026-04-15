@@ -25,7 +25,7 @@ export function useVehicleHistory(vehicleId: string) {
     ? holds.find(h => h.status === 'RELEASED' && !h.repair)
     : undefined;
 
-  const addPhotoClick = (holdId: string, ref: React.RefObject<HTMLInputElement>) => {
+  const addPhotoClick = (holdId: string, ref: React.RefObject<HTMLInputElement | null>) => {
     pendingHoldId.current = holdId;
     ref.current?.click();
   };
