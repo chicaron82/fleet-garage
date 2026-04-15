@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { canRelease } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -28,6 +29,7 @@ function fmtDate(iso: string) {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { vehicle } = h;
   if (!vehicle) return null;
@@ -215,7 +217,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                     {(hold.photos ?? []).length < MAX_PHOTOS && (
                       <button
                         type="button"
-                        onClick={() => h.addPhotoClick(hold.id)}
+                        onClick={() => h.addPhotoClick(hold.id, photoInputRef)}
                         disabled={h.uploadingFor === hold.id}
                         className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -248,7 +250,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
 
       {/* Hidden photo input */}
       <input
-        ref={h.photoInputRef}
+        ref={photoInputRef}
         type="file"
         accept="image/*"
         multiple

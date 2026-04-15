@@ -14,7 +14,6 @@ export function useVehicleHistory(vehicleId: string) {
   const [repairing, setRepairing] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const pendingHoldId = useRef<string | null>(null);
 
   const vehicle = getVehicle(vehicleId);
@@ -26,9 +25,9 @@ export function useVehicleHistory(vehicleId: string) {
     ? holds.find(h => h.status === 'RELEASED' && !h.repair)
     : undefined;
 
-  const addPhotoClick = (holdId: string) => {
+  const addPhotoClick = (holdId: string, ref: React.RefObject<HTMLInputElement>) => {
     pendingHoldId.current = holdId;
-    photoInputRef.current?.click();
+    ref.current?.click();
   };
 
   const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,7 +94,6 @@ export function useVehicleHistory(vehicleId: string) {
     repairNotes, setRepairNotes, repairing,
     lightboxSrc, setLightboxSrc,
     uploadingFor, addPhotoClick, handlePhotoSelected,
-    photoInputRef,
     getName, getRole, getEmpId,
   };
 }

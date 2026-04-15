@@ -19,20 +19,22 @@ export default function App() {
   const { user, logout } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: 'dashboard' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [prevUserId, setPrevUserId] = useState(user?.id);
 
   const navigate = useCallback((next: Screen) => {
     window.history.pushState(next, '');
     setScreen(next);
   }, []);
 
-  // Seed the initial history entry on mount / login
-  useEffect(() => {
+  // Seed the initial history entry on login (derived state — avoids setState-in-effect)
+  if (user?.id !== prevUserId) {
+    setPrevUserId(user?.id);
     if (user) {
       const defaultScreen = getDefaultScreenForRole(user.role);
       window.history.replaceState(defaultScreen, '');
       setScreen(defaultScreen);
     }
-  }, [user]);
+  }
 
   // Handle Android / browser back button
   useEffect(() => {

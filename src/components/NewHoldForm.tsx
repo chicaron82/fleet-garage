@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useNewHold } from '../hooks/useNewHold';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { DetailReason } from '../types';
@@ -31,6 +32,7 @@ const DAMAGE_PRESETS = [
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,7 +277,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   {h.photos.length < h.MAX_PHOTOS && (
                     <button
                       type="button"
-                      onClick={() => h.fileInputRef.current?.click()}
+                      onClick={() => fileInputRef.current?.click()}
                       className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
                     >
                       <span className="text-xl leading-none">+</span>
@@ -284,7 +286,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   )}
                 </div>
                 <input
-                  ref={h.fileInputRef}
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={h.handlePhotoAdd}

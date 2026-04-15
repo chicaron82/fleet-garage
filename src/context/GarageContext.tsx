@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -133,11 +133,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
 
-  const staleHolds = holds.filter(h => {
-    if (h.status !== 'ACTIVE') return false;
-    const ageMs = Date.now() - new Date(h.flaggedAt).getTime();
-    return ageMs > 48 * 60 * 60 * 1000;
-  });
+  const staleHolds = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    return holds.filter(h => {
+      if (h.status !== 'ACTIVE') return false;
+      const ageMs = now - new Date(h.flaggedAt).getTime();
+      return ageMs > 48 * 60 * 60 * 1000;
+    });
+  }, [holds]);
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status'>): Promise<string> => {
     const id = crypto.randomUUID();
@@ -306,6 +310,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGarage(): GarageContextValue {
   const ctx = useContext(GarageContext);
   if (!ctx) throw new Error('useGarage must be used within GarageProvider');

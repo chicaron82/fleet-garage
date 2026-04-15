@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
@@ -10,7 +10,6 @@ const MAX_PHOTOS = 4;
 export function useNewHold(preselectedId?: string) {
   const { user } = useAuth();
   const { vehicles, getActiveHold, addHold } = useGarage();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
@@ -93,7 +92,6 @@ export function useNewHold(preselectedId?: string) {
 
   return {
     user: user!,
-    fileInputRef,
     unitSearch, setUnitSearch,
     selectedVehicle, alreadyHeld, preselectedId,
     searchResults, noResults,

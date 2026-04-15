@@ -34,7 +34,7 @@ const DETAIL_EXCEPTION_REASONS = [
   'Sent for professional detail',
 ];
 
-export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
+export function ReleaseForm({ holdId, onClose }: Props) {
   const { user } = useAuth();
   const { addRelease, holds } = useGarage();
 
