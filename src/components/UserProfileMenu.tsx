@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 
-export function UserProfileMenu() {
+export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
   const { user, logout } = useAuth();
   const { prefs, updatePref, avatarBase64, setAvatarBase64 } = usePreferences();
   
@@ -56,7 +56,9 @@ export function UserProfileMenu() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute w-56 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 animate-in fade-in duration-200 ${
+          dropUp ? 'bottom-full mb-2 right-0' : 'top-full mt-2 right-0'
+        }`}>
           <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-1">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{user?.name}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{user?.employeeId}</p>

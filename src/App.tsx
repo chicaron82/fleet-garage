@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './context/AuthContext';
 import { GarageProvider } from './context/GarageContext';
+import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { VehicleHistory } from './components/VehicleHistory';
 import { NewHoldForm } from './components/NewHoldForm';
 import { RegisterVehicleForm } from './components/RegisterVehicleForm';
+import { TripsView } from './components/TripsView';
+import { InventoryView } from './components/InventoryView';
+import { LostAndFoundView } from './components/LostAndFoundView';
 import { LogoutConfirm } from './components/LogoutConfirm';
-
-export type Screen =
-  | { name: 'dashboard' }
-  | { name: 'vehicle'; vehicleId: string }
-  | { name: 'new-hold'; vehicleId?: string }
-  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string };
+import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
+import type { Screen } from './types';
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -27,8 +27,9 @@ export default function App() {
   // Seed the initial history entry on mount / login
   useEffect(() => {
     if (user) {
-      window.history.replaceState({ name: 'dashboard' }, '');
-      setScreen({ name: 'dashboard' });
+      const defaultScreen = getDefaultScreenForRole(user.role);
+      window.history.replaceState(defaultScreen, '');
+      setScreen(defaultScreen);
     }
   }, [user]);
 
@@ -36,9 +37,11 @@ export default function App() {
   useEffect(() => {
     const handlePop = (e: PopStateEvent) => {
       const state = e.state as Screen | null;
-      if (!state || state.name === 'dashboard') {
-        window.history.pushState({ name: 'dashboard' }, '');
-        setScreen({ name: 'dashboard' });
+      const defaultName = user ? getDefaultScreenForRole(user.role).name : 'dashboard';
+      if (!state || state.name === defaultName) {
+        const def = user ? getDefaultScreenForRole(user.role) : { name: 'dashboard' as const };
+        window.history.pushState(def, '');
+        setScreen(def);
         setShowLogoutConfirm(true);
       } else {
         setScreen(state);
@@ -46,9 +49,11 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
-  }, []);
+  }, [user]);
 
   if (!user) return <LoginScreen />;
+
+  const activeModule = getActiveModule(screen);
 
   const renderScreen = () => {
     switch (screen.name) {
@@ -81,6 +86,12 @@ export default function App() {
             onSuccess={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
           />
         );
+      case 'trips':
+        return <TripsView />;
+      case 'inventory':
+        return <InventoryView />;
+      case 'lost-and-found':
+        return <LostAndFoundView />;
       default:
         return (
           <Dashboard
@@ -94,7 +105,9 @@ export default function App() {
 
   return (
     <GarageProvider>
-      {renderScreen()}
+      <AppShell activeModule={activeModule} onNavigate={navigate}>
+        {renderScreen()}
+      </AppShell>
       {showLogoutConfirm && (
         <LogoutConfirm
           onConfirm={() => { setShowLogoutConfirm(false); logout(); }}

@@ -1,6 +1,6 @@
 // ── Roles ────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager';
+export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'Driver';
 
 export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager'];
 
@@ -88,3 +88,16 @@ export interface Repair {
   repairedAt: string;     // ISO timestamp
   notes: string;
 }
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+
+export type Screen =
+  | { name: 'dashboard' }
+  | { name: 'vehicle'; vehicleId: string }
+  | { name: 'new-hold'; vehicleId?: string }
+  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
+  | { name: 'trips' }
+  | { name: 'inventory' }
+  | { name: 'lost-and-found' };
+
+export type Module = 'fleet-garage' | 'trips' | 'inventory' | 'lost-and-found';

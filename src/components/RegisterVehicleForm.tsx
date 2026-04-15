@@ -79,7 +79,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+    <div className="transition-colors">
       {/* Nav */}
       <nav className="bg-white dark:bg-gray-900 transition-colors border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button

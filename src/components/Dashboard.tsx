@@ -4,7 +4,6 @@ import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import type { UserRole, Hold, Vehicle } from '../types';
 import { StatusBadge } from './StatusBadge';
-import { UserProfileMenu } from './UserProfileMenu';
 import { USERS } from '../data/mock';
 
 interface Props {
@@ -40,21 +39,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
     USERS.find(u => u.id === userId)?.name ?? 'Unknown';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top Nav */}
-      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10 transition-colors">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors">
-            <span className="text-black font-bold text-xs">FG</span>
-          </div>
-          <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <UserProfileMenu />
-        </div>
-      </nav>
-
-      <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} />
@@ -146,7 +131,6 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
           )}
         </div>
       </div>
-    </div>
   );
 }
 
