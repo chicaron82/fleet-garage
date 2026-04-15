@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod } from '../types';
 import { supabase } from '../lib/supabase';
 
 // ── Row mappers ───────────────────────────────────────────────────────────────
@@ -19,15 +19,17 @@ function mapVehicle(row: Record<string, unknown>): Vehicle {
 
 function mapRelease(row: Record<string, unknown>): Release {
   return {
-    id:             row.id as string,
-    holdId:         row.hold_id as string,
-    approvedById:   row.approved_by_id as string,
-    approvedAt:     row.approved_at as string,
-    releaseType:    ((row.release_type as string) ?? 'EXCEPTION') as ReleaseType,
-    reason:         row.reason as string,
-    expectedReturn: (row.expected_return as string) ?? undefined,
-    actualReturn:   (row.actual_return as string) ?? undefined,
-    notes:          row.notes as string,
+    id:                     row.id as string,
+    holdId:                 row.hold_id as string,
+    approvedById:           row.approved_by_id as string,
+    approvedAt:             row.approved_at as string,
+    releaseType:            ((row.release_type as string) ?? 'EXCEPTION') as ReleaseType,
+    releaseMethod:          ((row.release_method as string) ?? 'standard') as ReleaseMethod,
+    overrideAuthorization:  (row.override_authorization as string) ?? undefined,
+    reason:                 row.reason as string,
+    expectedReturn:         (row.expected_return as string) ?? undefined,
+    actualReturn:           (row.actual_return as string) ?? undefined,
+    notes:                  row.notes as string,
   };
 }
 
@@ -86,6 +88,7 @@ async function uploadPhoto(base64: string, holdId: string): Promise<string | nul
 interface GarageContextValue {
   vehicles: Vehicle[];
   holds: Hold[];
+  staleHolds: Hold[];
   loading: boolean;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
@@ -129,6 +132,12 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
+
+  const staleHolds = holds.filter(h => {
+    if (h.status !== 'ACTIVE') return false;
+    const ageMs = Date.now() - new Date(h.flaggedAt).getTime();
+    return ageMs > 48 * 60 * 60 * 1000;
+  });
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status'>): Promise<string> => {
     const id = crypto.randomUUID();
@@ -201,15 +210,17 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
 
     const { error } = await supabase.from('releases').insert({
-      id:              releaseId,
-      hold_id:         holdId,
-      approved_by_id:  release.approvedById,
-      approved_at:     release.approvedAt,
-      release_type:    release.releaseType ?? 'EXCEPTION',
-      reason:          release.reason,
-      expected_return: release.expectedReturn ?? null,
-      actual_return:   release.actualReturn ?? null,
-      notes:           release.notes,
+      id:                      releaseId,
+      hold_id:                 holdId,
+      approved_by_id:          release.approvedById,
+      approved_at:             release.approvedAt,
+      release_type:            release.releaseType ?? 'EXCEPTION',
+      release_method:          release.releaseMethod ?? 'standard',
+      override_authorization:  release.overrideAuthorization ?? null,
+      reason:                  release.reason,
+      expected_return:         release.expectedReturn ?? null,
+      actual_return:           release.actualReturn ?? null,
+      notes:                   release.notes,
     });
     if (error) throw new Error(`Failed to add release: ${error.message}`);
 
@@ -285,7 +296,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <GarageContext.Provider value={{
-      vehicles, holds, loading,
+      vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired,

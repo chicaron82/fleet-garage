@@ -8,6 +8,7 @@ export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
   const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired } = useGarage();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
+  const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
   const [repairNotes, setRepairNotes] = useState('');
   const [repairing, setRepairing] = useState(false);
@@ -19,6 +20,11 @@ export function useVehicleHistory(vehicleId: string) {
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
+
+  // For PRE_EXISTING vehicles: the most recent released hold without a repair record
+  const repairableHold = !activeHold && vehicle?.status === 'PRE_EXISTING'
+    ? holds.find(h => h.status === 'RELEASED' && !h.repair)
+    : undefined;
 
   const addPhotoClick = (holdId: string) => {
     pendingHoldId.current = holdId;
@@ -38,15 +44,24 @@ export function useVehicleHistory(vehicleId: string) {
 
   const openReleaseForm = (holdId: string) => {
     setShowReleaseForm(holdId);
+    setShowVerbalOverride(null);
+    setShowRepairConfirm(null);
+  };
+
+  const openVerbalOverride = (holdId: string) => {
+    setShowVerbalOverride(holdId);
+    setShowReleaseForm(null);
     setShowRepairConfirm(null);
   };
 
   const openRepairConfirm = (holdId: string) => {
     setShowRepairConfirm(holdId);
     setShowReleaseForm(null);
+    setShowVerbalOverride(null);
   };
 
   const closeReleaseForm = () => setShowReleaseForm(null);
+  const closeVerbalOverride = () => setShowVerbalOverride(null);
 
   const handleRepair = async () => {
     if (!showRepairConfirm) return;
@@ -73,8 +88,9 @@ export function useVehicleHistory(vehicleId: string) {
 
   return {
     user: user!,
-    vehicle, holds, activeHold,
+    vehicle, holds, activeHold, repairableHold,
     showReleaseForm, openReleaseForm, closeReleaseForm,
+    showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
     repairNotes, setRepairNotes, repairing,
     lightboxSrc, setLightboxSrc,

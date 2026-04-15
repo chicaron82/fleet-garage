@@ -74,6 +74,7 @@ export function ReleaseForm({ holdId, vehicleId: _vehicleId, onClose }: Props) {
         approvedById: user!.id,
         approvedAt: new Date().toISOString(),
         releaseType,
+        releaseMethod: 'standard',
         reason: finalReason,
         expectedReturn: needsReturn ? expectedReturn : undefined,
         notes,

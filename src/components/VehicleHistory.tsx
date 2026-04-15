@@ -2,6 +2,7 @@ import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { canRelease } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { ReleaseForm } from './ReleaseForm';
+import { VerbalOverrideForm } from './VerbalOverrideForm';
 import { HoldRecordFooter } from './HoldRecordFooter';
 
 interface Props {
@@ -85,10 +86,26 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 </button>
               </>
             )}
+            {!h.activeHold && h.repairableHold && canRelease(h.user.role) && (
+              <button
+                onClick={() => h.openRepairConfirm(h.repairableHold!.id)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+              >
+                ✓ Mark as Repaired
+              </button>
+            )}
             {h.activeHold && !canRelease(h.user.role) && (
-              <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm rounded-lg">
-                Held — management approval required to release
-              </div>
+              <>
+                <button
+                  onClick={() => h.openVerbalOverride(h.activeHold!.id)}
+                  className="px-4 py-2 border-2 border-orange-400 dark:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold text-sm rounded-lg transition cursor-pointer"
+                >
+                  Log Verbal Override
+                </button>
+                <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm rounded-lg">
+                  Held — management approval required to release
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -99,6 +116,14 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             holdId={h.showReleaseForm}
             vehicleId={vehicleId}
             onClose={h.closeReleaseForm}
+          />
+        )}
+
+        {/* Verbal Override Form */}
+        {h.showVerbalOverride && (
+          <VerbalOverrideForm
+            holdId={h.showVerbalOverride}
+            onClose={h.closeVerbalOverride}
           />
         )}
 

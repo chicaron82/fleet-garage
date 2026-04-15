@@ -63,15 +63,18 @@ export interface Hold {
 // ── Releases ─────────────────────────────────────────────────────────────────
 
 export type ReleaseType = 'EXCEPTION' | 'PRE_EXISTING';
+export type ReleaseMethod = 'standard' | 'verbal_override';
 
 export interface Release {
   id: string;
   holdId: string;
-  approvedById: string;      // User.id — Manager only
+  approvedById: string;      // User.id — Manager for standard, VSA executor for verbal
   approvedAt: string;        // ISO timestamp
   releaseType: ReleaseType;
+  releaseMethod: ReleaseMethod;
+  overrideAuthorization?: string; // Manager name — for verbal overrides (POC: free text)
   reason: string;
-  expectedReturn?: string;   // ISO date — required for EXCEPTION, omitted for PRE_EXISTING
+  expectedReturn?: string;   // ISO date — required for standard EXCEPTION, optional otherwise
   actualReturn?: string;     // ISO date — set when vehicle is returned
   notes: string;
 }

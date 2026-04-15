@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
+import type { UserRole, Hold, Vehicle } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { UserProfileMenu } from './UserProfileMenu';
 import { USERS } from '../data/mock';
@@ -14,7 +15,7 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, loading } = useGarage();
+  const { vehicles, holds, staleHolds, loading } = useGarage();
   const [search, setSearch] = useState('');
 
   const held        = vehicles.filter(v => v.status === 'HELD').length;
@@ -55,29 +56,18 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
 
       <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-500">{held}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Currently Held</p>
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-amber-500">{onException}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">On Exception</p>
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{preExisting}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Pre-existing</p>
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-gray-500 dark:text-gray-400">{returned}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Returned</p>
-          </div>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-500">{cleared}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Repaired</p>
-          </div>
-        </div>
+        {/* Stale Holds Alert — VSA, Lead VSA, and management */}
+        <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} />
+
+        {/* Summary Cards — role-aware */}
+        <SummaryCards
+          role={user!.role}
+          held={held}
+          onException={onException}
+          preExisting={preExisting}
+          returned={returned}
+          cleared={cleared}
+        />
 
         {/* Search + Add Hold */}
         <div className="flex gap-2">
@@ -156,6 +146,79 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Role-aware summary cards ─────────────────────────────────────────────────
+
+interface CardProps { value: number; label: string; color: string }
+
+function Card({ value, label, color }: CardProps) {
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function SummaryCards({ role, held, onException, preExisting, returned, cleared }: {
+  role: UserRole;
+  held: number;
+  onException: number;
+  preExisting: number;
+  returned: number;
+  cleared: number;
+}) {
+  // VSA & Lead VSA — no cards, just search and flag
+  if (role === 'VSA' || role === 'Lead VSA') return null;
+
+  // CSR & HIR — returned count only (they handle returns at the counter)
+  if (role === 'CSR' || role === 'HIR') {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
+        <Card value={returned} label="Returned" color="text-gray-500 dark:text-gray-400" />
+      </div>
+    );
+  }
+
+  // Management — full dashboard
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <Card value={held} label="Currently Held" color="text-red-600 dark:text-red-500" />
+      <Card value={onException} label="On Exception" color="text-amber-500" />
+      <Card value={preExisting} label="Pre-existing" color="text-blue-600 dark:text-blue-500" />
+      <Card value={returned} label="Returned" color="text-gray-500 dark:text-gray-400" />
+      <Card value={cleared} label="Repaired" color="text-green-600 dark:text-green-500" />
+    </div>
+  );
+}
+
+// ── Stale holds alert ───────────────────────────────────────────────────────
+
+function StaleHoldsAlert({ role, staleHolds, vehicles }: {
+  role: UserRole;
+  staleHolds: Hold[];
+  vehicles: Vehicle[];
+}) {
+  // Not relevant for CSR/HIR — they handle returns, not hold follow-up
+  if (role === 'CSR' || role === 'HIR') return null;
+  if (staleHolds.length === 0) return null;
+
+  const unitNumbers = staleHolds.map(h => {
+    const v = vehicles.find(v => v.id === h.vehicleId);
+    return v?.unitNumber ?? 'Unknown';
+  });
+
+  return (
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
+      <p className="font-semibold mb-1">
+        ⚠️ {staleHolds.length} hold{staleHolds.length > 1 ? 's have' : ' has'} been active for more than 48 hours
+      </p>
+      <p className="text-xs text-amber-700 dark:text-amber-400">
+        {unitNumbers.join(', ')}
+      </p>
     </div>
   );
 }
