@@ -1,25 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { canRelease, canVsaClear } from '../types';
-import type { Hold, Vehicle, DetailReason, UserRole } from '../types';
+import type { Hold, Vehicle, DetailReason } from '../types';
+import { getReEvalActions, type ReEvalAction } from '../lib/re-eval-actions';
 import { USERS } from '../data/mock';
 
-export type ReEvalAction = 'clear' | 're-hold' | 'escalate';
+export type { ReEvalAction };
 
 export interface ReEvalItem {
   hold: Hold;
   vehicle: Vehicle;
-}
-
-function getActions(detailReason: DetailReason, role: UserRole): ReEvalAction[] {
-  if (detailReason === 'pet-hair') {
-    return canRelease(role) ? ['clear', 're-hold'] : ['escalate'];
-  }
-  if (canVsaClear(detailReason)) {
-    return ['clear', 're-hold'];
-  }
-  return [];
 }
 
 export function useReEval() {
@@ -98,7 +88,7 @@ export function useReEval() {
   return {
     items,
     count: items.length,
-    getActions: (reason: DetailReason) => getActions(reason, user!.role),
+    getActions: (reason: DetailReason) => getReEvalActions(reason, user!.role),
     activeHoldId, setActiveHoldId,
     activeAction, setActiveAction,
     notes, setNotes,
