@@ -31,7 +31,8 @@ export default function App() {
     setPrevUserId(user?.id);
     if (user) {
       const defaultScreen = getDefaultScreenForRole(user.role);
-      window.history.replaceState(defaultScreen, '');
+      window.history.replaceState({ appRoot: true }, '');
+      window.history.pushState(defaultScreen, '');
       setScreen(defaultScreen);
     }
   }
@@ -39,15 +40,14 @@ export default function App() {
   // Handle Android / browser back button
   useEffect(() => {
     const handlePop = (e: PopStateEvent) => {
-      const state = e.state as Screen | null;
-      const defaultName = user ? getDefaultScreenForRole(user.role).name : 'dashboard';
-      if (!state || state.name === defaultName) {
+      const state = e.state as (Screen & { appRoot?: boolean }) | null;
+      if (!state || state.appRoot) {
         const def = user ? getDefaultScreenForRole(user.role) : { name: 'dashboard' as const };
         window.history.pushState(def, '');
         setScreen(def);
         setShowLogoutConfirm(true);
       } else {
-        setScreen(state);
+        setScreen(state as Screen);
       }
     };
     window.addEventListener('popstate', handlePop);

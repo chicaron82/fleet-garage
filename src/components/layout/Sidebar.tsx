@@ -6,9 +6,10 @@ import type { Module, Screen } from '../../types';
 interface Props {
   activeModule: Module;
   onNavigate: (screen: Screen) => void;
+  onClose?: () => void;
 }
 
-export function Sidebar({ activeModule, onNavigate }: Props) {
+export function Sidebar({ activeModule, onNavigate, onClose }: Props) {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -17,7 +18,7 @@ export function Sidebar({ activeModule, onNavigate }: Props) {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-colors">
       {/* Header */}
-      <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-yellow-400 dark:bg-yellow-500 rounded-lg flex items-center justify-center transition-colors">
             <span className="text-black font-bold text-xs">FG</span>
@@ -27,6 +28,17 @@ export function Sidebar({ activeModule, onNavigate }: Props) {
             <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight transition-colors">Location Ops</p>
           </div>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Nav Items */}

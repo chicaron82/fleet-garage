@@ -33,7 +33,11 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <Sidebar activeModule={activeModule} onNavigate={handleNavigate} />
+        <Sidebar 
+          activeModule={activeModule} 
+          onNavigate={handleNavigate} 
+          onClose={() => setSidebarOpen(false)} 
+        />
       </div>
 
       {/* Content area */}
