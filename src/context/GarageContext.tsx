@@ -1,66 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason } from '../types';
 import { supabase } from '../lib/supabase';
-
-// ── Row mappers ───────────────────────────────────────────────────────────────
-
-function mapVehicle(row: Record<string, unknown>): Vehicle {
-  return {
-    id:           row.id as string,
-    unitNumber:   row.unit_number as string,
-    licensePlate: row.license_plate as string,
-    make:         row.make as string,
-    model:        row.model as string,
-    year:         row.year as number,
-    color:        row.color as string,
-    status:       row.status as VehicleStatus,
-  };
-}
-
-function mapRelease(row: Record<string, unknown>): Release {
-  return {
-    id:                     row.id as string,
-    holdId:                 row.hold_id as string,
-    approvedById:           row.approved_by_id as string,
-    approvedAt:             row.approved_at as string,
-    releaseType:            ((row.release_type as string) ?? 'EXCEPTION') as ReleaseType,
-    releaseMethod:          ((row.release_method as string) ?? 'standard') as ReleaseMethod,
-    overrideAuthorization:  (row.override_authorization as string) ?? undefined,
-    reason:                 row.reason as string,
-    expectedReturn:         (row.expected_return as string) ?? undefined,
-    actualReturn:           (row.actual_return as string) ?? undefined,
-    notes:                  row.notes as string,
-  };
-}
-
-function mapRepair(row: Record<string, unknown>): Repair {
-  return {
-    id:            row.id as string,
-    holdId:        row.hold_id as string,
-    repairedById:  row.repaired_by_id as string,
-    repairedAt:    row.repaired_at as string,
-    notes:         (row.notes as string) ?? '',
-  };
-}
-
-function mapHold(row: Record<string, unknown>): Hold {
-  const releases = row.releases as Record<string, unknown>[] | undefined;
-  const repairs  = row.repairs  as Record<string, unknown>[] | undefined;
-  return {
-    id:                 row.id as string,
-    vehicleId:          row.vehicle_id as string,
-    holdType:           ((row.hold_type as string) ?? 'damage') as HoldType,
-    detailReason:       (row.detail_reason as DetailReason) ?? undefined,
-    damageDescription:  row.damage_description as string,
-    flaggedById:        row.flagged_by_id as string,
-    flaggedAt:          row.flagged_at as string,
-    notes:              row.notes as string,
-    photos:             (row.photos as string[]) ?? [],
-    status:             row.status as HoldStatus,
-    release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
-    repair:             repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
-  };
-}
+import { mapVehicle, mapHold } from '../lib/garage-mappers';
 
 // ── Photo helpers ─────────────────────────────────────────────────────────────
 
@@ -95,10 +36,11 @@ interface GarageContextValue {
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason) => Promise<void>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
+  markReturned: (holdId: string) => Promise<void>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -169,6 +111,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     photos?: string[],
     holdType: HoldType = 'damage',
     detailReason?: DetailReason,
+    linkedHoldId?: string,
   ) => {
     const holdId = crypto.randomUUID();
     const flaggedAt = new Date().toISOString();
@@ -191,6 +134,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       notes,
       photos:             photoUrls,
       status:             'ACTIVE',
+      linked_hold_id:     linkedHoldId ?? null,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
 
@@ -198,7 +142,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
     const newHold: Hold = {
-      id: holdId, vehicleId, holdType, detailReason,
+      id: holdId, vehicleId, holdType, detailReason, linkedHoldId,
       damageDescription, flaggedById, flaggedAt, notes,
       photos: photoUrls, status: 'ACTIVE',
     };
@@ -298,12 +242,37 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markReturned = async (holdId: string) => {
+    const now = new Date().toISOString();
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) return;
+
+    const { error: hError } = await supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId);
+    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
+
+    if (hold.release) {
+      await supabase.from('releases').update({ actual_return: now }).eq('id', hold.release.id);
+    }
+
+    const { error: vError } = await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
+    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
+
+    setHolds(prev => prev.map(h =>
+      h.id === holdId
+        ? { ...h, status: 'RETURNED' as const, release: h.release ? { ...h.release, actualReturn: now } : h.release }
+        : h
+    ));
+    setVehicles(prev => prev.map(v =>
+      v.id === hold.vehicleId ? { ...v, status: 'RETURNED' as const } : v
+    ));
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold,
-      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired,
+      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
     }}>
       {children}
     </GarageContext.Provider>

@@ -45,6 +45,12 @@ export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
   'smoke-vape': 'Smoke / vape',
 };
 
+export const VSA_CLEARABLE_REASONS: DetailReason[] = ['smoke-vape', 'too-dirty'];
+
+export function canVsaClear(reason: DetailReason): boolean {
+  return VSA_CLEARABLE_REASONS.includes(reason);
+}
+
 export interface Hold {
   id: string;
   vehicleId: string;
@@ -56,6 +62,7 @@ export interface Hold {
   notes: string;
   photos?: string[];
   status: HoldStatus;
+  linkedHoldId?: string;
   release?: Release;
   repair?: Repair;
 }

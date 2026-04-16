@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_CHECK_INS } from '../data/checkIns';
 import type { CheckInStatus, VehicleCheckIn } from '../data/checkIns';
+import { ReEvalPanel } from './ReEvalPanel';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -50,6 +51,9 @@ export function CheckInView() {
         <CountCard count={escalatedCount} label="Escalated" color="text-red-600 dark:text-red-500" />
         <CountCard count={pinnedCount} label="Pinned" color="text-purple-600 dark:text-purple-500" />
       </div>
+
+      {/* Re-evaluation: returned-from-exception vehicles */}
+      <ReEvalPanel />
 
       {/* Pending washbay alert */}
       {pendingCount > 0 && (user.role === 'VSA' || user.role === 'Lead VSA' || isManagement) && (
