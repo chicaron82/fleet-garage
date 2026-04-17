@@ -3,6 +3,7 @@ import { canRelease } from '../types';
 import { MOCK_CHECK_INS } from '../data/checkIns';
 import type { CheckInStatus, VehicleCheckIn } from '../data/checkIns';
 import { ReEvalPanel } from './ReEvalPanel';
+import { ExceptionReturnSection } from './ExceptionReturnSection';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -52,7 +53,10 @@ export function CheckInView() {
         <CountCard count={pinnedCount} label="Pinned" color="text-purple-600 dark:text-purple-500" />
       </div>
 
-      {/* Re-evaluation: returned-from-exception vehicles */}
+      {/* Exception returns: damage-hold vehicles back from exception rental */}
+      <ExceptionReturnSection />
+
+      {/* Re-evaluation: detail-hold vehicles (pet-hair / smoke / dirty) */}
       <ReEvalPanel />
 
       {/* Pending washbay alert */}
