@@ -5,13 +5,14 @@ import type { User, Vehicle, Hold } from '../types';
 export const USERS: User[] = [
   { id: 'u1', employeeId: '331965',  name: 'Aaron S.',    role: 'VSA',                password: '!Bananarama1982' },
   { id: 'u2', employeeId: 'VSA-002', name: 'DiZee',       role: 'Lead VSA',           password: '!Bananarama1982' },
-  { id: 'u3', employeeId: 'VSA-003', name: 'Belle',       role: 'HIR',                password: '!Bananarama1982' },
+  { id: 'u3', employeeId: 'VSA-003', name: 'Belle',       role: 'VSA',                password: '!Bananarama1982' },
   { id: 'u4', employeeId: 'CSR-001', name: 'CoZee',       role: 'CSR',                password: '!Bananarama1982' },
   { id: 'u5', employeeId: 'HIR-001', name: 'Tori',        role: 'HIR',                password: '!Bananarama1982' },
   { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah',      role: 'Branch Manager',     password: '!Bananarama1982' },
   { id: 'u7', employeeId: 'OPS-001', name: 'Zee',         role: 'Operations Manager', password: '!Bananarama1982' },
   { id: 'u8', employeeId: 'DRV-001', name: 'GenZee',      role: 'Driver',             password: '!Bananarama1982' },
   { id: 'u9', employeeId: 'DRV-002', name: 'Jade',        role: 'Driver',             password: '!Bananarama1982' },
+  { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA',               password: '!Bananarama1982' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────

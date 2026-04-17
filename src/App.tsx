@@ -11,6 +11,8 @@ import { TripsView } from './components/TripsView';
 import { InventoryView } from './components/InventoryView';
 import { LostAndFoundView } from './components/LostAndFoundView';
 import { CheckInView } from './components/CheckInView';
+import { AuditDashboard } from './components/AuditDashboard';
+import { AuditForm } from './components/AuditForm';
 import { LogoutConfirm } from './components/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
 import type { Screen } from './types';
@@ -97,6 +99,10 @@ export default function App() {
         return <InventoryView />;
       case 'lost-and-found':
         return <LostAndFoundView />;
+      case 'audits':
+        return <AuditDashboard onNewAudit={() => navigate({ name: 'audit-form' })} />;
+      case 'audit-form':
+        return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
       default:
         return (
           <Dashboard

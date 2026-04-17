@@ -106,6 +106,46 @@ export type Screen =
   | { name: 'trips' }
   | { name: 'check-in' }
   | { name: 'inventory' }
-  | { name: 'lost-and-found' };
+  | { name: 'lost-and-found' }
+  | { name: 'audits' }
+  | { name: 'audit-form' };
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits';
+
+// ── Audits ───────────────────────────────────────────────────────────────────
+
+export type AuditResult = 'pass' | 'fail' | 'pending';
+export type AuditStatus = 'PASSED' | 'FAILED' | 'IN_PROGRESS';
+
+export interface AuditCheckItem {
+  id: string;
+  label: string;
+  result: AuditResult;
+  photoUrl?: string;
+}
+
+export interface AuditSection {
+  id: string;
+  label: string;
+  items: AuditCheckItem[];
+  notes: string;
+  isOpen: boolean;
+}
+
+export interface AuditCrew {
+  driverSide: string;
+  passengerSide: string;
+  sprayer: string;
+}
+
+export interface AuditRecord {
+  id: string;
+  date: string;
+  auditorName: string;
+  owningArea: string;
+  vehicleNumber: string;
+  plate: string;
+  crew: AuditCrew;
+  sections: AuditSection[];
+  status: AuditStatus;
+}
