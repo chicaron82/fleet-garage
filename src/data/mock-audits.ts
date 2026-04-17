@@ -76,7 +76,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     ],
   },
 
-  // 5 — Fail on seats + under seats
+  // 5 — Full pass
   {
     id: 'audit-005',
     date: '2026-04-10T11:20:00',
@@ -85,10 +85,10 @@ export const MOCK_AUDITS: AuditRecord[] = [
     vehicleNumber: 'HRZ-2298',
     plate: 'PBX 773',
     crew: { driverSide: 'Belle', passengerSide: 'Aaron S.', sprayer: 'PerplexiZee' },
-    status: 'FAILED',
+    status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
-      section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), fail('seats', 'Seats'), fail('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
+      section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
       section('misc', 'MISC', [pass('trunk', 'Trunk'), pass('glove', 'Glove Box')]),
     ],
   },
@@ -110,7 +110,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     ],
   },
 
-  // 7 — Fail on cup holders + glove box
+  // 7 — Full pass
   {
     id: 'audit-007',
     date: '2026-04-08T13:30:00',
@@ -119,11 +119,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     vehicleNumber: 'HRZ-3307',
     plate: 'JFT 881',
     crew: { driverSide: 'Aaron S.', passengerSide: 'Belle', sprayer: 'PerplexiZee' },
-    status: 'FAILED',
+    status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
-      section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), fail('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
-      section('misc', 'MISC', [pass('trunk', 'Trunk'), fail('glove', 'Glove Box')]),
+      section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
+      section('misc', 'MISC', [pass('trunk', 'Trunk'), pass('glove', 'Glove Box')]),
     ],
   },
 ];

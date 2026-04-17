@@ -20,20 +20,32 @@ function failCount(audit: AuditRecord): number {
 export function AuditDashboard({ onNewAudit }: Props) {
   const passed = MOCK_AUDITS.filter(a => a.status === 'PASSED').length;
   const failed = MOCK_AUDITS.filter(a => a.status === 'FAILED').length;
+  const total  = MOCK_AUDITS.length;
+  const passRate = Math.round((passed / total) * 100);
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1 min-w-0 mr-3">
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Audits</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {MOCK_AUDITS.length} total · <span className="text-green-600 dark:text-green-400">{passed} passed</span> · <span className="text-red-500 dark:text-red-400">{failed} failed</span>
+            {total} total · <span className="text-green-600 dark:text-green-400">{passed} passed</span> · <span className="text-red-500 dark:text-red-400">{failed} failed</span>
           </p>
+          {/* Pass rate bar */}
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all duration-500"
+                style={{ width: `${passRate}%` }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">{passRate}%</span>
+          </div>
         </div>
         <button
           onClick={onNewAudit}
-          className="w-10 h-10 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 rounded-xl flex items-center justify-center text-black font-bold text-xl transition cursor-pointer shadow-sm"
+          className="w-10 h-10 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 rounded-xl flex items-center justify-center text-black font-bold text-xl transition cursor-pointer shadow-sm shrink-0"
           aria-label="New audit"
         >
           +
