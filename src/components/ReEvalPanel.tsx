@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useReEval } from '../hooks/useReEval';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { ReEvalItem } from '../hooks/useReEval';
+
+type DispatchStatus = 'idle' | 'dispatching' | 'dispatched';
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -44,6 +47,15 @@ type ReHook = ReturnType<typeof useReEval>;
 function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
   const { hold, vehicle } = item;
   const isActive = re.activeHoldId === hold.id;
+  const [dispatchStatus, setDispatchStatus] = useState<DispatchStatus>('idle');
+
+  const handleDispatch = () => {
+    setDispatchStatus('dispatching');
+    setTimeout(() => {
+      setDispatchStatus('dispatched');
+      setTimeout(() => setDispatchStatus('idle'), 2500);
+    }, 1200);
+  };
   const isOut = vehicle.status === 'OUT_ON_EXCEPTION';
   const reasonLabel = hold.detailReason ? DETAIL_REASON_LABELS[hold.detailReason] : 'Unknown';
   const actions = hold.detailReason ? re.getActions(hold.detailReason) : [];
@@ -181,8 +193,20 @@ function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
           onNotesChange={re.setNotes}
           onConfirm={() => re.reHoldVehicle(hold.id)}
           onCancel={() => { re.setActiveHoldId(null); re.setActiveAction(null); re.setNotes(''); }}
+          extraAction={re.activeAction === 'escalate' && dispatchStatus !== 'dispatched' ? (
+            <button
+              type="button"
+              disabled={dispatchStatus === 'dispatching'}
+              onClick={handleDispatch}
+              className="w-full py-2.5 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 font-medium text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+            >
+              {dispatchStatus === 'dispatching' ? '⏳ Dispatching...' : '✉️ Dispatch Email to Manager'}
+            </button>
+          ) : undefined}
         />
       )}
+
+      <EscalationToast visible={dispatchStatus === 'dispatched'} />
     </div>
   );
 }
@@ -206,9 +230,46 @@ interface ConfirmPanelProps {
   onNotesChange?: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  extraAction?: React.ReactNode;
 }
 
-function ConfirmPanel({ title, description, color, confirmLabel, processing, notes, onNotesChange, onConfirm, onCancel }: ConfirmPanelProps) {
+// ── Escalation toast ─────────────────────────────────────────────────────────
+
+function EscalationToast({ visible }: { visible: boolean }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed',
+        bottom: '1.5rem',
+        left: '50%',
+        transform: `translateX(-50%) translateY(${visible ? '0' : '1rem'})`,
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 250ms ease, transform 250ms ease',
+        pointerEvents: 'none',
+        zIndex: 50,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        background: 'rgba(17, 24, 39, 0.75)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '0.75rem',
+        padding: '0.75rem 1.25rem',
+        color: '#f9fafb',
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}
+    >
+      🟢 Escalation Dispatched to Management.
+    </div>
+  );
+}
+
+// ── Confirmation panel ───────────────────────────────────────────────────────
+
+function ConfirmPanel({ title, description, color, confirmLabel, processing, notes, onNotesChange, onConfirm, onCancel, extraAction }: ConfirmPanelProps) {
   const c = COLOR_MAP[color];
   return (
     <div className={`${c.bg} border-t ${c.border} px-4 py-4 space-y-3 transition-colors`}>
@@ -223,6 +284,7 @@ function ConfirmPanel({ title, description, color, confirmLabel, processing, not
           className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition resize-none"
         />
       )}
+      {extraAction}
       <div className="flex gap-2">
         <button
           type="button"
