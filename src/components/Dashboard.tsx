@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import type { UserRole, Hold, Vehicle } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { USERS } from '../data/mock';
+import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
@@ -14,8 +15,36 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit } = useGarage();
   const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const handleBarcodeUnit = useCallback((unit: string) => {
+    setSearch(unit.toUpperCase());
+    const vehicle = getVehicleByUnit(unit);
+    if (vehicle) {
+      showToast(`✨ ${vehicle.unitNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`, 'success');
+      onSelectVehicle(vehicle.id);
+    } else {
+      showToast(`Unit ${unit} not in system`, 'error');
+    }
+  }, [getVehicleByUnit, onSelectVehicle, showToast]);
+
+  const handleBarcodeUnrecognized = useCallback(() => {
+    showToast('Unrecognized barcode — enter unit number manually', 'error');
+  }, [showToast]);
+
+  useBarcodeInterceptor({
+    inputRef: searchRef,
+    onUnit: handleBarcodeUnit,
+    onUnrecognized: handleBarcodeUnrecognized,
+  });
 
   const held        = vehicles.filter(v => v.status === 'HELD').length;
   const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
@@ -57,6 +86,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
         {/* Search + Add Hold */}
         <div className="flex gap-2">
           <input
+            ref={searchRef}
             type="text"
             placeholder="Search unit #, plate, make…"
             value={search}
@@ -130,6 +160,33 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
           )}
         </div>
+
+        {/* Barcode toast */}
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 50,
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              background: toast.type === 'success' ? 'rgba(22, 101, 52, 0.85)' : 'rgba(153, 27, 27, 0.85)',
+              color: 'white',
+              padding: '0.75rem 1.25rem',
+              borderRadius: '0.75rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              whiteSpace: 'nowrap' as const,
+            }}
+          >
+            {toast.message}
+          </div>
+        )}
       </div>
   );
 }

@@ -1,5 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useNewHold } from '../hooks/useNewHold';
+import { useGarage } from '../context/GarageContext';
+import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { DetailReason } from '../types';
 
@@ -44,7 +46,28 @@ const DAMAGE_PRESETS = [
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
+  const { getVehicleByUnit } = useGarage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const unitInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBarcodeUnit = useCallback((unit: string) => {
+    const vehicle = getVehicleByUnit(unit);
+    if (vehicle) {
+      h.selectVehicle(vehicle.id);
+    } else {
+      h.setUnitSearch(unit.toUpperCase());
+    }
+  }, [getVehicleByUnit, h]);
+
+  const handleBarcodeUnrecognized = useCallback(() => {
+    // No-op — existing "no results" UI handles unknown input
+  }, []);
+
+  useBarcodeInterceptor({
+    inputRef: unitInputRef,
+    onUnit: handleBarcodeUnit,
+    onUnrecognized: handleBarcodeUnrecognized,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +126,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             ) : (
               <div className="space-y-3">
                 <input
+                  ref={unitInputRef}
                   type="text"
                   placeholder="Search by unit # or plate…"
                   value={h.unitSearch}
