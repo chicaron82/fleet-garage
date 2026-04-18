@@ -90,7 +90,7 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
           </button>
 
           {/* Viewfinder */}
-          <div className="relative w-72 h-52 rounded-2xl overflow-hidden border-2 border-green-400 shadow-[0_0_40px_rgba(74,222,128,0.3)]">
+          <div className="relative w-80 h-64 rounded-2xl overflow-hidden border-2 border-green-400 shadow-[0_0_40px_rgba(74,222,128,0.3)]">
             <video
               ref={videoRef}
               className="w-full h-full object-cover"
@@ -110,9 +110,12 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
           {error ? (
             <p className="mt-5 text-red-400 text-sm font-medium text-center px-6">{error}</p>
           ) : (
-            <p className="mt-5 text-green-400 text-sm font-medium tracking-widest uppercase opacity-80">
-              Point at barcode…
-            </p>
+            <div className="mt-5 flex flex-col items-center gap-1">
+              <p className="text-green-400 text-sm font-medium tracking-widest uppercase opacity-80">
+                Point at barcode…
+              </p>
+              <p className="text-white/40 text-xs">15–25 cm away · steady for a moment</p>
+            </div>
           )}
         </div>
       )}
