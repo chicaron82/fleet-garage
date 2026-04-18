@@ -96,6 +96,17 @@ export interface Repair {
   notes: string;
 }
 
+// ── Scanner ───────────────────────────────────────────────────────────────────
+
+export interface ScannedPayload {
+  unitNumber: string;
+  licensePlate: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+}
+
 // ── Navigation ──────────────────────────────────────────────────────────────
 
 export type Screen =

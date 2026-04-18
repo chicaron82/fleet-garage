@@ -22,3 +22,13 @@ body {
 #root {
   min-height: 100svh;
 }
+
+@keyframes scanline {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(160px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-scanline {
+  animation: scanline 1.2s ease-in-out infinite;
+}

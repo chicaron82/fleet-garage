@@ -4,6 +4,7 @@ import { MOCK_CHECK_INS } from '../data/checkIns';
 import type { CheckInStatus, VehicleCheckIn } from '../data/checkIns';
 import { ReEvalPanel } from './ReEvalPanel';
 import { ExceptionReturnSection } from './ExceptionReturnSection';
+import { CheckInIntakeForm } from './CheckInIntakeForm';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -24,7 +25,7 @@ const STATUS_CONFIG: Record<CheckInStatus, { bg: string; text: string; label: st
   pinned:          { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400', label: 'Pinned' },
 };
 
-export function CheckInView() {
+export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) => void }) {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -52,6 +53,9 @@ export function CheckInView() {
         <CountCard count={escalatedCount} label="Escalated" color="text-red-600 dark:text-red-500" />
         <CountCard count={pinnedCount} label="Pinned" color="text-purple-600 dark:text-purple-500" />
       </div>
+
+      {/* Vehicle intake: scan a real vehicle to begin check-in */}
+      <CheckInIntakeForm onFlagIssue={onFlagIssue} />
 
       {/* Exception returns: damage-hold vehicles back from exception rental */}
       <ExceptionReturnSection />

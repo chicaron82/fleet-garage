@@ -93,7 +93,7 @@ export default function App() {
           />
         );
       case 'check-in':
-        return <CheckInView />;
+        return <CheckInView onFlagIssue={(vehicleId) => navigate({ name: 'new-hold', vehicleId })} />;
       case 'trips':
         return <TripsView />;
       case 'inventory':
