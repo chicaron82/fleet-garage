@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
+import { parseFleetBarcode } from '../lib/barcode';
 
 interface Options {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -9,10 +10,7 @@ interface Options {
 
 /**
  * Intercepts HID barcode scanner input on a focused text field.
- *
- * Canadian fleet barcodes are 12 chars: 0 + area code (4) + unit number (7).
- * Scanner fires keystrokes then Enter. We slice the last 7 as the unit number.
- * Manual 7-digit entry also accepted. Anything else → onUnrecognized.
+ * Delegates parsing to parseFleetBarcode in lib/barcode.ts.
  */
 export function useBarcodeInterceptor({ inputRef, onUnit, onUnrecognized }: Options) {
   useEffect(() => {
@@ -26,16 +24,11 @@ export function useBarcodeInterceptor({ inputRef, onUnit, onUnrecognized }: Opti
       const raw = el.value.trim();
       if (!raw) return;
 
-      if (raw.length === 12 && /^\d{12}$/.test(raw)) {
-        // Standard Canadian barcode: 0 + area code (4) + unit number (7)
-        const unit = raw.slice(-7);
-        el.value = unit;
-        onUnit(unit);
-      } else if (raw.length === 7 && /^\d{7}$/.test(raw)) {
-        // Direct unit number entry
-        onUnit(raw);
+      const result = parseFleetBarcode(raw);
+      if (result.ok) {
+        el.value = result.unit;
+        onUnit(result.unit);
       } else {
-        // Unrecognized format — highlight for manual correction
         el.select();
         onUnrecognized();
       }
@@ -45,3 +38,4 @@ export function useBarcodeInterceptor({ inputRef, onUnit, onUnrecognized }: Opti
     return () => el.removeEventListener('keydown', handleKeyDown);
   }, [inputRef, onUnit, onUnrecognized]);
 }
+

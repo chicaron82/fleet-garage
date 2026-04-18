@@ -2,6 +2,8 @@ import { useRef, useCallback } from 'react';
 import { useNewHold } from '../hooks/useNewHold';
 import { useGarage } from '../context/GarageContext';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
+import { CameraBarcodeScanner } from './CameraBarcodeScanner';
+import { parseFleetBarcode } from '../lib/barcode';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { DetailReason } from '../types';
 
@@ -62,6 +64,14 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const handleBarcodeUnrecognized = useCallback(() => {
     // No-op — existing "no results" UI handles unknown input
   }, []);
+
+  const handleCameraDecode = useCallback((raw: string) => {
+    const result = parseFleetBarcode(raw);
+    if (result.ok) {
+      handleBarcodeUnit(result.unit);
+    }
+    // unrecognized → no-op, existing UI handles it
+  }, [handleBarcodeUnit]);
 
   useBarcodeInterceptor({
     inputRef: unitInputRef,
@@ -125,15 +135,18 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               </div>
             ) : (
               <div className="space-y-3">
-                <input
-                  ref={unitInputRef}
-                  type="text"
-                  placeholder="Search by unit # or plate…"
-                  value={h.unitSearch}
-                  onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
-                  autoFocus
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-                />
+                <div className="flex gap-2">
+                  <input
+                    ref={unitInputRef}
+                    type="text"
+                    placeholder="Search by unit # or plate…"
+                    value={h.unitSearch}
+                    onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
+                    autoFocus
+                    className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+                  />
+                  <CameraBarcodeScanner onDecode={handleCameraDecode} />
+                </div>
                 {h.searchResults.length > 0 && (
                   <div className="space-y-1">
                     {h.searchResults.map(v => (

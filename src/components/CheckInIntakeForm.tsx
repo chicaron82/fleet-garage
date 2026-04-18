@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGarage } from '../context/GarageContext';
-import { MockBarcodeScanner } from './MockBarcodeScanner';
+import { CameraBarcodeScanner } from './CameraBarcodeScanner';
+import { parseFleetBarcode } from '../lib/barcode';
 import type { Vehicle } from '../types';
 
 interface Props {
@@ -10,27 +11,37 @@ interface Props {
 const FUEL_LEVELS = ['Full', '3/4', '1/2', '1/4', 'Low'];
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
-  const { vehicles } = useGarage();
+  const { getVehicleByUnit } = useGarage();
 
   const [scanned, setScanned] = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
   const [mileage, setMileage] = useState('');
   const [fuelLevel, setFuelLevel] = useState('');
   const [photoCount, setPhotoCount] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const handleScan = (_payload: unknown, timestamp: string) => {
-    // Pick a random real vehicle from the garage for a live handoff
-    const pool = vehicles.filter(v => v.status !== 'HELD');
-    const pick = pool.length > 0
-      ? pool[Math.floor(Math.random() * pool.length)]
-      : vehicles[Math.floor(Math.random() * vehicles.length)];
-    if (!pick) return;
-    setScanned({ vehicle: pick, timestamp });
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const handleDecode = useCallback((raw: string, timestamp: string) => {
+    const result = parseFleetBarcode(raw);
+    if (!result.ok) {
+      showToast('Unrecognized barcode — enter unit number manually');
+      return;
+    }
+    const vehicle = getVehicleByUnit(result.unit);
+    if (!vehicle) {
+      showToast(`Unit ${result.unit} not in system`);
+      return;
+    }
+    setScanned({ vehicle, timestamp });
     setMileage('');
     setFuelLevel('');
     setPhotoCount(0);
     setSubmitted(false);
-  };
+  }, [getVehicleByUnit, showToast]);
 
   const handleSubmit = () => setSubmitted(true);
 
@@ -62,7 +73,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center">
               Scan the vehicle barcode to begin intake
             </p>
-            <MockBarcodeScanner onScan={handleScan} label="Scan to Check In" />
+            <CameraBarcodeScanner onDecode={handleDecode} label="Scan to Check In" />
           </div>
         )}
 
@@ -176,6 +187,32 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            background: 'rgba(153, 27, 27, 0.85)',
+            color: 'white',
+            padding: '0.75rem 1.25rem',
+            borderRadius: '0.75rem',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap' as const,
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

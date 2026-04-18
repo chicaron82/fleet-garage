@@ -6,6 +6,8 @@ import type { UserRole, Hold, Vehicle } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { USERS } from '../data/mock';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
+import { CameraBarcodeScanner } from './CameraBarcodeScanner';
+import { parseFleetBarcode } from '../lib/barcode';
 
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
@@ -39,6 +41,15 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
   const handleBarcodeUnrecognized = useCallback(() => {
     showToast('Unrecognized barcode — enter unit number manually', 'error');
   }, [showToast]);
+
+  const handleCameraDecode = useCallback((raw: string) => {
+    const result = parseFleetBarcode(raw);
+    if (result.ok) {
+      handleBarcodeUnit(result.unit);
+    } else {
+      handleBarcodeUnrecognized();
+    }
+  }, [handleBarcodeUnit, handleBarcodeUnrecognized]);
 
   useBarcodeInterceptor({
     inputRef: searchRef,
@@ -93,6 +104,7 @@ export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Pro
             onChange={e => setSearch(e.target.value.toUpperCase())}
             className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition-all uppercase shadow-sm"
           />
+          <CameraBarcodeScanner onDecode={handleCameraDecode} />
           <button
             onClick={onNewHold}
             className="px-4 py-2.5 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 text-black font-semibold text-sm rounded-lg transition-colors cursor-pointer whitespace-nowrap shadow-sm"
