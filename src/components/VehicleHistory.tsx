@@ -69,7 +69,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 onClick={() => onNewHold(vehicleId)}
                 className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
               >
-                + Flag Damage
+                + Flag Issue
               </button>
             )}
             {h.activeHold && canRelease(h.user.role) && (
@@ -173,7 +173,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         {/* Damage History */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
-            Damage History · {h.holds.length} record{h.holds.length !== 1 ? 's' : ''}
+            Hold History · {h.holds.length} record{h.holds.length !== 1 ? 's' : ''}
           </h2>
 
           {h.holds.length === 0 && (
@@ -188,7 +188,19 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 {/* Hold Header */}
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-start justify-between gap-3 mb-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
+                      {hold.holdType === 'mechanical' && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                          Mechanical
+                        </span>
+                      )}
+                      {hold.holdType === 'detail' && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400">
+                          Detail
+                        </span>
+                      )}
+                    </div>
                     <StatusBadge status={hold.status} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>

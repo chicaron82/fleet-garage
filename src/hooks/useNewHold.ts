@@ -17,6 +17,8 @@ export function useNewHold(preselectedId?: string) {
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
   const [customDamage, setCustomDamage] = useState('');
   const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
+  const [mechanicalTypes, setMechanicalTypes] = useState<string[]>([]);
+  const [customMechanical, setCustomMechanical] = useState('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -39,16 +41,24 @@ export function useNewHold(preselectedId?: string) {
   const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
   const finalDamage = holdType === 'detail'
     ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}`
-    : damageTypes
-        .map(t => t === 'Other' ? customDamage.trim() : t)
-        .filter(Boolean)
-        .join('; ');
+    : holdType === 'mechanical'
+      ? mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ')
+      : damageTypes.map(t => t === 'Other' ? customDamage.trim() : t).filter(Boolean).join('; ');
 
-  const canSubmit = selectedVehicle && !alreadyHeld && !submitting &&
-    (holdType === 'damage' ? !!finalDamage : !!detailReason);
+  const canSubmit = selectedVehicle && !alreadyHeld && !submitting && (
+    holdType === 'damage' ? !!finalDamage :
+    holdType === 'detail' ? !!detailReason :
+    mechanicalTypes.filter(t => t !== 'Other').length > 0 || (mechanicalTypes.includes('Other') && !!customMechanical.trim())
+  );
 
   const toggleDamageType = (preset: string) => {
     setDamageTypes(prev =>
+      prev.includes(preset) ? prev.filter(p => p !== preset) : [...prev, preset]
+    );
+  };
+
+  const toggleMechanicalType = (preset: string) => {
+    setMechanicalTypes(prev =>
       prev.includes(preset) ? prev.filter(p => p !== preset) : [...prev, preset]
     );
   };
@@ -62,8 +72,9 @@ export function useNewHold(preselectedId?: string) {
 
   const switchHoldType = (type: HoldType) => {
     setHoldType(type);
-    if (type === 'detail') { setDamageTypes([]); setCustomDamage(''); }
-    if (type === 'damage') { setDetailReason(''); }
+    if (type !== 'damage') { setDamageTypes([]); setCustomDamage(''); }
+    if (type !== 'detail') { setDetailReason(''); }
+    if (type !== 'mechanical') { setMechanicalTypes([]); setCustomMechanical(''); }
   };
 
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,6 +110,8 @@ export function useNewHold(preselectedId?: string) {
     damageTypes, toggleDamageType,
     customDamage, setCustomDamage,
     detailReason, setDetailReason,
+    mechanicalTypes, toggleMechanicalType,
+    customMechanical, setCustomMechanical,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
     submitting, canSubmit,

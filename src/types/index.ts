@@ -36,7 +36,7 @@ export interface Vehicle {
 // ── Holds ────────────────────────────────────────────────────────────────────
 
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
-export type HoldType = 'damage' | 'detail';
+export type HoldType = 'damage' | 'detail' | 'mechanical';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 
 export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
@@ -108,9 +108,10 @@ export type Screen =
   | { name: 'inventory' }
   | { name: 'lost-and-found' }
   | { name: 'audits' }
-  | { name: 'audit-form' };
+  | { name: 'audit-form' }
+  | { name: 'analytics' };
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics';
 
 // ── Audits ───────────────────────────────────────────────────────────────────
 

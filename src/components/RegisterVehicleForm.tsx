@@ -10,15 +10,15 @@ interface Props {
 const COLORS = ['White', 'Black', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 'Brown', 'Gold', 'Other'];
 
 const MAKES_MODELS: Record<string, string[]> = {
-  Chevrolet:       ['Blazer', 'Colorado', 'Equinox', 'Malibu', 'Malibu LT', 'Silverado', 'Tahoe', 'Trax', 'Traverse'],
-  Ford:            ['Bronco Sport', 'Edge', 'Escape', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
-  Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Corolla', 'Corolla Cross', 'Corolla Hybrid', 'Highlander', 'RAV4', 'Sienna', 'Tacoma'],
+  Chevrolet:       ['Blazer', 'Colorado', 'Equinox', 'Malibu', 'Malibu LT', 'Silverado', 'Tahoe', 'Trailblazer', 'Trax', 'Traverse'],
+  Ford:            ['Bronco Sport', 'Edge', 'Escape', 'Escape Hybrid', 'Expedition', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
+  Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Corolla', 'Corolla Cross', 'Corolla Hybrid', 'Highlander', 'Prius', 'RAV4', 'Sienna', 'Tacoma'],
   Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
   Nissan:          ['Altima', 'Frontier', 'Kicks', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
   Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson'],
-  Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
+  Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
-  Dodge:           ['Challenger', 'Charger', 'Durango'],
+  Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
   Chrysler:        ['300', 'Pacifica'],
   Buick:           ['Encore', 'Encore GX', 'Enclave', 'Envision'],
   GMC:             ['Acadia', 'Canyon', 'Sierra', 'Terrain', 'Yukon'],
@@ -26,6 +26,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   BMW:             ['2 Series', '3 Series', '5 Series', 'X1', 'X3', 'X5'],
   'Mercedes-Benz': ['C-Class', 'E-Class', 'GLC', 'GLE', 'GLS'],
   Audi:            ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
+  Mazda:           ['CX-30', 'CX-5'],
   Volkswagen:      ['Atlas', 'Jetta', 'Passat', 'Taos', 'Tiguan'],
   Tesla:           ['Model 3', 'Model S', 'Model X', 'Model Y'],
   Other:           ['Other'],

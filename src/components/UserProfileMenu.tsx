@@ -159,6 +159,27 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
               </div>
 
               <div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 font-bold">Navigation</p>
+                <div className="bg-gray-50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Default Tab</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Where you land after login</p>
+                    </div>
+                    <select
+                      defaultValue="holds"
+                      className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+                    >
+                      <option value="holds">Holds</option>
+                      <option value="check-in">Check-in</option>
+                      <option value="audits">Audits</option>
+                      <option value="analytics">Analytics</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 font-bold">Notifications</p>
                 <div className="bg-gray-50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 space-y-4">
                   <label className="flex items-center justify-between cursor-pointer group">

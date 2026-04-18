@@ -10,6 +10,18 @@ interface Props {
   onRegisterNew?: (prefill?: string) => void;
 }
 
+const MECHANICAL_PRESETS = [
+  'PM due',
+  'Tire repair needed',
+  'Low tread',
+  'Check engine light',
+  'Brake service needed',
+  'Battery concern',
+  'AC / heat issue',
+  'Wiper replacement',
+  'Other',
+];
+
 const DAMAGE_PRESETS = [
   'Scratch — paint surface',
   'Scratch — to bare metal',
@@ -50,7 +62,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
           ← Back
         </button>
         <span className="text-gray-300">|</span>
-        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Flag Damage</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Flag Issue</span>
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -145,7 +157,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               </h2>
 
               {/* Hold Type Toggle */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => h.switchHoldType('damage')}
@@ -156,7 +168,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   }`}
                 >
                   <span className="block font-semibold">Damage</span>
-                  <span className="block text-xs opacity-70 mt-0.5">Dents, scratches, glass…</span>
+                  <span className="block text-xs opacity-70 mt-0.5">Dents, scratches…</span>
                 </button>
                 <button
                   type="button"
@@ -167,8 +179,20 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
-                  <span className="block font-semibold">Detail Issue</span>
-                  <span className="block text-xs opacity-70 mt-0.5">Dirt, pet hair, smoke…</span>
+                  <span className="block font-semibold">Detail</span>
+                  <span className="block text-xs opacity-70 mt-0.5">Pet hair, smoke…</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => h.switchHoldType('mechanical')}
+                  className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
+                    h.holdType === 'mechanical'
+                      ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+                  }`}
+                >
+                  <span className="block font-semibold">Mechanical</span>
+                  <span className="block text-xs opacity-70 mt-0.5">PM, tires, repairs…</span>
                 </button>
               </div>
 
@@ -235,6 +259,47 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     </button>
                   ))}
                 </div>
+              </div>
+              )}
+
+              {/* Mechanical Type */}
+              {h.holdType === 'mechanical' && (
+              <div>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                    Concern *
+                  </label>
+                  {h.mechanicalTypes.length > 0 && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      {h.mechanicalTypes.length} selected
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {MECHANICAL_PRESETS.map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => h.toggleMechanicalType(preset)}
+                      className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
+                        h.mechanicalTypes.includes(preset)
+                          ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 font-medium'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                {h.mechanicalTypes.includes('Other') && (
+                  <input
+                    type="text"
+                    placeholder="Describe the concern…"
+                    value={h.customMechanical}
+                    onChange={e => h.setCustomMechanical(e.target.value)}
+                    className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                  />
+                )}
               </div>
               )}
 
@@ -315,7 +380,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               disabled={!h.canSubmit}
               className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
-              {h.submitting ? 'Flagging…' : 'Flag Damage'}
+              {h.submitting ? 'Flagging…' : 'Flag Issue'}
             </button>
           </div>
 

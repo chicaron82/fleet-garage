@@ -13,6 +13,7 @@ import { LostAndFoundView } from './components/LostAndFoundView';
 import { CheckInView } from './components/CheckInView';
 import { AuditDashboard } from './components/AuditDashboard';
 import { AuditForm } from './components/AuditForm';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { LogoutConfirm } from './components/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
 import type { Screen } from './types';
@@ -103,6 +104,8 @@ export default function App() {
         return <AuditDashboard onNewAudit={() => navigate({ name: 'audit-form' })} />;
       case 'audit-form':
         return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
+      case 'analytics':
+        return <AnalyticsDashboard />;
       default:
         return (
           <Dashboard

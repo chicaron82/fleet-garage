@@ -10,9 +10,10 @@ export interface NavItem {
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
-  { module: 'fleet-garage',   label: 'Fleet Garage',  icon: '🔧', defaultScreen: { name: 'dashboard' } },
+  { module: 'fleet-garage',   label: 'Holds',         icon: '🔧', defaultScreen: { name: 'dashboard' } },
   { module: 'check-in',       label: 'Check-in',      icon: '📸', defaultScreen: { name: 'check-in' } },
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
+  { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
   { module: 'trips',          label: 'Trips',         icon: '🚗', defaultScreen: { name: 'trips' } },
   { module: 'inventory',      label: 'Inventory',     icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
@@ -24,8 +25,8 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'trips', 'inventory', 'lost-and-found'],
   'CSR':                 ['fleet-garage', 'check-in', 'trips', 'lost-and-found'],
   'HIR':                 ['fleet-garage', 'check-in', 'trips', 'lost-and-found'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'trips', 'inventory', 'lost-and-found'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'trips', 'inventory', 'lost-and-found'],
+  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'inventory', 'lost-and-found'],
+  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'inventory', 'lost-and-found'],
 };
 
 export function getNavItemsForRole(role: UserRole): NavItem[] {
@@ -48,5 +49,6 @@ export function getActiveModule(screen: Screen): Module {
 
 export function getDefaultScreenForRole(role: UserRole): Screen {
   if (role === 'Driver') return { name: 'trips' };
+  if (role === 'HIR') return { name: 'check-in' };
   return { name: 'dashboard' };
 }
