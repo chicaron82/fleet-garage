@@ -110,7 +110,6 @@ export default function App() {
         return (
           <Dashboard
             onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
-            onNewHold={() => navigate({ name: 'new-hold' })}
             onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', prefill })}
           />
         );

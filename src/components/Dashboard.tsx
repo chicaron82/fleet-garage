@@ -11,11 +11,10 @@ import { parseFleetBarcode } from '../lib/barcode';
 
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
-  onNewHold: () => void;
   onRegisterAndFlag: (prefill?: string) => void;
 }
 
-export function Dashboard({ onSelectVehicle, onNewHold, onRegisterAndFlag }: Props) {
+export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, getVehicleByUnit } = useGarage();
   const [search, setSearch] = useState('');
