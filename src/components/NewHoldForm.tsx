@@ -49,7 +49,8 @@ const DAMAGE_PRESETS = [
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
   const { getVehicleByUnit } = useGarage();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
 
   const handleBarcodeUnit = useCallback((unit: string) => {
@@ -377,18 +378,36 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     </div>
                   ))}
                   {h.photos.length < h.MAX_PHOTOS && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
-                    >
-                      <span className="text-xl leading-none">+</span>
-                      <span className="text-xs">Photo</span>
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                      >
+                        <span className="text-lg leading-none">📷</span>
+                        <span className="text-xs font-medium">Take Photo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                      >
+                        <span className="text-lg leading-none">🖼️</span>
+                        <span className="text-xs font-medium">Upload from Gallery</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 <input
-                  ref={fileInputRef}
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={h.handlePhotoAdd}
+                  className="hidden"
+                />
+                <input
+                  ref={galleryInputRef}
                   type="file"
                   accept="image/*"
                   onChange={h.handlePhotoAdd}

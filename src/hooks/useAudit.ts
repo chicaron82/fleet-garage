@@ -51,7 +51,6 @@ export function useAudit() {
   const [sections, setSections]           = useState<AuditSection[]>(buildInitialSections);
   const [dispatchStatus, setDispatchStatus] = useState<'idle' | 'dispatching' | 'dispatched'>('idle');
   const pendingPhoto                       = useRef<PendingPhoto | null>(null);
-  const fileInputRef                       = useRef<HTMLInputElement | null>(null);
 
   const vsaUsers = USERS.filter(u => u.role === 'VSA' || u.role === 'Lead VSA');
 
@@ -95,9 +94,8 @@ export function useAudit() {
   const toggleSection = (sectionId: string) =>
     updateSection(sectionId, s => ({ ...s, isOpen: !s.isOpen }));
 
-  const triggerPhotoCapture = (sectionId: string, itemId: string) => {
+  const preparePhotoCapture = (sectionId: string, itemId: string) => {
     pendingPhoto.current = { sectionId, itemId };
-    fileInputRef.current?.click();
   };
 
   const handleFileSelected = (file: File) => {
@@ -144,9 +142,8 @@ export function useAudit() {
     setResult,
     setSectionNotes,
     toggleSection,
-    triggerPhotoCapture,
+    preparePhotoCapture,
     handleFileSelected,
-    fileInputRef,
     dispatchStatus,
     handleDispatch,
     reset,

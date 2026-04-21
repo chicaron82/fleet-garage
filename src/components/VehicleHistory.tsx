@@ -29,7 +29,8 @@ function fmtDate(iso: string) {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const { vehicle } = h;
   if (!vehicle) return null;
@@ -227,21 +228,38 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                       </button>
                     ))}
                     {(hold.photos ?? []).length < MAX_PHOTOS && (
-                      <button
-                        type="button"
-                        onClick={() => h.addPhotoClick(hold.id, photoInputRef)}
-                        disabled={h.uploadingFor === hold.id}
-                        className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {h.uploadingFor === hold.id ? (
-                          <span className="text-xs">…</span>
-                        ) : (
-                          <>
-                            <span className="text-lg leading-none">+</span>
-                            <span className="text-xs leading-none">Photo</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => h.addPhotoClick(hold.id, cameraInputRef)}
+                          disabled={h.uploadingFor === hold.id}
+                          className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {h.uploadingFor === hold.id ? (
+                            <span className="text-xs">…</span>
+                          ) : (
+                            <>
+                              <span className="text-lg leading-none">📷</span>
+                              <span className="text-[10px] uppercase tracking-wider font-semibold leading-none">Camera</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => h.addPhotoClick(hold.id, galleryInputRef)}
+                          disabled={h.uploadingFor === hold.id}
+                          className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {h.uploadingFor === hold.id ? (
+                            <span className="text-xs">…</span>
+                          ) : (
+                            <>
+                              <span className="text-lg leading-none">🖼️</span>
+                              <span className="text-[10px] uppercase tracking-wider font-semibold leading-none">Gallery</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -260,9 +278,18 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         </div>
       </div>
 
-      {/* Hidden photo input */}
+      {/* Hidden photo inputs */}
       <input
-        ref={photoInputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        onChange={h.handlePhotoSelected}
+        className="hidden"
+      />
+      <input
+        ref={galleryInputRef}
         type="file"
         accept="image/*"
         multiple

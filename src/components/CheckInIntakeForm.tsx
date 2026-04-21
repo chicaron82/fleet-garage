@@ -11,9 +11,10 @@ interface Props {
 const FUEL_LEVELS = ['Full', '3/4', '1/2', '1/4', 'Low'];
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
-  const { getVehicleByUnit } = useGarage();
+  const { vehicles, getVehicleByUnit } = useGarage();
 
   const [scanned, setScanned] = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
+  const [unitSearch, setUnitSearch] = useState('');
   const [mileage, setMileage] = useState('');
   const [fuelLevel, setFuelLevel] = useState('');
   const [photoCount, setPhotoCount] = useState(0);
@@ -69,11 +70,60 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
       <div className="p-4 space-y-4">
         {!scanned && (
-          <div className="flex flex-col items-center gap-3 py-4">
-            <p className="text-sm text-gray-400 dark:text-gray-500 text-center">
-              Scan the vehicle barcode to begin intake
-            </p>
-            <CameraBarcodeScanner onDecode={handleDecode} label="Scan to Check In" />
+          <div className="py-2">
+            <div className="flex flex-col items-center gap-3 py-4">
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center">
+                Scan the vehicle barcode to begin intake
+              </p>
+              <CameraBarcodeScanner onDecode={handleDecode} label="Scan to Check In" />
+            </div>
+            
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+              <span className="flex-shrink-0 mx-4 text-gray-400 dark:text-gray-500 text-xs font-semibold uppercase tracking-wider">or</span>
+              <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+            </div>
+
+            <div className="space-y-3 pt-4">
+              <input
+                type="text"
+                placeholder="Or enter unit # manually…"
+                value={unitSearch}
+                onChange={e => setUnitSearch(e.target.value.toUpperCase())}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+              />
+              {unitSearch.trim().length >= 2 && (
+                <div className="space-y-1">
+                  {(() => {
+                    const searchResults = vehicles.filter(v => v.unitNumber.toUpperCase().includes(unitSearch.trim().toUpperCase())).slice(0, 5);
+                    if (searchResults.length === 0) {
+                      return (
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">"{unitSearch}" not in the system.</p>
+                        </div>
+                      );
+                    }
+                    return searchResults.map(v => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          setScanned({ vehicle: v, timestamp: new Date().toISOString() });
+                          setUnitSearch('');
+                        }}
+                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
+                      >
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
+                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
+                        <span className="text-gray-500 dark:text-gray-400">{v.licensePlate}</span>
+                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
+                        <span className="text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

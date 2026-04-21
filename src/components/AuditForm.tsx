@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { exportAuditToHtml } from '../lib/audit-export';
 import type { AuditSection, AuditStatus } from '../types';
@@ -8,6 +9,8 @@ interface Props {
 
 export function AuditForm({ onBack }: Props) {
   const audit = useAudit();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
     exportAuditToHtml({
@@ -87,7 +90,11 @@ export function AuditForm({ onBack }: Props) {
           section={section}
           onToggle={() => audit.toggleSection(section.id)}
           onResult={(itemId, result) => audit.setResult(section.id, itemId, result)}
-          onPhoto={(itemId) => audit.triggerPhotoCapture(section.id, itemId)}
+          onPhoto={(itemId, source) => {
+            audit.preparePhotoCapture(section.id, itemId);
+            if (source === 'camera') cameraInputRef.current?.click();
+            else galleryInputRef.current?.click();
+          }}
           onNotes={(notes) => audit.setSectionNotes(section.id, notes)}
         />
       ))}
@@ -105,10 +112,21 @@ export function AuditForm({ onBack }: Props) {
 
       {/* Hidden file input for camera capture */}
       <input
-        ref={audit.fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) audit.handleFileSelected(file);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
         className="hidden"
         onChange={e => {
           const file = e.target.files?.[0];
@@ -190,7 +208,7 @@ function ChecklistSection({ section, onToggle, onResult, onPhoto, onNotes }: {
   section: AuditSection;
   onToggle: () => void;
   onResult: (itemId: string, result: 'pass' | 'fail') => void;
-  onPhoto: (itemId: string) => void;
+  onPhoto: (itemId: string, source: 'camera' | 'gallery') => void;
   onNotes: (notes: string) => void;
 }) {
   const failCount = section.items.filter(i => i.result === 'fail').length;
@@ -238,13 +256,21 @@ function ChecklistSection({ section, onToggle, onResult, onPhoto, onNotes }: {
                 </div>
               </div>
               {item.result === 'fail' && (
-                <div className="px-4 pb-3 flex items-center gap-2">
-                  <button
-                    onClick={() => onPhoto(item.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
-                  >
-                    📸 {item.photoUrl ? 'Retake Photo' : 'Capture Photo'}
-                  </button>
+                <div className="px-4 pb-3 flex flex-wrap items-center gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onPhoto(item.id, 'camera')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
+                    >
+                      📷 {item.photoUrl ? 'Retake Photo' : 'Take Photo'}
+                    </button>
+                    <button
+                      onClick={() => onPhoto(item.id, 'gallery')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
+                    >
+                      🖼️ {item.photoUrl ? 'Upload Gallery' : 'Upload from Gallery'}
+                    </button>
+                  </div>
                   {item.photoUrl && (
                     <img src={item.photoUrl} alt="Failure" className="h-10 w-14 object-cover rounded-lg border border-red-200 dark:border-red-800" />
                   )}
