@@ -15,18 +15,19 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
   { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
   { module: 'trips',          label: 'Trips',         icon: '🚗', defaultScreen: { name: 'trips' } },
+  { module: 'schedule',       label: 'Schedule',      icon: '📅', defaultScreen: { name: 'schedule' } },
   { module: 'inventory',      label: 'Inventory',     icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
 ];
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
-  'Driver':              ['trips', 'lost-and-found'],
-  'VSA':                 ['fleet-garage', 'check-in', 'trips', 'inventory', 'lost-and-found'],
-  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'trips', 'inventory', 'lost-and-found'],
-  'CSR':                 ['fleet-garage', 'check-in', 'trips', 'lost-and-found'],
-  'HIR':                 ['fleet-garage', 'check-in', 'trips', 'lost-and-found'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'inventory', 'lost-and-found'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'inventory', 'lost-and-found'],
+  'Driver':              ['trips', 'schedule', 'lost-and-found'],
+  'VSA':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'inventory', 'lost-and-found'],
+  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'trips', 'schedule', 'inventory', 'lost-and-found'],
+  'CSR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found'],
+  'HIR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found'],
+  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
+  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
 };
 
 export function getNavItemsForRole(role: UserRole): NavItem[] {

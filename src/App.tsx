@@ -8,6 +8,7 @@ import { VehicleHistory } from './components/VehicleHistory';
 import { NewHoldForm } from './components/NewHoldForm';
 import { RegisterVehicleForm } from './components/RegisterVehicleForm';
 import { TripsView } from './components/TripsView';
+import { ScheduleView } from './components/ScheduleView';
 import { InventoryView } from './components/InventoryView';
 import { LostAndFoundView } from './components/LostAndFoundView';
 import { CheckInView } from './components/CheckInView';
@@ -76,7 +77,17 @@ export default function App() {
           <NewHoldForm
             vehicleId={screen.vehicleId}
             onBack={() => navigate({ name: 'dashboard' })}
-            onSuccess={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
+            onSuccess={(vehicleId) => {
+              // If this hold came from a fresh registration, clean the history stack
+              if (screen.fromRegister) {
+                window.history.replaceState({ appRoot: true }, '');
+                window.history.pushState({ name: 'dashboard' }, '');
+                window.history.pushState({ name: 'vehicle', vehicleId }, '');
+                setScreen({ name: 'vehicle', vehicleId });
+              } else {
+                navigate({ name: 'vehicle', vehicleId });
+              }
+            }}
             onRegisterNew={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
           />
         );
@@ -89,13 +100,15 @@ export default function App() {
                 ? navigate({ name: 'new-hold' })
                 : navigate({ name: 'dashboard' })
             }
-            onSuccess={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
+            onSuccess={(vehicleId) => navigate({ name: 'new-hold', vehicleId, fromRegister: true })}
           />
         );
       case 'check-in':
         return <CheckInView onFlagIssue={(vehicleId) => navigate({ name: 'new-hold', vehicleId })} />;
       case 'trips':
         return <TripsView />;
+      case 'schedule':
+        return <ScheduleView />;
       case 'inventory':
         return <InventoryView />;
       case 'lost-and-found':

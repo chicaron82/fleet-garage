@@ -48,16 +48,25 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
   const { addVehicle } = useGarage();
   const seed = classifyPrefill(prefill);
 
+  const currentYear = new Date().getFullYear();
+
   const [unit, setUnit] = useState(seed.unit);
   const [plate, setPlate] = useState(seed.plate);
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
-  const [year, setYear] = useState('');
+  const [year, setYear] = useState(currentYear);
   const [color, setColor] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = unit.trim() && plate.trim() && make && model && year &&
-    Number(year) > 1990 && color && !submitting;
+  const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
+
+  const handleYearDecrement = () => {
+    if (year > 2000) setYear(year - 1);
+  };
+
+  const handleYearIncrement = () => {
+    if (year < 2030) setYear(year + 1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +79,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
         licensePlate: plate.trim().toUpperCase(),
         make,
         model,
-        year: Number(year),
+        year: year,
         color,
       });
       onSuccess(id);
@@ -155,15 +164,29 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Year</label>
-                <input
-                  type="number"
-                  value={year}
-                  onChange={e => setYear(e.target.value)}
-                  placeholder="2024"
-                  min="1991"
-                  max="2030"
-                  className={INPUT}
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleYearDecrement}
+                    disabled={year <= 2000}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    −
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                      {year}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleYearIncrement}
+                    disabled={year >= 2030}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Color</label>

@@ -4,6 +4,7 @@ import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import { USERS } from '../data/mock';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
+import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
 import type { ScannedPayload } from '../types';
 
 function fmtTime(iso: string) {
@@ -186,17 +187,25 @@ export function TripsView() {
       {/* Trip list */}
       {isManagement ? (
         <div className="space-y-5">
-          {Object.entries(grouped!).map(([driverName, trips]) => (
-            <div key={driverName}>
-              <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 transition-colors">
-                {driverName} · {trips.length} run{trips.length !== 1 ? 's' : ''}
-              </h2>
-              <TripList trips={trips} />
-            </div>
-          ))}
+          {Object.entries(grouped!).map(([driverName, trips]) => {
+            const flaggedCount = trips.filter(isTripFlagged).length;
+            return (
+              <div key={driverName}>
+                <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 transition-colors">
+                  {driverName} · {trips.length} run{trips.length !== 1 ? 's' : ''}
+                  {flaggedCount > 0 && (
+                    <span className="ml-2 text-amber-600 dark:text-amber-500">
+                      ⚠️ {flaggedCount} flagged
+                    </span>
+                  )}
+                </h2>
+                <TripList trips={trips} isManagement={isManagement} />
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <TripList trips={myTrips} />
+        <TripList trips={myTrips} isManagement={isManagement} />
       )}
 
       {displayTrips.length === 0 && (
@@ -219,36 +228,57 @@ function SummaryCard({ value, label, color }: { value: number; label: string; co
   );
 }
 
-function TripList({ trips }: { trips: typeof MOCK_TRIPS }) {
+function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagement: boolean }) {
   return (
     <div className="space-y-2">
-      {trips.map(trip => (
-        <div
-          key={trip.id}
-          className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">
-                  {trip.vehicleUnit}
-                </span>
-                <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-                <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">
-                  {trip.vehiclePlate}
-                </span>
+      {trips.map(trip => {
+        const duration = getTripDurationMinutes(trip);
+        const flagged = isTripFlagged(trip);
+
+        return (
+          <div
+            key={trip.id}
+            className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">
+                    {trip.vehicleUnit}
+                  </span>
+                  <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">
+                    {trip.vehiclePlate}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
+                  {trip.departLocation} → {trip.arriveLocation}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
+                  {fmtTime(trip.departTime)} → {fmtTime(trip.arriveTime)}
+                  <span className={flagged ? 'text-amber-600 dark:text-amber-500 font-semibold' : ''}>
+                    {' '}· {duration}m
+                  </span>
+                  {' '}· Gas: {trip.gasLevel} · ODO: {trip.odometer.toLocaleString()}
+                </p>
+                {isManagement && flagged && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 transition-colors">
+                      ⚠️ Long trip · {duration}m
+                    </span>
+                  </div>
+                )}
+                {trip.notes && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-2 transition-colors">
+                    "{trip.notes}"
+                  </p>
+                )}
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
-                {trip.departLocation} → {trip.arriveLocation}
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
-                {fmtTime(trip.departTime)} → {fmtTime(trip.arriveTime)} · Gas: {trip.gasLevel} · ODO: {trip.odometer.toLocaleString()}
-              </p>
+              <TripBadge type={trip.tripType} />
             </div>
-            <TripBadge type={trip.tripType} />
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

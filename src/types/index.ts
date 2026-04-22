@@ -112,7 +112,7 @@ export interface ScannedPayload {
 export type Screen =
   | { name: 'dashboard' }
   | { name: 'vehicle'; vehicleId: string }
-  | { name: 'new-hold'; vehicleId?: string }
+  | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
   | { name: 'trips' }
   | { name: 'check-in' }
@@ -120,9 +120,10 @@ export type Screen =
   | { name: 'lost-and-found' }
   | { name: 'audits' }
   | { name: 'audit-form' }
-  | { name: 'analytics' };
+  | { name: 'analytics' }
+  | { name: 'schedule' };
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule';
 
 // ── Audits ───────────────────────────────────────────────────────────────────
 

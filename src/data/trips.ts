@@ -12,6 +12,7 @@ export interface TripRun {
   gasLevel: string;
   odometer: number;
   driverId: string;
+  notes?: string;
 }
 
 const TODAY = '2026-04-14';
@@ -178,6 +179,21 @@ export const MOCK_TRIPS: TripRun[] = [
     odometer: 18905,
     driverId: 'u8',
   },
+  // GenZee — flagged trip with notes
+  {
+    id: 'tr-flagged-1',
+    vehicleUnit: 'HRZ-3307',
+    vehiclePlate: 'JFT 881',
+    tripType: 'clean',
+    departLocation: 'Wash Bay',
+    arriveLocation: 'Terminal Lot',
+    departTime: `${TODAY}T10:45:00`,
+    arriveTime: `${TODAY}T11:13:00`,
+    gasLevel: 'Full',
+    odometer: 31460,
+    driverId: 'u8',
+    notes: 'Stuck at train crossing on Inkster Blvd',
+  },
   {
     id: 'tr-13',
     vehicleUnit: 'HRZ-4410',
@@ -220,31 +236,103 @@ export const MOCK_TRIPS: TripRun[] = [
     driverId: 'u8',
   },
 
-  // ── Jade (u9) — Afternoon customer runs ────────────────────────────────
+  // ── ZeeDric (u9) — Full day with flagged trips (no notes) ─────────────
+  // Normal trip
   {
-    id: 'tr-16',
-    vehicleUnit: 'HRZ-3120',
-    vehiclePlate: 'RXT 118',
-    tripType: 'customer',
-    departLocation: 'Branch',
-    arriveLocation: 'Holiday Inn Airport',
-    departTime: `${TODAY}T14:30:00`,
-    arriveTime: `${TODAY}T14:44:00`,
+    id: 'tr-z1',
+    vehicleUnit: 'HRZ-4821',
+    vehiclePlate: 'GHK 294',
+    tripType: 'clean',
+    departLocation: 'Wash Bay',
+    arriveLocation: 'Terminal Lot',
+    departTime: `${TODAY}T15:30:00`,
+    arriveTime: `${TODAY}T15:41:00`,
     gasLevel: 'Full',
-    odometer: 41090,
+    odometer: 28440,
     driverId: 'u9',
   },
+  // Flagged — no notes
   {
-    id: 'tr-17',
-    vehicleUnit: 'HRZ-9981',
-    vehiclePlate: 'JKL 720',
-    tripType: 'transfer',
-    departLocation: 'Branch',
-    arriveLocation: 'Downtown Location',
-    departTime: `${TODAY}T15:10:00`,
-    arriveTime: `${TODAY}T15:30:00`,
+    id: 'tr-z2',
+    vehicleUnit: 'HRZ-5590',
+    vehiclePlate: 'KLP 447',
+    tripType: 'dirty',
+    departLocation: 'Terminal Lot',
+    arriveLocation: 'Wash Bay',
+    departTime: `${TODAY}T16:05:00`,
+    arriveTime: `${TODAY}T16:46:00`,
+    gasLevel: '3/4',
+    odometer: 47340,
+    driverId: 'u9',
+  },
+  // Normal trip
+  {
+    id: 'tr-z3',
+    vehicleUnit: 'HRZ-2298',
+    vehiclePlate: 'PBX 773',
+    tripType: 'clean',
+    departLocation: 'Wash Bay',
+    arriveLocation: 'Terminal Lot',
+    departTime: `${TODAY}T17:10:00`,
+    arriveTime: `${TODAY}T17:22:00`,
     gasLevel: 'Full',
-    odometer: 19480,
+    odometer: 39210,
+    driverId: 'u9',
+  },
+  // Flagged — no notes
+  {
+    id: 'tr-z4',
+    vehicleUnit: 'HRZ-3120',
+    vehiclePlate: 'RXT 118',
+    tripType: 'dirty',
+    departLocation: 'Terminal Lot',
+    arriveLocation: 'Wash Bay',
+    departTime: `${TODAY}T17:50:00`,
+    arriveTime: `${TODAY}T18:21:00`,
+    gasLevel: '1/2',
+    odometer: 41120,
+    driverId: 'u9',
+  },
+  // Normal trip
+  {
+    id: 'tr-z5',
+    vehicleUnit: 'HRZ-7845',
+    vehiclePlate: 'NPC 442',
+    tripType: 'clean',
+    departLocation: 'Wash Bay',
+    arriveLocation: 'Terminal Lot',
+    departTime: `${TODAY}T19:00:00`,
+    arriveTime: `${TODAY}T19:11:00`,
+    gasLevel: 'Full',
+    odometer: 29010,
+    driverId: 'u9',
+  },
+  // Flagged — no notes
+  {
+    id: 'tr-z6',
+    vehicleUnit: 'HRZ-6012',
+    vehiclePlate: 'MBK 331',
+    tripType: 'dirty',
+    departLocation: 'Terminal Lot',
+    arriveLocation: 'Wash Bay',
+    departTime: `${TODAY}T19:30:00`,
+    arriveTime: `${TODAY}T20:05:00`,
+    gasLevel: '1/4',
+    odometer: 34265,
+    driverId: 'u9',
+  },
+  // Normal close trip
+  {
+    id: 'tr-z7',
+    vehicleUnit: 'HRZ-2055',
+    vehiclePlate: 'WPG 554',
+    tripType: 'clean',
+    departLocation: 'Wash Bay',
+    arriveLocation: 'Terminal Lot',
+    departTime: `${TODAY}T20:30:00`,
+    arriveTime: `${TODAY}T20:43:00`,
+    gasLevel: 'Full',
+    odometer: 52260,
     driverId: 'u9',
   },
 ];

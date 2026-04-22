@@ -1,5 +1,14 @@
 // Static analytics — sample data for demo purposes
 
+import { useAuth } from '../context/AuthContext';
+import { useFleetBalance } from '../hooks/useFleetBalance';
+import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
+
+// Helper to check if user can enter fleet balance
+function canEnterFleetBalance(role: string): boolean {
+  return ['Branch Manager', 'Operations Manager', 'Lead VSA'].includes(role);
+}
+
 const HOLD_TYPES = [
   { label: 'Damage',     count: 14, color: 'bg-amber-400',  text: 'text-amber-700 dark:text-amber-400' },
   { label: 'Detail',     count: 6,  color: 'bg-teal-400',   text: 'text-teal-700 dark:text-teal-400' },
@@ -28,7 +37,56 @@ const WEEK_ACTIVITY = [
 const maxActivity = Math.max(...WEEK_ACTIVITY.map(d => d.holds + d.releases));
 
 export function AnalyticsDashboard() {
+  const { user } = useAuth();
+  const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
+
+  if (!user) return null;
+
   const totalHolds = HOLD_TYPES.reduce((s, t) => s + t.count, 0);
+  const canEnter = canEnterFleetBalance(user.role);
+  const todayEntry = getTodayEntry();
+
+  const handleFleetBalanceSubmit = async (outCount: number, inCount: number): Promise<boolean> => {
+    const today = new Date().toISOString().split('T')[0];
+    return await upsertEntry(today, outCount, inCount, user.id);
+  };
+
+  // Generate last 7 days array
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    return date.toISOString().split('T')[0];
+  });
+
+  const fleetBalanceData = last7Days.map((date) => {
+    const entry = entries.find(e => e.date === date);
+    const dayName = new Date(date).toLocaleDateString('en-CA', { weekday: 'short' });
+    return {
+      day: dayName,
+      date,
+      outCount: entry?.outCount,
+      inCount: entry?.inCount,
+      hasData: !!entry,
+    };
+  });
+
+  const daysWithoutData = fleetBalanceData.filter(d => !d.hasData).length;
+  const daysWithData = fleetBalanceData.filter(d => d.hasData);
+
+  // Calculate mini stats only from days with data
+  const avgGap = daysWithData.length >= 3
+    ? Math.round(daysWithData.reduce((sum, d) => sum + ((d.outCount ?? 0) - (d.inCount ?? 0)), 0) / daysWithData.length)
+    : null;
+
+  const worstGap = daysWithData.length >= 3
+    ? Math.max(...daysWithData.map(d => (d.outCount ?? 0) - (d.inCount ?? 0)))
+    : null;
+
+  const returnRate = daysWithData.length >= 3 && avgGap !== null && avgGap > 0
+    ? Math.round((daysWithData.reduce((sum, d) => sum + (d.inCount ?? 0), 0) / daysWithData.reduce((sum, d) => sum + (d.outCount ?? 0), 0)) * 100)
+    : null;
+
+  const maxFleetCount = Math.max(...fleetBalanceData.filter(d => d.hasData).flatMap(d => [d.outCount ?? 0, d.inCount ?? 0]), 10);
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -92,6 +150,112 @@ export function AnalyticsDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Fleet Balance Entry Form (Management + Lead VSA only) */}
+      {canEnter && (
+        <FleetBalanceEntryForm
+          onSubmit={handleFleetBalanceSubmit}
+          todayEntry={todayEntry}
+        />
+      )}
+
+      {/* Fleet Balance Chart */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
+        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+          Fleet Balance — Last 7 Days
+        </h2>
+        {loading ? (
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">Loading...</div>
+        ) : (
+          <>
+            <div className="flex items-end gap-2 h-28 mb-3">
+              {fleetBalanceData.map(d => {
+                const outHeight = d.hasData && maxFleetCount > 0 ? ((d.outCount ?? 0) / maxFleetCount) * 100 : 8;
+                const inHeight = d.hasData && maxFleetCount > 0 ? ((d.inCount ?? 0) / maxFleetCount) * 100 : 8;
+
+                return (
+                  <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end justify-center gap-0.5" style={{ height: '80px' }}>
+                      {/* OUT bar */}
+                      <div
+                        className={`flex-1 rounded-t-md transition-all ${
+                          d.hasData
+                            ? 'bg-amber-400 dark:bg-amber-500'
+                            : 'bg-gray-300 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600'
+                        }`}
+                        style={{ height: `${outHeight}%` }}
+                        title={d.hasData ? `OUT: ${d.outCount}` : 'No data'}
+                      />
+                      {/* IN bar */}
+                      <div
+                        className={`flex-1 rounded-t-md transition-all ${
+                          d.hasData
+                            ? 'bg-green-400 dark:bg-green-500'
+                            : 'bg-gray-300 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600'
+                        }`}
+                        style={{ height: `${inHeight}%` }}
+                        title={d.hasData ? `IN: ${d.inCount}` : 'No data'}
+                      />
+                    </div>
+                    <span className={`text-[10px] ${d.hasData ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
+                      {d.day}
+                    </span>
+                    {!d.hasData && (
+                      <span className="text-[9px] text-gray-400 dark:text-gray-600">N/A</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mini stats */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Avg Gap</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {avgGap !== null ? avgGap : '—'}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Worst Gap</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {worstGap !== null ? worstGap : '—'}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Return Rate</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {returnRate !== null ? `${returnRate}%` : '—'}
+                </p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">OUT</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-green-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">IN</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Data not provided callout */}
+      {daysWithoutData > 0 && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-600 dark:text-gray-400 transition-colors">
+          ℹ️ {daysWithoutData} day(s) this week have no fleet numbers logged.
+          {canEnter && (
+            <span className="block mt-1 text-xs text-gray-500 dark:text-gray-500">
+              Branch Manager or Lead VSA can log today's numbers above.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Week activity */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
