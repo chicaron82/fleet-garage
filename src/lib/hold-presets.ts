@@ -1,0 +1,31 @@
+export const DAMAGE_PRESETS = [
+  'Scratch — paint surface',
+  'Scratch — to bare metal',
+  'Dent — minor (no paint break)',
+  'Dent — major / crumple',
+  'Cracked windshield',
+  'Windshield chip',
+  'Windshield chip — repaired (scar remaining)',
+  'Broken glass (window / mirror)',
+  'Bumper damage — cosmetic',
+  'Bumper damage — structural',
+  'Rim / hubcap damage',
+  'Interior stain',
+  'Interior damage (seat / trim)',
+  'Mechanical concern',
+  'Missing part / accessory',
+  'Tire damage / flat',
+  'Other',
+];
+
+export const MECHANICAL_PRESETS = [
+  'PM due',
+  'Tire repair needed',
+  'Low tread',
+  'Check engine light',
+  'Brake service needed',
+  'Battery concern',
+  'AC / heat issue',
+  'Wiper replacement',
+  'Other',
+];

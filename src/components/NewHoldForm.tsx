@@ -4,6 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { parseFleetBarcode } from '../lib/barcode';
+import { DAMAGE_PRESETS, MECHANICAL_PRESETS } from '../lib/hold-presets';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { DetailReason } from '../types';
 
@@ -13,38 +14,6 @@ interface Props {
   onSuccess: (vehicleId: string) => void;
   onRegisterNew?: (prefill?: string) => void;
 }
-
-const MECHANICAL_PRESETS = [
-  'PM due',
-  'Tire repair needed',
-  'Low tread',
-  'Check engine light',
-  'Brake service needed',
-  'Battery concern',
-  'AC / heat issue',
-  'Wiper replacement',
-  'Other',
-];
-
-const DAMAGE_PRESETS = [
-  'Scratch — paint surface',
-  'Scratch — to bare metal',
-  'Dent — minor (no paint break)',
-  'Dent — major / crumple',
-  'Cracked windshield',
-  'Windshield chip',
-  'Windshield chip — repaired (scar remaining)',
-  'Broken glass (window / mirror)',
-  'Bumper damage — cosmetic',
-  'Bumper damage — structural',
-  'Rim / hubcap damage',
-  'Interior stain',
-  'Interior damage (seat / trim)',
-  'Mechanical concern',
-  'Missing part / accessory',
-  'Tire damage / flat',
-  'Other',
-];
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
+import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { parseFleetBarcode } from '../lib/barcode';
 import type { Vehicle } from '../types';
 
@@ -21,7 +23,8 @@ function fuelColor(v: number): string {
 }
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
-  const { vehicles, getVehicleByUnit } = useGarage();
+  const { user } = useAuth();
+  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold } = useGarage();
 
   const [scanned, setScanned] = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
   const [unitSearch, setUnitSearch] = useState('');
@@ -29,6 +32,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [reHolded, setReHolded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -52,6 +56,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setFuelLevel(null);
     setPhotoCount(0);
     setSubmitted(false);
+    setReHolded(false);
   }, [getVehicleByUnit, showToast]);
 
   const handleSubmit = () => setSubmitted(true);
@@ -59,7 +64,20 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const handleReset = () => {
     setScanned(null);
     setSubmitted(false);
+    setReHolded(false);
   };
+
+  const handleReHold = useCallback(async (
+    vehicleId: string,
+    description: string,
+    notes: string,
+    photos: string[],
+    linkedHoldId: string,
+  ) => {
+    if (!user) return;
+    await addHold(vehicleId, description, notes, user.id, photos, 'damage', undefined, linkedHoldId);
+    setReHolded(true);
+  }, [user, addHold]);
 
   function fmtTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -87,7 +105,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               </p>
               <CameraBarcodeScanner onDecode={handleDecode} label="Scan to Check In" />
             </div>
-            
+
             <div className="relative flex py-2 items-center">
               <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
               <span className="flex-shrink-0 mx-4 text-gray-400 dark:text-gray-500 text-xs font-semibold uppercase tracking-wider">or</span>
@@ -142,6 +160,14 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
         {scanned && !submitted && (
           <>
+            {/* HELD warning — block check-in */}
+            {scanned.vehicle.status === 'HELD' && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700/50 rounded-lg px-4 py-3">
+                <p className="font-semibold text-sm text-red-800 dark:text-red-300">⚠ Vehicle is currently on hold</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Check-in cannot be submitted while an active hold is open.</p>
+              </div>
+            )}
+
             {/* Vehicle card */}
             <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3 space-y-1 transition-colors">
               <div className="flex items-center justify-between">
@@ -156,6 +182,16 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   Scanned<br />{fmtTime(scanned.timestamp)}
                 </span>
               </div>
+
+              {/* Hold detail panel */}
+              {user && (
+                <CheckInHoldPanel
+                  vehicle={scanned.vehicle}
+                  holds={getHoldsForVehicle(scanned.vehicle.id)}
+                  user={user}
+                  onReHold={handleReHold}
+                />
+              )}
             </div>
 
             {/* Mileage + Fuel */}
@@ -249,14 +285,16 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                disabled={scanned.vehicle.status === 'HELD'}
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
               >
                 ✓ Submit Check-in
               </button>
               <button
                 type="button"
+                disabled={reHolded}
                 onClick={() => onFlagIssue(scanned.vehicle.id)}
-                className="px-4 py-2.5 border-2 border-red-400 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-sm rounded-lg transition cursor-pointer"
+                className="px-4 py-2.5 border-2 border-red-400 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-sm rounded-lg transition cursor-pointer"
               >
                 Flag Issue
               </button>
