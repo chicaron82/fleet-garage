@@ -6,7 +6,7 @@ export interface FleetBalanceEntry {
   date: string;         // ISO date
   outCount: number;
   inCount: number;
-  enteredById: string;  // User.id
+  enteredById: string;  // User.id (mock string, e.g. "u1")
   enteredAt: string;    // ISO timestamp
 }
 

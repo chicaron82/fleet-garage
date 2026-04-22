@@ -6,7 +6,7 @@ CREATE TABLE fleet_balance (
   date        DATE NOT NULL UNIQUE,  -- one entry per day
   out_count   INTEGER NOT NULL,
   in_count    INTEGER NOT NULL,
-  entered_by  UUID NOT NULL,         -- User.id (from USERS mock, not Supabase auth)
+  entered_by  TEXT NOT NULL,           -- User.id (from USERS mock, not Supabase auth)
   entered_at  TIMESTAMPTZ DEFAULT now()
 );
 

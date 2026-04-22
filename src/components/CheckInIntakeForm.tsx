@@ -8,7 +8,17 @@ interface Props {
   onFlagIssue: (vehicleId: string) => void;
 }
 
-const FUEL_LEVELS = ['Full', '3/4', '1/2', '1/4', 'Low'];
+const FUEL_LABELS: Record<number, string> = {
+  0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
+  4: '1/2',  5: '5/8', 6: '3/4', 7: '7/8', 8: 'Full',
+};
+
+function fuelColor(v: number): string {
+  if (v <= 1) return '#ef4444';
+  if (v <= 2) return '#f97316';
+  if (v <= 3) return '#eab308';
+  return '#22c55e';
+}
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const { vehicles, getVehicleByUnit } = useGarage();
@@ -16,7 +26,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [scanned, setScanned] = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
   const [unitSearch, setUnitSearch] = useState('');
   const [mileage, setMileage] = useState('');
-  const [fuelLevel, setFuelLevel] = useState('');
+  const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -39,7 +49,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     }
     setScanned({ vehicle, timestamp });
     setMileage('');
-    setFuelLevel('');
+    setFuelLevel(null);
     setPhotoCount(0);
     setSubmitted(false);
   }, [getVehicleByUnit, showToast]);
@@ -87,7 +97,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             <div className="space-y-3 pt-4">
               <input
                 type="text"
-                placeholder="Or enter unit # manually…"
+                placeholder="Or enter unit # or plate…"
                 value={unitSearch}
                 onChange={e => setUnitSearch(e.target.value.toUpperCase())}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
@@ -95,7 +105,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               {unitSearch.trim().length >= 2 && (
                 <div className="space-y-1">
                   {(() => {
-                    const searchResults = vehicles.filter(v => v.unitNumber.toUpperCase().includes(unitSearch.trim().toUpperCase())).slice(0, 5);
+                    const searchResults = vehicles.filter(v =>
+                      v.unitNumber.toUpperCase().includes(unitSearch.trim().toUpperCase()) ||
+                      v.licensePlate.toUpperCase().includes(unitSearch.trim().toUpperCase())
+                    ).slice(0, 5);
                     if (searchResults.length === 0) {
                       return (
                         <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
@@ -163,14 +176,49 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Fuel Level
                 </label>
-                <select
-                  value={fuelLevel}
-                  onChange={e => setFuelLevel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition cursor-pointer"
-                >
-                  <option value="">Select…</option>
-                  {FUEL_LEVELS.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <div className="space-y-2 px-1">
+                  {/* Value display */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold" style={{ color: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}>
+                      ⛽ {fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '—'}
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+                      {fuelLevel !== null ? `${fuelLevel}/8` : 'set level'}
+                    </span>
+                  </div>
+                  {/* Slider */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={8}
+                    step={1}
+                    value={fuelLevel ?? 4}
+                    onChange={e => setFuelLevel(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
+                    style={{ accentColor: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}
+                  />
+                  {/* Tick marks */}
+                  <div className="flex justify-between px-0.5">
+                    {Array.from({ length: 9 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`w-px h-1.5 rounded-full transition-colors ${
+                          fuelLevel !== null && i <= fuelLevel
+                            ? 'bg-gray-400 dark:bg-gray-400'
+                            : 'bg-gray-300 dark:bg-gray-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {/* Labels */}
+                  <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
+                    <span>E</span>
+                    <span>1/4</span>
+                    <span>1/2</span>
+                    <span>3/4</span>
+                    <span>F</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -224,7 +272,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {scanned.vehicle.year} {scanned.vehicle.make} {scanned.vehicle.model}
-              {fuelLevel ? ` · Fuel: ${fuelLevel}` : ''}
+              {fuelLevel !== null ? ` · Fuel: ${FUEL_LABELS[fuelLevel]}` : ''}
               {mileage ? ` · ${Number(mileage).toLocaleString()} km` : ''}
             </p>
             <button
