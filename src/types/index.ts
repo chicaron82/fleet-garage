@@ -167,3 +167,26 @@ export interface AuditRecord {
   sections: AuditSection[];
   status: AuditStatus;
 }
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+
+export type ShiftType = 'opening' | 'mid' | 'closing' | 'day-off';
+
+export interface Shift {
+  id: string;
+  userId: string;
+  date: string;         // ISO date: '2026-04-23'
+  startTime?: string;   // 24hr: '09:00' — undefined for day-off
+  endTime?: string;     // 24hr: '17:00' — undefined for day-off
+  shiftType: ShiftType;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftWithUser extends Shift {
+  user: {
+    name: string;
+    role: UserRole;
+  };
+}
