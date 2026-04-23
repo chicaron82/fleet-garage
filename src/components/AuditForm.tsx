@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { exportAuditToHtml } from '../lib/audit-export';
-import type { AuditSection, AuditStatus } from '../types';
+import { USERS } from '../data/mock';
+import type { AuditSection, AuditStatus, AuditCrewSlot } from '../types';
 
 interface Props {
   onBack: () => void;
@@ -65,11 +66,11 @@ export function AuditForm({ onBack }: Props) {
       {/* Crew */}
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors">
         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Crew Assignment</p>
-        <CrewSelect label="Driver Side" value={audit.crew.driverSide} users={audit.vsaUsers}
+        <CrewInput label="Driver Side"    value={audit.crew.driverSide}
           onChange={v => audit.setCrew({ ...audit.crew, driverSide: v })} />
-        <CrewSelect label="Passenger Side" value={audit.crew.passengerSide} users={audit.vsaUsers}
+        <CrewInput label="Passenger Side" value={audit.crew.passengerSide}
           onChange={v => audit.setCrew({ ...audit.crew, passengerSide: v })} />
-        <CrewSelect label="Sprayer / Prep" value={audit.crew.sprayer} users={audit.vsaUsers}
+        <CrewInput label="Sprayer / Prep" value={audit.crew.sprayer}
           onChange={v => audit.setCrew({ ...audit.crew, sprayer: v })} />
       </section>
 
@@ -186,20 +187,48 @@ function InputField({ label, value, onChange, placeholder }: {
   );
 }
 
-function CrewSelect({ label, value, users, onChange }: {
-  label: string; value: string; users: { id: string; name: string }[]; onChange: (v: string) => void;
+function CrewInput({ label, value, onChange }: {
+  label: string;
+  value: AuditCrewSlot;
+  onChange: (v: AuditCrewSlot) => void;
 }) {
+  const resolvedUser = USERS.find(u => u.employeeId === value.employeeId);
+  const isKnown = !!resolvedUser;
+  const showManual = value.employeeId.length >= 3 && !isKnown;
+
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{label}</label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition cursor-pointer"
-      >
-        <option value="">Select VSA</option>
-        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-      </select>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+        {label}
+      </label>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value.employeeId}
+        onChange={e => {
+          const id = e.target.value.toUpperCase();
+          const match = USERS.find(u => u.employeeId === id);
+          onChange({ employeeId: id, name: match?.name ?? '' });
+        }}
+        placeholder="Employee ID"
+        className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+      />
+
+      {isKnown && (
+        <p className="text-xs text-green-600 dark:text-green-400 mt-1.5 flex items-center gap-1">
+          ✓ {resolvedUser.name} · {resolvedUser.role}
+        </p>
+      )}
+
+      {showManual && (
+        <input
+          type="text"
+          value={value.name}
+          onChange={e => onChange({ ...value, name: e.target.value })}
+          placeholder="Enter name manually"
+          className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+        />
+      )}
     </div>
   );
 }

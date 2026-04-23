@@ -34,7 +34,7 @@ export function LoginScreen() {
             </div>
             <span className="text-xl font-semibold tracking-tight transition-colors">Fleet Garage</span>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">Damage Hold Ledger · Chain of Custody</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">Winnipeg Logistics Hub · Ops Pilot Program</p>
         </div>
 
         {/* Card */}

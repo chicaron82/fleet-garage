@@ -145,10 +145,15 @@ export interface AuditSection {
   isOpen: boolean;
 }
 
+export interface AuditCrewSlot {
+  employeeId: string;
+  name: string;
+}
+
 export interface AuditCrew {
-  driverSide: string;
-  passengerSide: string;
-  sprayer: string;
+  driverSide: AuditCrewSlot;
+  passengerSide: AuditCrewSlot;
+  sprayer: AuditCrewSlot;
 }
 
 export interface AuditRecord {

@@ -79,7 +79,7 @@ function AuditCard({ audit }: { audit: AuditRecord }) {
             {audit.owningArea} · {fmtDate(audit.date)} at {fmtTime(audit.date)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-            Auditor: {audit.auditorName} · Driver: {audit.crew.driverSide}
+            Auditor: {audit.auditorName} · Driver: {audit.crew.driverSide.name}
           </p>
         </div>
         <div className="shrink-0 text-right">

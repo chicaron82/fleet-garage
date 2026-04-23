@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { USERS } from '../data/mock';
-import type { AuditSection, AuditResult, AuditCrew } from '../types';
+import type { AuditSection, AuditResult, AuditCrew, AuditCrewSlot } from '../types';
 
 // ── Initial checklist ─────────────────────────────────────────────────────────
 
@@ -47,12 +46,14 @@ export function useAudit() {
   const [owningArea, setOwningArea]       = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [plate, setPlate]                 = useState('');
-  const [crew, setCrew]                   = useState<AuditCrew>({ driverSide: '', passengerSide: '', sprayer: '' });
+  const [crew, setCrew] = useState<AuditCrew>({
+    driverSide:    { employeeId: '', name: '' },
+    passengerSide: { employeeId: '', name: '' },
+    sprayer:       { employeeId: '', name: '' },
+  });
   const [sections, setSections]           = useState<AuditSection[]>(buildInitialSections);
   const [dispatchStatus, setDispatchStatus] = useState<'idle' | 'dispatching' | 'dispatched'>('idle');
   const pendingPhoto                       = useRef<PendingPhoto | null>(null);
-
-  const vsaUsers = USERS.filter(u => u.role === 'VSA' || u.role === 'Lead VSA');
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -67,9 +68,9 @@ export function useAudit() {
     owningArea.trim() !== '' &&
     vehicleNumber.trim() !== '' &&
     plate.trim() !== '' &&
-    crew.driverSide !== '' &&
-    crew.passengerSide !== '' &&
-    crew.sprayer !== '';
+    crew.driverSide.name !== '' &&
+    crew.passengerSide.name !== '' &&
+    crew.sprayer.name !== '';
 
   // ── Mutators ───────────────────────────────────────────────────────────────
 
@@ -118,18 +119,17 @@ export function useAudit() {
     setOwningArea('');
     setVehicleNumber('');
     setPlate('');
-    setCrew({ driverSide: '', passengerSide: '', sprayer: '' });
+    setCrew({ driverSide: { employeeId: '', name: '' }, passengerSide: { employeeId: '', name: '' }, sprayer: { employeeId: '', name: '' } });
     setSections(buildInitialSections());
     setDispatchStatus('idle');
     pendingPhoto.current = null;
   };
 
-  const resolveCrewName = (userId: string) =>
-    USERS.find(u => u.id === userId)?.name ?? userId;
+  const resolveCrewName = (slot: AuditCrewSlot) =>
+    slot.name || slot.employeeId || 'Unknown';
 
   return {
     user,
-    vsaUsers,
     owningArea, setOwningArea,
     vehicleNumber, setVehicleNumber,
     plate, setPlate,

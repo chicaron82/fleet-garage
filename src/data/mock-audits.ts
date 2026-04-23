@@ -16,7 +16,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-4821',
     plate: 'GHK 294',
-    crew: { driverSide: 'Aaron S.', passengerSide: 'Belle', sprayer: 'PerplexiZee' },
+    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
@@ -33,7 +33,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line B',
     vehicleNumber: 'HRZ-3307',
     plate: 'JFT 881',
-    crew: { driverSide: 'PerplexiZee', passengerSide: 'Aaron S.', sprayer: 'Belle' },
+    crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'Belle' } },
     status: 'FAILED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
@@ -50,7 +50,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-5590',
     plate: 'KLP 447',
-    crew: { driverSide: 'Belle', passengerSide: 'PerplexiZee', sprayer: 'Aaron S.' },
+    crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
     status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
@@ -67,7 +67,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Premium Bay',
     vehicleNumber: '5513130',
     plate: 'LJF684',
-    crew: { driverSide: 'Aaron S.', passengerSide: 'PerplexiZee', sprayer: 'Belle' },
+    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Belle' } },
     status: 'FAILED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), fail('dmg', 'Damage'), pass('whl', 'Wheels'), fail('trd', 'Tread Depth')]),
@@ -84,7 +84,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-2298',
     plate: 'PBX 773',
-    crew: { driverSide: 'Belle', passengerSide: 'Aaron S.', sprayer: 'PerplexiZee' },
+    crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
@@ -101,7 +101,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line B',
     vehicleNumber: 'HRZ-4821',
     plate: 'GHK 294',
-    crew: { driverSide: 'PerplexiZee', passengerSide: 'Belle', sprayer: 'Aaron S.' },
+    crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
     status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
@@ -118,7 +118,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-3307',
     plate: 'JFT 881',
-    crew: { driverSide: 'Aaron S.', passengerSide: 'Belle', sprayer: 'PerplexiZee' },
+    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
