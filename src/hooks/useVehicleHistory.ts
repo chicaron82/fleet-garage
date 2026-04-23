@@ -12,7 +12,8 @@ export function useVehicleHistory(vehicleId: string) {
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
   const [repairNotes, setRepairNotes] = useState('');
   const [repairing, setRepairing] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const pendingHoldId = useRef<string | null>(null);
 
@@ -92,7 +93,9 @@ export function useVehicleHistory(vehicleId: string) {
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
     repairNotes, setRepairNotes, repairing,
-    lightboxSrc, setLightboxSrc,
+    lightboxPhotos, lightboxIndex,
+    openLightbox: (photos: string[], index: number) => { setLightboxPhotos(photos); setLightboxIndex(index); },
+    closeLightbox: () => setLightboxPhotos([]),
     uploadingFor, addPhotoClick, handlePhotoSelected,
     getName, getRole, getEmpId,
   };

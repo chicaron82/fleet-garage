@@ -4,6 +4,7 @@ import { DAMAGE_PRESETS } from '../lib/hold-presets';
 import { compressImage } from '../lib/image';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { StatusBadge } from './StatusBadge';
+import { PhotoLightbox } from './PhotoLightbox';
 import type { Hold, User, Vehicle } from '../types';
 
 const MAX_PHOTOS = 4;
@@ -36,7 +37,8 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [showReHoldForm, setShowReHoldForm] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Re-hold form state
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
@@ -112,7 +114,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold }: Props) {
               <button
                 key={i}
                 type="button"
-                onClick={() => setLightboxSrc(src)}
+                onClick={() => { setLightboxPhotos(hold.photos!); setLightboxIndex(i); }}
                 className="cursor-pointer"
               >
                 <img
@@ -345,23 +347,12 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold }: Props) {
       )}
 
       {/* Lightbox */}
-      {lightboxSrc && (
-        <div
-          className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setLightboxSrc(null)}
-        >
-          <img
-            src={lightboxSrc}
-            alt="Damage photo"
-            className="max-w-full max-h-full rounded-xl object-contain"
-          />
-          <button
-            className="absolute top-4 right-4 text-white text-2xl leading-none opacity-70 hover:opacity-100 transition cursor-pointer"
-            onClick={() => setLightboxSrc(null)}
-          >
-            ×
-          </button>
-        </div>
+      {lightboxPhotos.length > 0 && (
+        <PhotoLightbox
+          photos={lightboxPhotos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxPhotos([])}
+        />
       )}
     </>
   );

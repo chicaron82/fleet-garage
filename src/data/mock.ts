@@ -13,6 +13,8 @@ export const USERS: User[] = [
   { id: 'u8', employeeId: 'DRV-001', name: 'GenZee',      role: 'Driver',             password: '!Bananarama1982' },
   { id: 'u9', employeeId: 'DRV-002', name: 'ZeeDric',     role: 'Driver',             password: '!Bananarama1982' },
   { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA',               password: '!Bananarama1982' },
+  { id: 'u11', employeeId: '256163',  name: 'Geoff N.',    role: 'Lead VSA',           password: '!Bananarama1982' },
+  { id: 'u12', employeeId: '300210',  name: 'Ray T.',      role: 'VSA',               password: '!Bananarama1982' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { StatusBadge } from './StatusBadge';
 import { ReleaseForm } from './ReleaseForm';
 import { VerbalOverrideForm } from './VerbalOverrideForm';
 import { HoldRecordFooter } from './HoldRecordFooter';
+import { PhotoLightbox } from './PhotoLightbox';
 
 interface Props {
   vehicleId: string;
@@ -217,7 +218,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                       <button
                         key={i}
                         type="button"
-                        onClick={() => h.setLightboxSrc(src)}
+                        onClick={() => h.openLightbox(hold.photos ?? [], i)}
                         className="cursor-pointer"
                       >
                         <img
@@ -298,23 +299,12 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
       />
 
       {/* Lightbox */}
-      {h.lightboxSrc && (
-        <div
-          className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => h.setLightboxSrc(null)}
-        >
-          <img
-            src={h.lightboxSrc}
-            alt="Damage photo"
-            className="max-w-full max-h-full rounded-xl object-contain"
-          />
-          <button
-            className="absolute top-4 right-4 text-white text-2xl leading-none opacity-70 hover:opacity-100 transition cursor-pointer"
-            onClick={() => h.setLightboxSrc(null)}
-          >
-            ×
-          </button>
-        </div>
+      {h.lightboxPhotos.length > 0 && (
+        <PhotoLightbox
+          photos={h.lightboxPhotos}
+          initialIndex={h.lightboxIndex}
+          onClose={h.closeLightbox}
+        />
       )}
     </div>
   );
