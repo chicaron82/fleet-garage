@@ -1,23 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from './context/AuthContext';
 import { GarageProvider } from './context/GarageContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/LoginScreen';
-import { Dashboard } from './components/Dashboard';
-import { VehicleHistory } from './components/VehicleHistory';
-import { NewHoldForm } from './components/NewHoldForm';
-import { RegisterVehicleForm } from './components/RegisterVehicleForm';
-import { TripsView } from './components/TripsView';
-import { ScheduleView } from './components/ScheduleView';
-import { InventoryView } from './components/InventoryView';
-import { LostAndFoundView } from './components/LostAndFoundView';
-import { CheckInView } from './components/CheckInView';
-import { AuditDashboard } from './components/AuditDashboard';
-import { AuditForm } from './components/AuditForm';
-import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { LogoutConfirm } from './components/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
 import type { Screen } from './types';
+
+// Lazy-loaded screen components — each becomes its own chunk
+const Dashboard          = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const VehicleHistory     = lazy(() => import('./components/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
+const NewHoldForm        = lazy(() => import('./components/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
+const RegisterVehicleForm = lazy(() => import('./components/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
+const TripsView          = lazy(() => import('./components/TripsView').then(m => ({ default: m.TripsView })));
+const ScheduleView       = lazy(() => import('./components/ScheduleView').then(m => ({ default: m.ScheduleView })));
+const InventoryView      = lazy(() => import('./components/InventoryView').then(m => ({ default: m.InventoryView })));
+const LostAndFoundView   = lazy(() => import('./components/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
+const CheckInView        = lazy(() => import('./components/CheckInView').then(m => ({ default: m.CheckInView })));
+const AuditDashboard     = lazy(() => import('./components/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
+const AuditForm          = lazy(() => import('./components/AuditForm').then(m => ({ default: m.AuditForm })));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -132,7 +134,9 @@ export default function App() {
   return (
     <GarageProvider>
       <AppShell activeModule={activeModule} onNavigate={navigate}>
-        {renderScreen()}
+        <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
+          {renderScreen()}
+        </Suspense>
       </AppShell>
       {showLogoutConfirm && (
         <LogoutConfirm
