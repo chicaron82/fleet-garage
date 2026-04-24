@@ -3,6 +3,7 @@ import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext
 import { useAuth } from '../../context/AuthContext';
 import { USERS } from '../../data/mock';
 import { ShiftForm } from './ShiftForm';
+import { FlipShiftSheet } from './FlipShiftSheet';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -25,6 +26,7 @@ export function WeekView({ today }: Props) {
   const { shifts, currentDate, canEditShift, loading } = useSchedule();
   const { user } = useAuth();
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
+  const [flipShift, setFlipShift]     = useState<ShiftWithUser | null>(null);
   const [addForDate, setAddForDate]   = useState<string | null>(null);
 
   // Build 7 days of this week (Mon–Sun)
@@ -89,7 +91,10 @@ export function WeekView({ today }: Props) {
                       <td key={i} className={`text-center px-1 py-2 ${isToday ? 'bg-yellow-50/30 dark:bg-yellow-900/5' : ''}`}>
                         {shift ? (
                           <button
-                            onClick={() => canEdit ? setEditShift(shift) : undefined}
+                            onClick={() => {
+                              if (isMe) setFlipShift(shift);
+                              else if (canEdit) setEditShift(shift);
+                            }}
                             className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${SHIFT_COLORS[shift.shiftType]} ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                           >
                             {shift.shiftType === 'day-off'
@@ -134,6 +139,12 @@ export function WeekView({ today }: Props) {
           mode="edit"
           initial={editShift}
           onClose={() => setEditShift(null)}
+        />
+      )}
+      {flipShift && (
+        <FlipShiftSheet
+          shift={flipShift}
+          onClose={() => setFlipShift(null)}
         />
       )}
       {addForDate && (
