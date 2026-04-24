@@ -15,6 +15,7 @@ export function HoldRecordFooter({ hold, getName, getRole, getEmpId, fmt, fmtDat
       {hold.release && (() => {
         const isPre = hold.release.releaseType === 'PRE_EXISTING';
         const isVerbal = hold.release.releaseMethod === 'verbal_override';
+        const isMechanical = hold.release.releaseType === 'MECHANICAL_RELEASE';
 
         // Verbal override — distinct orange treatment
         if (isVerbal) {
@@ -31,6 +32,35 @@ export function HoldRecordFooter({ hold, getName, getRole, getEmpId, fmt, fmtDat
                 Authorized by: <span className="font-semibold">{hold.release.overrideAuthorization ?? 'Unknown'}</span>
                 {' '}(verbal — unverified)
               </p>
+              {hold.release.notes && (
+                <p className="text-xs mt-1 italic text-orange-600 dark:text-orange-400/80">
+                  "{hold.release.notes}"
+                </p>
+              )}
+            </div>
+          );
+        }
+
+        // Mechanical release — orange treatment
+        if (isMechanical) {
+          return (
+            <div className="p-4 border-t bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800/30">
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-orange-800 dark:text-orange-300">
+                Mechanical Release — Short Term
+              </p>
+              <p className="text-xs text-orange-900 dark:text-orange-200">
+                Approved by <span className="font-semibold">{getName(hold.release.approvedById)}</span>
+                {' '}· {getEmpId(hold.release.approvedById)} ({getRole(hold.release.approvedById)}) · {fmt(hold.release.approvedAt)}
+              </p>
+              <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
+                Reason: {hold.release.reason}
+              </p>
+              {hold.release.expectedReturn && (
+                <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                  Must return by: {fmtDate(hold.release.expectedReturn)}
+                  {hold.release.actualReturn && <> · Returned: {fmtDate(hold.release.actualReturn)}</>}
+                </p>
+              )}
               {hold.release.notes && (
                 <p className="text-xs mt-1 italic text-orange-600 dark:text-orange-400/80">
                   "{hold.release.notes}"

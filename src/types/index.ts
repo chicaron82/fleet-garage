@@ -69,7 +69,7 @@ export interface Hold {
 
 // ── Releases ─────────────────────────────────────────────────────────────────
 
-export type ReleaseType = 'EXCEPTION' | 'PRE_EXISTING';
+export type ReleaseType = 'EXCEPTION' | 'PRE_EXISTING' | 'MECHANICAL_RELEASE';
 export type ReleaseMethod = 'standard' | 'verbal_override';
 
 export interface Release {
