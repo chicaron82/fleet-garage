@@ -35,6 +35,7 @@ interface GarageContextValue {
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
+  releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
@@ -74,6 +75,18 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
+
+  const releaseStreak = (vehicleId: string): number => {
+    const completed = holds
+      .filter(h => h.vehicleId === vehicleId && h.status !== 'ACTIVE')
+      .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime());
+    let count = 0;
+    for (const hold of completed) {
+      if (hold.status === 'REPAIRED') break;
+      if (hold.status === 'RELEASED' || hold.status === 'RETURNED') count++;
+    }
+    return count;
+  };
 
   const staleHolds = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
@@ -271,7 +284,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
-      getHoldsForVehicle, getActiveHold,
+      getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
     }}>
       {children}

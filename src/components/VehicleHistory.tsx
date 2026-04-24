@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
+import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { ReleaseForm } from './ReleaseForm';
@@ -30,11 +31,14 @@ function fmtDate(iso: string) {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
+  const { releaseStreak } = useGarage();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const { vehicle } = h;
   if (!vehicle) return null;
+
+  const streak = releaseStreak(vehicleId);
 
   return (
     <div className="transition-colors">
@@ -61,7 +65,18 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
               <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
             </div>
-            <StatusBadge status={vehicle.status} />
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <StatusBadge status={vehicle.status} />
+              {streak >= 2 && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  streak >= 3
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                }`}>
+                  {streak}× released unrepaired
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Actions */}

@@ -16,7 +16,7 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -131,6 +131,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           )}
           {filtered.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
+            const streak = releaseStreak(vehicle.id);
             return (
               <button
                 key={vehicle.id}
@@ -156,7 +157,18 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       </p>
                     )}
                   </div>
-                  <StatusBadge status={vehicle.status} />
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <StatusBadge status={vehicle.status} />
+                    {streak >= 2 && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        streak >= 3
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {streak}× unrepaired
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             );
