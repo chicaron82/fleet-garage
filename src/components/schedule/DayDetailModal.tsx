@@ -7,6 +7,8 @@ const SHIFT_COLORS: Record<ShiftType, string> = {
   'mid':     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
   'closing': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
   'day-off': 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
+  'pto':     'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+  'sick':    'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
 };
 
 function fmtTime(t?: string): string {
@@ -65,8 +67,9 @@ export function DayDetailModal({ date, onClose, onAddShift }: Props) {
                   <p className="text-xs text-gray-400 dark:text-gray-500">{shift.user.role}</p>
                 </div>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${SHIFT_COLORS[shift.shiftType]}`}>
-                  {shift.shiftType === 'day-off'
-                    ? 'Day Off'
+                  {shift.shiftType === 'day-off' ? 'Day Off'
+                    : shift.shiftType === 'pto'  ? 'PTO'
+                    : shift.shiftType === 'sick' ? 'Sick Day'
                     : `${fmtTime(shift.startTime)} – ${fmtTime(shift.endTime)}`
                   }
                 </span>
