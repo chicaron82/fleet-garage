@@ -28,15 +28,18 @@ function rowToShift(row: Record<string, unknown>): ShiftWithUser {
   const userId = row.user_id as string;
   const u = USERS.find(u => u.id === userId);
   return {
-    id:        row.id as string,
+    id:              row.id as string,
     userId,
-    date:      row.date as string,
-    startTime: (row.start_time as string | null) ?? undefined,
-    endTime:   (row.end_time   as string | null) ?? undefined,
-    shiftType: row.shift_type as ShiftType,
-    notes:     (row.notes as string | null) ?? undefined,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    date:            row.date as string,
+    startTime:       (row.start_time        as string | null) ?? undefined,
+    endTime:         (row.end_time          as string | null) ?? undefined,
+    shiftType:       row.shift_type as ShiftType,
+    notes:           (row.notes             as string | null) ?? undefined,
+    actualStartTime: (row.actual_start_time as string | null) ?? undefined,
+    actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
+    isStat:          (row.is_stat as boolean | null) ?? false,
+    createdAt:       row.created_at as string,
+    updatedAt:       row.updated_at as string,
     user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
   };
 }
@@ -48,15 +51,18 @@ interface ScheduleContextValue {
   loading: boolean;
   viewMode: 'week' | 'calendar';
   currentDate: Date;
+  isPeakSeason: boolean;
   setViewMode: (mode: 'week' | 'calendar') => void;
   setCurrentDate: (date: Date) => void;
   goToPrev: () => void;
   goToNext: () => void;
   goToToday: () => void;
+  togglePeakSeason: () => Promise<void>;
   createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
+  logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
   refresh: () => void;
 }
@@ -69,6 +75,30 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isPeakSeason, setIsPeakSeason] = useState(false);
+
+  // ── Peak season ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    supabase
+      .from('branch_settings')
+      .select('peak_season')
+      .eq('id', 1)
+      .single()
+      .then(({ data }) => {
+        if (data) setIsPeakSeason(data.peak_season as boolean);
+      });
+  }, []);
+
+  const togglePeakSeason = async () => {
+    const next = !isPeakSeason;
+    const { error } = await supabase
+      .from('branch_settings')
+      .update({ peak_season: next, updated_at: new Date().toISOString() })
+      .eq('id', 1);
+    if (error) throw error;
+    setIsPeakSeason(next);
+  };
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +170,22 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setShifts(prev => prev.filter(s => s.id !== id));
   };
 
+  const logActualHours = async (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => {
+    const { data, error } = await supabase
+      .from('shifts')
+      .update({
+        actual_start_time: actualStartTime || null,
+        actual_end_time:   actualEndTime   || null,
+        is_stat:           isStat,
+        updated_at:        new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+  };
+
   // ── Permissions ────────────────────────────────────────────────────────────
 
   const canEditShift = (shift: Shift): boolean => {
@@ -192,10 +238,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ScheduleContext.Provider value={{
-      shifts, loading, viewMode, currentDate,
+      shifts, loading, viewMode, currentDate, isPeakSeason,
       setViewMode, setCurrentDate,
-      goToPrev, goToNext, goToToday,
-      createShift, bulkCreateShifts, updateShift, deleteShift, canEditShift, refresh,
+      goToPrev, goToNext, goToToday, togglePeakSeason,
+      createShift, bulkCreateShifts, updateShift, deleteShift, logActualHours,
+      canEditShift, refresh,
     }}>
       {children}
     </ScheduleContext.Provider>

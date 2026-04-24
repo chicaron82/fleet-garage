@@ -180,6 +180,9 @@ export interface Shift {
   endTime?: string;     // 24hr: '17:00' — undefined for day-off
   shiftType: ShiftType;
   notes?: string;
+  actualStartTime?: string; // actual hours worked
+  actualEndTime?: string;
+  isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
   createdAt: string;
   updatedAt: string;
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
+import { isStatDay, getStatName } from '../../lib/stats';
+import { calcOT, calcHours, fmtHours } from '../../lib/ot';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const TYPE_LABELS: Record<ShiftType, string> = {
@@ -9,14 +11,16 @@ const TYPE_LABELS: Record<ShiftType, string> = {
   'day-off': 'Day Off',
 };
 
-const TYPE_DEFAULTS: Record<ShiftType, { start: string; end: string }> = {
-  'opening': { start: '06:45', end: '15:15' },
-  'mid':     { start: '11:00', end: '19:30' },
-  'closing': { start: '14:30', end: '23:00' },
-  'day-off': { start: '',      end: ''      },
-};
+function getTypeDefaults(isPeakSeason: boolean): Record<ShiftType, { start: string; end: string }> {
+  return {
+    'opening': { start: '06:45', end: '15:15' },
+    'mid':     { start: '11:00', end: '19:30' },
+    'closing': isPeakSeason ? { start: '14:30', end: '23:00' } : { start: '13:30', end: '22:00' },
+    'day-off': { start: '',      end: ''      },
+  };
+}
 
-const TYPE_COLORS: Record<ShiftType, string> = {
+const TYPE_ACTIVE: Record<ShiftType, string> = {
   'opening': 'bg-blue-500 text-white',
   'mid':     'bg-teal-500 text-white',
   'closing': 'bg-yellow-500 text-white',
@@ -36,7 +40,8 @@ interface Props {
 }
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
-  const { updateShift } = useSchedule();
+  const { updateShift, logActualHours, isPeakSeason } = useSchedule();
+  const typeDefaults = getTypeDefaults(isPeakSeason);
 
   const [shiftType, setShiftType] = useState<ShiftType>(shift.shiftType);
   const [startTime, setStartTime] = useState(shift.startTime ?? '');
@@ -44,13 +49,30 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
 
+  // Actual hours section
+  const [showActual,   setShowActual]   = useState(false);
+  const [actualStart,  setActualStart]  = useState(shift.actualStartTime ?? '');
+  const [actualEnd,    setActualEnd]    = useState(shift.actualEndTime   ?? '');
+  const [isStat,       setIsStat]       = useState(shift.isStat ?? isStatDay(shift.date));
+  const [savingActual, setSavingActual] = useState(false);
+  const [actualError,  setActualError]  = useState('');
+
   const isDayOff = shiftType === 'day-off';
+
+  // Live OT preview
+  const previewOT = calcOT({
+    ...shift,
+    shiftType,
+    actualStartTime: actualStart || undefined,
+    actualEndTime:   actualEnd   || undefined,
+    isStat,
+  });
+  const actualHrs = calcHours(actualStart, actualEnd);
 
   const handleTypeChange = (t: ShiftType) => {
     setShiftType(t);
-    // Apply default times when switching types — user can override
-    setStartTime(TYPE_DEFAULTS[t].start);
-    setEndTime(TYPE_DEFAULTS[t].end);
+    setStartTime(typeDefaults[t].start);
+    setEndTime(typeDefaults[t].end);
   };
 
   const handleSave = async () => {
@@ -74,6 +96,24 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     }
   };
 
+  const handleLogActual = async () => {
+    if (actualStart && actualEnd && actualStart >= actualEnd) {
+      setActualError('End time must be after start time.');
+      return;
+    }
+    setSavingActual(true);
+    setActualError('');
+    try {
+      await logActualHours(shift.id, actualStart, actualEnd, isStat);
+      onClose();
+    } catch {
+      setActualError('Failed to save. Please try again.');
+    } finally {
+      setSavingActual(false);
+    }
+  };
+
+  const statName = getStatName(shift.date);
   const displayDate = new Date(shift.date + 'T12:00:00').toLocaleDateString('en-CA', {
     weekday: 'short', month: 'short', day: 'numeric',
   });
@@ -87,7 +127,9 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">{displayDate}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {displayDate}{statName && <span className="ml-1.5 text-amber-500 font-medium">★ {statName}</span>}
+            </p>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{shift.user.name}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
@@ -100,7 +142,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
               key={t}
               onClick={() => handleTypeChange(t)}
               className={`py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                shiftType === t ? TYPE_COLORS[t] : TYPE_IDLE[t]
+                shiftType === t ? TYPE_ACTIVE[t] : TYPE_IDLE[t]
               }`}
             >
               {TYPE_LABELS[t]}
@@ -134,7 +176,6 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 
-        {/* Save */}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -142,6 +183,79 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
+
+        {/* Divider */}
+        <div className="border-t border-gray-100 dark:border-gray-800" />
+
+        {/* Log actual hours */}
+        {!showActual ? (
+          <button
+            onClick={() => setShowActual(true)}
+            className="w-full text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-left transition cursor-pointer"
+          >
+            {shift.actualStartTime ? '✏️ Edit actual hours' : 'Log actual hours ↓'}
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Actual Hours</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
+                <input
+                  type="time"
+                  value={actualStart}
+                  onChange={e => setActualStart(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End</label>
+                <input
+                  type="time"
+                  value={actualEnd}
+                  onChange={e => setActualEnd(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                />
+              </div>
+            </div>
+
+            {/* Stat checkbox */}
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isStat}
+                onChange={e => setIsStat(e.target.checked)}
+                className="w-4 h-4 rounded accent-yellow-500"
+              />
+              <span className="text-xs text-gray-700 dark:text-gray-300">
+                Stat holiday
+                {statName && <span className="ml-1 text-amber-500 font-medium">★ {statName}</span>}
+              </span>
+            </label>
+
+            {/* Live OT calculation */}
+            {actualStart && actualEnd && (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                {fmtHours(actualHrs)} actual
+                {previewOT > 0
+                  ? <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">· {fmtHours(previewOT)} OT</span>
+                  : <span className="ml-2 text-green-600 dark:text-green-400">· No OT</span>
+                }
+              </div>
+            )}
+
+            {actualError && <p className="text-xs text-red-500">{actualError}</p>}
+
+            <button
+              onClick={handleLogActual}
+              disabled={savingActual || !actualStart || !actualEnd}
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-white font-semibold text-sm rounded-xl transition cursor-pointer"
+            >
+              {savingActual ? 'Saving…' : 'Log Hours'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

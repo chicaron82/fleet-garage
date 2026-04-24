@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { USERS } from '../../data/mock';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
+import { calcOT, fmtHours } from '../../lib/ot';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -97,10 +98,22 @@ export function WeekView({ today }: Props) {
                             }}
                             className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${SHIFT_COLORS[shift.shiftType]} ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                           >
-                            {shift.shiftType === 'day-off'
-                              ? 'OFF'
-                              : <>{fmtTime(shift.startTime)}<br />{fmtTime(shift.endTime)}</>
-                            }
+                            {shift.shiftType === 'day-off' ? (
+                              <>
+                                OFF
+                                {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight">★</span>}
+                              </>
+                            ) : (
+                              <>
+                                {fmtTime(shift.startTime)}<br />{fmtTime(shift.endTime)}
+                                {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight mt-0.5">★ stat</span>}
+                                {calcOT(shift) > 0 && (
+                                  <span className="block text-amber-600 dark:text-amber-400 font-semibold text-[10px] leading-tight">
+                                    +{fmtHours(calcOT(shift))} OT
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </button>
                         ) : isMe ? (
                           <button
