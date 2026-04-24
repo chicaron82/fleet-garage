@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { getTypeDefaults } from '../../lib/shiftDefaults';
 import type { ShiftType } from '../../types';
 
 const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -36,12 +37,12 @@ interface Props {
 }
 
 export function FillScheduleModal({ onClose }: Props) {
-  const { shifts, bulkCreateShifts, refresh } = useSchedule();
+  const { shifts, bulkCreateShifts, refresh, isPeakSeason } = useSchedule();
   const { user } = useAuth();
 
   const [shiftType, setShiftType] = useState<ShiftType>('closing');
-  const [startTime, setStartTime] = useState('');
-  const [endTime,   setEndTime]   = useState('');
+  const [startTime, setStartTime] = useState(() => getTypeDefaults(isPeakSeason)['closing'].start);
+  const [endTime,   setEndTime]   = useState(() => getTypeDefaults(isPeakSeason)['closing'].end);
   const [dows,      setDows]      = useState<number[]>([]);
   const [from,      setFrom]      = useState(defaultFrom);
   const [to,        setTo]        = useState(defaultTo);
@@ -121,7 +122,13 @@ export function FillScheduleModal({ onClose }: Props) {
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Shift Type</label>
           <select
             value={shiftType}
-            onChange={e => setShiftType(e.target.value as ShiftType)}
+            onChange={e => {
+              const t = e.target.value as ShiftType;
+              setShiftType(t);
+              const defaults = getTypeDefaults(isPeakSeason);
+              setStartTime(defaults[t].start);
+              setEndTime(defaults[t].end);
+            }}
             className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
           >
             <option value="opening">Opening</option>

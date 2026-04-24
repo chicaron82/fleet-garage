@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { isStatDay, getStatName } from '../../lib/stats';
 import { calcOT, calcHours, fmtHours } from '../../lib/ot';
+import { getTypeDefaults } from '../../lib/shiftDefaults';
+import { ClockPicker } from './ClockPicker';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const TYPE_LABELS: Record<ShiftType, string> = {
@@ -10,15 +12,6 @@ const TYPE_LABELS: Record<ShiftType, string> = {
   'closing': 'Closing',
   'day-off': 'Day Off',
 };
-
-function getTypeDefaults(isPeakSeason: boolean): Record<ShiftType, { start: string; end: string }> {
-  return {
-    'opening': { start: '06:45', end: '15:15' },
-    'mid':     { start: '11:00', end: '19:30' },
-    'closing': isPeakSeason ? { start: '14:30', end: '23:00' } : { start: '13:30', end: '22:00' },
-    'day-off': { start: '',      end: ''      },
-  };
-}
 
 const TYPE_ACTIVE: Record<ShiftType, string> = {
   'opening': 'bg-blue-500 text-white',
@@ -155,21 +148,11 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-              />
+              <ClockPicker value={startTime} onChange={setStartTime} direction="up" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={e => setEndTime(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-              />
+              <ClockPicker value={endTime} onChange={setEndTime} direction="up" />
             </div>
           </div>
         )}

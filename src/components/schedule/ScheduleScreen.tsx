@@ -40,7 +40,7 @@ export function ScheduleScreen() {
             onClick={() => setShowFill(true)}
             className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
           >
-            Fill month ↓
+            Fill range ↓
           </button>
           {/* View toggle */}
           <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-semibold">

@@ -3,7 +3,8 @@ import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { DayDetailModal } from './DayDetailModal';
 import { ShiftForm } from './ShiftForm';
-import type { ShiftType } from '../../types';
+import { FlipShiftSheet } from './FlipShiftSheet';
+import type { ShiftType, ShiftWithUser } from '../../types';
 
 const TYPE_DOT: Record<ShiftType, string> = {
   'opening': 'bg-blue-400',
@@ -30,6 +31,7 @@ export function CalendarView({ today }: Props) {
   const { user } = useAuth();
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [addForDate, setAddForDate] = useState<string | null>(null);
+  const [flipShift,  setFlipShift]  = useState<ShiftWithUser | null>(null);
 
   const days = getMonthDays(currentDate);
   const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -63,7 +65,7 @@ export function CalendarView({ today }: Props) {
             return (
               <button
                 key={iso}
-                onClick={() => setDetailDate(iso)}
+                onClick={() => myShift ? setFlipShift(myShift) : setDetailDate(iso)}
                 className={`border-b border-r border-gray-50 dark:border-gray-800/50 h-16 p-1.5 flex flex-col items-start text-left transition cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
                   isToday ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : ''
                 } ${day.getDay() === 0 || day.getDay() === 6 ? 'bg-gray-50/30 dark:bg-gray-800/20' : ''}`}
@@ -121,6 +123,12 @@ export function CalendarView({ today }: Props) {
           mode="add"
           initialDate={addForDate}
           onClose={() => setAddForDate(null)}
+        />
+      )}
+      {flipShift && (
+        <FlipShiftSheet
+          shift={flipShift}
+          onClose={() => setFlipShift(null)}
         />
       )}
     </>

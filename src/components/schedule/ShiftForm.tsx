@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { getTypeDefaults } from '../../lib/shiftDefaults';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
@@ -25,16 +26,19 @@ type EditProps = {
 type Props = AddProps | EditProps;
 
 export function ShiftForm(props: Props) {
-  const { createShift, updateShift, deleteShift } = useSchedule();
+  const { createShift, updateShift, deleteShift, isPeakSeason } = useSchedule();
   const { user } = useAuth();
 
   const isEdit = props.mode === 'edit';
   const existing = isEdit ? props.initial : null;
 
+  const initialShiftType: ShiftType = existing?.shiftType ?? 'closing';
+  const initialDefaults = getTypeDefaults(isPeakSeason)[initialShiftType];
+
   const [date,      setDate]      = useState(existing?.date ?? (props.mode === 'add' ? props.initialDate : ''));
-  const [shiftType, setShiftType] = useState<ShiftType>(existing?.shiftType ?? 'closing');
-  const [startTime, setStartTime] = useState(existing?.startTime ?? '');
-  const [endTime,   setEndTime]   = useState(existing?.endTime   ?? '');
+  const [shiftType, setShiftType] = useState<ShiftType>(initialShiftType);
+  const [startTime, setStartTime] = useState(existing?.startTime ?? initialDefaults.start);
+  const [endTime,   setEndTime]   = useState(existing?.endTime   ?? initialDefaults.end);
   const [notes,     setNotes]     = useState(existing?.notes     ?? '');
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
@@ -125,7 +129,13 @@ export function ShiftForm(props: Props) {
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Shift Type</label>
           <select
             value={shiftType}
-            onChange={e => setShiftType(e.target.value as ShiftType)}
+            onChange={e => {
+              const t = e.target.value as ShiftType;
+              setShiftType(t);
+              const defaults = getTypeDefaults(isPeakSeason);
+              setStartTime(defaults[t].start);
+              setEndTime(defaults[t].end);
+            }}
             className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
           >
             {SHIFT_TYPE_OPTIONS.map(o => (
