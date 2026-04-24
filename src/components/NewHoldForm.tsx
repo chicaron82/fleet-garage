@@ -106,15 +106,26 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             ) : (
               <div className="space-y-3">
                 <div className="flex gap-2">
-                  <input
-                    ref={unitInputRef}
-                    type="text"
-                    placeholder="Search by unit # or plate…"
-                    value={h.unitSearch}
-                    onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
-                    autoFocus
-                    className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-                  />
+                  <div className="relative flex-1">
+                    <input
+                      ref={unitInputRef}
+                      type="text"
+                      placeholder="Search by unit # or plate…"
+                      value={h.unitSearch}
+                      onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
+                      autoFocus
+                      className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+                    />
+                    {h.unitSearch && (
+                      <button
+                        onClick={() => h.setUnitSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+                        aria-label="Clear search"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                   <CameraBarcodeScanner onDecode={handleCameraDecode} />
                 </div>
                 {h.searchResults.length > 0 && (

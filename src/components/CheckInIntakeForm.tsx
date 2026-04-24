@@ -113,13 +113,24 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             </div>
 
             <div className="space-y-3 pt-4">
-              <input
-                type="text"
-                placeholder="Or enter unit # or plate…"
-                value={unitSearch}
-                onChange={e => setUnitSearch(e.target.value.toUpperCase())}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Or enter unit # or plate…"
+                  value={unitSearch}
+                  onChange={e => setUnitSearch(e.target.value.toUpperCase())}
+                  className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+                />
+                {unitSearch && (
+                  <button
+                    onClick={() => setUnitSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {unitSearch.trim().length >= 2 && (
                 <div className="space-y-1">
                   {(() => {
