@@ -95,14 +95,25 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
         {/* Search + Add Hold */}
         <div className="flex gap-2">
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder="Search unit #, plate, make…"
-            value={search}
-            onChange={e => setSearch(e.target.value.toUpperCase())}
-            className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition-all uppercase shadow-sm"
-          />
+          <div className="relative flex-1">
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search unit #, plate, make…"
+              value={search}
+              onChange={e => setSearch(e.target.value.toUpperCase())}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition-all uppercase shadow-sm"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <CameraBarcodeScanner onDecode={handleCameraDecode} />
         </div>
 
