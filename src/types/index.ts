@@ -170,7 +170,12 @@ export interface AuditRecord {
 
 // ── Schedule ──────────────────────────────────────────────────────────────────
 
-export type ShiftType = 'opening' | 'mid' | 'closing' | 'day-off';
+export type ShiftType = 'opening' | 'mid' | 'closing' | 'day-off' | 'pto' | 'sick';
+
+/** True for shift types that occupy a full day with no scheduled start/end times. */
+export function isFullDayShift(t: ShiftType): boolean {
+  return t === 'day-off' || t === 'pto' || t === 'sick';
+}
 
 export interface Shift {
   id: string;

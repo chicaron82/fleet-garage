@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
+import { LogSickDaySheet } from './LogSickDaySheet';
 
 function weekLabel(date: Date): string {
   const { start, end } = getWeekBounds(date);
@@ -17,10 +18,13 @@ function monthLabel(date: Date): string {
 }
 
 export function ScheduleScreen() {
-  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason } = useSchedule();
+  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user } = useAuth();
-  const [showFill, setShowFill] = useState(false);
+  const [showFill,    setShowFill]    = useState(false);
+  const [showLogSick, setShowLogSick] = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);
+  const [editingPto,   setEditingPto]   = useState(false);
+  const [ptoInput,     setPtoInput]     = useState('');
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const today = toISO(new Date());
   const isCurrentPeriod = viewMode === 'week'
@@ -94,6 +98,63 @@ export function ScheduleScreen() {
         </div>
       )}
 
+      {/* PTO + Sick stats */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* PTO chip */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 text-xs">
+          <span className="text-violet-700 dark:text-violet-300 font-semibold">PTO</span>
+          <span className="text-violet-600 dark:text-violet-400">{ptoUsed} /</span>
+          {editingPto ? (
+            <input
+              autoFocus
+              type="number"
+              min={1}
+              max={365}
+              value={ptoInput}
+              onChange={e => setPtoInput(e.target.value)}
+              onBlur={async () => {
+                const v = parseInt(ptoInput, 10);
+                if (!isNaN(v) && v > 0) await updatePtoEntitlement(v);
+                setEditingPto(false);
+              }}
+              onKeyDown={async e => {
+                if (e.key === 'Enter') {
+                  const v = parseInt(ptoInput, 10);
+                  if (!isNaN(v) && v > 0) await updatePtoEntitlement(v);
+                  setEditingPto(false);
+                } else if (e.key === 'Escape') {
+                  setEditingPto(false);
+                }
+              }}
+              className="w-10 text-center font-bold text-violet-700 dark:text-violet-300 bg-transparent border-b border-violet-400 focus:outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => { setPtoInput(String(ptoEntitlement)); setEditingPto(true); }}
+              className="font-bold text-violet-700 dark:text-violet-300 hover:underline cursor-pointer"
+              title="Tap to set your PTO entitlement"
+            >
+              {ptoEntitlement}
+            </button>
+          )}
+          <span className="text-violet-500 dark:text-violet-500">· {Math.max(0, ptoEntitlement - ptoUsed)} left</span>
+        </div>
+
+        {/* Sick chip */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 text-xs">
+          <span className="text-rose-700 dark:text-rose-300 font-semibold">Sick</span>
+          <span className="text-rose-600 dark:text-rose-400">{sickDaysUsed} {sickDaysUsed === 1 ? 'day' : 'days'}</span>
+        </div>
+
+        {/* Log sick day */}
+        <button
+          onClick={() => setShowLogSick(true)}
+          className="ml-auto text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer whitespace-nowrap"
+        >
+          Log sick day ↓
+        </button>
+      </div>
+
       {/* Date navigation */}
       <div className="flex items-center gap-2">
         <button
@@ -122,7 +183,8 @@ export function ScheduleScreen() {
       {/* Content */}
       {viewMode === 'week' ? <WeekView today={today} /> : <CalendarView today={today} />}
 
-      {showFill && <FillScheduleModal onClose={() => setShowFill(false)} />}
+      {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
+      {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}
     </div>
   );
 }

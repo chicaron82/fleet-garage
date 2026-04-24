@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
+import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
@@ -9,6 +10,8 @@ const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
   { value: 'mid',     label: 'Mid' },
   { value: 'closing', label: 'Closing' },
   { value: 'day-off', label: 'Day Off' },
+  { value: 'pto',     label: 'PTO / Vacation' },
+  { value: 'sick',    label: 'Sick Day' },
 ];
 
 type AddProps = {
@@ -44,7 +47,7 @@ export function ShiftForm(props: Props) {
   const [error,     setError]     = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const isDayOff = shiftType === 'day-off';
+  const isDayOff = isFullDayShift(shiftType);
 
   const validate = (): string => {
     if (!date)                     return 'Date is required.';

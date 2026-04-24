@@ -5,6 +5,7 @@ import { USERS } from '../../data/mock';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
+import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -12,6 +13,14 @@ const SHIFT_COLORS: Record<ShiftType, string> = {
   'mid':     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
   'closing': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
   'day-off': 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
+  'pto':     'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+  'sick':    'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+};
+
+const FULL_DAY_LABEL: Partial<Record<ShiftType, string>> = {
+  'day-off': 'OFF',
+  'pto':     'PTO',
+  'sick':    'SICK',
 };
 
 function fmtTime(t?: string): string {
@@ -98,9 +107,9 @@ export function WeekView({ today }: Props) {
                             }}
                             className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${SHIFT_COLORS[shift.shiftType]} ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                           >
-                            {shift.shiftType === 'day-off' ? (
+                            {isFullDayShift(shift.shiftType) ? (
                               <>
-                                OFF
+                                {FULL_DAY_LABEL[shift.shiftType]}
                                 {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight">★</span>}
                               </>
                             ) : (
@@ -138,10 +147,12 @@ export function WeekView({ today }: Props) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 text-xs px-1">
-        {(['opening', 'mid', 'closing', 'day-off'] as ShiftType[]).map(t => (
+        {(['opening', 'mid', 'closing', 'day-off', 'pto', 'sick'] as ShiftType[]).map(t => (
           <div key={t} className="flex items-center gap-1.5">
             <div className={`w-2.5 h-2.5 rounded-sm ${SHIFT_COLORS[t].split(' ')[0]}`} />
-            <span className="text-gray-500 dark:text-gray-400 capitalize">{t === 'day-off' ? 'Day off' : t.charAt(0).toUpperCase() + t.slice(1)}</span>
+            <span className="text-gray-500 dark:text-gray-400 capitalize">
+              {t === 'day-off' ? 'Day off' : t === 'pto' ? 'PTO' : t === 'sick' ? 'Sick' : t.charAt(0).toUpperCase() + t.slice(1)}
+            </span>
           </div>
         ))}
       </div>

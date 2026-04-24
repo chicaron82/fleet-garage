@@ -1,4 +1,5 @@
 import type { Shift } from '../types';
+import { isFullDayShift } from '../types';
 
 function timeToDec(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -20,7 +21,7 @@ export function calcHours(start?: string, end?: string): number {
 export function calcOT(shift: Shift): number {
   const actual = calcHours(shift.actualStartTime, shift.actualEndTime);
   if (actual <= 0) return 0;
-  if (shift.shiftType === 'day-off' || shift.isStat) return actual;
+  if (isFullDayShift(shift.shiftType) || shift.isStat) return actual;
   return Math.max(0, actual - 8);
 }
 

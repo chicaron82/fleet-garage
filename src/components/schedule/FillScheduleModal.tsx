@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
+import { isFullDayShift } from '../../types';
 import type { ShiftType } from '../../types';
 
 const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -49,7 +50,7 @@ export function FillScheduleModal({ onClose }: Props) {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
 
-  const isDayOff = shiftType === 'day-off';
+  const isDayOff = isFullDayShift(shiftType);
 
   // Existing shift dates for this user
   const existingDates = useMemo(
@@ -135,6 +136,8 @@ export function FillScheduleModal({ onClose }: Props) {
             <option value="mid">Mid</option>
             <option value="closing">Closing</option>
             <option value="day-off">Day Off</option>
+            <option value="pto">PTO / Vacation</option>
+            <option value="sick">Sick Day</option>
           </select>
         </div>
 

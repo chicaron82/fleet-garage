@@ -52,12 +52,16 @@ interface ScheduleContextValue {
   viewMode: 'week' | 'calendar';
   currentDate: Date;
   isPeakSeason: boolean;
+  ptoEntitlement: number;
+  ptoUsed: number;
+  sickDaysUsed: number;
   setViewMode: (mode: 'week' | 'calendar') => void;
   setCurrentDate: (date: Date) => void;
   goToPrev: () => void;
   goToNext: () => void;
   goToToday: () => void;
   togglePeakSeason: () => Promise<void>;
+  updatePtoEntitlement: (days: number) => Promise<void>;
   createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
@@ -76,6 +80,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isPeakSeason, setIsPeakSeason] = useState(false);
+  const [ptoEntitlement, setPtoEntitlement] = useState(15);
+  const [ptoUsed,        setPtoUsed]        = useState(0);
+  const [sickDaysUsed,   setSickDaysUsed]   = useState(0);
 
   // ── Peak season ────────────────────────────────────────────────────────────
 
@@ -98,6 +105,42 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .eq('id', 1);
     if (error) throw error;
     setIsPeakSeason(next);
+  };
+
+  // ── PTO / sick stats ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!user) return;
+    const year = new Date().getFullYear();
+    supabase
+      .from('user_pto')
+      .select('pto_entitlement')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => { if (data) setPtoEntitlement(data.pto_entitlement as number); });
+
+    supabase
+      .from('shifts')
+      .select('shift_type')
+      .eq('user_id', user.id)
+      .gte('date', `${year}-01-01`)
+      .lte('date', `${year}-12-31`)
+      .in('shift_type', ['pto', 'sick'])
+      .then(({ data }) => {
+        if (data) {
+          const rows = data as { shift_type: string }[];
+          setPtoUsed(rows.filter(r => r.shift_type === 'pto').length);
+          setSickDaysUsed(rows.filter(r => r.shift_type === 'sick').length);
+        }
+      });
+  }, [user]);
+
+  const updatePtoEntitlement = async (days: number) => {
+    if (!user) return;
+    await supabase
+      .from('user_pto')
+      .upsert({ user_id: user.id, pto_entitlement: days, updated_at: new Date().toISOString() });
+    setPtoEntitlement(days);
   };
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
@@ -130,6 +173,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .single();
     if (error) throw error;
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
+    const thisYear = new Date().getFullYear();
+    if (shift.date.startsWith(String(thisYear))) {
+      if (shift.shiftType === 'pto')  setPtoUsed(prev => prev + 1);
+      if (shift.shiftType === 'sick') setSickDaysUsed(prev => prev + 1);
+    }
   };
 
   const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>[]) => {
@@ -165,9 +213,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteShift = async (id: string) => {
+    const deleted = shifts.find(s => s.id === id);
     const { error } = await supabase.from('shifts').delete().eq('id', id);
     if (error) throw error;
     setShifts(prev => prev.filter(s => s.id !== id));
+    const thisYear = new Date().getFullYear();
+    if (deleted && deleted.date.startsWith(String(thisYear))) {
+      if (deleted.shiftType === 'pto')  setPtoUsed(prev => Math.max(0, prev - 1));
+      if (deleted.shiftType === 'sick') setSickDaysUsed(prev => Math.max(0, prev - 1));
+    }
   };
 
   const logActualHours = async (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => {
@@ -239,8 +293,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   return (
     <ScheduleContext.Provider value={{
       shifts, loading, viewMode, currentDate, isPeakSeason,
+      ptoEntitlement, ptoUsed, sickDaysUsed,
       setViewMode, setCurrentDate,
-      goToPrev, goToNext, goToToday, togglePeakSeason,
+      goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
       createShift, bulkCreateShifts, updateShift, deleteShift, logActualHours,
       canEditShift, refresh,
     }}>

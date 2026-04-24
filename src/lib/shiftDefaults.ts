@@ -6,5 +6,7 @@ export function getTypeDefaults(isPeakSeason: boolean): Record<ShiftType, { star
     'mid':     { start: '10:30', end: '19:00' },
     'closing': isPeakSeason ? { start: '14:30', end: '23:00' } : { start: '13:30', end: '22:00' },
     'day-off': { start: '',      end: ''      },
+    'pto':     { start: '',      end: ''      },
+    'sick':    { start: '',      end: ''      },
   };
 }

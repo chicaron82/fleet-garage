@@ -4,6 +4,7 @@ import { isStatDay, getStatName } from '../../lib/stats';
 import { calcOT, calcHours, fmtHours } from '../../lib/ot';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { ClockPicker } from './ClockPicker';
+import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const TYPE_LABELS: Record<ShiftType, string> = {
@@ -11,6 +12,8 @@ const TYPE_LABELS: Record<ShiftType, string> = {
   'mid':     'Mid',
   'closing': 'Closing',
   'day-off': 'Day Off',
+  'pto':     'PTO',
+  'sick':    'Sick',
 };
 
 const TYPE_ACTIVE: Record<ShiftType, string> = {
@@ -18,6 +21,8 @@ const TYPE_ACTIVE: Record<ShiftType, string> = {
   'mid':     'bg-teal-500 text-white',
   'closing': 'bg-yellow-500 text-white',
   'day-off': 'bg-gray-400 text-white',
+  'pto':     'bg-violet-500 text-white',
+  'sick':    'bg-rose-500 text-white',
 };
 
 const TYPE_IDLE: Record<ShiftType, string> = {
@@ -25,6 +30,8 @@ const TYPE_IDLE: Record<ShiftType, string> = {
   'mid':     'border border-teal-300 dark:border-teal-700 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20',
   'closing': 'border border-yellow-300 dark:border-yellow-700 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20',
   'day-off': 'border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
+  'pto':     'border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20',
+  'sick':    'border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20',
 };
 
 interface Props {
@@ -50,7 +57,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [savingActual, setSavingActual] = useState(false);
   const [actualError,  setActualError]  = useState('');
 
-  const isDayOff = shiftType === 'day-off';
+  const isDayOff = isFullDayShift(shiftType);
 
   // Live OT preview
   const previewOT = calcOT({
@@ -128,8 +135,8 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
 
-        {/* Type buttons */}
-        <div className="grid grid-cols-4 gap-1.5">
+        {/* Type buttons — 3×2 grid */}
+        <div className="grid grid-cols-3 gap-1.5">
           {(Object.keys(TYPE_LABELS) as ShiftType[]).map(t => (
             <button
               key={t}

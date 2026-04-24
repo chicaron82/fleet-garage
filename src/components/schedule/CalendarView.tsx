@@ -11,6 +11,8 @@ const TYPE_DOT: Record<ShiftType, string> = {
   'mid':     'bg-teal-400',
   'closing': 'bg-yellow-400',
   'day-off': 'bg-gray-300 dark:bg-gray-600',
+  'pto':     'bg-violet-400',
+  'sick':    'bg-rose-400',
 };
 
 function getMonthDays(date: Date): (Date | null)[] {
@@ -103,10 +105,12 @@ export function CalendarView({ today }: Props) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 text-xs px-1">
-        {(['opening', 'mid', 'closing', 'day-off'] as ShiftType[]).map(t => (
+        {(['opening', 'mid', 'closing', 'day-off', 'pto', 'sick'] as ShiftType[]).map(t => (
           <div key={t} className="flex items-center gap-1.5">
             <div className={`w-2.5 h-2.5 rounded-full ${TYPE_DOT[t]}`} />
-            <span className="text-gray-500 dark:text-gray-400 capitalize">{t === 'day-off' ? 'Day off' : t.charAt(0).toUpperCase() + t.slice(1)}</span>
+            <span className="text-gray-500 dark:text-gray-400 capitalize">
+              {t === 'day-off' ? 'Day off' : t === 'pto' ? 'PTO' : t === 'sick' ? 'Sick' : t.charAt(0).toUpperCase() + t.slice(1)}
+            </span>
           </div>
         ))}
       </div>
