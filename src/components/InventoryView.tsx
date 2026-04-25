@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
 import { MOCK_INVENTORY } from '../data/inventory';
 import type { InventoryItem, InventoryClassification, Zone } from '../data/inventory';
