@@ -22,13 +22,14 @@ interface Props {
   date: string;
   onClose: () => void;
   onAddShift: () => void;
+  visibleUserIds: Set<string>;
 }
 
-export function DayDetailModal({ date, onClose, onAddShift }: Props) {
+export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Props) {
   const { shifts } = useSchedule();
   const { user }   = useAuth();
 
-  const dayShifts = shifts.filter(s => s.date === date).sort((a, b) => {
+  const dayShifts = shifts.filter(s => s.date === date && visibleUserIds.has(s.userId)).sort((a, b) => {
     if (!a.startTime) return 1;
     if (!b.startTime) return -1;
     return a.startTime.localeCompare(b.startTime);

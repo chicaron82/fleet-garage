@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { USERS } from '../../data/mock';
+import { SCHEDULE_GROUPS } from '../../lib/scheduleGroups';
+import type { ScheduleGroup } from '../../lib/scheduleGroups';
 import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
@@ -25,8 +28,31 @@ export function ScheduleScreen() {
   const [togglingPeak, setTogglingPeak] = useState(false);
   const [editingPto,   setEditingPto]   = useState(false);
   const [ptoInput,     setPtoInput]     = useState('');
+  const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(new Set());
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const today = toISO(new Date());
+
+  const toggleGroup = (g: ScheduleGroup) => {
+    setActiveGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g); else next.add(g);
+      return next;
+    });
+  };
+
+  const visibleUserIds = useMemo(() => {
+    const ids = new Set<string>(user ? [user.id] : []);
+    for (const g of activeGroups) {
+      const group = SCHEDULE_GROUPS.find(sg => sg.id === g);
+      if (!group) continue;
+      for (const u of USERS) {
+        if (group.roles.includes(u.role) && u.id !== user?.id) {
+          ids.add(u.id);
+        }
+      }
+    }
+    return ids;
+  }, [activeGroups, user]);
   const isCurrentPeriod = viewMode === 'week'
     ? (() => { const { start, end } = getWeekBounds(new Date()); return toISO(currentDate) >= toISO(start) && toISO(currentDate) <= toISO(end); })()
     : currentDate.getFullYear() === new Date().getFullYear() && currentDate.getMonth() === new Date().getMonth();
@@ -155,6 +181,27 @@ export function ScheduleScreen() {
         </button>
       </div>
 
+      {/* Group view filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-gray-400 dark:text-gray-500 font-medium shrink-0">Showing:</span>
+        {SCHEDULE_GROUPS.map(g => {
+          const isActive = activeGroups.has(g.id);
+          return (
+            <button
+              key={g.id}
+              onClick={() => toggleGroup(g.id)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                isActive
+                  ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
+              }`}
+            >
+              {g.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Date navigation */}
       <div className="flex items-center gap-2">
         <button
@@ -181,7 +228,10 @@ export function ScheduleScreen() {
       </div>
 
       {/* Content */}
-      {viewMode === 'week' ? <WeekView today={today} /> : <CalendarView today={today} />}
+      {viewMode === 'week'
+        ? <WeekView today={today} visibleUserIds={visibleUserIds} />
+        : <CalendarView today={today} visibleUserIds={visibleUserIds} />
+      }
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
       {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}

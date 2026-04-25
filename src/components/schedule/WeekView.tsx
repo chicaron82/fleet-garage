@@ -30,9 +30,9 @@ function fmtTime(t?: string): string {
   return `${hr % 12 || 12}:${m}${hr >= 12 ? 'p' : 'a'}`;
 }
 
-interface Props { today: string; }
+interface Props { today: string; visibleUserIds: Set<string>; }
 
-export function WeekView({ today }: Props) {
+export function WeekView({ today, visibleUserIds }: Props) {
   const { shifts, currentDate, canEditShift, loading } = useSchedule();
   const { user } = useAuth();
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
@@ -50,6 +50,12 @@ export function WeekView({ today }: Props) {
   // Build shift lookup: `${userId}-${date}` → shift
   const shiftMap = new Map<string, ShiftWithUser>();
   for (const s of shifts) shiftMap.set(`${s.userId}-${s.date}`, s);
+
+  // Visible users: self pinned first, rest in USERS order
+  const visibleUsers = [
+    ...USERS.filter(u => u.id === user?.id && visibleUserIds.has(u.id)),
+    ...USERS.filter(u => u.id !== user?.id && visibleUserIds.has(u.id)),
+  ];
 
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -78,7 +84,7 @@ export function WeekView({ today }: Props) {
             </tr>
           </thead>
           <tbody>
-            {USERS.map(u => {
+            {visibleUsers.map(u => {
               const isMe = u.id === user?.id;
               return (
                 <tr

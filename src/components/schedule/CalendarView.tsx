@@ -26,9 +26,9 @@ function getMonthDays(date: Date): (Date | null)[] {
   return days;
 }
 
-interface Props { today: string; }
+interface Props { today: string; visibleUserIds: Set<string>; }
 
-export function CalendarView({ today }: Props) {
+export function CalendarView({ today, visibleUserIds }: Props) {
   const { shifts, currentDate, loading } = useSchedule();
   const { user } = useAuth();
   const [detailDate, setDetailDate] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function CalendarView({ today }: Props) {
 
             const iso = toISO(day);
             const isToday = iso === today;
-            const dayShifts = shifts.filter(s => s.date === iso);
+            const dayShifts = shifts.filter(s => s.date === iso && visibleUserIds.has(s.userId));
             const myShift = dayShifts.find(s => s.userId === user?.id);
 
             // Deduplicate dots by shift type
@@ -118,6 +118,7 @@ export function CalendarView({ today }: Props) {
       {detailDate && (
         <DayDetailModal
           date={detailDate}
+          visibleUserIds={visibleUserIds}
           onClose={() => setDetailDate(null)}
           onAddShift={() => { setDetailDate(null); setAddForDate(detailDate); }}
         />
