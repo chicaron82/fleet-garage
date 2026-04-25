@@ -116,7 +116,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .from('user_pto')
       .select('pto_entitlement')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => { if (data) setPtoEntitlement(data.pto_entitlement as number); });
 
     supabase
