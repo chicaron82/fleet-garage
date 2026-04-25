@@ -82,7 +82,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime());
     let count = 0;
     for (const hold of completed) {
+      const releaseType = hold.release?.releaseType;
       if (hold.status === 'REPAIRED') break;
+      if (releaseType === 'PRE_EXISTING') break;
       if (hold.status === 'RELEASED' || hold.status === 'RETURNED') count++;
     }
     return count;

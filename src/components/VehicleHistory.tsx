@@ -135,6 +135,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             holdId={h.showReleaseForm}
             vehicleId={vehicleId}
             onClose={h.closeReleaseForm}
+            streak={streak}
           />
         )}
 

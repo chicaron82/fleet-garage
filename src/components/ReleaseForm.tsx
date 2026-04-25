@@ -7,6 +7,7 @@ interface Props {
   holdId: string;
   vehicleId: string;
   onClose: () => void;
+  streak?: number;
 }
 
 const EXCEPTION_REASONS = [
@@ -43,7 +44,7 @@ const MECHANICAL_RELEASE_REASONS = [
   'Management decision — operational need',
 ];
 
-export function ReleaseForm({ holdId, onClose }: Props) {
+export function ReleaseForm({ holdId, onClose, streak }: Props) {
   const { user } = useAuth();
   const { addRelease, holds } = useGarage();
 
@@ -206,6 +207,47 @@ export function ReleaseForm({ holdId, onClose }: Props) {
             </button>
           </div>
         </div>
+
+        {/* Streak-based Pre-existing suggestion */}
+        {streak !== undefined && streak >= 2 && releaseType !== 'PRE_EXISTING' && (
+          <div className={`rounded-lg border px-4 py-3 ${
+            streak >= 3
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/50'
+              : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/50'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className={`text-xs font-semibold mb-0.5 ${
+                  streak >= 3
+                    ? 'text-red-800 dark:text-red-300'
+                    : 'text-amber-800 dark:text-amber-300'
+                }`}>
+                  {streak >= 3 ? '🔴' : '⚠️'} Released {streak}× without repair
+                </p>
+                <p className={`text-xs ${
+                  streak >= 3
+                    ? 'text-red-700 dark:text-red-400'
+                    : 'text-amber-700 dark:text-amber-400'
+                }`}>
+                  {streak >= 3
+                    ? "This damage isn't getting fixed. Pre-existing may be the more honest status."
+                    : 'This vehicle keeps going out with the same issue. Consider marking as Pre-existing instead.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTypeChange('PRE_EXISTING')}
+                className={`shrink-0 text-xs font-medium underline transition cursor-pointer ${
+                  streak >= 3
+                    ? 'text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-200'
+                    : 'text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200'
+                }`}
+              >
+                Switch →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Release Reason */}
         <div>
