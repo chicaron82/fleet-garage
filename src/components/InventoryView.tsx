@@ -246,10 +246,9 @@ export function InventoryView() {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  // Hold Bay — auto from GarageContext
-  const heldVehicles = vehicles.filter(v =>
-    ['HELD', 'OUT_ON_EXCEPTION', 'RETURNED'].includes(v.status)
-  );
+  // Hold Bay — active holds only (HELD = physically staged on lot)
+  // OUT_ON_EXCEPTION vehicles are with customers; RETURNED holds are closed
+  const heldVehicles = vehicles.filter(v => v.status === 'HELD');
 
   // Static items minus dismissed
   const staticItems = MOCK_INVENTORY.items.filter(i => !dismissedIds.has(i.id));
