@@ -4,31 +4,33 @@ import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 
 const VSA_LOCATIONS = [
-  'Washbay', 'Airport', 'Ready Line', 'Hold Bay', 'Main Lot',
-  'Off Branch', 'Dealership', 'Body Shop', 'Other',
+  'Washbay', 'Airport', 'Off Branch', 'Dealership', 'Body Shop', 'Other',
 ] as const;
 type VSALocation = typeof VSA_LOCATIONS[number];
 type Condition = 'CLEAN' | 'DIRTY';
 type Reason = 'MOVING_CLEANS' | 'LOT_CLEARED' | 'OTHER';
 type Authorization = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
 type QueueSnapshot = '0' | '~5' | 'TOO_MUCH';
-type FuelLevel = 0 | 1 | 2 | 3 | 4;
+type FuelLevel = number;
 type TripState = 'form' | 'in_transit' | 'complete';
 
-const FUEL_LABELS = ['Empty', '¼', '½', '¾', 'Full'];
-const FUEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+const FUEL_LABELS: Record<number, string> = {
+  0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
+  4: '1/2',  5: '5/8', 6: '3/4', 7: '7/8', 8: 'Full',
+};
+
+function fuelColor(v: number): string {
+  if (v <= 1) return '#ef4444';
+  if (v <= 2) return '#f97316';
+  if (v <= 3) return '#eab308';
+  return '#22c55e';
+}
 
 const REASON_LABELS: Record<Reason, string> = {
   MOVING_CLEANS: 'Moving Cleans',
   LOT_CLEARED: 'Lot Cleared',
   OTHER: 'Other',
 };
-
-const AUTH_OPTIONS: { value: Authorization; label: string }[] = [
-  { value: 'MANAGEMENT', label: 'Management Decision' },
-  { value: 'LEAD_VSA',   label: 'Lead VSA / Senior VSA' },
-  { value: 'PERSONAL',   label: 'Personal — Proactive' },
-];
 
 function defaultCondition(to: VSALocation): Condition {
   return to === 'Washbay' ? 'DIRTY' : 'CLEAN';
@@ -128,7 +130,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
   const queueRequired = from === 'Washbay';
   const fuelConditional = to === 'Washbay';
-  const canStart = plate.trim().length > 0 && reason !== null && authorization !== null && (!queueRequired || queue !== null);
+  const canStart = plate.trim().length > 0 && reason !== null && !!authorization && (!queueRequired || queue !== null);
 
   const handleStartTrip = () => {
     const now = new Date().toISOString();
@@ -311,28 +313,28 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                 </label>
                 <div className="space-y-2 px-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold" style={{ color: fuel !== null ? FUEL_COLORS[fuel] : '#9ca3af' }}>
+                    <span className="text-sm font-bold" style={{ color: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}>
                       ⛽ {fuel !== null ? FUEL_LABELS[fuel] : '—'}
                     </span>
                     <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                      {fuel !== null ? `${fuel}/4` : 'optional'}
+                      {fuel !== null ? `${fuel}/8` : 'optional'}
                     </span>
                   </div>
                   <input
-                    type="range" min={0} max={4} step={1}
-                    value={fuel ?? 2}
-                    onChange={e => setFuel(Number(e.target.value) as FuelLevel)}
-                    onPointerDown={() => { if (fuel === null) setFuel(2); }}
+                    type="range" min={0} max={8} step={1}
+                    value={fuel ?? 4}
+                    onChange={e => setFuel(Number(e.target.value))}
+                    onPointerDown={() => { if (fuel === null) setFuel(4); }}
                     className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
-                    style={{ accentColor: fuel !== null ? FUEL_COLORS[fuel] : '#9ca3af' }}
+                    style={{ accentColor: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}
                   />
                   <div className="flex justify-between px-0.5">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuel !== null && i <= fuel ? 'bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
+                    {Array.from({ length: 9 }, (_, i) => (
+                      <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuel !== null && i <= fuel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
                     ))}
                   </div>
                   <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
-                    <span>E</span><span>¼</span><span>½</span><span>¾</span><span>F</span>
+                    <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
                   </div>
                 </div>
               </div>
@@ -341,22 +343,16 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
             {/* Authorization */}
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Authorization *</label>
-              <div className="space-y-1.5">
-                {AUTH_OPTIONS.map(a => (
-                  <button
-                    key={a.value}
-                    type="button"
-                    onClick={() => setAuthorization(a.value)}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
-                      authorization === a.value
-                        ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                        : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-                    }`}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={authorization ?? ''}
+                onChange={e => setAuthorization((e.target.value as Authorization) || null as unknown as Authorization)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+              >
+                <option value="">Select authorization…</option>
+                <option value="MANAGEMENT">Management Decision</option>
+                <option value="LEAD_VSA">Lead VSA / Senior VSA</option>
+                <option value="PERSONAL">Personal — Proactive</option>
+              </select>
             </div>
 
             {/* Logging as */}
