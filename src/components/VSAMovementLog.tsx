@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 
@@ -87,7 +87,6 @@ export function VSAMovementLog() {
 
   // Form fields
   const [plate, setPlate]                     = useState('');
-  const [vehicleMeta, setVehicleMeta]         = useState<string | null>(null);
   const [from, setFrom]                       = useState<VSALocation>('Washbay');
   const [to, setTo]                           = useState<VSALocation>('Airport');
   const [condition, setCondition]             = useState<Condition>('CLEAN');
@@ -102,29 +101,28 @@ export function VSAMovementLog() {
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
-  // Condition default tracks `to` unless user has manually overridden
-  useEffect(() => {
-    if (!conditionManual) setCondition(defaultCondition(to));
-  }, [to, conditionManual]);
-
-  // Vehicle lookup by plate
-  useEffect(() => {
+  // Vehicle lookup — pure computation, no effect needed
+  const vehicleMeta = useMemo(() => {
     const t = plate.trim().replace(/\s/g, '').toUpperCase();
-    if (t.length < 3) { setVehicleMeta(null); return; }
+    if (t.length < 3) return null;
     const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
-    setVehicleMeta(match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null);
+    return match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null;
   }, [plate, vehicles]);
 
-  // Live elapsed timer
+  // Live elapsed timer — only interval callback sets state (no synchronous setState in effect)
   useEffect(() => {
     if (tripState !== 'in_transit' || !departureTime) return;
-    setElapsed(elapsedSince(departureTime));
     const id = setInterval(() => setElapsed(elapsedSince(departureTime)), 1000);
     return () => clearInterval(id);
   }, [tripState, departureTime]);
 
   const handleSetFrom = (loc: VSALocation) => { setFrom(loc); setQueue(null); };
-  const handleSetTo   = (loc: VSALocation) => { setTo(loc);   setFuel(null);  };
+  const handleSetTo   = (loc: VSALocation) => {
+    setTo(loc);
+    setFuel(null);
+    // Update condition default when destination changes (unless user has manually set it)
+    if (!conditionManual) setCondition(defaultCondition(loc));
+  };
   const handleConditionTap = (c: Condition) => { setCondition(c); setConditionManual(true); };
 
   const queueRequired = from === 'Washbay';
@@ -134,6 +132,7 @@ export function VSAMovementLog() {
   const handleStartTrip = () => {
     const now = new Date().toISOString();
     setDepartureTime(now);
+    setElapsed('0m 00s'); // initial display; interval takes over after 1s
     setTripState('in_transit');
   };
 
@@ -144,7 +143,7 @@ export function VSAMovementLog() {
 
   const handleReset = () => {
     setTripState('form');
-    setPlate(''); setVehicleMeta(null);
+    setPlate('');
     setFrom('Washbay'); setTo('Airport');
     setConditionManual(false); setCondition('CLEAN');
     setReason(null); setQueue(null); setFuel(null); setAuthorization(null);
