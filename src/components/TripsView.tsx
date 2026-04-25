@@ -92,7 +92,8 @@ export function TripsView() {
   // VSA view — Movement Log + own trip history
   if (isVSA) {
     const seededTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
-    const allMyTrips = [...seededTrips, ...sessionTrips];
+    const allMyTrips = [...seededTrips, ...sessionTrips]
+      .sort((a, b) => new Date(b.departTime).getTime() - new Date(a.departTime).getTime());
 
     const handleTripComplete = (trip: TripRun) => {
       setSessionTrips(prev => [...prev, trip]);
