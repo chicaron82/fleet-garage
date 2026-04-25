@@ -84,6 +84,34 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const getFlaggedBy = (userId: string) =>
     USERS.find(u => u.id === userId)?.name ?? 'Unknown';
 
+  const paginationControls = totalPages > 1 ? (
+    <div className="flex items-center justify-between py-2 transition-colors">
+      <button
+        disabled={currentPage === 1}
+        onClick={() => {
+          setCurrentPage(p => p - 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        Previous
+      </button>
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        Page <span className="font-medium text-gray-900 dark:text-gray-100">{currentPage}</span> of {totalPages}
+      </span>
+      <button
+        disabled={currentPage === totalPages}
+        onClick={() => {
+          setCurrentPage(p => p + 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        Next
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
@@ -142,6 +170,13 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {loading && (
             <p className="text-center text-gray-400 text-sm py-8 transition-colors">Loading…</p>
           )}
+          
+          {paginationControls && (
+            <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-800 transition-colors">
+              {paginationControls}
+            </div>
+          )}
+
           {paginatedVehicles.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
             const streak = releaseStreak(vehicle.id);
@@ -201,31 +236,9 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
           )}
           
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => {
-                  setCurrentPage(p => p - 1);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Page <span className="font-medium text-gray-900 dark:text-gray-100">{currentPage}</span> of {totalPages}
-              </span>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => {
-                  setCurrentPage(p => p + 1);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-              </button>
+          {paginationControls && (
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
+              {paginationControls}
             </div>
           )}
         </div>
