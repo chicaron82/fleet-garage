@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
+import type { TripRun } from '../data/trips';
 
 const VSA_LOCATIONS = [
   'Washbay', 'Airport', 'Ready Line', 'Hold Bay', 'Main Lot',
@@ -79,7 +80,7 @@ function Pill({
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function VSAMovementLog() {
+export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
   const { user } = useAuth();
   const { vehicles } = useGarage();
 
@@ -137,8 +138,31 @@ export function VSAMovementLog() {
   };
 
   const handleArrived = () => {
-    setArrivalTime(new Date().toISOString());
+    const arrived = new Date().toISOString();
+    setArrivalTime(arrived);
     setTripState('complete');
+
+    if (onTripComplete && user) {
+      onTripComplete({
+        id: `vsa-session-${Date.now()}`,
+        vehicleUnit: vehicleMeta?.split(' · ')[1] ?? '',
+        vehiclePlate: plate,
+        tripType: condition === 'CLEAN' ? 'clean' : 'dirty',
+        departLocation: from,
+        arriveLocation: to,
+        departTime: departureTime,
+        arriveTime: arrived,
+        gasLevel: '',
+        odometer: 0,
+        driverId: user.id,
+        isVsaInterruption: true,
+        authorization,
+        reason,
+        queueAtDeparture: queue ?? undefined,
+        fuelOnArrival: fuel !== null ? FUEL_LABELS[fuel] : undefined,
+        condition,
+      });
+    }
   };
 
   const handleReset = () => {

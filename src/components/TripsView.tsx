@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
+import type { TripRun } from '../data/trips';
 import { USERS } from '../data/mock';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
@@ -36,6 +37,7 @@ export function TripsView() {
   const [activeUnit, setActiveUnit] = useState<ScannedPayload | null>(null);
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
+  const [sessionTrips, setSessionTrips] = useState<TripRun[]>([]);
 
   if (!user) return null;
 
@@ -89,18 +91,24 @@ export function TripsView() {
 
   // VSA view — Movement Log + own trip history
   if (isVSA) {
-    const myTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
+    const seededTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
+    const allMyTrips = [...seededTrips, ...sessionTrips];
+
+    const handleTripComplete = (trip: TripRun) => {
+      setSessionTrips(prev => [...prev, trip]);
+    };
+
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Movement Log</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
         </div>
-        <VSAMovementLog />
-        {myTrips.length > 0 && (
+        <VSAMovementLog onTripComplete={handleTripComplete} />
+        {allMyTrips.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
-            <TripList trips={myTrips} isManagement={false} />
+            <TripList trips={allMyTrips} isManagement={false} />
           </div>
         )}
       </div>
