@@ -13,6 +13,13 @@ export interface TripRun {
   odometer: number;
   driverId: string;
   notes?: string;
+  // VSA Movement Log fields
+  isVsaInterruption?: boolean;
+  authorization?: 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
+  reason?: 'MOVING_CLEANS' | 'LOT_CLEARED' | 'OTHER';
+  queueAtDeparture?: string;
+  fuelOnArrival?: string;
+  condition?: 'CLEAN' | 'DIRTY';
 }
 
 const TODAY = '2026-04-14';

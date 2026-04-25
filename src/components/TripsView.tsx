@@ -26,10 +26,8 @@ function elapsedLabel(from: string, to: string) {
 
 export function TripsView() {
   const { user } = useAuth();
-  if (!user) return null;
 
-  const isVSA = user.role === 'VSA' || user.role === 'Lead VSA';
-
+  // All hooks must be unconditional — declare before any early returns
   const [tripState, setTripState] = useState<TripScanState>('idle');
   const [origin, setOrigin] = useState<Location>('Washbay');
   const [destination, setDestination] = useState<Location>('Airport');
@@ -38,6 +36,8 @@ export function TripsView() {
   const [activeUnit, setActiveUnit] = useState<ScannedPayload | null>(null);
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
+
+  if (!user) return null;
 
   const handleDepart = (payload: ScannedPayload, timestamp: string) => {
     setActiveUnit(payload);
@@ -62,7 +62,9 @@ export function TripsView() {
   const originLabel = origin === 'Other' ? (customOrigin || 'Other') : origin;
   const destLabel = destination === 'Other' ? (customDestination || 'Other') : destination;
 
+  const isVSA = user.role === 'VSA' || user.role === 'Lead VSA';
   const isManagement = canRelease(user.role);
+
   const myTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
   const displayTrips = isManagement ? MOCK_TRIPS : myTrips;
 
@@ -283,18 +285,18 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                     {' '}· {duration}m
                   </span>
                   {'gasLevel' in trip && trip.gasLevel ? ` · Gas: ${trip.gasLevel}` : ''}
-                  {(trip as any).queueAtDeparture ? ` · Queue: ${(trip as any).queueAtDeparture === 'TOO_MUCH' ? '10+' : (trip as any).queueAtDeparture}` : ''}
-                  {(trip as any).fuelOnArrival ? ` · Fuel: ${(trip as any).fuelOnArrival}` : ''}
+                  {trip.queueAtDeparture ? ` · Queue: ${trip.queueAtDeparture === 'TOO_MUCH' ? '10+' : trip.queueAtDeparture}` : ''}
+                  {trip.fuelOnArrival ? ` · Fuel: ${trip.fuelOnArrival}` : ''}
                 </p>
                 {/* VSA interruption / proactive badge */}
-                {(trip as any).isVsaInterruption && (
+                {'isVsaInterruption' in trip && trip.isVsaInterruption && (
                   <div className="mt-1.5">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                      (trip as any).authorization === 'PERSONAL'
+                      (trip as TripRun & { authorization?: string }).authorization === 'PERSONAL'
                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
                         : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                     } transition-colors`}>
-                      {(trip as any).authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
+                      {(trip as TripRun & { authorization?: string }).authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
                     </span>
                   </div>
                 )}
