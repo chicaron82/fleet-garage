@@ -289,14 +289,14 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                   {trip.fuelOnArrival ? ` · Fuel: ${trip.fuelOnArrival}` : ''}
                 </p>
                 {/* VSA interruption / proactive badge */}
-                {'isVsaInterruption' in trip && trip.isVsaInterruption && (
+                {trip.isVsaInterruption && (
                   <div className="mt-1.5">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                      (trip as TripRun & { authorization?: string }).authorization === 'PERSONAL'
+                      trip.authorization === 'PERSONAL'
                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
                         : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                     } transition-colors`}>
-                      {(trip as TripRun & { authorization?: string }).authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
+                      {trip.authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
                     </span>
                   </div>
                 )}
