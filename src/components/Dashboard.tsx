@@ -18,8 +18,11 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const ITEMS_PER_PAGE = 15;
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -28,6 +31,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
   const handleBarcodeUnit = useCallback((unit: string) => {
     setSearch(unit.toUpperCase());
+    setCurrentPage(1);
     const vehicle = getVehicleByUnit(unit);
     if (vehicle) {
       showToast(`✨ ${vehicle.unitNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`, 'success');
@@ -70,6 +74,9 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
     v.model.toUpperCase().includes(search)
   );
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   const getLatestHold = (vehicleId: string) =>
     holds.filter(h => h.vehicleId === vehicleId)
          .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime())[0];
@@ -101,12 +108,18 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
               type="text"
               placeholder="Search unit #, plate, make…"
               value={search}
-              onChange={e => setSearch(e.target.value.toUpperCase())}
+              onChange={e => {
+                setSearch(e.target.value.toUpperCase());
+                setCurrentPage(1);
+              }}
               className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition-all uppercase shadow-sm"
             />
             {search && (
               <button
-                onClick={() => setSearch('')}
+                onClick={() => {
+                  setSearch('');
+                  setCurrentPage(1);
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
                 aria-label="Clear search"
               >
@@ -129,7 +142,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {loading && (
             <p className="text-center text-gray-400 text-sm py-8 transition-colors">Loading…</p>
           )}
-          {filtered.map(vehicle => {
+          {paginatedVehicles.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
             const streak = releaseStreak(vehicle.id);
             return (
@@ -186,6 +199,34 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           )}
           {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
+          )}
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage(p => p - 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Page <span className="font-medium text-gray-900 dark:text-gray-100">{currentPage}</span> of {totalPages}
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage(p => p + 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
           )}
         </div>
 
