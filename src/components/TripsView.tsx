@@ -4,6 +4,7 @@ import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import { USERS } from '../data/mock';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
+import { VSAMovementLog } from './VSAMovementLog';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
 import type { ScannedPayload } from '../types';
 
@@ -26,6 +27,8 @@ function elapsedLabel(from: string, to: string) {
 export function TripsView() {
   const { user } = useAuth();
   if (!user) return null;
+
+  const isVSA = user.role === 'VSA' || user.role === 'Lead VSA';
 
   const [tripState, setTripState] = useState<TripScanState>('idle');
   const [origin, setOrigin] = useState<Location>('Washbay');
@@ -81,6 +84,26 @@ export function TripsView() {
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+
+  // VSA view — Movement Log + own trip history
+  if (isVSA) {
+    const myTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
+    return (
+      <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Movement Log</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
+        </div>
+        <VSAMovementLog />
+        {myTrips.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
+            <TripList trips={myTrips} isManagement={false} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -259,8 +282,22 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                   <span className={flagged ? 'text-amber-600 dark:text-amber-500 font-semibold' : ''}>
                     {' '}· {duration}m
                   </span>
-                  {' '}· Gas: {trip.gasLevel} · ODO: {trip.odometer.toLocaleString()}
+                  {'gasLevel' in trip && trip.gasLevel ? ` · Gas: ${trip.gasLevel}` : ''}
+                  {(trip as any).queueAtDeparture ? ` · Queue: ${(trip as any).queueAtDeparture === 'TOO_MUCH' ? '10+' : (trip as any).queueAtDeparture}` : ''}
+                  {(trip as any).fuelOnArrival ? ` · Fuel: ${(trip as any).fuelOnArrival}` : ''}
                 </p>
+                {/* VSA interruption / proactive badge */}
+                {(trip as any).isVsaInterruption && (
+                  <div className="mt-1.5">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
+                      (trip as any).authorization === 'PERSONAL'
+                        ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
+                        : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                    } transition-colors`}>
+                      {(trip as any).authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
+                    </span>
+                  </div>
+                )}
                 {isManagement && flagged && (
                   <div className="mt-2">
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 transition-colors">
