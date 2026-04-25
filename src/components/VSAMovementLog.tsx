@@ -98,6 +98,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [queue, setQueue]                     = useState<QueueSnapshot | null>(null);
   const [fuel, setFuel]                       = useState<FuelLevel | null>(null);
   const [authorization, setAuthorization]     = useState<Authorization | null>(null);
+  const [notes, setNotes]                     = useState('');
 
   // Trip timestamps
   const [departureTime, setDepartureTime] = useState('');
@@ -163,6 +164,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         queueAtDeparture: queue ?? undefined,
         fuelOnArrival: fuel !== null ? FUEL_LABELS[fuel] : undefined,
         condition,
+        notes: notes.trim() || undefined,
       });
     }
   };
@@ -173,6 +175,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setFrom('Washbay'); setTo('Airport');
     setConditionManual(false); setCondition('CLEAN');
     setReason(null); setQueue(null); setFuel(null); setAuthorization(null);
+    setNotes('');
     setDepartureTime(''); setArrivalTime(''); setElapsed('');
   };
 
@@ -339,6 +342,22 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                 </div>
               </div>
             )}
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Notes</label>
+              <textarea
+                value={notes}
+                onChange={e => {
+                  setNotes(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                placeholder="Any context for this run…"
+                rows={1}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none overflow-hidden"
+              />
+            </div>
 
             {/* Authorization */}
             <div>

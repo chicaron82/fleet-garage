@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { USERS } from '../../data/mock';
@@ -33,11 +33,23 @@ function fmtTime(t?: string): string {
 interface Props { today: string; visibleUserIds: Set<string>; }
 
 export function WeekView({ today, visibleUserIds }: Props) {
-  const { shifts, currentDate, canEditShift, loading } = useSchedule();
+  const { shifts, currentDate, canEditShift, loading, goToPrev, goToNext } = useSchedule();
   const { user } = useAuth();
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
   const [flipShift, setFlipShift]     = useState<ShiftWithUser | null>(null);
   const [addForDate, setAddForDate]   = useState<string | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (delta > 50) goToNext();
+    else if (delta < -50) goToPrev();
+    touchStartX.current = null;
+  };
 
   // Build 7 days of this week (Mon–Sun)
   const { start } = getWeekBounds(currentDate);
@@ -61,7 +73,11 @@ export function WeekView({ today, visibleUserIds }: Props) {
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto transition-colors">
+      <div
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto transition-colors"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {loading && (
           <div className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500">Loading…</div>
         )}

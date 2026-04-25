@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { DayDetailModal } from './DayDetailModal';
@@ -29,18 +29,34 @@ function getMonthDays(date: Date): (Date | null)[] {
 interface Props { today: string; visibleUserIds: Set<string>; }
 
 export function CalendarView({ today, visibleUserIds }: Props) {
-  const { shifts, currentDate, loading } = useSchedule();
+  const { shifts, currentDate, loading, goToPrev, goToNext } = useSchedule();
   const { user } = useAuth();
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [addForDate, setAddForDate] = useState<string | null>(null);
   const [flipShift,  setFlipShift]  = useState<ShiftWithUser | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (delta > 50) goToNext();
+    else if (delta < -50) goToPrev();
+    touchStartX.current = null;
+  };
 
   const days = getMonthDays(currentDate);
   const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+      <div
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {loading && (
           <div className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">Loading…</div>
         )}
