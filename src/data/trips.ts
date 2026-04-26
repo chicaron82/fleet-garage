@@ -16,7 +16,7 @@ export interface TripRun {
   // VSA Movement Log fields
   isVsaInterruption?: boolean;
   authorization?: 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
-  reason?: 'MOVING_CLEANS' | 'LOT_CLEARED' | 'OTHER';
+  reason?: 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
   queueAtDeparture?: string;
   fuelOnArrival?: string;
   condition?: 'CLEAN' | 'DIRTY';
@@ -187,7 +187,7 @@ export const MOCK_TRIPS: TripRun[] = [
     driverId: 'u1',
     isVsaInterruption: true,
     authorization: 'MANAGEMENT',
-    reason: 'MOVING_CLEANS',
+    reason: 'ROUTINE',
     queueAtDeparture: 'TOO_MUCH',
     condition: 'CLEAN',
   },
@@ -205,7 +205,7 @@ export const MOCK_TRIPS: TripRun[] = [
     driverId: 'u1',
     isVsaInterruption: true,
     authorization: 'MANAGEMENT',
-    reason: 'LOT_CLEARED',
+    reason: 'COVERAGE_ASSIST',
     fuelOnArrival: '¼',
     condition: 'DIRTY',
   },
@@ -223,7 +223,7 @@ export const MOCK_TRIPS: TripRun[] = [
     driverId: 'u1',
     isVsaInterruption: true,
     authorization: 'PERSONAL',
-    reason: 'MOVING_CLEANS',
+    reason: 'ROUTINE',
     condition: 'CLEAN',
     notes: 'Picked up from Birchwood — came back clean from service',
   },
