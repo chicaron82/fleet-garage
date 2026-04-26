@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason } from '../types';
+import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
 
@@ -49,10 +50,21 @@ interface GarageContextValue {
 const GarageContext = createContext<GarageContextValue | null>(null);
 
 export function GarageProvider({ children }: { children: React.ReactNode }) {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [holds, setHolds] = useState<Hold[]>([]);
+  const { activeBranch } = useAuth();
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
+  const [allHolds, setAllHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
+
+  const vehicles = useMemo(() => {
+    if (activeBranch === 'ALL') return allVehicles;
+    return allVehicles.filter(v => v.branchId === activeBranch);
+  }, [allVehicles, activeBranch]);
+
+  const holds = useMemo(() => {
+    if (activeBranch === 'ALL') return allHolds;
+    return allHolds.filter(h => h.branchId === activeBranch);
+  }, [allHolds, activeBranch]);
 
   useEffect(() => {
     async function load() {
@@ -60,8 +72,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
       ]);
-      setVehicles((vData ?? []).map(mapVehicle));
-      setHolds((hData ?? []).map(mapHold));
+      setAllVehicles((vData ?? []).map(mapVehicle));
+      setAllHolds((hData ?? []).map(mapHold));
       setLoading(false);
     }
     load();
@@ -116,8 +128,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       status:        'HELD',
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
-    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD' };
-    setVehicles(prev => [newVehicle, ...prev]);
+    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId: activeBranch === 'ALL' ? 'YWG' : activeBranch };
+    setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
   };
 
@@ -163,14 +175,20 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       id: holdId, vehicleId, holdType, detailReason, linkedHoldId,
       damageDescription, flaggedById, flaggedAt, notes,
       photos: photoUrls, status: 'ACTIVE',
+      branchId: activeBranch === 'ALL' ? 'YWG' : activeBranch,
     };
-    setHolds(prev => [newHold, ...prev]);
-    setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
+    
+    setAllHolds(prev => [newHold, ...prev]);
+    
+    // Auto-update vehicle status
+    setAllVehicles(prev => prev.map(v => 
+      v.id === vehicleId ? { ...v, status: 'HELD' } : v
+    ));
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
     const releaseId = crypto.randomUUID();
-    const fullRelease: Release = { ...release, id: releaseId };
+    const newRelease: Release = { ...release, id: releaseId };
 
     const newVehicleStatus: VehicleStatus =
       release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
@@ -199,14 +217,24 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
     }
 
-    setHolds(prev => prev.map(h =>
-      h.id === holdId ? { ...h, status: 'RELEASED', release: fullRelease } : h
-    ));
-    if (hold) {
-      setVehicles(prev => prev.map(v =>
-        v.id === hold.vehicleId ? { ...v, status: newVehicleStatus } : v
-      ));
-    }
+    // Add release to local state, update hold status
+    setAllHolds(prev => prev.map(h => {
+      if (h.id !== holdId) return h;
+      return {
+        ...h,
+        status: 'RELEASED',
+        release: newRelease,
+      };
+    }));
+
+    // Update vehicle status
+    setAllVehicles(prev => prev.map(v => {
+      if (hold && v.id !== hold.vehicleId) return v;
+      return {
+        ...v,
+        status: release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION',
+      };
+    }));
   };
 
   const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {
@@ -220,17 +248,20 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }
     if (uploadedUrls.length === 0) return;
 
-    const merged = [...(hold.photos ?? []), ...uploadedUrls];
-    const { error } = await supabase.from('holds').update({ photos: merged }).eq('id', holdId);
+    const { error } = await supabase.from('holds').update({ photos: [...(hold.photos ?? []), ...uploadedUrls] }).eq('id', holdId);
     if (error) throw new Error(`Failed to update photos: ${error.message}`);
-    setHolds(prev => prev.map(h =>
-      h.id === holdId ? { ...h, photos: merged } : h
-    ));
+    setAllHolds(prev => prev.map(h => {
+      if (h.id !== holdId) return h;
+      return {
+        ...h,
+        photos: [...(h.photos ?? []), ...uploadedUrls],
+      };
+    }));
   };
 
   const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
     const repairId = crypto.randomUUID();
-    const fullRepair: Repair = { ...repair, id: repairId };
+    const newRepair: Repair = { ...repair, id: repairId };
 
     const { error } = await supabase.from('repairs').insert({
       id:              repairId,
@@ -250,18 +281,20 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
     }
 
-    setHolds(prev => prev.map(h =>
-      h.id === holdId ? { ...h, status: 'REPAIRED' as const, repair: fullRepair } : h
-    ));
-    if (hold) {
-      setVehicles(prev => prev.map(v =>
-        v.id === hold.vehicleId ? { ...v, status: 'CLEAR' as const } : v
-      ));
-    }
+    // Update local state
+    setAllHolds(prev => prev.map(h => {
+      if (h.id !== holdId) return h;
+      return { ...h, status: 'REPAIRED', repair: newRepair };
+    }));
+
+    setAllVehicles(prev => prev.map(v => {
+      if (hold && v.id !== hold.vehicleId) return v;
+      return { ...v, status: 'CLEAR' };
+    }));
   };
 
   const markReturned = async (holdId: string) => {
-    const now = new Date().toISOString();
+    const returnedAt = new Date().toISOString();
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
 
@@ -269,20 +302,26 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
 
     if (hold.release) {
-      await supabase.from('releases').update({ actual_return: now }).eq('id', hold.release.id);
+      await supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release.id);
     }
 
     const { error: vError } = await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
-    setHolds(prev => prev.map(h =>
-      h.id === holdId
-        ? { ...h, status: 'RETURNED' as const, release: h.release ? { ...h.release, actualReturn: now } : h.release }
-        : h
-    ));
-    setVehicles(prev => prev.map(v =>
-      v.id === hold.vehicleId ? { ...v, status: 'RETURNED' as const } : v
-    ));
+    // Update hold & vehicle
+    setAllHolds(prev => prev.map(h => {
+      if (h.id !== holdId) return h;
+      return {
+        ...h,
+        status: 'RETURNED',
+        release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
+      };
+    }));
+
+    setAllVehicles(prev => prev.map(v => {
+      if (v.id !== hold.vehicleId) return v;
+      return { ...v, status: 'RETURNED' };
+    }));
   };
 
   return (

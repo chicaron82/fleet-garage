@@ -1,3 +1,5 @@
+import type { BranchId } from '../types';
+
 // ── Trip Run Mock Data ────────────────────────────────────────────────────────
 
 export interface TripRun {
@@ -20,6 +22,7 @@ export interface TripRun {
   queueAtDeparture?: string;
   fuelOnArrival?: string;
   condition?: 'CLEAN' | 'DIRTY';
+  branchId: BranchId;
 }
 
 const TODAY = '2026-04-14';
@@ -38,7 +41,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 34218,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-2',
     vehicleUnit: 'HRZ-7845',
@@ -51,7 +54,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '1/2',
     odometer: 28910,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-3',
     vehicleUnit: 'HRZ-3120',
@@ -64,7 +67,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 41055,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-4',
     vehicleUnit: 'HRZ-9981',
@@ -77,7 +80,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 19442,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-5',
     vehicleUnit: 'HRZ-2055',
@@ -90,7 +93,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 52217,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-6',
     vehicleUnit: 'HRZ-4410',
@@ -103,7 +106,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '1/4',
     odometer: 63890,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-7',
     vehicleUnit: 'HRZ-1199',
@@ -116,7 +119,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 29105,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-8',
     vehicleUnit: 'HRZ-5590',
@@ -129,7 +132,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 47320,
     driverId: 'u8',
-  },
+  ,
 
   // ── Aaron (u1, VSA) — Afternoon, helping move cars ──────────────────────
   {
@@ -144,7 +147,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 31444,
     driverId: 'u1',
-  },
+  ,
   {
     id: 'tr-10',
     vehicleUnit: 'HRZ-6012',
@@ -157,7 +160,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 34240,
     driverId: 'u1',
-  },
+  ,
   {
     id: 'tr-11',
     vehicleUnit: 'HRZ-2055',
@@ -170,7 +173,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 52240,
     driverId: 'u1',
-  },
+  ,
 
   // ── Aaron (u1) — VSA interruption runs (Movement Log format) ────────────
   {
@@ -190,7 +193,7 @@ export const MOCK_TRIPS: TripRun[] = [
     reason: 'ROUTINE',
     queueAtDeparture: 'TOO_MUCH',
     condition: 'CLEAN',
-  },
+  ,
   {
     id: 'tr-vsa-2',
     vehicleUnit: 'HRZ-6012',
@@ -208,7 +211,7 @@ export const MOCK_TRIPS: TripRun[] = [
     reason: 'COVERAGE_ASSIST',
     fuelOnArrival: '¼',
     condition: 'DIRTY',
-  },
+  ,
   {
     id: 'tr-vsa-3',
     vehicleUnit: 'HRZ-4410',
@@ -226,7 +229,7 @@ export const MOCK_TRIPS: TripRun[] = [
     reason: 'ROUTINE',
     condition: 'CLEAN',
     notes: 'Picked up from Birchwood — came back clean from service',
-  },
+  ,
 
 
   // ── GenZee (u8) — Customer pick-up/drop-off ────────────────────────────
@@ -242,7 +245,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 18905,
     driverId: 'u8',
-  },
+  ,
   // GenZee — flagged trip with notes
   {
     id: 'tr-flagged-1',
@@ -257,7 +260,7 @@ export const MOCK_TRIPS: TripRun[] = [
     odometer: 31460,
     driverId: 'u8',
     notes: 'Stuck at train crossing on Inkster Blvd',
-  },
+  ,
   {
     id: 'tr-13',
     vehicleUnit: 'HRZ-4410',
@@ -270,7 +273,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 63920,
     driverId: 'u8',
-  },
+  ,
 
   // ── GenZee (u8) — Inter-location transfer ──────────────────────────────
   {
@@ -285,7 +288,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 37110,
     driverId: 'u8',
-  },
+  ,
   {
     id: 'tr-15',
     vehicleUnit: 'HRZ-7720',
@@ -298,7 +301,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '1/2',
     odometer: 22480,
     driverId: 'u8',
-  },
+  ,
 
   // ── ZeeDric (u9) — Full day with flagged trips (no notes) ─────────────
   // Normal trip
@@ -314,7 +317,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 28440,
     driverId: 'u9',
-  },
+  ,
   // Flagged — no notes
   {
     id: 'tr-z2',
@@ -328,7 +331,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '3/4',
     odometer: 47340,
     driverId: 'u9',
-  },
+  ,
   // Normal trip
   {
     id: 'tr-z3',
@@ -342,7 +345,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 39210,
     driverId: 'u9',
-  },
+  ,
   // Flagged — no notes
   {
     id: 'tr-z4',
@@ -356,7 +359,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '1/2',
     odometer: 41120,
     driverId: 'u9',
-  },
+  ,
   // Normal trip
   {
     id: 'tr-z5',
@@ -370,7 +373,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 29010,
     driverId: 'u9',
-  },
+  ,
   // Flagged — no notes
   {
     id: 'tr-z6',
@@ -384,7 +387,7 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: '1/4',
     odometer: 34265,
     driverId: 'u9',
-  },
+  ,
   // Normal close trip
   {
     id: 'tr-z7',
@@ -398,5 +401,5 @@ export const MOCK_TRIPS: TripRun[] = [
     gasLevel: 'Full',
     odometer: 52260,
     driverId: 'u9',
-  },
+  ,
 ];

@@ -1,20 +1,30 @@
-import type { User, Vehicle, Hold } from '../types';
+
+import type { User, Vehicle, Hold, BranchConfig, BranchId } from '../types';
+
+// ── Branch Configs ────────────────────────────────────────────────────────────
+export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
+  'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] },
+  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'trips'] },
+  'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] }
+};
+
 
 // ── Demo Users ────────────────────────────────────────────────────────────────
 
 export const USERS: User[] = [
-  { id: 'u1', employeeId: '331965',  name: 'Aaron S.',    role: 'VSA',                password: '!Bananarama1982' },
-  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee',       role: 'Lead VSA',           password: '!Bananarama1982' },
-  { id: 'u3', employeeId: 'VSA-003', name: 'Belle',       role: 'VSA',                password: '!Bananarama1982' },
-  { id: 'u4', employeeId: 'CSR-001', name: 'CoZee',       role: 'CSR',                password: '!Bananarama1982' },
-  { id: 'u5', employeeId: 'HIR-001', name: 'Tori',        role: 'HIR',                password: '!Bananarama1982' },
-  { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah',      role: 'Branch Manager',     password: '!Bananarama1982' },
-  { id: 'u7', employeeId: 'OPS-001', name: 'Zee',         role: 'Operations Manager', password: '!Bananarama1982' },
-  { id: 'u8', employeeId: 'DRV-001', name: 'GenZee',      role: 'Driver',             password: '!Bananarama1982' },
-  { id: 'u9', employeeId: 'DRV-002', name: 'ZeeDric',     role: 'Driver',             password: '!Bananarama1982' },
-  { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA',               password: '!Bananarama1982' },
-  { id: 'u11', employeeId: '256163',  name: 'Geoff N.',    role: 'Lead VSA',           password: '!Bananarama1982' },
-  { id: 'u12', employeeId: '300210',  name: 'Ray T.',      role: 'VSA',               password: '!Bananarama1982' },
+  { id: 'u1', employeeId: '331965',  name: 'Aaron S.',    role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee',       role: 'Lead VSA',           password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u3', employeeId: 'VSA-003', name: 'Belle',       role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u4', employeeId: 'CSR-001', name: 'CoZee',       role: 'CSR',                password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u5', employeeId: 'HIR-001', name: 'Tori',        role: 'Branch Manager',     password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah',      role: 'Branch Manager',     password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u7', employeeId: 'OPS-001', name: 'Zee',         role: 'Operations Manager', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u8', employeeId: 'DRV-001', name: 'GenZee',      role: 'Driver',             password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u9', employeeId: 'DRV-002', name: 'ZeeDric',     role: 'Driver',             password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA',               password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u11', employeeId: '256163',  name: 'Geoff N.',    role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u12', employeeId: '300210',  name: 'Ray T.',      role: 'VSA',               password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u13', employeeId: 'BOSS',    name: 'Big Boss',    role: 'City Manager',       password: '!Bananarama1982', branchId: 'ALL' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────
@@ -29,6 +39,7 @@ export const VEHICLES: Vehicle[] = [
     year: 2022,
     color: 'Silver',
     status: 'HELD',
+    branchId: 'YWG',
   },
   {
     id: 'v2',
@@ -39,6 +50,7 @@ export const VEHICLES: Vehicle[] = [
     year: 2023,
     color: 'White',
     status: 'OUT_ON_EXCEPTION',
+    branchId: 'YWG',
   },
   {
     id: 'v3',
@@ -49,6 +61,7 @@ export const VEHICLES: Vehicle[] = [
     year: 2021,
     color: 'Black',
     status: 'RETURNED',
+    branchId: 'YWG',
   },
   {
     id: 'v7',
@@ -59,6 +72,7 @@ export const VEHICLES: Vehicle[] = [
     year: 2022,
     color: 'Black',
     status: 'HELD',
+    branchId: 'YWG',
   },
   {
     id: 'v5',
@@ -69,6 +83,7 @@ export const VEHICLES: Vehicle[] = [
     year: 2022,
     color: 'Red',
     status: 'HELD',
+    branchId: 'YWG-South',
   },
 ];
 
@@ -85,6 +100,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-04-05T14:22:00',
     notes: 'Customer denied damage at return. Documented on lot before next rental.',
     status: 'ACTIVE',
+    branchId: 'YWG',
   },
 
   // v2 — HRZ-3307 — OUT ON EXCEPTION (hold was released by manager)
@@ -97,6 +113,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-03-28T09:10:00',
     notes: 'Flagged before lot went to critical shortage. Repair appointment scheduled for Apr 12.',
     status: 'RELEASED',
+    branchId: 'YWG-South',
     release: {
       id: 'r1',
       holdId: 'h2',
@@ -120,6 +137,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-03-10T16:05:00',
     notes: 'Vehicle returned from 3-week rental. Damage not on pre-rental inspection sheet.',
     status: 'RETURNED',
+    branchId: 'YWG',
     release: {
       id: 'r2',
       holdId: 'h3',
@@ -144,6 +162,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-02-14T13:45:00',
     notes: 'Customer returned late. Stain noticed during check-in. Photos taken.',
     status: 'RETURNED',
+    branchId: 'YWG',
     release: {
       id: 'r3',
       holdId: 'h4',
@@ -168,6 +187,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-04-07T08:55:00',
     notes: 'Noticed during lot walk. Not on last return inspection. Part ordered.',
     status: 'ACTIVE',
+    branchId: 'YWG',
   },
 
   // v7 — 5513130 (Tesla Model Y) — RETURNED hold, damage let go twice before
@@ -180,6 +200,7 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2025-11-14T10:20:00',
     notes: 'Rear liftgate / bumper area. Impact dent, no paint break. Previously documented.',
     status: 'RETURNED',
+    branchId: 'YWG',
     release: {
       id: 'r4',
       holdId: 'h6',
@@ -204,5 +225,6 @@ export const HOLDS: Hold[] = [
     flaggedAt: '2026-04-08T11:30:00',
     notes: 'Same rear liftgate dent. Pre-existing — has been on this vehicle for months. Flagging again for new staff awareness.',
     status: 'ACTIVE',
+    branchId: 'YWG',
   },
 ];

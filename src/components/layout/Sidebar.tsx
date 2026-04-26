@@ -1,7 +1,8 @@
 import { useAuth } from '../../context/AuthContext';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
-import type { Module, Screen } from '../../types';
+import type { Module, Screen, BranchId } from '../../types';
+import { BRANCH_CONFIGS } from '../../data/mock';
 
 interface Props {
   activeModule: Module;
@@ -10,10 +11,10 @@ interface Props {
 }
 
 export function Sidebar({ activeModule, onNavigate, onClose }: Props) {
-  const { user } = useAuth();
+  const { user, activeBranch, setActiveBranch } = useAuth();
   if (!user) return null;
 
-  const navItems = getNavItemsForRole(user.role);
+  const navItems = getNavItemsForRole(user.role, activeBranch);
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-colors">
@@ -40,6 +41,24 @@ export function Sidebar({ activeModule, onNavigate, onClose }: Props) {
           </button>
         )}
       </div>
+
+      {/* Branch Selector */}
+      {user.role === 'City Manager' && (
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+            Active Branch
+          </label>
+          <select
+            value={activeBranch}
+            onChange={(e) => setActiveBranch(e.target.value as BranchId)}
+            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-colors cursor-pointer"
+          >
+            {Object.values(BRANCH_CONFIGS).map(config => (
+              <option key={config.id} value={config.id}>{config.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Nav Items */}
       <nav className="flex-1 px-3 py-3 space-y-1">

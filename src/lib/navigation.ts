@@ -1,4 +1,5 @@
-import type { UserRole, Screen, Module } from '../types';
+import type { UserRole, Screen, Module, BranchId } from '../types';
+import { BRANCH_CONFIGS } from '../data/mock';
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 
@@ -28,11 +29,16 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'HIR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found'],
   'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
   'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
+  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
 };
 
-export function getNavItemsForRole(role: UserRole): NavItem[] {
-  const modules = ROLE_MODULES[role];
-  return ALL_NAV_ITEMS.filter(item => modules.includes(item.module));
+export function getNavItemsForRole(role: UserRole, activeBranch: BranchId): NavItem[] {
+  const roleModules = ROLE_MODULES[role] || [];
+  const branchModules = BRANCH_CONFIGS[activeBranch]?.enabledModules || [];
+  
+  return ALL_NAV_ITEMS.filter(item => 
+    roleModules.includes(item.module) && branchModules.includes(item.module)
+  );
 }
 
 // ── Screen → Module mapping ─────────────────────────────────────────────────
@@ -48,8 +54,20 @@ export function getActiveModule(screen: Screen): Module {
 
 // ── Default screen per role ─────────────────────────────────────────────────
 
-export function getDefaultScreenForRole(role: UserRole): Screen {
-  if (role === 'Driver') return { name: 'trips' };
-  if (role === 'HIR') return { name: 'check-in' };
-  return { name: 'dashboard' };
+export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId): Screen {
+  const navItems = getNavItemsForRole(role, activeBranch);
+  
+  // Preferred default based on role
+  let preferred: Screen = { name: 'dashboard' };
+  if (role === 'Driver') preferred = { name: 'trips' };
+  if (role === 'HIR') preferred = { name: 'check-in' };
+  if (role === 'City Manager') preferred = { name: 'analytics' };
+
+  // Ensure preferred module is enabled for the branch, otherwise fallback to first available
+  const preferredModule = getActiveModule(preferred);
+  if (navItems.some(item => item.module === preferredModule)) {
+    return preferred;
+  }
+  
+  return navItems[0]?.defaultScreen || { name: 'dashboard' };
 }

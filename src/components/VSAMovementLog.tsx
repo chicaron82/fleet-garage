@@ -178,6 +178,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         fuelOnArrival: fuel !== null ? FUEL_LABELS[fuel] : undefined,
         condition: isShuttle ? undefined : condition,
         notes: notes.trim() || undefined,
+        branchId: user.branchId,
       });
     }
   };

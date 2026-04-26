@@ -36,7 +36,7 @@ export default function App() {
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (user) {
-      const defaultScreen = getDefaultScreenForRole(user.role);
+      const defaultScreen = getDefaultScreenForRole(user.role, user.branchId);
       window.history.replaceState({ appRoot: true }, '');
       window.history.pushState(defaultScreen, '');
       setScreen(defaultScreen);
@@ -48,7 +48,7 @@ export default function App() {
     const handlePop = (e: PopStateEvent) => {
       const state = e.state as (Screen & { appRoot?: boolean }) | null;
       if (!state || state.appRoot) {
-        const def = user ? getDefaultScreenForRole(user.role) : { name: 'dashboard' as const };
+        const def = user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' as const };
         window.history.pushState(def, '');
         setScreen(def);
         setShowLogoutConfirm(true);

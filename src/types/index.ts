@@ -1,8 +1,20 @@
+// ── Core Types ─────────────────────────────────────────────────────────────────
+
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule';
+
+export type BranchId = 'YWG' | 'YWG-South' | 'ALL';
+
+export interface BranchConfig {
+  id: BranchId;
+  name: string;
+  enabledModules: Module[];
+}
+
 // ── Roles ────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'Driver';
+export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'City Manager' | 'Driver';
 
-export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager'];
+export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager', 'City Manager'];
 
 export function canRelease(role: UserRole): boolean {
   return CAN_RELEASE.includes(role);
@@ -16,6 +28,7 @@ export interface User {
   name: string;
   role: UserRole;
   password: string; // demo only — plaintext fine for POC
+  branchId: BranchId;
 }
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
@@ -31,6 +44,7 @@ export interface Vehicle {
   year: number;
   color: string;
   status: VehicleStatus;
+  branchId: BranchId;
 }
 
 // ── Holds ────────────────────────────────────────────────────────────────────
@@ -65,6 +79,7 @@ export interface Hold {
   linkedHoldId?: string;
   release?: Release;
   repair?: Repair;
+  branchId: BranchId;
 }
 
 // ── Releases ─────────────────────────────────────────────────────────────────
@@ -123,8 +138,6 @@ export type Screen =
   | { name: 'analytics' }
   | { name: 'schedule' };
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule';
-
 // ── Audits ───────────────────────────────────────────────────────────────────
 
 export type AuditResult = 'pass' | 'fail' | 'pending';
@@ -166,6 +179,7 @@ export interface AuditRecord {
   crew: AuditCrew;
   sections: AuditSection[];
   status: AuditStatus;
+  branchId: BranchId;
 }
 
 // ── Schedule ──────────────────────────────────────────────────────────────────
@@ -190,6 +204,7 @@ export interface Shift {
   isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
   createdAt: string;
   updatedAt: string;
+  branchId: BranchId;
 }
 
 export interface ShiftWithUser extends Shift {
