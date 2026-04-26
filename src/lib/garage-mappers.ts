@@ -42,6 +42,7 @@ export function mapVehicle(row: Row): Vehicle {
     year:         reqNum(row, 'year',          'mapVehicle'),
     color:        reqStr(row, 'color',         'mapVehicle'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
+    branchId:     (optStr(row, 'branch_id')    ?? 'YWG') as any, // Mock fallback
   };
 }
 
@@ -88,5 +89,6 @@ export function mapHold(row: Row): Hold {
     linkedHoldId:       optStr(row, 'linked_hold_id'),
     release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
     repair:             repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
+    branchId:           (optStr(row, 'branch_id') ?? 'YWG') as any, // Mock fallback
   };
 }

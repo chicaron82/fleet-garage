@@ -37,7 +37,7 @@ interface GarageContextValue {
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
-  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status'>) => Promise<string>;
+  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>) => Promise<string>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
@@ -115,8 +115,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     });
   }, [holds]);
 
-  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status'>): Promise<string> => {
-    const id = crypto.randomUUID();
+  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>): Promise<string> => {
+    const id = `veh-${Date.now()}`;
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,
@@ -126,9 +127,10 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       year:          vehicle.year,
       color:         vehicle.color,
       status:        'HELD',
+      branch_id:     branchId,
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
-    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId: activeBranch === 'ALL' ? 'YWG' : activeBranch };
+    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId: branchId as any };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
   };

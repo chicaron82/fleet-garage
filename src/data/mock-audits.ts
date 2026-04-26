@@ -18,6 +18,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'GHK 294',
     crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -35,6 +36,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'JFT 881',
     crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'Belle' } },
     status: 'FAILED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [fail('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -52,6 +54,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'KLP 447',
     crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
     status: 'PASSED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -69,6 +72,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'LJF684',
     crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Belle' } },
     status: 'FAILED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), fail('dmg', 'Damage'), pass('whl', 'Wheels'), fail('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -86,6 +90,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'PBX 773',
     crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -103,6 +108,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'GHK 294',
     crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
     status: 'PASSED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),
@@ -120,6 +126,7 @@ export const MOCK_AUDITS: AuditRecord[] = [
     plate: 'JFT 881',
     crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
     status: 'PASSED',
+    branchId: 'YWG',
     sections: [
       section('exterior', 'EXTERIOR', [pass('ext', 'Exterior'), pass('dmg', 'Damage'), pass('whl', 'Wheels'), pass('trd', 'Tread Depth')]),
       section('interior', 'INTERIOR', [pass('odr', 'Odor'), pass('fuel', 'Fuel'), pass('seats', 'Seats'), pass('under', 'Under Seats'), pass('cup', 'Cup Holders'), pass('mir', 'Mirror / Glass')]),

@@ -35,11 +35,11 @@ function rowToShift(row: Record<string, unknown>): ShiftWithUser {
     endTime:         (row.end_time          as string | null) ?? undefined,
     shiftType:       row.shift_type as ShiftType,
     notes:           (row.notes             as string | null) ?? undefined,
-    actualStartTime: (row.actual_start_time as string | null) ?? undefined,
     actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
     isStat:          (row.is_stat as boolean | null) ?? false,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
+    branchId:        (u?.branchId ?? 'YWG') as any, // Mock fallback
     user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
   };
 }
@@ -62,9 +62,9 @@ interface ScheduleContextValue {
   goToToday: () => void;
   togglePeakSeason: () => Promise<void>;
   updatePtoEntitlement: (days: number) => Promise<void>;
-  createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
-  updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
+  createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => Promise<void>;
+  bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
+  updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
   logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
@@ -74,7 +74,7 @@ interface ScheduleContextValue {
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, activeBranch } = useAuth();
   const [shifts, setShifts]           = useState<ShiftWithUser[]>([]);
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
@@ -158,19 +158,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const { data, error } = await supabase
-      .from('shifts')
-      .insert({
-        user_id:    shift.userId,
-        date:       shift.date,
-        start_time: shift.startTime ?? null,
-        end_time:   shift.endTime   ?? null,
-        shift_type: shift.shiftType,
-        notes:      shift.notes     ?? null,
-      })
-      .select()
-      .single();
+  const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    
+    const { data, error } = await supabase.from('shifts').insert({
+      user_id: shift.userId,
+      date: shift.date,
+      start_time: shift.startTime,
+      end_time: shift.endTime,
+      shift_type: shift.shiftType,
+      notes: shift.notes,
+      actual_start_time: shift.actualStartTime,
+      actual_end_time: shift.actualEndTime,
+      is_stat: shift.isStat,
+      branch_id: branchId,
+    }).select().single();
     if (error) throw error;
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
     const thisYear = new Date().getFullYear();
@@ -180,7 +182,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>[]) => {
+  const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => {
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const rows = newShifts.map(s => ({
       user_id:    s.userId,
       date:       s.date,
@@ -188,13 +191,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       end_time:   s.endTime   ?? null,
       shift_type: s.shiftType,
       notes:      s.notes     ?? null,
+      branch_id:  branchId,
     }));
     const { data, error } = await supabase.from('shifts').insert(rows).select();
     if (error) throw error;
     setShifts(prev => [...prev, ...(data as Record<string, unknown>[]).map(rowToShift)]);
   };
 
-  const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) => {
+  const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {
     const { data, error } = await supabase
       .from('shifts')
       .update({
