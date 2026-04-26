@@ -107,13 +107,6 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
-  // Two-way sync: typing the plate checks the box
-  useEffect(() => {
-    if (shuttlePlate && plate.trim().toUpperCase() === shuttlePlate) {
-      setIsShuttle(true);
-    }
-  }, [plate, shuttlePlate]);
-
   const handleShuttleToggle = (checked: boolean) => {
     setIsShuttle(checked);
     if (checked && shuttlePlate) {
@@ -271,7 +264,15 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                 type="text"
                 placeholder="e.g. JFT 881"
                 value={plate}
-                onChange={e => setPlate(e.target.value.toUpperCase())}
+                onChange={e => {
+                  const newPlate = e.target.value.toUpperCase();
+                  setPlate(newPlate);
+                  if (shuttlePlate && newPlate.trim() === shuttlePlate) {
+                    setIsShuttle(true);
+                  } else if (isShuttle && newPlate.trim() !== shuttlePlate) {
+                    setIsShuttle(false);
+                  }
+                }}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
               />
               
