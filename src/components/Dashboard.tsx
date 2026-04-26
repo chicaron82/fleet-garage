@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
-import type { UserRole, Hold, Vehicle } from '../types';
+import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { USERS } from '../data/mock';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
@@ -19,10 +19,16 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const ITEMS_PER_PAGE = 15;
+
+  const handleFilterChange = useCallback((status: VehicleStatus | null) => {
+    setActiveStatusFilter(prev => (prev === status ? null : status));
+    setCurrentPage(1);
+  }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -66,13 +72,15 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
   const cleared     = vehicles.filter(v => v.status === 'CLEAR').length;
 
-  const filtered = vehicles.filter(v =>
-    search === '' ||
-    v.unitNumber.toUpperCase().includes(search) ||
-    v.licensePlate.toUpperCase().includes(search) ||
-    v.make.toUpperCase().includes(search) ||
-    v.model.toUpperCase().includes(search)
-  );
+  const filtered = vehicles.filter(v => {
+    const matchesStatus = activeStatusFilter === null || v.status === activeStatusFilter;
+    const matchesSearch = search === '' ||
+      v.unitNumber.toUpperCase().includes(search) ||
+      v.licensePlate.toUpperCase().includes(search) ||
+      v.make.toUpperCase().includes(search) ||
+      v.model.toUpperCase().includes(search);
+    return matchesStatus && matchesSearch;
+  });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -118,7 +126,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} />
 
-        {/* Summary Cards — role-aware */}
+        {/* Summary Cards — role-aware, tap to filter (Management) */}
         <SummaryCards
           role={user!.role}
           held={held}
@@ -126,6 +134,8 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           preExisting={preExisting}
           returned={returned}
           cleared={cleared}
+          activeFilter={activeStatusFilter}
+          onFilterChange={handleFilterChange}
         />
 
         {/* Search + Add Hold */}
@@ -235,6 +245,19 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
           )}
+          {filtered.length === 0 && search.trim() === '' && activeStatusFilter !== null && (
+            <div className="text-center py-8 space-y-2">
+              <p className="text-gray-400 dark:text-gray-500 text-sm">
+                No vehicles {STATUS_LABELS[activeStatusFilter]}.
+              </p>
+              <button
+                onClick={() => handleFilterChange(activeStatusFilter)}
+                className="text-sm font-semibold text-yellow-600 hover:text-yellow-700 transition cursor-pointer"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
           
           {paginationControls && (
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
@@ -275,29 +298,76 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
 // ── Role-aware summary cards ─────────────────────────────────────────────────
 
-interface CardProps { value: number; label: string; color: string }
+const ACTIVE_CARD_STYLES: Record<VehicleStatus, string> = {
+  HELD:             'ring-2 ring-red-500 bg-red-50 dark:bg-red-950/30 border-transparent',
+  OUT_ON_EXCEPTION: 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/30 border-transparent',
+  PRE_EXISTING:     'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/30 border-transparent',
+  RETURNED:         'ring-2 ring-gray-400 bg-gray-100 dark:bg-gray-800/50 border-transparent',
+  CLEAR:            'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/30 border-transparent',
+};
 
-function Card({ value, label, color }: CardProps) {
+const STATUS_LABELS: Record<VehicleStatus, string> = {
+  HELD:             'currently held',
+  OUT_ON_EXCEPTION: 'on exception',
+  PRE_EXISTING:     'pre-existing',
+  RETURNED:         'returned',
+  CLEAR:            'repaired',
+};
+
+interface CardProps {
+  value: number;
+  label: string;
+  color: string;
+  status?: VehicleStatus;
+  activeFilter?: VehicleStatus | null;
+  onFilterChange?: (status: VehicleStatus) => void;
+}
+
+function Card({ value, label, color, status, activeFilter, onFilterChange }: CardProps) {
+  const isInteractive = !!onFilterChange && !!status;
+  const isActive = isInteractive && activeFilter === status;
+
+  if (!isInteractive) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+        <p className={`text-2xl font-bold ${color}`}>{value}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+      </div>
+    );
+  }
+
+  const baseClasses = 'rounded-xl border p-4 text-center transition-all cursor-pointer';
+  const stateClasses = isActive
+    ? ACTIVE_CARD_STYLES[status!]
+    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm';
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+    <button
+      type="button"
+      onClick={() => onFilterChange!(status!)}
+      aria-pressed={isActive}
+      className={`${baseClasses} ${stateClasses}`}
+    >
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-    </div>
+    </button>
   );
 }
 
-function SummaryCards({ role, held, onException, preExisting, returned, cleared }: {
+function SummaryCards({ role, held, onException, preExisting, returned, cleared, activeFilter, onFilterChange }: {
   role: UserRole;
   held: number;
   onException: number;
   preExisting: number;
   returned: number;
   cleared: number;
+  activeFilter: VehicleStatus | null;
+  onFilterChange: (status: VehicleStatus) => void;
 }) {
   // VSA & Lead VSA — no cards, just search and flag
   if (role === 'VSA' || role === 'Lead VSA') return null;
 
-  // CSR & HIR — returned count only (they handle returns at the counter)
+  // CSR & HIR — returned count only (display, no filter — single card has no drill-down value)
   if (role === 'CSR' || role === 'HIR') {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
@@ -306,14 +376,14 @@ function SummaryCards({ role, held, onException, preExisting, returned, cleared 
     );
   }
 
-  // Management — full dashboard
+  // Management — full dashboard, tap any card to filter the list below
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-      <Card value={held} label="Currently Held" color="text-red-600 dark:text-red-500" />
-      <Card value={onException} label="On Exception" color="text-amber-500" />
-      <Card value={preExisting} label="Pre-existing" color="text-blue-600 dark:text-blue-500" />
-      <Card value={returned} label="Returned" color="text-gray-500 dark:text-gray-400" />
-      <Card value={cleared} label="Repaired" color="text-green-600 dark:text-green-500" />
+      <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"       status="HELD"             activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={onException} label="On Exception"   color="text-amber-500"                       status="OUT_ON_EXCEPTION" activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"     status="PRE_EXISTING"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"     status="RETURNED"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={cleared}     label="Repaired"       color="text-green-600 dark:text-green-500"   status="CLEAR"            activeFilter={activeFilter} onFilterChange={onFilterChange} />
     </div>
   );
 }
