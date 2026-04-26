@@ -1,69 +1,56 @@
 # Fleet Garage
 
-A vehicle damage hold ledger for rental fleet management. Built for Hertz lot operations — tracks damage flags, management releases, pre-existing conditions, and repair completions across the fleet.
+A comprehensive fleet operations platform built for rental lot management. Fleet Garage replaces legacy clipboard-and-memory systems with real-time telemetry, damage tracking, and staff coordination.
 
 **Live:** [fleet-garage.vercel.app](https://fleet-garage.vercel.app)
 
-## What It Does
+## Core Modules
 
-Fleet Garage replaces the clipboard-and-memory system for tracking damaged vehicles on the lot. Staff can:
+Fleet Garage has evolved far beyond a simple damage ledger. It now encompasses the entire lifecycle of a vehicle on the lot:
 
-- **Flag damage** — VSAs document scratches, dents, windshield chips, interior damage, and detail issues (dirt, pet hair, smoke) with photos and notes
-- **Track holds** — every flagged vehicle is held until management acts on it
-- **Release on exception** — managers approve temporary releases when the fleet is short, with expected return dates
-- **Mark pre-existing** — management can classify known damage as "renting as-is" — no repair planned, no ambiguity
-- **Mark repaired** — when a vehicle comes back from the shop, managers confirm the repair and clear it for service
-- **View history** — every vehicle has a full damage timeline: who flagged it, who released it, when it came back, who repaired it
+### 1. Damage & Hold Ledger (The Core)
+- **Flag Damage:** VSAs document exterior/interior damage, detail issues, and upload photos.
+- **Track & Resolve:** Vehicles are grounded until management reviews them. Management can authorize repairs or release the vehicle "on exception" (renting as-is) with expected return dates.
+- **Re-evaluations:** System automatically prompts for re-evaluations on returning exception vehicles to verify condition.
 
-## Roles
+### 2. VSA Movement Log
+- **Telemetry:** Live tracking of internal transport, washbay queue depth, and fuel levels.
+- **Shuttle Integration:** Built-in two-way bound support for logging staff shuttle runs (configurable via Fleet Operations settings).
+- **Taxonomy:** Reasons are mapped to true operational scenarios (*Routine Transport*, *Coverage Assist*, *Code Red*).
 
-| Role | Can Flag | Can Release / Repair |
-|------|----------|---------------------|
-| VSA (Vehicle Service Attendant) | Yes | No |
-| Lead VSA | Yes | No |
-| CSR (Customer Service Rep) | Yes | No |
-| HIR (Hourly In-house Rep) | Yes | No |
-| Branch Manager | Yes | Yes |
-| Operations Manager | Yes | Yes |
+### 3. Check-In & Intake
+- **Intake Flow:** Simulated barcode scanning with manual fallback support.
+- **Exception Handling:** Automatically detects when a vehicle returning from an "exception release" requires immediate management review.
 
-## Stack
+### 4. Fleet Inventory & Audits
+- **Zone Mapping:** Track vehicle locations across physical lot zones (Front Lot, Washbay, Overflow, Shop).
+- **Lot Audits:** Perform blind or guided audits with integrated photo capture to verify physical inventory against the system ledger.
+- **Missing Vehicles:** Quickly identify missing units or ghost holds.
 
-- **React 19** + TypeScript (strict mode)
-- **Vite** + Tailwind CSS v4
-- **Supabase** — PostgreSQL (vehicles, holds, releases, repairs) + Storage (damage photos)
-- **Vercel** — deployment
+### 5. Staff Scheduling
+- **Shift Management:** Weekly crew scheduling with role-based assignments.
+- **Overrides:** Management can override standard templates for exceptions or coverage adjustments.
 
-## Project Structure
+### 6. Analytics & Dashboards
+- **Paginated Dashboards:** Clean, responsive client-side pagination for tracking active exceptions and holds.
+- **Real-Time Dashboards:** Real-time data visualization of fleet health, hold turn-around times, and staff productivity.
 
-```
-src/
-  App.tsx                          # Router + layout (106 lines)
-  main.tsx                         # Entry point + providers
-  types/index.ts                   # All domain types
-  context/
-    AuthContext.tsx                 # Employee ID login
-    GarageContext.tsx               # Supabase CRUD + state
-    PreferencesContext.tsx          # Dark mode + settings
-  hooks/
-    useNewHold.ts                  # Flag damage form logic
-    useVehicleHistory.ts           # Vehicle detail + photo handling
-  components/
-    LoginScreen.tsx                # Employee ID + password
-    Dashboard.tsx                  # Summary cards + vehicle list
-    NewHoldForm.tsx                # Flag damage / detail issue
-    VehicleHistory.tsx             # Vehicle detail + damage timeline
-    ReleaseForm.tsx                # Exception / pre-existing release
-    RegisterVehicleForm.tsx        # Add new vehicle to ledger
-    StatusBadge.tsx                # Color-coded status pills
-    HoldRecordFooter.tsx           # Release / repair record display
-    LogoutConfirm.tsx              # Sign-out confirmation
-    UserProfileMenu.tsx            # Profile + settings dropdown
-  lib/
-    supabase.ts                    # Supabase client
-    image.ts                       # Photo compression (800px, 72% JPEG)
-  data/
-    mock.ts                        # Demo users + seed data
-```
+## Roles & Permissions
+
+| Role | Core Function | Can Release / Repair |
+|------|---------------|---------------------|
+| **VSA / Lead VSA** | Log movements, check in vehicles, flag damage | No |
+| **CSR / HIR** | View inventory, log lost & found | No |
+| **Branch Manager** | Full operational control, override settings | Yes |
+| **Operations Manager** | Full operational control, override settings | Yes |
+
+## Tech Stack
+
+- **Frontend:** React 19 + TypeScript (Strict Mode)
+- **Styling:** Tailwind CSS v4 (with full Dark Mode support)
+- **State:** React Context API (`AuthContext`, `GarageContext`, `PreferencesContext`, `ScheduleContext`)
+- **Backend (BaaS):** Supabase (PostgreSQL + Row Level Security + Storage)
+- **Deployment:** Vercel
 
 ## Running Locally
 
@@ -72,50 +59,26 @@ npm install
 npm run dev
 ```
 
-Requires a `.env` file:
+Requires a `.env` file connected to your Supabase instance:
 
-```
+```env
 VITE_SUPABASE_URL=<your-supabase-project-url>
 VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
-### Supabase Setup
-
-The app expects four tables: `vehicles`, `holds`, `releases`, `repairs` — plus a `damage-photos` storage bucket with a public INSERT policy.
-
-### Build
+### Build & Lint
 
 ```bash
-npm run build    # tsc -b && vite build
+npm run build    # tsc --noEmit && vite build
 npm run lint     # eslint
 ```
 
-## Vehicle Lifecycle
-
-```
-New vehicle registered
-  → HELD (damage flagged)
-    → OUT_ON_EXCEPTION (released temporarily by management)
-      → RETURNED (came back from exception rental)
-    → PRE_EXISTING (management accepts damage, renting as-is)
-    → CLEAR (damage repaired, back in service)
-```
-
-## Design Decisions
-
-- **Optimistic UI** — local state updates immediately after Supabase writes, with error throws on failure
-- **Photo compression** — images are resized to 800px max width and compressed to 72% JPEG before upload, keeping storage costs low
-- **Role-based access** — only Branch Manager and Operations Manager can release holds or confirm repairs. Enforced at the component level
-- **UUID IDs** — `crypto.randomUUID()` for all records (vehicles, holds, releases, repairs)
-- **Dark mode** — full dark theme support via Tailwind `dark:` variants and PreferencesContext
+## Recent Architecture Upgrades
+- **Row Level Security (RLS):** Supabase policies actively secure `vehicles`, `holds`, `releases`, and `repairs` tables from unauthorized manipulation.
+- **Performance:** Client-side pagination prevents DOM bloat on massive lot inventories.
+- **Preferences:** Robust user preference context for persisting UI settings (e.g., Dark Mode, Default Tabs, Notification preferences).
 
 ## POC Limitations
-
-This is a proof of concept. Production would need:
-
-- Supabase Row Level Security (RLS) policies
-- Server-side auth (currently client-side employee ID matching)
-- Audit logging
-- Pagination for large fleets
-- Push notifications for hold status changes
-- Offline support for lot walks
+While highly functional, this remains a proof-of-concept:
+- **Authentication:** Currently relies on a client-side mock authentication layer (`USERS` array) rather than true server-side JWT validation.
+- **Offline Support:** Lacks full service-worker caching required for true "dead zone" lot walks.
