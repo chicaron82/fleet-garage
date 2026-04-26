@@ -34,11 +34,16 @@ export function LostAndFoundView() {
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Lost & Found</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-          Items recovered from returned vehicles · {MOCK_LOST_FOUND.length} item{MOCK_LOST_FOUND.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Lost & Found</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
+            Items recovered from returned vehicles · {MOCK_LOST_FOUND.length} item{MOCK_LOST_FOUND.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">
+          Demo
+        </span>
       </div>
 
       {/* Log found item */}
