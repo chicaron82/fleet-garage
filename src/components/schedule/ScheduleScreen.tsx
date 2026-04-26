@@ -22,7 +22,7 @@ function monthLabel(date: Date): string {
 
 export function ScheduleScreen() {
   const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
-  const { user } = useAuth();
+  const { user, activeBranch } = useAuth();
   const [showFill,    setShowFill]    = useState(false);
   const [showLogSick, setShowLogSick] = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);
@@ -47,12 +47,14 @@ export function ScheduleScreen() {
       if (!group) continue;
       for (const u of USERS) {
         if (group.roles.includes(u.role) && u.id !== user?.id) {
-          ids.add(u.id);
+          if (activeBranch === 'ALL' || u.branchId === activeBranch) {
+            ids.add(u.id);
+          }
         }
       }
     }
     return ids;
-  }, [activeGroups, user]);
+  }, [activeGroups, user, activeBranch]);
   const isCurrentPeriod = viewMode === 'week'
     ? (() => { const { start, end } = getWeekBounds(new Date()); return toISO(currentDate) >= toISO(start) && toISO(currentDate) <= toISO(end); })()
     : currentDate.getFullYear() === new Date().getFullYear() && currentDate.getMonth() === new Date().getMonth();
