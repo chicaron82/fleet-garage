@@ -124,7 +124,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
-        <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} />
+        <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <SummaryCards
@@ -390,28 +390,38 @@ function SummaryCards({ role, held, onException, preExisting, returned, cleared,
 
 // ── Stale holds alert ───────────────────────────────────────────────────────
 
-function StaleHoldsAlert({ role, staleHolds, vehicles }: {
+function StaleHoldsAlert({ role, staleHolds, vehicles, onSelectVehicle }: {
   role: UserRole;
   staleHolds: Hold[];
   vehicles: Vehicle[];
+  onSelectVehicle: (vehicleId: string) => void;
 }) {
   // Not relevant for CSR/HIR — they handle returns, not hold follow-up
   if (role === 'CSR' || role === 'HIR') return null;
   if (staleHolds.length === 0) return null;
 
-  const unitNumbers = staleHolds.map(h => {
+  const staleItems = staleHolds.map(h => {
     const v = vehicles.find(v => v.id === h.vehicleId);
-    return v?.unitNumber ?? 'Unknown';
+    return { vehicleId: h.vehicleId, unitNumber: v?.unitNumber ?? 'Unknown' };
   });
 
   return (
     <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
-      <p className="font-semibold mb-1">
+      <p className="font-semibold mb-1.5">
         ⚠️ {staleHolds.length} hold{staleHolds.length > 1 ? 's have' : ' has'} been active for more than 48 hours
       </p>
-      <p className="text-xs text-amber-700 dark:text-amber-400">
-        {unitNumbers.join(', ')}
-      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {staleItems.map(({ vehicleId, unitNumber }) => (
+          <button
+            key={vehicleId}
+            type="button"
+            onClick={() => onSelectVehicle(vehicleId)}
+            className="bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-md text-xs font-semibold hover:bg-amber-200 dark:hover:bg-amber-700/60 cursor-pointer transition-colors"
+          >
+            {unitNumber}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
