@@ -8,9 +8,10 @@ interface Props {
   activeModule: Module;
   onNavigate: (screen: Screen) => void;
   onClose?: () => void;
+  onShowGuide?: (module: Module) => void;
 }
 
-export function Sidebar({ activeModule, onNavigate, onClose }: Props) {
+export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
   if (!user) return null;
 
@@ -65,18 +66,28 @@ export function Sidebar({ activeModule, onNavigate, onClose }: Props) {
         {navItems.map(item => {
           const isActive = activeModule === item.module;
           return (
-            <button
-              key={item.module}
-              onClick={() => onNavigate(item.defaultScreen)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                isActive
-                  ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              <span className="text-base leading-none">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
+            <div key={item.module} className="relative flex items-center group">
+              <button
+                onClick={() => onNavigate(item.defaultScreen)}
+                className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  isActive
+                    ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <span className="text-base leading-none">{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+              {onShowGuide && (
+                <button
+                  onClick={e => { e.stopPropagation(); onShowGuide(item.module); }}
+                  className="absolute right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 cursor-pointer"
+                  title={`About ${item.label}`}
+                >
+                  <span className="text-xs">ⓘ</span>
+                </button>
+              )}
+            </div>
           );
         })}
       </nav>

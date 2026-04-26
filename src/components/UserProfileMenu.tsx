@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
+import { AboutModal } from './AboutModal';
+import { ModuleGuideModal } from './ModuleGuideModal';
 
 export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
   const { user, logout } = useAuth();
@@ -13,6 +15,8 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showModuleGuide, setShowModuleGuide] = useState(false);
   
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -68,7 +72,19 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
             <p className="text-xs text-gray-500 dark:text-gray-400">{user?.employeeId}</p>
           </div>
           
-          <button 
+          <button
+            onClick={() => { setIsOpen(false); setShowAbout(true); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer flex items-center gap-2"
+          >
+            ℹ️ About Fleet Garage
+          </button>
+          <button
+            onClick={() => { setIsOpen(false); setShowModuleGuide(true); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer flex items-center gap-2"
+          >
+            📖 Module Guide
+          </button>
+          <button
             onClick={() => { setIsOpen(false); setShowProfile(true); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer flex items-center gap-2"
           >
@@ -91,6 +107,12 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
           </button>
         </div>
       )}
+
+      {/* About Modal */}
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+
+      {/* Module Guide Modal */}
+      {showModuleGuide && <ModuleGuideModal onClose={() => setShowModuleGuide(false)} />}
 
       {/* Profile Modal */}
       {showProfile && (

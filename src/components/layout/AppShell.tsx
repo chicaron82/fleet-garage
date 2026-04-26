@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../UserProfileMenu';
+import { ModuleGuideModal } from '../ModuleGuideModal';
 import type { Module, Screen } from '../../types';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 
 export function AppShell({ activeModule, onNavigate, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [guideModule, setGuideModule] = useState<Module | null>(null);
 
   const handleNavigate = (screen: Screen) => {
     onNavigate(screen);
@@ -33,10 +35,11 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <Sidebar 
-          activeModule={activeModule} 
-          onNavigate={handleNavigate} 
-          onClose={() => setSidebarOpen(false)} 
+        <Sidebar
+          activeModule={activeModule}
+          onNavigate={handleNavigate}
+          onClose={() => setSidebarOpen(false)}
+          onShowGuide={setGuideModule}
         />
       </div>
 
@@ -57,6 +60,13 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
               <span className="text-black font-bold text-[10px]">FG</span>
             </div>
             <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
+            <button
+              onClick={() => setGuideModule(activeModule)}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer ml-0.5"
+              title="Module Guide"
+            >
+              <span className="text-xs">ⓘ</span>
+            </button>
           </div>
           <UserProfileMenu />
         </div>
@@ -66,6 +76,14 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
           {children}
         </div>
       </div>
+
+      {/* Module Guide — triggered from sidebar ⓘ or mobile header ⓘ */}
+      {guideModule !== null && (
+        <ModuleGuideModal
+          initialModule={guideModule}
+          onClose={() => setGuideModule(null)}
+        />
+      )}
     </div>
   );
 }
