@@ -9,7 +9,7 @@ const VSA_LOCATIONS = [
 ] as const;
 type VSALocation = typeof VSA_LOCATIONS[number];
 type Condition = 'CLEAN' | 'DIRTY';
-type Reason = 'MOVING_CLEANS' | 'LOT_CLEARED' | 'OTHER';
+type Reason = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
 type Authorization = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
 type QueueSnapshot = '0' | '~5' | 'TOO_MUCH';
 type FuelLevel = number;
@@ -28,8 +28,9 @@ function fuelColor(v: number): string {
 }
 
 const REASON_LABELS: Record<Reason, string> = {
-  MOVING_CLEANS: 'Moving Cleans',
-  LOT_CLEARED: 'Lot Cleared',
+  ROUTINE: 'Routine Transport',
+  COVERAGE_ASSIST: 'Coverage Assist',
+  CODE_RED: 'Code Red',
   OTHER: 'Other',
 };
 
