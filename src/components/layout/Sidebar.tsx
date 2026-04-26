@@ -52,7 +52,9 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           </div>
           <div>
             <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight transition-colors">Fleet Garage</p>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight transition-colors">Location Ops</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight transition-colors">
+                {activeBranch === 'ALL' ? 'Ops Pilot Program' : `${activeBranch} Ops Pilot Program`}
+              </p>
           </div>
         </div>
         {onClose && (
