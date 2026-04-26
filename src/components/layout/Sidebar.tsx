@@ -1,18 +1,43 @@
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import type { Module, Screen, BranchId } from '../../types';
 import { BRANCH_CONFIGS } from '../../data/mock';
 
+interface Notification {
+  id: string;
+  icon: string;
+  text: string;
+  isRead: boolean;
+}
+
 interface Props {
   activeModule: Module;
   onNavigate: (screen: Screen) => void;
   onClose?: () => void;
   onShowGuide?: (module: Module) => void;
+  notifications: Notification[];
+  unreadCount: number;
+  onMarkAllRead: () => void;
 }
 
-export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Props) {
+export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
+  const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!desktopInboxOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setDesktopInboxOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [desktopInboxOpen]);
+
   if (!user) return null;
 
   const navItems = getNavItemsForRole(user.role, activeBranch);
@@ -94,6 +119,55 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Prop
 
       {/* User Section — desktop only */}
       <div className="hidden md:block border-t border-gray-100 dark:border-gray-800 px-3 py-3">
+        {/* Desktop notification bell + popover */}
+        <div ref={popoverRef} className="relative mb-2">
+          <button
+            onClick={() => setDesktopInboxOpen(o => !o)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors cursor-pointer text-sm font-medium"
+          >
+            <div className="relative">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </div>
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Desktop popover — anchored above */}
+          {desktopInboxOpen && (
+            <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-50">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
+                {unreadCount > 0 && (
+                  <button onClick={onMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
+                    Mark all as read
+                  </button>
+                )}
+              </div>
+              {notifications.map((n, i) => (
+                <div
+                  key={n.id}
+                  className={`flex items-start gap-3 px-4 py-3 ${!n.isRead ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < notifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
+                >
+                  <span className="text-base leading-none mt-0.5 shrink-0">{n.icon}</span>
+                  <p className={`text-xs leading-relaxed flex-1 ${!n.isRead ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {n.text}
+                  </p>
+                  {!n.isRead && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <UserProfileMenu dropUp />
       </div>
     </div>
