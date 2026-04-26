@@ -151,4 +151,47 @@ export const MOCK_CHECK_INS: VehicleCheckIn[] = [
     status: 'pinned',
     pinnedBy: 'ZeeRah',
   },
+
+  // ── Cross-province one-way arrivals ────────────────────────────────────
+  // Pre-existing damage from Calgary — already on file, no new flag needed
+  {
+    id: 'ci-9',
+    vehicleUnit: 'HRZ-7142',
+    vehiclePlate: 'ABK 502',
+    checkedInBy: 'Belle',
+    checkedInAt: `${TODAY}T08:15:00`,
+    interiorCondition: 'clean',
+    exteriorCondition: 'damaged',
+    photoCount: 6,
+    notes: 'Inter-branch transfer arrival from Calgary (YYC). Front bumper scrape pre-existing — already flagged on hold h8 by Marcus L. on Apr 5. Verified match against YYC documentation. No new damage. Linked to existing YYC hold.',
+    status: 'escalated',
+    linkedHoldId: 'h8',
+    washbayReview: {
+      reviewedBy: 'DiZee',
+      reviewedAt: `${TODAY}T08:45:00`,
+      result: 'damage_found',
+      notes: 'Confirmed damage matches Calgary documentation. Same scrape, same location, same dimensions. Hold h8 stays active under YYC branch — no new YWG hold needed.',
+    },
+  },
+
+  // Clean at Vancouver — fresh damage discovered on Winnipeg arrival
+  {
+    id: 'ci-10',
+    vehicleUnit: 'HRZ-8819',
+    vehiclePlate: 'BCP 224',
+    checkedInBy: 'Belle',
+    checkedInAt: `${TODAY}T09:30:00`,
+    interiorCondition: 'clean',
+    exteriorCondition: 'damaged',
+    photoCount: 7,
+    notes: 'Customer one-way arrival from Vancouver (YVR). Vehicle was clean at YVR origin per Linh T.\'s check-in on Apr 12 — exterior clean, no holds. Fresh dent discovered on rear quarter panel during arrival inspection. New damage hold flagged at YWG.',
+    status: 'escalated',
+    linkedHoldId: 'h9',
+    washbayReview: {
+      reviewedBy: 'Aaron S.',
+      reviewedAt: `${TODAY}T10:05:00`,
+      result: 'damage_found',
+      notes: 'Confirmed new damage. No matching record at Vancouver origin — clean check-in on file. Damage occurred during rental. Hold h9 created under YWG branch.',
+    },
+  },
 ];

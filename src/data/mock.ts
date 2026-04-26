@@ -5,6 +5,8 @@ import type { User, Vehicle, Hold, BranchConfig, BranchId } from '../types';
 export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
   'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] },
   'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'trips'] },
+  'YYC': { id: 'YYC', name: 'Calgary (YYC)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] },
+  'YVR': { id: 'YVR', name: 'Vancouver (YVR)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] },
   'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule'] }
 };
 
@@ -25,6 +27,8 @@ export const USERS: User[] = [
   { id: 'u11', employeeId: '256163',  name: 'Geoff N.',    role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG-South' },
   { id: 'u12', employeeId: '300210',  name: 'Ray T.',      role: 'VSA',               password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u13', employeeId: 'BOSS',    name: 'Big Boss',    role: 'City Manager',       password: '!Bananarama1982', branchId: 'ALL' },
+  { id: 'u14', employeeId: 'YYC-VSA-01', name: 'Marcus L.',   role: 'VSA',                password: '!Bananarama1982', branchId: 'YYC' },
+  { id: 'u15', employeeId: 'YVR-VSA-01', name: 'Linh T.',     role: 'VSA',                password: '!Bananarama1982', branchId: 'YVR' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────
@@ -84,6 +88,29 @@ export const VEHICLES: Vehicle[] = [
     color: 'Red',
     status: 'HELD',
     branchId: 'YWG-South',
+  },
+  // ── One-way arrivals from out-of-province (cross-branch demo) ──────────
+  {
+    id: 'v8',
+    unitNumber: 'HRZ-7142',
+    licensePlate: 'ABK 502',
+    make: 'Nissan',
+    model: 'Rogue',
+    year: 2023,
+    color: 'White',
+    status: 'HELD',
+    branchId: 'YWG',
+  },
+  {
+    id: 'v9',
+    unitNumber: 'HRZ-8819',
+    licensePlate: 'BCP 224',
+    make: 'Kia',
+    model: 'Sportage',
+    year: 2023,
+    color: 'Grey',
+    status: 'HELD',
+    branchId: 'YWG',
   },
 ];
 
@@ -224,6 +251,33 @@ export const HOLDS: Hold[] = [
     flaggedById: 'u1', // Aaron S.
     flaggedAt: '2026-04-08T11:30:00',
     notes: 'Same rear liftgate dent. Pre-existing — has been on this vehicle for months. Flagging again for new staff awareness.',
+    status: 'ACTIVE',
+    branchId: 'YWG',
+  },
+
+  // ── Cross-province one-way arrivals ────────────────────────────────────
+  // v8 — HRZ-7142 — Pre-existing damage flagged at YYC, vehicle transferred to YWG
+  {
+    id: 'h8',
+    vehicleId: 'v8',
+    holdType: 'damage' as const,
+    damageDescription: 'Front bumper scrape — passenger side. Cosmetic, paint scuffed, no structural damage. Approx 6 inches.',
+    flaggedById: 'u14', // Marcus L. (Calgary VSA)
+    flaggedAt: '2026-04-05T11:20:00',
+    notes: 'Customer return scrape at YYC. Hold remains active during inter-branch transfer to YWG for inventory rebalancing. YWG team to verify match on arrival — do not flag as new.',
+    status: 'ACTIVE',
+    branchId: 'YYC',
+  },
+
+  // v9 — HRZ-8819 — Clean at YVR, fresh damage discovered on YWG arrival
+  {
+    id: 'h9',
+    vehicleId: 'v9',
+    holdType: 'damage' as const,
+    damageDescription: 'Rear quarter panel dent — driver side. Impact dent, no paint break. Approx 4 inches diameter.',
+    flaggedById: 'u3', // Belle (YWG VSA)
+    flaggedAt: '2026-04-14T09:45:00',
+    notes: 'Discovered during arrival inspection of YVR one-way customer drop-off. Vehicle was clean at YVR origin (last check-in by Linh T., Apr 12 — exterior clean, no holds). Damage occurred during rental — new flag.',
     status: 'ACTIVE',
     branchId: 'YWG',
   },

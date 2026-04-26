@@ -2,7 +2,7 @@
 
 export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule';
 
-export type BranchId = 'YWG' | 'YWG-South' | 'ALL';
+export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
 export interface BranchConfig {
   id: BranchId;
