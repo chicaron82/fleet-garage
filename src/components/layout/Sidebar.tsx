@@ -145,7 +145,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           {desktopInboxOpen && (
             <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-50">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">Demo</span>
+                </div>
                 {unreadCount > 0 && (
                   <button onClick={onMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
                     Mark all as read

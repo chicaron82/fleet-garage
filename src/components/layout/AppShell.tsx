@@ -151,7 +151,10 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
               <div className="absolute top-full left-0 right-0 z-20 px-3 pt-1.5 pb-2 animate-in slide-in-from-top-2 duration-200">
                 <div className="rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">Demo</span>
+                    </div>
                     {unreadCount > 0 && (
                       <button onClick={markAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
                         Mark all as read
