@@ -145,7 +145,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const handleConditionTap = (c: Condition) => { hapticLight(); setCondition(c); setConditionManual(true); };
 
   const queueRequired = from === 'Washbay';
-  const fuelConditional = to === 'Washbay';
+  const fuelConditional = to === 'Washbay' && !isShuttle;
   const canStart = plate.trim().length > 0 && reason !== null && !!authorization && (!queueRequired || queue !== null);
 
   const handleStartTrip = () => {
