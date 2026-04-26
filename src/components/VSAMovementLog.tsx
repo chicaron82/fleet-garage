@@ -105,9 +105,12 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
+  const isShuttle = plate.trim().toUpperCase() === 'SHUTTLE';
+
   // Vehicle lookup — pure computation, no effect needed
   const vehicleMeta = useMemo(() => {
     const t = plate.trim().replace(/\s/g, '').toUpperCase();
+    if (t === 'SHUTTLE') return 'Internal Transport · Shuttle';
     if (t.length < 3) return null;
     const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
     return match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null;
@@ -150,7 +153,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         id: `vsa-session-${Date.now()}`,
         vehicleUnit: vehicleMeta?.split(' · ')[1] ?? '',
         vehiclePlate: plate,
-        tripType: condition === 'CLEAN' ? 'clean' : 'dirty',
+        tripType: isShuttle ? 'transfer' : (condition === 'CLEAN' ? 'clean' : 'dirty'),
         departLocation: from,
         arriveLocation: to,
         departTime: departureTime,
@@ -163,7 +166,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         reason: reason ?? undefined,
         queueAtDeparture: queue ?? undefined,
         fuelOnArrival: fuel !== null ? FUEL_LABELS[fuel] : undefined,
-        condition,
+        condition: isShuttle ? undefined : condition,
         notes: notes.trim() || undefined,
       });
     }
@@ -266,27 +269,33 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
             <div>
               <div className="flex items-baseline justify-between mb-1.5">
                 <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Vehicle Condition</label>
-                {!conditionManual && (
+                {isShuttle ? (
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">not applicable for shuttle</span>
+                ) : !conditionManual && (
                   <span className="text-[10px] text-gray-400 dark:text-gray-500">auto · tap to override</span>
                 )}
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
+                  disabled={isShuttle}
                   onClick={() => handleConditionTap('CLEAN')}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
+                    isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
                     condition === 'CLEAN'
-                      ? 'border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                      ? 'border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 cursor-pointer'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
                   }`}
                 >Clean</button>
                 <button
                   type="button"
+                  disabled={isShuttle}
                   onClick={() => handleConditionTap('DIRTY')}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
+                    isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
                     condition === 'DIRTY'
-                      ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                      ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 cursor-pointer'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
                   }`}
                 >Dirty</button>
               </div>
@@ -453,11 +462,13 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                   </p>
                 </div>
                 <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  condition === 'CLEAN'
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  isShuttle
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                    : condition === 'CLEAN'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                 }`}>
-                  {condition === 'CLEAN' ? 'Clean' : 'Dirty'}
+                  {isShuttle ? 'Shuttle' : (condition === 'CLEAN' ? 'Clean' : 'Dirty')}
                 </span>
               </div>
               {/* Interruption / Proactive badge */}
