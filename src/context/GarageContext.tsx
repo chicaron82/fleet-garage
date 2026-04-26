@@ -42,6 +42,8 @@ interface GarageContextValue {
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
+  shuttlePlate: string;
+  setShuttlePlate: (plate: string) => void;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -50,6 +52,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [holds, setHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
   useEffect(() => {
     async function load() {
@@ -288,6 +291,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
+      shuttlePlate, setShuttlePlate,
     }}>
       {children}
     </GarageContext.Provider>

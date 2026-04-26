@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { useGarage } from '../context/GarageContext';
+import { canRelease } from '../types';
 
 export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
   const { user, logout } = useAuth();
   const { prefs, updatePref, avatarBase64, setAvatarBase64 } = usePreferences();
+  const { shuttlePlate, setShuttlePlate } = useGarage();
+  const isManagement = user ? canRelease(user.role) : false;
   
   const [isOpen, setIsOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -199,6 +203,26 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                   </label>
                 </div>
               </div>
+              
+              {isManagement && (
+                <div>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 font-bold">Fleet Operations</p>
+                  <div className="bg-gray-50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Designated Shuttle</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">License plate of lot shuttle</p>
+                      </div>
+                      <input
+                        type="text"
+                        value={shuttlePlate}
+                        onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
+                        className="w-28 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
+import { canRelease } from '../types';
 
 const VSA_LOCATIONS = [
   'Washbay', 'Airport', 'Off Branch', 'Dealership', 'Body Shop', 'Other',
@@ -84,7 +85,7 @@ function Pill({
 // ── Main component ─────────────────────────────────────────────────────────────
 export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
   const { user } = useAuth();
-  const { vehicles } = useGarage();
+  const { vehicles, shuttlePlate, setShuttlePlate } = useGarage();
 
   const [tripState, setTripState] = useState<TripState>('form');
 
@@ -99,22 +100,37 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [fuel, setFuel]                       = useState<FuelLevel | null>(null);
   const [authorization, setAuthorization]     = useState<Authorization | null>(null);
   const [notes, setNotes]                     = useState('');
+  const [isShuttle, setIsShuttle]             = useState(false);
 
   // Trip timestamps
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
-  const isShuttle = plate.trim().toUpperCase() === 'SHUTTLE';
+  // Two-way sync: typing the plate checks the box
+  useEffect(() => {
+    if (shuttlePlate && plate.trim().toUpperCase() === shuttlePlate) {
+      setIsShuttle(true);
+    }
+  }, [plate, shuttlePlate]);
+
+  const handleShuttleToggle = (checked: boolean) => {
+    setIsShuttle(checked);
+    if (checked && shuttlePlate) {
+      setPlate(shuttlePlate);
+    } else if (!checked && plate.trim().toUpperCase() === shuttlePlate) {
+      setPlate('');
+    }
+  };
 
   // Vehicle lookup — pure computation, no effect needed
   const vehicleMeta = useMemo(() => {
     const t = plate.trim().replace(/\s/g, '').toUpperCase();
-    if (t === 'SHUTTLE') return 'Internal Transport · Shuttle';
+    if (isShuttle) return 'Internal Transport · Lot Shuttle';
     if (t.length < 3) return null;
     const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
     return match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null;
-  }, [plate, vehicles]);
+  }, [plate, isShuttle, vehicles]);
 
   // Live elapsed timer — only interval callback sets state (no synchronous setState in effect)
   useEffect(() => {
@@ -178,7 +194,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setFrom('Washbay'); setTo('Airport');
     setConditionManual(false); setCondition('CLEAN');
     setReason(null); setQueue(null); setFuel(null); setAuthorization(null);
-    setNotes('');
+    setNotes(''); setIsShuttle(false);
     setDepartureTime(''); setArrivalTime(''); setElapsed('');
   };
 
@@ -258,9 +274,36 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                 onChange={e => setPlate(e.target.value.toUpperCase())}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
               />
-              {plate.trim().length >= 3 && (
-                <p className={`text-xs mt-1.5 ${vehicleMeta ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 italic'}`}>
+              
+              <div className="mt-3 flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+                    {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
+                  </div>
+                  <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => handleShuttleToggle(e.target.checked)} />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
+                </label>
+                {user && canRelease(user.role) && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Designated Plate:</span>
+                    <input 
+                      type="text" 
+                      value={shuttlePlate}
+                      onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
+                      className="w-20 px-2 py-0.5 text-xs rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 focus:outline-none focus:border-yellow-400 transition-colors uppercase text-center"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {!isShuttle && plate.trim().length >= 3 && (
+                <p className={`text-xs mt-2 ${vehicleMeta ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 italic'}`}>
                   {vehicleMeta ?? 'Not in system — plate accepted as-is'}
+                </p>
+              )}
+              {isShuttle && (
+                <p className="text-xs mt-2 text-purple-600 dark:text-purple-400 font-medium">
+                  {vehicleMeta}
                 </p>
               )}
             </div>
