@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import { parseFleetBarcode } from '../lib/barcode';
+import { hapticMedium } from '../lib/haptics';
 
 interface Options {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -27,6 +28,7 @@ export function useBarcodeInterceptor({ inputRef, onUnit, onUnrecognized }: Opti
       const result = parseFleetBarcode(raw);
       if (result.ok) {
         el.value = result.unit;
+        hapticMedium();
         onUnit(result.unit);
       } else {
         el.select();

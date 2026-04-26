@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
+import { hapticLight } from '../lib/haptics';
 import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { USERS } from '../data/mock';
@@ -344,7 +345,7 @@ function Card({ value, label, color, status, activeFilter, onFilterChange }: Car
   return (
     <button
       type="button"
-      onClick={() => onFilterChange!(status!)}
+      onClick={() => { hapticLight(); onFilterChange!(status!); }}
       aria-pressed={isActive}
       className={`${baseClasses} ${stateClasses}`}
     >

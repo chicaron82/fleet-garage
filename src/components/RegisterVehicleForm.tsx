@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
+import { hapticMedium } from '../lib/haptics';
 
 interface Props {
   prefill?: string;
@@ -82,6 +83,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
         year: year,
         color,
       });
+      hapticMedium();
       onSuccess(id);
     } catch {
       setSubmitting(false);

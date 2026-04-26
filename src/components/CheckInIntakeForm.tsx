@@ -4,6 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { parseFleetBarcode } from '../lib/barcode';
+import { hapticMedium } from '../lib/haptics';
 import type { Vehicle } from '../types';
 
 interface Props {
@@ -59,7 +60,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setReHolded(false);
   }, [getVehicleByUnit, showToast]);
 
-  const handleSubmit = () => setSubmitted(true);
+  const handleSubmit = () => { hapticMedium(); setSubmitted(true); };
 
   const handleReset = () => {
     setScanned(null);

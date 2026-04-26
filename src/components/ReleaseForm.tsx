@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
+import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import type { ReleaseType } from '../types';
 
 interface Props {
@@ -73,6 +74,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
   const canSubmit = finalReason && (!needsReturn || expectedReturn) && !submitting;
 
   const handleTypeChange = (t: ReleaseType) => {
+    hapticLight();
     setReleaseType(t);
     setReason('');
     setCustomReason('');
@@ -94,8 +96,10 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         expectedReturn: needsReturn ? expectedReturn : undefined,
         notes,
       });
+      hapticMedium();
       onClose();
     } catch {
+      hapticHeavy();
       setSubmitting(false);
     }
   };

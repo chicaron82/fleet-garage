@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { ModuleGuideModal } from '../ModuleGuideModal';
 import { useAuth } from '../../context/AuthContext';
+import { hapticLight } from '../../lib/haptics';
 import type { Module, Screen, UserRole } from '../../types';
 
 interface Notification {
@@ -128,7 +129,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
           <div className="flex items-center gap-2">
             {/* Mobile bell */}
             <button
-              onClick={() => setMobileInboxOpen(o => !o)}
+              onClick={() => { hapticLight(); setMobileInboxOpen(o => !o); }}
               className="relative w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

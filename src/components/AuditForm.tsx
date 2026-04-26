@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { exportAuditToHtml } from '../lib/audit-export';
 import { USERS } from '../data/mock';
+import { hapticMedium } from '../lib/haptics';
 import type { AuditSection, AuditStatus, AuditCrewSlot } from '../types';
 
 interface Props {
@@ -28,6 +29,7 @@ export function AuditForm({ onBack }: Props) {
       status:   (audit.overallStatus === 'IN_PROGRESS' ? 'FAILED' : audit.overallStatus) as AuditStatus,
       date:     new Date().toISOString(),
     });
+    hapticMedium();
     audit.handleDispatch();
   };
 

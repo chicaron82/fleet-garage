@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { hapticHeavy } from '../lib/haptics';
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -15,7 +16,7 @@ export function LoginScreen() {
     setLoading(true);
     setTimeout(() => {
       const ok = login(employeeId.trim(), password);
-      if (!ok) setError('Invalid Employee ID or password.');
+      if (!ok) { hapticHeavy(); setError('Invalid Employee ID or password.'); }
       setLoading(false);
     }, 600);
   };

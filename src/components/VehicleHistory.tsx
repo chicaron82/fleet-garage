@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
+import { hapticHeavy } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { ReleaseForm } from './ReleaseForm';
 import { VerbalOverrideForm } from './VerbalOverrideForm';
@@ -92,7 +93,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             {h.activeHold && canRelease(h.user.role) && (
               <>
                 <button
-                  onClick={() => h.openReleaseForm(h.activeHold!.id)}
+                  onClick={() => { hapticHeavy(); h.openReleaseForm(h.activeHold!.id); }}
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
                 >
                   Approve Release

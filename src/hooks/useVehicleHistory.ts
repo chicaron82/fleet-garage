@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
 import { USERS } from '../data/mock';
+import { hapticMedium } from '../lib/haptics';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ export function useVehicleHistory(vehicleId: string) {
       repairedAt: new Date().toISOString(),
       notes: repairNotes.trim(),
     });
+    hapticMedium();
     setShowRepairConfirm(null);
     setRepairNotes('');
     setRepairing(false);

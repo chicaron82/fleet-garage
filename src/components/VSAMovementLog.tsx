@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { canRelease } from '../types';
@@ -69,7 +70,7 @@ function Pill({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { hapticLight(); onClick(); }}
       className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
         active
           ? danger
@@ -109,6 +110,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [elapsed, setElapsed]             = useState('');
 
   const handleShuttleToggle = (checked: boolean) => {
+    hapticLight();
     setIsShuttle(checked);
     if (checked && shuttlePlate) {
       setPlate(shuttlePlate);
@@ -140,13 +142,14 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     // Update condition default when destination changes (unless user has manually set it)
     if (!conditionManual) setCondition(defaultCondition(loc));
   };
-  const handleConditionTap = (c: Condition) => { setCondition(c); setConditionManual(true); };
+  const handleConditionTap = (c: Condition) => { hapticLight(); setCondition(c); setConditionManual(true); };
 
   const queueRequired = from === 'Washbay';
   const fuelConditional = to === 'Washbay';
   const canStart = plate.trim().length > 0 && reason !== null && !!authorization && (!queueRequired || queue !== null);
 
   const handleStartTrip = () => {
+    hapticMedium();
     const now = new Date().toISOString();
     setDepartureTime(now);
     setElapsed('0m 00s'); // initial display; interval takes over after 1s
@@ -154,6 +157,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   };
 
   const handleArrived = () => {
+    hapticMedium();
     const arrived = new Date().toISOString();
     setArrivalTime(arrived);
     setTripState('complete');
@@ -351,11 +355,11 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Reason *</label>
               <div className="flex gap-2 flex-wrap">
-                {(Object.keys(REASON_LABELS) as Reason[]).map(r => (
+                  {(Object.keys(REASON_LABELS) as Reason[]).map(r => (
                   <button
                     key={r}
                     type="button"
-                    onClick={() => setReason(r)}
+                    onClick={() => { hapticLight(); setReason(r); }}
                     className={`px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
                       reason === r
                         ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'

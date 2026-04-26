@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { hapticMedium, hapticHeavy } from '../lib/haptics';
 import type { IScannerControls } from '@zxing/browser';
 
 interface Props {
@@ -42,10 +43,12 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
         stopCamera();
         setIsOpen(false);
         setError(null);
+        hapticMedium();
         onDecode(raw, timestamp);
       } else if (err && err.name !== 'NotFoundException') {
         // NotFoundException fires constantly while scanning — not an error
         if (err.name === 'NotAllowedError') {
+          hapticHeavy();
           setError('Camera access denied — check your browser settings');
           stopCamera();
         }
@@ -56,6 +59,7 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
       }
     }).catch(e => {
       if (e?.name === 'NotAllowedError') {
+        hapticHeavy();
         setError('Camera access denied — check your browser settings');
       } else {
         setError('Camera unavailable — try again');

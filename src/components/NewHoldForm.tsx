@@ -3,6 +3,7 @@ import { useNewHold } from '../hooks/useNewHold';
 import { useGarage } from '../context/GarageContext';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
+import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import { parseFleetBarcode } from '../lib/barcode';
 import { DAMAGE_PRESETS, MECHANICAL_PRESETS } from '../lib/hold-presets';
 import { DETAIL_REASON_LABELS } from '../types';
@@ -52,7 +53,12 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const id = await h.submit();
-    if (id) onSuccess(id);
+    if (id) {
+      hapticMedium();
+      onSuccess(id);
+    } else {
+      hapticHeavy();
+    }
   };
 
   return (
@@ -178,7 +184,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => h.switchHoldType('damage')}
+                  onClick={() => { hapticLight(); h.switchHoldType('damage'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     h.holdType === 'damage'
                       ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
@@ -190,7 +196,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => h.switchHoldType('detail')}
+                  onClick={() => { hapticLight(); h.switchHoldType('detail'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     h.holdType === 'detail'
                       ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
@@ -202,7 +208,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => h.switchHoldType('mechanical')}
+                  onClick={() => { hapticLight(); h.switchHoldType('mechanical'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
                     h.holdType === 'mechanical'
                       ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100'
@@ -266,7 +272,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       key={key}
                       type="button"
-                      onClick={() => h.setDetailReason(key)}
+                      onClick={() => { hapticLight(); h.setDetailReason(key); }}
                       className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
                         h.detailReason === key
                           ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'

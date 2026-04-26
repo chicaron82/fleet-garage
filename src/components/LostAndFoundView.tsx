@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MOCK_LOST_FOUND } from '../data/lostAndFound';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
+import { hapticMedium } from '../lib/haptics';
 import type { ScannedPayload } from '../types';
 
 function fmtRelative(iso: string) {
@@ -29,7 +30,7 @@ export function LostAndFoundView() {
     setSubmitted(false);
   };
 
-  const handleSubmit = () => setSubmitted(true);
+  const handleSubmit = () => { hapticMedium(); setSubmitted(true); };
   const handleReset = () => { setScanned(null); setSubmitted(false); };
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">

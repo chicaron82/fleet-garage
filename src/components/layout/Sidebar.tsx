@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
+import { hapticLight } from '../../lib/haptics';
 import type { Module, Screen, BranchId } from '../../types';
 import { BRANCH_CONFIGS } from '../../data/mock';
 
@@ -107,7 +108,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
               </button>
               {onShowGuide && (
                 <button
-                  onClick={e => { e.stopPropagation(); onShowGuide(item.module); }}
+                  onClick={e => { e.stopPropagation(); hapticLight(); onShowGuide(item.module); }}
                   className="absolute right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 cursor-pointer"
                   title={`About ${item.label}`}
                 >
@@ -124,7 +125,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
         {/* Desktop notification bell + popover */}
         <div ref={popoverRef} className="relative mb-2">
           <button
-            onClick={() => setDesktopInboxOpen(o => !o)}
+            onClick={() => { hapticLight(); setDesktopInboxOpen(o => !o); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors cursor-pointer text-sm font-medium"
           >
             <div className="relative">
