@@ -218,6 +218,11 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                           Detail
                         </span>
                       )}
+                      {hold.branchId !== vehicle.branchId && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                          🛫 Flagged at {hold.branchId}
+                        </span>
+                      )}
                     </div>
                     <StatusBadge status={hold.status} />
                   </div>
