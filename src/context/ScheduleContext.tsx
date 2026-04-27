@@ -149,16 +149,17 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const loadShifts = useCallback(async (startDate: string, endDate: string) => {
     setLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from('shifts')
       .select('*')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true, nullsFirst: false });
-    if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
-    const { data, error } = await query;
-    if (!error && data) setShifts((data as Record<string, unknown>[]).map(rowToShift));
+    if (!error && data) {
+      const rows = (data as Record<string, unknown>[]).map(rowToShift);
+      setShifts(activeBranch === 'ALL' ? rows : rows.filter(s => s.branchId === activeBranch));
+    }
     setLoading(false);
   }, [activeBranch]);
 
