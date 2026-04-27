@@ -34,7 +34,7 @@ export const MOCK_NOTIFICATIONS: MockNotification[] = [
   {
     id: 'audit-shift-score',
     icon: 'QA',
-    text: 'Audit Complete: Your Shift QA scored 96%. Tap to review.',
+    text: 'Audit Complete: Morning shift — 8 vehicles inspected, all categories passed.',
     isRead: false,
     roles: ['VSA', 'Lead VSA'],
     branchIds: ['YWG', 'YWG-South'],
