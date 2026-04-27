@@ -1,4 +1,4 @@
-import type { BranchId, UserRole } from '../types';
+import type { BranchId, User, UserRole } from '../types';
 
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'urgent';
 
@@ -68,3 +68,23 @@ export const MOCK_NOTIFICATIONS: MockNotification[] = [
     severity: 'info',
   },
 ];
+
+export function getVisibleNotifications(
+  notifications: MockNotification[],
+  user: Pick<User, 'role'> | null,
+  activeBranch: BranchId,
+): MockNotification[] {
+  return notifications.filter(n => {
+    if (!user || !n.roles.includes(user.role)) return false;
+    if (!n.branchIds || activeBranch === 'ALL') return true;
+    return n.branchIds.includes(activeBranch);
+  });
+}
+
+export function markNotificationsRead(
+  notifications: MockNotification[],
+  visibleIds: string[],
+): MockNotification[] {
+  const ids = new Set(visibleIds);
+  return notifications.map(n => ids.has(n.id) ? { ...n, isRead: true } : n);
+}

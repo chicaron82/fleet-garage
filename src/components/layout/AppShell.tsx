@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { ModuleGuideModal } from '../ModuleGuideModal';
 import { useAuth } from '../../context/AuthContext';
-import { MOCK_NOTIFICATIONS } from '../../data/notifications';
+import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
 import type { MockNotification } from '../../data/notifications';
 import type { Module, Screen } from '../../types';
@@ -21,16 +21,11 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
   const [notifications, setNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
   const [mobileInboxOpen, setMobileInboxOpen] = useState(false);
 
-  const visibleNotifications = notifications.filter(n => {
-    if (!user || !n.roles.includes(user.role)) return false;
-    if (!n.branchIds || activeBranch === 'ALL') return true;
-    return n.branchIds.includes(activeBranch);
-  });
+  const visibleNotifications = getVisibleNotifications(notifications, user, activeBranch);
   const unreadCount = visibleNotifications.filter(n => !n.isRead).length;
 
   const markVisibleRead = () => {
-    const visibleIds = new Set(visibleNotifications.map(n => n.id));
-    setNotifications(prev => prev.map(n => visibleIds.has(n.id) ? { ...n, isRead: true } : n));
+    setNotifications(prev => markNotificationsRead(prev, visibleNotifications.map(n => n.id)));
   };
 
   const handleNavigate = (screen: Screen) => {
