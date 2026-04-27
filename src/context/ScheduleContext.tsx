@@ -2,10 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { USERS } from '../data/mock';
-import type { Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
+import type { BranchId, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function toISO(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -13,6 +14,7 @@ export function toISO(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getWeekBounds(date: Date): { start: Date; end: Date } {
   const d = new Date(date);
   const dow = d.getDay(); // 0=Sun
@@ -39,7 +41,7 @@ function rowToShift(row: Record<string, unknown>): ShiftWithUser {
     isStat:          (row.is_stat as boolean | null) ?? false,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
-    branchId:        (u?.branchId ?? 'YWG') as any, // Mock fallback
+    branchId:        (u?.branchId ?? 'YWG') as BranchId, // Mock fallback
     user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
   };
 }
@@ -288,6 +290,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (viewMode === 'week') {
       const { start, end } = getWeekBounds(currentDate);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadShifts(toISO(start), toISO(end));
     } else {
       const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);

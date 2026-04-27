@@ -238,7 +238,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       key={preset}
                       type="button"
-                      onClick={() => h.toggleDamageType(preset)}
+                      onClick={() => { hapticLight(); h.toggleDamageType(preset); }}
                       className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
                         h.damageTypes.includes(preset)
                           ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
@@ -304,7 +304,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     <button
                       key={preset}
                       type="button"
-                      onClick={() => h.toggleMechanicalType(preset)}
+                      onClick={() => { hapticLight(); h.toggleMechanicalType(preset); }}
                       className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
                         h.mechanicalTypes.includes(preset)
                           ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 font-medium'

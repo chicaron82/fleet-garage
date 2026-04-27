@@ -88,7 +88,7 @@ describe('getActiveModule', () => {
 
 describe('getDefaultScreenForRole', () => {
   const NON_DRIVER_ROLES: UserRole[] = [
-    'VSA', 'Lead VSA', 'CSR', 'HIR', 'Branch Manager', 'Operations Manager',
+    'VSA', 'Lead VSA', 'CSR', 'Branch Manager', 'Operations Manager',
   ];
 
   it('Driver lands on trips', () => {
@@ -97,5 +97,13 @@ describe('getDefaultScreenForRole', () => {
 
   it.each(NON_DRIVER_ROLES)('%s lands on dashboard', (role) => {
     expect(getDefaultScreenForRole(role)).toEqual({ name: 'dashboard' });
+  });
+
+  it('HIR lands on check-in', () => {
+    expect(getDefaultScreenForRole('HIR')).toEqual({ name: 'check-in' });
+  });
+
+  it('City Manager lands on analytics', () => {
+    expect(getDefaultScreenForRole('City Manager')).toEqual({ name: 'analytics' });
   });
 });

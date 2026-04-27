@@ -10,6 +10,7 @@ const ALL_ROLES: UserRole[] = [
   'HIR',
   'Branch Manager',
   'Operations Manager',
+  'City Manager',
   'Driver',
 ];
 
@@ -20,6 +21,10 @@ describe('canRelease', () => {
 
   it('returns true for Operations Manager', () => {
     expect(canRelease('Operations Manager')).toBe(true);
+  });
+
+  it('returns true for City Manager', () => {
+    expect(canRelease('City Manager')).toBe(true);
   });
 
   it('returns false for VSA', () => {
@@ -43,7 +48,7 @@ describe('canRelease', () => {
   });
 
   it('only management roles are in CAN_RELEASE', () => {
-    expect(CAN_RELEASE).toEqual(['Branch Manager', 'Operations Manager']);
+    expect(CAN_RELEASE).toEqual(['Branch Manager', 'Operations Manager', 'City Manager']);
   });
 
   it('all roles are accounted for — no role silently missing', () => {

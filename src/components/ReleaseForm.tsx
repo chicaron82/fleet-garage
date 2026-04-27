@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
+import { canRelease } from '../types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import type { ReleaseType } from '../types';
 
@@ -96,7 +97,11 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         expectedReturn: needsReturn ? expectedReturn : undefined,
         notes,
       });
-      hapticMedium();
+      if (user && canRelease(user.role)) {
+        hapticHeavy();
+      } else {
+        hapticMedium();
+      }
       onClose();
     } catch {
       hapticHeavy();

@@ -4,21 +4,15 @@ import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight } from '../../lib/haptics';
 import type { Module, Screen, BranchId } from '../../types';
+import type { MockNotification } from '../../data/notifications';
 import { BRANCH_CONFIGS } from '../../data/mock';
-
-interface Notification {
-  id: string;
-  icon: string;
-  text: string;
-  isRead: boolean;
-}
 
 interface Props {
   activeModule: Module;
   onNavigate: (screen: Screen) => void;
   onClose?: () => void;
   onShowGuide?: (module: Module) => void;
-  notifications: Notification[];
+  notifications: MockNotification[];
   unreadCount: number;
   onMarkAllRead: () => void;
 }
@@ -158,12 +152,19 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                   </button>
                 )}
               </div>
+              {notifications.length === 0 && (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">No notifications for this role.</p>
+                </div>
+              )}
               {notifications.map((n, i) => (
                 <div
                   key={n.id}
                   className={`flex items-start gap-3 px-4 py-3 ${!n.isRead ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < notifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
                 >
-                  <span className="text-base leading-none mt-0.5 shrink-0">{n.icon}</span>
+                  <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">
+                    {n.icon}
+                  </span>
                   <p className={`text-xs leading-relaxed flex-1 ${!n.isRead ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                     {n.text}
                   </p>

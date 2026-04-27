@@ -32,7 +32,7 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
 };
 
-export function getNavItemsForRole(role: UserRole, activeBranch: BranchId): NavItem[] {
+export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
   const roleModules = ROLE_MODULES[role] || [];
   const branchModules = BRANCH_CONFIGS[activeBranch]?.enabledModules || [];
   
@@ -54,7 +54,7 @@ export function getActiveModule(screen: Screen): Module {
 
 // ── Default screen per role ─────────────────────────────────────────────────
 
-export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId): Screen {
+export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId = 'YWG'): Screen {
   const navItems = getNavItemsForRole(role, activeBranch);
   
   // Preferred default based on role

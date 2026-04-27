@@ -117,7 +117,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>): Promise<string> => {
     const id = `veh-${Date.now()}`;
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const branchId: Vehicle['branchId'] = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,
@@ -130,7 +130,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       branch_id:     branchId,
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
-    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId: branchId as any };
+    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
   };
@@ -155,6 +155,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       if (url) photoUrls.push(url);
     }
 
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+
     const { error } = await supabase.from('holds').insert({
       id:                 holdId,
       vehicle_id:         vehicleId,
@@ -167,6 +169,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       photos:             photoUrls,
       status:             'ACTIVE',
       linked_hold_id:     linkedHoldId ?? null,
+      branch_id:          branchId,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
 
@@ -177,7 +180,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       id: holdId, vehicleId, holdType, detailReason, linkedHoldId,
       damageDescription, flaggedById, flaggedAt, notes,
       photos: photoUrls, status: 'ACTIVE',
-      branchId: activeBranch === 'ALL' ? 'YWG' : activeBranch,
+      branchId,
     };
     
     setAllHolds(prev => [newHold, ...prev]);
@@ -189,6 +192,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+
     const releaseId = crypto.randomUUID();
     const newRelease: Release = { ...release, id: releaseId };
 
@@ -213,11 +219,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const { error: hError } = await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
     if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
 
-    const hold = holds.find(h => h.id === holdId);
-    if (hold) {
-      const { error: vError } = await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
-      if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
-    }
+    const { error: vError } = await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
+    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
     // Add release to local state, update hold status
     setAllHolds(prev => prev.map(h => {
@@ -231,7 +234,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     // Update vehicle status
     setAllVehicles(prev => prev.map(v => {
-      if (hold && v.id !== hold.vehicleId) return v;
+      if (v.id !== hold.vehicleId) return v;
       return {
         ...v,
         status: release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION',
@@ -262,6 +265,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+
     const repairId = crypto.randomUUID();
     const newRepair: Repair = { ...repair, id: repairId };
 
@@ -277,11 +283,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const { error: hError } = await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
     if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
 
-    const hold = holds.find(h => h.id === holdId);
-    if (hold) {
-      const { error: vError } = await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
-      if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
-    }
+    const { error: vError } = await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
     // Update local state
     setAllHolds(prev => prev.map(h => {
@@ -290,7 +293,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
 
     setAllVehicles(prev => prev.map(v => {
-      if (hold && v.id !== hold.vehicleId) return v;
+      if (v.id !== hold.vehicleId) return v;
       return { ...v, status: 'CLEAR' };
     }));
   };

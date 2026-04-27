@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
+import { hapticMedium, hapticHeavy } from '../lib/haptics';
 
 interface Props {
   holdId: string;
@@ -33,8 +34,10 @@ export function VerbalOverrideForm({ holdId, onClose }: Props) {
         reason: `Verbal override — authorized by ${managerName.trim()}`,
         notes,
       });
+      hapticMedium();
       onClose();
     } catch {
+      hapticHeavy();
       setSubmitting(false);
     }
   };
