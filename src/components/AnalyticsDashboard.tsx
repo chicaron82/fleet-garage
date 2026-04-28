@@ -298,7 +298,7 @@ export function AnalyticsDashboard() {
             {damageTypes.map((d, i) => (
               <div key={d.label} className="flex items-center gap-3">
                 <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums">{i + 1}</span>
-                <div className="flex-1 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
                   <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors truncate">{d.label}</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors shrink-0">{d.count}</span>
                 </div>
@@ -426,7 +426,7 @@ export function AnalyticsDashboard() {
             {exceptionSummary.map((e, i) => (
               <div key={e.reason} className="flex items-center gap-3">
                 <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums">{i + 1}</span>
-                <div className="flex-1 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
                   <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors truncate">{e.reason}</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors shrink-0">{e.count}</span>
                 </div>
