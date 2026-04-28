@@ -127,7 +127,6 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       year:          vehicle.year,
       color:         vehicle.color,
       status:        'HELD',
-      branch_id:     branchId,
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
