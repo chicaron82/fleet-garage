@@ -164,7 +164,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [activeBranch]);
 
   const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     
     const { data, error } = await supabase.from('shifts').insert({
       user_id: shift.userId,
@@ -176,7 +175,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       actual_start_time: shift.actualStartTime,
       actual_end_time: shift.actualEndTime,
       is_stat: shift.isStat,
-      branch_id: branchId,
     }).select().single();
     if (error) throw error;
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
@@ -188,7 +186,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const rows = newShifts.map(s => ({
       user_id:    s.userId,
       date:       s.date,
@@ -196,7 +193,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       end_time:   s.endTime   ?? null,
       shift_type: s.shiftType,
       notes:      s.notes     ?? null,
-      branch_id:  branchId,
     }));
     const { data, error } = await supabase.from('shifts').insert(rows).select();
     if (error) throw error;

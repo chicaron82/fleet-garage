@@ -168,7 +168,6 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       photos:             photoUrls,
       status:             'ACTIVE',
       linked_hold_id:     linkedHoldId ?? null,
-      branch_id:          branchId,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
 
