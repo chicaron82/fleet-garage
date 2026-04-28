@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import type { TripRun } from '../data/trips';
 import { USERS } from '../data/mock';
+import { supabase } from '../lib/supabase';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
@@ -25,6 +26,30 @@ function elapsedLabel(from: string, to: string) {
   return `${m}m ${s}s`;
 }
 
+function rowToTrip(row: Record<string, unknown>): TripRun {
+  return {
+    id:              row.id as string,
+    vehiclePlate:    row.vehicle_plate as string,
+    vehicleUnit:     row.vehicle_unit as string,
+    tripType:        row.trip_type as TripRun['tripType'],
+    departLocation:  row.depart_location as string,
+    arriveLocation:  row.arrive_location as string,
+    departTime:      row.depart_time as string,
+    arriveTime:      row.arrive_time as string,
+    gasLevel:        '',
+    odometer:        0,
+    driverId:        row.driver_id as string,
+    branchId:        (row.branch_id as string ?? 'YWG') as TripRun['branchId'],
+    isVsaInterruption: (row.is_vsa_interruption as boolean) ?? false,
+    authorization:   (row.auth_type as TripRun['authorization']) ?? undefined,
+    reason:          (row.reason as TripRun['reason']) ?? undefined,
+    queueAtDeparture: (row.queue_at_departure as string) ?? undefined,
+    fuelOnArrival:   (row.fuel_on_arrival as string) ?? undefined,
+    condition:       (row.condition as TripRun['condition']) ?? undefined,
+    notes:           (row.notes as string) ?? undefined,
+  };
+}
+
 export function TripsView() {
   const { user } = useAuth();
 
@@ -37,7 +62,18 @@ export function TripsView() {
   const [activeUnit, setActiveUnit] = useState<ScannedPayload | null>(null);
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
-  const [sessionTrips, setSessionTrips] = useState<TripRun[]>([]);
+  const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
+
+  useEffect(() => {
+    async function loadTrips() {
+      const { data } = await supabase
+        .from('vsa_trips')
+        .select('*')
+        .order('depart_time', { ascending: false });
+      if (data) setLiveTrips((data as Record<string, unknown>[]).map(rowToTrip));
+    }
+    loadTrips();
+  }, []);
 
   if (!user) return null;
 
@@ -67,8 +103,12 @@ export function TripsView() {
   const isVSA = user.role === 'VSA' || user.role === 'Lead VSA';
   const isManagement = canRelease(user.role);
 
-  const myTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
-  const displayTrips = isManagement ? MOCK_TRIPS : myTrips;
+  const myTrips = [
+    ...MOCK_TRIPS.filter(t => t.driverId === user.id),
+    ...liveTrips.filter(t => t.driverId === user.id),
+  ];
+  const allLiveAndMock = [...MOCK_TRIPS, ...liveTrips];
+  const displayTrips = isManagement ? allLiveAndMock : myTrips;
 
   // Group by driver for management view
   const grouped = isManagement
@@ -92,11 +132,32 @@ export function TripsView() {
   // VSA view — Movement Log + own trip history
   if (isVSA) {
     const seededTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
-    const allMyTrips = [...seededTrips, ...sessionTrips]
+    const myLiveTrips = liveTrips.filter(t => t.driverId === user.id);
+    const allMyTrips = [...seededTrips, ...myLiveTrips]
       .sort((a, b) => new Date(b.departTime).getTime() - new Date(a.departTime).getTime());
 
-    const handleTripComplete = (trip: TripRun) => {
-      setSessionTrips(prev => [...prev, trip]);
+    const handleTripComplete = async (trip: TripRun) => {
+      const { error } = await supabase.from('vsa_trips').insert({
+        id:                  trip.id,
+        vehicle_plate:       trip.vehiclePlate,
+        vehicle_unit:        trip.vehicleUnit,
+        trip_type:           trip.tripType,
+        depart_location:     trip.departLocation,
+        arrive_location:     trip.arriveLocation,
+        depart_time:         trip.departTime,
+        arrive_time:         trip.arriveTime,
+        driver_id:           trip.driverId,
+        is_vsa_interruption: trip.isVsaInterruption ?? false,
+        auth_type:           trip.authorization ?? null,
+        reason:              trip.reason ?? null,
+        queue_at_departure:  trip.queueAtDeparture ?? null,
+        fuel_on_arrival:     trip.fuelOnArrival ?? null,
+        condition:           trip.condition ?? null,
+        is_shuttle:          trip.tripType === 'transfer',
+        notes:               trip.notes ?? null,
+        branch_id:           trip.branchId,
+      });
+      if (!error) setLiveTrips(prev => [trip, ...prev]);
     };
 
     return (

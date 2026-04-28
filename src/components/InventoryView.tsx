@@ -240,15 +240,20 @@ function ScanCard({ entry, onChange }: {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function InventoryView() {
-  const { vehicles } = useGarage();
+  const { vehicles, getActiveHold } = useGarage();
 
   const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  // Hold Bay — active holds only (HELD = physically staged on lot)
-  // OUT_ON_EXCEPTION vehicles are with customers; RETURNED holds are closed
-  const heldVehicles = vehicles.filter(v => v.status === 'HELD');
+  // Hold Bay — active holds only, sorted by most recent flaggedAt so fresh flags surface first
+  const heldVehicles = vehicles
+    .filter(v => v.status === 'HELD')
+    .sort((a, b) => {
+      const aHold = getActiveHold(a.id);
+      const bHold = getActiveHold(b.id);
+      return new Date(bHold?.flaggedAt ?? 0).getTime() - new Date(aHold?.flaggedAt ?? 0).getTime();
+    });
 
   // Static items minus dismissed
   const staticItems = MOCK_INVENTORY.items.filter(i => !dismissedIds.has(i.id));

@@ -180,6 +180,16 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               </div>
             )}
 
+            {/* Exception return banner */}
+            {(scanned.vehicle.status === 'OUT_ON_EXCEPTION' || scanned.vehicle.status === 'PRE_EXISTING') && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-lg px-4 py-3">
+                <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">⚠ On-exception return</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  This vehicle was released with known damage. Inspect the flagged area before completing check-in.
+                </p>
+              </div>
+            )}
+
             {/* Vehicle card */}
             <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3 space-y-1 transition-colors">
               <div className="flex items-center justify-between">
@@ -202,6 +212,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   holds={getHoldsForVehicle(scanned.vehicle.id)}
                   user={user}
                   onReHold={handleReHold}
+                  autoExpand={
+                    scanned.vehicle.status === 'OUT_ON_EXCEPTION' ||
+                    scanned.vehicle.status === 'PRE_EXISTING'
+                  }
                 />
               )}
             </div>
