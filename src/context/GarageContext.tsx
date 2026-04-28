@@ -17,7 +17,7 @@ function base64ToBlob(base64: string): Blob {
 
 async function uploadPhoto(base64: string, holdId: string): Promise<string | null> {
   const blob = base64ToBlob(base64);
-  const path = `${holdId}/${Date.now()}.jpg`;
+  const path = `${holdId}/${crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage
     .from('damage-photos')
     .upload(path, blob, { contentType: 'image/jpeg' });
@@ -147,12 +147,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const holdId = crypto.randomUUID();
     const flaggedAt = new Date().toISOString();
 
-    // Upload photos, collect public URLs
-    const photoUrls: string[] = [];
-    for (const base64 of photos ?? []) {
-      const url = await uploadPhoto(base64, holdId);
-      if (url) photoUrls.push(url);
-    }
+    // Upload photos in parallel, collect public URLs
+    const photoUrls = (await Promise.all((photos ?? []).map(b => uploadPhoto(b, holdId))))
+      .filter((url): url is string => url !== null);
 
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
 
@@ -244,11 +241,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
 
-    const uploadedUrls: string[] = [];
-    for (const base64 of newPhotos) {
-      const url = await uploadPhoto(base64, holdId);
-      if (url) uploadedUrls.push(url);
-    }
+    const uploadedUrls = (await Promise.all(newPhotos.map(b => uploadPhoto(b, holdId))))
+      .filter((url): url is string => url !== null);
     if (uploadedUrls.length === 0) return;
 
     const { error } = await supabase.from('holds').update({ photos: [...(hold.photos ?? []), ...uploadedUrls] }).eq('id', holdId);
