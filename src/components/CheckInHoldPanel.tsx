@@ -68,10 +68,12 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold }: Props) {
   };
 
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file);
-    setPhotos(prev => [...prev, compressed]);
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const toAdd = files.slice(0, remaining);
+    const compressed = await Promise.all(toAdd.map(compressImage));
+    setPhotos(prev => [...prev, ...compressed]);
     e.target.value = '';
   };
 
@@ -311,7 +313,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold }: Props) {
                     )}
                   </div>
                   <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoAdd} className="hidden" />
-                  <input ref={galleryRef} type="file" accept="image/*" onChange={handlePhotoAdd} className="hidden" />
+                  <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoAdd} className="hidden" />
                   {photos.length === 0 && (
                     <p className="text-xs text-red-500 dark:text-red-400 mt-1">At least one photo required.</p>
                   )}

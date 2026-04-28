@@ -396,6 +396,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   ref={galleryInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={h.handlePhotoAdd}
                   className="hidden"
                 />

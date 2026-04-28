@@ -78,10 +78,12 @@ export function useNewHold(preselectedId?: string) {
   };
 
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file);
-    setPhotos(prev => [...prev, compressed]);
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const toAdd = files.slice(0, remaining);
+    const compressed = await Promise.all(toAdd.map(compressImage));
+    setPhotos(prev => [...prev, ...compressed]);
     e.target.value = '';
   };
 
