@@ -1,30 +1,34 @@
-// Static analytics — sample data for demo purposes
+// src/components/AnalyticsDashboard.tsx
+// Live / Demo toggle analytics — ZeeRah ticket, Apr 28 2026
 
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useGarage } from '../context/GarageContext';
 import { useFleetBalance } from '../hooks/useFleetBalance';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
 
-// Helper to check if user can enter fleet balance
 function canEnterFleetBalance(role: string): boolean {
   return ['Branch Manager', 'Operations Manager', 'Lead VSA'].includes(role);
 }
 
-const HOLD_TYPES = [
+// ── Demo (mock) data ────────────────────────────────────────────────────────
+
+const DEMO_HOLD_TYPES = [
   { label: 'Damage',     count: 14, color: 'bg-amber-400',  text: 'text-amber-700 dark:text-amber-400' },
   { label: 'Detail',     count: 6,  color: 'bg-teal-400',   text: 'text-teal-700 dark:text-teal-400' },
   { label: 'Mechanical', count: 5,  color: 'bg-blue-400',   text: 'text-blue-700 dark:text-blue-400' },
 ];
 
-const DAMAGE_TYPES = [
-  { label: 'Scratch — paint surface',           count: 8 },
-  { label: 'Windshield chip',                   count: 5 },
-  { label: 'Bumper damage — cosmetic',           count: 4 },
-  { label: 'Scratch — to bare metal',           count: 3 },
-  { label: 'Rim / hubcap damage',               count: 2 },
-  { label: 'Dent — minor (no paint break)',     count: 2 },
+const DEMO_DAMAGE_TYPES = [
+  { label: 'Scratch — paint surface',       count: 8 },
+  { label: 'Windshield chip',               count: 5 },
+  { label: 'Bumper damage — cosmetic',      count: 4 },
+  { label: 'Scratch — to bare metal',       count: 3 },
+  { label: 'Rim / hubcap damage',           count: 2 },
+  { label: 'Dent — minor (no paint break)', count: 2 },
 ];
 
-const WEEK_ACTIVITY = [
+const DEMO_WEEK_ACTIVITY = [
   { day: 'Mon', holds: 3, releases: 1 },
   { day: 'Tue', holds: 2, releases: 2 },
   { day: 'Wed', holds: 5, releases: 1 },
@@ -34,15 +38,50 @@ const WEEK_ACTIVITY = [
   { day: 'Sun', holds: 1, releases: 1 },
 ];
 
-const maxActivity = Math.max(...WEEK_ACTIVITY.map(d => d.holds + d.releases));
+const DEMO_GLANCE = { activeHolds: 25, onException: 8, returnedThisWeek: 3 };
+
+const DEMO_EXCEPTION_SUMMARY = [
+  { reason: 'Management decision — operational need', count: 4 },
+  { reason: 'Damage documented — vehicle serviceable', count: 2 },
+  { reason: 'Awaiting parts — vehicle cleared for limited use', count: 1 },
+  { reason: 'Customer accepted known damage', count: 1 },
+];
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+      {title}
+    </h2>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <p className="text-sm text-gray-400 dark:text-gray-500 italic text-center py-4">{message}</p>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 
 export function AnalyticsDashboard() {
   const { user } = useAuth();
+  const { holds, vehicles } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
+  const [mode, setMode] = useState<'demo' | 'live'>('demo');
 
   if (!user) return null;
 
-  const totalHolds = HOLD_TYPES.reduce((s, t) => s + t.count, 0);
   const canEnter = canEnterFleetBalance(user.role);
   const todayEntry = getTodayEntry();
 
@@ -51,7 +90,95 @@ export function AnalyticsDashboard() {
     return await upsertEntry(today, outCount, inCount, user.id);
   };
 
-  // Generate last 7 days array
+  // ── Live data derivations ──────────────────────────────────────────────────
+
+  const activeHolds = holds.filter(h => h.status === 'ACTIVE');
+  const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const returnedThisWeek = holds.filter(h =>
+    h.status === 'RETURNED' && new Date(h.flaggedAt) >= oneWeekAgo
+  ).length;
+
+  // Holds by type — live
+  const liveHoldTypes = (() => {
+    const damage = activeHolds.filter(h => h.holdType === 'damage').length;
+    const detail = activeHolds.filter(h => h.holdType === 'detail').length;
+    const mechanical = activeHolds.filter(h => h.holdType === 'mechanical').length;
+    const total = damage + detail + mechanical || 1;
+    return [
+      { label: 'Damage',     count: damage,     color: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400',  pct: damage / total },
+      { label: 'Detail',     count: detail,     color: 'bg-teal-400',  text: 'text-teal-700 dark:text-teal-400',   pct: detail / total },
+      { label: 'Mechanical', count: mechanical, color: 'bg-blue-400',  text: 'text-blue-700 dark:text-blue-400',   pct: mechanical / total },
+    ];
+  })();
+
+  // Top damage types — live (from active damage holds only)
+  const liveDamageTypes = (() => {
+    const counts: Record<string, number> = {};
+    activeHolds
+      .filter(h => h.holdType === 'damage')
+      .forEach(h => {
+        h.damageDescription.split(',').forEach(part => {
+          const key = part.trim();
+          if (key) counts[key] = (counts[key] ?? 0) + 1;
+        });
+      });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, count]) => ({ label, count }));
+  })();
+
+  // Hold activity this week — live
+  const liveWeekActivity = (() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const result = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      const dayName = days[date.getDay()];
+      const dateStr = date.toISOString().split('T')[0];
+      const dayHolds = holds.filter(h => h.flaggedAt.startsWith(dateStr)).length;
+      const dayReleases = holds.filter(h =>
+        h.release && h.flaggedAt.startsWith(dateStr)
+      ).length;
+      return { day: dayName, holds: dayHolds, releases: dayReleases };
+    });
+    return result;
+  })();
+
+  // Exception release summary — live
+  const liveExceptionSummary = (() => {
+    const counts: Record<string, number> = {};
+    holds
+      .filter(h => h.release?.releaseType === 'EXCEPTION')
+      .forEach(h => {
+        const reason = h.release?.reason ?? 'Unknown';
+        counts[reason] = (counts[reason] ?? 0) + 1;
+      });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([reason, count]) => ({ reason, count }));
+  })();
+
+  // ── Mode-selected data ─────────────────────────────────────────────────────
+
+  const isDemo = mode === 'demo';
+
+  const glance = isDemo
+    ? DEMO_GLANCE
+    : { activeHolds: activeHolds.length, onException, returnedThisWeek };
+
+  const holdTypes = isDemo ? DEMO_HOLD_TYPES : liveHoldTypes;
+  const totalHolds = holdTypes.reduce((s, t) => s + t.count, 0) || 1;
+
+  const damageTypes = isDemo ? DEMO_DAMAGE_TYPES : liveDamageTypes;
+  const weekActivity = isDemo ? DEMO_WEEK_ACTIVITY : liveWeekActivity;
+  const maxActivity = Math.max(...weekActivity.map(d => d.holds + d.releases), 1);
+  const exceptionSummary = isDemo ? DEMO_EXCEPTION_SUMMARY : liveExceptionSummary;
+
+  // Fleet balance — always real (Supabase-backed regardless of toggle)
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
@@ -61,109 +188,134 @@ export function AnalyticsDashboard() {
   const fleetBalanceData = last7Days.map((date) => {
     const entry = entries.find(e => e.date === date);
     const dayName = new Date(date).toLocaleDateString('en-CA', { weekday: 'short' });
-    return {
-      day: dayName,
-      date,
-      outCount: entry?.outCount,
-      inCount: entry?.inCount,
-      hasData: !!entry,
-    };
+    return { day: dayName, date, outCount: entry?.outCount, inCount: entry?.inCount, hasData: !!entry };
   });
 
-  const daysWithoutData = fleetBalanceData.filter(d => !d.hasData).length;
   const daysWithData = fleetBalanceData.filter(d => d.hasData);
-
-  // Calculate mini stats only from days with data
   const avgGap = daysWithData.length >= 3
     ? Math.round(daysWithData.reduce((sum, d) => sum + ((d.outCount ?? 0) - (d.inCount ?? 0)), 0) / daysWithData.length)
     : null;
-
   const worstGap = daysWithData.length >= 3
     ? Math.max(...daysWithData.map(d => (d.outCount ?? 0) - (d.inCount ?? 0)))
     : null;
-
   const returnRate = daysWithData.length >= 3 && avgGap !== null && avgGap > 0
     ? Math.round((daysWithData.reduce((sum, d) => sum + (d.inCount ?? 0), 0) / daysWithData.reduce((sum, d) => sum + (d.outCount ?? 0), 0)) * 100)
     : null;
-
   const maxFleetCount = Math.max(...fleetBalanceData.filter(d => d.hasData).flatMap(d => [d.outCount ?? 0, d.inCount ?? 0]), 10);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Analytics</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-            Fleet hold summary · sample data
+            {isDemo ? 'Fleet hold summary · sample data' : 'Fleet hold summary · your data'}
           </p>
         </div>
-        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">
-          Demo
-        </span>
+
+        {/* Mode toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 transition-colors">
+          <button
+            type="button"
+            onClick={() => setMode('demo')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+              isDemo
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Demo
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('live')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+              !isDemo
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Live
+          </button>
+        </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Live mode banner */}
+      {!isDemo && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-xl px-4 py-3 transition-colors">
+          <p className="text-xs font-semibold text-green-800 dark:text-green-300">
+            📡 Live Data — showing what's been collected so far
+          </p>
+          <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+            Fleet balance always reflects real entries regardless of mode.
+          </p>
+        </div>
+      )}
+
+      {/* Glance cards */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard value={totalHolds} label="Active Holds" color="text-gray-900 dark:text-gray-100" />
-        <StatCard value={8} label="On Exception" color="text-amber-600 dark:text-amber-400" />
-        <StatCard value={3} label="Returned This Week" color="text-green-600 dark:text-green-500" />
+        <StatCard value={glance.activeHolds}       label="Active Holds"        color="text-gray-900 dark:text-gray-100" />
+        <StatCard value={glance.onException}       label="On Exception"        color="text-amber-600 dark:text-amber-400" />
+        <StatCard value={glance.returnedThisWeek}  label="Returned This Week"  color="text-green-600 dark:text-green-500" />
       </div>
 
       {/* Holds by type */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          Active Holds by Type
-        </h2>
-        <div className="space-y-3">
-          {HOLD_TYPES.map(t => (
-            <div key={t.label}>
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-medium ${t.text} transition-colors`}>{t.label}</span>
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 transition-colors">{t.count}</span>
+        <SectionHeader title="Active Holds by Type" />
+        {totalHolds === 0 || (activeHolds.length === 0 && !isDemo) ? (
+          <EmptyState message="No active holds recorded yet." />
+        ) : (
+          <div className="space-y-3">
+            {holdTypes.map(t => (
+              <div key={t.label}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-sm font-medium ${t.text} transition-colors`}>{t.label}</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 transition-colors">{t.count}</span>
+                </div>
+                <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden transition-colors">
+                  <div
+                    className={`h-full rounded-full ${t.color} transition-all`}
+                    style={{ width: `${(t.count / totalHolds) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden transition-colors">
-                <div
-                  className={`h-full rounded-full ${t.color} transition-all`}
-                  style={{ width: `${(t.count / totalHolds) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top damage types */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          Top Damage Types (30 days)
-        </h2>
-        <div className="space-y-2">
-          {DAMAGE_TYPES.map((d, i) => (
-            <div key={d.label} className="flex items-center gap-3">
-              <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums">{i + 1}</span>
-              <div className="flex-1 flex items-center justify-between gap-2">
-                <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors truncate">{d.label}</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors shrink-0">{d.count}</span>
+        <SectionHeader title={isDemo ? 'Top Damage Types (30 days)' : 'Top Damage Types — Active Holds'} />
+        {damageTypes.length === 0 ? (
+          <EmptyState message="No damage holds recorded yet." />
+        ) : (
+          <div className="space-y-2">
+            {damageTypes.map((d, i) => (
+              <div key={d.label} className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums">{i + 1}</span>
+                <div className="flex-1 flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors truncate">{d.label}</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors shrink-0">{d.count}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Fleet Balance Entry Form (Management + Lead VSA only) */}
+      {/* Fleet balance entry (always real) */}
       {canEnter && (
-        <FleetBalanceEntryForm
-          onSubmit={handleFleetBalanceSubmit}
-          todayEntry={todayEntry}
-        />
+        <FleetBalanceEntryForm onSubmit={handleFleetBalanceSubmit} todayEntry={todayEntry} />
       )}
 
-      {/* Fleet Balance Chart */}
+      {/* Fleet balance chart (always real) */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          Fleet Balance — Last 7 Days
-        </h2>
+        <SectionHeader title="Fleet Balance — Last 7 Days" />
         {loading ? (
           <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">Loading...</div>
         ) : (
@@ -171,118 +323,91 @@ export function AnalyticsDashboard() {
             <div className="flex items-end gap-2 h-28 mb-3">
               {fleetBalanceData.map(d => {
                 const outHeight = d.hasData && maxFleetCount > 0 ? ((d.outCount ?? 0) / maxFleetCount) * 100 : 8;
-                const inHeight = d.hasData && maxFleetCount > 0 ? ((d.inCount ?? 0) / maxFleetCount) * 100 : 8;
-
+                const inHeight  = d.hasData && maxFleetCount > 0 ? ((d.inCount  ?? 0) / maxFleetCount) * 100 : 8;
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex items-end justify-center gap-0.5" style={{ height: '80px' }}>
-                      {/* OUT bar */}
+                    <div className="w-full flex items-end gap-0.5 h-24">
                       <div
-                        className={`flex-1 rounded-t-md transition-all ${
-                          d.hasData
-                            ? 'bg-amber-400 dark:bg-amber-500'
-                            : 'bg-gray-300 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600'
-                        }`}
+                        className={`flex-1 rounded-t transition-all ${d.hasData ? 'bg-amber-400' : 'bg-gray-100 dark:bg-gray-800'}`}
                         style={{ height: `${outHeight}%` }}
-                        title={d.hasData ? `OUT: ${d.outCount}` : 'No data'}
                       />
-                      {/* IN bar */}
                       <div
-                        className={`flex-1 rounded-t-md transition-all ${
-                          d.hasData
-                            ? 'bg-green-400 dark:bg-green-500'
-                            : 'bg-gray-300 dark:bg-gray-700 border border-dashed border-gray-400 dark:border-gray-600'
-                        }`}
+                        className={`flex-1 rounded-t transition-all ${d.hasData ? 'bg-green-400' : 'bg-gray-100 dark:bg-gray-800'}`}
                         style={{ height: `${inHeight}%` }}
-                        title={d.hasData ? `IN: ${d.inCount}` : 'No data'}
                       />
                     </div>
-                    <span className={`text-[10px] ${d.hasData ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
-                      {d.day}
-                    </span>
-                    {!d.hasData && (
-                      <span className="text-[9px] text-gray-400 dark:text-gray-600">N/A</span>
-                    )}
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{d.day}</span>
                   </div>
                 );
               })}
             </div>
-
-            {/* Mini stats */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Avg Gap</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  {avgGap !== null ? avgGap : '—'}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Worst Gap</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  {worstGap !== null ? worstGap : '—'}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Return Rate</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  {returnRate !== null ? `${returnRate}%` : '—'}
-                </p>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4 mb-3">
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                <span className="text-xs text-gray-500 dark:text-gray-400">OUT</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Out</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-sm bg-green-400" />
-                <span className="text-xs text-gray-500 dark:text-gray-400">IN</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">In</span>
               </div>
             </div>
+            {daysWithData.length < 3 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                Log at least 3 days of fleet balance to see trend stats.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                {avgGap !== null && (
+                  <div className="text-center">
+                    <p className={`text-lg font-bold ${avgGap > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {avgGap > 0 ? `+${avgGap}` : avgGap}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Avg gap/day</p>
+                  </div>
+                )}
+                {worstGap !== null && (
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">+{worstGap}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Worst gap</p>
+                  </div>
+                )}
+                {returnRate !== null && (
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{returnRate}%</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Return rate</p>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Data not provided callout */}
-      {daysWithoutData > 0 && (
-        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-600 dark:text-gray-400 transition-colors">
-          ℹ️ {daysWithoutData} day(s) this week have no fleet numbers logged.
-          {canEnter && (
-            <span className="block mt-1 text-xs text-gray-500 dark:text-gray-500">
-              Branch Manager or Lead VSA can log today's numbers above.
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Week activity */}
+      {/* Hold activity this week */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          Hold Activity — This Week
-        </h2>
-        <div className="flex items-end gap-2 h-28">
-          {WEEK_ACTIVITY.map(d => {
-            const total = d.holds + d.releases;
-            const heightPct = maxActivity > 0 ? (total / maxActivity) * 100 : 0;
+        <SectionHeader title="Hold Activity — This Week" />
+        <div className="flex items-end gap-2 h-24 mb-3">
+          {weekActivity.map(d => {
+            const holdH    = maxActivity > 0 ? (d.holds    / maxActivity) * 100 : 8;
+            const releaseH = maxActivity > 0 ? (d.releases / maxActivity) * 100 : 8;
             return (
               <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col justify-end" style={{ height: '80px' }}>
-                  <div
-                    className="w-full rounded-t-md bg-yellow-400 dark:bg-yellow-500 transition-all"
-                    style={{ height: `${heightPct}%` }}
-                  />
+                <div className="w-full flex items-end gap-0.5 h-20">
+                  <div className="flex-1 bg-red-400 dark:bg-red-500 rounded-t transition-all" style={{ height: `${holdH}%` }} />
+                  <div className="flex-1 bg-green-400 rounded-t transition-all"               style={{ height: `${releaseH}%` }} />
                 </div>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">{d.day}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">{d.day}</span>
               </div>
             );
           })}
         </div>
-        <div className="flex gap-4 mt-3">
+        {!isDemo && weekActivity.every(d => d.holds === 0 && d.releases === 0) && (
+          <EmptyState message="No hold activity recorded this week yet." />
+        )}
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">New holds</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-red-400 dark:bg-red-500" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Holds</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-sm bg-green-400" />
@@ -291,39 +416,26 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      {/* Exception summary */}
+      {/* Exception release summary */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          Exception Release Summary
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/40 transition-colors">
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">8</p>
-            <p className="text-xs text-amber-700 dark:text-amber-500 mt-0.5">Currently on exception</p>
+        <SectionHeader title="Exception Release Summary" />
+        {exceptionSummary.length === 0 ? (
+          <EmptyState message="No exception releases recorded yet." />
+        ) : (
+          <div className="space-y-2">
+            {exceptionSummary.map((e, i) => (
+              <div key={e.reason} className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums">{i + 1}</span>
+                <div className="flex-1 flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors truncate">{e.reason}</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors shrink-0">{e.count}</span>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800/40 transition-colors">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-500">3</p>
-            <p className="text-xs text-green-700 dark:text-green-600 mt-0.5">Returned this week</p>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 border border-red-100 dark:border-red-800/40 transition-colors">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">2</p>
-            <p className="text-xs text-red-700 dark:text-red-500 mt-0.5">Past expected return</p>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/40 transition-colors">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">5</p>
-            <p className="text-xs text-blue-700 dark:text-blue-500 mt-0.5">Avg days on exception</p>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
-}
 
-function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-      <p className={`text-2xl font-bold ${color} transition-colors`}>{value}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{label}</p>
     </div>
   );
 }
