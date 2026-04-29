@@ -38,17 +38,23 @@ export function WeekView({ today, visibleUserIds }: Props) {
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
   const [flipShift, setFlipShift]     = useState<ShiftWithUser | null>(null);
   const [addForDate, setAddForDate]   = useState<string | null>(null);
-  const touchStartX = useRef<number | null>(null);
+  const touchStartX    = useRef<number | null>(null);
+  const touchStartTime = useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+    touchStartX.current    = e.touches[0].clientX;
+    touchStartTime.current = Date.now();
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
-    if (delta > 50) goToNext();
-    else if (delta < -50) goToPrev();
-    touchStartX.current = null;
+    if (touchStartX.current === null || touchStartTime.current === null) return;
+    const deltaX  = touchStartX.current - e.changedTouches[0].clientX;
+    const elapsed = Date.now() - touchStartTime.current;
+    touchStartX.current    = null;
+    touchStartTime.current = null;
+    // Must be a quick flick (< 250ms) AND meaningful distance (> 50px)
+    if (elapsed > 250) return;
+    if (deltaX > 50)       goToNext();
+    else if (deltaX < -50) goToPrev();
   };
 
   // Build 7 days of this week (Mon–Sun)
