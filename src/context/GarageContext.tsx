@@ -1,8 +1,29 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole } from '../types';
+import type { NotificationSeverity } from '../data/notifications';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
+
+// ── Notification helper ───────────────────────────────────────────────────────
+
+async function pushNotification(
+  branchId: string,
+  roles: UserRole[],
+  icon: string,
+  text: string,
+  severity: NotificationSeverity = 'info',
+  metadata?: Record<string, unknown>,
+) {
+  await supabase.from('notifications').insert({
+    branch_id: branchId,
+    recipient_roles: roles,
+    icon,
+    text,
+    severity,
+    metadata,
+  });
+}
 
 // ── Photo helpers ─────────────────────────────────────────────────────────────
 
@@ -129,6 +150,13 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       status:        'HELD',
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
+    await pushNotification(
+      branchId,
+      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      '🚗',
+      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`,
+      'info',
+    );
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
@@ -167,6 +195,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       linked_hold_id:     linkedHoldId ?? null,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
+
+    const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
+    await pushNotification(
+      branchId,
+      ['Branch Manager', 'Operations Manager'],
+      '🔴',
+      `Hold flagged on unit ${unitForHold}: ${damageDescription}`,
+      'warning',
+    );
 
     const { error: vError } = await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
@@ -213,6 +250,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const { error: hError } = await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
     if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
+
+    const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
+    await pushNotification(
+      hold.branchId,
+      ['VSA', 'Lead VSA', 'CSR', 'HIR'],
+      '✅',
+      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`,
+      'success',
+    );
 
     const { error: vError } = await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
@@ -304,6 +350,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const { error: vError } = await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
+
+    const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
+    await pushNotification(
+      hold.branchId,
+      ['Branch Manager', 'Operations Manager'],
+      '🔁',
+      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`,
+      'urgent',
+    );
 
     // Update hold & vehicle
     setAllHolds(prev => prev.map(h => {

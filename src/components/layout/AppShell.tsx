@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { ModuleGuideModal } from '../ModuleGuideModal';
+import { NotificationBell } from '../NotificationBell';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
@@ -19,7 +20,6 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
   const [notifications, setNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
-  const [mobileInboxOpen, setMobileInboxOpen] = useState(false);
 
   const visibleNotifications = getVisibleNotifications(notifications, user, activeBranch);
   const unreadCount = visibleNotifications.filter(n => !n.isRead).length;
@@ -83,65 +83,9 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => { hapticLight(); setMobileInboxOpen(o => !o); }}
-              className="relative w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-              aria-label="Notifications"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-[10px] leading-4 text-white font-bold text-center animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+            <NotificationBell />
             <UserProfileMenu />
           </div>
-
-          {mobileInboxOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMobileInboxOpen(false)}
-              />
-              <div className="absolute top-full left-0 right-0 z-20 px-3 pt-1.5 pb-2 animate-in slide-in-from-top-2 duration-200">
-                <div className="rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">Demo</span>
-                    </div>
-                    {unreadCount > 0 && (
-                      <button onClick={markVisibleRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
-                        Mark all as read
-                      </button>
-                    )}
-                  </div>
-                  {visibleNotifications.length === 0 && (
-                    <div className="px-4 py-6 text-center">
-                      <p className="text-xs text-gray-400 dark:text-gray-500">No notifications for this role.</p>
-                    </div>
-                  )}
-                  {visibleNotifications.map((n, i) => (
-                    <div
-                      key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 ${!n.isRead ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < visibleNotifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
-                    >
-                      <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">
-                        {n.icon}
-                      </span>
-                      <p className={`text-xs leading-relaxed flex-1 ${!n.isRead ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {n.text}
-                      </p>
-                      {!n.isRead && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
         </div>
 
         <div className="flex-1 overflow-auto">
