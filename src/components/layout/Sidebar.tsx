@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
+  type DragEndEvent, type Modifier,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
@@ -70,6 +70,11 @@ function SortableNavItem({
   );
 }
 
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({
+  ...transform,
+  x: 0,
+});
+
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
@@ -77,7 +82,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [localOrder, setLocalOrder] = useState<Module[]>([]);
   const [hidden, setHidden]         = useState<Module[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const sensors = useSensors(useSensor(PointerSensor));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   useEffect(() => {
     if (!desktopInboxOpen) return;
@@ -232,7 +237,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
         {/* Edit mode */}
         {editMode && (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
             <SortableContext items={localOrder} strategy={verticalListSortingStrategy}>
               <div className="space-y-1.5">
                 {allItems.map(item => (

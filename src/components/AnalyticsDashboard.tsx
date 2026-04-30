@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { useFleetBalance } from '../hooks/useFleetBalance';
+import { useFleetBalance, localDateStr } from '../hooks/useFleetBalance';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
 
 function canEnterFleetBalance(role: string): boolean {
@@ -194,8 +194,7 @@ export function AnalyticsDashboard() {
   const todayEntry = getTodayEntry();
 
   const handleFleetBalanceSubmit = async (outCount: number, inCount: number): Promise<boolean> => {
-    const today = new Date().toISOString().split('T')[0];
-    return await upsertEntry(today, outCount, inCount, user.id);
+    return await upsertEntry(localDateStr(), outCount, inCount, user.id);
   };
 
   // ── Live data derivations ──────────────────────────────────────────────────
@@ -300,11 +299,7 @@ export function AnalyticsDashboard() {
   const exceptionSummary = isDemo ? DEMO_EXCEPTION_SUMMARY : liveExceptionSummary;
 
   // Fleet balance — always real (Supabase-backed regardless of toggle)
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    return date.toISOString().split('T')[0];
-  });
+  const last7Days = Array.from({ length: 7 }, (_, i) => localDateStr(i - 6));
 
   const fleetBalanceData = last7Days.map((date) => {
     const entry = entries.find(e => e.date === date);

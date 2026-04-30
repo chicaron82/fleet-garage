@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+/** Returns today's date as YYYY-MM-DD in the browser's local timezone. */
+export function localDateStr(offsetDays = 0): string {
+  const d = new Date();
+  if (offsetDays) d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export interface FleetBalanceEntry {
   id: string;
   date: string;         // ISO date
@@ -22,13 +32,10 @@ export function useFleetBalance() {
   async function fetchLast7Days() {
     setLoading(true);
     try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
       const { data, error } = await supabase
         .from('fleet_balance')
         .select('*')
-        .gte('date', sevenDaysAgo.toISOString().split('T')[0])
+        .gte('date', localDateStr(-7))
         .order('date', { ascending: true });
 
       if (error) throw error;
@@ -76,7 +83,7 @@ export function useFleetBalance() {
   }
 
   function getTodayEntry(): FleetBalanceEntry | undefined {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     return entries.find(e => e.date === today);
   }
 
