@@ -73,22 +73,38 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
   const cleared     = vehicles.filter(v => v.status === 'CLEAR').length;
 
-  const filtered = vehicles.filter(v => {
-    const matchesStatus = activeStatusFilter === null || v.status === activeStatusFilter;
-    const matchesSearch = search === '' ||
-      v.unitNumber.toUpperCase().includes(search) ||
-      v.licensePlate.toUpperCase().includes(search) ||
-      v.make.toUpperCase().includes(search) ||
-      v.model.toUpperCase().includes(search);
-    return matchesStatus && matchesSearch;
-  });
+  // Latest meaningful timestamp for a hold: repair → release → creation
+  const holdLatestActivity = (h: Hold) => {
+    if (h.repair?.repairedAt)  return new Date(h.repair.repairedAt).getTime();
+    if (h.release?.approvedAt) return new Date(h.release.approvedAt).getTime();
+    return new Date(h.flaggedAt).getTime();
+  };
+
+  // Latest activity across all holds for a vehicle (0 = no holds)
+  const vehicleLatestActivity = (vehicleId: string) => {
+    const vh = holds.filter(h => h.vehicleId === vehicleId);
+    if (vh.length === 0) return 0;
+    return Math.max(...vh.map(holdLatestActivity));
+  };
+
+  const filtered = vehicles
+    .filter(v => {
+      const matchesStatus = activeStatusFilter === null || v.status === activeStatusFilter;
+      const matchesSearch = search === '' ||
+        v.unitNumber.toUpperCase().includes(search) ||
+        v.licensePlate.toUpperCase().includes(search) ||
+        v.make.toUpperCase().includes(search) ||
+        v.model.toUpperCase().includes(search);
+      return matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id));
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getLatestHold = (vehicleId: string) =>
     holds.filter(h => h.vehicleId === vehicleId)
-         .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime())[0];
+         .sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a))[0];
 
   const getFlaggedBy = (userId: string) =>
     USERS.find(u => u.id === userId)?.name ?? 'Unknown';
