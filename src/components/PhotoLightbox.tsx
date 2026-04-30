@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface Props {
   photos: string[];
@@ -8,10 +8,18 @@ interface Props {
 
 export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const [index, setIndex] = useState(initialIndex);
-  const touchStartX = useRef<number | null>(null);
+  const touchStartX    = useRef<number | null>(null);
+  const touchStartTime = useRef<number | null>(null);
 
   const total = photos.length;
   const single = total === 1;
+
+  useEffect(() => {
+    const handlePopState = () => { onClose(); };
+    window.history.pushState({ lightbox: true }, '');
+    window.addEventListener('popstate', handlePopState);
+    return () => { window.removeEventListener('popstate', handlePopState); };
+  }, [onClose]);
 
   const prev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -24,15 +32,19 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+    touchStartX.current    = e.touches[0].clientX;
+    touchStartTime.current = Date.now();
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
-    if (delta > 50) setIndex(i => Math.min(total - 1, i + 1));
+    if (touchStartX.current === null || touchStartTime.current === null) return;
+    const delta   = touchStartX.current - e.changedTouches[0].clientX;
+    const elapsed = Date.now() - touchStartTime.current;
+    touchStartX.current    = null;
+    touchStartTime.current = null;
+    if (elapsed > 250) return;
+    if (delta > 50)       setIndex(i => Math.min(total - 1, i + 1));
     else if (delta < -50) setIndex(i => Math.max(0, i - 1));
-    touchStartX.current = null;
   };
 
   return (
