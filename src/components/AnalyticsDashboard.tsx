@@ -11,6 +11,8 @@ function canEnterFleetBalance(role: string): boolean {
   return ['Branch Manager', 'Operations Manager', 'Lead VSA'].includes(role);
 }
 
+const COMPANY_STANDARD = 3.0;
+
 // ── Demo (mock) data ────────────────────────────────────────────────────────
 
 const DEMO_HOLD_TYPES = [
@@ -47,6 +49,25 @@ const DEMO_EXCEPTION_SUMMARY = [
   { reason: 'Customer accepted known damage', count: 1 },
 ];
 
+// Demo washbay — today's snapshot + multi-week history for 30-day avg
+const DEMO_WASHBAY_TODAY = {
+  carsIn: 64, carsCleaned: 57, throughput: 7.1,
+  heldToday: 8, rentablesProcessed: 56, cleanNotPickedUp: 7, deliveredToAirport: 49,
+  teamSize: 3, openingCarsOut: 50, netFlow: 14,
+};
+const DEMO_WASHBAY_HISTORY = [
+  { throughput: 8.5, teamSize: 4 }, { throughput: 7.1, teamSize: 3 },
+  { throughput: 9.2, teamSize: 4 }, { throughput: 7.8, teamSize: 3 },
+  { throughput: 8.0, teamSize: 3 }, { throughput: 10.1, teamSize: 4 },
+  { throughput: 7.4, teamSize: 3 }, { throughput: 8.8, teamSize: 4 },
+  { throughput: 9.0, teamSize: 4 }, { throughput: 7.5, teamSize: 3 },
+  { throughput: 8.3, teamSize: 3 }, { throughput: 9.6, teamSize: 4 },
+  { throughput: 7.2, teamSize: 3 }, { throughput: 8.1, teamSize: 3 },
+];
+const DEMO_WASHBAY_30DAY_AVG = Math.round(
+  (DEMO_WASHBAY_HISTORY.reduce((s, d) => s + d.throughput, 0) / DEMO_WASHBAY_HISTORY.length) * 10
+) / 10;
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
@@ -76,7 +97,7 @@ function EmptyState({ message }: { message: string }) {
 
 export function AnalyticsDashboard() {
   const { user } = useAuth();
-  const { holds, vehicles } = useGarage();
+  const { holds, vehicles, washbayLogs, getTodayWashbayLog } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode] = useState<'demo' | 'live'>('demo');
 
@@ -161,6 +182,19 @@ export function AnalyticsDashboard() {
       .sort((a, b) => b[1] - a[1])
       .map(([reason, count]) => ({ reason, count }));
   })();
+
+  // Live washbay — today's log + 30-day avg
+  const todayWashbayLog    = getTodayWashbayLog();
+  const todayBalanceEntry  = getTodayEntry();
+  const liveWashbay30DayAvg = washbayLogs.length >= 3
+    ? Math.round(
+        (washbayLogs.reduce((s, l) => {
+          const ci = l.fullPages * 19 + l.lastPageEntries;
+          const cc = Math.max(0, ci - l.carsRemaining);
+          return s + (l.shiftHours > 0 ? cc / l.shiftHours : 0);
+        }, 0) / washbayLogs.length) * 10
+      ) / 10
+    : null;
 
   // ── Mode-selected data ─────────────────────────────────────────────────────
 
@@ -433,6 +467,150 @@ export function AnalyticsDashboard() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Washbay Operations */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
+        <SectionHeader title={`Washbay Operations · ${new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }).toUpperCase()}`} />
+
+        {isDemo ? (
+          // ── Demo view ────────────────────────────────────────────────────────
+          <div className="space-y-4">
+            {/* Stat row */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{DEMO_WASHBAY_TODAY.carsIn}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Cars In</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{DEMO_WASHBAY_TODAY.carsCleaned}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Cleaned</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Throughput</p>
+              </div>
+            </div>
+
+            {/* Pipeline */}
+            <div className="space-y-1 pt-3 border-t border-gray-100 dark:border-gray-800">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Pipeline</p>
+              {[
+                { label: 'Cars in',              value: DEMO_WASHBAY_TODAY.carsIn,               indent: false },
+                { label: `Held today (${DEMO_WASHBAY_TODAY.heldToday})`, value: DEMO_WASHBAY_TODAY.heldToday, indent: true, minus: true },
+                { label: 'Rentables processed',  value: DEMO_WASHBAY_TODAY.rentablesProcessed,   indent: false },
+                { label: 'Clean, not picked up', value: DEMO_WASHBAY_TODAY.cleanNotPickedUp,     indent: true, minus: true },
+                { label: 'Delivered to airport', value: DEMO_WASHBAY_TODAY.deliveredToAirport,   indent: false },
+              ].map(({ label, value, indent, minus }) => (
+                <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                  <span className="text-xs">{minus ? '− ' : ''}{label}</span>
+                  <span className="text-xs tabular-nums">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Net flow */}
+            <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Net Flow (vs Opening)</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                {DEMO_WASHBAY_TODAY.openingCarsOut} out → {DEMO_WASHBAY_TODAY.carsIn} in
+                <span className="ml-2 font-semibold text-green-600 dark:text-green-400">
+                  Net +{DEMO_WASHBAY_TODAY.netFlow} today
+                </span>
+              </p>
+            </div>
+
+            {/* vs standard */}
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg px-4 py-3">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">vs Company Standard</p>
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-gray-700 dark:text-gray-300">YWG team: <span className="font-bold">{DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr</span></span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Standard: {COMPANY_STANDARD.toFixed(1)}/hr</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-sm text-gray-600 dark:text-gray-400">30-day avg: <span className="font-bold text-gray-800 dark:text-gray-200">{DEMO_WASHBAY_30DAY_AVG.toFixed(1)}/hr</span></span>
+                <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                  +{(DEMO_WASHBAY_30DAY_AVG - COMPANY_STANDARD).toFixed(1)} above ✅
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // ── Live view ─────────────────────────────────────────────────────────
+          todayWashbayLog ? (() => {
+            const ci  = todayWashbayLog.fullPages * 19 + todayWashbayLog.lastPageEntries;
+            const cc  = Math.max(0, ci - todayWashbayLog.carsRemaining);
+            const tp  = todayWashbayLog.shiftHours > 0 ? cc / todayWashbayLog.shiftHours : 0;
+            const ht  = activeHolds.length;
+            const rp  = Math.max(0, ci - ht);
+            const da  = Math.max(0, rp - todayWashbayLog.cleanNotPickedUp);
+            const d   = tp - COMPANY_STANDARD;
+            const openingOut = todayBalanceEntry?.outCount ?? null;
+            const netFlow    = openingOut !== null ? ci - openingOut : null;
+
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  {[
+                    { label: 'Cars In',    value: ci },
+                    { label: 'Cleaned',    value: cc },
+                    { label: 'Throughput', value: `${tp.toFixed(1)}/hr` },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-1 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Pipeline</p>
+                  {[
+                    { label: 'Cars in',              value: ci,  indent: false },
+                    { label: `Held today (${ht})`,   value: ht,  indent: true, minus: true },
+                    { label: 'Rentables processed',  value: rp,  indent: false },
+                    { label: 'Clean, not picked up', value: todayWashbayLog.cleanNotPickedUp, indent: true, minus: true },
+                    { label: 'Delivered to airport', value: da,  indent: false },
+                  ].map(({ label, value, indent, minus }) => (
+                    <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                      <span className="text-xs">{minus ? '− ' : ''}{label}</span>
+                      <span className="text-xs tabular-nums">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {openingOut !== null && netFlow !== null && (
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Net Flow (vs Opening)</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {openingOut} out → {ci} in
+                      <span className={`ml-2 font-semibold ${netFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        Net {netFlow >= 0 ? `+${netFlow}` : netFlow} today
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <div className={`rounded-lg px-4 py-3 ${d >= 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50'}`}>
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">vs Company Standard</p>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Today: <span className="font-bold">{tp.toFixed(1)}/hr</span></span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Standard: {COMPANY_STANDARD.toFixed(1)}/hr</span>
+                  </div>
+                  {liveWashbay30DayAvg !== null && (
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">30-day avg: <span className="font-bold text-gray-800 dark:text-gray-200">{liveWashbay30DayAvg.toFixed(1)}/hr</span></span>
+                      <span className={`text-sm font-semibold ${liveWashbay30DayAvg - COMPANY_STANDARD >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {liveWashbay30DayAvg - COMPANY_STANDARD >= 0 ? `+${(liveWashbay30DayAvg - COMPANY_STANDARD).toFixed(1)} above ✅` : `${(liveWashbay30DayAvg - COMPANY_STANDARD).toFixed(1)} below`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+          : <EmptyState message="No closing log submitted today. Log it in Lot Inventory → Closing Duties." />
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity, WashbayLog } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -69,6 +69,9 @@ interface GarageContextValue {
   facilityIssues: FacilityIssue[];
   addIssue: (data: { title: string; description?: string; severity: IssueSeverity }) => Promise<void>;
   clearIssue: (issueId: string, notes?: string) => Promise<void>;
+  washbayLogs: WashbayLog[];
+  submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>) => Promise<boolean>;
+  getTodayWashbayLog: () => WashbayLog | undefined;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -78,6 +81,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
   const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
+  const [washbayLogs, setWashbayLogs] = useState<WashbayLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
@@ -93,14 +97,16 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      const [{ data: vData }, { data: hData }, { data: iData }] = await Promise.all([
+      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
         supabase.from('facility_issues').select('*').eq('branch_id', activeBranch === 'ALL' ? activeBranch : activeBranch).order('reported_at', { ascending: false }),
+        supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
       ]);
       setAllVehicles((vData ?? []).map(mapVehicle));
       setAllHolds((hData ?? []).map(mapHold));
       setFacilityIssues((iData ?? []).map(rowToIssue));
+      setWashbayLogs((wData ?? []).map(rowToWashbayLog));
       setLoading(false);
     }
     load();
@@ -121,6 +127,23 @@ function rowToIssue(row: any): FacilityIssue {
     clearedById:  row.cleared_by ?? undefined,
     clearedAt:    row.cleared_at ?? undefined,
     notes:        row.notes ?? undefined,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToWashbayLog(row: any): WashbayLog {
+  return {
+    id:                row.id,
+    branchId:          row.branch_id,
+    date:              row.date,
+    fullPages:         row.full_pages,
+    lastPageEntries:   row.last_page_entries,
+    carsRemaining:     row.cars_remaining,
+    cleanNotPickedUp:  row.clean_not_picked_up,
+    teamSize:          row.team_size,
+    shiftHours:        Number(row.shift_hours),
+    loggedById:        row.logged_by,
+    loggedAt:          row.logged_at,
   };
 }
 
@@ -432,6 +455,43 @@ function rowToIssue(row: any): FacilityIssue {
     );
   };
 
+  const submitWashbayLog = async (
+    data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>
+  ): Promise<boolean> => {
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const date = new Date().toISOString().split('T')[0];
+    const loggedAt = new Date().toISOString();
+    try {
+      const { data: row, error } = await supabase.from('washbay_logs').upsert({
+        branch_id:           branchId,
+        date,
+        full_pages:          data.fullPages,
+        last_page_entries:   data.lastPageEntries,
+        cars_remaining:      data.carsRemaining,
+        clean_not_picked_up: data.cleanNotPickedUp,
+        team_size:           data.teamSize,
+        shift_hours:         data.shiftHours,
+        logged_by:           user!.id,
+        logged_at:           loggedAt,
+      }, { onConflict: 'branch_id, date' }).select().single();
+      if (error) throw error;
+      const newLog = rowToWashbayLog(row);
+      setWashbayLogs(prev => {
+        const filtered = prev.filter(l => !(l.branchId === branchId && l.date === date));
+        return [newLog, ...filtered];
+      });
+      return true;
+    } catch (err) {
+      console.error('Failed to submit washbay log:', err);
+      return false;
+    }
+  };
+
+  const getTodayWashbayLog = (): WashbayLog | undefined => {
+    const today = new Date().toISOString().split('T')[0];
+    return washbayLogs.find(l => l.date === today);
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
@@ -440,6 +500,7 @@ function rowToIssue(row: any): FacilityIssue {
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
       shuttlePlate, setShuttlePlate,
       facilityIssues, addIssue, clearIssue,
+      washbayLogs, submitWashbayLog, getTodayWashbayLog,
     }}>
       {children}
     </GarageContext.Provider>
