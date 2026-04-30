@@ -1,9 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
-import { hapticLight } from '../../lib/haptics';
+import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs } from '../../lib/sidebarPrefs';
 import type { Module, Screen, BranchId } from '../../types';
+import type { NavItem } from '../../lib/navigation';
 import type { MockNotification } from '../../data/notifications';
 import { BRANCH_CONFIGS } from '../../data/mock';
 
@@ -17,10 +27,57 @@ interface Props {
   onMarkAllRead: () => void;
 }
 
+function SortableNavItem({
+  item, isHidden, onToggleHidden,
+}: { item: NavItem; isHidden: boolean; onToggleHidden: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.module });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : isHidden ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+    >
+      <button
+        type="button"
+        onClick={onToggleHidden}
+        disabled={item.module === 'fleet-garage'}
+        className="text-base leading-none shrink-0 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+        title={isHidden ? 'Show' : 'Hide'}
+      >
+        {isHidden ? '🚫' : '👁️'}
+      </button>
+      <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+        {item.icon} {item.label}
+      </span>
+      <button
+        type="button"
+        className="text-gray-400 cursor-grab active:cursor-grabbing px-1"
+        onPointerDown={() => hapticLight()}
+        {...attributes}
+        {...listeners}
+      >
+        ≡
+      </button>
+    </div>
+  );
+}
+
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
+  const [editMode, setEditMode]     = useState(false);
+  const [localOrder, setLocalOrder] = useState<Module[]>([]);
+  const [hidden, setHidden]         = useState<Module[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const sensors = useSensors(useSensor(PointerSensor));
 
   useEffect(() => {
     if (!desktopInboxOpen) return;
@@ -35,7 +92,65 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
   if (!user) return null;
 
-  const navItems = getNavItemsForRole(user.role, activeBranch);
+  const defaultNavItems = getNavItemsForRole(user.role, activeBranch);
+  const defaultOrder    = defaultNavItems.map(i => i.module);
+
+  useEffect(() => {
+    const saved = loadSidebarPrefs(user.id);
+    if (saved) {
+      const newModules = defaultOrder.filter(
+        m => !saved.order.includes(m) && !saved.hidden.includes(m)
+      );
+      setLocalOrder([...saved.order, ...newModules]);
+      setHidden(saved.hidden);
+    } else {
+      setLocalOrder(defaultOrder);
+      setHidden([]);
+    }
+  }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const displayedItems = localOrder
+    .filter(m => !hidden.includes(m))
+    .map(m => defaultNavItems.find(i => i.module === m))
+    .filter(Boolean) as NavItem[];
+
+  const allItems = [
+    ...localOrder.map(m => defaultNavItems.find(i => i.module === m)).filter(Boolean) as NavItem[],
+    ...hidden.map(m => defaultNavItems.find(i => i.module === m)).filter(Boolean) as NavItem[],
+  ];
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    hapticMedium();
+    const oldIndex = localOrder.indexOf(active.id as Module);
+    const newIndex = localOrder.indexOf(over.id as Module);
+    setLocalOrder(arrayMove(localOrder, oldIndex, newIndex));
+  };
+
+  const toggleHidden = (module: Module) => {
+    if (module === 'fleet-garage') return;
+    hapticLight();
+    if (hidden.includes(module)) {
+      setHidden(h => h.filter(m => m !== module));
+    } else {
+      setHidden(h => [...h, module]);
+    }
+  };
+
+  const handleSave = () => {
+    hapticMedium();
+    saveSidebarPrefs(user.id, { order: localOrder, hidden });
+    setEditMode(false);
+  };
+
+  const handleReset = () => {
+    hapticLight();
+    clearSidebarPrefs(user.id);
+    setLocalOrder(defaultOrder);
+    setHidden([]);
+    setEditMode(false);
+  };
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-colors">
@@ -48,8 +163,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           <div>
             <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight transition-colors">Fleet Garage</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight transition-colors">
-                {activeBranch === 'ALL' ? 'Ops Pilot Program' : `${activeBranch} Ops Pilot Program`}
-              </p>
+              {activeBranch === 'ALL' ? 'Ops Pilot Program' : `${activeBranch} Ops Pilot Program`}
+            </p>
           </div>
         </div>
         {onClose && (
@@ -84,8 +199,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       )}
 
       {/* Nav Items */}
-      <nav className="flex-1 px-3 py-3 space-y-1">
-        {navItems.map(item => {
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+
+        {/* Normal mode */}
+        {!editMode && displayedItems.map(item => {
           const isActive = activeModule === item.module;
           return (
             <div key={item.module} className="relative flex items-center group">
@@ -112,7 +229,58 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
             </div>
           );
         })}
+
+        {/* Edit mode */}
+        {editMode && (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={localOrder} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1.5">
+                {allItems.map(item => (
+                  <SortableNavItem
+                    key={item.module}
+                    item={item}
+                    isHidden={hidden.includes(item.module)}
+                    onToggleHidden={() => toggleHidden(item.module)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+
       </nav>
+
+      {/* Edit / Save / Reset Controls */}
+      <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-2 space-y-1">
+        {!editMode ? (
+          <button
+            type="button"
+            onClick={() => { hapticLight(); setEditMode(true); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+          >
+            <span>⚙️</span>
+            <span>Edit Menu</span>
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex-1 py-2 rounded-lg bg-yellow-400 dark:bg-yellow-500 text-black text-xs font-semibold transition hover:bg-yellow-500 cursor-pointer"
+            >
+              ✓ Save
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-gray-300 transition cursor-pointer"
+              title="Reset to default"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* User Section — desktop only */}
       <div className="hidden md:block border-t border-gray-100 dark:border-gray-800 px-3 py-3">
