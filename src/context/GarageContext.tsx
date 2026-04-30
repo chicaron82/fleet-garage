@@ -105,9 +105,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber.toLowerCase() === unitNumber.toLowerCase());
 
+  function latestActivity(hold: Hold): number {
+    if (hold.repair?.repairedAt)  return new Date(hold.repair.repairedAt).getTime();
+    if (hold.release?.approvedAt) return new Date(hold.release.approvedAt).getTime();
+    return new Date(hold.flaggedAt).getTime();
+  }
+
   const getHoldsForVehicle = (vehicleId: string) =>
     holds.filter(h => h.vehicleId === vehicleId)
-         .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime());
+         .sort((a, b) => latestActivity(b) - latestActivity(a));
 
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
