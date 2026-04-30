@@ -6,16 +6,15 @@ import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { canRelease } from '../types';
 
-const VSA_LOCATIONS = [
-  'Washbay', 'Airport', 'Off Branch', 'Dealership', 'Body Shop', 'Other',
-] as const;
+const VSA_LOCATIONS = ['Washbay', 'Airport', 'Other'] as const;
 type VSALocation = typeof VSA_LOCATIONS[number];
 type Condition = 'CLEAN' | 'DIRTY';
 type Reason = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
 type Authorization = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
 type QueueSnapshot = '0' | '~5' | 'TOO_MUCH';
 type FuelLevel = number;
-type TripState = 'form' | 'in_transit' | 'complete';
+export type TripState = 'form' | 'in_transit' | 'complete';
+export type RouteStep = 'origin' | 'destination' | 'confirmed';
 
 const FUEL_LABELS: Record<number, string> = {
   0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
@@ -64,7 +63,8 @@ function buildMetaLine(
   return s;
 }
 
-// ── Pill button ────────────────────────────────────────────────────────────────
+// ── Shared sub-components ──────────────────────────────────────────────────────
+
 function Pill({
   label, active, danger, onClick,
 }: { label: string; active: boolean; danger?: boolean; onClick: () => void }) {
@@ -85,20 +85,430 @@ function Pill({
   );
 }
 
+function NotesField({ value, onChange, tripState }: {
+  value: string;
+  onChange: (v: string) => void;
+  tripState: TripState;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+        {tripState === 'form' ? 'Notes' : 'Context / Delays'}
+      </label>
+      <textarea
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          e.target.style.height = 'auto';
+          e.target.style.height = `${e.target.scrollHeight}px`;
+        }}
+        placeholder={tripState === 'form' ? "Any context for this run…" : "Stuck behind a train? Let us know…"}
+        rows={1}
+        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none overflow-hidden"
+      />
+    </div>
+  );
+}
+
+// ── TripForm ───────────────────────────────────────────────────────────────────
+
+interface TripFormProps {
+  plate: string; setPlate: (v: string) => void;
+  from: VSALocation; to: VSALocation;
+  condition: Condition; conditionManual: boolean;
+  reason: Reason | null; setReason: (r: Reason) => void;
+  queue: QueueSnapshot | null; setQueue: (q: QueueSnapshot) => void;
+  fuel: FuelLevel | null; setFuel: (f: FuelLevel) => void;
+  authorization: Authorization | null; setAuthorization: (a: Authorization | null) => void;
+  notes: string; setNotes: (v: string) => void;
+  isShuttle: boolean;
+  routeStep: RouteStep;
+  customFrom: string; setCustomFrom: (v: string) => void;
+  customTo: string; setCustomTo: (v: string) => void;
+  shuttlePlate: string; setShuttlePlate: (v: string) => void;
+  vehicleMeta: string | null;
+  topClasses: string[];
+  canStart: boolean;
+  onShuttleToggle: (checked: boolean) => void;
+  onConditionTap: (c: Condition) => void;
+  onLocationTap: (loc: VSALocation) => void;
+  onRouteReset: () => void;
+  onStartTrip: () => void;
+  onPlateChange: (v: string) => void;
+}
+
+function TripForm({
+  plate, from, to, condition, conditionManual,
+  reason, setReason, queue, setQueue, fuel, setFuel,
+  authorization, setAuthorization, notes, setNotes,
+  isShuttle, routeStep, customFrom, setCustomFrom, customTo, setCustomTo,
+  shuttlePlate, setShuttlePlate, vehicleMeta, topClasses, canStart,
+  onShuttleToggle, onConditionTap, onLocationTap, onRouteReset, onStartTrip, onPlateChange,
+}: TripFormProps) {
+  const { user } = useAuth();
+  const queueRequired  = from === 'Washbay';
+  const fuelConditional = to === 'Washbay' && !isShuttle;
+
+  return (
+    <>
+      {/* ─── ROUTE STATE MACHINE ───────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          {routeStep === 'origin'      && 'Starting at?'}
+          {routeStep === 'destination' && 'Going to?'}
+          {routeStep === 'confirmed'   && 'Route'}
+        </p>
+
+        {routeStep === 'origin' && topClasses.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <span className="text-xs shrink-0">📋</span>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              <span className="font-semibold">Priority this window:</span>{' '}
+              {topClasses.join(', ')}
+            </p>
+          </div>
+        )}
+
+        {(routeStep === 'destination' || routeStep === 'confirmed') && (
+          <button
+            type="button"
+            onClick={onRouteReset}
+            className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:underline transition cursor-pointer"
+          >
+            From: {from === 'Other' ? (customFrom || 'Other') : from}
+            {routeStep === 'confirmed' && (
+              <span className="text-gray-400 dark:text-gray-500 font-normal">
+                {' '}→ To: {to === 'Other' ? (customTo || 'Other') : to}
+              </span>
+            )}
+          </button>
+        )}
+
+        {routeStep !== 'confirmed' && (
+          <div className="flex gap-2 flex-wrap">
+            {VSA_LOCATIONS.map(loc => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => onLocationTap(loc)}
+                className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                  routeStep === 'destination' && loc === from
+                    ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
+                    : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                }`}
+              >
+                {loc}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {routeStep === 'destination' && from === 'Other' && (
+          <input
+            type="text" autoFocus placeholder="Specify origin…" value={customFrom}
+            onChange={e => setCustomFrom(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+          />
+        )}
+
+        {routeStep === 'confirmed' && to === 'Other' && (
+          <input
+            type="text" autoFocus placeholder="Specify destination…" value={customTo}
+            onChange={e => setCustomTo(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+          />
+        )}
+      </div>
+
+      {/* License Plate */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
+        <input
+          type="text" placeholder="e.g. JFT 881" value={plate}
+          onChange={e => onPlateChange(e.target.value)}
+          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+        />
+        <div className="mt-3 flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+              {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
+            </div>
+            <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => onShuttleToggle(e.target.checked)} />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
+          </label>
+          {user && canRelease(user.role) && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Designated Plate:</span>
+              <input
+                type="text" value={shuttlePlate}
+                onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
+                className="w-20 px-2 py-0.5 text-xs rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 focus:outline-none focus:border-yellow-400 transition-colors uppercase text-center"
+              />
+            </div>
+          )}
+        </div>
+        {!isShuttle && plate.trim().length >= 3 && (
+          <p className={`text-xs mt-2 ${vehicleMeta ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 italic'}`}>
+            {vehicleMeta ?? 'Not in system — plate accepted as-is'}
+          </p>
+        )}
+        {isShuttle && (
+          <p className="text-xs mt-2 text-purple-600 dark:text-purple-400 font-medium">{vehicleMeta}</p>
+        )}
+      </div>
+
+      {/* Vehicle Condition */}
+      <div>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Vehicle Condition</label>
+          {isShuttle ? (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500">not applicable for shuttle</span>
+          ) : !conditionManual && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500">auto · tap to override</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button" disabled={isShuttle} onClick={() => onConditionTap('CLEAN')}
+            className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
+              isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
+              condition === 'CLEAN'
+                ? 'border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 cursor-pointer'
+                : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
+            }`}
+          >Clean</button>
+          <button
+            type="button" disabled={isShuttle} onClick={() => onConditionTap('DIRTY')}
+            className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
+              isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
+              condition === 'DIRTY'
+                ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 cursor-pointer'
+                : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
+            }`}
+          >Dirty</button>
+        </div>
+      </div>
+
+      {/* Reason */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Reason *</label>
+        <div className="flex gap-2 flex-wrap">
+          {(Object.keys(REASON_LABELS) as Reason[]).map(r => (
+            <button
+              key={r} type="button"
+              onClick={() => { hapticLight(); setReason(r); }}
+              className={`px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
+                reason === r
+                  ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
+                  : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+              }`}
+            >
+              {REASON_LABELS[r]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Queue — conditional on From = Washbay */}
+      {queueRequired && (
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+            Washbay Queue at Departure *
+          </label>
+          <div className="flex gap-2">
+            <Pill label="0"   active={queue === '0'}        onClick={() => setQueue('0')} />
+            <Pill label="~5"  active={queue === '~5'}       onClick={() => setQueue('~5')} />
+            <Pill label="10+" active={queue === 'TOO_MUCH'} danger onClick={() => setQueue('TOO_MUCH')} />
+          </div>
+        </div>
+      )}
+
+      {/* Fuel — conditional on To = Washbay */}
+      {fuelConditional && (
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+            Fuel Level on Arrival
+          </label>
+          <div className="space-y-2 px-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold" style={{ color: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}>
+                ⛽ {fuel !== null ? FUEL_LABELS[fuel] : '—'}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+                {fuel !== null ? `${fuel}/8` : 'optional'}
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={8} step={1}
+              value={fuel ?? 4}
+              onChange={e => setFuel(Number(e.target.value))}
+              onPointerDown={() => { if (fuel === null) setFuel(4); }}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
+              style={{ accentColor: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}
+            />
+            <div className="flex justify-between px-0.5">
+              {Array.from({ length: 9 }, (_, i) => (
+                <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuel !== null && i <= fuel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
+              ))}
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
+              <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <NotesField value={notes} onChange={setNotes} tripState="form" />
+
+      {/* Authorization */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Authorization *</label>
+        <select
+          value={authorization ?? ''}
+          onChange={e => setAuthorization((e.target.value as Authorization) || null as unknown as Authorization)}
+          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+        >
+          <option value="">Select authorization…</option>
+          <option value="MANAGEMENT">Management Decision</option>
+          <option value="LEAD_VSA">Lead VSA / Senior VSA</option>
+          <option value="PERSONAL">Personal — Proactive</option>
+        </select>
+      </div>
+
+      {user && (
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          Logging as: <span className="font-semibold">{user.name ?? user.id}</span> · {user.role} · #{user.employeeId}
+        </p>
+      )}
+
+      <button
+        type="button" disabled={!canStart} onClick={onStartTrip}
+        className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+      >
+        Start Trip →
+      </button>
+    </>
+  );
+}
+
+// ── TripInTransit ──────────────────────────────────────────────────────────────
+
+function TripInTransit({ plate, vehicleMeta, from, to, authorization, departureTime, elapsed, notes, setNotes, onArrived }: {
+  plate: string; vehicleMeta: string | null;
+  from: VSALocation; to: VSALocation;
+  authorization: Authorization | null;
+  departureTime: string; elapsed: string;
+  notes: string; setNotes: (v: string) => void;
+  onArrived: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-4 transition-colors">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
+            {vehicleMeta && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{vehicleMeta.split(' · ')[0]}</p>}
+            <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">{from} → {to}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {authorization === 'MANAGEMENT' ? 'Management Decision' : authorization === 'LEAD_VSA' ? 'Lead VSA Authorization' : 'Personal — Proactive'}
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Departed {fmtTime(departureTime)}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums">{elapsed || '0m 00s'}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">elapsed</p>
+          </div>
+        </div>
+      </div>
+      <NotesField value={notes} onChange={setNotes} tripState="in_transit" />
+      <button
+        type="button" onClick={onArrived}
+        className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+      >
+        ✓ Arrived at Destination
+      </button>
+    </div>
+  );
+}
+
+// ── TripComplete ───────────────────────────────────────────────────────────────
+
+function TripComplete({ plate, vehicleMeta, from, to, authorization, reason, condition, isShuttle, departureTime, arrivalTime, queue, fuel, notes, setNotes, onReset }: {
+  plate: string; vehicleMeta: string | null;
+  from: VSALocation; to: VSALocation;
+  authorization: Authorization | null;
+  reason: Reason | null;
+  condition: Condition; isShuttle: boolean;
+  departureTime: string; arrivalTime: string;
+  queue: QueueSnapshot | null; fuel: FuelLevel | null;
+  notes: string; setNotes: (v: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg overflow-hidden transition-colors">
+        <div className="px-4 py-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</span>
+              {vehicleMeta && (
+                <>
+                  <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{vehicleMeta.split(' · ')[0]}</span>
+                </>
+              )}
+            </div>
+            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">{from} → {to}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              {buildMetaLine(from, to, departureTime, arrivalTime, queue, fuel)}
+            </p>
+          </div>
+          <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
+            isShuttle
+              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+              : condition === 'CLEAN'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+          }`}>
+            {isShuttle ? 'Shuttle' : (condition === 'CLEAN' ? 'Clean' : 'Dirty')}
+          </span>
+        </div>
+        <div className={`px-4 py-2 border-t ${
+          authorization === 'PERSONAL'
+            ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'
+            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
+        } transition-colors`}>
+          <span className={`text-xs font-semibold ${
+            authorization === 'PERSONAL' ? 'text-teal-700 dark:text-teal-400' : 'text-amber-700 dark:text-amber-400'
+          }`}>
+            {authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
+            <span className="font-normal opacity-70 mx-1">·</span>
+            <span className="font-normal">{REASON_LABELS[reason!]}</span>
+          </span>
+        </div>
+      </div>
+      <NotesField value={notes} onChange={setNotes} tripState="complete" />
+      <button type="button" onClick={onReset} className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
+        Log another run →
+      </button>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
+
 export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
   const { user } = useAuth();
   const { vehicles, shuttlePlate, setShuttlePlate } = useGarage();
 
   const [tripState, setTripState] = useState<TripState>('form');
-
-  // Route state machine
-  type RouteStep = 'origin' | 'destination' | 'confirmed';
-  const [routeStep, setRouteStep]   = useState<RouteStep>('origin');
+  const [routeStep, setRouteStep] = useState<RouteStep>('origin');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
 
-  // Form fields
   const [plate, setPlate]                     = useState('');
   const [from, setFrom]                       = useState<VSALocation>('Washbay');
   const [to, setTo]                           = useState<VSALocation>('Airport');
@@ -111,7 +521,6 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [notes, setNotes]                     = useState('');
   const [isShuttle, setIsShuttle]             = useState(false);
 
-  // Trip timestamps
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
@@ -126,21 +535,20 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     }
   };
 
-  // Vehicle lookup — pure computation, no effect needed
   const topClasses = useMemo(() => {
     const manifest = generateDayManifest();
     const next5 = getNextFiveNeeded(manifest);
     return [...new Set(next5.map(r => r.rentalClass))].slice(0, 3);
   }, []);
 
-  const vehicleMeta = useMemo(() => {    const t = plate.trim().replace(/\s/g, '').toUpperCase();
+  const vehicleMeta = useMemo(() => {
+    const t = plate.trim().replace(/\s/g, '').toUpperCase();
     if (isShuttle) return 'Internal Transport · Lot Shuttle';
     if (t.length < 3) return null;
     const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
     return match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null;
   }, [plate, isShuttle, vehicles]);
 
-  // Live elapsed timer — only interval callback sets state (no synchronous setState in effect)
   useEffect(() => {
     if (tripState !== 'in_transit' || !departureTime) return;
     const id = setInterval(() => setElapsed(elapsedSince(departureTime)), 1000);
@@ -151,10 +559,8 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const handleSetTo   = (loc: VSALocation) => {
     setTo(loc);
     setFuel(null);
-    // Update condition default when destination changes (unless user has manually set it)
     if (!conditionManual) setCondition(defaultCondition(loc));
   };
-  const handleConditionTap = (c: Condition) => { hapticLight(); setCondition(c); setConditionManual(true); };
 
   const handleLocationTap = (loc: VSALocation) => {
     if (routeStep === 'origin') {
@@ -163,13 +569,12 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
       setRouteStep('destination');
     } else if (routeStep === 'destination') {
       if (loc === from) {
-        // Same pill tapped — deselect, back to origin step
         hapticLight();
         handleSetFrom('Washbay');
         setCustomFrom('');
         setRouteStep('origin');
       } else {
-        hapticMedium(); // route confirmed — stronger feedback
+        hapticMedium();
         handleSetTo(loc);
         setRouteStep('confirmed');
       }
@@ -185,15 +590,24 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setRouteStep('origin');
   };
 
-  const queueRequired = from === 'Washbay';
-  const fuelConditional = to === 'Washbay' && !isShuttle;
-  const canStart = plate.trim().length > 0 && routeStep === 'confirmed' && reason !== null && !!authorization && (!queueRequired || queue !== null);
+  const handlePlateChange = (newPlate: string) => {
+    const upper = newPlate.toUpperCase();
+    setPlate(upper);
+    if (shuttlePlate && upper.trim() === shuttlePlate) {
+      setIsShuttle(true);
+    } else if (isShuttle && upper.trim() !== shuttlePlate) {
+      setIsShuttle(false);
+    }
+  };
+
+  const canStart = plate.trim().length > 0 && routeStep === 'confirmed' && reason !== null
+    && !!authorization && (from !== 'Washbay' || queue !== null);
 
   const handleStartTrip = () => {
     hapticMedium();
     const now = new Date().toISOString();
     setDepartureTime(now);
-    setElapsed('0m 00s'); // initial display; interval takes over after 1s
+    setElapsed('0m 00s');
     setTripState('in_transit');
   };
 
@@ -240,35 +654,13 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setCustomFrom(''); setCustomTo('');
   };
 
-  const notesField = (
-    <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-        {tripState === 'form' ? 'Notes' : 'Context / Delays'}
-      </label>
-      <textarea
-        value={notes}
-        onChange={e => {
-          setNotes(e.target.value);
-          e.target.style.height = 'auto';
-          e.target.style.height = `${e.target.scrollHeight}px`;
-        }}
-        placeholder={tripState === 'form' ? "Any context for this run…" : "Stuck behind a train? Let us know…"}
-        rows={1}
-        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none overflow-hidden"
-      />
-    </div>
-  );
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-            Movement Log
-          </p>
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Movement Log</p>
           {tripState === 'in_transit' && (
             <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wide mt-0.5">● In Transit</p>
           )}
@@ -284,373 +676,53 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
       </div>
 
       <div className="p-4 space-y-4">
-
-        {/* ─── FORM ──────────────────────────────────────────────────────── */}
         {tripState === 'form' && (
-          <>
-            {/* ─── ROUTE STATE MACHINE ─────────────────────────────────────── */}
-            <div className="space-y-2">
-
-              {/* Header */}
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                {routeStep === 'origin'      && 'Starting at?'}
-                {routeStep === 'destination' && 'Going to?'}
-                {routeStep === 'confirmed'   && 'Route'}
-              </p>
-
-              {/* Priority hint — visible before VSA picks origin */}
-              {routeStep === 'origin' && topClasses.length > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                  <span className="text-xs shrink-0">📋</span>
-                  <p className="text-xs text-amber-800 dark:text-amber-300">
-                    <span className="font-semibold">Priority this window:</span>{' '}
-                    {topClasses.join(', ')}
-                  </p>
-                </div>
-              )}
-
-              {/* Locked origin / confirmed route — tapping resets to State 0 */}
-              {(routeStep === 'destination' || routeStep === 'confirmed') && (
-                <button
-                  type="button"
-                  onClick={handleRouteReset}
-                  className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:underline transition cursor-pointer"
-                >
-                  From: {from === 'Other' ? (customFrom || 'Other') : from}
-                  {routeStep === 'confirmed' && (
-                    <span className="text-gray-400 dark:text-gray-500 font-normal">
-                      {' '}→ To: {to === 'Other' ? (customTo || 'Other') : to}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* Location pills (State 0 + 1) */}
-              {routeStep !== 'confirmed' && (
-                <div className="flex gap-2 flex-wrap">
-                  {VSA_LOCATIONS.map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => handleLocationTap(loc)}
-                      className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
-                        routeStep === 'destination' && loc === from
-                          ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
-                          : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-                      }`}
-                    >
-                      {loc}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* "Other" text input — origin */}
-              {routeStep === 'destination' && from === 'Other' && (
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Specify origin…"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-                />
-              )}
-
-              {/* "Other" text input — destination */}
-              {routeStep === 'confirmed' && to === 'Other' && (
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Specify destination…"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-                />
-              )}
-
-            </div>
-
-            {/* License Plate */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
-              <input
-                type="text"
-                placeholder="e.g. JFT 881"
-                value={plate}
-                onChange={e => {
-                  const newPlate = e.target.value.toUpperCase();
-                  setPlate(newPlate);
-                  if (shuttlePlate && newPlate.trim() === shuttlePlate) {
-                    setIsShuttle(true);
-                  } else if (isShuttle && newPlate.trim() !== shuttlePlate) {
-                    setIsShuttle(false);
-                  }
-                }}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-              />
-              
-              <div className="mt-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
-                    {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
-                  </div>
-                  <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => handleShuttleToggle(e.target.checked)} />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
-                </label>
-                {user && canRelease(user.role) && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Designated Plate:</span>
-                    <input 
-                      type="text" 
-                      value={shuttlePlate}
-                      onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
-                      className="w-20 px-2 py-0.5 text-xs rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 focus:outline-none focus:border-yellow-400 transition-colors uppercase text-center"
-                    />
-                  </div>
-                )}
-              </div>
-              
-              {!isShuttle && plate.trim().length >= 3 && (
-                <p className={`text-xs mt-2 ${vehicleMeta ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 italic'}`}>
-                  {vehicleMeta ?? 'Not in system — plate accepted as-is'}
-                </p>
-              )}
-              {isShuttle && (
-                <p className="text-xs mt-2 text-purple-600 dark:text-purple-400 font-medium">
-                  {vehicleMeta}
-                </p>
-              )}
-            </div>
-
-            {/* Vehicle Condition */}
-            <div>
-              <div className="flex items-baseline justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Vehicle Condition</label>
-                {isShuttle ? (
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500">not applicable for shuttle</span>
-                ) : !conditionManual && (
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500">auto · tap to override</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={isShuttle}
-                  onClick={() => handleConditionTap('CLEAN')}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
-                    isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
-                    condition === 'CLEAN'
-                      ? 'border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 cursor-pointer'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
-                  }`}
-                >Clean</button>
-                <button
-                  type="button"
-                  disabled={isShuttle}
-                  onClick={() => handleConditionTap('DIRTY')}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
-                    isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
-                    condition === 'DIRTY'
-                      ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 cursor-pointer'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
-                  }`}
-                >Dirty</button>
-              </div>
-            </div>
-
-            {/* Reason */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Reason *</label>
-              <div className="flex gap-2 flex-wrap">
-                  {(Object.keys(REASON_LABELS) as Reason[]).map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => { hapticLight(); setReason(r); }}
-                    className={`px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                      reason === r
-                        ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                        : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-                    }`}
-                  >
-                    {REASON_LABELS[r]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Queue — conditional on From = Washbay */}
-            {queueRequired && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Washbay Queue at Departure *
-                </label>
-                <div className="flex gap-2">
-                  <Pill label="0"   active={queue === '0'}        onClick={() => setQueue('0')} />
-                  <Pill label="~5"  active={queue === '~5'}       onClick={() => setQueue('~5')} />
-                  <Pill label="10+" active={queue === 'TOO_MUCH'} danger onClick={() => setQueue('TOO_MUCH')} />
-                </div>
-              </div>
-            )}
-
-            {/* Fuel — conditional on To = Washbay */}
-            {fuelConditional && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Fuel Level on Arrival
-                </label>
-                <div className="space-y-2 px-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold" style={{ color: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}>
-                      ⛽ {fuel !== null ? FUEL_LABELS[fuel] : '—'}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                      {fuel !== null ? `${fuel}/8` : 'optional'}
-                    </span>
-                  </div>
-                  <input
-                    type="range" min={0} max={8} step={1}
-                    value={fuel ?? 4}
-                    onChange={e => setFuel(Number(e.target.value))}
-                    onPointerDown={() => { if (fuel === null) setFuel(4); }}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
-                    style={{ accentColor: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}
-                  />
-                  <div className="flex justify-between px-0.5">
-                    {Array.from({ length: 9 }, (_, i) => (
-                      <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuel !== null && i <= fuel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
-                    <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {notesField}
-
-            {/* Authorization */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Authorization *</label>
-              <select
-                value={authorization ?? ''}
-                onChange={e => setAuthorization((e.target.value as Authorization) || null as unknown as Authorization)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
-              >
-                <option value="">Select authorization…</option>
-                <option value="MANAGEMENT">Management Decision</option>
-                <option value="LEAD_VSA">Lead VSA / Senior VSA</option>
-                <option value="PERSONAL">Personal — Proactive</option>
-              </select>
-            </div>
-
-            {/* Logging as */}
-            {user && (
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Logging as: <span className="font-semibold">{user.name ?? user.id}</span> · {user.role} · #{user.employeeId}
-              </p>
-            )}
-
-            {/* Start Trip */}
-            <button
-              type="button"
-              disabled={!canStart}
-              onClick={handleStartTrip}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-            >
-              Start Trip →
-            </button>
-          </>
+          <TripForm
+            plate={plate} setPlate={setPlate}
+            from={from} to={to}
+            condition={condition} conditionManual={conditionManual}
+            reason={reason} setReason={setReason}
+            queue={queue} setQueue={setQueue}
+            fuel={fuel} setFuel={setFuel}
+            authorization={authorization} setAuthorization={setAuthorization}
+            notes={notes} setNotes={setNotes}
+            isShuttle={isShuttle}
+            routeStep={routeStep}
+            customFrom={customFrom} setCustomFrom={setCustomFrom}
+            customTo={customTo} setCustomTo={setCustomTo}
+            shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
+            vehicleMeta={vehicleMeta} topClasses={topClasses} canStart={canStart}
+            onShuttleToggle={handleShuttleToggle}
+            onConditionTap={c => { hapticLight(); setCondition(c); setConditionManual(true); }}
+            onLocationTap={handleLocationTap}
+            onRouteReset={handleRouteReset}
+            onStartTrip={handleStartTrip}
+            onPlateChange={handlePlateChange}
+          />
         )}
 
-        {/* ─── IN TRANSIT ────────────────────────────────────────────────── */}
         {tripState === 'in_transit' && (
-          <div className="space-y-3">
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-4 transition-colors">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
-                  {vehicleMeta && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{vehicleMeta.split(' · ')[0]}</p>}
-                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">{from} → {to}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {authorization === 'MANAGEMENT' ? 'Management Decision' : authorization === 'LEAD_VSA' ? 'Lead VSA Authorization' : 'Personal — Proactive'}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Departed {fmtTime(departureTime)}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums">{elapsed || '0m 00s'}</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">elapsed</p>
-                </div>
-              </div>
-            </div>
-            {notesField}
-            <button
-              type="button"
-              onClick={handleArrived}
-              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-            >
-              ✓ Arrived at Destination
-            </button>
-          </div>
+          <TripInTransit
+            plate={plate} vehicleMeta={vehicleMeta}
+            from={from} to={to}
+            authorization={authorization}
+            departureTime={departureTime} elapsed={elapsed}
+            notes={notes} setNotes={setNotes}
+            onArrived={handleArrived}
+          />
         )}
 
-        {/* ─── COMPLETE ──────────────────────────────────────────────────── */}
         {tripState === 'complete' && (
-          <div className="space-y-3">
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg overflow-hidden transition-colors">
-              <div className="px-4 py-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</span>
-                    {vehicleMeta && (
-                      <>
-                        <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{vehicleMeta.split(' · ')[0]}</span>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">{from} → {to}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {buildMetaLine(from, to, departureTime, arrivalTime, queue, fuel)}
-                  </p>
-                </div>
-                <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  isShuttle
-                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                    : condition === 'CLEAN'
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                }`}>
-                  {isShuttle ? 'Shuttle' : (condition === 'CLEAN' ? 'Clean' : 'Dirty')}
-                </span>
-              </div>
-              {/* Interruption / Proactive badge */}
-              <div className={`px-4 py-2 border-t ${
-                authorization === 'PERSONAL'
-                  ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'
-                  : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
-              } transition-colors`}>
-                <span className={`text-xs font-semibold ${
-                  authorization === 'PERSONAL' ? 'text-teal-700 dark:text-teal-400' : 'text-amber-700 dark:text-amber-400'
-                }`}>
-                  {authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
-                  <span className="font-normal opacity-70 mx-1">·</span>
-                  <span className="font-normal">{REASON_LABELS[reason!]}</span>
-                </span>
-              </div>
-            </div>
-            
-            {notesField}
-
-            <button type="button" onClick={handleReset} className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
-              Log another run →
-            </button>
-          </div>
+          <TripComplete
+            plate={plate} vehicleMeta={vehicleMeta}
+            from={from} to={to}
+            authorization={authorization} reason={reason}
+            condition={condition} isShuttle={isShuttle}
+            departureTime={departureTime} arrivalTime={arrivalTime}
+            queue={queue} fuel={fuel}
+            notes={notes} setNotes={setNotes}
+            onReset={handleReset}
+          />
         )}
       </div>
     </div>

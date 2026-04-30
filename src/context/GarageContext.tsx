@@ -3,7 +3,7 @@ import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailRea
 import type { NotificationSeverity } from '../data/notifications';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { mapVehicle, mapHold } from '../lib/garage-mappers';
+import { mapVehicle, mapHold, mapIssue, mapWashbayLog } from '../lib/garage-mappers';
 
 // ── Notification helper ───────────────────────────────────────────────────────
 
@@ -105,47 +105,12 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       ]);
       setAllVehicles((vData ?? []).map(mapVehicle));
       setAllHolds((hData ?? []).map(mapHold));
-      setFacilityIssues((iData ?? []).map(rowToIssue));
-      setWashbayLogs((wData ?? []).map(rowToWashbayLog));
+      setFacilityIssues((iData ?? []).map(mapIssue));
+      setWashbayLogs((wData ?? []).map(mapWashbayLog));
       setLoading(false);
     }
     load();
   }, []);
-
-// ── Issue mapper ──────────────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToIssue(row: any): FacilityIssue {
-  return {
-    id:           row.id,
-    branchId:     row.branch_id,
-    title:        row.title,
-    description:  row.description ?? undefined,
-    severity:     row.severity as IssueSeverity,
-    reportedById: row.reported_by,
-    reportedAt:   row.reported_at,
-    clearedById:  row.cleared_by ?? undefined,
-    clearedAt:    row.cleared_at ?? undefined,
-    notes:        row.notes ?? undefined,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToWashbayLog(row: any): WashbayLog {
-  return {
-    id:                row.id,
-    branchId:          row.branch_id,
-    date:              row.date,
-    fullPages:         row.full_pages,
-    lastPageEntries:   row.last_page_entries,
-    carsRemaining:     row.cars_remaining,
-    cleanNotPickedUp:  row.clean_not_picked_up,
-    teamSize:          row.team_size,
-    shiftHours:        Number(row.shift_hours),
-    loggedById:        row.logged_by,
-    loggedAt:          row.logged_at,
-  };
-}
 
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
@@ -437,7 +402,7 @@ function rowToWashbayLog(row: any): WashbayLog {
       severity,
       reported_by: user!.id,
     }).select().single();
-    if (data) setFacilityIssues(prev => [rowToIssue(data), ...prev]);
+    if (data) setFacilityIssues(prev => [mapIssue(data), ...prev]);
   };
 
   const clearIssue = async (issueId: string, notes?: string) => {
@@ -475,7 +440,7 @@ function rowToWashbayLog(row: any): WashbayLog {
         logged_at:           loggedAt,
       }, { onConflict: 'branch_id, date' }).select().single();
       if (error) throw error;
-      const newLog = rowToWashbayLog(row);
+      const newLog = mapWashbayLog(row);
       setWashbayLogs(prev => {
         const filtered = prev.filter(l => !(l.branchId === branchId && l.date === date));
         return [newLog, ...filtered];

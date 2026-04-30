@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -69,6 +69,37 @@ export function mapRepair(row: Row): Repair {
     repairedById:  reqStr(row, 'repaired_by_id',  'mapRepair'),
     repairedAt:    reqStr(row, 'repaired_at',     'mapRepair'),
     notes:         optStr(row, 'notes') ?? '',
+  };
+}
+
+export function mapIssue(row: Row): FacilityIssue {
+  return {
+    id:           reqStr(row, 'id',          'mapIssue'),
+    branchId:     reqStr(row, 'branch_id',   'mapIssue') as BranchId,
+    title:        reqStr(row, 'title',       'mapIssue'),
+    description:  optStr(row, 'description'),
+    severity:     reqStr(row, 'severity',    'mapIssue') as IssueSeverity,
+    reportedById: reqStr(row, 'reported_by', 'mapIssue'),
+    reportedAt:   reqStr(row, 'reported_at', 'mapIssue'),
+    clearedById:  optStr(row, 'cleared_by'),
+    clearedAt:    optStr(row, 'cleared_at'),
+    notes:        optStr(row, 'notes'),
+  };
+}
+
+export function mapWashbayLog(row: Row): WashbayLog {
+  return {
+    id:                reqStr(row, 'id',                  'mapWashbayLog'),
+    branchId:          reqStr(row, 'branch_id',           'mapWashbayLog') as BranchId,
+    date:              reqStr(row, 'date',                'mapWashbayLog'),
+    fullPages:         reqNum(row, 'full_pages',          'mapWashbayLog'),
+    lastPageEntries:   reqNum(row, 'last_page_entries',   'mapWashbayLog'),
+    carsRemaining:     reqNum(row, 'cars_remaining',      'mapWashbayLog'),
+    cleanNotPickedUp:  reqNum(row, 'clean_not_picked_up', 'mapWashbayLog'),
+    teamSize:          reqNum(row, 'team_size',           'mapWashbayLog'),
+    shiftHours:        Number(row['shift_hours']),
+    loggedById:        reqStr(row, 'logged_by',           'mapWashbayLog'),
+    loggedAt:          reqStr(row, 'logged_at',           'mapWashbayLog'),
   };
 }
 
