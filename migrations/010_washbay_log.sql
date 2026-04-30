@@ -13,8 +13,9 @@ create table washbay_logs (
   unique(branch_id, date)
 );
 
+-- RLS: anon role (app uses anon key — no Supabase Auth)
 alter table washbay_logs enable row level security;
 
-create policy "read"   on washbay_logs for select to authenticated using (true);
-create policy "insert" on washbay_logs for insert to authenticated with check (true);
-create policy "update" on washbay_logs for update to authenticated using (true);
+create policy "read"   on washbay_logs for select to anon using (true);
+create policy "insert" on washbay_logs for insert to anon with check (true);
+create policy "update" on washbay_logs for update to anon using (true);

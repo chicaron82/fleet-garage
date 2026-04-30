@@ -1,4 +1,4 @@
--- Migration 006: Live notification system
+-- Migration 008: Live notification system
 -- Zee ticket, Apr 28 2026
 
 create table notifications (
@@ -14,20 +14,12 @@ create table notifications (
   metadata        jsonb
 );
 
--- RLS: authenticated users can read and insert
+-- RLS: anon role (app uses anon key — no Supabase Auth)
 alter table notifications enable row level security;
 
-create policy "Authenticated users can read notifications"
-  on notifications for select
-  using (auth.role() = 'authenticated');
-
-create policy "Authenticated users can insert notifications"
-  on notifications for insert
-  with check (auth.role() = 'authenticated');
-
-create policy "Authenticated users can update read_by"
-  on notifications for update
-  using (auth.role() = 'authenticated');
+create policy "read"   on notifications for select to anon using (true);
+create policy "insert" on notifications for insert to anon with check (true);
+create policy "update" on notifications for update to anon using (true);
 
 -- Index for fast role + branch queries
 create index notifications_branch_id_idx on notifications (branch_id);

@@ -11,8 +11,9 @@ create table facility_issues (
   notes         text
 );
 
+-- RLS: anon role (app uses anon key — no Supabase Auth)
 alter table facility_issues enable row level security;
 
-create policy "read"   on facility_issues for select to authenticated using (true);
-create policy "insert" on facility_issues for insert to authenticated with check (true);
-create policy "update" on facility_issues for update to authenticated using (true);
+create policy "read"   on facility_issues for select to anon using (true);
+create policy "insert" on facility_issues for insert to anon with check (true);
+create policy "update" on facility_issues for update to anon using (true);
