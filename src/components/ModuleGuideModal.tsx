@@ -44,6 +44,11 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['All roles'],
     mockNote: 'Seeded with a realistic schedule for the pilot crew showing opens, closes, mids, and a PTO day.',
   },
+  'issue-log': {
+    what: 'Facility and equipment issue tracker. Log broken equipment, facility problems, or anything affecting operations. Issues stay open until manually cleared — every entry gets a timestamp, severity, and a resolution path.',
+    roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Branch Manager', 'Operations Manager', 'City Manager'],
+    mockNote: 'No seeded issues — log a test issue and clear it to see the full flow.',
+  },
 };
 
 interface Props {

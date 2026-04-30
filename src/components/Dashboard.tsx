@@ -17,7 +17,7 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, facilityIssues } = useGarage();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
@@ -126,6 +126,20 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
+
+        {/* High-severity issue banner */}
+        {(() => {
+          const count = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
+          if (count === 0) return null;
+          return (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
+              <span className="shrink-0">🔴</span>
+              <p>
+                <strong>{count}</strong> high-severity facility issue{count > 1 ? 's require' : ' requires'} attention.
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <SummaryCards

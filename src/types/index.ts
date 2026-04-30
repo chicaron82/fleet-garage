@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -136,7 +136,8 @@ export type Screen =
   | { name: 'audits' }
   | { name: 'audit-form' }
   | { name: 'analytics' }
-  | { name: 'schedule' };
+  | { name: 'schedule' }
+  | { name: 'issue-log' };
 
 // ── Audits ───────────────────────────────────────────────────────────────────
 
@@ -212,4 +213,21 @@ export interface ShiftWithUser extends Shift {
     name: string;
     role: UserRole;
   };
+}
+
+// ── Issue Log ─────────────────────────────────────────────────────────────────
+
+export type IssueSeverity = 'low' | 'medium' | 'high';
+
+export interface FacilityIssue {
+  id: string;
+  branchId: string;
+  title: string;
+  description?: string;
+  severity: IssueSeverity;
+  reportedById: string;
+  reportedAt: string;
+  clearedById?: string;
+  clearedAt?: string;
+  notes?: string;
 }

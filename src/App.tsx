@@ -20,6 +20,7 @@ const CheckInView        = lazy(() => import('./components/CheckInView').then(m 
 const AuditDashboard     = lazy(() => import('./components/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
 const AuditForm          = lazy(() => import('./components/AuditForm').then(m => ({ default: m.AuditForm })));
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const IssueLogView       = lazy(() => import('./components/IssueLogView').then(m => ({ default: m.IssueLogView })));
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -121,6 +122,8 @@ export default function App() {
         return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
       case 'analytics':
         return <AnalyticsDashboard />;
+      case 'issue-log':
+        return <IssueLogView />;
       default:
         return (
           <Dashboard

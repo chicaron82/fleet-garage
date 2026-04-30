@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -66,14 +66,18 @@ interface GarageContextValue {
   markReturned: (holdId: string) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
+  facilityIssues: FacilityIssue[];
+  addIssue: (data: { title: string; description?: string; severity: IssueSeverity }) => Promise<void>;
+  clearIssue: (issueId: string, notes?: string) => Promise<void>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
 
 export function GarageProvider({ children }: { children: React.ReactNode }) {
-  const { activeBranch } = useAuth();
+  const { user, activeBranch } = useAuth();
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
+  const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
@@ -89,19 +93,38 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      const [{ data: vData }, { data: hData }] = await Promise.all([
+      const [{ data: vData }, { data: hData }, { data: iData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
+        supabase.from('facility_issues').select('*').eq('branch_id', activeBranch === 'ALL' ? activeBranch : activeBranch).order('reported_at', { ascending: false }),
       ]);
       setAllVehicles((vData ?? []).map(mapVehicle));
       setAllHolds((hData ?? []).map(mapHold));
+      setFacilityIssues((iData ?? []).map(rowToIssue));
       setLoading(false);
     }
     load();
   }, []);
 
-  const getVehicle = (id: string) => vehicles.find(v => v.id === id);
+// ── Issue mapper ──────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToIssue(row: any): FacilityIssue {
+  return {
+    id:           row.id,
+    branchId:     row.branch_id,
+    title:        row.title,
+    description:  row.description ?? undefined,
+    severity:     row.severity as IssueSeverity,
+    reportedById: row.reported_by,
+    reportedAt:   row.reported_at,
+    clearedById:  row.cleared_by ?? undefined,
+    clearedAt:    row.cleared_at ?? undefined,
+    notes:        row.notes ?? undefined,
+  };
+}
+
+  const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber.toLowerCase() === unitNumber.toLowerCase());
 
@@ -382,6 +405,33 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const addIssue = async ({ title, description, severity }: { title: string; description?: string; severity: IssueSeverity }) => {
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const { data } = await supabase.from('facility_issues').insert({
+      branch_id:   branchId,
+      title,
+      description,
+      severity,
+      reported_by: user!.id,
+    }).select().single();
+    if (data) setFacilityIssues(prev => [rowToIssue(data), ...prev]);
+  };
+
+  const clearIssue = async (issueId: string, notes?: string) => {
+    const clearedAt = new Date().toISOString();
+    await supabase.from('facility_issues').update({
+      cleared_by: user!.id,
+      cleared_at: clearedAt,
+      notes,
+    }).eq('id', issueId);
+    setFacilityIssues(prev =>
+      prev.map(i => i.id === issueId
+        ? { ...i, clearedById: user!.id, clearedAt, notes }
+        : i
+      )
+    );
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
@@ -389,6 +439,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
       shuttlePlate, setShuttlePlate,
+      facilityIssues, addIssue, clearIssue,
     }}>
       {children}
     </GarageContext.Provider>

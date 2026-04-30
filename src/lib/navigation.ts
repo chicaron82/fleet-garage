@@ -19,17 +19,18 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'schedule',       label: 'Schedule',      icon: '📅', defaultScreen: { name: 'schedule' } },
   { module: 'inventory',      label: 'Inventory',     icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
+  { module: 'issue-log',      label: 'Issue Log',     icon: '⚠️', defaultScreen: { name: 'issue-log' } },
 ];
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['trips', 'schedule', 'lost-and-found'],
-  'VSA':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'inventory', 'lost-and-found'],
-  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'trips', 'schedule', 'inventory', 'lost-and-found'],
-  'CSR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found'],
-  'HIR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
-  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found'],
+  'VSA':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log'],
+  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log'],
+  'CSR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found', 'issue-log'],
+  'HIR':                 ['fleet-garage', 'check-in', 'trips', 'schedule', 'lost-and-found', 'issue-log'],
+  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log'],
+  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log'],
+  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
