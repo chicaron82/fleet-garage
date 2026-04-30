@@ -91,6 +91,12 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
   const [tripState, setTripState] = useState<TripState>('form');
 
+  // Route state machine
+  type RouteStep = 'origin' | 'destination' | 'confirmed';
+  const [routeStep, setRouteStep]   = useState<RouteStep>('origin');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]     = useState('');
+
   // Form fields
   const [plate, setPlate]                     = useState('');
   const [from, setFrom]                       = useState<VSALocation>('Washbay');
@@ -144,9 +150,38 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   };
   const handleConditionTap = (c: Condition) => { hapticLight(); setCondition(c); setConditionManual(true); };
 
+  const handleLocationTap = (loc: VSALocation) => {
+    if (routeStep === 'origin') {
+      hapticLight();
+      handleSetFrom(loc);
+      setRouteStep('destination');
+    } else if (routeStep === 'destination') {
+      if (loc === from) {
+        // Same pill tapped — deselect, back to origin step
+        hapticLight();
+        handleSetFrom('Washbay');
+        setCustomFrom('');
+        setRouteStep('origin');
+      } else {
+        hapticMedium(); // route confirmed — stronger feedback
+        handleSetTo(loc);
+        setRouteStep('confirmed');
+      }
+    }
+  };
+
+  const handleRouteReset = () => {
+    hapticLight();
+    handleSetFrom('Washbay');
+    handleSetTo('Airport');
+    setCustomFrom('');
+    setCustomTo('');
+    setRouteStep('origin');
+  };
+
   const queueRequired = from === 'Washbay';
   const fuelConditional = to === 'Washbay' && !isShuttle;
-  const canStart = plate.trim().length > 0 && reason !== null && !!authorization && (!queueRequired || queue !== null);
+  const canStart = plate.trim().length > 0 && routeStep === 'confirmed' && reason !== null && !!authorization && (!queueRequired || queue !== null);
 
   const handleStartTrip = () => {
     hapticMedium();
@@ -195,6 +230,8 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setReason(null); setQueue(null); setFuel(null); setAuthorization(null);
     setNotes(''); setIsShuttle(false);
     setDepartureTime(''); setArrivalTime(''); setElapsed('');
+    setRouteStep('origin');
+    setCustomFrom(''); setCustomTo('');
   };
 
   const notesField = (
@@ -245,22 +282,76 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         {/* ─── FORM ──────────────────────────────────────────────────────── */}
         {tripState === 'form' && (
           <>
-            {/* Route */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">From</label>
-                <select value={from} onChange={e => handleSetFrom(e.target.value as VSALocation)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer">
-                  {VSA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">To</label>
-                <select value={to} onChange={e => handleSetTo(e.target.value as VSALocation)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer">
-                  {VSA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
-                </select>
-              </div>
+            {/* ─── ROUTE STATE MACHINE ─────────────────────────────────────── */}
+            <div className="space-y-2">
+
+              {/* Header */}
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {routeStep === 'origin'      && 'Starting at?'}
+                {routeStep === 'destination' && 'Going to?'}
+                {routeStep === 'confirmed'   && 'Route'}
+              </p>
+
+              {/* Locked origin / confirmed route — tapping resets to State 0 */}
+              {(routeStep === 'destination' || routeStep === 'confirmed') && (
+                <button
+                  type="button"
+                  onClick={handleRouteReset}
+                  className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:underline transition cursor-pointer"
+                >
+                  From: {from === 'Other' ? (customFrom || 'Other') : from}
+                  {routeStep === 'confirmed' && (
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">
+                      {' '}→ To: {to === 'Other' ? (customTo || 'Other') : to}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* Location pills (State 0 + 1) */}
+              {routeStep !== 'confirmed' && (
+                <div className="flex gap-2 flex-wrap">
+                  {VSA_LOCATIONS.map(loc => (
+                    <button
+                      key={loc}
+                      type="button"
+                      onClick={() => handleLocationTap(loc)}
+                      className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                        routeStep === 'destination' && loc === from
+                          ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
+                          : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                      }`}
+                    >
+                      {loc}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* "Other" text input — origin */}
+              {routeStep === 'destination' && from === 'Other' && (
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Specify origin…"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                />
+              )}
+
+              {/* "Other" text input — destination */}
+              {routeStep === 'confirmed' && to === 'Other' && (
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Specify destination…"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                />
+              )}
+
             </div>
 
             {/* License Plate */}
