@@ -49,6 +49,11 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Branch Manager', 'Operations Manager', 'City Manager'],
     mockNote: 'No seeded issues — log a test issue and clear it to see the full flow.',
   },
+  'manifest': {
+    what: 'Today\'s reservation manifest with seasonal priority intelligence. Shows what classes are needed for upcoming pickups — so VSAs grab the right car before moving. Priority order shifts automatically by season: summer favours sedans, winter favours AWD SUVs.',
+    roles: ['All roles'],
+    mockNote: 'Generated fresh each day from a seeded algorithm. Same date always produces the same manifest — consistent across devices during a demo.',
+  },
 };
 
 interface Props {

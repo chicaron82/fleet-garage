@@ -3,11 +3,11 @@ import type { User, Vehicle, Hold, BranchConfig, BranchId } from '../types';
 
 // ── Branch Configs ────────────────────────────────────────────────────────────
 export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
-  'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log'] },
-  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'trips'] },
-  'YYC': { id: 'YYC', name: 'Calgary (YYC)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log'] },
-  'YVR': { id: 'YVR', name: 'Vancouver (YVR)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log'] },
-  'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log'] }
+  'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'trips', 'manifest'] },
+  'YYC': { id: 'YYC', name: 'Calgary (YYC)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'YVR': { id: 'YVR', name: 'Vancouver (YVR)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] }
 };
 
 

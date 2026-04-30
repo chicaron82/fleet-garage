@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log';
+export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -137,7 +137,8 @@ export type Screen =
   | { name: 'audit-form' }
   | { name: 'analytics' }
   | { name: 'schedule' }
-  | { name: 'issue-log' };
+  | { name: 'issue-log' }
+  | { name: 'manifest' };
 
 // ── Audits ───────────────────────────────────────────────────────────────────
 

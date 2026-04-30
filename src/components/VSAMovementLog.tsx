@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
+import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { canRelease } from '../types';
 
 const VSA_LOCATIONS = [
@@ -126,8 +127,13 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   };
 
   // Vehicle lookup — pure computation, no effect needed
-  const vehicleMeta = useMemo(() => {
-    const t = plate.trim().replace(/\s/g, '').toUpperCase();
+  const topClasses = useMemo(() => {
+    const manifest = generateDayManifest();
+    const next5 = getNextFiveNeeded(manifest);
+    return [...new Set(next5.map(r => r.rentalClass))].slice(0, 3);
+  }, []);
+
+  const vehicleMeta = useMemo(() => {    const t = plate.trim().replace(/\s/g, '').toUpperCase();
     if (isShuttle) return 'Internal Transport · Lot Shuttle';
     if (t.length < 3) return null;
     const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
@@ -291,6 +297,17 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
                 {routeStep === 'destination' && 'Going to?'}
                 {routeStep === 'confirmed'   && 'Route'}
               </p>
+
+              {/* Priority hint — visible before VSA picks origin */}
+              {routeStep === 'origin' && topClasses.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <span className="text-xs shrink-0">📋</span>
+                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                    <span className="font-semibold">Priority this window:</span>{' '}
+                    {topClasses.join(', ')}
+                  </p>
+                </div>
+              )}
 
               {/* Locked origin / confirmed route — tapping resets to State 0 */}
               {(routeStep === 'destination' || routeStep === 'confirmed') && (
