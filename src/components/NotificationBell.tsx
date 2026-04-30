@@ -95,8 +95,8 @@ export function NotificationBell() {
 
       {inboxOpen && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setInboxOpen(false)} />
-          <div className="absolute top-full right-0 z-20 w-80 max-w-[calc(100vw-1.5rem)] mt-1 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+          <div className="fixed inset-0 z-40" onClick={() => setInboxOpen(false)} />
+          <div className="absolute top-full right-0 z-50 w-80 max-w-[calc(100vw-1.5rem)] mt-1 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
