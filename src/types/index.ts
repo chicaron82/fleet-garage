@@ -68,7 +68,8 @@ export function canVsaClear(reason: DetailReason): boolean {
 export interface Hold {
   id: string;
   vehicleId: string;
-  holdType: HoldType;
+  holdTypes: HoldType[];   // all types for this hold (min 1)
+  holdType: HoldType;      // primary type = holdTypes[0], kept for backwards compat
   detailReason?: DetailReason;
   damageDescription: string;   // for damage holds; "Detail required — X" for detail holds
   flaggedById: string;         // User.id

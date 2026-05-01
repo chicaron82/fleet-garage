@@ -73,7 +73,7 @@ export function useReEval() {
       notes.trim() || 'Re-hold from re-evaluation — issue persists',
       user.id,
       [],
-      'detail',
+      ['detail'],
       hold.detailReason,
       holdId,
     );

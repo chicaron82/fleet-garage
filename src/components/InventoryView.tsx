@@ -118,9 +118,9 @@ function InventoryCard({
 }
 
 function HoldCard({
-  unitNumber, licensePlate, year, make, model, status, holdType,
+  unitNumber, licensePlate, year, make, model, status, holdTypes,
 }: {
-  unitNumber: string; licensePlate: string; year: number; make: string; model: string; status: string; holdType?: HoldType;
+  unitNumber: string; licensePlate: string; year: number; make: string; model: string; status: string; holdType?: HoldType; holdTypes?: HoldType[];
 }) {
   return (
     <div className="px-4 py-3 flex items-start justify-between gap-3 transition-colors">
@@ -134,7 +134,7 @@ function HoldCard({
         <p className="text-xs text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Hold Bay</p>
       </div>
-      <StatusBadge status={status as 'HELD'} holdType={holdType} />
+      <StatusBadge status={status as 'HELD'} holdTypes={holdTypes} />
     </div>
   );
 }
@@ -409,6 +409,7 @@ export function InventoryView() {
             key={v.id} unitNumber={v.unitNumber} licensePlate={v.licensePlate}
             year={v.year} make={v.make} model={v.model} status={v.status}
             holdType={getActiveHold(v.id)?.holdType}
+            holdTypes={getActiveHold(v.id)?.holdTypes}
           />
         ))}
       </ZoneSection>

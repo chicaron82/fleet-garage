@@ -211,9 +211,9 @@ export function AnalyticsDashboard() {
 
   // Holds by type — live
   const liveHoldTypes = (() => {
-    const damage = activeHolds.filter(h => h.holdType === 'damage').length;
-    const detail = activeHolds.filter(h => h.holdType === 'detail').length;
-    const mechanical = activeHolds.filter(h => h.holdType === 'mechanical').length;
+    const damage     = activeHolds.filter(h => h.holdTypes.includes('damage')).length;
+    const detail     = activeHolds.filter(h => h.holdTypes.includes('detail')).length;
+    const mechanical = activeHolds.filter(h => h.holdTypes.includes('mechanical')).length;
     const total = damage + detail + mechanical || 1;
     return [
       { label: 'Damage',     count: damage,     color: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400',  pct: damage / total },
@@ -226,7 +226,7 @@ export function AnalyticsDashboard() {
   const liveDamageTypes = (() => {
     const counts: Record<string, number> = {};
     activeHolds
-      .filter(h => h.holdType === 'damage')
+      .filter(h => h.holdTypes.includes('damage'))
       .forEach(h => {
         h.damageDescription.split(',').forEach(part => {
           const key = part.trim();

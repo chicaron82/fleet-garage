@@ -13,7 +13,7 @@ export function useNewHold(preselectedId?: string) {
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
-  const [holdType, setHoldType] = useState<HoldType>('damage');
+  const [holdTypes, setHoldTypes] = useState<HoldType[]>(['damage']);
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
   const [customDamage, setCustomDamage] = useState('');
   const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
@@ -39,17 +39,39 @@ export function useNewHold(preselectedId?: string) {
     : [];
 
   const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
-  const finalDamage = holdType === 'detail'
-    ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}`
-    : holdType === 'mechanical'
-      ? mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ')
-      : damageTypes.map(t => t === 'Other' ? customDamage.trim() : t).filter(Boolean).join('; ');
 
-  const canSubmit = selectedVehicle && !alreadyHeld && !submitting && (
-    holdType === 'damage' ? !!finalDamage :
-    holdType === 'detail' ? !!detailReason :
-    mechanicalTypes.filter(t => t !== 'Other').length > 0 || (mechanicalTypes.includes('Other') && !!customMechanical.trim())
-  );
+  // Per-type descriptions
+  const damageDesc = damageTypes.map(t => t === 'Other' ? customDamage.trim() : t).filter(Boolean).join('; ');
+  const mechanicalDesc = mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ');
+  const detailDesc = detailReason ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}` : '';
+
+  const parts = [
+    holdTypes.includes('damage')     ? damageDesc    : '',
+    holdTypes.includes('detail')     ? detailDesc    : '',
+    holdTypes.includes('mechanical') ? mechanicalDesc : '',
+  ].filter(Boolean);
+  const finalDamage = parts.join('; ');
+
+  const damageOk     = !holdTypes.includes('damage')     || !!damageDesc;
+  const detailOk     = !holdTypes.includes('detail')     || !!detailReason;
+  const mechanicalOk = !holdTypes.includes('mechanical') ||
+    (mechanicalTypes.filter(t => t !== 'Other').length > 0 ||
+     (mechanicalTypes.includes('Other') && !!customMechanical.trim()));
+
+  const canSubmit = !!(selectedVehicle && !alreadyHeld && !submitting && damageOk && detailOk && mechanicalOk);
+
+  // Primary holdType for backwards compat
+  const holdType = holdTypes[0];
+
+  const toggleHoldType = (type: HoldType) => {
+    setHoldTypes(prev => {
+      if (prev.includes(type)) {
+        if (prev.length === 1) return prev; // can't deselect last
+        return prev.filter(t => t !== type);
+      }
+      return [...prev, type];
+    });
+  };
 
   const toggleDamageType = (preset: string) => {
     setDamageTypes(prev =>
@@ -70,13 +92,6 @@ export function useNewHold(preselectedId?: string) {
 
   const clearVehicle = () => setSelectedVehicleId(null);
 
-  const switchHoldType = (type: HoldType) => {
-    setHoldType(type);
-    if (type !== 'damage') { setDamageTypes([]); setCustomDamage(''); }
-    if (type !== 'detail') { setDetailReason(''); }
-    if (type !== 'mechanical') { setMechanicalTypes([]); setCustomMechanical(''); }
-  };
-
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
@@ -95,7 +110,7 @@ export function useNewHold(preselectedId?: string) {
     if (!canSubmit || !selectedVehicle) return null;
     setSubmitting(true);
     try {
-      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdType, detailReason || undefined);
+      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdTypes, detailReason || undefined);
       return selectedVehicle.id;
     } catch {
       setSubmitting(false);
@@ -108,7 +123,7 @@ export function useNewHold(preselectedId?: string) {
     unitSearch, setUnitSearch,
     selectedVehicle, alreadyHeld, preselectedId,
     searchResults, noResults,
-    holdType, switchHoldType,
+    holdTypes, holdType, toggleHoldType,
     damageTypes, toggleDamageType,
     customDamage, setCustomDamage,
     detailReason, setDetailReason,

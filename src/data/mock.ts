@@ -121,7 +121,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h1',
     vehicleId: 'v1',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Deep scratch on driver-side rear door. Paint chipped to metal. Approx 8 inches.',
     flaggedById: 'u1', // Aaron S.
     flaggedAt: '2026-04-05T14:22:00',
@@ -134,7 +134,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h2',
     vehicleId: 'v2',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Cracked windshield — passenger side. Spider crack from lower corner, approx 14 inches.',
     flaggedById: 'u3', // Belle
     flaggedAt: '2026-03-28T09:10:00',
@@ -158,7 +158,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h3',
     vehicleId: 'v3',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Front bumper damage — passenger side. Impact dent with cracked housing. Turn signal intact.',
     flaggedById: 'u2', // DiZee
     flaggedAt: '2026-03-10T16:05:00',
@@ -183,7 +183,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h4',
     vehicleId: 'v3',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Interior — rear seat. Beverage stain, passenger side. Detailing could not fully remove.',
     flaggedById: 'u4', // CoZee (CSR)
     flaggedAt: '2026-02-14T13:45:00',
@@ -208,7 +208,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h5',
     vehicleId: 'v5',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Missing driver-side mirror cap. Mirror glass intact. Clip housing broken.',
     flaggedById: 'u1', // Aaron S.
     flaggedAt: '2026-04-07T08:55:00',
@@ -221,7 +221,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h6',
     vehicleId: 'v7',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Dent — major / crumple',
     flaggedById: 'u3', // Belle (HIR)
     flaggedAt: '2025-11-14T10:20:00',
@@ -246,7 +246,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h7',
     vehicleId: 'v7',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Dent — major / crumple',
     flaggedById: 'u1', // Aaron S.
     flaggedAt: '2026-04-08T11:30:00',
@@ -260,7 +260,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h8',
     vehicleId: 'v8',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Front bumper scrape — passenger side. Cosmetic, paint scuffed, no structural damage. Approx 6 inches.',
     flaggedById: 'u14', // Marcus L. (Calgary VSA)
     flaggedAt: '2026-04-05T11:20:00',
@@ -273,7 +273,7 @@ export const HOLDS: Hold[] = [
   {
     id: 'h9',
     vehicleId: 'v9',
-    holdType: 'damage' as const,
+    holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Rear quarter panel dent — driver side. Impact dent, no paint break. Approx 4 inches diameter.',
     flaggedById: 'u3', // Belle (YWG VSA)
     flaggedAt: '2026-04-14T09:45:00',

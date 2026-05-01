@@ -4,6 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import { hapticHeavy } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
+import { holdTypePillClass } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
 import { VerbalOverrideForm } from './VerbalOverrideForm';
 import { HoldRecordFooter } from './HoldRecordFooter';
@@ -209,23 +210,18 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   <div className="flex items-start justify-between gap-3 mb-1">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
-                      {hold.holdType === 'mechanical' && (
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                          Mechanical
+                      {(hold.holdTypes.length > 1 || hold.holdTypes[0] !== 'damage') && hold.holdTypes.map(type => (
+                        <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
                         </span>
-                      )}
-                      {hold.holdType === 'detail' && (
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400">
-                          Detail
-                        </span>
-                      )}
+                      ))}
                       {hold.branchId !== vehicle.branchId && (
                         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
                           🛫 Flagged at {hold.branchId}
                         </span>
                       )}
                     </div>
-                    <StatusBadge status={hold.status} holdType={hold.holdType} />
+                    <StatusBadge status={hold.status} holdTypes={hold.holdTypes} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">

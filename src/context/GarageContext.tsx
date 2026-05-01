@@ -59,7 +59,7 @@ interface GarageContextValue {
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>) => Promise<string>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdType?: HoldType, detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
@@ -185,7 +185,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     notes: string,
     flaggedById: string,
     photos?: string[],
-    holdType: HoldType = 'damage',
+    holdTypes: HoldType[] = ['damage'],
     detailReason?: DetailReason,
     linkedHoldId?: string,
   ) => {
@@ -202,7 +202,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from('holds').insert({
       id:                 holdId,
       vehicle_id:         vehicleId,
-      hold_type:          holdType,
+      hold_type:          holdTypes[0],
+      hold_types:         holdTypes,
       detail_reason:      detailReason ?? null,
       damage_description: damageDescription,
       flagged_by_id:      flaggedById,
@@ -227,7 +228,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
 
     const newHold: Hold = {
-      id: holdId, vehicleId, holdType, detailReason, linkedHoldId,
+      id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, linkedHoldId,
       damageDescription, flaggedById, flaggedAt, notes,
       photos: photoUrls, status: 'ACTIVE',
       branchId,

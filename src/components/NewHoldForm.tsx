@@ -180,14 +180,14 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 What are you flagging?
               </h2>
 
-              {/* Hold Type Toggle */}
+              {/* Hold Type Toggle — multi-select */}
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => { hapticLight(); h.switchHoldType('damage'); }}
+                  onClick={() => { hapticLight(); h.toggleHoldType('damage'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
-                    h.holdType === 'damage'
-                      ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
+                    h.holdTypes.includes('damage')
+                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-gray-900 dark:text-gray-100'
                       : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
@@ -196,10 +196,10 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => { hapticLight(); h.switchHoldType('detail'); }}
+                  onClick={() => { hapticLight(); h.toggleHoldType('detail'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
-                    h.holdType === 'detail'
-                      ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100'
+                    h.holdTypes.includes('detail')
+                      ? 'border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-gray-900 dark:text-gray-100'
                       : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
@@ -208,10 +208,10 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </button>
                 <button
                   type="button"
-                  onClick={() => { hapticLight(); h.switchHoldType('mechanical'); }}
+                  onClick={() => { hapticLight(); h.toggleHoldType('mechanical'); }}
                   className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
-                    h.holdType === 'mechanical'
-                      ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100'
+                    h.holdTypes.includes('mechanical')
+                      ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/20 text-gray-900 dark:text-gray-100'
                       : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                   }`}
                 >
@@ -221,7 +221,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               </div>
 
               {/* Damage Type */}
-              {h.holdType === 'damage' && (
+              {h.holdTypes.includes('damage') && (
               <div>
                 <div className="flex items-baseline justify-between mb-1.5">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
@@ -262,7 +262,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               )}
 
               {/* Detail Reason */}
-              {h.holdType === 'detail' && (
+              {h.holdTypes.includes('detail') && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Detail Reason *
@@ -287,7 +287,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               )}
 
               {/* Mechanical Type */}
-              {h.holdType === 'mechanical' && (
+              {h.holdTypes.includes('mechanical') && (
               <div>
                 <div className="flex items-baseline justify-between mb-1.5">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
