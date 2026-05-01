@@ -112,6 +112,23 @@ export interface Repair {
   notes: string;
 }
 
+// ── Handoff Notes ─────────────────────────────────────────────────────────────
+
+export type LotStatus = 'zeroed' | 'manageable' | 'backlog';
+
+export interface HandoffNote {
+  id: string;
+  branchId: string;
+  loggedById: string;
+  loggedByName: string;
+  loggedAt: string;
+  dirtiesInQueue: number;
+  cleansAtAirport: number;
+  expectedReturns?: string;
+  notes?: string;
+  lotStatus: LotStatus;
+}
+
 // ── Scanner ───────────────────────────────────────────────────────────────────
 
 export interface ScannedPayload {

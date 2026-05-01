@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity, WashbayLog } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { mapVehicle, mapHold, mapIssue, mapWashbayLog } from '../lib/garage-mappers';
+import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote } from '../lib/garage-mappers';
 
 // ── Notification helper ───────────────────────────────────────────────────────
 
@@ -72,6 +72,9 @@ interface GarageContextValue {
   washbayLogs: WashbayLog[];
   submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>) => Promise<boolean>;
   getTodayWashbayLog: () => WashbayLog | undefined;
+  handoffNotes: HandoffNote[];
+  latestHandoff: HandoffNote | undefined;
+  submitHandoff: (data: { dirtiesInQueue: number; cleansAtAirport: number; lotStatus: LotStatus; expectedReturns?: string; notes?: string }) => Promise<boolean>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -82,6 +85,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
   const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
   const [washbayLogs, setWashbayLogs] = useState<WashbayLog[]>([]);
+  const [handoffNotes, setHandoffNotes] = useState<HandoffNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
@@ -97,16 +101,18 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }] = await Promise.all([
+      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
         supabase.from('facility_issues').select('*').eq('branch_id', activeBranch === 'ALL' ? activeBranch : activeBranch).order('reported_at', { ascending: false }),
         supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
+        supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
       ]);
       setAllVehicles((vData ?? []).map(mapVehicle));
       setAllHolds((hData ?? []).map(mapHold));
       setFacilityIssues((iData ?? []).map(mapIssue));
       setWashbayLogs((wData ?? []).map(mapWashbayLog));
+      setHandoffNotes((nData ?? []).map(mapHandoffNote));
       setLoading(false);
     }
     load();
@@ -459,6 +465,38 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return washbayLogs.find(l => l.date === today);
   };
 
+  const latestHandoff = handoffNotes[0];
+
+  const submitHandoff = async (data: {
+    dirtiesInQueue: number;
+    cleansAtAirport: number;
+    lotStatus: LotStatus;
+    expectedReturns?: string;
+    notes?: string;
+  }): Promise<boolean> => {
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const loggedAt = new Date().toISOString();
+    try {
+      const { data: row, error } = await supabase.from('handoff_notes').insert({
+        branch_id:        branchId,
+        logged_by:        user!.id,
+        logged_by_name:   user!.name,
+        logged_at:        loggedAt,
+        dirties_in_queue: data.dirtiesInQueue,
+        cleans_at_airport: data.cleansAtAirport,
+        lot_status:       data.lotStatus,
+        expected_returns: data.expectedReturns ?? null,
+        notes:            data.notes ?? null,
+      }).select().single();
+      if (error) throw error;
+      setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
+      return true;
+    } catch (err) {
+      console.error('Failed to submit handoff note:', err);
+      return false;
+    }
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
@@ -468,6 +506,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       shuttlePlate, setShuttlePlate,
       facilityIssues, addIssue, clearIssue,
       washbayLogs, submitWashbayLog, getTodayWashbayLog,
+      handoffNotes, latestHandoff, submitHandoff,
     }}>
       {children}
     </GarageContext.Provider>

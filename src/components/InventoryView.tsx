@@ -4,6 +4,7 @@ import { MOCK_INVENTORY } from '../data/inventory';
 import type { InventoryItem, InventoryClassification, Zone } from '../data/inventory';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { WashbayClosingLog } from './WashbayClosingLog';
+import { HandoffForm } from './HandoffForm';
 import { StatusBadge } from './StatusBadge';
 import type { ScannedPayload, HoldType } from '../types';
 
@@ -233,6 +234,7 @@ export function InventoryView() {
   const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [showHandoffForm, setShowHandoffForm] = useState(false);
 
   // Hold Bay — active holds only, sorted by most recent flaggedAt so fresh flags surface first
   const heldVehicles = vehicles
@@ -442,6 +444,17 @@ export function InventoryView() {
 
       {/* Closing Duties */}
       <WashbayClosingLog />
+
+      {/* End of shift handoff */}
+      <button
+        type="button"
+        onClick={() => setShowHandoffForm(true)}
+        className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
+      >
+        Log Shift Handoff →
+      </button>
+
+      {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
 
     </div>
   );

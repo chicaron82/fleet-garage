@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -126,5 +126,20 @@ export function mapHold(row: Row): Hold {
     release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
     repair:             repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
     branchId:           (optStr(row, 'branch_id') ?? 'YWG') as BranchId,
+  };
+}
+
+export function mapHandoffNote(row: Row): HandoffNote {
+  return {
+    id:               reqStr(row, 'id',               'mapHandoffNote'),
+    branchId:         reqStr(row, 'branch_id',        'mapHandoffNote'),
+    loggedById:       reqStr(row, 'logged_by',        'mapHandoffNote'),
+    loggedByName:     reqStr(row, 'logged_by_name',   'mapHandoffNote'),
+    loggedAt:         reqStr(row, 'logged_at',        'mapHandoffNote'),
+    dirtiesInQueue:   reqNum(row, 'dirties_in_queue', 'mapHandoffNote'),
+    cleansAtAirport:  reqNum(row, 'cleans_at_airport','mapHandoffNote'),
+    expectedReturns:  optStr(row, 'expected_returns'),
+    notes:            optStr(row, 'notes'),
+    lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
   };
 }
