@@ -33,6 +33,7 @@ export function IssueLogView() {
 
   const openIssues    = facilityIssues.filter(i => !i.clearedAt);
   const clearedIssues = facilityIssues.filter(i => !!i.clearedAt);
+  const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
 
   const getUserName = (userId: string) =>
     USERS.find((u: { id: string; name: string }) => u.id === userId)?.name ?? userId;
@@ -152,6 +153,21 @@ export function IssueLogView() {
           </p>
         </div>
       </div>
+
+      {/* High-severity banner — all roles */}
+      {openHighIssues > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-lg shrink-0">🔴</span>
+          <div>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+              {openHighIssues} high-severity issue{openHighIssues !== 1 ? 's' : ''} open
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">
+              {openHighIssues !== 1 ? 'These require' : 'This requires'} attention — see below
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Open Issues */}
       <section className="space-y-3">

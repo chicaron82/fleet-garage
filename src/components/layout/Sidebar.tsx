@@ -8,6 +8,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../../context/AuthContext';
+import { useGarage } from '../../context/GarageContext';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -28,8 +29,8 @@ interface Props {
 }
 
 function SortableNavItem({
-  item, isHidden, onToggleHidden,
-}: { item: NavItem; isHidden: boolean; onToggleHidden: () => void }) {
+  item, isHidden, onToggleHidden, badge,
+}: { item: NavItem; isHidden: boolean; onToggleHidden: () => void; badge?: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.module });
 
@@ -57,6 +58,7 @@ function SortableNavItem({
       <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
         {item.icon} {item.label}
       </span>
+      {badge ? <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /> : null}
       <button
         type="button"
         className="text-gray-400 cursor-grab active:cursor-grabbing px-1"
@@ -77,6 +79,9 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
+  const { facilityIssues } = useGarage();
+  const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
+  const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
   const [editMode, setEditMode]     = useState(false);
   const [localOrder, setLocalOrder] = useState<Module[]>([]);
@@ -221,6 +226,9 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
               >
                 <span className="text-base leading-none">{item.icon}</span>
                 <span>{item.label}</span>
+                {MODULE_BADGES[item.module] ? (
+                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                ) : null}
               </button>
               {onShowGuide && (
                 <button
@@ -246,6 +254,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                     item={item}
                     isHidden={hidden.includes(item.module)}
                     onToggleHidden={() => toggleHidden(item.module)}
+                    badge={MODULE_BADGES[item.module]}
                   />
                 ))}
               </div>

@@ -143,10 +143,10 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
-        {/* High-severity issue banner */}
+        {/* High-severity issue banner — management only */}
         {(() => {
           const count = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
-          if (count === 0) return null;
+          if (count === 0 || !canRelease(user!.role)) return null;
           return (
             <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
               <span className="shrink-0">🔴</span>
