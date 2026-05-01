@@ -24,11 +24,11 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
-  'Driver':              ['movement-log', 'analytics', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'CSR':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'HIR':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
+  'VSA':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'CSR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'HIR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
   'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
   'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],

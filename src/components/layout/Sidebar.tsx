@@ -9,6 +9,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../../context/AuthContext';
 import { useGarage } from '../../context/GarageContext';
+import { useFleetBalance } from '../../hooks/useFleetBalance';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -80,6 +81,8 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
   const { facilityIssues } = useGarage();
+  const { getTodayEntry } = useFleetBalance();
+  const todayFleetEntry = getTodayEntry();
   const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
@@ -192,6 +195,30 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           </button>
         )}
       </div>
+
+      {/* Fleet balance strip — non-management only */}
+      {!['Branch Manager', 'Operations Manager', 'City Manager'].includes(user.role) && (
+        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+          {todayFleetEntry ? (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Fleet Today</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Out</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{todayFleetEntry.outCount}</span>
+                </div>
+                <span className="text-gray-300 dark:text-gray-700">·</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">In</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{todayFleetEntry.inCount}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">No fleet numbers today</p>
+          )}
+        </div>
+      )}
 
       {/* Branch Selector */}
       {user.role === 'City Manager' && (
