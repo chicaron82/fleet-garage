@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { USERS } from '../data/mock';
 import { DAMAGE_PRESETS } from '../lib/hold-presets';
 import { compressImage } from '../lib/image';
+import { hapticLight } from '../lib/haptics';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { StatusBadge } from './StatusBadge';
 import { PhotoLightbox } from './PhotoLightbox';
@@ -46,6 +47,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
   const [customDamage, setCustomDamage] = useState('');
   const [reHoldNotes, setReHoldNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [reattachPhotos, setReattachPhotos] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [reHolded, setReHolded] = useState(false);
   const [showPriorDamageForm, setShowPriorDamageForm] = useState(false);
@@ -76,6 +78,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
     const toAdd = files.slice(0, remaining);
     const compressed = await Promise.all(toAdd.map(compressImage));
     setPhotos(prev => [...prev, ...compressed]);
+    setReattachPhotos(false); // new photos take precedence
     e.target.value = '';
   };
 
@@ -91,8 +94,12 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
   };
 
   const handlePriorDamageSubmit = async () => {
+    const originalPhotos = mostRecent?.photos ?? [];
+    const photosToSubmit = reattachPhotos && photos.length === 0
+      ? originalPhotos
+      : photos;
     setSubmitting(true);
-    await onReHold(vehicle.id, mostRecent.damageDescription, reHoldNotes, photos, mostRecent.id);
+    await onReHold(vehicle.id, mostRecent.damageDescription, reHoldNotes, photosToSubmit, mostRecent.id);
     setReHolded(true);
     setShowPriorDamageForm(false);
     setSubmitting(false);
@@ -105,6 +112,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
     setCustomDamage('');
     setReHoldNotes('');
     setPhotos([]);
+    setReattachPhotos(true);
   };
 
   const canSubmitReHold = damageTypes.length > 0 && photos.length > 0 && !submitting;
@@ -269,54 +277,100 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                   />
                 </div>
 
-                {/* Photos — required */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                    Photos * (required · max {MAX_PHOTOS})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {photos.map((src, i) => (
-                      <div key={i} className="relative">
-                        <img
-                          src={src}
-                          alt={`Damage photo ${i + 1}`}
-                          className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    {photos.length < MAX_PHOTOS && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => cameraRef.current?.click()}
-                          className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
-                        >
-                          <span className="text-lg leading-none">📷</span>
-                          <span className="text-xs font-medium">Take Photo</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => galleryRef.current?.click()}
-                          className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
-                        >
-                          <span className="text-lg leading-none">🖼</span>
-                          <span className="text-xs font-medium">Gallery</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoAdd} className="hidden" />
-                  <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoAdd} className="hidden" />
-                  {photos.length === 0 && (
-                    <p className="text-xs text-red-500 dark:text-red-400 mt-1">At least one photo required to confirm damage.</p>
-                  )}
+                {/* Photos */}
+                <div className="space-y-2">
+                  {(() => {
+                    const originalPhotos = mostRecent?.photos ?? [];
+                    const hasOriginalPhotos = originalPhotos.length > 0;
+                    return (
+                      <>
+                        {/* Reattach checkbox — only shown when original hold has photos */}
+                        {hasOriginalPhotos && (
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={reattachPhotos}
+                                onChange={e => {
+                                  hapticLight();
+                                  setReattachPhotos(e.target.checked);
+                                  if (e.target.checked) setPhotos([]);
+                                }}
+                                className="w-4 h-4 rounded accent-yellow-400"
+                              />
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                Reattach photos from original hold ({originalPhotos.length} photo{originalPhotos.length !== 1 ? 's' : ''})
+                              </span>
+                            </label>
+                            {reattachPhotos && (
+                              <div className="flex gap-2 flex-wrap">
+                                {originalPhotos.map((url, i) => (
+                                  <img
+                                    key={i}
+                                    src={url}
+                                    alt={`Original hold photo ${i + 1}`}
+                                    className="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-700 opacity-75"
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* New photo inputs — shown when reattach unchecked or no original photos */}
+                        {(!reattachPhotos || !hasOriginalPhotos) && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                              {hasOriginalPhotos ? 'Or add new photos' : `Photos * (required · max ${MAX_PHOTOS})`}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {photos.map((src, i) => (
+                                <div key={i} className="relative">
+                                  <img
+                                    src={src}
+                                    alt={`Damage photo ${i + 1}`}
+                                    className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {photos.length < MAX_PHOTOS && (
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => cameraRef.current?.click()}
+                                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                                  >
+                                    <span className="text-lg leading-none">📷</span>
+                                    <span className="text-xs font-medium">Take Photo</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => galleryRef.current?.click()}
+                                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                                  >
+                                    <span className="text-lg leading-none">🖼</span>
+                                    <span className="text-xs font-medium">Gallery</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoAdd} className="hidden" />
+                            <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoAdd} className="hidden" />
+                            {photos.length === 0 && (
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-1">At least one photo required to confirm damage.</p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -333,7 +387,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                   </button>
                   <button
                     type="button"
-                    disabled={photos.length === 0 || submitting}
+                    disabled={!(reattachPhotos && (mostRecent?.photos ?? []).length > 0) && photos.length === 0 || submitting}
                     onClick={handlePriorDamageSubmit}
                     className="flex-1 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
                   >

@@ -192,9 +192,10 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const holdId = crypto.randomUUID();
     const flaggedAt = new Date().toISOString();
 
-    // Upload photos in parallel, collect public URLs
-    const photoUrls = (await Promise.all((photos ?? []).map(b => uploadPhoto(b, holdId))))
-      .filter((url): url is string => url !== null);
+    // Upload base64 photos; pass through already-resolved URLs unchanged
+    const photoUrls = (await Promise.all(
+      (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
+    )).filter((url): url is string => url !== null);
 
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
 
