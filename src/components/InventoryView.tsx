@@ -4,7 +4,8 @@ import { MOCK_INVENTORY } from '../data/inventory';
 import type { InventoryItem, InventoryClassification, Zone } from '../data/inventory';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { WashbayClosingLog } from './WashbayClosingLog';
-import type { ScannedPayload } from '../types';
+import { StatusBadge } from './StatusBadge';
+import type { ScannedPayload, HoldType } from '../types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -46,18 +47,6 @@ function entryLocationLabel(e: LiveEntry): string {
 const CLASS_STYLES: Record<string, string> = {
   'Rentable':  'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
   'Dirty':     'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  'HELD':              'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-  'OUT_ON_EXCEPTION':  'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-  'RETURNED':          'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  'HELD':             'On Hold',
-  'OUT_ON_EXCEPTION': 'Exception',
-  'RETURNED':         'Returned',
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -129,9 +118,9 @@ function InventoryCard({
 }
 
 function HoldCard({
-  unitNumber, licensePlate, year, make, model, status,
+  unitNumber, licensePlate, year, make, model, status, holdType,
 }: {
-  unitNumber: string; licensePlate: string; year: number; make: string; model: string; status: string;
+  unitNumber: string; licensePlate: string; year: number; make: string; model: string; status: string; holdType?: HoldType;
 }) {
   return (
     <div className="px-4 py-3 flex items-start justify-between gap-3 transition-colors">
@@ -145,9 +134,7 @@ function HoldCard({
         <p className="text-xs text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Hold Bay</p>
       </div>
-      <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[status] ?? ''}`}>
-        {STATUS_LABELS[status] ?? status}
-      </span>
+      <StatusBadge status={status as 'HELD'} holdType={holdType} />
     </div>
   );
 }
@@ -421,6 +408,7 @@ export function InventoryView() {
           <HoldCard
             key={v.id} unitNumber={v.unitNumber} licensePlate={v.licensePlate}
             year={v.year} make={v.make} model={v.model} status={v.status}
+            holdType={getActiveHold(v.id)?.holdType}
           />
         ))}
       </ZoneSection>

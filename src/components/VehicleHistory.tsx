@@ -225,7 +225,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                         </span>
                       )}
                     </div>
-                    <StatusBadge status={hold.status} />
+                    <StatusBadge status={hold.status} holdType={hold.holdType} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -1,4 +1,4 @@
-import type { VehicleStatus, HoldStatus } from '../types';
+import type { VehicleStatus, HoldStatus, HoldType } from '../types';
 
 const VEHICLE_CONFIG: Record<VehicleStatus, { label: string; className: string }> = {
   HELD:            { label: 'Held',          className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50' },
@@ -15,14 +15,25 @@ const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {
   REPAIRED: { label: 'Repaired',   className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50' },
 };
 
-export function StatusBadge({ status }: { status: VehicleStatus | HoldStatus }) {
+const HOLD_TYPE_COLORS: Record<HoldType, string> = {
+  damage:     'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+  mechanical: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+  detail:     'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
+};
+
+export function StatusBadge({ status, holdType }: { status: VehicleStatus | HoldStatus; holdType?: HoldType }) {
   const config =
     status in VEHICLE_CONFIG
       ? VEHICLE_CONFIG[status as VehicleStatus]
       : HOLD_CONFIG[status as HoldStatus];
 
+  const className =
+    holdType && (status === 'HELD' || status === 'ACTIVE')
+      ? HOLD_TYPE_COLORS[holdType]
+      : config.className;
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${config.className}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${className}`}>
       {config.label}
     </span>
   );

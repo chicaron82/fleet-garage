@@ -247,7 +247,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <StatusBadge status={vehicle.status} />
+                    <StatusBadge status={vehicle.status} holdType={latestHold?.holdType} />
                     {streak >= 2 && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         streak >= 3
