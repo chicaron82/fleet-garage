@@ -1,11 +1,13 @@
 // ── Rental Classes ────────────────────────────────────────────────────────────
 
 export type RentalClass =
+  | 'A'    // Economy (Kia Rio)
   | 'A6'   // Manager's Special (wildcard — not revenue-critical)
   | 'B'    // Small sedan (Versa)
   | 'B4'   // Small crossover (Kicks)
   | 'B5'   // Standard crossover (Corolla Cross)
   | 'C'    // Compact (Corolla)
+  | 'D'    // Regular (VW Jetta)
   | 'F'    // Full Size (Camry)
   | 'E1'   // Non-Tesla EV (Niro)
   | 'E6'   // Standard hybrid
