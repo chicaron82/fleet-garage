@@ -232,11 +232,11 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
                       <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
-                      <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
+                      <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                     {latestHold && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold mt-1.5 truncate transition-colors">
+                      <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
                         {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
                       </p>
                     )}
