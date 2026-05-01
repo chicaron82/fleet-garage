@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
   type DragEndEvent, type Modifier,
 } from '@dnd-kit/core';
 import {
@@ -61,7 +61,7 @@ function SortableNavItem({
       {badge ? <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /> : null}
       <button
         type="button"
-        className="text-gray-400 cursor-grab active:cursor-grabbing px-1"
+        className="text-gray-400 cursor-grab active:cursor-grabbing px-1 touch-none"
         onPointerDown={() => hapticLight()}
         {...attributes}
         {...listeners}
@@ -87,7 +87,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [localOrder, setLocalOrder] = useState<Module[]>([]);
   const [hidden, setHidden]         = useState<Module[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
 
   useEffect(() => {
     if (!desktopInboxOpen) return;
