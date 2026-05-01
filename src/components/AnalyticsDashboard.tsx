@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { useFleetBalance, localDateStr } from '../hooks/useFleetBalance';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
+import { USERS } from '../data/mock';
 
 function canEnterFleetBalance(role: string): boolean {
   return ['Branch Manager', 'Operations Manager', 'Lead VSA'].includes(role);
@@ -299,12 +300,14 @@ export function AnalyticsDashboard() {
   const exceptionSummary = isDemo ? DEMO_EXCEPTION_SUMMARY : liveExceptionSummary;
 
   // Fleet balance — always real (Supabase-backed regardless of toggle)
-  const last7Days = Array.from({ length: 7 }, (_, i) => localDateStr(i - 6));
-
-  const fleetBalanceData = last7Days.map((date) => {
-    const entry = entries.find(e => e.date === date);
-    const dayName = new Date(date).toLocaleDateString('en-CA', { weekday: 'short' });
-    return { day: dayName, date, outCount: entry?.outCount, inCount: entry?.inCount, hasData: !!entry };
+  const fleetBalanceData = Array.from({ length: 7 }, (_, i) => {
+    const offsetDays = i - 6;
+    const dateStr = localDateStr(offsetDays);
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const dayName = d.toLocaleDateString('en-CA', { weekday: 'short' });
+    const entry = entries.find(e => e.date === dateStr);
+    return { day: dayName, date: dateStr, outCount: entry?.outCount, inCount: entry?.inCount, hasData: !!entry };
   });
 
   const daysWithData = fleetBalanceData.filter(d => d.hasData);
@@ -494,6 +497,35 @@ export function AnalyticsDashboard() {
                   </div>
                 )}
               </div>
+            )}
+            {todayEntry && (
+              <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">{todayEntry.outCount}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">out</span>
+                  <span className="mx-2 text-gray-300 dark:text-gray-700">·</span>
+                  <span className="font-semibold">{todayEntry.inCount}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">in</span>
+                  <span className="mx-2 text-gray-300 dark:text-gray-700">·</span>
+                  <span className={`text-xs font-semibold ${
+                    todayEntry.inCount - todayEntry.outCount > 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}>
+                    Net {todayEntry.inCount - todayEntry.outCount > 0 ? '+' : ''}{todayEntry.inCount - todayEntry.outCount}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  Logged by {USERS.find(u => u.id === todayEntry.enteredById)?.name ?? todayEntry.enteredById}
+                  {' · '}
+                  {new Date(todayEntry.enteredAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            )}
+            {!todayEntry && !canEnterFleetBalance(user.role) && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
+                No fleet numbers logged yet today.
+              </p>
             )}
           </>
         )}
