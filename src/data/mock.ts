@@ -3,11 +3,11 @@ import type { User, Vehicle, Hold, BranchConfig, BranchId } from '../types';
 
 // ── Branch Configs ────────────────────────────────────────────────────────────
 export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
-  'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
-  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'trips', 'manifest'] },
-  'YYC': { id: 'YYC', name: 'Calgary (YYC)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
-  'YVR': { id: 'YVR', name: 'Vancouver (YVR)', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
-  'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'trips', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] }
+  'YWG': { id: 'YWG', name: 'Airport (YWG)', enabledModules: ['fleet-garage', 'movement-log', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)', enabledModules: ['fleet-garage', 'check-in', 'movement-log', 'manifest'] },
+  'YYC': { id: 'YYC', name: 'Calgary (YYC)', enabledModules: ['fleet-garage', 'movement-log', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'YVR': { id: 'YVR', name: 'Vancouver (YVR)', enabledModules: ['fleet-garage', 'movement-log', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] },
+  'ALL': { id: 'ALL', name: 'All Branches', enabledModules: ['fleet-garage', 'movement-log', 'check-in', 'inventory', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest'] }
 };
 
 

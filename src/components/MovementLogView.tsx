@@ -7,8 +7,9 @@ import { USERS } from '../data/mock';
 import { supabase } from '../lib/supabase';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
+import { OffStandardTimeLog } from './OffStandardTimeLog';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
-import type { ScannedPayload } from '../types';
+import type { ScannedPayload, OffStandardEntry } from '../types';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -50,10 +51,10 @@ function rowToTrip(row: Record<string, unknown>): TripRun {
   };
 }
 
-export function TripsView() {
+export function MovementLogView() {
   const { user } = useAuth();
 
-  // All hooks must be unconditional — declare before any early returns
+  // All hooks unconditional — declare before early returns
   const [tripState, setTripState] = useState<TripScanState>('idle');
   const [origin, setOrigin] = useState<Location>('Washbay');
   const [destination, setDestination] = useState<Location>('Airport');
@@ -63,6 +64,10 @@ export function TripsView() {
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
   const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
+
+  // Off-standard state lifted here so it survives tab switches
+  const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
+  const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
 
   useEffect(() => {
     async function loadTrips() {
@@ -110,7 +115,6 @@ export function TripsView() {
   const allLiveAndMock = [...MOCK_TRIPS, ...liveTrips];
   const displayTrips = isManagement ? allLiveAndMock : myTrips;
 
-  // Group by driver for management view
   const grouped = isManagement
     ? displayTrips.reduce<Record<string, typeof displayTrips>>((acc, t) => {
         const name = USERS.find(u => u.id === t.driverId)?.name ?? 'Unknown';
@@ -119,22 +123,26 @@ export function TripsView() {
       }, {})
     : null;
 
-  const cleanCount = displayTrips.filter(t => t.tripType === 'clean').length;
-  const dirtyCount = displayTrips.filter(t => t.tripType === 'dirty').length;
+  const cleanCount    = displayTrips.filter(t => t.tripType === 'clean').length;
+  const dirtyCount    = displayTrips.filter(t => t.tripType === 'dirty').length;
   const customerCount = displayTrips.filter(t => t.tripType === 'customer').length;
   const transferCount = displayTrips.filter(t => t.tripType === 'transfer').length;
-  const totalRuns = displayTrips.length;
+  const totalRuns     = displayTrips.length;
 
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  // VSA view — Movement Log + own trip history
+  // ── VSA view — Movement Log + Off-Standard Time tabs ─────────────────────
   if (isVSA) {
-    const seededTrips = MOCK_TRIPS.filter(t => t.driverId === user.id);
-    const myLiveTrips = liveTrips.filter(t => t.driverId === user.id);
-    const allMyTrips = [...seededTrips, ...myLiveTrips]
+    const seededTrips  = MOCK_TRIPS.filter(t => t.driverId === user.id);
+    const myLiveTrips  = liveTrips.filter(t => t.driverId === user.id);
+    const allMyTrips   = [...seededTrips, ...myLiveTrips]
       .sort((a, b) => new Date(b.departTime).getTime() - new Date(a.departTime).getTime());
+
+    const addOffStandardEntry = (entry: OffStandardEntry) => {
+      setOffStandardEntries(prev => [...prev, entry]);
+    };
 
     const handleTripComplete = async (trip: TripRun) => {
       const { error } = await supabase.from('vsa_trips').insert({
@@ -158,28 +166,77 @@ export function TripsView() {
         branch_id:           trip.branchId,
       });
       if (!error) setLiveTrips(prev => [trip, ...prev]);
+
+      // Auto-create off-standard entry for airport runs (≥5 min)
+      if (trip.departLocation === 'Airport' || trip.arriveLocation === 'Airport') {
+        const minutes = Math.round(
+          (new Date(trip.arriveTime).getTime() - new Date(trip.departTime).getTime()) / 60000
+        );
+        if (minutes >= 5) {
+          addOffStandardEntry({
+            id:           `auto-${trip.id}`,
+            startTime:    trip.departTime,
+            stopTime:     trip.arriveTime,
+            minutes,
+            reason:       'OTH',
+            explanation:  `Airport run — ${trip.departLocation} → ${trip.arriveLocation}`,
+            autoFromTrip: true,
+          });
+        }
+      }
     };
 
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+        {/* Header */}
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Movement Log</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
         </div>
-        <VSAMovementLog onTripComplete={handleTripComplete} />
-        {allMyTrips.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
-            <TripList trips={allMyTrips} isManagement={false} />
-          </div>
+
+        {/* Tab strip */}
+        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+          {(['movement-log', 'off-standard'] as const).map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+                activeTab === tab
+                  ? 'text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-500 -mb-px'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {tab === 'movement-log' ? 'Movement Log' : 'Off-Standard Time'}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'movement-log' ? (
+          <>
+            <VSAMovementLog onTripComplete={handleTripComplete} />
+            {allMyTrips.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
+                <TripList trips={allMyTrips} isManagement={false} />
+              </div>
+            )}
+          </>
+        ) : (
+          <OffStandardTimeLog
+            entries={offStandardEntries}
+            onAddEntry={addOffStandardEntry}
+            user={user}
+          />
         )}
       </div>
     );
   }
 
+  // ── Driver / CSR / HIR / Management ──────────────────────────────────────
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
@@ -239,9 +296,7 @@ export function TripsView() {
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-1">In Transit</p>
                 <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{activeUnit.unitNumber} · {activeUnit.licensePlate}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{activeUnit.year} {activeUnit.make} {activeUnit.model}</p>
-                <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">
-                  {originLabel} → {destLabel}
-                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">{originLabel} → {destLabel}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   Departed {new Date(departureTime).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </p>
@@ -269,8 +324,7 @@ export function TripsView() {
                   </span>
                 </div>
               </div>
-              <button onClick={handleReset}
-                className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
+              <button onClick={handleReset} className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
                 Log another →
               </button>
             </div>
@@ -279,9 +333,10 @@ export function TripsView() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-5 gap-3">        <SummaryCard value={totalRuns} label="Total" color="text-gray-900 dark:text-gray-100" />
-        <SummaryCard value={cleanCount} label="Clean" color="text-green-600 dark:text-green-500" />
-        <SummaryCard value={dirtyCount} label="Dirty" color="text-amber-500" />
+      <div className="grid grid-cols-5 gap-3">
+        <SummaryCard value={totalRuns}     label="Total"    color="text-gray-900 dark:text-gray-100" />
+        <SummaryCard value={cleanCount}    label="Clean"    color="text-green-600 dark:text-green-500" />
+        <SummaryCard value={dirtyCount}    label="Dirty"    color="text-amber-500" />
         <SummaryCard value={customerCount} label="Customer" color="text-blue-600 dark:text-blue-500" />
         <SummaryCard value={transferCount} label="Transfer" color="text-purple-600 dark:text-purple-500" />
       </div>
@@ -295,11 +350,7 @@ export function TripsView() {
               <div key={driverName}>
                 <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 transition-colors">
                   {driverName} · {trips.length} run{trips.length !== 1 ? 's' : ''}
-                  {flaggedCount > 0 && (
-                    <span className="ml-2 text-amber-600 dark:text-amber-500">
-                      ⚠️ {flaggedCount} flagged
-                    </span>
-                  )}
+                  {flaggedCount > 0 && <span className="ml-2 text-amber-600 dark:text-amber-500">⚠️ {flaggedCount} flagged</span>}
                 </h2>
                 <TripList trips={trips} isManagement={isManagement} />
               </div>
@@ -335,27 +386,17 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
     <div className="space-y-2">
       {trips.map(trip => {
         const duration = getTripDurationMinutes(trip);
-        const flagged = isTripFlagged(trip);
-
+        const flagged  = isTripFlagged(trip);
         return (
-          <div
-            key={trip.id}
-            className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors"
-          >
+          <div key={trip.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">
-                    {trip.vehicleUnit}
-                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">{trip.vehicleUnit}</span>
                   <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-                  <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">
-                    {trip.vehiclePlate}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">{trip.vehiclePlate}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
-                  {trip.departLocation} → {trip.arriveLocation}
-                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{trip.departLocation} → {trip.arriveLocation}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
                   {fmtTime(trip.departTime)} → {fmtTime(trip.arriveTime)}
                   <span className={flagged ? 'text-amber-600 dark:text-amber-500 font-semibold' : ''}>
@@ -365,7 +406,6 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                   {trip.queueAtDeparture ? ` · Queue: ${trip.queueAtDeparture === 'TOO_MUCH' ? '10+' : trip.queueAtDeparture}` : ''}
                   {trip.fuelOnArrival ? ` · Fuel: ${trip.fuelOnArrival}` : ''}
                 </p>
-                {/* VSA interruption / proactive badge */}
                 {trip.isVsaInterruption && (
                   <div className="mt-1.5">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
@@ -385,9 +425,7 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                   </div>
                 )}
                 {trip.notes && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-2 transition-colors">
-                    "{trip.notes}"
-                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-2 transition-colors">"{trip.notes}"</p>
                 )}
               </div>
               <TripBadge type={trip.tripType} />

@@ -24,8 +24,8 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['Branch Manager', 'Operations Manager', 'City Manager'],
     mockNote: 'Charts use seeded trend data to demonstrate the analytics layer with real data flowing in. All numbers are illustrative of the reporting capability.',
   },
-  'trips': {
-    what: 'VSA Movement Log — captures every vehicle run with a fingerprint. Route, reason, authorization level, washbay queue at departure, and fuel level on arrival. Logs shift interruptions separately from routine driver runs. Two-tap: Start Trip → Arrived.',
+  'movement-log': {
+    what: 'VSA Movement Log — captures every vehicle run with a fingerprint. Route, reason, authorization level, washbay queue at departure, and fuel level on arrival. Logs shift interruptions separately from routine driver runs. Two-tap: Start Trip → Arrived. Includes Off-Standard Time tracking.',
     roles: ['VSA', 'Lead VSA', 'Driver'],
     mockNote: 'Seeded with example runs showing the full trip card format including VSA Interruption and Proactive Run badges.',
   },

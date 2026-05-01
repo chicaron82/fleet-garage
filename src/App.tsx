@@ -12,7 +12,7 @@ const Dashboard          = lazy(() => import('./components/Dashboard').then(m =>
 const VehicleHistory     = lazy(() => import('./components/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
 const NewHoldForm        = lazy(() => import('./components/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
 const RegisterVehicleForm = lazy(() => import('./components/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
-const TripsView          = lazy(() => import('./components/TripsView').then(m => ({ default: m.TripsView })));
+const MovementLogView    = lazy(() => import('./components/MovementLogView').then(m => ({ default: m.MovementLogView })));
 const ScheduleView       = lazy(() => import('./components/ScheduleView').then(m => ({ default: m.ScheduleView })));
 const InventoryView      = lazy(() => import('./components/InventoryView').then(m => ({ default: m.InventoryView })));
 const LostAndFoundView   = lazy(() => import('./components/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
@@ -109,8 +109,8 @@ export default function App() {
         );
       case 'check-in':
         return <CheckInView onFlagIssue={(vehicleId) => navigate({ name: 'new-hold', vehicleId })} />;
-      case 'trips':
-        return <TripsView />;
+      case 'movement-log':
+        return <MovementLogView />;
       case 'schedule':
         return <ScheduleView />;
       case 'inventory':

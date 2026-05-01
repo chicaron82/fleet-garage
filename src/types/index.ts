@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'fleet-garage' | 'trips' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest';
+export type Module = 'fleet-garage' | 'movement-log' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -147,7 +147,7 @@ export type Screen =
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
-  | { name: 'trips' }
+  | { name: 'movement-log' }
   | { name: 'check-in' }
   | { name: 'inventory' }
   | { name: 'lost-and-found' }
@@ -265,4 +265,26 @@ export interface WashbayLog {
   shiftHours: number;        // Hours washbay ran (default 8)
   loggedById: string;        // User.id
   loggedAt: string;          // ISO timestamp
+}
+
+// ── Off-Standard Time ─────────────────────────────────────────────────────────
+
+export type OffStandardReason = 'CLASS' | 'WFW' | 'MTG' | 'WTH' | 'OTH';
+
+export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; full: string }> = {
+  CLASS: { short: 'CLASS', full: 'Training' },
+  WFW:   { short: 'WFW',   full: 'Waiting for work' },
+  MTG:   { short: 'MTG',   full: 'Meeting / Huddle' },
+  WTH:   { short: 'WTH',   full: 'Weather' },
+  OTH:   { short: 'OTH',   full: 'Other' },
+};
+
+export interface OffStandardEntry {
+  id: string;
+  startTime: string;       // ISO timestamp
+  stopTime: string;        // ISO timestamp
+  minutes: number;
+  reason: OffStandardReason;
+  explanation?: string;
+  autoFromTrip: boolean;   // true = locked, came from movement log
 }

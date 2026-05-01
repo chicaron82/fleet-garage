@@ -15,7 +15,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'check-in',       label: 'Check-in',      icon: '📸', defaultScreen: { name: 'check-in' } },
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
   { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
-  { module: 'trips',          label: 'Trips',         icon: '🚗', defaultScreen: { name: 'trips' } },
+  { module: 'movement-log',   label: 'Movement Log',  icon: '🚗', defaultScreen: { name: 'movement-log' } },
   { module: 'schedule',       label: 'Schedule',      icon: '📅', defaultScreen: { name: 'schedule' } },
   { module: 'inventory',      label: 'Inventory',     icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
@@ -24,14 +24,14 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
-  'Driver':              ['trips', 'analytics', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['fleet-garage', 'check-in', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'CSR':                 ['fleet-garage', 'check-in', 'analytics', 'trips', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'HIR':                 ['fleet-garage', 'check-in', 'analytics', 'trips', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'trips', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Driver':              ['movement-log', 'analytics', 'schedule', 'lost-and-found', 'manifest'],
+  'VSA':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'CSR':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'HIR':                 ['fleet-garage', 'check-in', 'analytics', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
@@ -61,7 +61,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   
   // Preferred default based on role
   let preferred: Screen = { name: 'dashboard' };
-  if (role === 'Driver') preferred = { name: 'trips' };
+  if (role === 'Driver') preferred = { name: 'movement-log' };
   if (role === 'HIR') preferred = { name: 'check-in' };
   if (role === 'City Manager') preferred = { name: 'analytics' };
 
