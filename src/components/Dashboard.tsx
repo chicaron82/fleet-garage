@@ -25,6 +25,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showHandoffForm, setShowHandoffForm] = useState(false);
+  const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
 
   const ITEMS_PER_PAGE = 15;
 
@@ -232,7 +233,11 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
             return (
               <button
                 key={vehicle.id}
-                onClick={() => onSelectVehicle(vehicle.id)}
+                onClick={() => {
+                  hapticLight();
+                  if (search.trim()) setPendingVehicle(vehicle);
+                  else onSelectVehicle(vehicle.id);
+                }}
                 className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -333,6 +338,54 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         )}
 
         {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
+
+        {/* Search confirmation sheet */}
+        {pendingVehicle && (() => {
+          const hold = getLatestHold(pendingVehicle.id);
+          return (
+            <>
+              <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setPendingVehicle(null)} />
+              <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Confirm vehicle</p>
+                  </div>
+                  <div className="px-4 py-4">
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900 dark:text-gray-100">{pendingVehicle.unitNumber}</span>
+                          <span className="text-gray-400 text-xs">·</span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100 tracking-wide">{pendingVehicle.licensePlate}</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{pendingVehicle.year} {pendingVehicle.make} {pendingVehicle.model}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{pendingVehicle.color}</p>
+                        {hold && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 truncate">{hold.damageDescription.slice(0, 60)}{hold.damageDescription.length > 60 ? '…' : ''}</p>
+                        )}
+                      </div>
+                      <StatusBadge status={pendingVehicle.status} holdTypes={hold?.holdTypes} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPendingVehicle(null)}
+                        className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+                      >
+                        Go back
+                      </button>
+                      <button
+                        onClick={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id); }}
+                        className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-sm font-semibold text-gray-900 transition cursor-pointer"
+                      >
+                        Yes, open it
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
   );
 }
