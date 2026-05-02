@@ -61,9 +61,9 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
       <div className="flex-1 flex flex-col min-w-0">
         <div className="relative md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarOpen(o => !o)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-            aria-label="Open sidebar"
+            aria-label="Toggle sidebar"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
