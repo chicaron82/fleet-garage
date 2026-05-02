@@ -100,28 +100,30 @@ export function NotificationBell() {
 
             {/* Header */}
             <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
-                <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
-                  <button
-                    onClick={() => setMode('demo')}
-                    className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                  >
-                    Demo
-                  </button>
-                  <button
-                    onClick={() => setMode('live')}
-                    className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${!isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                  >
-                    Live
-                  </button>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
+                    <button
+                      onClick={() => setMode('demo')}
+                      className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                    >
+                      Demo
+                    </button>
+                    <button
+                      onClick={() => setMode('live')}
+                      className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${!isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                    >
+                      Live
+                    </button>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button onClick={handleMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
+                      Mark all as read
+                    </button>
+                  )}
                 </div>
               </div>
-              {unreadCount > 0 && (
-                <button onClick={handleMarkAllRead} className="mt-1.5 text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
-                  Mark all as read
-                </button>
-              )}
             </div>
 
             {/* List */}
