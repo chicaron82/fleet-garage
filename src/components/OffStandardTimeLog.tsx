@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
+import { useGarage } from '../context/GarageContext';
 import type { OffStandardEntry, OffStandardReason, User } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
 
@@ -31,11 +32,9 @@ function todayDateStr(): string {
   return d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-function generateReportText(entries: OffStandardEntry[], user: User): string {
+function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
   const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  const carsEl = document.getElementById('ost-cars-cleaned') as HTMLInputElement | null;
-  const carsCleaned = parseInt(carsEl?.value ?? '0') || 0;
   const activeHours = activeMinutes / 60;
   const rate = activeHours > 0 ? carsCleaned / activeHours : 0;
 
@@ -68,8 +67,8 @@ function generateReportText(entries: OffStandardEntry[], user: User): string {
     '─'.repeat(37),
     `Total off-standard:  ${fmtMinutes(offTotal)}`,
     `Active cleaning:     ${fmtMinutes(activeMinutes)}`,
-    `Cars cleaned:        ${carsCleaned}`,
-    `Adjusted rate:       ${rate.toFixed(1)} / hr  ${rateLabel}`,
+    `Cars cleaned (team): ${carsCleaned}`,
+    `Adjusted team rate:  ${rate.toFixed(1)} / hr  ${rateLabel}`,
     '',
     'Manager approval: _________________',
     '─'.repeat(37),
@@ -99,15 +98,19 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
-  const [timerState, setTimerState]       = useState<TimerState>('idle');
+  const { getTodayWashbayLog } = useGarage();
+  const washbayLog = getTodayWashbayLog();
+  const carsNum = washbayLog
+    ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
+    : 0;
+
+  const [timerState, setTimerState]         = useState<TimerState>('idle');
   const [selectedReason, setSelectedReason] = useState<OffStandardReason>('WFW');
   const [startTimestamp, setStartTimestamp] = useState<string>('');
   const [stopTimestamp, setStopTimestamp]   = useState<string>('');
   const [pendingMinutes, setPendingMinutes] = useState(0);
   const [explanation, setExplanation]       = useState('');
-  const [carsCleaned, setCarsCleaned]       = useState('');
   const [copied, setCopied]                 = useState(false);
-  const carsRef = useRef<HTMLInputElement>(null);
 
   // ── Timer controls ────────────────────────────────────────────────────────
 
@@ -159,10 +162,9 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
 
   const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
   const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  const carsNum       = parseInt(carsCleaned) || 0;
   const activeHours   = activeMinutes / 60;
-  const rate          = activeHours > 0 ? carsNum / activeHours : 0;
-  const rateColor     = carsNum === 0 ? 'text-gray-400 dark:text-gray-500'
+  const rate          = activeHours > 0 && carsNum > 0 ? carsNum / activeHours : 0;
+  const rateColor     = !washbayLog ? 'text-gray-400 dark:text-gray-500'
     : rate >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
     : rate >= 2.5 ? 'text-amber-500'
     : 'text-red-600 dark:text-red-400';
@@ -172,7 +174,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
   const handleExport = async () => {
     hapticMedium();
     // Sync cars value from DOM (carsRef) into the generator
-    const reportText = generateReportText(entries, user);
+    const reportText = generateReportText(entries, user, carsNum);
     if (navigator.share) {
       try {
         await navigator.share({
@@ -224,6 +226,10 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
               ))}
             </div>
           </div>
+
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            🔗 Airport trips log automatically from the Movement Log — no need to add them here.
+          </p>
 
           {/* Timer idle → Start */}
           {timerState === 'idle' && (
@@ -375,21 +381,16 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Cars cleaned (personal total)</label>
-            <input
-              id="ost-cars-cleaned"
-              ref={carsRef}
-              type="number"
-              min="0"
-              value={carsCleaned}
-              onChange={e => setCarsCleaned(e.target.value)}
-              placeholder="0"
-              className={INPUT}
-            />
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+            <span>Cars cleaned (team)</span>
+            {washbayLog ? (
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{carsNum}</span>
+            ) : (
+              <span className="text-xs text-gray-400 dark:text-gray-500 italic">Submit closing duties to see</span>
+            )}
           </div>
 
-          {carsNum > 0 && (
+          {washbayLog && (
             <div className={`rounded-lg px-4 py-3 border ${
               rate >= STANDARD_RATE
                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50'
@@ -402,7 +403,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{STANDARD_RATE.toFixed(1)} / hr</span>
               </div>
               <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Your rate</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Team rate</span>
                 <span className={`text-lg font-bold ${rateColor}`}>{rate.toFixed(1)} / hr</span>
               </div>
             </div>
