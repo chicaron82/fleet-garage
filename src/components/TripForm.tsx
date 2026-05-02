@@ -29,6 +29,7 @@ export interface TripFormProps {
   shuttlePlate: string;    setShuttlePlate: (v: string) => void;
   vehicleMeta: string | null;
   topClasses: string[];
+  flaggedClasses: string[];
   canStart: boolean;
   onShuttleToggle: (checked: boolean) => void;
   onConditionTap: (c: Condition) => void;
@@ -43,7 +44,7 @@ export function TripForm({
   reason, setReason, queue, setQueue, fuel, setFuel,
   authorization, setAuthorization, notes, setNotes,
   isShuttle, routeStep, customFrom, setCustomFrom, customTo, setCustomTo,
-  shuttlePlate, setShuttlePlate, vehicleMeta, topClasses, canStart,
+  shuttlePlate, setShuttlePlate, vehicleMeta, topClasses, flaggedClasses, canStart,
   onShuttleToggle, onConditionTap, onLocationTap, onRouteReset, onStartTrip, onPlateChange,
 }: TripFormProps) {
   const { user } = useAuth();
@@ -63,7 +64,20 @@ export function TripForm({
           {routeStep === 'confirmed'   && 'Route'}
         </p>
 
-        {routeStep === 'origin' && topClasses.length > 0 && (
+        {routeStep === 'origin' && (flaggedClasses.length > 0 || topClasses.length > 0) && (
+          <div className="space-y-1.5">
+
+          {flaggedClasses.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800">
+              <span className="text-xs">🚨</span>
+              <p className="text-xs text-red-800 dark:text-red-300">
+                <span className="font-bold">Must fulfill:</span>{' '}
+                {flaggedClasses.join(', ')}
+              </p>
+            </div>
+          )}
+
+          {topClasses.length > 0 && (
           <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
             <button
               type="button"
@@ -126,6 +140,9 @@ export function TripForm({
                 </button>
               </div>
             )}
+          </div>
+          )}
+
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
+import { loadFlags } from '../lib/manifestFlags';
 import {
   FUEL_LABELS,
   defaultCondition, elapsedSince,
@@ -43,10 +44,14 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
-  const topClasses = useMemo(() => {
+  const { topClasses, flaggedClasses } = useMemo(() => {
     const manifest = generateDayManifest();
-    const next5 = getNextFiveNeeded(manifest);
-    return [...new Set(next5.map(r => r.rentalClass))].slice(0, 3);
+    const flags    = loadFlags();
+    const next5    = getNextFiveNeeded(manifest);
+    return {
+      topClasses:    [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
+      flaggedClasses: [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))],
+    };
   }, []);
 
   const vehicleMeta = useMemo(() => {
@@ -207,7 +212,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
             customFrom={customFrom} setCustomFrom={setCustomFrom}
             customTo={customTo}     setCustomTo={setCustomTo}
             shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-            vehicleMeta={vehicleMeta}   topClasses={topClasses} canStart={canStart}
+            vehicleMeta={vehicleMeta}   topClasses={topClasses} flaggedClasses={flaggedClasses} canStart={canStart}
             onShuttleToggle={handleShuttleToggle}
             onConditionTap={c => { hapticLight(); setCondition(c); setConditionManual(true); }}
             onLocationTap={handleLocationTap}

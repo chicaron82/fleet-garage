@@ -20,7 +20,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'inventory',      label: 'Inventory',     icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
   { module: 'issue-log',      label: 'Issue Log',     icon: '⚠️', defaultScreen: { name: 'issue-log' } },
-  { module: 'manifest',       label: 'Manifest',      icon: '📋', defaultScreen: { name: 'manifest' } },
+  { module: 'manifest',       label: 'Outbound Manifest', icon: '📋', defaultScreen: { name: 'manifest' } },
 ];
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {

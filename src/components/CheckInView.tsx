@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_CHECK_INS } from '../data/checkIns';
@@ -5,6 +6,11 @@ import type { CheckInStatus, VehicleCheckIn } from '../data/checkIns';
 import { ReEvalPanel } from './ReEvalPanel';
 import { ExceptionReturnSection } from './ExceptionReturnSection';
 import { CheckInIntakeForm } from './CheckInIntakeForm';
+import {
+  generateDayManifest, generateExpectedReturns,
+  type ExpectedReturn,
+} from '../data/manifest';
+import { loadFlags } from '../lib/manifestFlags';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -27,17 +33,36 @@ const STATUS_CONFIG: Record<CheckInStatus, { bg: string; text: string; label: st
 
 export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) => void }) {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'check-in' | 'expected-returns'>('check-in');
+
+  // Cascade: flags on today's outbound reservations → flag matching return classes
+  const todayManifest   = useMemo(() => generateDayManifest(), []);
+  const expectedReturns = useMemo(() => generateExpectedReturns(), []);
+  const flags           = useMemo(() => loadFlags(), []);
+  const flaggedClasses  = useMemo(
+    () => new Set(todayManifest.filter(r => flags.has(r.id)).map(r => r.rentalClass)),
+    [todayManifest, flags],
+  );
+  const flaggedReturns = useMemo(
+    () => expectedReturns.filter(r => flaggedClasses.has(r.rentalClass)),
+    [expectedReturns, flaggedClasses],
+  );
+  const normalReturns = useMemo(
+    () => expectedReturns.filter(r => !flaggedClasses.has(r.rentalClass)),
+    [expectedReturns, flaggedClasses],
+  );
+
   if (!user) return null;
 
-  const isManagement = canRelease(user.role);
-
-  const pendingCount = MOCK_CHECK_INS.filter(c => c.status === 'pending_washbay').length;
+  const isManagement   = canRelease(user.role);
+  const pendingCount   = MOCK_CHECK_INS.filter(c => c.status === 'pending_washbay').length;
   const escalatedCount = MOCK_CHECK_INS.filter(c => c.status === 'escalated').length;
-  const cleanCount = MOCK_CHECK_INS.filter(c => c.status === 'clean').length;
-  const pinnedCount = MOCK_CHECK_INS.filter(c => c.status === 'pinned').length;
+  const cleanCount     = MOCK_CHECK_INS.filter(c => c.status === 'clean').length;
+  const pinnedCount    = MOCK_CHECK_INS.filter(c => c.status === 'pinned').length;
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Vehicle Check-in</h1>
@@ -46,43 +71,146 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
         </p>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <CountCard count={cleanCount} label="Clean" color="text-green-600 dark:text-green-500" />
-        <CountCard count={pendingCount} label="Pending" color="text-amber-500" />
-        <CountCard count={escalatedCount} label="Escalated" color="text-red-600 dark:text-red-500" />
-        <CountCard count={pinnedCount} label="Pinned" color="text-purple-600 dark:text-purple-500" />
+      {/* Tab switcher */}
+      <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setActiveTab('check-in')}
+          className={`flex-1 py-2 text-xs font-semibold transition cursor-pointer ${
+            activeTab === 'check-in'
+              ? 'bg-yellow-400 dark:bg-yellow-500 text-gray-900'
+              : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          Check-in
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('expected-returns')}
+          className={`flex-1 py-2 text-xs font-semibold transition cursor-pointer relative ${
+            activeTab === 'expected-returns'
+              ? 'bg-yellow-400 dark:bg-yellow-500 text-gray-900'
+              : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          Expected Returns
+          {flaggedReturns.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {flaggedReturns.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Vehicle intake: scan a real vehicle to begin check-in */}
-      <CheckInIntakeForm onFlagIssue={onFlagIssue} />
+      {/* Check-in tab */}
+      {activeTab === 'check-in' && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <CountCard count={cleanCount}     label="Clean"     color="text-green-600 dark:text-green-500" />
+            <CountCard count={pendingCount}   label="Pending"   color="text-amber-500" />
+            <CountCard count={escalatedCount} label="Escalated" color="text-red-600 dark:text-red-500" />
+            <CountCard count={pinnedCount}    label="Pinned"    color="text-purple-600 dark:text-purple-500" />
+          </div>
 
-      {/* Exception returns: damage-hold vehicles back from exception rental */}
-      <ExceptionReturnSection />
+          <CheckInIntakeForm onFlagIssue={onFlagIssue} />
+          <ExceptionReturnSection />
+          <ReEvalPanel />
 
-      {/* Re-evaluation: detail-hold vehicles (pet-hair / smoke / dirty) */}
-      <ReEvalPanel />
+          {pendingCount > 0 && (user.role === 'VSA' || user.role === 'Lead VSA' || isManagement) && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
+              <p className="font-semibold">
+                {pendingCount} vehicle{pendingCount > 1 ? 's' : ''} awaiting washbay review
+              </p>
+            </div>
+          )}
 
-      {/* Pending washbay alert */}
-      {pendingCount > 0 && (user.role === 'VSA' || user.role === 'Lead VSA' || isManagement) && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
-          <p className="font-semibold">
-            {pendingCount} vehicle{pendingCount > 1 ? 's' : ''} awaiting washbay review
-          </p>
+          <div className="space-y-2">
+            {MOCK_CHECK_INS.map(ci => (
+              <CheckInCard key={ci.id} checkIn={ci} isManagement={isManagement} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Expected Returns tab */}
+      {activeTab === 'expected-returns' && (
+        <div className="space-y-4">
+
+          {flaggedReturns.length > 0 && (
+            <section className="space-y-1.5">
+              <p className="text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                🚨 Priority Returns — Send to Washbay Immediately
+              </p>
+              <div className="rounded-xl border border-red-300 dark:border-red-800 overflow-hidden divide-y divide-red-100 dark:divide-red-900/40">
+                {flaggedReturns.map(ret => (
+                  <ExpectedReturnRow key={ret.id} ret={ret} flagged />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {normalReturns.length > 0 && (
+            <section className="space-y-1.5">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                Expected Today · {normalReturns.length}
+              </p>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+                {normalReturns.map(ret => (
+                  <ExpectedReturnRow key={ret.id} ret={ret} flagged={false} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {expectedReturns.length === 0 && (
+            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
+              <p className="text-sm text-gray-400 dark:text-gray-500">No returns expected today.</p>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* Check-in list */}
-      <div className="space-y-2">
-        {MOCK_CHECK_INS.map(ci => (
-          <CheckInCard key={ci.id} checkIn={ci} isManagement={isManagement} />
-        ))}
-      </div>
     </div>
   );
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
+
+function ExpectedReturnRow({ ret, flagged }: { ret: ExpectedReturn; flagged: boolean }) {
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+      flagged ? 'bg-red-50 dark:bg-red-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+    }`}>
+      {flagged && <span className="text-xs shrink-0">🚨</span>}
+      <span className={`text-xs font-mono shrink-0 ${
+        flagged ? 'text-red-700 dark:text-red-400 font-bold' : 'text-gray-500 dark:text-gray-400'
+      }`}>
+        {ret.expectedTime}
+      </span>
+      <span className={`text-[11px] font-bold px-2 py-0.5 rounded shrink-0 ${
+        flagged
+          ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+      }`}>
+        {ret.rentalClass}
+      </span>
+      <span className={`text-xs flex-1 truncate ${
+        flagged ? 'text-gray-900 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-400'
+      }`}>
+        {ret.customerName}
+      </span>
+      <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+        {ret.duration}
+      </span>
+      {flagged && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 shrink-0">
+          ⚡ Washbay
+        </span>
+      )}
+    </div>
+  );
+}
 
 function CountCard({ count, label, color }: { count: number; label: string; color: string }) {
   return (
@@ -144,7 +272,6 @@ function CheckInCard({ checkIn: ci, isManagement }: { checkIn: VehicleCheckIn; i
         </div>
       </div>
 
-      {/* Washbay review footer */}
       {ci.washbayReview && (
         <div className={`px-4 py-3 border-t text-xs ${
           ci.washbayReview.result === 'clean'
@@ -164,7 +291,6 @@ function CheckInCard({ checkIn: ci, isManagement }: { checkIn: VehicleCheckIn; i
         </div>
       )}
 
-      {/* Management actions hint */}
       {isManagement && ci.status === 'clean' && ci.expiresAt && (
         <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 transition-colors">
           <p className="text-[10px] text-gray-400 dark:text-gray-500">

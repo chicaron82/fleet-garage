@@ -1,9 +1,11 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   generateDayManifest, getNextFiveNeeded,
   getCurrentSeason, SEASON_PRIORITY,
   type ManifestReservation, type RentalClass,
 } from '../data/manifest';
+import { canFlagReservation, loadFlags, saveFlag, removeFlag } from '../lib/manifestFlags';
 
 // ── Season display config ─────────────────────────────────────────────────────
 
@@ -42,26 +44,38 @@ function isCurrentWindow(time: string, now: Date): boolean {
 // ── Row component ─────────────────────────────────────────────────────────────
 
 function ReservationRow({
-  reservation, priority, highlight, past,
+  reservation, priority, highlight, past, flagged, canFlag, onToggleFlag,
 }: {
   reservation: ManifestReservation;
   priority: RentalClass[];
   highlight: boolean;
   past: boolean;
+  flagged: boolean;
+  canFlag: boolean;
+  onToggleFlag: () => void;
 }) {
-  const pillStyle = getClassPillStyle(reservation.rentalClass, priority);
+  const pillStyle = flagged
+    ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+    : getClassPillStyle(reservation.rentalClass, priority);
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-      highlight
+    <div className={[
+      'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+      flagged
+        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+        : highlight
         ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
-        : past
-        ? 'opacity-40'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-    }`}>
+        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+      past ? 'opacity-40' : '',
+    ].join(' ')}>
+
+      {flagged && <span className="text-xs shrink-0">🚨</span>}
+
       {/* Time */}
       <span className={`text-xs font-mono w-10 shrink-0 ${
-        highlight ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500 dark:text-gray-400'
+        flagged   ? 'text-red-700 dark:text-red-400 font-semibold' :
+        highlight ? 'text-amber-700 dark:text-amber-400 font-semibold' :
+        'text-gray-500 dark:text-gray-400'
       }`}>
         {reservation.time}
       </span>
@@ -73,7 +87,9 @@ function ReservationRow({
 
       {/* Customer */}
       <span className={`text-xs flex-1 truncate ${
-        highlight ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-600 dark:text-gray-400'
+        flagged   ? 'text-gray-900 dark:text-gray-100 font-semibold' :
+        highlight ? 'text-gray-900 dark:text-gray-100 font-medium' :
+        'text-gray-600 dark:text-gray-400'
       }`}>
         {reservation.customerName}
       </span>
@@ -92,8 +108,23 @@ function ReservationRow({
         {reservation.pickupType === 'express' ? 'Express' : 'Counter'}
       </span>
 
-      {/* Past check */}
-      {past && <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">✓</span>}
+      {/* Past check or flag toggle */}
+      {canFlag && !past ? (
+        <button
+          type="button"
+          onClick={onToggleFlag}
+          className={`text-xs shrink-0 px-1 transition cursor-pointer ${
+            flagged
+              ? 'text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-200'
+              : 'text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-500'
+          }`}
+          title={flagged ? 'Remove priority flag' : 'Flag as priority'}
+        >
+          🚩
+        </button>
+      ) : past && !flagged ? (
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">✓</span>
+      ) : null}
     </div>
   );
 }
@@ -101,18 +132,32 @@ function ReservationRow({
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export function ManifestView() {
-  const now     = useMemo(() => new Date(), []);
-  const today   = useMemo(() => generateDayManifest(now), [now]);
-  const season  = useMemo(() => getCurrentSeason(), []);
+  const { user } = useAuth();
+  const now      = useMemo(() => new Date(), []);
+  const today    = useMemo(() => generateDayManifest(now), [now]);
+  const season   = useMemo(() => getCurrentSeason(), []);
   const priority = SEASON_PRIORITY[season];
   const nextFive = useMemo(() => getNextFiveNeeded(today, now), [today, now]);
   const nextFiveIds = useMemo(() => new Set(nextFive.map(r => r.id)), [nextFive]);
   const nowLineRef = useRef<HTMLDivElement>(null);
 
-  // Scroll "now" line into view on mount
+  const [flags, setFlags] = useState<Set<string>>(() => loadFlags());
+  const canFlag = user ? canFlagReservation(user.role) : false;
+  const flaggedReservations = useMemo(() => today.filter(r => flags.has(r.id)), [today, flags]);
+
   useEffect(() => {
     nowLineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
+
+  const toggleFlag = (id: string) => {
+    if (flags.has(id)) {
+      removeFlag(id);
+      setFlags(prev => { const next = new Set(prev); next.delete(id); return next; });
+    } else {
+      saveFlag(id);
+      setFlags(prev => new Set([...prev, id]));
+    }
+  };
 
   const seasonCfg = SEASON_CONFIG[season];
 
@@ -123,7 +168,7 @@ export function ManifestView() {
       <div>
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            📋 Today's Manifest
+            📋 Outbound Manifest
           </h1>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
             {seasonCfg.label} {seasonCfg.badge}
@@ -131,8 +176,32 @@ export function ManifestView() {
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
           {formatDate(now)} · {today.length} reservations
+          {canFlag && <span className="ml-2 text-gray-400 dark:text-gray-600">· tap 🚩 to flag priority</span>}
         </p>
       </div>
+
+      {/* Priority Flagged */}
+      {flaggedReservations.length > 0 && (
+        <section className="space-y-1.5">
+          <p className="text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+            🚨 Priority — Must Fulfill
+          </p>
+          <div className="rounded-xl border border-red-200 dark:border-red-800 overflow-hidden divide-y divide-red-100 dark:divide-red-900/40">
+            {flaggedReservations.map(r => (
+              <ReservationRow
+                key={r.id}
+                reservation={r}
+                priority={priority}
+                highlight={false}
+                past={isPast(r.time, now)}
+                flagged
+                canFlag={canFlag}
+                onToggleFlag={() => toggleFlag(r.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Next 5 Needed */}
       {nextFive.length > 0 && (
@@ -146,8 +215,11 @@ export function ManifestView() {
                 <ReservationRow
                   reservation={r}
                   priority={priority}
-                  highlight
+                  highlight={!flags.has(r.id)}
                   past={false}
+                  flagged={flags.has(r.id)}
+                  canFlag={canFlag}
+                  onToggleFlag={() => toggleFlag(r.id)}
                 />
               </div>
             ))}
@@ -168,12 +240,10 @@ export function ManifestView() {
         </p>
         <div className="space-y-0.5">
           {today.map((r, i) => {
-            const past = isPast(r.time, now);
+            const past    = isPast(r.time, now);
             const current = isCurrentWindow(r.time, now);
-
             return (
               <div key={r.id}>
-                {/* "Now" indicator line */}
                 {current && (
                   <div ref={nowLineRef} className="flex items-center gap-2 my-1">
                     <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
@@ -181,7 +251,6 @@ export function ManifestView() {
                     <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
                   </div>
                 )}
-                {/* Insert now line between past and future if no exact match */}
                 {!current && i > 0 && isPast(today[i - 1].time, now) && !past && !nowLineRef.current && (
                   <div ref={nowLineRef} className="flex items-center gap-2 my-1">
                     <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
@@ -192,8 +261,11 @@ export function ManifestView() {
                 <ReservationRow
                   reservation={r}
                   priority={priority}
-                  highlight={nextFiveIds.has(r.id)}
+                  highlight={nextFiveIds.has(r.id) && !flags.has(r.id)}
                   past={past}
+                  flagged={flags.has(r.id)}
+                  canFlag={canFlag}
+                  onToggleFlag={() => toggleFlag(r.id)}
                 />
               </div>
             );

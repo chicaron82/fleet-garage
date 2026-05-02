@@ -164,6 +164,41 @@ export function generateDayManifest(date: Date = new Date()): ManifestReservatio
   return reservations;
 }
 
+// ── Expected Returns ──────────────────────────────────────────────────────────
+
+export interface ExpectedReturn {
+  id: string;
+  expectedTime: string;   // "14:00–15:00"
+  rentalClass: RentalClass;
+  customerName: string;
+  duration: string;
+}
+
+function deriveReturnWindow(pickupTime: string): string {
+  const [h, m] = pickupTime.split(':').map(Number);
+  const start = Math.min(22, h + 1);
+  const end   = Math.min(22, start + 1);
+  return `${String(start).padStart(2, '0')}:${String(m).padStart(2, '0')}–${String(end).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function generateExpectedReturns(date: Date = new Date()): ExpectedReturn[] {
+  const ago = (days: number) => { const d = new Date(date); d.setDate(date.getDate() - days); return d; };
+
+  const oneDayReturns   = generateDayManifest(ago(1)).filter(r => r.duration === '1 day');
+  const threeDayReturns = generateDayManifest(ago(3)).filter(r => r.duration === '3 days');
+  const weekReturns     = generateDayManifest(ago(7)).filter(r => r.duration === '1 week');
+
+  return [...oneDayReturns, ...threeDayReturns, ...weekReturns]
+    .map(r => ({
+      id:           `ret-${r.id}`,
+      expectedTime: deriveReturnWindow(r.time),
+      rentalClass:  r.rentalClass,
+      customerName: r.customerName,
+      duration:     r.duration,
+    }))
+    .sort((a, b) => a.expectedTime.localeCompare(b.expectedTime));
+}
+
 // ── Query helpers ─────────────────────────────────────────────────────────────
 
 export function getNextFiveNeeded(
