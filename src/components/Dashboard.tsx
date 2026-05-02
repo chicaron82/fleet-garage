@@ -91,13 +91,16 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
   const filtered = vehicles
     .filter(v => {
-      const matchesStatus = activeStatusFilter === null || v.status === activeStatusFilter;
       const matchesSearch = search === '' ||
         v.unitNumber.toUpperCase().includes(search) ||
         v.licensePlate.toUpperCase().includes(search) ||
         v.make.toUpperCase().includes(search) ||
         v.model.toUpperCase().includes(search);
-      return matchesStatus && matchesSearch;
+      if (!matchesSearch) return false;
+      if (activeStatusFilter !== null) return v.status === activeStatusFilter;
+      // CLEAR vehicles drop off the default list — searchable, accessible via "Repaired" card
+      if (v.status === 'CLEAR' && search === '') return false;
+      return true;
     })
     .sort((a, b) => vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id));
 
