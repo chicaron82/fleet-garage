@@ -8,9 +8,22 @@ import { ExceptionReturnSection } from './ExceptionReturnSection';
 import { CheckInIntakeForm } from './CheckInIntakeForm';
 import {
   generateDayManifest, generateExpectedReturns,
-  type ExpectedReturn,
+  type ExpectedReturn, type RentalClass,
 } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
+import { CLASS_INFO } from '../data/classSubstitutions';
+
+interface FlaggedEntry { ret: ExpectedReturn; subFor?: RentalClass; }
+
+function parseResMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function parseReturnStart(expectedTime: string): number {
+  const [h, m] = expectedTime.split('–')[0].split(':').map(Number);
+  return h * 60 + m;
+}
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -35,22 +48,50 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'check-in' | 'expected-returns'>('check-in');
 
-  // Cascade: flags on today's outbound reservations → flag matching return classes
   const todayManifest   = useMemo(() => generateDayManifest(), []);
   const expectedReturns = useMemo(() => generateExpectedReturns(), []);
   const flags           = useMemo(() => loadFlags(), []);
-  const flaggedClasses  = useMemo(
-    () => new Set(todayManifest.filter(r => flags.has(r.id)).map(r => r.rentalClass)),
-    [todayManifest, flags],
-  );
-  const flaggedReturns = useMemo(
-    () => expectedReturns.filter(r => flaggedClasses.has(r.rentalClass)),
-    [expectedReturns, flaggedClasses],
-  );
-  const normalReturns = useMemo(
-    () => expectedReturns.filter(r => !flaggedClasses.has(r.rentalClass)),
-    [expectedReturns, flaggedClasses],
-  );
+
+  // Cascade: direct class match first; if none, walk acceptable → upgradeOk → stretch
+  // and surface the single return closest to the reservation's pickup window.
+  const { flaggedReturns, normalReturns } = useMemo(() => {
+    const flaggedRes = todayManifest.filter(r => flags.has(r.id));
+    const flaggedIds = new Set<string>();
+    const entries: FlaggedEntry[] = [];
+
+    for (const reservation of flaggedRes) {
+      const cls    = reservation.rentalClass;
+      const resMin = parseResMinutes(reservation.time);
+
+      const direct = expectedReturns.filter(r => r.rentalClass === cls && !flaggedIds.has(r.id));
+      if (direct.length > 0) {
+        direct.forEach(r => { flaggedIds.add(r.id); entries.push({ ret: r }); });
+        continue;
+      }
+
+      // No direct match — walk substitution chain, pick closest to reservation window
+      const info = CLASS_INFO[cls];
+      if (!info) continue;
+      const chain = [...info.acceptable, ...info.upgradeOk, ...info.stretch];
+
+      for (const alt of chain) {
+        const candidates = expectedReturns.filter(r => r.rentalClass === alt && !flaggedIds.has(r.id));
+        if (candidates.length === 0) continue;
+        const closest = candidates.reduce((best, r) =>
+          Math.abs(parseReturnStart(r.expectedTime) - resMin) <
+          Math.abs(parseReturnStart(best.expectedTime) - resMin) ? r : best
+        );
+        flaggedIds.add(closest.id);
+        entries.push({ ret: closest, subFor: cls });
+        break;
+      }
+    }
+
+    return {
+      flaggedReturns: entries,
+      normalReturns:  expectedReturns.filter(r => !flaggedIds.has(r.id)),
+    };
+  }, [todayManifest, expectedReturns, flags]);
 
   if (!user) return null;
 
@@ -142,8 +183,8 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
                 🚨 Priority Returns — Send to Washbay Immediately
               </p>
               <div className="rounded-xl border border-red-300 dark:border-red-800 overflow-hidden divide-y divide-red-100 dark:divide-red-900/40">
-                {flaggedReturns.map(ret => (
-                  <ExpectedReturnRow key={ret.id} ret={ret} flagged />
+                {flaggedReturns.map(({ ret, subFor }) => (
+                  <ExpectedReturnRow key={ret.id} ret={ret} flagged subFor={subFor} />
                 ))}
               </div>
             </section>
@@ -177,7 +218,7 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function ExpectedReturnRow({ ret, flagged }: { ret: ExpectedReturn; flagged: boolean }) {
+function ExpectedReturnRow({ ret, flagged, subFor }: { ret: ExpectedReturn; flagged: boolean; subFor?: RentalClass }) {
   return (
     <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
       flagged ? 'bg-red-50 dark:bg-red-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
@@ -204,9 +245,15 @@ function ExpectedReturnRow({ ret, flagged }: { ret: ExpectedReturn; flagged: boo
         {ret.duration}
       </span>
       {flagged && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 shrink-0">
-          ⚡ Washbay
-        </span>
+        subFor ? (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 shrink-0">
+            🔄 Sub for {subFor}
+          </span>
+        ) : (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 shrink-0">
+            ⚡ Washbay
+          </span>
+        )
       )}
     </div>
   );
