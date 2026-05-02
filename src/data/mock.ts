@@ -14,21 +14,21 @@ export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
 // ── Demo Users ────────────────────────────────────────────────────────────────
 
 export const USERS: User[] = [
-  { id: 'u1', employeeId: '331965',  name: 'Aaron S.',    role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee',       role: 'Lead VSA',           password: '!Bananarama1982', branchId: 'YWG-South' },
-  { id: 'u3', employeeId: 'VSA-003', name: 'Belle',       role: 'VSA',                password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u4', employeeId: 'CSR-001', name: 'CoZee',       role: 'CSR',                password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u5', employeeId: 'HIR-001', name: 'Tori',        role: 'Branch Manager',     password: '!Bananarama1982', branchId: 'YWG-South' },
-  { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah',      role: 'Branch Manager',     password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u7', employeeId: 'OPS-001', name: 'Zee',         role: 'Operations Manager', password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u8', employeeId: 'DRV-001', name: 'GenZee',      role: 'Driver',             password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u9', employeeId: 'DRV-002', name: 'ZeeDric',     role: 'Driver',             password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA',               password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u11', employeeId: '256163',  name: 'Geoff N.',    role: 'Lead VSA',                password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u12', employeeId: '300210',  name: 'Ray T.',      role: 'VSA',               password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u13', employeeId: 'BOSS',    name: 'Big Boss',    role: 'City Manager',       password: '!Bananarama1982', branchId: 'ALL' },
-  { id: 'u14', employeeId: 'YYC-VSA-01', name: 'Marcus L.',   role: 'VSA',                password: '!Bananarama1982', branchId: 'YYC' },
-  { id: 'u15', employeeId: 'YVR-VSA-01', name: 'Linh T.',     role: 'VSA',                password: '!Bananarama1982', branchId: 'YVR' },
+  { id: 'u1', employeeId: '331965', name: 'Aaron S.', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee', role: 'Lead VSA', password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u3', employeeId: 'VSA-003', name: 'Belle', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u4', employeeId: 'CSR-001', name: 'CoZee', role: 'CSR', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u5', employeeId: 'HIR-001', name: 'Tori', role: 'HIR', password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah', role: 'Branch Manager', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u7', employeeId: 'OPS-001', name: 'Zee', role: 'Operations Manager', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u8', employeeId: 'DRV-001', name: 'GenZee', role: 'Driver', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u9', employeeId: 'DRV-002', name: 'ZeeDric', role: 'Driver', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u10', employeeId: 'VSA-004', name: 'PerplexiZee', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u11', employeeId: '256163', name: 'Geoff N.', role: 'Lead VSA', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u12', employeeId: '300210', name: 'Ray T.', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
+  { id: 'u13', employeeId: 'BOSS', name: 'Big Boss', role: 'City Manager', password: '!Bananarama1982', branchId: 'ALL' },
+  { id: 'u14', employeeId: 'YYC-VSA-01', name: 'Marcus L.', role: 'VSA', password: '!Bananarama1982', branchId: 'YYC' },
+  { id: 'u15', employeeId: 'YVR-VSA-01', name: 'Linh T.', role: 'VSA', password: '!Bananarama1982', branchId: 'YVR' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────
