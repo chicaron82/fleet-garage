@@ -4,566 +4,19 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
-import type { RentalClass } from '../data/manifest';
-import { CLASS_INFO } from '../data/classSubstitutions';
-import { canRelease } from '../types';
+import {
+  FUEL_LABELS,
+  defaultCondition, elapsedSince,
+} from '../lib/vsa-trip';
+import type {
+  VSALocation, Condition, Reason, Authorization,
+  QueueSnapshot, FuelLevel, TripState, RouteStep,
+} from '../lib/vsa-trip';
+import { TripForm } from './TripForm';
+import { TripInTransit } from './TripInTransit';
+import { TripComplete } from './TripComplete';
 
-const VSA_LOCATIONS = ['Washbay', 'Airport', 'Other'] as const;
-type VSALocation = typeof VSA_LOCATIONS[number];
-type Condition = 'CLEAN' | 'DIRTY';
-type Reason = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
-type Authorization = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
-type QueueSnapshot = '0' | '~5' | 'TOO_MUCH';
-type FuelLevel = number;
-export type TripState = 'form' | 'in_transit' | 'complete';
-export type RouteStep = 'origin' | 'destination' | 'confirmed';
-
-const FUEL_LABELS: Record<number, string> = {
-  0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
-  4: '1/2',  5: '5/8', 6: '3/4', 7: '7/8', 8: 'Full',
-};
-
-function fuelColor(v: number): string {
-  if (v <= 1) return '#ef4444';
-  if (v <= 2) return '#f97316';
-  if (v <= 3) return '#eab308';
-  return '#22c55e';
-}
-
-const REASON_LABELS: Record<Reason, string> = {
-  ROUTINE: 'Routine Transport',
-  COVERAGE_ASSIST: 'Coverage Assist',
-  CODE_RED: 'Code Red',
-  OTHER: 'Other',
-};
-
-function defaultCondition(to: VSALocation): Condition {
-  return to === 'Washbay' ? 'DIRTY' : 'CLEAN';
-}
-
-function elapsedSince(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(ms / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  return `${m}m ${s.toString().padStart(2, '0')}s`;
-}
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
-}
-
-function buildMetaLine(
-  from: string, to: string,
-  dep: string, arr: string,
-  queue: QueueSnapshot | null,
-  fuel: FuelLevel | null,
-) {
-  const dur = Math.round((new Date(arr).getTime() - new Date(dep).getTime()) / 60000);
-  let s = `${fmtTime(dep)} → ${fmtTime(arr)} · ${dur}m`;
-  if (from === 'Washbay' && queue !== null) s += ` · Queue: ${queue === 'TOO_MUCH' ? '10+' : queue}`;
-  if (to === 'Washbay' && fuel !== null) s += ` · Fuel: ${FUEL_LABELS[fuel]}`;
-  return s;
-}
-
-// ── Shared sub-components ──────────────────────────────────────────────────────
-
-function Pill({
-  label, active, danger, onClick,
-}: { label: string; active: boolean; danger?: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => { hapticLight(); onClick(); }}
-      className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
-        active
-          ? danger
-            ? 'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-            : 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
-          : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function NotesField({ value, onChange, tripState }: {
-  value: string;
-  onChange: (v: string) => void;
-  tripState: TripState;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-        {tripState === 'form' ? 'Notes' : 'Context / Delays'}
-      </label>
-      <textarea
-        value={value}
-        onChange={e => {
-          onChange(e.target.value);
-          e.target.style.height = 'auto';
-          e.target.style.height = `${e.target.scrollHeight}px`;
-        }}
-        placeholder={tripState === 'form' ? "Any context for this run…" : "Stuck behind a train? Let us know…"}
-        rows={1}
-        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none overflow-hidden"
-      />
-    </div>
-  );
-}
-
-// ── TripForm ───────────────────────────────────────────────────────────────────
-
-interface TripFormProps {
-  plate: string; setPlate: (v: string) => void;
-  from: VSALocation; to: VSALocation;
-  condition: Condition; conditionManual: boolean;
-  reason: Reason | null; setReason: (r: Reason) => void;
-  queue: QueueSnapshot | null; setQueue: (q: QueueSnapshot) => void;
-  fuel: FuelLevel | null; setFuel: (f: FuelLevel) => void;
-  authorization: Authorization | null; setAuthorization: (a: Authorization | null) => void;
-  notes: string; setNotes: (v: string) => void;
-  isShuttle: boolean;
-  routeStep: RouteStep;
-  customFrom: string; setCustomFrom: (v: string) => void;
-  customTo: string; setCustomTo: (v: string) => void;
-  shuttlePlate: string; setShuttlePlate: (v: string) => void;
-  vehicleMeta: string | null;
-  topClasses: string[];
-  canStart: boolean;
-  onShuttleToggle: (checked: boolean) => void;
-  onConditionTap: (c: Condition) => void;
-  onLocationTap: (loc: VSALocation) => void;
-  onRouteReset: () => void;
-  onStartTrip: () => void;
-  onPlateChange: (v: string) => void;
-}
-
-function TripForm({
-  plate, from, to, condition, conditionManual,
-  reason, setReason, queue, setQueue, fuel, setFuel,
-  authorization, setAuthorization, notes, setNotes,
-  isShuttle, routeStep, customFrom, setCustomFrom, customTo, setCustomTo,
-  shuttlePlate, setShuttlePlate, vehicleMeta, topClasses, canStart,
-  onShuttleToggle, onConditionTap, onLocationTap, onRouteReset, onStartTrip, onPlateChange,
-}: TripFormProps) {
-  const { user } = useAuth();
-  const queueRequired  = from === 'Washbay';
-  const fuelConditional = to === 'Washbay' && !isShuttle;
-
-  const [subGuideOpen, setSubGuideOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<RentalClass | null>(null);
-
-  return (
-    <>
-      {/* ─── ROUTE STATE MACHINE ───────────────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-          {routeStep === 'origin'      && 'Starting at?'}
-          {routeStep === 'destination' && 'Going to?'}
-          {routeStep === 'confirmed'   && 'Route'}
-        </p>
-
-        {routeStep === 'origin' && topClasses.length > 0 && (
-          <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
-            {/* Tap target — header row */}
-            <button
-              type="button"
-              onClick={() => { hapticLight(); setSubGuideOpen(o => !o); }}
-              className="w-full flex items-center justify-between px-3 py-2 bg-amber-50 dark:bg-amber-900/20 cursor-pointer"
-            >
-              <p className="text-xs text-amber-800 dark:text-amber-300">
-                <span className="font-semibold">📋 Priority this window:</span>{' '}
-                {topClasses.join(', ')}
-              </p>
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                {subGuideOpen ? '▴' : '▾'}
-              </span>
-            </button>
-
-            {/* Expanded substitution guide */}
-            {subGuideOpen && (
-              <div className="border-t border-amber-200 dark:border-amber-800 divide-y divide-amber-100 dark:divide-amber-900/30">
-                {topClasses.map(cls => {
-                  const info = CLASS_INFO[cls as RentalClass];
-                  if (!info) return null;
-                  const isSelected = selectedClass === cls;
-                  return (
-                    <div key={cls}>
-                      <button
-                        type="button"
-                        onClick={() => { hapticLight(); setSelectedClass(isSelected ? null : cls as RentalClass); }}
-                        className="w-full flex items-center justify-between px-3 py-2.5 bg-white dark:bg-gray-900 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-amber-700 dark:text-amber-400 w-6">{cls}</span>
-                          <span className="text-xs text-gray-700 dark:text-gray-300">{info.label}</span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">· {info.example}</span>
-                        </div>
-                        <span className="text-xs text-gray-400">{isSelected ? '▴' : '▾'}</span>
-                      </button>
-
-                      {isSelected && (
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 space-y-1.5 text-xs">
-                          {info.acceptable.length > 0 && (
-                            <p><span className="font-semibold text-green-600 dark:text-green-400">✅ Acceptable:</span>{' '}<span className="text-gray-700 dark:text-gray-300">{info.acceptable.join(', ')}</span></p>
-                          )}
-                          {info.upgradeOk.length > 0 && (
-                            <p><span className="font-semibold text-blue-600 dark:text-blue-400">⬆️ Upgrade OK:</span>{' '}<span className="text-gray-700 dark:text-gray-300">{info.upgradeOk.join(', ')}</span></p>
-                          )}
-                          {info.stretch.length > 0 && (
-                            <p><span className="font-semibold text-amber-600 dark:text-amber-400">⚠️ Stretch:</span>{' '}<span className="text-gray-700 dark:text-gray-300">{info.stretch.join(', ')} — needs approval</span></p>
-                          )}
-                          <p><span className="font-semibold text-red-600 dark:text-red-400">🚫 Never:</span>{' '}<span className="text-gray-700 dark:text-gray-300">{info.never}</span></p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Full guide — stub */}
-                <button
-                  type="button"
-                  onClick={() => { hapticLight(); setSelectedClass(null); }}
-                  className="w-full px-3 py-2 text-xs text-gray-400 dark:text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 text-center cursor-pointer"
-                >
-                  📖 View full class guide
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {(routeStep === 'destination' || routeStep === 'confirmed') && (
-          <button
-            type="button"
-            onClick={onRouteReset}
-            className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:underline transition cursor-pointer"
-          >
-            From: {from === 'Other' ? (customFrom || 'Other') : from}
-            {routeStep === 'confirmed' && (
-              <span className="text-gray-400 dark:text-gray-500 font-normal">
-                {' '}→ To: {to === 'Other' ? (customTo || 'Other') : to}
-              </span>
-            )}
-          </button>
-        )}
-
-        {routeStep !== 'confirmed' && (
-          <div className="flex gap-2 flex-wrap">
-            {VSA_LOCATIONS.map(loc => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => onLocationTap(loc)}
-                className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
-                  routeStep === 'destination' && loc === from
-                    ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
-                    : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-                }`}
-              >
-                {loc}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {routeStep === 'destination' && from === 'Other' && (
-          <input
-            type="text" autoFocus placeholder="Specify origin…" value={customFrom}
-            onChange={e => setCustomFrom(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-          />
-        )}
-
-        {routeStep === 'confirmed' && to === 'Other' && (
-          <input
-            type="text" autoFocus placeholder="Specify destination…" value={customTo}
-            onChange={e => setCustomTo(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-          />
-        )}
-      </div>
-
-      {/* License Plate */}
-      <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
-        <input
-          type="text" placeholder="e.g. JFT 881" value={plate}
-          onChange={e => onPlateChange(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-        />
-        <div className="mt-3 flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
-              {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
-            </div>
-            <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => onShuttleToggle(e.target.checked)} />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
-          </label>
-          {user && canRelease(user.role) && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Designated Plate:</span>
-              <input
-                type="text" value={shuttlePlate}
-                onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
-                className="w-20 px-2 py-0.5 text-xs rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 focus:outline-none focus:border-yellow-400 transition-colors uppercase text-center"
-              />
-            </div>
-          )}
-        </div>
-        {!isShuttle && plate.trim().length >= 3 && (
-          <p className={`text-xs mt-2 ${vehicleMeta ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 italic'}`}>
-            {vehicleMeta ?? 'Not in system — plate accepted as-is'}
-          </p>
-        )}
-        {isShuttle && (
-          <p className="text-xs mt-2 text-purple-600 dark:text-purple-400 font-medium">{vehicleMeta}</p>
-        )}
-      </div>
-
-      {/* Vehicle Condition */}
-      <div>
-        <div className="flex items-baseline justify-between mb-1.5">
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Vehicle Condition</label>
-          {isShuttle ? (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">not applicable for shuttle</span>
-          ) : !conditionManual && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">auto · tap to override</span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button" disabled={isShuttle} onClick={() => onConditionTap('CLEAN')}
-            className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
-              isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
-              condition === 'CLEAN'
-                ? 'border-green-400 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 cursor-pointer'
-                : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
-            }`}
-          >Clean</button>
-          <button
-            type="button" disabled={isShuttle} onClick={() => onConditionTap('DIRTY')}
-            className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition ${
-              isShuttle ? 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed' :
-              condition === 'DIRTY'
-                ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 cursor-pointer'
-                : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer'
-            }`}
-          >Dirty</button>
-        </div>
-      </div>
-
-      {/* Reason */}
-      <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Reason *</label>
-        <div className="flex gap-2 flex-wrap">
-          {(Object.keys(REASON_LABELS) as Reason[]).map(r => (
-            <button
-              key={r} type="button"
-              onClick={() => { hapticLight(); setReason(r); }}
-              className={`px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                reason === r
-                  ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                  : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
-              }`}
-            >
-              {REASON_LABELS[r]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Queue — conditional on From = Washbay */}
-      {queueRequired && (
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-            Washbay Queue at Departure *
-          </label>
-          <div className="flex gap-2">
-            <Pill label="0"   active={queue === '0'}        onClick={() => setQueue('0')} />
-            <Pill label="~5"  active={queue === '~5'}       onClick={() => setQueue('~5')} />
-            <Pill label="10+" active={queue === 'TOO_MUCH'} danger onClick={() => setQueue('TOO_MUCH')} />
-          </div>
-        </div>
-      )}
-
-      {/* Fuel — conditional on To = Washbay */}
-      {fuelConditional && (
-        <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-            Fuel Level on Arrival
-          </label>
-          <div className="space-y-2 px-1">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold" style={{ color: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}>
-                ⛽ {fuel !== null ? FUEL_LABELS[fuel] : '—'}
-              </span>
-              <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                {fuel !== null ? `${fuel}/8` : 'optional'}
-              </span>
-            </div>
-            <input
-              type="range" min={0} max={8} step={1}
-              value={fuel ?? 4}
-              onChange={e => setFuel(Number(e.target.value))}
-              onPointerDown={() => { if (fuel === null) setFuel(4); }}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
-              style={{ accentColor: fuel !== null ? fuelColor(fuel) : '#9ca3af' }}
-            />
-            <div className="flex justify-between px-0.5">
-              {Array.from({ length: 9 }, (_, i) => (
-                <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuel !== null && i <= fuel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
-              ))}
-            </div>
-            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
-              <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notes */}
-      <NotesField value={notes} onChange={setNotes} tripState="form" />
-
-      {/* Authorization */}
-      <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Authorization *</label>
-        <select
-          value={authorization ?? ''}
-          onChange={e => setAuthorization((e.target.value as Authorization) || null as unknown as Authorization)}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
-        >
-          <option value="">Select authorization…</option>
-          <option value="MANAGEMENT">Management Decision</option>
-          <option value="LEAD_VSA">Lead VSA / Senior VSA</option>
-          <option value="PERSONAL">Personal — Proactive</option>
-        </select>
-      </div>
-
-      {user && (
-        <p className="text-xs text-gray-400 dark:text-gray-500">
-          Logging as: <span className="font-semibold">{user.name ?? user.id}</span> · {user.role} · #{user.employeeId}
-        </p>
-      )}
-
-      <button
-        type="button" disabled={!canStart} onClick={onStartTrip}
-        className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-      >
-        Start Trip →
-      </button>
-    </>
-  );
-}
-
-// ── TripInTransit ──────────────────────────────────────────────────────────────
-
-function TripInTransit({ plate, vehicleMeta, from, to, authorization, departureTime, elapsed, notes, setNotes, onArrived }: {
-  plate: string; vehicleMeta: string | null;
-  from: VSALocation; to: VSALocation;
-  authorization: Authorization | null;
-  departureTime: string; elapsed: string;
-  notes: string; setNotes: (v: string) => void;
-  onArrived: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-4 transition-colors">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
-            {vehicleMeta && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{vehicleMeta.split(' · ')[0]}</p>}
-            <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">{from} → {to}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {authorization === 'MANAGEMENT' ? 'Management Decision' : authorization === 'LEAD_VSA' ? 'Lead VSA Authorization' : 'Personal — Proactive'}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Departed {fmtTime(departureTime)}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums">{elapsed || '0m 00s'}</p>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">elapsed</p>
-          </div>
-        </div>
-      </div>
-      <NotesField value={notes} onChange={setNotes} tripState="in_transit" />
-      <button
-        type="button" onClick={onArrived}
-        className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-      >
-        ✓ Arrived at Destination
-      </button>
-    </div>
-  );
-}
-
-// ── TripComplete ───────────────────────────────────────────────────────────────
-
-function TripComplete({ plate, vehicleMeta, from, to, authorization, reason, condition, isShuttle, departureTime, arrivalTime, queue, fuel, notes, setNotes, onReset }: {
-  plate: string; vehicleMeta: string | null;
-  from: VSALocation; to: VSALocation;
-  authorization: Authorization | null;
-  reason: Reason | null;
-  condition: Condition; isShuttle: boolean;
-  departureTime: string; arrivalTime: string;
-  queue: QueueSnapshot | null; fuel: FuelLevel | null;
-  notes: string; setNotes: (v: string) => void;
-  onReset: () => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg overflow-hidden transition-colors">
-        <div className="px-4 py-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</span>
-              {vehicleMeta && (
-                <>
-                  <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{vehicleMeta.split(' · ')[0]}</span>
-                </>
-              )}
-            </div>
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">{from} → {to}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              {buildMetaLine(from, to, departureTime, arrivalTime, queue, fuel)}
-            </p>
-          </div>
-          <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
-            isShuttle
-              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-              : condition === 'CLEAN'
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-          }`}>
-            {isShuttle ? 'Shuttle' : (condition === 'CLEAN' ? 'Clean' : 'Dirty')}
-          </span>
-        </div>
-        <div className={`px-4 py-2 border-t ${
-          authorization === 'PERSONAL'
-            ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'
-            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'
-        } transition-colors`}>
-          <span className={`text-xs font-semibold ${
-            authorization === 'PERSONAL' ? 'text-teal-700 dark:text-teal-400' : 'text-amber-700 dark:text-amber-400'
-          }`}>
-            {authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
-            <span className="font-normal opacity-70 mx-1">·</span>
-            <span className="font-normal">{REASON_LABELS[reason!]}</span>
-          </span>
-        </div>
-      </div>
-      <NotesField value={notes} onChange={setNotes} tripState="complete" />
-      <button type="button" onClick={onReset} className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
-        Log another run →
-      </button>
-    </div>
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────────────────
+export type { TripState, RouteStep };
 
 export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
   const { user } = useAuth();
@@ -590,16 +43,6 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
 
-  const handleShuttleToggle = (checked: boolean) => {
-    hapticLight();
-    setIsShuttle(checked);
-    if (checked && shuttlePlate) {
-      setPlate(shuttlePlate);
-    } else if (!checked && plate.trim().toUpperCase() === shuttlePlate) {
-      setPlate('');
-    }
-  };
-
   const topClasses = useMemo(() => {
     const manifest = generateDayManifest();
     const next5 = getNextFiveNeeded(manifest);
@@ -625,6 +68,16 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setTo(loc);
     setFuel(null);
     if (!conditionManual) setCondition(defaultCondition(loc));
+  };
+
+  const handleShuttleToggle = (checked: boolean) => {
+    hapticLight();
+    setIsShuttle(checked);
+    if (checked && shuttlePlate) {
+      setPlate(shuttlePlate);
+    } else if (!checked && plate.trim().toUpperCase() === shuttlePlate) {
+      setPlate('');
+    }
   };
 
   const handleLocationTap = (loc: VSALocation) => {
@@ -685,24 +138,24 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     if (onTripComplete && user) {
       onTripComplete({
         id: `vsa-session-${Date.now()}`,
-        vehicleUnit: vehicleMeta?.split(' · ')[1] ?? '',
-        vehiclePlate: plate,
-        tripType: isShuttle ? 'transfer' : (condition === 'CLEAN' ? 'clean' : 'dirty'),
-        departLocation: from,
-        arriveLocation: to,
-        departTime: departureTime,
-        arriveTime: arrived,
-        gasLevel: '',
-        odometer: 0,
-        driverId: user.id,
+        vehicleUnit:      vehicleMeta?.split(' · ')[1] ?? '',
+        vehiclePlate:     plate,
+        tripType:         isShuttle ? 'transfer' : (condition === 'CLEAN' ? 'clean' : 'dirty'),
+        departLocation:   from,
+        arriveLocation:   to,
+        departTime:       departureTime,
+        arriveTime:       arrived,
+        gasLevel:         '',
+        odometer:         0,
+        driverId:         user.id,
         isVsaInterruption: true,
-        authorization: authorization ?? undefined,
-        reason: reason ?? undefined,
+        authorization:    authorization ?? undefined,
+        reason:           reason ?? undefined,
         queueAtDeparture: queue ?? undefined,
-        fuelOnArrival: fuel !== null ? FUEL_LABELS[fuel] : undefined,
-        condition: isShuttle ? undefined : condition,
-        notes: notes.trim() || undefined,
-        branchId: user.branchId,
+        fuelOnArrival:    fuel !== null ? FUEL_LABELS[fuel] : undefined,
+        condition:        isShuttle ? undefined : condition,
+        notes:            notes.trim() || undefined,
+        branchId:         user.branchId,
       });
     }
   };
@@ -710,19 +163,17 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
   const handleReset = () => {
     setTripState('form');
     setPlate('');
-    setFrom('Washbay'); setTo('Airport');
+    setFrom('Washbay');       setTo('Airport');
     setConditionManual(false); setCondition('CLEAN');
-    setReason(null); setQueue(null); setFuel(null); setAuthorization(null);
-    setNotes(''); setIsShuttle(false);
-    setDepartureTime(''); setArrivalTime(''); setElapsed('');
+    setReason(null);           setQueue(null); setFuel(null); setAuthorization(null);
+    setNotes('');              setIsShuttle(false);
+    setDepartureTime('');      setArrivalTime(''); setElapsed('');
     setRouteStep('origin');
-    setCustomFrom(''); setCustomTo('');
+    setCustomFrom('');         setCustomTo('');
   };
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-
-      {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Movement Log</p>
@@ -743,20 +194,20 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
       <div className="p-4 space-y-4">
         {tripState === 'form' && (
           <TripForm
-            plate={plate} setPlate={setPlate}
-            from={from} to={to}
-            condition={condition} conditionManual={conditionManual}
-            reason={reason} setReason={setReason}
-            queue={queue} setQueue={setQueue}
-            fuel={fuel} setFuel={setFuel}
+            plate={plate}           setPlate={setPlate}
+            from={from}             to={to}
+            condition={condition}   conditionManual={conditionManual}
+            reason={reason}         setReason={setReason}
+            queue={queue}           setQueue={setQueue}
+            fuel={fuel}             setFuel={setFuel}
             authorization={authorization} setAuthorization={setAuthorization}
-            notes={notes} setNotes={setNotes}
+            notes={notes}           setNotes={setNotes}
             isShuttle={isShuttle}
             routeStep={routeStep}
             customFrom={customFrom} setCustomFrom={setCustomFrom}
-            customTo={customTo} setCustomTo={setCustomTo}
+            customTo={customTo}     setCustomTo={setCustomTo}
             shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-            vehicleMeta={vehicleMeta} topClasses={topClasses} canStart={canStart}
+            vehicleMeta={vehicleMeta}   topClasses={topClasses} canStart={canStart}
             onShuttleToggle={handleShuttleToggle}
             onConditionTap={c => { hapticLight(); setCondition(c); setConditionManual(true); }}
             onLocationTap={handleLocationTap}
@@ -768,24 +219,24 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
         {tripState === 'in_transit' && (
           <TripInTransit
-            plate={plate} vehicleMeta={vehicleMeta}
-            from={from} to={to}
+            plate={plate}           vehicleMeta={vehicleMeta}
+            from={from}             to={to}
             authorization={authorization}
             departureTime={departureTime} elapsed={elapsed}
-            notes={notes} setNotes={setNotes}
+            notes={notes}           setNotes={setNotes}
             onArrived={handleArrived}
           />
         )}
 
         {tripState === 'complete' && (
           <TripComplete
-            plate={plate} vehicleMeta={vehicleMeta}
-            from={from} to={to}
+            plate={plate}           vehicleMeta={vehicleMeta}
+            from={from}             to={to}
             authorization={authorization} reason={reason}
-            condition={condition} isShuttle={isShuttle}
+            condition={condition}   isShuttle={isShuttle}
             departureTime={departureTime} arrivalTime={arrivalTime}
-            queue={queue} fuel={fuel}
-            notes={notes} setNotes={setNotes}
+            queue={queue}           fuel={fuel}
+            notes={notes}           setNotes={setNotes}
             onReset={handleReset}
           />
         )}
