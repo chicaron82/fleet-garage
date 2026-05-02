@@ -243,10 +243,11 @@ export function AnalyticsDashboard() {
   const liveWeekActivity = (() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const result = Array.from({ length: 7 }, (_, i) => {
+      const offsetDays = i - 6;
+      const dateStr = localDateStr(offsetDays);
       const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
+      date.setDate(date.getDate() + offsetDays);
       const dayName = days[date.getDay()];
-      const dateStr = date.toISOString().split('T')[0];
       const dayHolds = holds.filter(h => h.flaggedAt.startsWith(dateStr)).length;
       const dayReleases = holds.filter(h =>
         h.release && h.flaggedAt.startsWith(dateStr)
