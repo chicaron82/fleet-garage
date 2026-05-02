@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface Preferences {
   darkMode: boolean;
@@ -16,33 +17,58 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true };
+
+function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
+  const payload: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
+  if ('avatar' in patch) payload.avatar = patch.avatar ?? null;
+  if ('prefs' in patch) payload.prefs = patch.prefs;
+  supabase.from('user_preferences').upsert(payload, { onConflict: 'user_id' }).then(() => {});
+}
+
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  
-  // Default preferences
-  const [prefs, setPrefs] = useState<Preferences>({
-    darkMode: false,
-    notifyNewFlags: true,
-    notifyReleases: true,
-  });
 
+  const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   const [avatarBase64, setAvatarState] = useState<string | null>(null);
   const [prevUserId, setPrevUserId] = useState<string | undefined>(user?.id);
 
-  // Derive state from props to avoid standard React cascading renders via useEffect
+  // Sync localStorage load on user change — immediate, no flicker
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (!user) {
-      setPrefs({ darkMode: false, notifyNewFlags: true, notifyReleases: true });
+      setPrefs(DEFAULT_PREFS);
       setAvatarState(null);
     } else {
       const savedPrefs = localStorage.getItem(`fg_prefs_${user.id}`);
-      setPrefs(savedPrefs ? JSON.parse(savedPrefs) : { darkMode: false, notifyNewFlags: true, notifyReleases: true });
+      setPrefs(savedPrefs ? JSON.parse(savedPrefs) : DEFAULT_PREFS);
       setAvatarState(localStorage.getItem(`fg_avatar_${user.id}`) || null);
     }
   }
 
-  // Handle Dark mode DOM changes globally
+  // Async Supabase hydration — overrides localStorage if a remote row exists
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('user_preferences')
+      .select('avatar, prefs')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const av = data.avatar as string | null;
+        setAvatarState(av);
+        if (av) localStorage.setItem(`fg_avatar_${user.id}`, av);
+        else localStorage.removeItem(`fg_avatar_${user.id}`);
+        if (data.prefs) {
+          const p = data.prefs as Preferences;
+          setPrefs(p);
+          localStorage.setItem(`fg_prefs_${user.id}`, JSON.stringify(p));
+        }
+      });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply dark mode class to <html>
   useEffect(() => {
     if (prefs.darkMode) {
       document.documentElement.classList.add('dark');
@@ -56,6 +82,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       const next = { ...prev, [key]: value };
       if (user) {
         localStorage.setItem(`fg_prefs_${user.id}`, JSON.stringify(next));
+        upsertRemote(user.id, { prefs: next });
       }
       return next;
     });
@@ -64,11 +91,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const setAvatarBase64 = (val: string | null) => {
     setAvatarState(val);
     if (user) {
-      if (val === null) {
-        localStorage.removeItem(`fg_avatar_${user.id}`);
-      } else {
-        localStorage.setItem(`fg_avatar_${user.id}`, val);
-      }
+      if (val === null) localStorage.removeItem(`fg_avatar_${user.id}`);
+      else localStorage.setItem(`fg_avatar_${user.id}`, val);
+      upsertRemote(user.id, { avatar: val });
     }
   };
 

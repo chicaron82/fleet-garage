@@ -13,7 +13,7 @@ import { useFleetBalance } from '../../hooks/useFleetBalance';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs } from '../../lib/sidebarPrefs';
+import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import type { Module, Screen, BranchId } from '../../types';
 import type { NavItem } from '../../lib/navigation';
 import type { MockNotification } from '../../data/notifications';
@@ -112,17 +112,29 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const defaultOrder    = defaultNavItems.map(i => i.module);
 
   useEffect(() => {
-    const saved = loadSidebarPrefs(user.id);
-    if (saved) {
-      const newModules = defaultOrder.filter(
-        m => !saved.order.includes(m) && !saved.hidden.includes(m)
-      );
-      setLocalOrder([...saved.order, ...newModules]);
-      setHidden(saved.hidden);
-    } else {
-      setLocalOrder(defaultOrder);
-      setHidden([]);
-    }
+    const applyPrefs = (saved: { order: Module[]; hidden: Module[] } | null) => {
+      if (saved) {
+        const newModules = defaultOrder.filter(
+          m => !saved.order.includes(m) && !saved.hidden.includes(m)
+        );
+        setLocalOrder([...saved.order, ...newModules]);
+        setHidden(saved.hidden);
+      } else {
+        setLocalOrder(defaultOrder);
+        setHidden([]);
+      }
+    };
+
+    // Sync localStorage load — immediate, no flicker
+    applyPrefs(loadSidebarPrefs(user.id));
+
+    // Async Supabase hydration — overrides if remote row exists
+    fetchSidebarPrefs(user.id).then(remote => {
+      if (remote) {
+        applyPrefs(remote);
+        saveSidebarPrefs(user.id, remote);
+      }
+    });
   }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const displayedItems = localOrder
@@ -156,13 +168,16 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
   const handleSave = () => {
     hapticMedium();
-    saveSidebarPrefs(user.id, { order: localOrder, hidden });
+    const prefs = { order: localOrder, hidden };
+    saveSidebarPrefs(user.id, prefs);
+    syncSidebarPrefs(user.id, prefs);
     setEditMode(false);
   };
 
   const handleReset = () => {
     hapticLight();
     clearSidebarPrefs(user.id);
+    syncSidebarPrefs(user.id, { order: defaultOrder, hidden: [] });
     setLocalOrder(defaultOrder);
     setHidden([]);
     setEditMode(false);
