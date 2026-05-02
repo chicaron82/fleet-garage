@@ -122,9 +122,8 @@ export interface HandoffNote {
   loggedById: string;
   loggedByName: string;
   loggedAt: string;
-  dirtiesInQueue: number;
-  cleansAtAirport: number;
-  expectedReturns?: string;
+  fullPages: number;
+  lastPageEntries: number;
   notes?: string;
   lotStatus: LotStatus;
 }

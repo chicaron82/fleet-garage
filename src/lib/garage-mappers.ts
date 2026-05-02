@@ -136,9 +136,8 @@ export function mapHandoffNote(row: Row): HandoffNote {
     loggedById:       reqStr(row, 'logged_by',        'mapHandoffNote'),
     loggedByName:     reqStr(row, 'logged_by_name',   'mapHandoffNote'),
     loggedAt:         reqStr(row, 'logged_at',        'mapHandoffNote'),
-    dirtiesInQueue:   reqNum(row, 'dirties_in_queue', 'mapHandoffNote'),
-    cleansAtAirport:  reqNum(row, 'cleans_at_airport','mapHandoffNote'),
-    expectedReturns:  optStr(row, 'expected_returns'),
+    fullPages:        reqNum(row, 'full_pages',        'mapHandoffNote'),
+    lastPageEntries:  reqNum(row, 'last_page_entries', 'mapHandoffNote'),
     notes:            optStr(row, 'notes'),
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
   };

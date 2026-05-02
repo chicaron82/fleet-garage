@@ -463,12 +463,8 @@ function HandoffBanner({ latestHandoff, onLogHandoff }: { latestHandoff: Handoff
         </button>
       </div>
       <div className={`flex gap-4 text-xs ${s.text}`}>
-        <span><strong>{latestHandoff.dirtiesInQueue}</strong> dirties in queue</span>
-        <span><strong>{latestHandoff.cleansAtAirport}</strong> cleans at airport</span>
+        <span><strong>{latestHandoff.fullPages * 19 + latestHandoff.lastPageEntries}</strong> cars cleaned this shift</span>
       </div>
-      {latestHandoff.expectedReturns && (
-        <p className={`text-xs ${s.text} opacity-80`}>Returns: {latestHandoff.expectedReturns}</p>
-      )}
       {latestHandoff.notes && (
         <p className={`text-xs ${s.text} opacity-80`}>{latestHandoff.notes}</p>
       )}

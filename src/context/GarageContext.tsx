@@ -74,7 +74,7 @@ interface GarageContextValue {
   getTodayWashbayLog: () => WashbayLog | undefined;
   handoffNotes: HandoffNote[];
   latestHandoff: HandoffNote | undefined;
-  submitHandoff: (data: { dirtiesInQueue: number; cleansAtAirport: number; lotStatus: LotStatus; expectedReturns?: string; notes?: string }) => Promise<boolean>;
+  submitHandoff: (data: { fullPages: number; lastPageEntries: number; lotStatus: LotStatus; notes?: string }) => Promise<boolean>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -468,25 +468,23 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const latestHandoff = handoffNotes[0];
 
   const submitHandoff = async (data: {
-    dirtiesInQueue: number;
-    cleansAtAirport: number;
+    fullPages: number;
+    lastPageEntries: number;
     lotStatus: LotStatus;
-    expectedReturns?: string;
     notes?: string;
   }): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
     try {
       const { data: row, error } = await supabase.from('handoff_notes').insert({
-        branch_id:        branchId,
-        logged_by:        user!.id,
-        logged_by_name:   user!.name,
-        logged_at:        loggedAt,
-        dirties_in_queue: data.dirtiesInQueue,
-        cleans_at_airport: data.cleansAtAirport,
-        lot_status:       data.lotStatus,
-        expected_returns: data.expectedReturns ?? null,
-        notes:            data.notes ?? null,
+        branch_id:          branchId,
+        logged_by:          user!.id,
+        logged_by_name:     user!.name,
+        logged_at:          loggedAt,
+        full_pages:         data.fullPages,
+        last_page_entries:  data.lastPageEntries,
+        lot_status:         data.lotStatus,
+        notes:              data.notes ?? null,
       }).select().single();
       if (error) throw error;
       setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
