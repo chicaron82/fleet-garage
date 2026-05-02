@@ -124,6 +124,7 @@ export interface HandoffNote {
   loggedAt: string;
   fullPages: number;
   lastPageEntries: number;
+  teamSize: number;
   notes?: string;
   lotStatus: LotStatus;
 }

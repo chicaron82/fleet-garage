@@ -9,8 +9,8 @@ export function WashbayClosingLog() {
   const { holds, submitWashbayLog, getTodayWashbayLog } = useGarage();
   const { user } = useAuth();
 
-  const [fullPages,        setFullPages]        = useState('');
-  const [lastPageEntries,  setLastPageEntries]  = useState('');
+  const [fullPages,        setFullPages]        = useState(0);
+  const [lastPageEntries,  setLastPageEntries]  = useState(0);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(3);
@@ -23,19 +23,17 @@ export function WashbayClosingLog() {
   // Pre-fill when entering edit mode
   useEffect(() => {
     if (todayLog && editing) {
-      setFullPages(String(todayLog.fullPages));
-      setLastPageEntries(String(todayLog.lastPageEntries));
+      setFullPages(todayLog.fullPages);
+      setLastPageEntries(todayLog.lastPageEntries);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setTeamSize(todayLog.teamSize);
     }
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fp   = parseInt(fullPages)        || 0;
-  const lpe  = parseInt(lastPageEntries)  || 0;
   const cr   = parseInt(carsRemaining)    || 0;
   const cnpu = parseInt(cleanNotPickedUp) || 0;
-  const carsIn      = fp * 19 + lpe;
+  const carsIn      = fullPages * 19 + lastPageEntries;
   const carsCleaned = Math.max(0, carsIn - cr);
   const throughput  = carsCleaned / SHIFT_HOURS;
   const delta       = throughput - COMPANY_STANDARD;
@@ -49,7 +47,7 @@ export function WashbayClosingLog() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
-    await submitWashbayLog({ fullPages: fp, lastPageEntries: lpe, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS });
     setEditing(false);
     setSubmitting(false);
   };
@@ -130,27 +128,31 @@ export function WashbayClosingLog() {
       <div className="p-4 space-y-4">
 
         <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Gas Sheet Pages</p>
-          <div className="grid grid-cols-2 gap-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Pages</p>
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Full pages</label>
-              <input
-                type="number" min="0" value={fullPages} onChange={e => setFullPages(e.target.value)}
-                placeholder="0"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-              />
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Full pages</label>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setFullPages(v => Math.max(0, v - 1))}
+                  className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{fullPages}</span>
+                <button type="button" onClick={() => setFullPages(v => v + 1)}
+                  className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
+              </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Last page entries</label>
-              <input
-                type="number" min="0" max="19" value={lastPageEntries} onChange={e => setLastPageEntries(e.target.value)}
-                placeholder="0"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-              />
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Last page entries</label>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setLastPageEntries(v => Math.max(0, v - 1))}
+                  className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{lastPageEntries}</span>
+                <button type="button" onClick={() => setLastPageEntries(v => Math.min(19, v + 1))}
+                  className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
+              </div>
             </div>
           </div>
           {carsIn > 0 && (
-            <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-1.5">= {carsIn} cars in ✓</p>
+            <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-2">= {carsIn} cars in ✓</p>
           )}
         </div>
 

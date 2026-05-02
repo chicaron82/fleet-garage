@@ -12,28 +12,29 @@ const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; description: string
   { value: 'backlog',    label: 'Backlog',    description: 'Significant queue, needs immediate attention',  color: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700' },
 ];
 
-const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
+const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
+const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function HandoffForm({ onClose }: Props) {
   const { submitHandoff } = useGarage();
 
-  const [fullPages,       setFullPages]       = useState('');
-  const [lastPageEntries, setLastPageEntries] = useState('');
+  const [fullPages,       setFullPages]       = useState(0);
+  const [lastPageEntries, setLastPageEntries] = useState(0);
+  const [teamSize,        setTeamSize]        = useState(3);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
   const [submitting,      setSubmitting]      = useState(false);
 
-  const fp      = parseInt(fullPages)        || 0;
-  const lpe     = parseInt(lastPageEntries)  || 0;
-  const carsIn  = fp * 19 + lpe;
+  const carsIn    = fullPages * 19 + lastPageEntries;
   const canSubmit = !submitting && carsIn > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     const ok = await submitHandoff({
-      fullPages:       fp,
-      lastPageEntries: lpe,
+      fullPages,
+      lastPageEntries,
+      teamSize,
       lotStatus,
       notes: notes.trim() || undefined,
     });
@@ -51,34 +52,44 @@ export function HandoffForm({ onClose }: Props) {
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none">×</button>
         </div>
 
-        <div className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div className="p-4 space-y-5 max-h-[75vh] overflow-y-auto">
 
           {/* Gas sheet pages */}
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Gas Sheet Pages — This Shift</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Pages — This Shift</p>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Full pages</label>
-                <input
-                  type="number" min="0" value={fullPages}
-                  onChange={e => setFullPages(e.target.value)}
-                  placeholder="0"
-                  className={INPUT}
-                />
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Full pages</label>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setFullPages(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
+                  <span className={STEP_VAL}>{fullPages}</span>
+                  <button type="button" onClick={() => setFullPages(v => v + 1)} className={STEP_BTN}>+</button>
+                </div>
               </div>
               <div>
-                <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Last page entries</label>
-                <input
-                  type="number" min="0" max="19" value={lastPageEntries}
-                  onChange={e => setLastPageEntries(e.target.value)}
-                  placeholder="0"
-                  className={INPUT}
-                />
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Last page entries</label>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setLastPageEntries(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
+                  <span className={STEP_VAL}>{lastPageEntries}</span>
+                  <button type="button" onClick={() => setLastPageEntries(v => Math.min(19, v + 1))} className={STEP_BTN}>+</button>
+                </div>
               </div>
             </div>
             {carsIn > 0 && (
-              <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-1.5">= {carsIn} cars cleaned this shift ✓</p>
+              <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-2">= {carsIn} cars cleaned this shift ✓</p>
             )}
+          </div>
+
+          {/* Team size */}
+          <div>
+            <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
+            <div className="flex items-center gap-4">
+              <button type="button" onClick={() => setTeamSize(v => Math.max(1, v - 1))}
+                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
+              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{teamSize}</span>
+              <button type="button" onClick={() => setTeamSize(v => v + 1)}
+                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
+            </div>
           </div>
 
           {/* Lot status pills */}
@@ -110,7 +121,7 @@ export function HandoffForm({ onClose }: Props) {
               rows={3} value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Anything the next shift needs to know…"
-              className={`${INPUT} resize-none`}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
             />
           </div>
 

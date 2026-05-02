@@ -74,7 +74,7 @@ interface GarageContextValue {
   getTodayWashbayLog: () => WashbayLog | undefined;
   handoffNotes: HandoffNote[];
   latestHandoff: HandoffNote | undefined;
-  submitHandoff: (data: { fullPages: number; lastPageEntries: number; lotStatus: LotStatus; notes?: string }) => Promise<boolean>;
+  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string }) => Promise<boolean>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -470,6 +470,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const submitHandoff = async (data: {
     fullPages: number;
     lastPageEntries: number;
+    teamSize: number;
     lotStatus: LotStatus;
     notes?: string;
   }): Promise<boolean> => {
@@ -483,6 +484,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
         logged_at:          loggedAt,
         full_pages:         data.fullPages,
         last_page_entries:  data.lastPageEntries,
+        team_size:          data.teamSize,
         lot_status:         data.lotStatus,
         notes:              data.notes ?? null,
       }).select().single();
