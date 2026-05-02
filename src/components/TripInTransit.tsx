@@ -1,9 +1,7 @@
 import { NotesField, fmtTime } from '../lib/vsa-trip';
-import type { VSALocation, Authorization } from '../lib/vsa-trip';
+import type { Authorization } from '../lib/vsa-trip';
 
-export function TripInTransit({ plate, vehicleMeta, from, to, authorization, departureTime, elapsed, notes, setNotes, onArrived }: {
-  plate: string; vehicleMeta: string | null;
-  from: VSALocation; to: VSALocation;
+export function TripInTransit({ authorization, departureTime, elapsed, notes, setNotes, onArrived }: {
   authorization: Authorization | null;
   departureTime: string; elapsed: string;
   notes: string; setNotes: (v: string) => void;
@@ -15,9 +13,7 @@ export function TripInTransit({ plate, vehicleMeta, from, to, authorization, dep
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
-            {vehicleMeta && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{vehicleMeta.split(' · ')[0]}</p>}
-            <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium">{from} → {to}</p>
+            <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">Airport Run</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {authorization === 'MANAGEMENT' ? 'Management Decision' : authorization === 'LEAD_VSA' ? 'Lead VSA Authorization' : 'Personal — Proactive'}
             </p>
@@ -34,7 +30,7 @@ export function TripInTransit({ plate, vehicleMeta, from, to, authorization, dep
         type="button" onClick={onArrived}
         className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
       >
-        ✓ Arrived at Destination
+        ✓ Back at Washbay
       </button>
     </div>
   );

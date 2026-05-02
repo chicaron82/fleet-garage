@@ -5,62 +5,37 @@ import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
-import {
-  FUEL_LABELS,
-  defaultCondition, elapsedSince,
-} from '../lib/vsa-trip';
-import type {
-  VSALocation, Condition, Reason, Authorization,
-  QueueSnapshot, FuelLevel, TripState, RouteStep,
-} from '../lib/vsa-trip';
+import { elapsedSince } from '../lib/vsa-trip';
+import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
 import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
 
-export type { TripState, RouteStep };
+export type { TripState };
 
 export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
   const { user } = useAuth();
-  const { vehicles, shuttlePlate, setShuttlePlate } = useGarage();
+  const { shuttlePlate, setShuttlePlate } = useGarage();
 
-  const [tripState, setTripState] = useState<TripState>('form');
-  const [routeStep, setRouteStep] = useState<RouteStep>('origin');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo]     = useState('');
-
-  const [plate, setPlate]                     = useState('');
-  const [from, setFrom]                       = useState<VSALocation>('Washbay');
-  const [to, setTo]                           = useState<VSALocation>('Airport');
-  const [condition, setCondition]             = useState<Condition>('CLEAN');
-  const [conditionManual, setConditionManual] = useState(false);
-  const [reason, setReason]                   = useState<Reason | null>(null);
-  const [queue, setQueue]                     = useState<QueueSnapshot | null>(null);
-  const [fuel, setFuel]                       = useState<FuelLevel | null>(null);
-  const [authorization, setAuthorization]     = useState<Authorization | null>(null);
-  const [notes, setNotes]                     = useState('');
-  const [isShuttle, setIsShuttle]             = useState(false);
-
-  const [departureTime, setDepartureTime] = useState('');
-  const [arrivalTime, setArrivalTime]     = useState('');
-  const [elapsed, setElapsed]             = useState('');
+  const [tripState, setTripState]           = useState<TripState>('form');
+  const [reason, setReason]                 = useState<Reason | null>(null);
+  const [queue, setQueue]                   = useState<QueueSnapshot | null>(null);
+  const [authorization, setAuthorization]   = useState<Authorization | null>(null);
+  const [notes, setNotes]                   = useState('');
+  const [isShuttle, setIsShuttle]           = useState(false);
+  const [departureTime, setDepartureTime]   = useState('');
+  const [arrivalTime, setArrivalTime]       = useState('');
+  const [elapsed, setElapsed]               = useState('');
 
   const { topClasses, flaggedClasses } = useMemo(() => {
     const manifest = generateDayManifest();
     const flags    = loadFlags();
     const next5    = getNextFiveNeeded(manifest);
     return {
-      topClasses:    [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
+      topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
       flaggedClasses: [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))],
     };
   }, []);
-
-  const vehicleMeta = useMemo(() => {
-    const t = plate.trim().replace(/\s/g, '').toUpperCase();
-    if (isShuttle) return 'Internal Transport · Lot Shuttle';
-    if (t.length < 3) return null;
-    const match = vehicles.find(v => v.licensePlate.replace(/\s/g, '').toUpperCase() === t);
-    return match ? `${match.year} ${match.make} ${match.model} · ${match.unitNumber}` : null;
-  }, [plate, isShuttle, vehicles]);
 
   useEffect(() => {
     if (tripState !== 'in_transit' || !departureTime) return;
@@ -68,68 +43,16 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     return () => clearInterval(id);
   }, [tripState, departureTime]);
 
-  const handleSetFrom = (loc: VSALocation) => { setFrom(loc); setQueue(null); };
-  const handleSetTo   = (loc: VSALocation) => {
-    setTo(loc);
-    setFuel(null);
-    if (!conditionManual) setCondition(defaultCondition(loc));
-  };
-
   const handleShuttleToggle = (checked: boolean) => {
     hapticLight();
     setIsShuttle(checked);
-    if (checked && shuttlePlate) {
-      setPlate(shuttlePlate);
-    } else if (!checked && plate.trim().toUpperCase() === shuttlePlate) {
-      setPlate('');
-    }
   };
 
-  const handleLocationTap = (loc: VSALocation) => {
-    if (routeStep === 'origin') {
-      hapticLight();
-      handleSetFrom(loc);
-      setRouteStep('destination');
-    } else if (routeStep === 'destination') {
-      if (loc === from) {
-        hapticLight();
-        handleSetFrom('Washbay');
-        setCustomFrom('');
-        setRouteStep('origin');
-      } else {
-        hapticMedium();
-        handleSetTo(loc);
-        setRouteStep('confirmed');
-      }
-    }
-  };
-
-  const handleRouteReset = () => {
-    hapticLight();
-    handleSetFrom('Washbay');
-    handleSetTo('Airport');
-    setCustomFrom('');
-    setCustomTo('');
-    setRouteStep('origin');
-  };
-
-  const handlePlateChange = (newPlate: string) => {
-    const upper = newPlate.toUpperCase();
-    setPlate(upper);
-    if (shuttlePlate && upper.trim() === shuttlePlate) {
-      setIsShuttle(true);
-    } else if (isShuttle && upper.trim() !== shuttlePlate) {
-      setIsShuttle(false);
-    }
-  };
-
-  const canStart = plate.trim().length > 0 && routeStep === 'confirmed' && reason !== null
-    && !!authorization && (from !== 'Washbay' || queue !== null);
+  const canStart = reason !== null && !!authorization && queue !== null;
 
   const handleStartTrip = () => {
     hapticMedium();
-    const now = new Date().toISOString();
-    setDepartureTime(now);
+    setDepartureTime(new Date().toISOString());
     setElapsed('0m 00s');
     setTripState('in_transit');
   };
@@ -142,39 +65,37 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
     if (onTripComplete && user) {
       onTripComplete({
-        id: `vsa-session-${Date.now()}`,
-        vehicleUnit:      vehicleMeta?.split(' · ')[1] ?? '',
-        vehiclePlate:     plate,
-        tripType:         isShuttle ? 'transfer' : (condition === 'CLEAN' ? 'clean' : 'dirty'),
-        departLocation:   from,
-        arriveLocation:   to,
-        departTime:       departureTime,
-        arriveTime:       arrived,
-        gasLevel:         '',
-        odometer:         0,
-        driverId:         user.id,
+        id:                `vsa-session-${Date.now()}`,
+        vehicleUnit:       '',
+        vehiclePlate:      '',
+        tripType:          isShuttle ? 'transfer' : 'clean',
+        departLocation:    'Airport Run',
+        arriveLocation:    'Airport Run',
+        departTime:        departureTime,
+        arriveTime:        arrived,
+        gasLevel:          '',
+        odometer:          0,
+        driverId:          user.id,
         isVsaInterruption: true,
-        authorization:    authorization ?? undefined,
-        reason:           reason ?? undefined,
-        queueAtDeparture: queue ?? undefined,
-        fuelOnArrival:    fuel !== null ? FUEL_LABELS[fuel] : undefined,
-        condition:        isShuttle ? undefined : condition,
-        notes:            notes.trim() || undefined,
-        branchId:         user.branchId,
+        authorization:     authorization ?? undefined,
+        reason:            reason ?? undefined,
+        queueAtDeparture:  queue ?? undefined,
+        notes:             notes.trim() || undefined,
+        branchId:          user.branchId,
       });
     }
   };
 
   const handleReset = () => {
     setTripState('form');
-    setPlate('');
-    setFrom('Washbay');       setTo('Airport');
-    setConditionManual(false); setCondition('CLEAN');
-    setReason(null);           setQueue(null); setFuel(null); setAuthorization(null);
-    setNotes('');              setIsShuttle(false);
-    setDepartureTime('');      setArrivalTime(''); setElapsed('');
-    setRouteStep('origin');
-    setCustomFrom('');         setCustomTo('');
+    setReason(null);
+    setQueue(null);
+    setAuthorization(null);
+    setNotes('');
+    setIsShuttle(false);
+    setDepartureTime('');
+    setArrivalTime('');
+    setElapsed('');
   };
 
   return (
@@ -199,33 +120,20 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
       <div className="p-4 space-y-4">
         {tripState === 'form' && (
           <TripForm
-            plate={plate}           setPlate={setPlate}
-            from={from}             to={to}
-            condition={condition}   conditionManual={conditionManual}
-            reason={reason}         setReason={setReason}
             queue={queue}           setQueue={setQueue}
-            fuel={fuel}             setFuel={setFuel}
+            reason={reason}         setReason={setReason}
             authorization={authorization} setAuthorization={setAuthorization}
             notes={notes}           setNotes={setNotes}
-            isShuttle={isShuttle}
-            routeStep={routeStep}
-            customFrom={customFrom} setCustomFrom={setCustomFrom}
-            customTo={customTo}     setCustomTo={setCustomTo}
-            shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-            vehicleMeta={vehicleMeta}   topClasses={topClasses} flaggedClasses={flaggedClasses} canStart={canStart}
+            isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
+            topClasses={topClasses} flaggedClasses={flaggedClasses}
+            canStart={canStart}
             onShuttleToggle={handleShuttleToggle}
-            onConditionTap={c => { hapticLight(); setCondition(c); setConditionManual(true); }}
-            onLocationTap={handleLocationTap}
-            onRouteReset={handleRouteReset}
             onStartTrip={handleStartTrip}
-            onPlateChange={handlePlateChange}
           />
         )}
 
         {tripState === 'in_transit' && (
           <TripInTransit
-            plate={plate}           vehicleMeta={vehicleMeta}
-            from={from}             to={to}
             authorization={authorization}
             departureTime={departureTime} elapsed={elapsed}
             notes={notes}           setNotes={setNotes}
@@ -235,12 +143,10 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
         {tripState === 'complete' && (
           <TripComplete
-            plate={plate}           vehicleMeta={vehicleMeta}
-            from={from}             to={to}
+            isShuttle={isShuttle}
             authorization={authorization} reason={reason}
-            condition={condition}   isShuttle={isShuttle}
             departureTime={departureTime} arrivalTime={arrivalTime}
-            queue={queue}           fuel={fuel}
+            queue={queue}
             notes={notes}           setNotes={setNotes}
             onReset={handleReset}
           />

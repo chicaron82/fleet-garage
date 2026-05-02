@@ -2,15 +2,11 @@ import { hapticLight } from './haptics';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export const VSA_LOCATIONS = ['Washbay', 'Airport', 'Other'] as const;
-export type VSALocation    = typeof VSA_LOCATIONS[number];
-export type Condition      = 'CLEAN' | 'DIRTY';
 export type Reason         = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
 export type Authorization  = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
 export type QueueSnapshot  = '0' | '~5' | 'TOO_MUCH';
 export type FuelLevel      = number;
 export type TripState      = 'form' | 'in_transit' | 'complete';
-export type RouteStep      = 'origin' | 'destination' | 'confirmed';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -35,10 +31,6 @@ export function fuelColor(v: number): string {
   return '#22c55e';
 }
 
-export function defaultCondition(to: VSALocation): Condition {
-  return to === 'Washbay' ? 'DIRTY' : 'CLEAN';
-}
-
 export function elapsedSince(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const m  = Math.floor(ms / 60000);
@@ -48,19 +40,6 @@ export function elapsedSince(iso: string): string {
 
 export function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
-}
-
-export function buildMetaLine(
-  from: string, to: string,
-  dep: string,  arr: string,
-  queue: QueueSnapshot | null,
-  fuel:  FuelLevel     | null,
-) {
-  const dur = Math.round((new Date(arr).getTime() - new Date(dep).getTime()) / 60000);
-  let s = `${fmtTime(dep)} → ${fmtTime(arr)} · ${dur}m`;
-  if (from === 'Washbay' && queue !== null) s += ` · Queue: ${queue === 'TOO_MUCH' ? '10+' : queue}`;
-  if (to   === 'Washbay' && fuel  !== null) s += ` · Fuel: ${FUEL_LABELS[fuel]}`;
-  return s;
 }
 
 // ── Shared sub-components ──────────────────────────────────────────────────────

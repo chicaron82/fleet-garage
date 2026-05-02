@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
@@ -8,8 +8,12 @@ import { supabase } from '../lib/supabase';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
 import { OffStandardTimeLog } from './OffStandardTimeLog';
+import { DriverLiveForm } from './DriverLiveForm';
+import { PriorityHint } from './PriorityHint';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
 import type { ScannedPayload, OffStandardEntry } from '../types';
+import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
+import { loadFlags } from '../lib/manifestFlags';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -64,10 +68,21 @@ export function MovementLogView() {
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
   const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
+  const [driverMode, setDriverMode] = useState<'demo' | 'live'>('demo');
 
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
   const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
+
+  const { topClasses, flaggedClasses } = useMemo(() => {
+    const manifest = generateDayManifest();
+    const flags    = loadFlags();
+    const next5    = getNextFiveNeeded(manifest);
+    return {
+      topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
+      flaggedClasses: [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))],
+    };
+  }, []);
 
   useEffect(() => {
     async function loadTrips() {
@@ -167,8 +182,8 @@ export function MovementLogView() {
       });
       if (!error) setLiveTrips(prev => [trip, ...prev]);
 
-      // Auto-create off-standard entry for airport runs (≥5 min)
-      if (trip.departLocation === 'Airport' || trip.arriveLocation === 'Airport') {
+      // Auto-create off-standard entry for VSA airport runs (≥5 min)
+      if (trip.isVsaInterruption && trip.tripType !== 'transfer') {
         const minutes = Math.round(
           (new Date(trip.arriveTime).getTime() - new Date(trip.departTime).getTime()) / 60000
         );
@@ -179,7 +194,7 @@ export function MovementLogView() {
             stopTime:     trip.arriveTime,
             minutes,
             reason:       'OTH',
-            explanation:  `Airport run — ${trip.departLocation} → ${trip.arriveLocation}`,
+            explanation:  `VSA Airport Run`,
             autoFromTrip: true,
           });
         }
@@ -245,24 +260,52 @@ export function MovementLogView() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
         </div>
         {!isVSA && !isManagement && (
-          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">
-            Demo
-          </span>
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            {(['live', 'demo'] as const).map(mode => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setDriverMode(mode)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                  driverMode === mode
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Log trip scanner */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Log Trip</p>
-          {tripState !== 'idle' && (
-            <button onClick={handleReset} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer">Reset</button>
-          )}
+      {/* Log trip — Live or Demo */}
+      {!isManagement && driverMode === 'live' ? (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Log Trip</p>
+          </div>
+          <div className="p-4">
+            <DriverLiveForm
+              topClasses={topClasses}
+              flaggedClasses={flaggedClasses}
+              onTripComplete={trip => setLiveTrips(prev => [trip, ...prev])}
+            />
+          </div>
         </div>
-        <div className="p-4 space-y-4">
-          {tripState === 'idle' && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
+      ) : !isManagement && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Log Trip</p>
+            {tripState !== 'idle' && (
+              <button onClick={handleReset} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer">Reset</button>
+            )}
+          </div>
+          <div className="p-4 space-y-4">
+            {tripState === 'idle' && (
+              <>
+                <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} />
+                <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">From</label>
                   <select value={origin} onChange={e => setOrigin(e.target.value as Location)}
@@ -331,6 +374,7 @@ export function MovementLogView() {
           )}
         </div>
       </div>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-5 gap-3">
