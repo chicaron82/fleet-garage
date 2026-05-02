@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { hapticMedium } from '../lib/haptics';
+import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField } from '../lib/vsa-trip';
 import type { TripRun } from '../data/trips';
 import { PriorityHint } from './PriorityHint';
 
-const LOCATIONS = ['Washbay', 'Airport', 'Other'] as const;
+const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
 type Location = typeof LOCATIONS[number];
+type RouteStep = 'origin' | 'destination' | 'confirmed';
 
 interface Props {
   topClasses: string[];
@@ -19,11 +20,13 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
   const { user } = useAuth();
 
   const [liveState, setLiveState]         = useState<'form' | 'in_transit' | 'complete'>('form');
-  const [from, setFrom]                   = useState<Location>('Washbay');
-  const [to, setTo]                       = useState<Location>('Airport');
+  const [routeStep, setRouteStep]         = useState<RouteStep>('origin');
+  const [from, setFrom]                   = useState<Location | null>(null);
+  const [to, setTo]                       = useState<Location | null>(null);
   const [customFrom, setCustomFrom]       = useState('');
   const [customTo, setCustomTo]           = useState('');
   const [plate, setPlate]                 = useState('');
+  const [isShuttle, setIsShuttle]         = useState(false);
   const [notes, setNotes]                 = useState('');
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime]     = useState('');
@@ -36,9 +39,40 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
     return () => clearInterval(id);
   }, [liveState, departureTime]);
 
-  const fromLabel = from === 'Other' ? (customFrom || 'Other') : from;
-  const toLabel   = to   === 'Other' ? (customTo   || 'Other') : to;
-  const canStart  = plate.trim().length > 0 && (from !== 'Other' || customFrom.trim().length > 0) && (to !== 'Other' || customTo.trim().length > 0);
+  const fromLabel = from === 'Other' ? (customFrom || 'Other') : (from ?? '');
+  const toLabel   = to   === 'Other' ? (customTo   || 'Other') : (to   ?? '');
+
+  const canStart = plate.trim().length > 0
+    && routeStep === 'confirmed'
+    && (from !== 'Other' || customFrom.trim().length > 0)
+    && (to   !== 'Other' || customTo.trim().length > 0);
+
+  const handleLocationTap = (loc: Location) => {
+    if (routeStep === 'origin') {
+      hapticLight();
+      setFrom(loc);
+      setRouteStep('destination');
+    } else if (routeStep === 'destination') {
+      if (loc === from) {
+        hapticLight();
+        setFrom(null);
+        setRouteStep('origin');
+      } else {
+        hapticMedium();
+        setTo(loc);
+        setRouteStep('confirmed');
+      }
+    }
+  };
+
+  const handleRouteReset = () => {
+    hapticLight();
+    setFrom(null);
+    setTo(null);
+    setCustomFrom('');
+    setCustomTo('');
+    setRouteStep('origin');
+  };
 
   const handleStart = () => {
     hapticMedium();
@@ -58,7 +92,7 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
         id:             `live-${Date.now()}`,
         vehiclePlate:   plate.trim().toUpperCase(),
         vehicleUnit:    '',
-        tripType:       'clean',
+        tripType:       isShuttle ? 'transfer' : 'clean',
         departLocation: fromLabel,
         arriveLocation: toLabel,
         departTime:     departureTime,
@@ -80,6 +114,7 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
         depart_time:     trip.departTime,
         arrive_time:     trip.arriveTime,
         driver_id:       trip.driverId,
+        is_shuttle:      isShuttle,
         notes:           trip.notes ?? null,
         branch_id:       trip.branchId,
       });
@@ -93,11 +128,13 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
 
   const handleReset = () => {
     setLiveState('form');
-    setFrom('Washbay');
-    setTo('Airport');
+    setRouteStep('origin');
+    setFrom(null);
+    setTo(null);
     setCustomFrom('');
     setCustomTo('');
     setPlate('');
+    setIsShuttle(false);
     setNotes('');
     setDepartureTime('');
     setArrivalTime('');
@@ -110,55 +147,51 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
       <div className="space-y-4">
         <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Starting At</label>
-            <div className="flex flex-col gap-1.5">
+        {/* Route picker */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            {routeStep === 'origin'      && 'Starting at?'}
+            {routeStep === 'destination' && 'Going to?'}
+            {routeStep === 'confirmed'   && (
+              <button type="button" onClick={handleRouteReset} className="text-yellow-600 dark:text-yellow-400 hover:underline normal-case font-semibold cursor-pointer">
+                {fromLabel} → {toLabel}
+              </button>
+            )}
+          </p>
+
+          {routeStep !== 'confirmed' && (
+            <div className="flex gap-2">
               {LOCATIONS.map(loc => (
                 <button
                   key={loc} type="button"
-                  onClick={() => setFrom(loc)}
-                  className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer ${
+                  onClick={() => handleLocationTap(loc)}
+                  className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
                     from === loc
                       ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
                   }`}
                 >{loc}</button>
               ))}
-              {from === 'Other' && (
-                <input
-                  type="text" placeholder="Specify…" value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-                />
-              )}
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Going To</label>
-            <div className="flex flex-col gap-1.5">
-              {LOCATIONS.map(loc => (
-                <button
-                  key={loc} type="button"
-                  onClick={() => setTo(loc)}
-                  className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer ${
-                    to === loc
-                      ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
-                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300'
-                  }`}
-                >{loc}</button>
-              ))}
-              {to === 'Other' && (
-                <input
-                  type="text" placeholder="Specify…" value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-                />
-              )}
-            </div>
-          </div>
+          )}
+
+          {routeStep === 'destination' && from === 'Other' && (
+            <input
+              type="text" autoFocus placeholder="Specify origin…" value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+            />
+          )}
+          {routeStep === 'confirmed' && to === 'Other' && (
+            <input
+              type="text" autoFocus placeholder="Specify destination…" value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+            />
+          )}
         </div>
 
+        {/* License Plate */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
           <input
@@ -166,6 +199,13 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
             onChange={e => setPlate(e.target.value.toUpperCase())}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
           />
+          <label className="flex items-center gap-2 mt-3 cursor-pointer group">
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+              {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
+            </div>
+            <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => { hapticLight(); setIsShuttle(e.target.checked); }} />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
+          </label>
         </div>
 
         <NotesField value={notes} onChange={setNotes} tripState="form" />
