@@ -21,7 +21,8 @@ export type RentalClass =
   | 'S'    // Truck standard
   | 'T'    // Large SUV (Durango)
   | 'T4'   // Large SUV (Palisade)
-  | 'T6';  // Largest SUV (Expedition)
+  | 'T6'   // Largest SUV (Expedition)
+  | 'O6';  // Mid-size truck (Frontier/Ranger) — one-way arrivals, transient in YWG
 
 export interface ManifestReservation {
   id: string;
@@ -51,13 +52,13 @@ export const SEASON_PRIORITY: Record<Season, RentalClass[]> = {
     'E6', 'E1',
     'Q4', 'L', 'L2',
     'E7', 'E8', 'E9',
-    'T6', 'A6',
+    'T6', 'A6', 'O6',
   ],
   shoulder: [
     'C', 'F', 'Q4', 'L',
     'B', 'B4', 'B5', 'T', 'T4',
     'R', 'S', 'E6', 'E1',
-    'L2', 'T6', 'E7', 'E8', 'E9', 'A6',
+    'L2', 'T6', 'E7', 'E8', 'E9', 'A6', 'O6',
   ],
   winter: [
     'Q4', 'L', 'L2',
@@ -68,7 +69,7 @@ export const SEASON_PRIORITY: Record<Season, RentalClass[]> = {
     'E6',
     'E1', 'E7', 'E8', 'E9',
     'R',
-    'A6',
+    'A6', 'O6',
   ],
 };
 

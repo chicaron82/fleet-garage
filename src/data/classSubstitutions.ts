@@ -39,6 +39,7 @@ export const CLASS_INFO: Record<RentalClass, ClassInfo> = {
   E8: { code: 'E8', label: 'Tesla Dual Motor',  example: 'Tesla Model 3 AWD',     tier: 'hybrid-ev',        acceptable: ['E7','E9'],    upgradeOk: ['E9'],             stretch: ['E6'],        never: 'Gas sedan, SUV' },
   E9: { code: 'E9', label: 'Tesla Model Y',     example: 'Tesla Model Y',         tier: 'hybrid-ev',        acceptable: ['E8'],         upgradeOk: [],                 stretch: ['E7','E6'],   never: 'Gas sedan, SUV' },
   R:  { code: 'R',  label: 'Minivan',           example: 'Chrysler Grand Caravan', tier: 'minivan',          acceptable: ['L2', 'T'],    upgradeOk: ['T4'],             stretch: ['T6'],        never: 'Sedan, Compact, EV — customer needs passenger space' },
+  O6: { code: 'O6', label: 'Mid-Size Truck',      example: 'Nissan Frontier',       tier: 'truck',            acceptable: ['S'],          upgradeOk: ['T', 'T4'],        stretch: ['R'],         never: 'Sedan, Compact, EV, Hybrid — customer needs hauling space' },
   S:  { code: 'S',  label: 'Pickup Truck',       example: 'Ford F-150',            tier: 'truck',            acceptable: ['T', 'T4'],    upgradeOk: ['T6'],             stretch: ['R'],         never: 'Sedan, Compact, EV, Hybrid — customer needs hauling space' },
   A6: { code: 'A6', label: "Manager's Special", example: 'Counter discretion',    tier: 'managers-special', acceptable: [],             upgradeOk: [],                 stretch: [],            never: 'Counter discretion only — not VSA territory' },
 };
