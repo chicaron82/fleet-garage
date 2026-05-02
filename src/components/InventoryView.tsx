@@ -231,6 +231,7 @@ function ScanCard({ entry, onChange }: {
 export function InventoryView() {
   const { vehicles, getActiveHold } = useGarage();
 
+  const [activeTab, setActiveTab] = useState<'closing-duties' | 'lot-snapshot'>('closing-duties');
   const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -312,147 +313,169 @@ export function InventoryView() {
         </span>
       </div>
 
-      {/* Live Scan */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Scan &amp; Classify</p>
-          {liveEntries.length > 0 && (
-            <span className="text-xs text-gray-400 dark:text-gray-500">{liveEntries.length} scanned</span>
-          )}
-        </div>
-        <div className="p-4 space-y-3">
-          <MockBarcodeScanner onScan={handleScan} label="Scan Vehicle" />
-          {pendingEntries.map(e => (
-            <ScanCard key={e.id} entry={e} onChange={patch => updateEntry(e.id, patch)} />
-          ))}
-          {liveEntries.length === 0 && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2">Scan a vehicle to classify and locate it</p>
-          )}
-        </div>
+      {/* Tab strip */}
+      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
+        {([
+          { id: 'closing-duties', label: 'Closing Duties' },
+          { id: 'lot-snapshot',   label: 'Lot Snapshot' },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+              activeTab === tab.id
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: 'Rentable', count: rentableCount, color: 'text-green-600 dark:text-green-500' },
-          { label: 'Dirty',    count: dirtyCount,    color: 'text-amber-500' },
-          { label: 'Hold Bay', count: holdCount,     color: 'text-red-600 dark:text-red-500' },
-          { label: 'Total',    count: rentableCount + dirtyCount + holdCount, color: 'text-gray-700 dark:text-gray-300' },
-        ].map(({ label, count, color }) => (
-          <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-            <p className={`text-2xl font-bold ${color}`}>{count}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+      {/* Closing Duties tab */}
+      {activeTab === 'closing-duties' && (
+        <>
+          <WashbayClosingLog />
+          <button
+            type="button"
+            onClick={() => setShowHandoffForm(true)}
+            className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
+          >
+            Log Shift Handoff →
+          </button>
+        </>
+      )}
+
+      {/* Lot Snapshot tab */}
+      {activeTab === 'lot-snapshot' && (
+        <>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Scan &amp; Classify</p>
+              {liveEntries.length > 0 && (
+                <span className="text-xs text-gray-400 dark:text-gray-500">{liveEntries.length} scanned</span>
+              )}
+            </div>
+            <div className="p-4 space-y-3">
+              <MockBarcodeScanner onScan={handleScan} label="Scan Vehicle" />
+              {pendingEntries.map(e => (
+                <ScanCard key={e.id} entry={e} onChange={patch => updateEntry(e.id, patch)} />
+              ))}
+              {liveEntries.length === 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2">Scan a vehicle to classify and locate it</p>
+              )}
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Standard */}
-      <ZoneSection
-        title="Standard"
-        count={standard.static.length + standard.live.length}
-        colorClass="text-gray-700 dark:text-gray-300"
-        collapsed={!!collapsed['Standard']}
-        onToggle={() => toggleCollapse('Standard')}
-      >
-        {standard.static.map(item => (
-          <InventoryCard
-            key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
-            year={item.year} make={item.make} model={item.model}
-            classification={item.classification} locationLabel={itemLocationLabel(item)}
-            onDismiss={() => dismiss(item.id)}
-          />
-        ))}
-        {standard.live.map(e => (
-          <InventoryCard
-            key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
-            year={e.year} make={e.make} model={e.model}
-            classification={e.classification!} locationLabel={entryLocationLabel(e)}
-            onDismiss={() => dismiss(e.id)}
-          />
-        ))}
-      </ZoneSection>
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { label: 'Rentable', count: rentableCount, color: 'text-green-600 dark:text-green-500' },
+              { label: 'Dirty',    count: dirtyCount,    color: 'text-amber-500' },
+              { label: 'Hold Bay', count: holdCount,     color: 'text-red-600 dark:text-red-500' },
+              { label: 'Total',    count: rentableCount + dirtyCount + holdCount, color: 'text-gray-700 dark:text-gray-300' },
+            ].map(({ label, count, color }) => (
+              <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
+                <p className={`text-2xl font-bold ${color}`}>{count}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
 
-      {/* Overflow */}
-      <ZoneSection
-        title="Overflow"
-        count={overflow.static.length + overflow.live.length}
-        colorClass="text-gray-700 dark:text-gray-300"
-        collapsed={!!collapsed['Overflow']}
-        onToggle={() => toggleCollapse('Overflow')}
-      >
-        {overflow.static.map(item => (
-          <InventoryCard
-            key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
-            year={item.year} make={item.make} model={item.model}
-            classification={item.classification} locationLabel={itemLocationLabel(item)}
-            onDismiss={() => dismiss(item.id)}
-          />
-        ))}
-        {overflow.live.map(e => (
-          <InventoryCard
-            key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
-            year={e.year} make={e.make} model={e.model}
-            classification={e.classification!} locationLabel={entryLocationLabel(e)}
-            onDismiss={() => dismiss(e.id)}
-          />
-        ))}
-      </ZoneSection>
+          <ZoneSection
+            title="Standard"
+            count={standard.static.length + standard.live.length}
+            colorClass="text-gray-700 dark:text-gray-300"
+            collapsed={!!collapsed['Standard']}
+            onToggle={() => toggleCollapse('Standard')}
+          >
+            {standard.static.map(item => (
+              <InventoryCard
+                key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
+                year={item.year} make={item.make} model={item.model}
+                classification={item.classification} locationLabel={itemLocationLabel(item)}
+                onDismiss={() => dismiss(item.id)}
+              />
+            ))}
+            {standard.live.map(e => (
+              <InventoryCard
+                key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
+                year={e.year} make={e.make} model={e.model}
+                classification={e.classification!} locationLabel={entryLocationLabel(e)}
+                onDismiss={() => dismiss(e.id)}
+              />
+            ))}
+          </ZoneSection>
 
-      {/* Hold Bay — auto-populated, no trash */}
-      <ZoneSection
-        title="Hold Bay"
-        count={holdCount}
-        colorClass="text-amber-700 dark:text-amber-500"
-        collapsed={!!collapsed['Hold Bay']}
-        onToggle={() => toggleCollapse('Hold Bay')}
-      >
-        {heldVehicles.map(v => (
-          <HoldCard
-            key={v.id} unitNumber={v.unitNumber} licensePlate={v.licensePlate}
-            year={v.year} make={v.make} model={v.model} status={v.status}
-            holdType={getActiveHold(v.id)?.holdType}
-            holdTypes={getActiveHold(v.id)?.holdTypes}
-          />
-        ))}
-      </ZoneSection>
+          <ZoneSection
+            title="Overflow"
+            count={overflow.static.length + overflow.live.length}
+            colorClass="text-gray-700 dark:text-gray-300"
+            collapsed={!!collapsed['Overflow']}
+            onToggle={() => toggleCollapse('Overflow')}
+          >
+            {overflow.static.map(item => (
+              <InventoryCard
+                key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
+                year={item.year} make={item.make} model={item.model}
+                classification={item.classification} locationLabel={itemLocationLabel(item)}
+                onDismiss={() => dismiss(item.id)}
+              />
+            ))}
+            {overflow.live.map(e => (
+              <InventoryCard
+                key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
+                year={e.year} make={e.make} model={e.model}
+                classification={e.classification!} locationLabel={entryLocationLabel(e)}
+                onDismiss={() => dismiss(e.id)}
+              />
+            ))}
+          </ZoneSection>
 
-      {/* Other */}
-      <ZoneSection
-        title="Other"
-        count={other.static.length + other.live.length}
-        colorClass="text-gray-500 dark:text-gray-400"
-        collapsed={!!collapsed['Other']}
-        onToggle={() => toggleCollapse('Other')}
-      >
-        {other.static.map(item => (
-          <InventoryCard
-            key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
-            year={item.year} make={item.make} model={item.model}
-            classification={item.classification} locationLabel={itemLocationLabel(item)}
-            onDismiss={() => dismiss(item.id)}
-          />
-        ))}
-        {other.live.map(e => (
-          <InventoryCard
-            key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
-            year={e.year} make={e.make} model={e.model}
-            classification={e.classification!} locationLabel={entryLocationLabel(e)}
-            onDismiss={() => dismiss(e.id)}
-          />
-        ))}
-      </ZoneSection>
+          <ZoneSection
+            title="Hold Bay"
+            count={holdCount}
+            colorClass="text-amber-700 dark:text-amber-500"
+            collapsed={!!collapsed['Hold Bay']}
+            onToggle={() => toggleCollapse('Hold Bay')}
+          >
+            {heldVehicles.map(v => (
+              <HoldCard
+                key={v.id} unitNumber={v.unitNumber} licensePlate={v.licensePlate}
+                year={v.year} make={v.make} model={v.model} status={v.status}
+                holdType={getActiveHold(v.id)?.holdType}
+                holdTypes={getActiveHold(v.id)?.holdTypes}
+              />
+            ))}
+          </ZoneSection>
 
-      {/* Closing Duties */}
-      <WashbayClosingLog />
-
-      {/* End of shift handoff */}
-      <button
-        type="button"
-        onClick={() => setShowHandoffForm(true)}
-        className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
-      >
-        Log Shift Handoff →
-      </button>
+          <ZoneSection
+            title="Other"
+            count={other.static.length + other.live.length}
+            colorClass="text-gray-500 dark:text-gray-400"
+            collapsed={!!collapsed['Other']}
+            onToggle={() => toggleCollapse('Other')}
+          >
+            {other.static.map(item => (
+              <InventoryCard
+                key={item.id} unitNumber={item.unitNumber} licensePlate={item.licensePlate}
+                year={item.year} make={item.make} model={item.model}
+                classification={item.classification} locationLabel={itemLocationLabel(item)}
+                onDismiss={() => dismiss(item.id)}
+              />
+            ))}
+            {other.live.map(e => (
+              <InventoryCard
+                key={e.id} unitNumber={e.unitNumber} licensePlate={e.licensePlate}
+                year={e.year} make={e.make} model={e.model}
+                classification={e.classification!} locationLabel={entryLocationLabel(e)}
+                onDismiss={() => dismiss(e.id)}
+              />
+            ))}
+          </ZoneSection>
+        </>
+      )}
 
       {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
 

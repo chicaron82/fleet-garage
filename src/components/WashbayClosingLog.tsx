@@ -3,6 +3,7 @@ import { useGarage } from '../context/GarageContext';
 import { useAuth } from '../context/AuthContext';
 
 const COMPANY_STANDARD = 3.0;
+const SHIFT_HOURS = 8;
 
 export function WashbayClosingLog() {
   const { holds, submitWashbayLog, getTodayWashbayLog } = useGarage();
@@ -12,8 +13,7 @@ export function WashbayClosingLog() {
   const [lastPageEntries,  setLastPageEntries]  = useState('');
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
-  const [teamSize,         setTeamSize]         = useState('');
-  const [shiftHours,       setShiftHours]       = useState('8');
+  const [teamSize,         setTeamSize]         = useState(3);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
 
@@ -27,8 +27,7 @@ export function WashbayClosingLog() {
       setLastPageEntries(String(todayLog.lastPageEntries));
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
-      setTeamSize(String(todayLog.teamSize));
-      setShiftHours(String(todayLog.shiftHours));
+      setTeamSize(todayLog.teamSize);
     }
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,24 +35,21 @@ export function WashbayClosingLog() {
   const lpe  = parseInt(lastPageEntries)  || 0;
   const cr   = parseInt(carsRemaining)    || 0;
   const cnpu = parseInt(cleanNotPickedUp) || 0;
-  const ts   = parseInt(teamSize)         || 1;
-  const sh   = parseFloat(shiftHours)     || 8;
-
   const carsIn      = fp * 19 + lpe;
   const carsCleaned = Math.max(0, carsIn - cr);
-  const throughput  = sh > 0 ? carsCleaned / sh : 0;
+  const throughput  = carsCleaned / SHIFT_HOURS;
   const delta       = throughput - COMPANY_STANDARD;
 
   const heldToday          = holds.filter(h => h.status === 'ACTIVE').length;
   const rentablesProcessed = Math.max(0, carsIn - heldToday);
   const deliveredToAirport = Math.max(0, rentablesProcessed - cnpu);
 
-  const canSubmit = !submitting && carsIn > 0 && ts > 0 && user;
+  const canSubmit = !submitting && carsIn > 0 && teamSize > 0 && user;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
-    await submitWashbayLog({ fullPages: fp, lastPageEntries: lpe, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize: ts, shiftHours: sh });
+    await submitWashbayLog({ fullPages: fp, lastPageEntries: lpe, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS });
     setEditing(false);
     setSubmitting(false);
   };
@@ -177,22 +173,26 @@ export function WashbayClosingLog() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Team size</label>
-            <input
-              type="number" min="1" value={teamSize} onChange={e => setTeamSize(e.target.value)}
-              placeholder="3"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Shift hours</label>
-            <input
-              type="number" min="1" max="16" step="0.5" value={shiftHours} onChange={e => setShiftHours(e.target.value)}
-              placeholder="8"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-            />
+        <div>
+          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setTeamSize(t => Math.max(1, t - 1))}
+              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
+            >
+              −
+            </button>
+            <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">
+              {teamSize}
+            </span>
+            <button
+              type="button"
+              onClick={() => setTeamSize(t => t + 1)}
+              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
+            >
+              +
+            </button>
           </div>
         </div>
 
