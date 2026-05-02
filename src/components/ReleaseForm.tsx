@@ -72,7 +72,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
 
   const finalReason = reason === '__custom__' ? customReason.trim() : reason;
   const needsReturn = isException || isMechanical;
-  const canSubmit = finalReason && (!needsReturn || expectedReturn) && !submitting;
+  const canSubmit = !!finalReason && !submitting;
 
   const handleTypeChange = (t: ReleaseType) => {
     hapticLight();
@@ -188,7 +188,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
               }`}
             >
               <span className="block text-sm font-semibold">Exception</span>
-              <span className="block text-xs opacity-70 mt-0.5">Temporary — has return date</span>
+              <span className="block text-xs opacity-70 mt-0.5">Temporary — return date optional</span>
             </button>
             <button
               type="button"
@@ -289,7 +289,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         {needsReturn && (
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-              Expected Return Date *
+              Expected Return Date
             </label>
             <input
               type="date"
