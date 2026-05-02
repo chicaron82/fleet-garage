@@ -131,7 +131,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     .filter(Boolean) as NavItem[];
 
   const allItems = [
-    ...localOrder.map(m => defaultNavItems.find(i => i.module === m)).filter(Boolean) as NavItem[],
+    ...localOrder.filter(m => !hidden.includes(m)).map(m => defaultNavItems.find(i => i.module === m)).filter(Boolean) as NavItem[],
     ...hidden.map(m => defaultNavItems.find(i => i.module === m)).filter(Boolean) as NavItem[],
   ];
 
