@@ -242,7 +242,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
                       <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                     {latestHold && (
                       <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
                         {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
