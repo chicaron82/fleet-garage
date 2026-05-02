@@ -99,8 +99,8 @@ export function NotificationBell() {
           <div className="absolute top-full right-0 z-50 w-80 max-w-[calc(100vw-1.5rem)] mt-1 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-              <div className="flex items-center gap-2">
+            <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
                 <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
                   <button
@@ -118,7 +118,7 @@ export function NotificationBell() {
                 </div>
               </div>
               {unreadCount > 0 && (
-                <button onClick={handleMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
+                <button onClick={handleMarkAllRead} className="mt-1.5 text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
                   Mark all as read
                 </button>
               )}
