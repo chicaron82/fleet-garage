@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { canRelease } from '../types';
+import { canRelease, canLogHandoff } from '../types';
 import { hapticLight } from '../lib/haptics';
 import type { UserRole, Hold, Vehicle, VehicleStatus, LotStatus, HandoffNote } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -176,7 +176,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         />
 
         {/* Shift Handoff Banner */}
-        <HandoffBanner latestHandoff={latestHandoff} onLogHandoff={() => setShowHandoffForm(true)} />
+        <HandoffBanner role={user!.role} latestHandoff={latestHandoff} onLogHandoff={() => setShowHandoffForm(true)} />
 
         {/* Search + Add Hold */}
         <div className="flex gap-2">
@@ -490,14 +490,21 @@ const LOT_STATUS_BANNER: Record<LotStatus, { bg: string; border: string; text: s
   backlog:    { bg: 'bg-red-50 dark:bg-red-900/20',       border: 'border-red-200 dark:border-red-800',       text: 'text-red-800 dark:text-red-300',       dot: 'bg-red-500' },
 };
 
-function HandoffBanner({ latestHandoff, onLogHandoff }: { latestHandoff: HandoffNote | undefined; onLogHandoff: () => void }) {
+function HandoffBanner({ role, latestHandoff, onLogHandoff }: { role: UserRole; latestHandoff: HandoffNote | undefined; onLogHandoff: () => void }) {
+  const canLog = canLogHandoff(role);
+  const recentlyLogged = latestHandoff
+    ? (Date.now() - new Date(latestHandoff.loggedAt).getTime()) < 4 * 60 * 60 * 1000
+    : false;
+
   if (!latestHandoff) {
     return (
       <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors">
         <p className="text-xs text-gray-400 dark:text-gray-500">No handoff note from previous shift.</p>
-        <button type="button" onClick={onLogHandoff} className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer">
-          Log Handoff →
-        </button>
+        {canLog && (
+          <button type="button" onClick={onLogHandoff} className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer">
+            Log Handoff →
+          </button>
+        )}
       </div>
     );
   }
@@ -514,9 +521,11 @@ function HandoffBanner({ latestHandoff, onLogHandoff }: { latestHandoff: Handoff
             {latestHandoff.lotStatus.charAt(0).toUpperCase() + latestHandoff.lotStatus.slice(1)} · Shift Handoff
           </p>
         </div>
-        <button type="button" onClick={onLogHandoff} className={`text-xs font-semibold hover:underline cursor-pointer ${s.text}`}>
-          Log Handoff →
-        </button>
+        {canLog && (
+          recentlyLogged
+            ? <span className={`text-[10px] font-medium opacity-60 ${s.text}`}>Already logged · <button type="button" onClick={onLogHandoff} className="underline cursor-pointer">Log again</button></span>
+            : <button type="button" onClick={onLogHandoff} className={`text-xs font-semibold hover:underline cursor-pointer ${s.text}`}>Log Handoff →</button>
+        )}
       </div>
       <div className={`flex gap-4 text-xs ${s.text}`}>
         <span><strong>{latestHandoff.fullPages * 19 + latestHandoff.lastPageEntries}</strong> cars cleaned this shift</span>

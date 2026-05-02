@@ -20,6 +20,12 @@ export function canRelease(role: UserRole): boolean {
   return CAN_RELEASE.includes(role);
 }
 
+const CAN_LOG_HANDOFF: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager'];
+
+export function canLogHandoff(role: UserRole): boolean {
+  return CAN_LOG_HANDOFF.includes(role);
+}
+
 // ── Users ────────────────────────────────────────────────────────────────────
 
 export interface User {
