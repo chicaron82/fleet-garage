@@ -25,7 +25,9 @@ const ManifestView       = lazy(() => import('./components/ManifestView').then(m
 
 export default function App() {
   const { user, logout } = useAuth();
-  const [screen, setScreen] = useState<Screen>({ name: 'dashboard' });
+  const [screen, setScreen] = useState<Screen>(() =>
+    user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' }
+  );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [prevUserId, setPrevUserId] = useState(user?.id);
 
