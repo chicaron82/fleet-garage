@@ -94,7 +94,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
-  const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('demo');
+  const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('live');
   const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
   const [editMode, setEditMode]     = useState(false);
   const [localOrder, setLocalOrder] = useState<Module[]>([]);

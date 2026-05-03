@@ -21,7 +21,7 @@ export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, getTodayWashbayLog } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
-  const [mode, setMode] = useState<'demo' | 'live'>('demo');
+  const [mode, setMode] = useState<'demo' | 'live'>('live');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 
   useEffect(() => {

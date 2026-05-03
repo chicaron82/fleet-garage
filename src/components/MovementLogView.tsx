@@ -81,7 +81,7 @@ export function MovementLogView() {
   const [departureTime, setDepartureTime] = useState('');
   const [arrivalTime, setArrivalTime] = useState('');
   const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
-  const [driverMode, setDriverMode] = useState<'demo' | 'live'>('demo');
+  const [driverMode, setDriverMode] = useState<'demo' | 'live'>('live');
 
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');

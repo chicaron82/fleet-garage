@@ -21,7 +21,7 @@ interface LiveNotification {
 
 export function NotificationBell() {
   const { user, activeBranch } = useAuth();
-  const [mode, setMode] = useState<'demo' | 'live'>('demo');
+  const [mode, setMode] = useState<'demo' | 'live'>('live');
   const [mockNotifications, setMockNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);

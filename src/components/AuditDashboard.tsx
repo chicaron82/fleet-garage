@@ -42,7 +42,7 @@ function rowToAudit(row: Record<string, unknown>): AuditRecord {
 
 export function AuditDashboard({ onNewAudit }: Props) {
   const { user } = useAuth();
-  const [mode, setMode] = useState<'demo' | 'live'>('demo');
+  const [mode, setMode] = useState<'demo' | 'live'>('live');
   const [liveAudits, setLiveAudits] = useState<AuditRecord[]>([]);
 
   useEffect(() => {
