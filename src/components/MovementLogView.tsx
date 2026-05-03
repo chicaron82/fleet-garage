@@ -11,7 +11,7 @@ import { OffStandardTimeLog } from './OffStandardTimeLog';
 import { DriverLiveForm } from './DriverLiveForm';
 import { PriorityHint } from './PriorityHint';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
-import type { ScannedPayload, OffStandardEntry } from '../types';
+import type { ScannedPayload, OffStandardEntry, OffStandardReason } from '../types';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
 import { loadOverrides } from '../lib/classOverrides';
@@ -56,6 +56,18 @@ function rowToTrip(row: Record<string, unknown>): TripRun {
   };
 }
 
+function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
+  return {
+    id:           row.id as string,
+    startTime:    row.start_time as string,
+    stopTime:     row.stop_time as string,
+    minutes:      row.minutes as number,
+    reason:       row.reason as OffStandardReason,
+    explanation:  (row.explanation as string | null) ?? undefined,
+    autoFromTrip: (row.auto_from_trip as boolean) ?? false,
+  };
+}
+
 export function MovementLogView() {
   const { user } = useAuth();
 
@@ -74,6 +86,7 @@ export function MovementLogView() {
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
   const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
+  const [copied, setCopied] = useState(false);
 
   const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
@@ -101,6 +114,24 @@ export function MovementLogView() {
     }
     loadTrips();
   }, []);
+
+  // Load today's off-standard entries — VSA only, survives tab/module navigation
+  useEffect(() => {
+    if (!user) return;
+    if (user.role !== 'VSA' && user.role !== 'Lead VSA') return;
+    async function loadOffStandard() {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data } = await supabase
+        .from('off_standard_entries')
+        .select('*')
+        .eq('user_id', user!.id)
+        .gte('start_time', todayStart.toISOString())
+        .order('start_time', { ascending: true });
+      if (data) setOffStandardEntries((data as Record<string, unknown>[]).map(rowToOffStandard));
+    }
+    loadOffStandard();
+  }, [user]);
 
   if (!user) return null;
 
@@ -147,7 +178,6 @@ export function MovementLogView() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const [copied, setCopied] = useState(false);
 
   const buildTripLog = (trips: TripRun[]): string => {
     const clean    = trips.filter(t => t.tripType === 'clean').length;
@@ -186,6 +216,19 @@ export function MovementLogView() {
 
     const addOffStandardEntry = (entry: OffStandardEntry) => {
       setOffStandardEntries(prev => [...prev, entry]);
+      // Persist to Supabase — fire-and-forget, state already updated above
+      supabase.from('off_standard_entries').insert({
+        id:             entry.id,
+        user_id:        user.id,
+        branch_id:      user.branchId,
+        date:           entry.startTime.split('T')[0],
+        start_time:     entry.startTime,
+        stop_time:      entry.stopTime,
+        minutes:        entry.minutes,
+        reason:         entry.reason,
+        explanation:    entry.explanation ?? null,
+        auto_from_trip: entry.autoFromTrip,
+      });
     };
 
     const handleTripComplete = async (trip: TripRun) => {
