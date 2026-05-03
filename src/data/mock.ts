@@ -15,7 +15,7 @@ export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
 
 export const USERS: User[] = [
   { id: 'u1', employeeId: '331965', name: 'Aaron S.', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee', role: 'Lead VSA', password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u2', employeeId: 'VSA-002', name: 'DiZee', role: 'Lead VSA', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u3', employeeId: 'VSA-003', name: 'Belle', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u4', employeeId: 'CSR-001', name: 'CoZee', role: 'CSR', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u5', employeeId: 'HIR-001', name: 'Tori', role: 'HIR', password: '!Bananarama1982', branchId: 'YWG-South' },
