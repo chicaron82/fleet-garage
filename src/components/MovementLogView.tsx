@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import type { TripRun } from '../data/trips';
-import { USERS } from '../data/mock';
 import { supabase } from '../lib/supabase';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
@@ -135,14 +134,6 @@ export function MovementLogView() {
   ];
   const allLiveAndMock = [...MOCK_TRIPS, ...liveTrips];
   const displayTrips = isManagement ? allLiveAndMock : myTrips;
-
-  const grouped = isManagement
-    ? displayTrips.reduce<Record<string, typeof displayTrips>>((acc, t) => {
-        const name = USERS.find(u => u.id === t.driverId)?.name ?? 'Unknown';
-        (acc[name] ??= []).push(t);
-        return acc;
-      }, {})
-    : null;
 
   const cleanCount    = displayTrips.filter(t => t.tripType === 'clean').length;
   const dirtyCount    = displayTrips.filter(t => t.tripType === 'dirty').length;

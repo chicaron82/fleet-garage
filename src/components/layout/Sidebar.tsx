@@ -118,11 +118,12 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
   useEffect(() => {
     if (notifMode !== 'live' || !desktopInboxOpen || !user) return;
+    const role = user.role;
     async function load() {
       let query = supabase
         .from('notifications')
         .select('*')
-        .contains('recipient_roles', [user.role])
+        .contains('recipient_roles', [role])
         .order('created_at', { ascending: false })
         .limit(50);
       if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
@@ -133,13 +134,14 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   }, [notifMode, desktopInboxOpen, user, activeBranch]);
 
   const handleMarkLiveAllRead = async () => {
+    if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
     await Promise.all(unread.map(n =>
-      supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id)
+      supabase.from('notifications').update({ read_by: [...n.read_by, user!.id] }).eq('id', n.id)
     ));
     setLiveNotifs(prev => prev.map(n => ({
       ...n,
-      read_by: n.read_by.includes(user.id) ? n.read_by : [...n.read_by, user.id],
+      read_by: n.read_by.includes(user!.id) ? n.read_by : [...n.read_by, user!.id],
     })));
   };
 
