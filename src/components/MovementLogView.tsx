@@ -4,6 +4,7 @@ import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import type { TripRun } from '../data/trips';
 import { supabase } from '../lib/supabase';
+import { hapticMedium } from '../lib/haptics';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
 import { OffStandardTimeLog } from './OffStandardTimeLog';
@@ -145,6 +146,39 @@ export function MovementLogView() {
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+
+  const [copied, setCopied] = useState(false);
+
+  const buildTripLog = (trips: TripRun[]): string => {
+    const clean    = trips.filter(t => t.tripType === 'clean').length;
+    const dirty    = trips.filter(t => t.tripType === 'dirty').length;
+    const other    = trips.length - clean - dirty;
+    const header   = [
+      'Fleet Garage — Driver Trip Log',
+      `${user.name ?? user.id} · #${user.employeeId} · ${user.branchId}`,
+      today,
+      '',
+      `${trips.length} run${trips.length !== 1 ? 's' : ''} · ${clean} clean · ${dirty} dirty · ${other} other`,
+      '',
+    ].join('\n');
+    const rows = trips.map(t => {
+      const dur = getTripDurationMinutes(t);
+      return `${fmtTime(t.departTime)}  ${t.vehiclePlate.padEnd(10)}  ${t.departLocation} → ${t.arriveLocation}  (${dur}m)`;
+    });
+    return header + rows.join('\n');
+  };
+
+  const handleShareLog = async (trips: TripRun[]) => {
+    hapticMedium();
+    const text  = buildTripLog(trips);
+    const title = `Trip Log — ${user.name ?? user.id} · ${new Date().toLocaleDateString('en-CA')}`;
+    if (navigator.share) {
+      try { await navigator.share({ title, text }); return; } catch { /* fall through */ }
+    }
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
 
   // ── VSA view — Movement Log + Off-Standard Time tabs ─────────────────────
   if (isVSA) {
@@ -400,7 +434,19 @@ export function MovementLogView() {
             <p className="text-gray-400 dark:text-gray-500 text-sm">No runs logged today.</p>
           </div>
         ) : (
-          <TripList trips={liveOnly} isManagement={false} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
+              <button
+                type="button"
+                onClick={() => handleShareLog(liveOnly)}
+                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer"
+              >
+                {copied ? '✓ Copied' : 'Share log ↗'}
+              </button>
+            </div>
+            <TripList trips={liveOnly} isManagement={false} />
+          </div>
         );
       })() : (
         <>
