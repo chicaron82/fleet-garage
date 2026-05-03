@@ -28,6 +28,11 @@ describe('getNavItemsForRole', () => {
     expect(modules).not.toContain('inventory');
   });
 
+  it('CSR sees manifest', () => {
+    const modules = getNavItemsForRole('CSR').map(n => n.module);
+    expect(modules).toContain('manifest');
+  });
+
   it('Branch Manager sees all modules', () => {
     const modules = getNavItemsForRole('Branch Manager').map(n => n.module);
     expect(modules).toContain('fleet-garage');
@@ -87,23 +92,27 @@ describe('getActiveModule', () => {
 // ── getDefaultScreenForRole ───────────────────────────────────────────────────
 
 describe('getDefaultScreenForRole', () => {
-  const NON_DRIVER_ROLES: UserRole[] = [
-    'VSA', 'Lead VSA', 'CSR', 'Branch Manager', 'Operations Manager',
+  const DASHBOARD_ROLES: UserRole[] = [
+    'VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager',
   ];
 
   it('Driver lands on movement-log', () => {
     expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'movement-log' });
   });
 
-  it.each(NON_DRIVER_ROLES)('%s lands on dashboard', (role) => {
-    expect(getDefaultScreenForRole(role)).toEqual({ name: 'dashboard' });
-  });
-
   it('HIR lands on check-in', () => {
     expect(getDefaultScreenForRole('HIR')).toEqual({ name: 'check-in' });
   });
 
+  it('CSR lands on manifest', () => {
+    expect(getDefaultScreenForRole('CSR')).toEqual({ name: 'manifest' });
+  });
+
   it('City Manager lands on analytics', () => {
     expect(getDefaultScreenForRole('City Manager')).toEqual({ name: 'analytics' });
+  });
+
+  it.each(DASHBOARD_ROLES)('%s lands on dashboard', (role) => {
+    expect(getDefaultScreenForRole(role)).toEqual({ name: 'dashboard' });
   });
 });
