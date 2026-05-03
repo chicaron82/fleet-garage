@@ -26,6 +26,16 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showHandoffForm, setShowHandoffForm] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
+  const [pinnedVehicleIds, setPinnedVehicleIds] = useState<Set<string>>(new Set());
+
+  const togglePin = useCallback((vehicleId: string) => {
+    hapticLight();
+    setPinnedVehicleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(vehicleId)) next.delete(vehicleId); else next.add(vehicleId);
+      return next;
+    });
+  }, []);
 
   const ITEMS_PER_PAGE = 15;
 
@@ -103,7 +113,12 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
       if (v.status === 'CLEAR' && search === '') return false;
       return true;
     })
-    .sort((a, b) => vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id));
+    .sort((a, b) => {
+      const aPinned = pinnedVehicleIds.has(a.id) ? 1 : 0;
+      const bPinned = pinnedVehicleIds.has(b.id) ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id);
+    });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -230,49 +245,70 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {paginatedVehicles.map(vehicle => {
             const latestHold = getLatestHold(vehicle.id);
             const streak = releaseStreak(vehicle.id);
+            const isPinned = pinnedVehicleIds.has(vehicle.id);
+            const isManagement = canRelease(user!.role);
             return (
-              <button
-                key={vehicle.id}
-                onClick={() => {
-                  hapticLight();
-                  if (search.trim()) setPendingVehicle(vehicle);
-                  else onSelectVehicle(vehicle.id);
-                }}
-                className="w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
-                      <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
-                      <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
+              <div key={vehicle.id} className="flex items-stretch gap-1.5">
+                {isManagement && (
+                  <button
+                    type="button"
+                    onClick={() => togglePin(vehicle.id)}
+                    aria-label={isPinned ? 'Unpin' : 'Pin to top'}
+                    className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${
+                      isPinned
+                        ? 'text-red-500'
+                        : 'text-gray-200 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500'
+                    }`}
+                  >
+                    📌
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    hapticLight();
+                    if (search.trim()) setPendingVehicle(vehicle);
+                    else onSelectVehicle(vehicle.id);
+                  }}
+                  className={`flex-1 bg-white dark:bg-gray-900 rounded-xl border p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group ${
+                    isPinned
+                      ? 'border-red-300 dark:border-red-700/60'
+                      : 'border-gray-200 dark:border-gray-800'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
+                        <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
+                        <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
+                      </div>
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+                      {latestHold && (
+                        <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
+                          {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
+                        </p>
+                      )}
+                      {latestHold && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
+                          Flagged by {getFlaggedBy(latestHold.flaggedById)}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
-                    {latestHold && (
-                      <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
-                        {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
-                      </p>
-                    )}
-                    {latestHold && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                        Flagged by {getFlaggedBy(latestHold.flaggedById)}
-                      </p>
-                    )}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} />
+                      {streak >= 2 && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          streak >= 3
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                        }`}>
+                          {streak}× unrepaired
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} />
-                    {streak >= 2 && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        streak >= 3
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      }`}>
-                        {streak}× unrepaired
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
+                </button>
+              </div>
             );
           })}
           {filtered.length === 0 && search.trim().length >= 2 && (
