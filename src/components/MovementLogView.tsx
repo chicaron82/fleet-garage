@@ -281,8 +281,6 @@ export function MovementLogView() {
           </div>
           <div className="p-4">
             <DriverLiveForm
-              topClasses={topClasses}
-              flaggedClasses={flaggedClasses}
               onTripComplete={trip => setLiveTrips(prev => [trip, ...prev])}
             />
           </div>
