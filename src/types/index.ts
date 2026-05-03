@@ -287,6 +287,45 @@ export interface WashbayLog {
   loggedAt: string;          // ISO timestamp
 }
 
+// ── Lost & Found ─────────────────────────────────────────────────────────────
+
+export type LostFoundStatus = 'holding' | 'customer_contacted' | 'returned';
+
+export type LostFoundLocation =
+  | 'visor'
+  | 'front_seat'
+  | 'back_seat'
+  | 'trunk'
+  | 'under_seat'
+  | 'other';
+
+export const LOST_FOUND_LOCATION_LABELS: Record<LostFoundLocation, string> = {
+  visor:       'Visor',
+  front_seat:  'Front',
+  back_seat:   'Back',
+  trunk:       'Trunk',
+  under_seat:  'Under seat',
+  other:       'Other',
+};
+
+export interface LostFoundItem {
+  id: string;
+  branchId: string;
+  foundById: string;
+  foundByName: string;
+  foundAt: string;           // ISO timestamp — chain of custody anchor
+  keyTagPhotoUrl?: string;
+  itemPhotoUrl?: string;
+  description?: string;
+  location?: LostFoundLocation;
+  licensePlate?: string;
+  unitNumber?: string;
+  vehicleMake?: string;
+  status: LostFoundStatus;
+  notes?: string;
+  resolvedAt?: string;
+}
+
 // ── Off-Standard Time ─────────────────────────────────────────────────────────
 
 export type OffStandardReason = 'CLASS' | 'WFW' | 'MTG' | 'WTH' | 'OTH';

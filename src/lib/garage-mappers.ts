@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -141,5 +141,25 @@ export function mapHandoffNote(row: Row): HandoffNote {
     teamSize:         reqNum(row, 'team_size',         'mapHandoffNote'),
     notes:            optStr(row, 'notes'),
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
+  };
+}
+
+export function mapLostFoundItem(row: Row): LostFoundItem {
+  return {
+    id:             reqStr(row, 'id',             'mapLostFoundItem'),
+    branchId:       reqStr(row, 'branch_id',      'mapLostFoundItem'),
+    foundById:      reqStr(row, 'found_by',       'mapLostFoundItem'),
+    foundByName:    reqStr(row, 'found_by_name',  'mapLostFoundItem'),
+    foundAt:        reqStr(row, 'found_at',       'mapLostFoundItem'),
+    keyTagPhotoUrl: optStr(row, 'key_tag_photo'),
+    itemPhotoUrl:   optStr(row, 'item_photo'),
+    description:    optStr(row, 'description'),
+    location:       optStr(row, 'location') as LostFoundLocation | undefined,
+    licensePlate:   optStr(row, 'license_plate'),
+    unitNumber:     optStr(row, 'unit_number'),
+    vehicleMake:    optStr(row, 'vehicle_make'),
+    status:         reqStr(row, 'status',         'mapLostFoundItem') as LostFoundStatus,
+    notes:          optStr(row, 'notes'),
+    resolvedAt:     optStr(row, 'resolved_at'),
   };
 }
