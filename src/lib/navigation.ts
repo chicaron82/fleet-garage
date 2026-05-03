@@ -29,9 +29,9 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
   'CSR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'HIR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
-  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'movement-log', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {

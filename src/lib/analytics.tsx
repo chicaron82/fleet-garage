@@ -54,6 +54,15 @@ const DEMO_WASHBAY_HISTORY = [
   { throughput: 9.0 }, { throughput: 7.5 }, { throughput: 8.3 }, { throughput: 9.6 },
   { throughput: 7.2 }, { throughput: 8.1 },
 ];
+export const DEMO_TRIPS_TODAY = {
+  total: 15, clean: 9, dirty: 4, other: 2,
+  byDriver: [
+    { name: 'Jordan T.', total: 6, clean: 4, dirty: 1, other: 1 },
+    { name: 'Marcus W.', total: 5, clean: 3, dirty: 2, other: 0 },
+    { name: 'Sam K.',    total: 4, clean: 2, dirty: 1, other: 1 },
+  ],
+};
+
 export const DEMO_WASHBAY_30DAY_AVG = Math.round(
   (DEMO_WASHBAY_HISTORY.reduce((s, d) => s + d.throughput, 0) / DEMO_WASHBAY_HISTORY.length) * 10
 ) / 10;

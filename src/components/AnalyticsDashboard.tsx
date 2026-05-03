@@ -1,23 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { useGarage } from '../context/GarageContext';
 import { useFleetBalance, localDateStr } from '../hooks/useFleetBalance';
 import {
   canEnterFleetBalance, StatCard,
   DEMO_HOLD_TYPES, DEMO_DAMAGE_TYPES, DEMO_WEEK_ACTIVITY,
-  DEMO_GLANCE, DEMO_EXCEPTION_SUMMARY,
+  DEMO_GLANCE, DEMO_EXCEPTION_SUMMARY, DEMO_TRIPS_TODAY,
   DEMO_WASHBAY_TODAY, DEMO_WASHBAY_30DAY_AVG, COMPANY_STANDARD,
 } from '../lib/analytics';
+import { AnalyticsTripsSummary } from './AnalyticsTripsSummary';
 import { WashbayLiveSection } from './WashbayLiveSection';
 import { AnalyticsHoldsSummary } from './AnalyticsHoldsSummary';
 import { AnalyticsActivityChart } from './AnalyticsActivityChart';
 import { AnalyticsFleetBalance } from './AnalyticsFleetBalance';
 
+interface TripRow { trip_type: string; driver_id: string; }
+
 export function AnalyticsDashboard() {
-  const { user } = useAuth();
+  const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, getTodayWashbayLog } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode] = useState<'demo' | 'live'>('demo');
+  const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
+
+  useEffect(() => {
+    if (mode !== 'live') return;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    let query = supabase
+      .from('vsa_trips')
+      .select('trip_type, driver_id')
+      .gte('depart_time', todayStart.toISOString());
+    if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
+    query.then(({ data }) => setTodayTrips((data ?? []) as TripRow[]));
+  }, [mode, activeBranch]);
 
   if (!user) return null;
 
@@ -182,6 +199,12 @@ export function AnalyticsDashboard() {
         todayEntry={todayBalanceEntry}
         canEnter={canEnter}
         onSubmit={(outCount, inCount) => upsertEntry(localDateStr(), outCount, inCount, user.id)}
+      />
+
+      <AnalyticsTripsSummary
+        isDemo={isDemo}
+        liveTrips={todayTrips}
+        demoData={DEMO_TRIPS_TODAY}
       />
 
       {/* Washbay Operations */}

@@ -86,9 +86,12 @@ export function MovementLogView() {
 
   useEffect(() => {
     async function loadTrips() {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
       const { data } = await supabase
         .from('vsa_trips')
         .select('*')
+        .gte('depart_time', todayStart.toISOString())
         .order('depart_time', { ascending: false });
       if (data) setLiveTrips((data as Record<string, unknown>[]).map(rowToTrip));
     }
@@ -150,10 +153,7 @@ export function MovementLogView() {
 
   // ── VSA view — Movement Log + Off-Standard Time tabs ─────────────────────
   if (isVSA) {
-    const seededTrips  = MOCK_TRIPS.filter(t => t.driverId === user.id);
     const myLiveTrips  = liveTrips.filter(t => t.driverId === user.id);
-    const allMyTrips   = [...seededTrips, ...myLiveTrips]
-      .sort((a, b) => new Date(b.departTime).getTime() - new Date(a.departTime).getTime());
 
     const addOffStandardEntry = (entry: OffStandardEntry) => {
       setOffStandardEntries(prev => [...prev, entry]);
@@ -231,10 +231,10 @@ export function MovementLogView() {
         {activeTab === 'movement-log' ? (
           <>
             <VSAMovementLog onTripComplete={handleTripComplete} />
-            {allMyTrips.length > 0 && (
+            {myLiveTrips.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
-                <TripList trips={allMyTrips} isManagement={false} />
+                <TripList trips={myLiveTrips} isManagement={false} />
               </div>
             )}
           </>
@@ -377,38 +377,46 @@ export function MovementLogView() {
       )}
 
       {/* Summary */}
-      <div className="grid grid-cols-5 gap-3">
-        <SummaryCard value={totalRuns}     label="Total"    color="text-gray-900 dark:text-gray-100" />
-        <SummaryCard value={cleanCount}    label="Clean"    color="text-green-600 dark:text-green-500" />
-        <SummaryCard value={dirtyCount}    label="Dirty"    color="text-amber-500" />
-        <SummaryCard value={customerCount} label="Customer" color="text-blue-600 dark:text-blue-500" />
-        <SummaryCard value={transferCount} label="Transfer" color="text-purple-600 dark:text-purple-500" />
-      </div>
-
-      {/* Trip list */}
-      {isManagement ? (
-        <div className="space-y-5">
-          {Object.entries(grouped!).map(([driverName, trips]) => {
-            const flaggedCount = trips.filter(isTripFlagged).length;
-            return (
-              <div key={driverName}>
-                <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 transition-colors">
-                  {driverName} · {trips.length} run{trips.length !== 1 ? 's' : ''}
-                  {flaggedCount > 0 && <span className="ml-2 text-amber-600 dark:text-amber-500">⚠️ {flaggedCount} flagged</span>}
-                </h2>
-                <TripList trips={trips} isManagement={isManagement} />
-              </div>
-            );
-          })}
+      {driverMode === 'live' ? (() => {
+        const liveOnly = liveTrips.filter(t => t.driverId === user.id);
+        const liveOther = liveOnly.filter(t => t.tripType !== 'clean' && t.tripType !== 'dirty').length;
+        return (
+          <div className="grid grid-cols-4 gap-3">
+            <SummaryCard value={liveOnly.length}                                          label="Total"  color="text-gray-900 dark:text-gray-100" />
+            <SummaryCard value={liveOnly.filter(t => t.tripType === 'clean').length}      label="Clean"  color="text-green-600 dark:text-green-500" />
+            <SummaryCard value={liveOnly.filter(t => t.tripType === 'dirty').length}      label="Dirty"  color="text-amber-500" />
+            <SummaryCard value={liveOther}                                                label="Other"  color="text-gray-500 dark:text-gray-400" />
+          </div>
+        );
+      })() : (
+        <div className="grid grid-cols-5 gap-3">
+          <SummaryCard value={totalRuns}     label="Total"    color="text-gray-900 dark:text-gray-100" />
+          <SummaryCard value={cleanCount}    label="Clean"    color="text-green-600 dark:text-green-500" />
+          <SummaryCard value={dirtyCount}    label="Dirty"    color="text-amber-500" />
+          <SummaryCard value={customerCount} label="Customer" color="text-blue-600 dark:text-blue-500" />
+          <SummaryCard value={transferCount} label="Transfer" color="text-purple-600 dark:text-purple-500" />
         </div>
-      ) : (
-        <TripList trips={myTrips} isManagement={isManagement} />
       )}
 
-      {displayTrips.length === 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">
-          <p className="text-gray-400 dark:text-gray-500 text-sm">No runs logged today.</p>
-        </div>
+      {/* Trip list */}
+      {driverMode === 'live' ? (() => {
+        const liveOnly = liveTrips.filter(t => t.driverId === user.id);
+        return liveOnly.length === 0 ? (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">
+            <p className="text-gray-400 dark:text-gray-500 text-sm">No runs logged today.</p>
+          </div>
+        ) : (
+          <TripList trips={liveOnly} isManagement={false} />
+        );
+      })() : (
+        <>
+          <TripList trips={myTrips} isManagement={false} />
+          {myTrips.length === 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">
+              <p className="text-gray-400 dark:text-gray-500 text-sm">No runs logged today.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
