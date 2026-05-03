@@ -4,16 +4,18 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField } from '../lib/vsa-trip';
 import type { TripRun } from '../data/trips';
+import { PriorityHint } from './PriorityHint';
 
 const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
 type Location = typeof LOCATIONS[number];
 type RouteStep = 'origin' | 'destination' | 'confirmed';
 
 interface Props {
+  flaggedClasses: string[];
   onTripComplete: (trip: TripRun) => void;
 }
 
-export function DriverLiveForm({ onTripComplete }: Props) {
+export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const { user } = useAuth();
 
   const [liveState, setLiveState]         = useState<'form' | 'in_transit' | 'complete'>('form');
@@ -151,6 +153,8 @@ export function DriverLiveForm({ onTripComplete }: Props) {
   if (liveState === 'form') {
     return (
       <div className="space-y-4">
+        <PriorityHint flaggedClasses={flaggedClasses} topClasses={[]} />
+
         {/* Route picker */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">

@@ -74,7 +74,7 @@ export function MovementLogView() {
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
   const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
 
-  const { topClasses, flaggedClasses } = useMemo(() => {
+  const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
     const flags     = loadFlags();
     const overrides = loadOverrides();
@@ -83,6 +83,7 @@ export function MovementLogView() {
     return {
       topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
       flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
+      overrideClasses: [...overrides],
     };
   }, []);
 
@@ -281,6 +282,7 @@ export function MovementLogView() {
           </div>
           <div className="p-4">
             <DriverLiveForm
+              flaggedClasses={overrideClasses}
               onTripComplete={trip => setLiveTrips(prev => [trip, ...prev])}
             />
           </div>
