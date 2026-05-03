@@ -9,9 +9,9 @@ import type { UserRole } from '../../src/types';
 // ── getNavItemsForRole ────────────────────────────────────────────────────────
 
 describe('getNavItemsForRole', () => {
-  it('Driver only sees trips and lost-and-found', () => {
+  it('Driver only sees movement-log and lost-and-found', () => {
     const modules = getNavItemsForRole('Driver').map(n => n.module);
-    expect(modules).toContain('trips');
+    expect(modules).toContain('movement-log');
     expect(modules).toContain('lost-and-found');
     expect(modules).not.toContain('fleet-garage');
     expect(modules).not.toContain('inventory');
@@ -32,7 +32,7 @@ describe('getNavItemsForRole', () => {
     const modules = getNavItemsForRole('Branch Manager').map(n => n.module);
     expect(modules).toContain('fleet-garage');
     expect(modules).toContain('check-in');
-    expect(modules).toContain('trips');
+    expect(modules).toContain('analytics');
     expect(modules).toContain('inventory');
     expect(modules).toContain('lost-and-found');
   });
@@ -67,8 +67,8 @@ describe('getActiveModule', () => {
     expect(getActiveModule({ name: 'register-vehicle' })).toBe('fleet-garage');
   });
 
-  it('trips screen → trips module', () => {
-    expect(getActiveModule({ name: 'trips' })).toBe('trips');
+  it('movement-log screen → movement-log module', () => {
+    expect(getActiveModule({ name: 'movement-log' })).toBe('movement-log');
   });
 
   it('check-in screen → check-in module', () => {
@@ -91,8 +91,8 @@ describe('getDefaultScreenForRole', () => {
     'VSA', 'Lead VSA', 'CSR', 'Branch Manager', 'Operations Manager',
   ];
 
-  it('Driver lands on trips', () => {
-    expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'trips' });
+  it('Driver lands on movement-log', () => {
+    expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'movement-log' });
   });
 
   it.each(NON_DRIVER_ROLES)('%s lands on dashboard', (role) => {
