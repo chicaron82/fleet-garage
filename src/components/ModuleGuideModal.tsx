@@ -50,7 +50,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     mockNote: 'No seeded issues — log a test issue and clear it to see the full flow.',
   },
   'manifest': {
-    what: 'Today\'s reservation manifest with seasonal priority intelligence. Shows what classes are needed for upcoming pickups — so VSAs grab the right car before moving. Priority order shifts automatically by season: summer favours sedans, winter favours AWD SUVs.',
+    what: 'Today\'s reservation manifest with seasonal priority intelligence. Shows what classes are needed for upcoming pickups — so trippers grab the right car before moving. Priority order shifts automatically by season: summer favours sedans, winter favours AWD SUVs.',
     roles: ['All roles'],
     mockNote: 'Generated fresh each day from a seeded algorithm. Same date always produces the same manifest — consistent across devices during a demo.',
   },
@@ -138,7 +138,11 @@ export function ModuleGuideModal({ onClose, initialModule }: Props) {
                         {info.roles.map(role => (
                           <span
                             key={role}
-                            className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/50"
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                              role === 'All roles'
+                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/50'
+                                : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40'
+                            }`}
                           >
                             {role}
                           </span>
