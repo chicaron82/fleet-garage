@@ -4,6 +4,7 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField } from '../lib/vsa-trip';
 import type { TripRun } from '../data/trips';
+import type { RentalClass } from '../data/manifest';
 import { PriorityHint } from './PriorityHint';
 
 const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
@@ -11,7 +12,7 @@ type Location = typeof LOCATIONS[number];
 type RouteStep = 'origin' | 'destination' | 'confirmed';
 
 interface Props {
-  flaggedClasses: string[];
+  flaggedClasses: RentalClass[];
   onTripComplete: (trip: TripRun) => void;
 }
 

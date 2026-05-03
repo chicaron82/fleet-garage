@@ -137,11 +137,11 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
     await Promise.all(unread.map(n =>
-      supabase.from('notifications').update({ read_by: [...n.read_by, user!.id] }).eq('id', n.id)
+      supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id)
     ));
     setLiveNotifs(prev => prev.map(n => ({
       ...n,
-      read_by: n.read_by.includes(user!.id) ? n.read_by : [...n.read_by, user!.id],
+      read_by: n.read_by.includes(user.id) ? n.read_by : [...n.read_by, user.id],
     })));
   };
 
