@@ -19,7 +19,7 @@ interface TripRow { trip_type: string; driver_id: string; }
 
 export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
-  const { holds, vehicles, washbayLogs, getTodayWashbayLog } = useGarage();
+  const { holds, vehicles, washbayLogs, getTodayWashbayLog, facilityIssues } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode] = useState<'demo' | 'live'>('live');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
@@ -159,6 +159,20 @@ export function AnalyticsDashboard() {
           ))}
         </div>
       </div>
+
+      {/* High-severity facility issue banner */}
+      {(() => {
+        const count = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
+        if (count === 0) return null;
+        return (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
+            <span className="shrink-0">🔴</span>
+            <p>
+              <strong>{count}</strong> high-severity facility issue{count > 1 ? 's require' : ' requires'} attention.
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Live mode banner */}
       {!isDemo && (

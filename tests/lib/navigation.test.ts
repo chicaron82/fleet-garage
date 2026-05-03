@@ -92,9 +92,8 @@ describe('getActiveModule', () => {
 // ── getDefaultScreenForRole ───────────────────────────────────────────────────
 
 describe('getDefaultScreenForRole', () => {
-  const DASHBOARD_ROLES: UserRole[] = [
-    'VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager',
-  ];
+  const DASHBOARD_ROLES: UserRole[] = ['VSA', 'Lead VSA'];
+  const ANALYTICS_ROLES: UserRole[] = ['Branch Manager', 'Operations Manager', 'City Manager'];
 
   it('Driver lands on movement-log', () => {
     expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'movement-log' });
@@ -108,8 +107,8 @@ describe('getDefaultScreenForRole', () => {
     expect(getDefaultScreenForRole('CSR')).toEqual({ name: 'manifest' });
   });
 
-  it('City Manager lands on analytics', () => {
-    expect(getDefaultScreenForRole('City Manager')).toEqual({ name: 'analytics' });
+  it.each(ANALYTICS_ROLES)('%s lands on analytics', (role) => {
+    expect(getDefaultScreenForRole(role)).toEqual({ name: 'analytics' });
   });
 
   it.each(DASHBOARD_ROLES)('%s lands on dashboard', (role) => {

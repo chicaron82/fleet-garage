@@ -64,7 +64,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   if (role === 'Driver') preferred = { name: 'movement-log' };
   if (role === 'HIR') preferred = { name: 'check-in' };
   if (role === 'CSR') preferred = { name: 'manifest' };
-  if (role === 'City Manager') preferred = { name: 'analytics' };
+  if (role === 'Branch Manager' || role === 'Operations Manager' || role === 'City Manager') preferred = { name: 'analytics' };
 
   // Ensure preferred module is enabled for the branch, otherwise fallback to first available
   const preferredModule = getActiveModule(preferred);

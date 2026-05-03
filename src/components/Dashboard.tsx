@@ -18,7 +18,7 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, facilityIssues, latestHandoff } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, latestHandoff } = useGarage();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
@@ -164,20 +164,6 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         {/* Stale Holds Alert — VSA, Lead VSA, and management */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
-        {/* High-severity issue banner — management only */}
-        {(() => {
-          const count = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
-          if (count === 0 || !canRelease(user!.role)) return null;
-          return (
-            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
-              <span className="shrink-0">🔴</span>
-              <p>
-                <strong>{count}</strong> high-severity facility issue{count > 1 ? 's require' : ' requires'} attention.
-              </p>
-            </div>
-          );
-        })()}
-
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <SummaryCards
           role={user!.role}
@@ -276,7 +262,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 overflow-hidden">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
                         <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
@@ -285,7 +271,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                       {latestHold && (
                         <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
-                          {latestHold.damageDescription.slice(0, 60)}{latestHold.damageDescription.length > 60 ? '…' : ''}
+                          {latestHold.damageDescription.slice(0, 40)}{latestHold.damageDescription.length > 40 ? '…' : ''}
                         </p>
                       )}
                       {latestHold && (
