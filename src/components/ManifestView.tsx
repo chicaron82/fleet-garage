@@ -6,6 +6,10 @@ import {
   type ManifestReservation, type RentalClass,
 } from '../data/manifest';
 import { canFlagReservation, loadFlags, saveFlag, removeFlag } from '../lib/manifestFlags';
+import {
+  canSetOverride, loadOverrides, toggleOverride, clearAllOverrides,
+  ALL_RENTAL_CLASSES, CLASS_LABELS,
+} from '../lib/classOverrides';
 
 // ── Season display config ─────────────────────────────────────────────────────
 
@@ -141,9 +145,14 @@ export function ManifestView() {
   const nextFiveIds = useMemo(() => new Set(nextFive.map(r => r.id)), [nextFive]);
   const nowLineRef = useRef<HTMLDivElement>(null);
 
-  const [flags, setFlags] = useState<Set<string>>(() => loadFlags());
-  const canFlag = user ? canFlagReservation(user.role) : false;
+  const [flags, setFlags]       = useState<Set<string>>(() => loadFlags());
+  const [overrides, setOverrides] = useState<Set<RentalClass>>(() => loadOverrides());
+  const canFlag    = user ? canFlagReservation(user.role) : false;
+  const canOverride = user ? canSetOverride(user.role) : false;
   const flaggedReservations = useMemo(() => today.filter(r => flags.has(r.id)), [today, flags]);
+
+  const handleToggleOverride = (cls: RentalClass) => setOverrides(toggleOverride(cls));
+  const handleClearOverrides = () => { clearAllOverrides(); setOverrides(new Set()); };
 
   useEffect(() => {
     nowLineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -179,6 +188,63 @@ export function ManifestView() {
           {canFlag && <span className="ml-2 text-gray-400 dark:text-gray-600">· tap 🚩 to flag priority</span>}
         </p>
       </div>
+
+      {/* Airport Override */}
+      {(canOverride || overrides.size > 0) && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+              📞 Airport Override
+            </p>
+            {canOverride && overrides.size > 0 && (
+              <button
+                type="button"
+                onClick={handleClearOverrides}
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          {canOverride ? (
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-orange-200 dark:border-orange-800/50 p-3 transition-colors">
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_RENTAL_CLASSES.map(cls => (
+                  <button
+                    key={cls}
+                    type="button"
+                    onClick={() => handleToggleOverride(cls)}
+                    title={CLASS_LABELS[cls]}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition cursor-pointer ${
+                      overrides.has(cls)
+                        ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-400 dark:ring-red-600'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {cls}
+                  </button>
+                ))}
+              </div>
+              {overrides.size > 0 ? (
+                <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-2.5 font-medium">
+                  {[...overrides].map(c => `${c} · ${CLASS_LABELS[c]}`).join('  ·  ')}
+                </p>
+              ) : (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                  Tap a class — shows in driver's must-fulfill immediately
+                </p>
+              )}
+            </div>
+          ) : overrides.size > 0 ? (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 rounded-xl px-4 py-2.5 transition-colors">
+              <p className="text-xs font-semibold text-orange-700 dark:text-orange-400">
+                📞 Airport called · {[...overrides].join(', ')} needed now
+              </p>
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {/* Priority Flagged */}
       {flaggedReservations.length > 0 && (

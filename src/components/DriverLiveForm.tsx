@@ -32,6 +32,7 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
   const [arrivalTime, setArrivalTime]     = useState('');
   const [elapsed, setElapsed]             = useState('');
   const [submitting, setSubmitting]       = useState(false);
+  const [saveError, setSaveError]         = useState(false);
 
   useEffect(() => {
     if (liveState !== 'in_transit' || !departureTime) return;
@@ -83,9 +84,10 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
 
   const handleArrived = async () => {
     hapticMedium();
+    setSaveError(false);
     setSubmitting(true);
-    const arrived = new Date().toISOString();
-    setArrivalTime(arrived);
+    const arrived = arrivalTime || new Date().toISOString();
+    if (!arrivalTime) setArrivalTime(arrived);
 
     if (user) {
       const trip: TripRun = {
@@ -104,7 +106,7 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
         notes:          notes.trim() || undefined,
       };
 
-      await supabase.from('vsa_trips').insert({
+      const { error } = await supabase.from('vsa_trips').insert({
         id:              trip.id,
         vehicle_plate:   trip.vehiclePlate,
         vehicle_unit:    '',
@@ -118,6 +120,12 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
         notes:           trip.notes ?? null,
         branch_id:       trip.branchId,
       });
+
+      if (error) {
+        setSubmitting(false);
+        setSaveError(true);
+        return;
+      }
 
       onTripComplete(trip);
     }
@@ -139,6 +147,7 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
     setDepartureTime('');
     setArrivalTime('');
     setElapsed('');
+    setSaveError(false);
   };
 
   // ── Form ──────────────────────────────────────────────────────────────────
@@ -153,9 +162,12 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
             {routeStep === 'origin'      && 'Starting at?'}
             {routeStep === 'destination' && 'Going to?'}
             {routeStep === 'confirmed'   && (
-              <button type="button" onClick={handleRouteReset} className="text-yellow-600 dark:text-yellow-400 hover:underline normal-case font-semibold cursor-pointer">
-                {fromLabel} → {toLabel}
-              </button>
+              <>
+                <button type="button" onClick={handleRouteReset} className="text-yellow-600 dark:text-yellow-400 hover:underline normal-case font-semibold cursor-pointer">
+                  {fromLabel} → {toLabel}
+                </button>
+                <span className="ml-1.5 text-[10px] normal-case font-normal text-gray-400 dark:text-gray-500">tap to change</span>
+              </>
             )}
           </p>
 
@@ -259,11 +271,16 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
           </div>
         </div>
         <NotesField value={notes} onChange={setNotes} tripState="in_transit" />
+        {saveError && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+          </div>
+        )}
         <button
           type="button" onClick={handleArrived} disabled={submitting}
           className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
         >
-          ✓ Arrived at Destination
+          {submitting ? 'Saving…' : '✓ Arrived at Destination'}
         </button>
       </div>
     );
@@ -283,7 +300,11 @@ export function DriverLiveForm({ topClasses, flaggedClasses, onTripComplete }: P
         </p>
         {notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-2">"{notes}"</p>}
       </div>
-      <button type="button" onClick={handleReset} className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer">
+      <button
+        type="button"
+        onClick={handleReset}
+        className="w-full py-2.5 rounded-lg border border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400 font-semibold text-sm transition cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20"
+      >
         Log another →
       </button>
     </div>

@@ -14,6 +14,7 @@ import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
 import type { ScannedPayload, OffStandardEntry } from '../types';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
+import { loadOverrides } from '../lib/classOverrides';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -75,12 +76,14 @@ export function MovementLogView() {
   const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
 
   const { topClasses, flaggedClasses } = useMemo(() => {
-    const manifest = generateDayManifest();
-    const flags    = loadFlags();
-    const next5    = getNextFiveNeeded(manifest);
+    const manifest  = generateDayManifest();
+    const flags     = loadFlags();
+    const overrides = loadOverrides();
+    const next5     = getNextFiveNeeded(manifest);
+    const manifestFlagged = [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))];
     return {
       topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
-      flaggedClasses: [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))],
+      flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
     };
   }, []);
 
