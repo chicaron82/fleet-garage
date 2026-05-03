@@ -16,7 +16,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-4821',
     plate: 'GHK 294',
-    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
+    crew: [
+      { employeeId: '', name: 'Aaron S.',    position: 'driver-side' },
+      { employeeId: '', name: 'Belle',       position: 'passenger-side' },
+      { employeeId: '', name: 'PerplexiZee', position: 'sprayer-prep' },
+    ],
     status: 'PASSED',
     branchId: 'YWG',
     sections: [
@@ -34,7 +38,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line B',
     vehicleNumber: 'HRZ-3307',
     plate: 'JFT 881',
-    crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'Belle' } },
+    crew: [
+      { employeeId: '', name: 'PerplexiZee', position: 'driver-side' },
+      { employeeId: '', name: 'Aaron S.',    position: 'passenger-side' },
+      { employeeId: '', name: 'Belle',       position: 'sprayer-prep' },
+    ],
     status: 'FAILED',
     branchId: 'YWG',
     sections: [
@@ -52,7 +60,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-5590',
     plate: 'KLP 447',
-    crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
+    crew: [
+      { employeeId: '', name: 'Belle',       position: 'driver-side' },
+      { employeeId: '', name: 'PerplexiZee', position: 'passenger-side' },
+      { employeeId: '', name: 'Aaron S.',    position: 'sprayer-prep' },
+    ],
     status: 'PASSED',
     branchId: 'YWG',
     sections: [
@@ -70,7 +82,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Premium Bay',
     vehicleNumber: '5513130',
     plate: 'LJF684',
-    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'PerplexiZee' }, sprayer: { employeeId: '', name: 'Belle' } },
+    crew: [
+      { employeeId: '', name: 'Aaron S.',    position: 'driver-side' },
+      { employeeId: '', name: 'PerplexiZee', position: 'passenger-side' },
+      { employeeId: '', name: 'Belle',       position: 'sprayer-prep' },
+    ],
     status: 'FAILED',
     branchId: 'YWG',
     sections: [
@@ -88,7 +104,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-2298',
     plate: 'PBX 773',
-    crew: { driverSide: { employeeId: '', name: 'Belle' }, passengerSide: { employeeId: '', name: 'Aaron S.' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
+    crew: [
+      { employeeId: '', name: 'Belle',       position: 'driver-side' },
+      { employeeId: '', name: 'Aaron S.',    position: 'passenger-side' },
+      { employeeId: '', name: 'PerplexiZee', position: 'sprayer-prep' },
+    ],
     status: 'PASSED',
     branchId: 'YWG',
     sections: [
@@ -106,7 +126,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line B',
     vehicleNumber: 'HRZ-4821',
     plate: 'GHK 294',
-    crew: { driverSide: { employeeId: '', name: 'PerplexiZee' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'Aaron S.' } },
+    crew: [
+      { employeeId: '', name: 'PerplexiZee', position: 'driver-side' },
+      { employeeId: '', name: 'Belle',       position: 'passenger-side' },
+      { employeeId: '', name: 'Aaron S.',    position: 'sprayer-prep' },
+    ],
     status: 'PASSED',
     branchId: 'YWG',
     sections: [
@@ -124,7 +148,11 @@ export const MOCK_AUDITS: AuditRecord[] = [
     owningArea: 'Ready Line A',
     vehicleNumber: 'HRZ-3307',
     plate: 'JFT 881',
-    crew: { driverSide: { employeeId: '', name: 'Aaron S.' }, passengerSide: { employeeId: '', name: 'Belle' }, sprayer: { employeeId: '', name: 'PerplexiZee' } },
+    crew: [
+      { employeeId: '', name: 'Aaron S.',    position: 'driver-side' },
+      { employeeId: '', name: 'Belle',       position: 'passenger-side' },
+      { employeeId: '', name: 'PerplexiZee', position: 'sprayer-prep' },
+    ],
     status: 'PASSED',
     branchId: 'YWG',
     sections: [

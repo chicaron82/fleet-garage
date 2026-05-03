@@ -493,6 +493,18 @@ export function MovementLogView() {
         );
       })() : (
         <>
+          {myTrips.length > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
+              <button
+                type="button"
+                onClick={() => handleShareLog(myTrips)}
+                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer"
+              >
+                {copied ? '✓ Copied' : 'Share log ↗'}
+              </button>
+            </div>
+          )}
           <TripList trips={myTrips} isManagement={false} />
           {myTrips.length === 0 && (
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">

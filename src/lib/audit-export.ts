@@ -1,11 +1,12 @@
-import type { AuditSection, AuditStatus } from '../types';
+import type { AuditSection, AuditStatus, AuditCrewMember } from '../types';
+import { AUDIT_POSITION_LABELS } from '../types';
 
 interface ExportData {
   auditorName: string;
   owningArea: string;
   vehicleNumber: string;
   plate: string;
-  crew: { driverSide: string; passengerSide: string; sprayer: string };
+  crew: AuditCrewMember[];
   sections: AuditSection[];
   status: AuditStatus;
   date: string;
@@ -83,9 +84,7 @@ export function exportAuditToHtml(data: ExportData): void {
     <div style="background:#f9fafb;border-radius:8px;padding:16px;">
       <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#6b7280;margin-bottom:8px;">CREW</div>
       <div style="font-size:13px;margin-bottom:4px;"><strong>Auditor:</strong> ${data.auditorName}</div>
-      <div style="font-size:13px;margin-bottom:4px;"><strong>Driver Side:</strong> ${data.crew.driverSide}</div>
-      <div style="font-size:13px;margin-bottom:4px;"><strong>Passenger Side:</strong> ${data.crew.passengerSide}</div>
-      <div style="font-size:13px;"><strong>Sprayer / Prep:</strong> ${data.crew.sprayer}</div>
+      ${data.crew.map(m => `<div style="font-size:13px;margin-bottom:4px;"><strong>${AUDIT_POSITION_LABELS[m.position]}:</strong> ${m.name || m.employeeId || 'Unknown'}</div>`).join('')}
     </div>
   </div>
 

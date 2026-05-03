@@ -184,6 +184,20 @@ export interface AuditSection {
   isOpen: boolean;
 }
 
+export type AuditPosition = 'driver-side' | 'passenger-side' | 'sprayer-prep';
+
+export const AUDIT_POSITION_LABELS: Record<AuditPosition, string> = {
+  'driver-side':    'Driver Side',
+  'passenger-side': 'Passenger Side',
+  'sprayer-prep':   'Sprayer / Prep',
+};
+
+export interface AuditCrewMember {
+  employeeId: string;
+  name: string;
+  position: AuditPosition;
+}
+
 export interface AuditCrewSlot {
   employeeId: string;
   name: string;
@@ -202,7 +216,7 @@ export interface AuditRecord {
   owningArea: string;
   vehicleNumber: string;
   plate: string;
-  crew: AuditCrew;
+  crew: AuditCrewMember[];
   sections: AuditSection[];
   status: AuditStatus;
   branchId: BranchId;

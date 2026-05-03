@@ -2,8 +2,9 @@ import { useRef } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { exportAuditToHtml } from '../lib/audit-export';
 import { USERS } from '../data/mock';
-import { hapticMedium } from '../lib/haptics';
-import type { AuditSection, AuditStatus, AuditCrewSlot } from '../types';
+import { hapticMedium, hapticLight } from '../lib/haptics';
+import { AUDIT_POSITION_LABELS } from '../types';
+import type { AuditSection, AuditStatus, AuditCrewMember, AuditPosition } from '../types';
 
 interface Props {
   onBack: () => void;
@@ -20,11 +21,7 @@ export function AuditForm({ onBack }: Props) {
       owningArea:    audit.owningArea,
       vehicleNumber: audit.vehicleNumber,
       plate:         audit.plate,
-      crew: {
-        driverSide:    audit.resolveCrewName(audit.crew.driverSide),
-        passengerSide: audit.resolveCrewName(audit.crew.passengerSide),
-        sprayer:       audit.resolveCrewName(audit.crew.sprayer),
-      },
+      crew:          audit.crewMembers,
       sections: audit.sections,
       status:   (audit.overallStatus === 'IN_PROGRESS' ? 'FAILED' : audit.overallStatus) as AuditStatus,
       date:     new Date().toISOString(),
@@ -68,12 +65,22 @@ export function AuditForm({ onBack }: Props) {
       {/* Crew */}
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors">
         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Crew Assignment</p>
-        <CrewInput label="Driver Side"    value={audit.crew.driverSide}
-          onChange={v => audit.setCrew({ ...audit.crew, driverSide: v })} />
-        <CrewInput label="Passenger Side" value={audit.crew.passengerSide}
-          onChange={v => audit.setCrew({ ...audit.crew, passengerSide: v })} />
-        <CrewInput label="Sprayer / Prep" value={audit.crew.sprayer}
-          onChange={v => audit.setCrew({ ...audit.crew, sprayer: v })} />
+        {audit.crewMembers.map((member, index) => (
+          <CrewRow
+            key={index}
+            member={member}
+            showRemove={audit.crewMembers.length > 1}
+            onChange={patch => audit.updateCrewMember(index, patch)}
+            onRemove={() => { hapticLight(); audit.removeCrewMember(index); }}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => { hapticLight(); audit.addCrewMember(); }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 transition cursor-pointer"
+        >
+          + Add crew member
+        </button>
       </section>
 
       {/* Status banner */}
@@ -189,46 +196,73 @@ function InputField({ label, value, onChange, placeholder }: {
   );
 }
 
-function CrewInput({ label, value, onChange }: {
-  label: string;
-  value: AuditCrewSlot;
-  onChange: (v: AuditCrewSlot) => void;
+function CrewRow({ member, showRemove, onChange, onRemove }: {
+  member: AuditCrewMember;
+  showRemove: boolean;
+  onChange: (patch: Partial<AuditCrewMember>) => void;
+  onRemove: () => void;
 }) {
-  const resolvedUser = USERS.find(u => u.employeeId === value.employeeId);
-  const isKnown = !!resolvedUser;
-  const showManual = value.employeeId.length >= 3 && !isKnown;
+  const resolvedUser = USERS.find(u => u.employeeId === member.employeeId);
+  const isKnown      = !!resolvedUser;
+  const showManual   = member.employeeId.length >= 3 && !isKnown;
+
+  const INPUT = 'px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition';
 
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-        {label}
-      </label>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={value.employeeId}
-        onChange={e => {
-          const id = e.target.value.toUpperCase();
-          const match = USERS.find(u => u.employeeId === id);
-          onChange({ employeeId: id, name: match?.name ?? '' });
-        }}
-        placeholder="Employee ID"
-        className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-      />
+    <div className="space-y-1.5">
+      <div className="flex gap-2 items-start">
+        {/* Employee ID */}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={member.employeeId}
+          onChange={e => {
+            const id    = e.target.value.toUpperCase();
+            const match = USERS.find(u => u.employeeId === id);
+            onChange({ employeeId: id, name: match?.name ?? (isKnown ? '' : member.name) });
+          }}
+          placeholder="Employee ID"
+          className={`flex-1 min-w-0 uppercase ${INPUT}`}
+        />
+        {/* Position dropdown */}
+        <select
+          value={member.position}
+          onChange={e => onChange({ position: e.target.value as AuditPosition })}
+          className={`shrink-0 w-36 cursor-pointer ${INPUT}`}
+        >
+          {(Object.keys(AUDIT_POSITION_LABELS) as AuditPosition[]).map(pos => (
+            <option key={pos} value={pos}>{AUDIT_POSITION_LABELS[pos]}</option>
+          ))}
+        </select>
+        {/* Remove button */}
+        {showRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="shrink-0 w-9 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
+            aria-label="Remove crew member"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
+      {/* Auto-resolved name */}
       {isKnown && (
-        <p className="text-xs text-green-600 dark:text-green-400 mt-1.5 flex items-center gap-1">
+        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 pl-0.5">
           ✓ {resolvedUser.name} · {resolvedUser.role}
         </p>
       )}
 
+      {/* Manual name fallback */}
       {showManual && (
         <input
           type="text"
-          value={value.name}
-          onChange={e => onChange({ ...value, name: e.target.value })}
+          value={member.name}
+          onChange={e => onChange({ name: e.target.value })}
           placeholder="Enter name manually"
-          className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+          className={`w-full ${INPUT}`}
+          autoFocus
         />
       )}
     </div>
