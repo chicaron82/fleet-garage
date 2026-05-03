@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { canRelease } from '../types';
+import { canRelease, deriveRouting } from '../types';
 import { MOCK_CHECK_INS } from '../data/checkIns';
-import type { CheckInStatus, VehicleCheckIn } from '../data/checkIns';
+import type { VehicleCheckIn } from '../data/checkIns';
 import { ReEvalPanel } from './ReEvalPanel';
 import { ExceptionReturnSection } from './ExceptionReturnSection';
 import { CheckInIntakeForm } from './CheckInIntakeForm';
@@ -36,13 +36,6 @@ function daysUntil(iso: string) {
   if (days <= 0) return 'Expiring today';
   return `Expires in ${days}d`;
 }
-
-const STATUS_CONFIG: Record<CheckInStatus, { bg: string; text: string; label: string }> = {
-  clean:           { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-700 dark:text-green-400',  label: 'Clean' },
-  pending_washbay: { bg: 'bg-amber-100 dark:bg-amber-900/30',  text: 'text-amber-700 dark:text-amber-400',  label: 'Pending Washbay' },
-  escalated:       { bg: 'bg-red-100 dark:bg-red-900/30',      text: 'text-red-700 dark:text-red-400',      label: 'Escalated' },
-  pinned:          { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400', label: 'Pinned' },
-};
 
 export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) => void }) {
   const { user } = useAuth();
@@ -269,7 +262,14 @@ function CountCard({ count, label, color }: { count: number; label: string; colo
 }
 
 function CheckInCard({ checkIn: ci, isManagement }: { checkIn: VehicleCheckIn; isManagement: boolean }) {
-  const style = STATUS_CONFIG[ci.status];
+  const routing = deriveRouting(ci.interiorCondition, ci.exteriorCondition);
+
+  const routingBadge = {
+    flip:      { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-700 dark:text-green-400',  label: 'Clean' },
+    washbay:   { bg: 'bg-amber-100 dark:bg-amber-900/30',  text: 'text-amber-700 dark:text-amber-400',  label: 'Pending Washbay' },
+    review:    { bg: 'bg-amber-100 dark:bg-amber-900/30',  text: 'text-amber-700 dark:text-amber-400',  label: 'Pending Review' },
+    escalated: { bg: 'bg-red-100 dark:bg-red-900/30',      text: 'text-red-700 dark:text-red-400',      label: 'Escalated' },
+  }[routing];
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -302,8 +302,8 @@ function CheckInCard({ checkIn: ci, isManagement }: { checkIn: VehicleCheckIn; i
             )}
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} transition-colors`}>
-              {style.label}
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${routingBadge.bg} ${routingBadge.text} transition-colors`}>
+              {routingBadge.label}
             </span>
             {ci.expiresAt && (
               <span className="text-[10px] text-gray-400 dark:text-gray-500 transition-colors">
@@ -358,12 +358,11 @@ const REVIEW_LABELS: Record<string, string> = {
 };
 
 function ConditionTag({ label, condition }: { label: string; condition: string }) {
-  const colors = condition === 'clean'
-    ? 'text-green-600 dark:text-green-400'
-    : condition === 'questionable'
-      ? 'text-amber-600 dark:text-amber-400'
-      : 'text-red-600 dark:text-red-400';
-
+  const colors =
+    condition === 'clean'        ? 'text-green-600 dark:text-green-400' :
+    condition === 'good'         ? 'text-blue-600 dark:text-blue-400' :
+    condition === 'questionable' ? 'text-amber-600 dark:text-amber-400' :
+                                   'text-red-600 dark:text-red-400';
   return (
     <span className={`text-xs ${colors} transition-colors`}>
       {label}: <span className="font-medium capitalize">{condition}</span>

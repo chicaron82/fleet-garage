@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { parseFleetBarcode } from '../lib/barcode';
-import { hapticMedium } from '../lib/haptics';
-import type { Vehicle } from '../types';
+import { hapticLight, hapticMedium } from '../lib/haptics';
+import { supabase } from '../lib/supabase';
+import type { Vehicle, ConditionRating, CheckInRouting } from '../types';
+import { deriveRouting } from '../types';
 
 interface Props {
   onFlagIssue: (vehicleId: string) => void;
@@ -23,18 +25,71 @@ function fuelColor(v: number): string {
   return '#22c55e';
 }
 
+const CONDITION_RATINGS: ConditionRating[] = ['clean', 'good', 'questionable', 'escalated'];
+
+const CONDITION_CONFIG: Record<ConditionRating, { label: string; activeClass: string }> = {
+  clean:        { label: 'Clean',        activeClass: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700' },
+  good:         { label: 'Good',         activeClass: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700' },
+  questionable: { label: 'Questionable', activeClass: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700' },
+  escalated:    { label: 'Escalated',    activeClass: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700' },
+};
+
+const ROUTING_CONFIG: Record<CheckInRouting, {
+  icon: string; label: string; description: string;
+  className: string; textClass: string;
+}> = {
+  flip: {
+    icon: '✅',
+    label: 'Flip Eligible',
+    description: 'Interior and exterior both clean. Vehicle can be flipped at the booth.',
+    className: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40',
+    textClass: 'text-green-700 dark:text-green-400',
+  },
+  washbay: {
+    icon: '🚿',
+    label: 'Send to Washbay',
+    description: 'Vehicle needs standard cleaning before returning to fleet.',
+    className: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40',
+    textClass: 'text-blue-700 dark:text-blue-400',
+  },
+  review: {
+    icon: '🔍',
+    label: 'Needs Review',
+    description: 'Condition is questionable. Hold at HIR for second opinion.',
+    className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40',
+    textClass: 'text-amber-700 dark:text-amber-400',
+  },
+  escalated: {
+    icon: '🚨',
+    label: 'Escalated',
+    description: 'Definite issue found. Flag for management review.',
+    className: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40',
+    textClass: 'text-red-700 dark:text-red-400',
+  },
+};
+
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const { user } = useAuth();
   const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold } = useGarage();
 
-  const [scanned, setScanned] = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
-  const [unitSearch, setUnitSearch] = useState('');
-  const [mileage, setMileage] = useState('');
-  const [fuelLevel, setFuelLevel] = useState<number | null>(null);
-  const [photoCount, setPhotoCount] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const [reHolded, setReHolded] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [scanned, setScanned]                   = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
+  const [unitSearch, setUnitSearch]             = useState('');
+  const [mileage, setMileage]                   = useState('');
+  const [fuelLevel, setFuelLevel]               = useState<number | null>(null);
+  const [photoCount, setPhotoCount]             = useState(0);
+  const [interiorCondition, setInteriorCondition] = useState<ConditionRating | null>(null);
+  const [exteriorCondition, setExteriorCondition] = useState<ConditionRating | null>(null);
+  const [conditionNotes, setConditionNotes]     = useState('');
+  const [submitted, setSubmitted]               = useState(false);
+  const [reHolded, setReHolded]                 = useState(false);
+  const [submitting, setSubmitting]             = useState(false);
+  const [saveError, setSaveError]               = useState(false);
+  const [toast, setToast]                       = useState<string | null>(null);
+
+  const routing = useMemo<CheckInRouting | null>(() => {
+    if (!interiorCondition || !exteriorCondition) return null;
+    return deriveRouting(interiorCondition, exteriorCondition);
+  }, [interiorCondition, exteriorCondition]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -56,16 +111,51 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setMileage('');
     setFuelLevel(null);
     setPhotoCount(0);
+    setInteriorCondition(null);
+    setExteriorCondition(null);
+    setConditionNotes('');
     setSubmitted(false);
     setReHolded(false);
+    setSaveError(false);
   }, [getVehicleByUnit, showToast]);
 
-  const handleSubmit = () => { hapticMedium(); setSubmitted(true); };
+  const handleSubmit = async () => {
+    if (!user || !scanned || !interiorCondition || !exteriorCondition) return;
+    hapticMedium();
+    setSubmitting(true);
+    setSaveError(false);
+
+    const derivedRouting = deriveRouting(interiorCondition, exteriorCondition);
+
+    const { error } = await supabase.from('vehicle_checkins').insert({
+      branch_id:          user.branchId,
+      vehicle_id:         scanned.vehicle.id,
+      vehicle_unit:       scanned.vehicle.unitNumber,
+      vehicle_plate:      scanned.vehicle.licensePlate,
+      checked_in_by_id:   user.id,
+      checked_in_by_name: user.name,
+      mileage:            mileage ? Number(mileage) : null,
+      fuel_level:         fuelLevel,
+      photo_count:        photoCount,
+      interior_condition: interiorCondition,
+      exterior_condition: exteriorCondition,
+      routing:            derivedRouting,
+      condition_notes:    conditionNotes.trim() || null,
+    });
+
+    setSubmitting(false);
+    if (error) { setSaveError(true); return; }
+    setSubmitted(true);
+  };
 
   const handleReset = () => {
     setScanned(null);
     setSubmitted(false);
     setReHolded(false);
+    setSaveError(false);
+    setInteriorCondition(null);
+    setExteriorCondition(null);
+    setConditionNotes('');
   };
 
   const handleReHold = useCallback(async (
@@ -83,6 +173,8 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   function fmtTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
+
+  const canSubmit = !!interiorCondition && !!exteriorCondition && !submitting && scanned?.vehicle.status !== 'HELD';
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -127,26 +219,24 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                     onClick={() => setUnitSearch('')}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
                     aria-label="Clear search"
-                  >
-                    ×
-                  </button>
+                  >×</button>
                 )}
               </div>
               {unitSearch.trim().length >= 2 && (
                 <div className="space-y-1">
                   {(() => {
-                    const searchResults = vehicles.filter(v =>
+                    const results = vehicles.filter(v =>
                       v.unitNumber.toUpperCase().includes(unitSearch.trim().toUpperCase()) ||
                       v.licensePlate.toUpperCase().includes(unitSearch.trim().toUpperCase())
                     ).slice(0, 5);
-                    if (searchResults.length === 0) {
+                    if (results.length === 0) {
                       return (
                         <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
                           <p className="text-xs text-gray-500 dark:text-gray-400">"{unitSearch}" not in the system.</p>
                         </div>
                       );
                     }
-                    return searchResults.map(v => (
+                    return results.map(v => (
                       <button
                         key={v.id}
                         type="button"
@@ -172,7 +262,6 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
         {scanned && !submitted && (
           <>
-            {/* HELD warning — block check-in */}
             {scanned.vehicle.status === 'HELD' && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700/50 rounded-lg px-4 py-3">
                 <p className="font-semibold text-sm text-red-800 dark:text-red-300">⚠ Vehicle is currently on hold</p>
@@ -180,7 +269,6 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               </div>
             )}
 
-            {/* Exception return banner */}
             {(scanned.vehicle.status === 'OUT_ON_EXCEPTION' || scanned.vehicle.status === 'PRE_EXISTING') && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-lg px-4 py-3">
                 <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">⚠ On-exception return</p>
@@ -204,8 +292,6 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   Scanned<br />{fmtTime(scanned.timestamp)}
                 </span>
               </div>
-
-              {/* Hold detail panel */}
               {user && (
                 <CheckInHoldPanel
                   vehicle={scanned.vehicle}
@@ -223,9 +309,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             {/* Mileage + Fuel */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Mileage (km)
-                </label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Mileage (km)</label>
                 <input
                   type="number"
                   placeholder="e.g. 42800"
@@ -235,11 +319,8 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Fuel Level
-                </label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Fuel Level</label>
                 <div className="space-y-2 px-1">
-                  {/* Value display */}
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold" style={{ color: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}>
                       ⛽ {fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '—'}
@@ -248,37 +329,20 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                       {fuelLevel !== null ? `${fuelLevel}/8` : 'set level'}
                     </span>
                   </div>
-                  {/* Slider */}
                   <input
-                    type="range"
-                    min={0}
-                    max={8}
-                    step={1}
+                    type="range" min={0} max={8} step={1}
                     value={fuelLevel ?? 4}
                     onChange={e => setFuelLevel(Number(e.target.value))}
                     className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
                     style={{ accentColor: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}
                   />
-                  {/* Tick marks */}
                   <div className="flex justify-between px-0.5">
                     {Array.from({ length: 9 }, (_, i) => (
-                      <div
-                        key={i}
-                        className={`w-px h-1.5 rounded-full transition-colors ${
-                          fuelLevel !== null && i <= fuelLevel
-                            ? 'bg-gray-400 dark:bg-gray-400'
-                            : 'bg-gray-300 dark:bg-gray-700'
-                        }`}
-                      />
+                      <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuelLevel !== null && i <= fuelLevel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
                     ))}
                   </div>
-                  {/* Labels */}
                   <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
-                    <span>E</span>
-                    <span>1/4</span>
-                    <span>1/2</span>
-                    <span>3/4</span>
-                    <span>F</span>
+                    <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
                   </div>
                 </div>
               </div>
@@ -286,9 +350,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
             {/* Photos */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                Photos
-              </label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Photos</label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -306,15 +368,81 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               </div>
             </div>
 
+            {/* Condition ratings */}
+            <div className="space-y-4">
+              {(['interior', 'exterior'] as const).map(side => {
+                const value = side === 'interior' ? interiorCondition : exteriorCondition;
+                const setter = side === 'interior' ? setInteriorCondition : setExteriorCondition;
+                return (
+                  <div key={side}>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+                      {side === 'interior' ? 'Interior' : 'Exterior'} Condition *
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {CONDITION_RATINGS.map(rating => {
+                        const cfg = CONDITION_CONFIG[rating];
+                        const active = value === rating;
+                        return (
+                          <button
+                            key={rating}
+                            type="button"
+                            onClick={() => { hapticLight(); setter(r => r === rating ? null : rating); }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                              active
+                                ? cfg.activeClass
+                                : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
+                            }`}
+                          >
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Condition notes */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Condition Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Rear seat looks stained, possible food spill…"
+                  value={conditionNotes}
+                  onChange={e => setConditionNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+                />
+              </div>
+
+              {/* Routing preview */}
+              {routing && (() => {
+                const cfg = ROUTING_CONFIG[routing];
+                return (
+                  <div className={`rounded-lg border px-4 py-3 transition-colors ${cfg.className}`}>
+                    <p className={`text-sm font-semibold ${cfg.textClass}`}>
+                      {cfg.icon} {cfg.label}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${cfg.textClass} opacity-80`}>{cfg.description}</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {saveError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3 transition-colors">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={scanned.vehicle.status === 'HELD'}
+                disabled={!canSubmit}
                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
               >
-                ✓ Submit Check-in
+                {submitting ? 'Saving…' : '✓ Submit Check-in'}
               </button>
               <button
                 type="button"
@@ -328,11 +456,14 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
           </>
         )}
 
-        {submitted && scanned && (
+        {submitted && scanned && routing && (
           <div className="flex flex-col items-center gap-2 py-4 text-center">
-            <span className="text-3xl">✅</span>
+            <span className="text-3xl">{ROUTING_CONFIG[routing].icon}</span>
             <p className="font-semibold text-green-700 dark:text-green-400 text-sm">
               {scanned.vehicle.unitNumber} checked in
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold">
+              {ROUTING_CONFIG[routing].label}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {scanned.vehicle.year} {scanned.vehicle.make} {scanned.vehicle.model}
@@ -355,21 +486,13 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
           role="status"
           aria-live="polite"
           style={{
-            position: 'fixed',
-            bottom: '1.5rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 50,
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            background: 'rgba(153, 27, 27, 0.85)',
-            color: 'white',
-            padding: '0.75rem 1.25rem',
-            borderRadius: '0.75rem',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            whiteSpace: 'nowrap' as const,
+            position: 'fixed', bottom: '1.5rem', left: '50%',
+            transform: 'translateX(-50%)', zIndex: 50,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            background: 'rgba(153, 27, 27, 0.85)', color: 'white',
+            padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
+            fontSize: '0.875rem', fontWeight: 600,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', whiteSpace: 'nowrap' as const,
           }}
         >
           {toast}

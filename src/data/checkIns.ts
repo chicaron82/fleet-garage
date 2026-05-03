@@ -1,5 +1,7 @@
 // ── Vehicle Check-in Mock Data ────────────────────────────────────────────────
 
+import type { ConditionRating } from '../types';
+
 export type CheckInStatus = 'clean' | 'pending_washbay' | 'escalated' | 'pinned';
 
 export interface WashbayReview {
@@ -15,15 +17,15 @@ export interface VehicleCheckIn {
   vehiclePlate: string;
   checkedInBy: string;
   checkedInAt: string;
-  interiorCondition: 'clean' | 'questionable' | 'damaged';
-  exteriorCondition: 'clean' | 'questionable' | 'damaged';
+  interiorCondition: ConditionRating;
+  exteriorCondition: ConditionRating;
   photoCount: number;
   notes: string;
   status: CheckInStatus;
   washbayReview?: WashbayReview;
-  expiresAt?: string;      // ISO date — null = pinned/no expiry
-  pinnedBy?: string;       // Manager name who removed the expiry timer
-  linkedHoldId?: string;   // Fleet Garage hold ID if escalated
+  expiresAt?: string;
+  pinnedBy?: string;
+  linkedHoldId?: string;
 }
 
 const TODAY = '2026-04-14';
@@ -104,7 +106,7 @@ export const MOCK_CHECK_INS: VehicleCheckIn[] = [
     checkedInBy: 'Belle',
     checkedInAt: '2026-04-13T16:40:00',
     interiorCondition: 'clean',
-    exteriorCondition: 'damaged',
+    exteriorCondition: 'escalated',
     photoCount: 8,
     notes: 'Scratch along passenger side — not on pre-rental inspection. Flagged immediately.',
     status: 'escalated',
@@ -161,7 +163,7 @@ export const MOCK_CHECK_INS: VehicleCheckIn[] = [
     checkedInBy: 'Belle',
     checkedInAt: `${TODAY}T08:15:00`,
     interiorCondition: 'clean',
-    exteriorCondition: 'damaged',
+    exteriorCondition: 'escalated',
     photoCount: 6,
     notes: 'Inter-branch transfer arrival from Calgary (YYC). Front bumper scrape pre-existing — already flagged on hold h8 by Marcus L. on Apr 5. Verified match against YYC documentation. No new damage. Linked to existing YYC hold.',
     status: 'escalated',
@@ -182,7 +184,7 @@ export const MOCK_CHECK_INS: VehicleCheckIn[] = [
     checkedInBy: 'Belle',
     checkedInAt: `${TODAY}T09:30:00`,
     interiorCondition: 'clean',
-    exteriorCondition: 'damaged',
+    exteriorCondition: 'escalated',
     photoCount: 7,
     notes: 'Customer one-way arrival from Vancouver (YVR). Vehicle was clean at YVR origin per Linh T.\'s check-in on Apr 12 — exterior clean, no holds. Fresh dent discovered on rear quarter panel during arrival inspection. New damage hold flagged at YWG.',
     status: 'escalated',
