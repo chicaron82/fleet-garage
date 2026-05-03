@@ -1,64 +1,14 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, UserRole, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundLocation, LostFoundStatus } from '../types';
-import type { NotificationSeverity } from '../data/notifications';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem } from '../lib/garage-mappers';
+import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
+import { useLostFound, type LostFoundSlice } from './useLostFound';
+import { useIssues, type IssuesSlice } from './useIssues';
+import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 
-// ── Notification helper ───────────────────────────────────────────────────────
-
-async function pushNotification(
-  branchId: string,
-  roles: UserRole[],
-  icon: string,
-  text: string,
-  severity: NotificationSeverity = 'info',
-  metadata?: Record<string, unknown>,
-) {
-  await supabase.from('notifications').insert({
-    branch_id: branchId,
-    recipient_roles: roles,
-    icon,
-    text,
-    severity,
-    metadata,
-  });
-}
-
-// ── Photo helpers ─────────────────────────────────────────────────────────────
-
-function base64ToBlob(base64: string): Blob {
-  const [header, data] = base64.split(',');
-  const mime = header.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg';
-  const binary = atob(data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
-
-async function uploadPhoto(base64: string, holdId: string): Promise<string | null> {
-  const blob = base64ToBlob(base64);
-  const path = `${holdId}/${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage
-    .from('damage-photos')
-    .upload(path, blob, { contentType: 'image/jpeg' });
-  if (error) return null;
-  return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
-}
-
-async function uploadLostFoundPhoto(base64: string, itemId: string, slot: 'key-tag' | 'item'): Promise<string | null> {
-  const blob = base64ToBlob(base64);
-  const path = `${itemId}/${slot}.jpg`;
-  const { error } = await supabase.storage
-    .from('lost-found-photos')
-    .upload(path, blob, { contentType: 'image/jpeg' });
-  if (error) return null;
-  return supabase.storage.from('lost-found-photos').getPublicUrl(path).data.publicUrl;
-}
-
-// ── Context ───────────────────────────────────────────────────────────────────
-
-interface GarageContextValue {
+interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoffSlice {
   vehicles: Vehicle[];
   holds: Hold[];
   staleHolds: Hold[];
@@ -76,18 +26,6 @@ interface GarageContextValue {
   markReturned: (holdId: string) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
-  facilityIssues: FacilityIssue[];
-  addIssue: (data: { title: string; description?: string; severity: IssueSeverity }) => Promise<void>;
-  clearIssue: (issueId: string, notes?: string) => Promise<void>;
-  washbayLogs: WashbayLog[];
-  submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>) => Promise<boolean>;
-  getTodayWashbayLog: () => WashbayLog | undefined;
-  handoffNotes: HandoffNote[];
-  latestHandoff: HandoffNote | undefined;
-  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string }) => Promise<boolean>;
-  lostFoundItems: LostFoundItem[];
-  addLostFoundItem: (data: { keyTagPhoto?: string; itemPhoto?: string; description?: string; location?: LostFoundLocation; licensePlate?: string; unitNumber?: string; notes?: string }) => Promise<boolean>;
-  updateLostFoundStatus: (id: string, status: LostFoundStatus, notes?: string) => Promise<boolean>;
 }
 
 const GarageContext = createContext<GarageContextValue | null>(null);
@@ -96,12 +34,12 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
-  const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
-  const [washbayLogs, setWashbayLogs] = useState<WashbayLog[]>([]);
-  const [handoffNotes, setHandoffNotes] = useState<HandoffNote[]>([]);
-  const [allLostFoundItems, setAllLostFoundItems] = useState<LostFoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
+
+  const { setFacilityIssues, ...issuesSlice }         = useIssues(user, activeBranch);
+  const { setWashbayLogs, setHandoffNotes, ...washbaySlice } = useWashbayHandoff(user, activeBranch);
+  const { setAllLostFoundItems, ...lostFoundSlice }   = useLostFound(user, activeBranch, allVehicles);
 
   const vehicles = useMemo(() => {
     if (activeBranch === 'ALL') return allVehicles;
@@ -113,17 +51,12 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return allHolds.filter(h => h.branchId === activeBranch);
   }, [allHolds, activeBranch]);
 
-  const lostFoundItems = useMemo(() => {
-    if (activeBranch === 'ALL') return allLostFoundItems;
-    return allLostFoundItems.filter(i => i.branchId === activeBranch);
-  }, [allLostFoundItems, activeBranch]);
-
   useEffect(() => {
     async function load() {
-    const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }] = await Promise.all([
+      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
-        supabase.from('facility_issues').select('*').eq('branch_id', activeBranch === 'ALL' ? activeBranch : activeBranch).order('reported_at', { ascending: false }),
+        supabase.from('facility_issues').select('*').order('reported_at', { ascending: false }),
         supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
         supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
         supabase.from('lost_found').select('*').order('found_at', { ascending: false }).limit(100),
@@ -137,7 +70,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
     load();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
@@ -162,26 +95,24 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime());
     let count = 0;
     for (const hold of completed) {
-      const releaseType = hold.release?.releaseType;
       if (hold.status === 'REPAIRED') break;
-      if (releaseType === 'PRE_EXISTING') break;
+      if (hold.release?.releaseType === 'PRE_EXISTING') break;
       if (hold.status === 'RELEASED' || hold.status === 'RETURNED') count++;
     }
     return count;
   };
 
-  const staleHolds = useMemo(() => {    // eslint-disable-next-line react-hooks/purity
+  const staleHolds = useMemo(() => {
     const now = Date.now();
     return holds.filter(h => {
       if (h.status !== 'ACTIVE') return false;
-      const ageMs = now - new Date(h.flaggedAt).getTime();
-      return ageMs > 48 * 60 * 60 * 1000;
+      return (now - new Date(h.flaggedAt).getTime()) > 48 * 60 * 60 * 1000;
     });
   }, [holds]);
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>): Promise<string> => {
     const id = `veh-${Date.now()}`;
-    const branchId: Vehicle['branchId'] = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,
@@ -193,13 +124,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       status:        'HELD',
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
-    await pushNotification(
-      branchId,
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
-      '🚗',
-      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`,
-      'info',
-    );
+    await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
+      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`);
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
@@ -217,55 +143,35 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const holdId = crypto.randomUUID();
     const flaggedAt = new Date().toISOString();
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
 
-    // Upload base64 photos; pass through already-resolved URLs unchanged
     const photoUrls = (await Promise.all(
       (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
     )).filter((url): url is string => url !== null);
 
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-
     const { error } = await supabase.from('holds').insert({
-      id:                 holdId,
-      vehicle_id:         vehicleId,
-      hold_type:          holdTypes[0],
-      hold_types:         holdTypes,
-      detail_reason:      detailReason ?? null,
+      id: holdId, vehicle_id: vehicleId,
+      hold_type: holdTypes[0], hold_types: holdTypes,
+      detail_reason: detailReason ?? null,
       damage_description: damageDescription,
-      flagged_by_id:      flaggedById,
-      flagged_at:         flaggedAt,
-      notes,
-      photos:             photoUrls,
-      status:             'ACTIVE',
-      linked_hold_id:     linkedHoldId ?? null,
+      flagged_by_id: flaggedById, flagged_at: flaggedAt,
+      notes, photos: photoUrls, status: 'ACTIVE',
+      linked_hold_id: linkedHoldId ?? null,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
 
     const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
-    await pushNotification(
-      branchId,
-      ['Branch Manager', 'Operations Manager'],
-      '🔴',
-      `Hold flagged on unit ${unitForHold}: ${damageDescription}`,
-      'warning',
-    );
+    await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
+      `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning');
 
-    const { error: vError } = await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
-    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
+    await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
 
     const newHold: Hold = {
       id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, linkedHoldId,
-      damageDescription, flaggedById, flaggedAt, notes,
-      photos: photoUrls, status: 'ACTIVE',
-      branchId,
+      damageDescription, flaggedById, flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
-    
     setAllHolds(prev => [newHold, ...prev]);
-    
-    // Auto-update vehicle status
-    setAllVehicles(prev => prev.map(v => 
-      v.id === vehicleId ? { ...v, status: 'HELD' } : v
-    ));
+    setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
@@ -274,336 +180,75 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const releaseId = crypto.randomUUID();
     const newRelease: Release = { ...release, id: releaseId };
-
     const newVehicleStatus: VehicleStatus =
       release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
 
     const { error } = await supabase.from('releases').insert({
-      id:                      releaseId,
-      hold_id:                 holdId,
-      approved_by_id:          release.approvedById,
-      approved_at:             release.approvedAt,
-      release_type:            release.releaseType ?? 'EXCEPTION',
-      release_method:          release.releaseMethod ?? 'standard',
-      override_authorization:  release.overrideAuthorization ?? null,
-      reason:                  release.reason,
-      expected_return:         release.expectedReturn ?? null,
-      actual_return:           release.actualReturn ?? null,
-      notes:                   release.notes,
+      id: releaseId, hold_id: holdId,
+      approved_by_id: release.approvedById, approved_at: release.approvedAt,
+      release_type: release.releaseType ?? 'EXCEPTION',
+      release_method: release.releaseMethod ?? 'standard',
+      override_authorization: release.overrideAuthorization ?? null,
+      reason: release.reason,
+      expected_return: release.expectedReturn ?? null,
+      actual_return: release.actualReturn ?? null,
+      notes: release.notes,
     });
     if (error) throw new Error(`Failed to add release: ${error.message}`);
 
-    const { error: hError } = await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
-    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
+    await supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId);
 
     const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(
-      hold.branchId,
-      ['VSA', 'Lead VSA', 'CSR', 'HIR'],
-      '✅',
-      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`,
-      'success',
-    );
+    await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
+      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success');
 
-    const { error: vError } = await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
-    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
+    await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
 
-    // Add release to local state, update hold status
-    setAllHolds(prev => prev.map(h => {
-      if (h.id !== holdId) return h;
-      return {
-        ...h,
-        status: 'RELEASED',
-        release: newRelease,
-      };
-    }));
-
-    // Update vehicle status
-    setAllVehicles(prev => prev.map(v => {
-      if (v.id !== hold.vehicleId) return v;
-      return {
-        ...v,
-        status: release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION',
-      };
-    }));
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
+    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
   };
 
   const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
-
     const uploadedUrls = (await Promise.all(newPhotos.map(b => uploadPhoto(b, holdId))))
       .filter((url): url is string => url !== null);
     if (uploadedUrls.length === 0) return;
-
-    const { error } = await supabase.from('holds').update({ photos: [...(hold.photos ?? []), ...uploadedUrls] }).eq('id', holdId);
-    if (error) throw new Error(`Failed to update photos: ${error.message}`);
-    setAllHolds(prev => prev.map(h => {
-      if (h.id !== holdId) return h;
-      return {
-        ...h,
-        photos: [...(h.photos ?? []), ...uploadedUrls],
-      };
-    }));
+    const merged = [...(hold.photos ?? []), ...uploadedUrls];
+    await supabase.from('holds').update({ photos: merged }).eq('id', holdId);
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, photos: merged }));
   };
 
   const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
     const hold = holds.find(h => h.id === holdId);
     if (!hold) throw new Error(`Hold not found: ${holdId}`);
-
     const repairId = crypto.randomUUID();
     const newRepair: Repair = { ...repair, id: repairId };
-
-    const { error } = await supabase.from('repairs').insert({
-      id:              repairId,
-      hold_id:         holdId,
-      repaired_by_id:  repair.repairedById,
-      repaired_at:     repair.repairedAt,
-      notes:           repair.notes,
+    await supabase.from('repairs').insert({
+      id: repairId, hold_id: holdId,
+      repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
     });
-    if (error) throw new Error(`Failed to add repair: ${error.message}`);
-
-    const { error: hError } = await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
-    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
-
-    const { error: vError } = await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
-    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
-
-    // Update local state
-    setAllHolds(prev => prev.map(h => {
-      if (h.id !== holdId) return h;
-      return { ...h, status: 'REPAIRED', repair: newRepair };
-    }));
-
-    setAllVehicles(prev => prev.map(v => {
-      if (v.id !== hold.vehicleId) return v;
-      return { ...v, status: 'CLEAR' };
-    }));
+    await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
+    await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
+    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'CLEAR' }));
   };
 
   const markReturned = async (holdId: string) => {
     const returnedAt = new Date().toISOString();
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
-
-    const { error: hError } = await supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId);
-    if (hError) throw new Error(`Failed to update hold status: ${hError.message}`);
-
-    if (hold.release) {
-      await supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release.id);
-    }
-
-    const { error: vError } = await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
-    if (vError) throw new Error(`Failed to update vehicle status: ${vError.message}`);
-
+    await supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId);
+    if (hold.release) await supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release.id);
+    await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
     const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(
-      hold.branchId,
-      ['Branch Manager', 'Operations Manager'],
-      '🔁',
-      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`,
-      'urgent',
-    );
-
-    // Update hold & vehicle
-    setAllHolds(prev => prev.map(h => {
-      if (h.id !== holdId) return h;
-      return {
-        ...h,
-        status: 'RETURNED',
-        release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
-      };
+    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], '🔁',
+      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent');
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
+      ...h, status: 'RETURNED',
+      release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
     }));
-
-    setAllVehicles(prev => prev.map(v => {
-      if (v.id !== hold.vehicleId) return v;
-      return { ...v, status: 'RETURNED' };
-    }));
-  };
-
-  const addIssue = async ({ title, description, severity }: { title: string; description?: string; severity: IssueSeverity }) => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const { data } = await supabase.from('facility_issues').insert({
-      branch_id:   branchId,
-      title,
-      description,
-      severity,
-      reported_by: user!.id,
-    }).select().single();
-    if (data) setFacilityIssues(prev => [mapIssue(data), ...prev]);
-  };
-
-  const clearIssue = async (issueId: string, notes?: string) => {
-    const clearedAt = new Date().toISOString();
-    await supabase.from('facility_issues').update({
-      cleared_by: user!.id,
-      cleared_at: clearedAt,
-      notes,
-    }).eq('id', issueId);
-    setFacilityIssues(prev =>
-      prev.map(i => i.id === issueId
-        ? { ...i, clearedById: user!.id, clearedAt, notes }
-        : i
-      )
-    );
-  };
-
-  const submitWashbayLog = async (
-    data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>
-  ): Promise<boolean> => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const date = new Date().toISOString().split('T')[0];
-    const loggedAt = new Date().toISOString();
-    try {
-      const { data: row, error } = await supabase.from('washbay_logs').upsert({
-        branch_id:           branchId,
-        date,
-        full_pages:          data.fullPages,
-        last_page_entries:   data.lastPageEntries,
-        cars_remaining:      data.carsRemaining,
-        clean_not_picked_up: data.cleanNotPickedUp,
-        team_size:           data.teamSize,
-        shift_hours:         data.shiftHours,
-        logged_by:           user!.id,
-        logged_at:           loggedAt,
-      }, { onConflict: 'branch_id, date' }).select().single();
-      if (error) throw error;
-      const newLog = mapWashbayLog(row);
-      setWashbayLogs(prev => {
-        const filtered = prev.filter(l => !(l.branchId === branchId && l.date === date));
-        return [newLog, ...filtered];
-      });
-      return true;
-    } catch (err) {
-      console.error('Failed to submit washbay log:', err);
-      return false;
-    }
-  };
-
-  const getTodayWashbayLog = (): WashbayLog | undefined => {
-    const today = new Date().toISOString().split('T')[0];
-    return washbayLogs.find(l => l.date === today);
-  };
-
-  const latestHandoff = handoffNotes[0];
-
-  const submitHandoff = async (data: {    fullPages: number;
-    lastPageEntries: number;
-    teamSize: number;
-    lotStatus: LotStatus;
-    notes?: string;
-  }): Promise<boolean> => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const loggedAt = new Date().toISOString();
-    try {
-      const { data: row, error } = await supabase.from('handoff_notes').insert({
-        branch_id:          branchId,
-        logged_by:          user!.id,
-        logged_by_name:     user!.name,
-        logged_at:          loggedAt,
-        full_pages:         data.fullPages,
-        last_page_entries:  data.lastPageEntries,
-        team_size:          data.teamSize,
-        lot_status:         data.lotStatus,
-        notes:              data.notes ?? null,
-      }).select().single();
-      if (error) throw error;
-      setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
-      return true;
-    } catch (err) {
-      console.error('Failed to submit handoff note:', err);
-      return false;
-    }
-  };
-
-  const addLostFoundItem = async (data: {
-    keyTagPhoto?: string;
-    itemPhoto?: string;
-    description?: string;
-    location?: LostFoundLocation;
-    licensePlate?: string;
-    unitNumber?: string;
-    notes?: string;
-  }): Promise<boolean> => {
-    if (!user) return false;
-    const itemId = crypto.randomUUID();
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const foundAt = new Date().toISOString();
-
-    let unitNumber = data.unitNumber;
-    let vehicleMake: string | undefined;
-    if (data.licensePlate) {
-      const matched = allVehicles.find(
-        v => v.licensePlate.toLowerCase() === data.licensePlate!.toLowerCase()
-      );
-      if (matched) {
-        unitNumber = matched.unitNumber;
-        vehicleMake = `${matched.year} ${matched.make} ${matched.model}`;
-      }
-    }
-
-    const [keyTagPhotoUrl, itemPhotoUrl] = await Promise.all([
-      data.keyTagPhoto ? uploadLostFoundPhoto(data.keyTagPhoto, itemId, 'key-tag') : Promise.resolve(null),
-      data.itemPhoto   ? uploadLostFoundPhoto(data.itemPhoto,   itemId, 'item')    : Promise.resolve(null),
-    ]);
-
-    try {
-      const { error } = await supabase.from('lost_found').insert({
-        id:            itemId,
-        branch_id:     branchId,
-        found_by:      user.id,
-        found_by_name: user.name,
-        found_at:      foundAt,
-        key_tag_photo: keyTagPhotoUrl ?? null,
-        item_photo:    itemPhotoUrl ?? null,
-        description:   data.description ?? null,
-        location:      data.location ?? null,
-        license_plate: data.licensePlate ?? null,
-        unit_number:   unitNumber ?? null,
-        vehicle_make:  vehicleMake ?? null,
-        status:        'holding',
-        notes:         data.notes ?? null,
-      });
-      if (error) return false;
-      const newItem: LostFoundItem = {
-        id: itemId, branchId,
-        foundById: user.id, foundByName: user.name, foundAt,
-        keyTagPhotoUrl: keyTagPhotoUrl ?? undefined,
-        itemPhotoUrl: itemPhotoUrl ?? undefined,
-        description: data.description,
-        location: data.location,
-        licensePlate: data.licensePlate,
-        unitNumber, vehicleMake,
-        status: 'holding',
-        notes: data.notes,
-      };
-      setAllLostFoundItems(prev => [newItem, ...prev]);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  const updateLostFoundStatus = async (id: string, status: LostFoundStatus, notes?: string): Promise<boolean> => {
-    const resolvedAt = status === 'returned' ? new Date().toISOString() : undefined;
-    try {
-      const { error } = await supabase.from('lost_found').update({
-        status,
-        ...(notes !== undefined ? { notes } : {}),
-        ...(resolvedAt ? { resolved_at: resolvedAt } : {}),
-      }).eq('id', id);
-      if (error) return false;
-      setAllLostFoundItems(prev => prev.map(i =>
-        i.id !== id ? i : {
-          ...i, status,
-          ...(notes !== undefined ? { notes } : {}),
-          ...(resolvedAt ? { resolvedAt } : {}),
-        }
-      ));
-      return true;
-    } catch {
-      return false;
-    }
+    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
   };
 
   return (
@@ -613,10 +258,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
       shuttlePlate, setShuttlePlate,
-      facilityIssues, addIssue, clearIssue,
-      washbayLogs, submitWashbayLog, getTodayWashbayLog,
-      handoffNotes, latestHandoff, submitHandoff,
-      lostFoundItems, addLostFoundItem, updateLostFoundStatus,
+      ...issuesSlice,
+      ...washbaySlice,
+      ...lostFoundSlice,
     }}>
       {children}
     </GarageContext.Provider>
