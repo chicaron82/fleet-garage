@@ -18,7 +18,7 @@ export const USERS: User[] = [
   { id: 'u2', employeeId: 'VSA-002', name: 'DiZee', role: 'Lead VSA', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u3', employeeId: 'VSA-003', name: 'Belle', role: 'VSA', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u4', employeeId: 'CSR-001', name: 'CoZee', role: 'CSR', password: '!Bananarama1982', branchId: 'YWG' },
-  { id: 'u5', employeeId: 'HIR-001', name: 'Tori', role: 'HIR', password: '!Bananarama1982', branchId: 'YWG-South' },
+  { id: 'u5', employeeId: 'HIR-001', name: 'Tori', role: 'HIR', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u6', employeeId: 'MGR-001', name: 'ZeeRah', role: 'Branch Manager', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u7', employeeId: 'OPS-001', name: 'Zee', role: 'Operations Manager', password: '!Bananarama1982', branchId: 'YWG' },
   { id: 'u8', employeeId: 'DRV-001', name: 'GenZee', role: 'Driver', password: '!Bananarama1982', branchId: 'YWG' },
