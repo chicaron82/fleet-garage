@@ -164,10 +164,13 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const isDriver = user.role === 'Driver';
 
   // ── VSA productivity strip derivations ────────────────────────────────────
-  const yesterdayLog  = washbayLogs.find(l => l.date === localDateStr(-1));
-  const carsIn        = yesterdayLog ? yesterdayLog.fullPages * 19 + yesterdayLog.lastPageEntries : null;
-  const carsCleaned   = carsIn != null ? carsIn - (yesterdayLog?.carsRemaining ?? 0) : null;
-  const yesterdayRate = carsCleaned != null ? Math.round((carsCleaned / 8) * 10) / 10 : null;
+  const recentLog     = washbayLogs.length > 0 ? washbayLogs[0] : null;
+  const carsIn        = recentLog ? recentLog.fullPages * 19 + recentLog.lastPageEntries : null;
+  const carsCleaned   = carsIn != null ? carsIn - (recentLog?.carsRemaining ?? 0) : null;
+  const recentRate    = carsCleaned != null ? Math.round((carsCleaned / 8) * 10) / 10 : null;
+  const recentLabel   = recentLog?.date === localDateStr(0)  ? 'Earlier today'
+                      : recentLog?.date === localDateStr(-1) ? 'Yesterday'
+                      : recentLog?.date ?? 'Last shift';
 
   const weekLogs    = washbayLogs
     .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
@@ -179,8 +182,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       }, 0) / weekLogs.length * 10) / 10
     : null;
 
-  const delta      = yesterdayRate != null && weekAvgRate != null
-    ? Math.round((yesterdayRate - weekAvgRate) * 10) / 10
+  const delta      = recentRate != null && weekAvgRate != null
+    ? Math.round((recentRate - weekAvgRate) * 10) / 10
     : null;
   const deltaLabel = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : null;
   const deltaColor = delta != null
@@ -328,11 +331,11 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       {/* VSA productivity strip */}
       {isVSA && (
         <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-          {yesterdayRate != null ? (
+          {recentRate != null ? (
             <>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Yesterday</span>
-                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{yesterdayRate}/hr</span>
+                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{recentLabel}</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{recentRate}/hr</span>
                 {deltaLabel && (
                   <span className={`text-xs font-semibold ${deltaColor}`}>{deltaLabel}</span>
                 )}
@@ -342,7 +345,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
               )}
             </>
           ) : (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">No closing log yesterday</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">No closing log yet</p>
           )}
         </div>
       )}

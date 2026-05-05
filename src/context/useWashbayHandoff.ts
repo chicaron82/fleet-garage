@@ -3,6 +3,7 @@ import type { WashbayLog, HandoffNote, LotStatus, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
 import { mapWashbayLog, mapHandoffNote } from '../lib/garage-mappers';
+import { localDateStr } from '../hooks/useFleetBalance';
 
 export interface WashbayHandoffSlice {
   washbayLogs: WashbayLog[];
@@ -29,7 +30,7 @@ export function useWashbayHandoff(
     data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>
   ): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const date = new Date().toISOString().split('T')[0];
+    const date = localDateStr(0);
     const loggedAt = new Date().toISOString();
     try {
       const { data: row, error } = await supabase.from('washbay_logs').upsert({
@@ -58,8 +59,7 @@ export function useWashbayHandoff(
   };
 
   const getTodayWashbayLog = (): WashbayLog | undefined => {
-    const today = new Date().toISOString().split('T')[0];
-    return washbayLogs.find(l => l.date === today);
+    return washbayLogs.find(l => l.date === localDateStr(0));
   };
 
   const submitHandoff = async (data: {
