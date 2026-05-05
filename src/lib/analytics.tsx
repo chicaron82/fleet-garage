@@ -66,6 +66,67 @@ export const DEMO_DRIVER_TRIP_STATS = {
   ],
 };
 
+export interface DemoCoverageDriver {
+  name: string;
+  shift: string;
+  lastRun: string;
+  gapMinutes: number;
+  cleans: number | null;
+}
+
+export interface DemoHistoryEntry { date: string; gap: number; cleans: number; }
+
+export interface DemoDriverHistory {
+  avgGapMinutes: number;
+  totalShifts: number;
+  shiftsWithGap20: number;
+  shiftsWithCleans: number;
+  correlation: number;
+  recent: DemoHistoryEntry[];
+}
+
+export const DEMO_DRIVER_COVERAGE: {
+  cleansAtClose: number;
+  drivers: DemoCoverageDriver[];
+  history: Record<string, DemoDriverHistory>;
+} = {
+  cleansAtClose: 7,
+  drivers: [
+    { name: 'Geoff T.',  shift: '3:30–10:00p', lastRun: '9:15pm', gapMinutes: 45, cleans: 7    },
+    { name: 'Ray M.',    shift: '2:00–8:00p',  lastRun: '7:58pm', gapMinutes: 2,  cleans: null },
+    { name: 'Marcus L.', shift: '6:00–2:00p',  lastRun: '1:45pm', gapMinutes: 15, cleans: null },
+  ],
+  history: {
+    'Geoff T.': {
+      avgGapMinutes: 38, totalShifts: 22, shiftsWithGap20: 18, shiftsWithCleans: 14, correlation: 12,
+      recent: [
+        { date: 'May 4',  gap: 45, cleans: 7 }, { date: 'May 3',  gap: 12, cleans: 0 },
+        { date: 'May 2',  gap: 51, cleans: 4 }, { date: 'May 1',  gap: 8,  cleans: 0 },
+        { date: 'Apr 30', gap: 43, cleans: 6 }, { date: 'Apr 29', gap: 6,  cleans: 0 },
+        { date: 'Apr 28', gap: 38, cleans: 3 },
+      ],
+    },
+    'Ray M.': {
+      avgGapMinutes: 8, totalShifts: 20, shiftsWithGap20: 3, shiftsWithCleans: 5, correlation: 2,
+      recent: [
+        { date: 'May 4',  gap: 2,  cleans: 0 }, { date: 'May 3',  gap: 5,  cleans: 0 },
+        { date: 'May 2',  gap: 12, cleans: 2 }, { date: 'May 1',  gap: 3,  cleans: 0 },
+        { date: 'Apr 30', gap: 8,  cleans: 0 }, { date: 'Apr 29', gap: 4,  cleans: 0 },
+        { date: 'Apr 28', gap: 22, cleans: 1 },
+      ],
+    },
+    'Marcus L.': {
+      avgGapMinutes: 21, totalShifts: 18, shiftsWithGap20: 7, shiftsWithCleans: 6, correlation: 4,
+      recent: [
+        { date: 'May 4',  gap: 15, cleans: 0 }, { date: 'May 3',  gap: 31, cleans: 2 },
+        { date: 'May 2',  gap: 18, cleans: 0 }, { date: 'May 1',  gap: 25, cleans: 3 },
+        { date: 'Apr 30', gap: 11, cleans: 0 }, { date: 'Apr 29', gap: 28, cleans: 2 },
+        { date: 'Apr 28', gap: 14, cleans: 0 },
+      ],
+    },
+  },
+};
+
 export const DEMO_TRIPS_TODAY = {
   total: 15, clean: 9, dirty: 4, other: 2,
   byDriver: [
