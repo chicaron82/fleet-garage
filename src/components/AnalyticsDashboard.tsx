@@ -14,6 +14,7 @@ import { WashbayLiveSection } from './WashbayLiveSection';
 import { AnalyticsHoldsSummary } from './AnalyticsHoldsSummary';
 import { AnalyticsActivityChart } from './AnalyticsActivityChart';
 import { AnalyticsFleetBalance } from './AnalyticsFleetBalance';
+import { TripAnalyticsSection } from './analytics/TripAnalyticsSection';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
@@ -21,7 +22,8 @@ export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, getTodayWashbayLog, facilityIssues } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
-  const [mode, setMode] = useState<'demo' | 'live'>('live');
+  const [mode, setMode]           = useState<'demo' | 'live'>('live');
+  const [activeTab, setActiveTab] = useState<'holds' | 'productivity'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function AnalyticsDashboard() {
 
   if (!user) return null;
 
-  const isDemo  = mode === 'demo';
+  const isDemo   = mode === 'demo';
   const canEnter = canEnterFleetBalance(user.role);
 
   // ── Live data derivations ──────────────────────────────────────────────────
@@ -112,11 +114,11 @@ export function AnalyticsDashboard() {
 
   // ── Mode-selected data ─────────────────────────────────────────────────────
 
-  const glance       = isDemo ? DEMO_GLANCE : { activeHolds: activeHolds.length, onException, returnedThisWeek };
-  const holdTypes    = isDemo ? DEMO_HOLD_TYPES : liveHoldTypes;
-  const totalHolds   = holdTypes.reduce((s, t) => s + t.count, 0) || 1;
-  const damageTypes  = isDemo ? DEMO_DAMAGE_TYPES : liveDamageTypes;
-  const weekActivity = isDemo ? DEMO_WEEK_ACTIVITY : liveWeekActivity;
+  const glance           = isDemo ? DEMO_GLANCE : { activeHolds: activeHolds.length, onException, returnedThisWeek };
+  const holdTypes        = isDemo ? DEMO_HOLD_TYPES : liveHoldTypes;
+  const totalHolds       = holdTypes.reduce((s, t) => s + t.count, 0) || 1;
+  const damageTypes      = isDemo ? DEMO_DAMAGE_TYPES : liveDamageTypes;
+  const weekActivity     = isDemo ? DEMO_WEEK_ACTIVITY : liveWeekActivity;
   const exceptionSummary = isDemo ? DEMO_EXCEPTION_SUMMARY : liveExceptionSummary;
 
   // Fleet balance — always real
@@ -186,103 +188,132 @@ export function AnalyticsDashboard() {
         </div>
       )}
 
-      {/* Glance cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard value={glance.activeHolds}      label="Active Holds"       color="text-gray-900 dark:text-gray-100" />
-        <StatCard value={glance.onException}      label="On Exception"       color="text-amber-600 dark:text-amber-400" />
-        <StatCard value={glance.returnedThisWeek} label="Returned This Week" color="text-green-600 dark:text-green-500" />
+      {/* Tab toggle */}
+      <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {(['holds', 'productivity'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+              activeTab === tab
+                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            {tab === 'holds' ? 'Holds' : 'Productivity'}
+          </button>
+        ))}
       </div>
 
-      <AnalyticsHoldsSummary
-        holdTypes={holdTypes}
-        totalHolds={totalHolds}
-        damageTypes={damageTypes}
-        isDemo={isDemo}
-        hasLiveHolds={activeHolds.length > 0}
-      />
-
-      <AnalyticsActivityChart
-        weekActivity={weekActivity}
-        exceptionSummary={exceptionSummary}
-        isDemo={isDemo}
-      />
-
-      <AnalyticsFleetBalance
-        fleetBalanceData={fleetBalanceData}
-        loading={loading}
-        todayEntry={todayBalanceEntry}
-        canEnter={canEnter}
-        onSubmit={(outCount, inCount) => upsertEntry(localDateStr(), outCount, inCount, user.id)}
-      />
-
-      <AnalyticsTripsSummary
-        isDemo={isDemo}
-        liveTrips={todayTrips}
-        demoData={DEMO_TRIPS_TODAY}
-      />
-
-      {/* Washbay Operations */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-          {`Washbay Operations · ${new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }).toUpperCase()}`}
-        </h2>
-        {isDemo ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3 text-center">
-              {[
-                { label: 'Cars In',    value: DEMO_WASHBAY_TODAY.carsIn },
-                { label: 'Cleaned',    value: DEMO_WASHBAY_TODAY.carsCleaned },
-                { label: 'Throughput', value: `${DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr` },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1 pt-3 border-t border-gray-100 dark:border-gray-800">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Pipeline</p>
-              {[
-                { label: 'Cars in',              value: DEMO_WASHBAY_TODAY.carsIn,               indent: false },
-                { label: `Held today (${DEMO_WASHBAY_TODAY.heldToday})`, value: DEMO_WASHBAY_TODAY.heldToday, indent: true, minus: true },
-                { label: 'Rentables processed',  value: DEMO_WASHBAY_TODAY.rentablesProcessed,   indent: false },
-                { label: 'Clean, not picked up', value: DEMO_WASHBAY_TODAY.cleanNotPickedUp,     indent: true, minus: true },
-                { label: 'Delivered to airport', value: DEMO_WASHBAY_TODAY.deliveredToAirport,   indent: false },
-              ].map(({ label, value, indent, minus }) => (
-                <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                  <span className="text-xs">{minus ? '− ' : ''}{label}</span>
-                  <span className="text-xs tabular-nums">{value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Net Flow (vs Opening)</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {DEMO_WASHBAY_TODAY.openingCarsOut} out → {DEMO_WASHBAY_TODAY.carsIn} in
-                <span className="ml-2 font-semibold text-green-600 dark:text-green-400">Net +{DEMO_WASHBAY_TODAY.netFlow} today</span>
-              </p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg px-4 py-3">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">vs Company Standard</p>
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">YWG team: <span className="font-bold">{DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr</span></span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">Standard: {COMPANY_STANDARD.toFixed(1)}/hr</span>
-              </div>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-sm text-gray-600 dark:text-gray-400">30-day avg: <span className="font-bold text-gray-800 dark:text-gray-200">{DEMO_WASHBAY_30DAY_AVG.toFixed(1)}/hr</span></span>
-                <span className="text-sm font-semibold text-green-600 dark:text-green-400">+{(DEMO_WASHBAY_30DAY_AVG - COMPANY_STANDARD).toFixed(1)} above ✅</span>
-              </div>
-            </div>
+      {/* Holds tab */}
+      {activeTab === 'holds' && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard value={glance.activeHolds}      label="Active Holds"       color="text-gray-900 dark:text-gray-100" />
+            <StatCard value={glance.onException}      label="On Exception"       color="text-amber-600 dark:text-amber-400" />
+            <StatCard value={glance.returnedThisWeek} label="Returned This Week" color="text-green-600 dark:text-green-500" />
           </div>
-        ) : (
-          <WashbayLiveSection
-            todayWashbayLog={todayWashbayLog}
-            todayBalanceEntry={todayBalanceEntry}
-            activeHolds={activeHolds}
-            liveWashbay30DayAvg={liveWashbay30DayAvg}
+
+          <AnalyticsHoldsSummary
+            holdTypes={holdTypes}
+            totalHolds={totalHolds}
+            damageTypes={damageTypes}
+            isDemo={isDemo}
+            hasLiveHolds={activeHolds.length > 0}
           />
-        )}
-      </div>
+
+          <AnalyticsActivityChart
+            weekActivity={weekActivity}
+            exceptionSummary={exceptionSummary}
+            isDemo={isDemo}
+          />
+        </>
+      )}
+
+      {/* Productivity tab */}
+      {activeTab === 'productivity' && (
+        <>
+          <AnalyticsFleetBalance
+            fleetBalanceData={fleetBalanceData}
+            loading={loading}
+            todayEntry={todayBalanceEntry}
+            canEnter={canEnter}
+            onSubmit={(outCount, inCount) => upsertEntry(localDateStr(), outCount, inCount, user.id)}
+          />
+
+          <AnalyticsTripsSummary
+            isDemo={isDemo}
+            liveTrips={todayTrips}
+            demoData={DEMO_TRIPS_TODAY}
+          />
+
+          {/* Washbay Operations */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
+            <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+              {`Washbay Operations · ${new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }).toUpperCase()}`}
+            </h2>
+            {isDemo ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  {[
+                    { label: 'Cars In',    value: DEMO_WASHBAY_TODAY.carsIn },
+                    { label: 'Cleaned',    value: DEMO_WASHBAY_TODAY.carsCleaned },
+                    { label: 'Throughput', value: `${DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr` },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Pipeline</p>
+                  {[
+                    { label: 'Cars in',              value: DEMO_WASHBAY_TODAY.carsIn,             indent: false },
+                    { label: `Held today (${DEMO_WASHBAY_TODAY.heldToday})`, value: DEMO_WASHBAY_TODAY.heldToday, indent: true, minus: true },
+                    { label: 'Rentables processed',  value: DEMO_WASHBAY_TODAY.rentablesProcessed, indent: false },
+                    { label: 'Clean, not picked up', value: DEMO_WASHBAY_TODAY.cleanNotPickedUp,   indent: true, minus: true },
+                    { label: 'Delivered to airport', value: DEMO_WASHBAY_TODAY.deliveredToAirport, indent: false },
+                  ].map(({ label, value, indent, minus }) => (
+                    <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                      <span className="text-xs">{minus ? '− ' : ''}{label}</span>
+                      <span className="text-xs tabular-nums">{value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Net Flow (vs Opening)</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {DEMO_WASHBAY_TODAY.openingCarsOut} out → {DEMO_WASHBAY_TODAY.carsIn} in
+                    <span className="ml-2 font-semibold text-green-600 dark:text-green-400">Net +{DEMO_WASHBAY_TODAY.netFlow} today</span>
+                  </p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg px-4 py-3">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">vs Company Standard</p>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">YWG team: <span className="font-bold">{DEMO_WASHBAY_TODAY.throughput.toFixed(1)}/hr</span></span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Standard: {COMPANY_STANDARD.toFixed(1)}/hr</span>
+                  </div>
+                  <div className="flex items-baseline justify-between mt-1">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">30-day avg: <span className="font-bold text-gray-800 dark:text-gray-200">{DEMO_WASHBAY_30DAY_AVG.toFixed(1)}/hr</span></span>
+                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">+{(DEMO_WASHBAY_30DAY_AVG - COMPANY_STANDARD).toFixed(1)} above ✅</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <WashbayLiveSection
+                todayWashbayLog={todayWashbayLog}
+                todayBalanceEntry={todayBalanceEntry}
+                activeHolds={activeHolds}
+                liveWashbay30DayAvg={liveWashbay30DayAvg}
+              />
+            )}
+          </div>
+
+          <TripAnalyticsSection isDemo={isDemo} activeBranch={activeBranch} />
+        </>
+      )}
 
     </div>
   );

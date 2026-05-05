@@ -54,6 +54,18 @@ const DEMO_WASHBAY_HISTORY = [
   { throughput: 9.0 }, { throughput: 7.5 }, { throughput: 8.3 }, { throughput: 9.6 },
   { throughput: 7.2 }, { throughput: 8.1 },
 ];
+export const DEMO_DRIVER_TRIP_STATS = {
+  totalTrips:      18,
+  fleetAvgTrips:   4.5,
+  fleetAvgMinutes: 14,
+  drivers: [
+    { driverId: 'Geoff T.',  tripsToday: 7, avgMinutes: 11, weekAvgMinutes: 12 },
+    { driverId: 'Ray M.',    tripsToday: 6, avgMinutes: 13, weekAvgMinutes: 11 },
+    { driverId: 'Marcus L.', tripsToday: 3, avgMinutes: 28, weekAvgMinutes: 22 },
+    { driverId: 'Linh T.',   tripsToday: 2, avgMinutes: 12, weekAvgMinutes: 13 },
+  ],
+};
+
 export const DEMO_TRIPS_TODAY = {
   total: 15, clean: 9, dirty: 4, other: 2,
   byDriver: [
