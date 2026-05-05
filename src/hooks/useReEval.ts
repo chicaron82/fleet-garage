@@ -75,6 +75,7 @@ export function useReEval() {
       [],
       ['detail'],
       hold.detailReason,
+      undefined,
       holdId,
     );
     setActiveHoldId(null);

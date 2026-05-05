@@ -1,4 +1,4 @@
-import type { VehicleStatus, HoldStatus, HoldType } from '../types';
+import type { VehicleStatus, HoldStatus, HoldType, MechanicalSubType } from '../types';
 import { holdBadgeConfig } from '../lib/holdBadge';
 
 const VEHICLE_CONFIG: Record<VehicleStatus, { label: string; className: string }> = {
@@ -16,7 +16,7 @@ const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {
   REPAIRED: { label: 'Repaired',   className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50' },
 };
 
-export function StatusBadge({ status, holdTypes }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[] }) {
+export function StatusBadge({ status, holdTypes, mechanicalSubType }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null }) {
   const config =
     status in VEHICLE_CONFIG
       ? VEHICLE_CONFIG[status as VehicleStatus]
@@ -24,7 +24,7 @@ export function StatusBadge({ status, holdTypes }: { status: VehicleStatus | Hol
 
   const resolved =
     holdTypes && holdTypes.length > 0 && (status === 'HELD' || status === 'ACTIVE')
-      ? holdBadgeConfig(holdTypes)
+      ? holdBadgeConfig(holdTypes, mechanicalSubType)
       : config;
 
   return (

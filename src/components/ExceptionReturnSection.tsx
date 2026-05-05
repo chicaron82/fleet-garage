@@ -73,7 +73,7 @@ export function ExceptionReturnSection() {
                 holds={getHoldsForVehicle(vehicle.id)}
                 user={user}
                 onReHold={async (vehicleId, description, notes, photos, linkedHoldId) => {
-                  await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, linkedHoldId);
+                  await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, undefined, linkedHoldId);
                 }}
               />
             )}

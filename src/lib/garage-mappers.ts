@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -116,6 +116,7 @@ export function mapHold(row: Row): Hold {
     holdTypes,
     holdType:           holdTypes[0],
     detailReason:       optStr(row, 'detail_reason') as DetailReason | undefined,
+    mechanicalSubType:  optStr(row, 'mechanical_sub_type') as MechanicalSubType | undefined,
     damageDescription:  reqStr(row, 'damage_description', 'mapHold'),
     flaggedById:        reqStr(row, 'flagged_by_id',      'mapHold'),
     flaggedAt:          reqStr(row, 'flagged_at',         'mapHold'),

@@ -281,7 +281,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} />
+                      <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} mechanicalSubType={latestHold?.mechanicalSubType} />
                       {streak >= 2 && (
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                           streak >= 3
@@ -386,7 +386,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 truncate">{hold.damageDescription.slice(0, 60)}{hold.damageDescription.length > 60 ? '…' : ''}</p>
                         )}
                       </div>
-                      <StatusBadge status={pendingVehicle.status} holdTypes={hold?.holdTypes} />
+                      <StatusBadge status={pendingVehicle.status} holdTypes={hold?.holdTypes} mechanicalSubType={hold?.mechanicalSubType} />
                     </div>
                     <div className="flex gap-2">
                       <button

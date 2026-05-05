@@ -1,10 +1,25 @@
-import type { HoldType } from '../types';
+import type { HoldType, MechanicalSubType } from '../types';
 
-export function holdBadgeConfig(holdTypes: HoldType[]): { label: string; className: string } {
+export function getTireSwapSeason(): '☀️' | '❄️' {
+  const month = new Date().getMonth() + 1; // 1–12
+  return (month >= 5 && month <= 8) ? '☀️' : '❄️';
+}
+
+export function holdBadgeConfig(
+  holdTypes: HoldType[],
+  mechanicalSubType?: MechanicalSubType | null,
+): { label: string; className: string } {
   if (holdTypes.length > 1) {
     return {
       label: 'Multi-Hold',
       className: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',
+    };
+  }
+  if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-swap') {
+    const season = getTireSwapSeason();
+    return {
+      label: `${season} Tire Swap`,
+      className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
   switch (holdTypes[0]) {

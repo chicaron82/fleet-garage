@@ -4,7 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
 import { hapticHeavy } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
-import { holdTypePillClass } from '../lib/holdBadge';
+import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
 import { VerbalOverrideForm } from './VerbalOverrideForm';
 import { HoldRecordFooter } from './HoldRecordFooter';
@@ -215,13 +215,23 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </span>
                       ))}
+                      {hold.mechanicalSubType === 'tire-swap' && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                          {getTireSwapSeason()} Tire Swap
+                        </span>
+                      )}
+                      {hold.mechanicalSubType === 'pm-due' && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                          PM Due
+                        </span>
+                      )}
                       {hold.branchId !== vehicle.branchId && (
                         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
                           🛫 Flagged at {hold.branchId}
                         </span>
                       )}
                     </div>
-                    <StatusBadge status={hold.status} holdTypes={hold.holdTypes} />
+                    <StatusBadge status={hold.status} holdTypes={hold.holdTypes} mechanicalSubType={hold.mechanicalSubType} />
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">

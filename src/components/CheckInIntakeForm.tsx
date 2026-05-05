@@ -166,7 +166,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     linkedHoldId: string,
   ) => {
     if (!user) return;
-    await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, linkedHoldId);
+    await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, undefined, linkedHoldId);
     setReHolded(true);
   }, [user, addHold]);
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
-import type { HoldType, DetailReason } from '../types';
+import type { HoldType, DetailReason, MechanicalSubType } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
 
 const MAX_PHOTOS = 4;
@@ -19,6 +19,7 @@ export function useNewHold(preselectedId?: string) {
   const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
   const [mechanicalTypes, setMechanicalTypes] = useState<string[]>([]);
   const [customMechanical, setCustomMechanical] = useState('');
+  const [mechanicalSubType, setMechanicalSubType] = useState<MechanicalSubType | null>(null);
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +111,7 @@ export function useNewHold(preselectedId?: string) {
     if (!canSubmit || !selectedVehicle) return null;
     setSubmitting(true);
     try {
-      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdTypes, detailReason || undefined);
+      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
       return selectedVehicle.id;
     } catch {
       setSubmitting(false);
@@ -129,6 +130,7 @@ export function useNewHold(preselectedId?: string) {
     detailReason, setDetailReason,
     mechanicalTypes, toggleMechanicalType,
     customMechanical, setCustomMechanical,
+    mechanicalSubType, setMechanicalSubType,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
     submitting, canSubmit,

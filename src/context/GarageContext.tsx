@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem } from '../lib/garage-mappers';
@@ -19,7 +19,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>) => Promise<string>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, linkedHoldId?: string) => Promise<void>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
@@ -139,6 +139,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     photos?: string[],
     holdTypes: HoldType[] = ['damage'],
     detailReason?: DetailReason,
+    mechanicalSubType?: MechanicalSubType | null,
     linkedHoldId?: string,
   ) => {
     const holdId = crypto.randomUUID();
@@ -153,6 +154,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       id: holdId, vehicle_id: vehicleId,
       hold_type: holdTypes[0], hold_types: holdTypes,
       detail_reason: detailReason ?? null,
+      mechanical_sub_type: mechanicalSubType ?? null,
       damage_description: damageDescription,
       flagged_by_id: flaggedById, flagged_at: flaggedAt,
       notes, photos: photoUrls, status: 'ACTIVE',
@@ -167,7 +169,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
 
     const newHold: Hold = {
-      id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, linkedHoldId,
+      id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
       damageDescription, flaggedById, flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
     setAllHolds(prev => [newHold, ...prev]);

@@ -58,6 +58,7 @@ export interface Vehicle {
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
 export type HoldType = 'damage' | 'detail' | 'mechanical';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
+export type MechanicalSubType = 'tire-swap' | 'pm-due' | 'other';
 
 export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
   'too-dirty': 'Too dirty',
@@ -77,6 +78,7 @@ export interface Hold {
   holdTypes: HoldType[];   // all types for this hold (min 1)
   holdType: HoldType;      // primary type = holdTypes[0], kept for backwards compat
   detailReason?: DetailReason;
+  mechanicalSubType?: MechanicalSubType | null;
   damageDescription: string;   // for damage holds; "Detail required — X" for detail holds
   flaggedById: string;         // User.id
   flaggedAt: string;           // ISO timestamp
