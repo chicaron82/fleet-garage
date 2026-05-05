@@ -15,6 +15,11 @@ export const FUEL_LABELS: Record<number, string> = {
   4: '1/2',  5: '5/8', 6: '3/4', 7: '7/8', 8: 'Full',
 };
 
+export const TRIP_DURATION_THRESHOLDS = {
+  amber: 15,   // 15+ min — amber on trip card
+  alert: 25,   // 25+ min — notification fires to management
+} as const;
+
 export const REASON_LABELS: Record<Reason, string> = {
   ROUTINE:          'Routine Transport',
   COVERAGE_ASSIST:  'Coverage Assist',

@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
-import { elapsedSince, fmtTime, NotesField } from '../lib/vsa-trip';
+import { elapsedSince, fmtTime, NotesField, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
+import { pushNotification } from '../lib/garage-uploads';
 import type { TripRun } from '../data/trips';
 import type { RentalClass } from '../data/manifest';
 import { PriorityHint } from './PriorityHint';
@@ -130,6 +131,20 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
       }
 
       onTripComplete(trip);
+
+      const elapsedMinutes = Math.round(
+        (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
+      );
+      if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
+        await pushNotification(
+          user.branchId,
+          ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
+          '🐢',
+          `Long trip flagged — ${user.name} · ${plate.trim().toUpperCase()} · ${fromLabel} → ${toLabel} · ${elapsedMinutes} minutes`,
+          'warning',
+          { driverId: user.id, plate: plate.trim().toUpperCase(), from: fromLabel, to: toLabel, elapsedMinutes, tripDate: arrived.split('T')[0] },
+        );
+      }
     }
 
     setSubmitting(false);

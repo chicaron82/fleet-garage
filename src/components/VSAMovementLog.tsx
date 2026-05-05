@@ -5,8 +5,9 @@ import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
-import { elapsedSince } from '../lib/vsa-trip';
+import { elapsedSince, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
+import { pushNotification } from '../lib/garage-uploads';
 import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
@@ -57,7 +58,7 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
     setTripState('in_transit');
   };
 
-  const handleArrived = () => {
+  const handleArrived = async () => {
     hapticMedium();
     const arrived = new Date().toISOString();
     setArrivalTime(arrived);
@@ -83,6 +84,22 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
         notes:             notes.trim() || undefined,
         branchId:          user.branchId,
       });
+    }
+
+    if (user && departureTime) {
+      const elapsedMinutes = Math.round(
+        (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
+      );
+      if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
+        await pushNotification(
+          user.branchId,
+          ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
+          '🐢',
+          `Long airport run — ${user.name} · Airport Run · ${elapsedMinutes} minutes`,
+          'warning',
+          { userId: user.id, elapsedMinutes },
+        );
+      }
     }
   };
 
