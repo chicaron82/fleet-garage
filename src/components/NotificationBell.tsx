@@ -32,7 +32,7 @@ export function NotificationBell() {
       let query = supabase
         .from('notifications')
         .select('*')
-        .contains('recipient_roles', [user!.role])
+        .or(`recipient_roles.cs.{${user!.role}},recipient_user_id.eq.${user!.id}`)
         .order('created_at', { ascending: false })
         .limit(50);
       if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);

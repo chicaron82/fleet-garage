@@ -38,13 +38,15 @@ export async function pushNotification(
   text: string,
   severity: NotificationSeverity = 'info',
   metadata?: Record<string, unknown>,
+  recipientUserId?: string,
 ): Promise<void> {
   await supabase.from('notifications').insert({
-    branch_id: branchId,
-    recipient_roles: roles,
+    branch_id:         branchId,
+    recipient_roles:   roles,
     icon,
     text,
     severity,
     metadata,
+    recipient_user_id: recipientUserId ?? null,
   });
 }

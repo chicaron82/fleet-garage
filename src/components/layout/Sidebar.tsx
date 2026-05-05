@@ -119,11 +119,12 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   useEffect(() => {
     if (notifMode !== 'live' || !desktopInboxOpen || !user) return;
     const role = user.role;
+    const userId = user.id;
     async function load() {
       let query = supabase
         .from('notifications')
         .select('*')
-        .contains('recipient_roles', [role])
+        .or(`recipient_roles.cs.{${role}},recipient_user_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(50);
       if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);

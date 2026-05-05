@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from './AuthContext';
 import { USERS } from '../data/mock';
 import type { BranchId, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
@@ -24,6 +25,22 @@ export function getWeekBounds(date: Date): { start: Date; end: Date } {
   const end = new Date(d);
   end.setDate(end.getDate() + 6);
   return { start, end };
+}
+
+function formatShiftLabel(shiftType: ShiftType, date: string): string {
+  const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-CA', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+  const typeLabel = shiftType === 'day-off' ? 'Day Off'
+    : shiftType === 'pto'  ? 'PTO'
+    : shiftType === 'sick' ? 'Sick Day'
+    : `${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} shift`;
+  return `${typeLabel} on ${dayLabel}`;
+}
+
+function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserId: string): boolean {
+  return ['Branch Manager', 'Operations Manager', 'City Manager'].includes(role)
+    && actingId !== targetUserId;
 }
 
 function rowToShift(row: Record<string, unknown>): ShiftWithUser {
@@ -183,6 +200,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (shift.shiftType === 'pto')  setPtoUsed(prev => prev + 1);
       if (shift.shiftType === 'sick') setSickDaysUsed(prev => prev + 1);
     }
+    if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
+      const target = USERS.find(u => u.id === shift.userId);
+      if (target) {
+        await pushNotification(
+          user.branchId, [target.role], '📅',
+          `${user.name} added ${formatShiftLabel(shift.shiftType, shift.date)} to your schedule.`,
+          'info', { shiftDate: shift.date, shiftType: shift.shiftType }, target.id,
+        );
+      }
+    }
   };
 
   const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => {
@@ -200,6 +227,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {
+    const existing = shifts.find(s => s.id === id);
     const { data, error } = await supabase
       .from('shifts')
       .update({
@@ -215,6 +243,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .single();
     if (error) throw error;
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+    if (user && existing && isManagerEditingOtherUser(user.role, user.id, existing.userId)) {
+      const target = USERS.find(u => u.id === existing.userId);
+      if (target) {
+        const from = formatShiftLabel(existing.shiftType, existing.date);
+        const newType = updates.shiftType ?? existing.shiftType;
+        const newDate = updates.date ?? existing.date;
+        const msg = newType === existing.shiftType && newDate === existing.date
+          ? `${user.name} updated your ${from}.`
+          : `${user.name} changed your ${from} to ${formatShiftLabel(newType, newDate)}.`;
+        await pushNotification(
+          user.branchId, [target.role], '📅', msg,
+          'info', { shiftDate: newDate, shiftType: newType }, target.id,
+        );
+      }
+    }
   };
 
   const deleteShift = async (id: string) => {
@@ -226,6 +269,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (deleted && deleted.date.startsWith(String(thisYear))) {
       if (deleted.shiftType === 'pto')  setPtoUsed(prev => Math.max(0, prev - 1));
       if (deleted.shiftType === 'sick') setSickDaysUsed(prev => Math.max(0, prev - 1));
+    }
+    if (user && deleted && isManagerEditingOtherUser(user.role, user.id, deleted.userId)) {
+      const target = USERS.find(u => u.id === deleted.userId);
+      if (target) {
+        await pushNotification(
+          user.branchId, [target.role], '📅',
+          `${user.name} removed your ${formatShiftLabel(deleted.shiftType, deleted.date)}.`,
+          'info', { shiftDate: deleted.date }, target.id,
+        );
+      }
     }
   };
 
