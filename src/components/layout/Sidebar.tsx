@@ -9,7 +9,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../../context/AuthContext';
 import { useGarage } from '../../context/GarageContext';
-import { useFleetBalance } from '../../hooks/useFleetBalance';
+import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -88,7 +88,7 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
-  const { facilityIssues } = useGarage();
+  const { facilityIssues, washbayLogs } = useGarage();
   const { getTodayEntry } = useFleetBalance();
   const todayFleetEntry = getTodayEntry();
   const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
@@ -96,9 +96,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
   const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('live');
   const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
-  const [editMode, setEditMode]     = useState(false);
-  const [localOrder, setLocalOrder] = useState<Module[]>([]);
-  const [hidden, setHidden]         = useState<Module[]>([]);
+  const [editMode, setEditMode]               = useState(false);
+  const [localOrder, setLocalOrder]           = useState<Module[]>([]);
+  const [hidden, setHidden]                   = useState<Module[]>([]);
+  const [driverWeekTrips, setDriverWeekTrips] = useState<{ depart_time: string }[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -134,6 +135,17 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     load();
   }, [notifMode, desktopInboxOpen, user, activeBranch]);
 
+  useEffect(() => {
+    if (!user || user.role !== 'Driver') return;
+    let q = supabase
+      .from('vsa_trips')
+      .select('depart_time')
+      .eq('driver_id', user.id)
+      .gte('depart_time', localDateStr(-6) + 'T00:00:00');
+    if (activeBranch !== 'ALL') q = q.eq('branch_id', activeBranch);
+    q.then(({ data }) => setDriverWeekTrips((data ?? []) as { depart_time: string }[]));
+  }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleMarkLiveAllRead = async () => {
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
@@ -147,6 +159,44 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   };
 
   if (!user) return null;
+
+  const isVSA    = user.role === 'VSA' || user.role === 'Lead VSA';
+  const isDriver = user.role === 'Driver';
+
+  // ── VSA productivity strip derivations ────────────────────────────────────
+  const yesterdayLog  = washbayLogs.find(l => l.date === localDateStr(-1));
+  const carsIn        = yesterdayLog ? yesterdayLog.fullPages * 19 + yesterdayLog.lastPageEntries : null;
+  const carsCleaned   = carsIn != null ? carsIn - (yesterdayLog?.carsRemaining ?? 0) : null;
+  const yesterdayRate = carsCleaned != null ? Math.round((carsCleaned / 8) * 10) / 10 : null;
+
+  const weekLogs    = washbayLogs
+    .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
+    .filter(l => l.fullPages > 0 || l.lastPageEntries > 0);
+  const weekAvgRate = weekLogs.length >= 3
+    ? Math.round(weekLogs.reduce((s, l) => {
+        const ci = l.fullPages * 19 + l.lastPageEntries;
+        return s + (ci - l.carsRemaining) / 8;
+      }, 0) / weekLogs.length * 10) / 10
+    : null;
+
+  const delta      = yesterdayRate != null && weekAvgRate != null
+    ? Math.round((yesterdayRate - weekAvgRate) * 10) / 10
+    : null;
+  const deltaLabel = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : null;
+  const deltaColor = delta != null
+    ? delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+    : '';
+
+  // ── Driver productivity strip derivations ──────────────────────────────────
+  const tripsToday = driverWeekTrips.filter(t => t.depart_time.startsWith(localDateStr(0))).length;
+  const byDay      = driverWeekTrips.reduce((acc, t) => {
+    const date = t.depart_time.split('T')[0];
+    acc[date] = (acc[date] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const weekAvgTrips = Object.keys(byDay).length >= 3
+    ? Math.round(Object.values(byDay).reduce((s, n) => s + n, 0) / Object.keys(byDay).length * 10) / 10
+    : null;
 
   const defaultNavItems = getNavItemsForRole(user.role, activeBranch);
   const defaultOrder    = defaultNavItems.map(i => i.module);
@@ -271,6 +321,43 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
             </div>
           ) : (
             <p className="text-[10px] text-gray-400 dark:text-gray-500">No fleet numbers today</p>
+          )}
+        </div>
+      )}
+
+      {/* VSA productivity strip */}
+      {isVSA && (
+        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+          {yesterdayRate != null ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Yesterday</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{yesterdayRate}/hr</span>
+                {deltaLabel && (
+                  <span className={`text-xs font-semibold ${deltaColor}`}>{deltaLabel}</span>
+                )}
+              </div>
+              {weekAvgRate != null && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">This week avg: {weekAvgRate}/hr</p>
+              )}
+            </>
+          ) : (
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">No closing log yesterday</p>
+          )}
+        </div>
+      )}
+
+      {/* Driver productivity strip */}
+      {isDriver && (
+        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Trips Today</span>
+            <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
+              {tripsToday === 0 ? '0 runs logged' : `${tripsToday} run${tripsToday !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+          {weekAvgTrips != null && (
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">This week avg: {weekAvgTrips} trips/day</p>
           )}
         </div>
       )}
