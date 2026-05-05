@@ -102,6 +102,18 @@ export function HoldRecordFooter({ hold, getName, getRole, getEmpId, fmt, fmtDat
           </div>
         );
       })()}
+      {hold.offstandardLinked && (
+        <div className="p-4 border-t bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-800/30">
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal-800 dark:text-teal-300">
+            🧹 Cleaned in-house — Off-Standard logged
+          </p>
+          {hold.cleanedInhouseLoggedAt && (
+            <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
+              Logged {fmt(hold.cleanedInhouseLoggedAt)}
+            </p>
+          )}
+        </div>
+      )}
       {hold.repair && (
         <div className="p-4 border-t bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40">
           <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-green-800 dark:text-green-300">

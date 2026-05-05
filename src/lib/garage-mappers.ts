@@ -124,9 +124,11 @@ export function mapHold(row: Row): Hold {
     photos:             optStrArray(row, 'photos'),
     status:             reqStr(row, 'status',             'mapHold') as HoldStatus,
     linkedHoldId:       optStr(row, 'linked_hold_id'),
-    release:            releases?.[0] ? mapRelease(releases[0]) : undefined,
-    repair:             repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
-    branchId:           (optStr(row, 'branch_id') ?? 'YWG') as BranchId,
+    release:                 releases?.[0] ? mapRelease(releases[0]) : undefined,
+    repair:                  repairs?.[0]  ? mapRepair(repairs[0])   : undefined,
+    branchId:                (optStr(row, 'branch_id') ?? 'YWG') as BranchId,
+    offstandardLinked:       row['offstandard_linked'] === true,
+    cleanedInhouseLoggedAt:  optStr(row, 'cleaned_inhouse_logged_at'),
   };
 }
 

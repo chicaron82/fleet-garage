@@ -220,19 +220,28 @@ export function MovementLogView() {
       setOffStandardSaveError(false);
       // id omitted — UUID column, let DB generate it via DEFAULT gen_random_uuid()
       const { error } = await supabase.from('off_standard_entries').insert({
-        user_id:        user.id,
-        branch_id:      user.branchId,
-        date:           entry.startTime.split('T')[0],
-        start_time:     entry.startTime,
-        stop_time:      entry.stopTime,
-        minutes:        entry.minutes,
-        reason:         entry.reason,
-        explanation:    entry.explanation ?? null,
-        auto_from_trip: entry.autoFromTrip,
+        user_id:          user.id,
+        branch_id:        user.branchId,
+        date:             entry.startTime.split('T')[0],
+        start_time:       entry.startTime,
+        stop_time:        entry.stopTime,
+        minutes:          entry.minutes,
+        reason:           entry.reason,
+        explanation:      entry.explanation ?? null,
+        auto_from_trip:   entry.autoFromTrip,
+        preset_reason:    entry.presetReason ?? null,
+        linked_hold_id:   entry.linkedHoldId ?? null,
       });
       if (error) {
         console.error('Off-standard insert failed:', error);
         setOffStandardSaveError(true);
+        return;
+      }
+      if (entry.presetReason === 'edv' && entry.linkedHoldId) {
+        await supabase
+          .from('holds')
+          .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
+          .eq('id', entry.linkedHoldId);
       }
     };
 

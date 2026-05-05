@@ -89,6 +89,8 @@ export interface Hold {
   release?: Release;
   repair?: Repair;
   branchId: BranchId;
+  offstandardLinked?: boolean;
+  cleanedInhouseLoggedAt?: string | null;
 }
 
 // ── Releases ─────────────────────────────────────────────────────────────────
@@ -353,6 +355,8 @@ export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; ful
   OTH:   { short: 'OTH',   full: 'Other' },
 };
 
+export type OffStandardPresetReason = 'fleeting_cars' | 'closing_duties' | 'edv';
+
 export interface OffStandardEntry {
   id: string;
   startTime: string;       // ISO timestamp
@@ -361,4 +365,6 @@ export interface OffStandardEntry {
   reason: OffStandardReason;
   explanation?: string;
   autoFromTrip: boolean;   // true = locked, came from movement log
+  presetReason?: OffStandardPresetReason | null;
+  linkedHoldId?: string | null;
 }

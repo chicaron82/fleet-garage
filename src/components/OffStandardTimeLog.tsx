@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
-import type { OffStandardEntry, OffStandardReason, User } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
+import { localDateStr } from '../hooks/useFleetBalance';
+import { USERS } from '../data/mock';
 
 const SHIFT_HOURS = 8;
 const MIN_ENTRY_MINUTES = 5;
@@ -99,7 +101,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Props) {
-  const { getTodayWashbayLog } = useGarage();
+  const { getTodayWashbayLog, holds, vehicles } = useGarage();
   const washbayLog = getTodayWashbayLog();
   const carsNum = washbayLog
     ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
@@ -113,12 +115,58 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
   const [explanation, setExplanation]       = useState('');
   const [copied, setCopied]                 = useState(false);
 
+  // Preset + EDV state
+  const [selectedPreset, setSelectedPreset]     = useState<OffStandardPresetReason | null>(null);
+  const [edvLinkedHoldId, setEdvLinkedHoldId]   = useState<string | null>(null);
+  const [edvUnitNumber, setEdvUnitNumber]       = useState<string>('');
+  const [edvManagerName, setEdvManagerName]     = useState<string>('');
+  const [edvNoMatch, setEdvNoMatch]             = useState(false);
+
+  // ── Preset helpers ────────────────────────────────────────────────────────
+
+  function selectPreset(preset: OffStandardPresetReason) {
+    hapticLight();
+    const next = selectedPreset === preset ? null : preset;
+    setSelectedPreset(next);
+    setEdvLinkedHoldId(null);
+    setEdvUnitNumber('');
+    setEdvManagerName('');
+    setEdvNoMatch(false);
+
+    if (next !== 'edv') return;
+
+    const today = localDateStr(0);
+    const edvHold = holds.find(h =>
+      h.holdTypes.includes('detail') &&
+      h.status === 'RELEASED' &&
+      h.release?.approvedAt.startsWith(today) &&
+      !h.offstandardLinked
+    );
+
+    if (!edvHold) { setEdvNoMatch(true); return; }
+
+    const vehicle = vehicles.find(v => v.id === edvHold.vehicleId);
+    const manager = USERS.find(u => u.id === edvHold.release?.approvedById);
+
+    setEdvLinkedHoldId(edvHold.id);
+    setEdvUnitNumber(vehicle?.unitNumber ?? edvHold.vehicleId);
+    setEdvManagerName(manager?.name ?? edvHold.release?.approvedById ?? 'Unknown');
+  }
+
+  function presetExplanation(): string {
+    if (selectedPreset === 'edv')           return `EDV — ${edvUnitNumber} — Released by ${edvManagerName}`;
+    if (selectedPreset === 'fleeting_cars') return 'Fleeting cars';
+    if (selectedPreset === 'closing_duties') return 'Closing duties';
+    return '';
+  }
+
   // ── Timer controls ────────────────────────────────────────────────────────
 
   const handleStart = () => {
     hapticLight();
     const now = new Date().toISOString();
     setStartTimestamp(now);
+    if (selectedPreset) setExplanation(presetExplanation());
     setTimerState('running');
   };
 
@@ -138,17 +186,24 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
     }
     hapticLight();
     onAddEntry({
-      id:           `manual-${Date.now()}`,
-      startTime:    startTimestamp,
-      stopTime:     stopTimestamp,
-      minutes:      pendingMinutes,
-      reason:       selectedReason,
-      explanation:  explanation.trim() || undefined,
-      autoFromTrip: false,
+      id:            `manual-${Date.now()}`,
+      startTime:     startTimestamp,
+      stopTime:      stopTimestamp,
+      minutes:       pendingMinutes,
+      reason:        selectedReason,
+      explanation:   explanation.trim() || undefined,
+      autoFromTrip:  false,
+      presetReason:  selectedPreset,
+      linkedHoldId:  selectedPreset === 'edv' ? edvLinkedHoldId : null,
     });
     setTimerState('idle');
     setExplanation('');
     setPendingMinutes(0);
+    setSelectedPreset(null);
+    setEdvLinkedHoldId(null);
+    setEdvUnitNumber('');
+    setEdvManagerName('');
+    setEdvNoMatch(false);
   };
 
   const handleDiscard = () => {
@@ -157,6 +212,11 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
     setPendingMinutes(0);
     setStartTimestamp('');
     setStopTimestamp('');
+    setSelectedPreset(null);
+    setEdvLinkedHoldId(null);
+    setEdvUnitNumber('');
+    setEdvManagerName('');
+    setEdvNoMatch(false);
   };
 
   // ── Save error banner ─────────────────────────────────────────────────────
@@ -235,6 +295,50 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
               ))}
             </div>
           </div>
+
+          {/* Preset selector — visible when OTH selected and timer not running */}
+          {selectedReason === 'OTH' && timerState === 'idle' && (
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Quick reason (optional)</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: 'fleeting_cars',  label: 'Fleeting Cars' },
+                  { value: 'closing_duties', label: 'Closing Duties' },
+                  { value: 'edv',            label: 'EDV' },
+                ] as { value: OffStandardPresetReason; label: string }[]).map(p => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => selectPreset(p.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                      selectedPreset === p.value
+                        ? 'bg-yellow-400 border-yellow-400 text-gray-900'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* EDV auto-populate result */}
+              {selectedPreset === 'edv' && !edvNoMatch && edvLinkedHoldId && (
+                <div className="mt-2 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 text-xs space-y-0.5">
+                  <p className="font-semibold text-teal-800 dark:text-teal-300">Hold matched</p>
+                  <p className="text-teal-700 dark:text-teal-400">Unit: <span className="font-medium">{edvUnitNumber}</span></p>
+                  <p className="text-teal-700 dark:text-teal-400">Released by: <span className="font-medium">{edvManagerName}</span></p>
+                  <p className="text-teal-600 dark:text-teal-500 mt-1">💡 Typical EDV clean: 30–40 min</p>
+                </div>
+              )}
+
+              {/* EDV no-match warning */}
+              {selectedPreset === 'edv' && edvNoMatch && (
+                <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-700 dark:text-amber-400">
+                  No released detail hold found for today. Log manually or check Holds for the unit.
+                </div>
+              )}
+            </div>
+          )}
 
           <p className="text-xs text-blue-600 dark:text-blue-400">
             🔗 Airport trips log automatically from the Movement Log — no need to add them here.
