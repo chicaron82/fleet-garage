@@ -5,6 +5,7 @@ import { canRelease, canLogHandoff } from '../types';
 import { hapticLight } from '../lib/haptics';
 import type { UserRole, Hold, Vehicle, VehicleStatus, LotStatus, HandoffNote } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { holdContextEmojis } from '../lib/holdBadge';
 import { USERS } from '../data/mock';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
@@ -263,10 +264,16 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 overflow-hidden">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
                         <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
                         <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
+                        {(() => {
+                          const emojis = holdContextEmojis(vehicle.status, latestHold?.holdTypes ?? [], latestHold?.detailReason, latestHold?.mechanicalSubType);
+                          return emojis.length > 0
+                            ? <span className="text-sm leading-none tracking-tight">{emojis.join(' ')}</span>
+                            : null;
+                        })()}
                       </div>
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                       {latestHold && (

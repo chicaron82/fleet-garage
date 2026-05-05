@@ -336,9 +336,10 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {([
-                    { value: 'tire-swap', label: `${getTireSwapSeason()} Tire Swap` },
-                    { value: 'pm-due',    label: 'PM Due' },
-                    { value: 'other',     label: 'Other' },
+                    { value: 'tire-swap',   label: `${getTireSwapSeason()} Tire Swap` },
+                    { value: 'tire-repair', label: '🛞 Tire Repair' },
+                    { value: 'pm-due',      label: '⚙️ PM Due' },
+                    { value: 'other',       label: 'Other' },
                   ] as { value: MechanicalSubType; label: string }[]).map(opt => (
                     <button
                       key={opt.value}
