@@ -59,6 +59,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
   const [expectedReturn, setExpectedReturn] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isException  = releaseType === 'EXCEPTION';
   const isMechanical = releaseType === 'MECHANICAL_RELEASE';
@@ -86,6 +87,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await addRelease(holdId, {
         holdId,
@@ -94,7 +96,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         releaseType,
         releaseMethod: 'standard',
         reason: finalReason,
-        expectedReturn: needsReturn ? expectedReturn : undefined,
+        expectedReturn: needsReturn && expectedReturn.trim() ? expectedReturn : undefined,
         notes,
       });
       if (user && canRelease(user.role)) {
@@ -103,8 +105,9 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         hapticMedium();
       }
       onClose();
-    } catch {
+    } catch (err) {
       hapticHeavy();
+      setSubmitError(err instanceof Error ? err.message : 'Failed to approve release — try again.');
       setSubmitting(false);
     }
   };
@@ -289,7 +292,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         {needsReturn && (
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-              Expected Return Date
+              Expected Return Date <span className="normal-case font-normal text-gray-400 dark:text-gray-500">(optional)</span>
             </label>
             <input
               type="date"
@@ -319,6 +322,13 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
           Approving as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
         </div>
+
+        {/* Submit error */}
+        {submitError && (
+          <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-3 py-2">
+            {submitError}
+          </p>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 pt-1">
