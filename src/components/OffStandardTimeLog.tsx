@@ -13,6 +13,7 @@ const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 interface Props {
   entries: OffStandardEntry[];
   onAddEntry: (entry: OffStandardEntry) => void;
+  saveError?: boolean;
   user: User;
 }
 
@@ -97,7 +98,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
+export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Props) {
   const { getTodayWashbayLog } = useGarage();
   const washbayLog = getTodayWashbayLog();
   const carsNum = washbayLog
@@ -157,6 +158,14 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
     setStartTimestamp('');
     setStopTimestamp('');
   };
+
+  // ── Save error banner ─────────────────────────────────────────────────────
+
+  const saveErrorBanner = saveError ? (
+    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
+      <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+    </div>
+  ) : null;
 
   // ── Tally ─────────────────────────────────────────────────────────────────
 
@@ -318,6 +327,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, user }: Props) {
               </div>
             </div>
           )}
+          {saveErrorBanner}
         </div>
       </div>
 

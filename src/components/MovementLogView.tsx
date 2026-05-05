@@ -86,6 +86,7 @@ export function MovementLogView() {
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
   const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
+  const [offStandardSaveError, setOffStandardSaveError] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
@@ -214,11 +215,11 @@ export function MovementLogView() {
   if (isVSA) {
     const myLiveTrips  = liveTrips.filter(t => t.driverId === user.id);
 
-    const addOffStandardEntry = (entry: OffStandardEntry) => {
+    const addOffStandardEntry = async (entry: OffStandardEntry) => {
       setOffStandardEntries(prev => [...prev, entry]);
-      // Persist to Supabase — fire-and-forget, state already updated above
-      supabase.from('off_standard_entries').insert({
-        id:             entry.id,
+      setOffStandardSaveError(false);
+      // id omitted — UUID column, let DB generate it via DEFAULT gen_random_uuid()
+      const { error } = await supabase.from('off_standard_entries').insert({
         user_id:        user.id,
         branch_id:      user.branchId,
         date:           entry.startTime.split('T')[0],
@@ -229,6 +230,10 @@ export function MovementLogView() {
         explanation:    entry.explanation ?? null,
         auto_from_trip: entry.autoFromTrip,
       });
+      if (error) {
+        console.error('Off-standard insert failed:', error);
+        setOffStandardSaveError(true);
+      }
     };
 
     const handleTripComplete = async (trip: TripRun) => {
@@ -314,6 +319,7 @@ export function MovementLogView() {
           <OffStandardTimeLog
             entries={offStandardEntries}
             onAddEntry={addOffStandardEntry}
+            saveError={offStandardSaveError}
             user={user}
           />
         )}
@@ -543,7 +549,11 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
                   <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">{trip.vehiclePlate}</span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{trip.departLocation} → {trip.arriveLocation}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
+                  {trip.departLocation === trip.arriveLocation
+                    ? trip.departLocation
+                    : `${trip.departLocation} → ${trip.arriveLocation}`}
+                </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
                   {fmtTime(trip.departTime)} → {fmtTime(trip.arriveTime)}
                   <span className={flagged ? 'text-amber-600 dark:text-amber-500 font-semibold' : ''}>
