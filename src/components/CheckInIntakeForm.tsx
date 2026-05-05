@@ -6,12 +6,29 @@ import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
-import type { Vehicle, ConditionRating, CheckInRouting } from '../types';
+import { compressImage } from '../lib/image';
+import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation } from '../types';
 import { deriveRouting } from '../types';
 
 interface Props {
   onFlagIssue: (vehicleId: string) => void;
 }
+
+interface InlineFoundItem {
+  id: string;
+  description: string;
+  location?: LostFoundLocation;
+  additionalPhoto?: string;
+}
+
+const FOUND_LOCATIONS: { value: LostFoundLocation; label: string }[] = [
+  { value: 'trunk',      label: 'Trunk' },
+  { value: 'back_seat',  label: 'Back Seat' },
+  { value: 'front_seat', label: 'Front' },
+  { value: 'visor',      label: 'Visor' },
+  { value: 'under_seat', label: 'Under Seat' },
+  { value: 'other',      label: 'Other' },
+];
 
 const FUEL_LABELS: Record<number, string> = {
   0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
@@ -70,7 +87,7 @@ const ROUTING_CONFIG: Record<CheckInRouting, {
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const { user } = useAuth();
-  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold } = useGarage();
+  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold, addLostFoundItem } = useGarage();
 
   const [scanned, setScanned]                   = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
   const [unitSearch, setUnitSearch]             = useState('');
@@ -85,6 +102,9 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [submitting, setSubmitting]             = useState(false);
   const [saveError, setSaveError]               = useState(false);
   const [toast, setToast]                       = useState<string | null>(null);
+  const [showFoundSection, setShowFoundSection] = useState(false);
+  const [foundItems, setFoundItems]             = useState<InlineFoundItem[]>([]);
+  const [loggedCount, setLoggedCount]           = useState(0);
 
   const routing = useMemo<CheckInRouting | null>(() => {
     if (!interiorCondition || !exteriorCondition) return null;
@@ -145,6 +165,19 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
     setSubmitting(false);
     if (error) { setSaveError(true); return; }
+
+    const validItems = foundItems.filter(i => i.description.trim());
+    if (validItems.length > 0) {
+      await Promise.all(validItems.map(item => addLostFoundItem({
+        description:  item.description.trim(),
+        location:     item.location,
+        itemPhoto:    item.additionalPhoto,
+        licensePlate: scanned.vehicle.licensePlate,
+        unitNumber:   scanned.vehicle.unitNumber,
+      })));
+      setLoggedCount(validItems.length);
+    }
+
     setSubmitted(true);
   };
 
@@ -156,6 +189,9 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setInteriorCondition(null);
     setExteriorCondition(null);
     setConditionNotes('');
+    setShowFoundSection(false);
+    setFoundItems([]);
+    setLoggedCount(0);
   };
 
   const handleReHold = useCallback(async (
@@ -169,6 +205,22 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, undefined, linkedHoldId);
     setReHolded(true);
   }, [user, addHold]);
+
+  const addFoundItem = () => {
+    setFoundItems(prev => [...prev, { id: crypto.randomUUID(), description: '', location: undefined, additionalPhoto: undefined }]);
+  };
+
+  const removeFoundItem = (id: string) => {
+    setFoundItems(prev => {
+      const next = prev.filter(i => i.id !== id);
+      if (next.length === 0) setShowFoundSection(false);
+      return next;
+    });
+  };
+
+  const updateFoundItem = (id: string, patch: Partial<InlineFoundItem>) => {
+    setFoundItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
+  };
 
   function fmtTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -428,6 +480,104 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               })()}
             </div>
 
+            {/* Items Found */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              {!showFoundSection ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowFoundSection(true); addFoundItem(); }}
+                  className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer"
+                >
+                  + Log Found Item
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Items Found</p>
+                  {foundItems.map((item, idx) => (
+                    <div key={item.id} className="bg-white dark:bg-gray-900 rounded-lg p-3 space-y-2.5 border border-gray-200 dark:border-gray-800 transition-colors">
+                      {foundItems.length > 1 && (
+                        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Item {idx + 1}</p>
+                      )}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Description *</label>
+                        <input
+                          type="text"
+                          placeholder="Wooden rod, jacket, luggage…"
+                          value={item.description}
+                          onChange={e => updateFoundItem(item.id, { description: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Location</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FOUND_LOCATIONS.map(loc => (
+                            <button
+                              key={loc.value}
+                              type="button"
+                              onClick={() => updateFoundItem(item.id, { location: item.location === loc.value ? undefined : loc.value })}
+                              className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                                item.location === loc.value
+                                  ? 'bg-teal-100 text-teal-700 border-teal-300 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700'
+                                  : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                              }`}
+                            >
+                              {loc.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Photo (optional)</label>
+                        {item.additionalPhoto ? (
+                          <div className="flex items-center gap-2">
+                            <img src={item.additionalPhoto} alt="Found item" className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                            <button
+                              type="button"
+                              onClick={() => updateFoundItem(item.id, { additionalPhoto: undefined })}
+                              className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
+                            >
+                              Remove photo
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer">
+                            📷 Add photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const compressed = await compressImage(file);
+                                updateFoundItem(item.id, { additionalPhoto: compressed });
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFoundItem(item.id)}
+                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addFoundItem}
+                    className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer"
+                  >
+                    + Add another item
+                  </button>
+                </div>
+              )}
+            </div>
+
             {saveError && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3 transition-colors">
                 <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
@@ -470,6 +620,11 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               {fuelLevel !== null ? ` · Fuel: ${FUEL_LABELS[fuelLevel]}` : ''}
               {mileage ? ` · ${Number(mileage).toLocaleString()} km` : ''}
             </p>
+            {loggedCount > 0 && (
+              <div className="px-3 py-2 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 rounded-lg text-xs text-teal-700 dark:text-teal-400 font-semibold">
+                📦 {loggedCount} item{loggedCount > 1 ? 's' : ''} logged to Lost &amp; Found
+              </div>
+            )}
             <button
               type="button"
               onClick={handleReset}
