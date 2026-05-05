@@ -1,17 +1,15 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { canRelease, canLogHandoff } from '../types';
+import { canRelease } from '../types';
 import { hapticLight } from '../lib/haptics';
-import type { UserRole, Hold, Vehicle, VehicleStatus, LotStatus, HandoffNote } from '../types';
+import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { holdContextEmojis } from '../lib/holdBadge';
 import { USERS } from '../data/mock';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { parseFleetBarcode } from '../lib/barcode';
-import { HandoffForm } from './HandoffForm';
-
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -19,13 +17,12 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, latestHandoff } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [showHandoffForm, setShowHandoffForm] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
   const [pinnedVehicleIds, setPinnedVehicleIds] = useState<Set<string>>(new Set());
 
@@ -176,9 +173,6 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           activeFilter={activeStatusFilter}
           onFilterChange={handleFilterChange}
         />
-
-        {/* Shift Handoff Banner */}
-        <HandoffBanner role={user!.role} latestHandoff={latestHandoff} onLogHandoff={() => setShowHandoffForm(true)} />
 
         {/* Search + Add Hold */}
         <div className="flex gap-2">
@@ -366,8 +360,6 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           </div>
         )}
 
-        {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
-
         {/* Search confirmation sheet */}
         {pendingVehicle && (() => {
           const hold = getLatestHold(pendingVehicle.id);
@@ -507,63 +499,6 @@ function SummaryCards({ role, held, onException, preExisting, returned, cleared,
       <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"     status="PRE_EXISTING"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
       <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"     status="RETURNED"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
       <Card value={cleared}     label="Repaired"       color="text-green-600 dark:text-green-500"   status="CLEAR"            activeFilter={activeFilter} onFilterChange={onFilterChange} />
-    </div>
-  );
-}
-
-// ── Handoff Banner ──────────────────────────────────────────────────────────
-
-const LOT_STATUS_BANNER: Record<LotStatus, { bg: string; border: string; text: string; dot: string }> = {
-  zeroed:     { bg: 'bg-green-50 dark:bg-green-900/20',   border: 'border-green-200 dark:border-green-800',   text: 'text-green-800 dark:text-green-300',   dot: 'bg-green-500' },
-  manageable: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800', text: 'text-yellow-800 dark:text-yellow-300', dot: 'bg-yellow-500' },
-  backlog:    { bg: 'bg-red-50 dark:bg-red-900/20',       border: 'border-red-200 dark:border-red-800',       text: 'text-red-800 dark:text-red-300',       dot: 'bg-red-500' },
-};
-
-function HandoffBanner({ role, latestHandoff, onLogHandoff }: { role: UserRole; latestHandoff: HandoffNote | undefined; onLogHandoff: () => void }) {
-  const canLog = canLogHandoff(role);
-  const recentlyLogged = latestHandoff
-    ? (Date.now() - new Date(latestHandoff.loggedAt).getTime()) < 4 * 60 * 60 * 1000
-    : false;
-
-  if (!latestHandoff) {
-    return (
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors">
-        <p className="text-xs text-gray-400 dark:text-gray-500">No handoff note from previous shift.</p>
-        {canLog && (
-          <button type="button" onClick={onLogHandoff} className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer">
-            Log Handoff →
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  const s = LOT_STATUS_BANNER[latestHandoff.lotStatus];
-  const time = new Date(latestHandoff.loggedAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
-
-  return (
-    <div className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${s.bg} ${s.border}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-          <p className={`text-xs font-semibold uppercase tracking-wide ${s.text}`}>
-            {latestHandoff.lotStatus.charAt(0).toUpperCase() + latestHandoff.lotStatus.slice(1)} · Shift Handoff
-          </p>
-        </div>
-        {canLog && (
-          recentlyLogged
-            ? <span className={`text-[10px] font-medium opacity-60 ${s.text}`}>Already logged · <button type="button" onClick={onLogHandoff} className="underline cursor-pointer">Log again</button></span>
-            : <button type="button" onClick={onLogHandoff} className={`text-xs font-semibold hover:underline cursor-pointer ${s.text}`}>Log Handoff →</button>
-        )}
-      </div>
-      <div className={`flex gap-4 text-xs ${s.text}`}>
-        <span><strong>{latestHandoff.fullPages * 19 + latestHandoff.lastPageEntries}</strong> cars cleaned this shift</span>
-        <span>team of <strong>{latestHandoff.teamSize}</strong></span>
-      </div>
-      {latestHandoff.notes && (
-        <p className={`text-xs ${s.text} opacity-80`}>{latestHandoff.notes}</p>
-      )}
-      <p className={`text-[10px] ${s.text} opacity-60`}>Logged by {latestHandoff.loggedByName} · {time}</p>
     </div>
   );
 }
