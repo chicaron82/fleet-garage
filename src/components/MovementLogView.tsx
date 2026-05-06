@@ -229,8 +229,8 @@ export function MovementLogView() {
         reason:           entry.reason,
         explanation:      entry.explanation ?? null,
         auto_from_trip:   entry.autoFromTrip,
-        preset_reason:    entry.presetReason ?? null,
-        linked_hold_id:   entry.linkedHoldId ?? null,
+        ...(entry.presetReason ? { preset_reason:  entry.presetReason  } : {}),
+        ...(entry.linkedHoldId ? { linked_hold_id: entry.linkedHoldId  } : {}),
       });
       if (error) {
         console.error('Off-standard insert failed:', error);
