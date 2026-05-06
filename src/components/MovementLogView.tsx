@@ -269,7 +269,7 @@ export function MovementLogView() {
       if (!error) setLiveTrips(prev => [trip, ...prev]);
 
       // Auto-create off-standard entry for VSA airport runs (≥5 min)
-      if (trip.isVsaInterruption && trip.tripType !== 'transfer') {
+      if (trip.isVsaInterruption) {
         const minutes = Math.round(
           (new Date(trip.arriveTime).getTime() - new Date(trip.departTime).getTime()) / 60000
         );
