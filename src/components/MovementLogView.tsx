@@ -13,6 +13,7 @@ import { PriorityHint } from './PriorityHint';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
 import type { ScannedPayload, OffStandardEntry, OffStandardReason } from '../types';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
+import { localDateStr } from '../hooks/useFleetBalance';
 import { loadFlags } from '../lib/manifestFlags';
 import { loadOverrides } from '../lib/classOverrides';
 
@@ -222,7 +223,7 @@ export function MovementLogView() {
       const { error } = await supabase.from('off_standard_entries').insert({
         user_id:          user.id,
         branch_id:        user.branchId,
-        date:             entry.startTime.split('T')[0],
+        date:             localDateStr(0),
         start_time:       entry.startTime,
         stop_time:        entry.stopTime,
         minutes:          entry.minutes,
