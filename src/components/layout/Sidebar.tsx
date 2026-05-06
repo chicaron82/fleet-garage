@@ -91,6 +91,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const { facilityIssues, washbayLogs } = useGarage();
   const { getTodayEntry } = useFleetBalance();
   const todayFleetEntry = getTodayEntry();
+  const recentLogDate = washbayLogs[0]?.date;
   const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
@@ -99,7 +100,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [editMode, setEditMode]               = useState(false);
   const [localOrder, setLocalOrder]           = useState<Module[]>([]);
   const [hidden, setHidden]                   = useState<Module[]>([]);
-  const [driverWeekTrips, setDriverWeekTrips] = useState<{ depart_time: string }[]>([]);
+  const [driverWeekTrips, setDriverWeekTrips]     = useState<{ depart_time: string }[]>([]);
+  const [offStandardMinutes, setOffStandardMinutes] = useState(0);
   const popoverRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -146,6 +148,18 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     q.then(({ data }) => setDriverWeekTrips((data ?? []) as { depart_time: string }[]));
   }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA') || !recentLogDate) return;
+    supabase
+      .from('off_standard_entries')
+      .select('minutes')
+      .eq('user_id', user.id)
+      .eq('date', recentLogDate)
+      .then(({ data }) => {
+        setOffStandardMinutes((data ?? []).reduce((sum, e: { minutes: number }) => sum + e.minutes, 0));
+      });
+  }, [user?.id, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleMarkLiveAllRead = async () => {
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
@@ -167,7 +181,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const recentLog     = washbayLogs.length > 0 ? washbayLogs[0] : null;
   const carsIn        = recentLog ? recentLog.fullPages * 19 + recentLog.lastPageEntries : null;
   const carsCleaned   = carsIn != null ? carsIn - (recentLog?.carsRemaining ?? 0) : null;
-  const recentRate    = carsCleaned != null ? Math.round((carsCleaned / 8) * 10) / 10 : null;
+  const activeHours   = Math.max((8 * 60 - offStandardMinutes) / 60, 0.1);
+  const recentRate    = carsCleaned != null ? Math.round((carsCleaned / activeHours) * 10) / 10 : null;
   const recentLabel   = recentLog?.date === localDateStr(0)  ? 'Earlier today'
                       : recentLog?.date === localDateStr(-1) ? 'Yesterday'
                       : recentLog?.date ?? 'Last shift';
