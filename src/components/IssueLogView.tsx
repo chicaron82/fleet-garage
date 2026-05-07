@@ -91,28 +91,34 @@ export function IssueLogView() {
     invalidateCache(issueId);
   };
 
-  const handleToggleHistory = async (issueId: string) => {
+  const handleToggleHistory = async (issue: FacilityIssue) => {
     hapticLight();
-    if (expandedHistoryId === issueId) { setExpandedHistoryId(null); return; }
-    setExpandedHistoryId(issueId);
-    if (eventsCache[issueId]) return;
+    if (expandedHistoryId === issue.id) { setExpandedHistoryId(null); return; }
+    setExpandedHistoryId(issue.id);
+    if (eventsCache[issue.id]) return;
     const { data } = await supabase
       .from('issue_events')
       .select('*')
-      .eq('issue_id', issueId)
+      .eq('issue_id', issue.id)
       .order('created_at', { ascending: true });
-    if (data) {
-      setEventsCache(prev => ({
-        ...prev,
-        [issueId]: data.map(r => ({
-          id:        r.id as string,
-          eventType: r.event_type as IssueEvent['eventType'],
-          userId:    r.user_id as string,
-          note:      r.note as string | null,
-          createdAt: r.created_at as string,
-        })),
-      }));
+    const events: IssueEvent[] = (data ?? []).map(r => ({
+      id:        r.id as string,
+      eventType: r.event_type as IssueEvent['eventType'],
+      userId:    r.user_id as string,
+      note:      r.note as string | null,
+      createdAt: r.created_at as string,
+    }));
+    // Issues created before migration 027 have no 'opened' event row — synthesize one
+    if (!events.some(e => e.eventType === 'opened')) {
+      events.unshift({
+        id:        `synthetic-opened-${issue.id}`,
+        eventType: 'opened',
+        userId:    issue.reportedById,
+        note:      null,
+        createdAt: issue.reportedAt,
+      });
     }
+    setEventsCache(prev => ({ ...prev, [issue.id]: events }));
   };
 
   const handleSubmitNew = async () => {
@@ -256,7 +262,7 @@ export function IssueLogView() {
         {/* History toggle + panel */}
         <button
           type="button"
-          onClick={() => handleToggleHistory(issue.id)}
+          onClick={() => handleToggleHistory(issue)}
           className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer pt-1"
         >
           <span>{isHistoryOpen ? '▾' : '▸'}</span>
