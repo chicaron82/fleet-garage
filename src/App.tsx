@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense, Component } from 'rea
 import type { ReactNode } from 'react';
 import { useAuth } from './context/AuthContext';
 import { GarageProvider } from './context/GarageContext';
+import { ScheduleProvider } from './context/ScheduleContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/LoginScreen';
 import { LogoutConfirm } from './components/LogoutConfirm';
@@ -169,20 +170,22 @@ export default function App() {
   };
 
   return (
-    <GarageProvider>
-      <AppShell activeModule={activeModule} onNavigate={navigate}>
-        <ChunkErrorBoundary>
-          <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
-            {renderScreen()}
-          </Suspense>
-        </ChunkErrorBoundary>
-      </AppShell>
-      {showLogoutConfirm && (
-        <LogoutConfirm
-          onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
-          onCancel={() => setShowLogoutConfirm(false)}
-        />
-      )}
-    </GarageProvider>
+    <ScheduleProvider>
+      <GarageProvider>
+        <AppShell activeModule={activeModule} onNavigate={navigate}>
+          <ChunkErrorBoundary>
+            <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
+              {renderScreen()}
+            </Suspense>
+          </ChunkErrorBoundary>
+        </AppShell>
+        {showLogoutConfirm && (
+          <LogoutConfirm
+            onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
+            onCancel={() => setShowLogoutConfirm(false)}
+          />
+        )}
+      </GarageProvider>
+    </ScheduleProvider>
   );
 }
