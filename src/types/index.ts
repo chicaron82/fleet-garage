@@ -12,15 +12,15 @@ export interface BranchConfig {
 
 // ── Roles ────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'City Manager' | 'Driver';
+export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'City Manager' | 'AGM' | 'GM' | 'Driver';
 
-export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager', 'City Manager'];
+export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
 export function canRelease(role: UserRole): boolean {
   return CAN_RELEASE.includes(role);
 }
 
-const CAN_LOG_HANDOFF: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager'];
+const CAN_LOG_HANDOFF: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
 export function canLogHandoff(role: UserRole): boolean {
   return CAN_LOG_HANDOFF.includes(role);

@@ -32,6 +32,8 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
   'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
   'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'AGM':                 ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
+  'GM':                  ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'inventory', 'lost-and-found', 'issue-log', 'manifest'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
@@ -64,7 +66,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   if (role === 'Driver') preferred = { name: 'movement-log' };
   if (role === 'HIR') preferred = { name: 'check-in' };
   if (role === 'CSR') preferred = { name: 'manifest' };
-  if (role === 'Branch Manager' || role === 'Operations Manager' || role === 'City Manager') preferred = { name: 'analytics' };
+  if (role === 'Branch Manager' || role === 'Operations Manager' || role === 'City Manager' || role === 'AGM' || role === 'GM') preferred = { name: 'analytics' };
 
   // Ensure preferred module is enabled for the branch, otherwise fallback to first available
   const preferredModule = getActiveModule(preferred);
