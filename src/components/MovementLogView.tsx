@@ -232,7 +232,7 @@ export function MovementLogView() {
     const handleTripStarted = (info: TripStartInfo) => {
       supabase.from('vsa_trips').insert({
         vehicle_plate:       '',
-        vehicle_unit:        '',
+        vehicle_unit:        info.vehicleUnit ?? '',
         depart_location:     'Airport Run',
         depart_time:         info.departTime,
         arrive_time:         null,
@@ -246,6 +246,8 @@ export function MovementLogView() {
         notes:               info.notes || null,
         is_shuttle:          info.tripType === 'transfer',
         status:              'in_progress',
+        ev_cable_status:     info.evCableStatus ?? null,
+        ev_adapter_status:   info.evAdapterStatus ?? null,
       }).select('id').single().then(({ data, error }) => {
         if (error) { console.error('Trip start write failed:', error); return; }
         setPendingTripId((data as { id: string }).id);

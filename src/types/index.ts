@@ -39,7 +39,8 @@ export interface User {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
+export type VehicleStatus  = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
+export type EvAssetStatus  = 'present' | 'missing';
 
 export interface Vehicle {
   id: string;

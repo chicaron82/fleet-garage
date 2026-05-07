@@ -3,11 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
+import { EVAssetCheck } from './EVAssetCheck';
+import type { EvLastCheck } from './EVAssetCheck';
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { compressImage } from '../lib/image';
-import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation } from '../types';
+import { isTesla } from '../lib/vehicles';
+import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus } from '../types';
 import { deriveRouting } from '../types';
 
 interface Props {
@@ -106,6 +109,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [foundItems, setFoundItems]             = useState<InlineFoundItem[]>([]);
   const [loggedCount, setLoggedCount]           = useState(0);
 
+  const [evCableStatus, setEvCableStatus]       = useState<EvAssetStatus | null>(null);
+  const [evAdapterStatus, setEvAdapterStatus]   = useState<EvAssetStatus | null>(null);
+  const [lastEvCheck, setLastEvCheck]           = useState<EvLastCheck | null>(null);
+
   const routing = useMemo<CheckInRouting | null>(() => {
     if (!interiorCondition || !exteriorCondition) return null;
     return deriveRouting(interiorCondition, exteriorCondition);
@@ -114,6 +121,46 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const showToast = useCallback((message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const fetchEvLastCheck = useCallback(async (vehicle: Vehicle) => {
+    const unit = vehicle.unitNumber;
+    const [{ data: trip }, { data: checkin }] = await Promise.all([
+      supabase.from('vsa_trips')
+        .select('ev_cable_status, ev_adapter_status, depart_time, driver_id')
+        .eq('vehicle_unit', unit)
+        .not('ev_cable_status', 'is', null)
+        .order('depart_time', { ascending: false })
+        .limit(1).maybeSingle(),
+      supabase.from('vehicle_checkins')
+        .select('ev_cable_status, ev_adapter_status, created_at, checked_in_by_name')
+        .eq('vehicle_id', vehicle.id)
+        .not('ev_cable_status', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1).maybeSingle(),
+    ]);
+    const candidates: EvLastCheck[] = [];
+    if (trip) {
+      const r = trip as Record<string, unknown>;
+      candidates.push({
+        cableStatus:   (r.ev_cable_status as EvAssetStatus) ?? null,
+        adapterStatus: (r.ev_adapter_status as EvAssetStatus) ?? null,
+        when:          r.depart_time as string,
+        byName:        (r.driver_id as string) ?? 'Unknown',
+      });
+    }
+    if (checkin) {
+      const r = checkin as Record<string, unknown>;
+      candidates.push({
+        cableStatus:   (r.ev_cable_status as EvAssetStatus) ?? null,
+        adapterStatus: (r.ev_adapter_status as EvAssetStatus) ?? null,
+        when:          r.created_at as string,
+        byName:        (r.checked_in_by_name as string) ?? 'Unknown',
+      });
+    }
+    if (candidates.length === 0) { setLastEvCheck(null); return; }
+    candidates.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
+    setLastEvCheck(candidates[0]);
   }, []);
 
   const handleDecode = useCallback((raw: string, timestamp: string) => {
@@ -137,7 +184,11 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setSubmitted(false);
     setReHolded(false);
     setSaveError(false);
-  }, [getVehicleByUnit, showToast]);
+    setEvCableStatus(null);
+    setEvAdapterStatus(null);
+    setLastEvCheck(null);
+    if (isTesla(vehicle)) fetchEvLastCheck(vehicle);
+  }, [getVehicleByUnit, showToast, fetchEvLastCheck]);
 
   const handleSubmit = async () => {
     if (!user || !scanned || !interiorCondition || !exteriorCondition) return;
@@ -146,6 +197,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setSaveError(false);
 
     const derivedRouting = deriveRouting(interiorCondition, exteriorCondition);
+    const isTeslaVehicle = isTesla(scanned.vehicle);
 
     const { error } = await supabase.from('vehicle_checkins').insert({
       branch_id:          user.branchId,
@@ -161,10 +213,26 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
       exterior_condition: exteriorCondition,
       routing:            derivedRouting,
       condition_notes:    conditionNotes.trim() || null,
+      ev_cable_status:    isTeslaVehicle ? (evCableStatus ?? null) : null,
+      ev_adapter_status:  isTeslaVehicle ? (evAdapterStatus ?? null) : null,
     });
 
     setSubmitting(false);
     if (error) { setSaveError(true); return; }
+
+    if (isTeslaVehicle && (evCableStatus === 'missing' || evAdapterStatus === 'missing')) {
+      const missingAssets: string[] = [];
+      if (evCableStatus === 'missing')   missingAssets.push('Mobile Charge Cable');
+      if (evAdapterStatus === 'missing') missingAssets.push('J1772 Adapter');
+      await addHold(
+        scanned.vehicle.id,
+        `Missing EV asset on return: ${missingAssets.join(', ')}`,
+        `Flagged during check-in by ${user.name} at ${new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}`,
+        user.id,
+        [],
+        ['damage'],
+      );
+    }
 
     const validItems = foundItems.filter(i => i.description.trim());
     if (validItems.length > 0) {
@@ -192,6 +260,9 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setShowFoundSection(false);
     setFoundItems([]);
     setLoggedCount(0);
+    setEvCableStatus(null);
+    setEvAdapterStatus(null);
+    setLastEvCheck(null);
   };
 
   const handleReHold = useCallback(async (
@@ -295,6 +366,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                         onClick={() => {
                           setScanned({ vehicle: v, timestamp: new Date().toISOString() });
                           setUnitSearch('');
+                          setEvCableStatus(null);
+                          setEvAdapterStatus(null);
+                          setLastEvCheck(null);
+                          if (isTesla(v)) fetchEvLastCheck(v);
                         }}
                         className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
                       >
@@ -479,6 +554,16 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 );
               })()}
             </div>
+
+            {scanned && isTesla(scanned.vehicle) && (
+              <EVAssetCheck
+                cableStatus={evCableStatus}
+                adapterStatus={evAdapterStatus}
+                onCableChange={setEvCableStatus}
+                onAdapterChange={setEvAdapterStatus}
+                lastCheck={lastEvCheck}
+              />
+            )}
 
             {/* Items Found */}
             <div className="border-t border-gray-100 dark:border-gray-800 pt-4">

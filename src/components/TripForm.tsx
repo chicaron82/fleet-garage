@@ -1,9 +1,12 @@
 import { useAuth } from '../context/AuthContext';
 import { hapticLight } from '../lib/haptics';
 import { canRelease } from '../types';
+import type { Vehicle, EvAssetStatus } from '../types';
 import { REASON_LABELS, Pill, NotesField } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot } from '../lib/vsa-trip';
 import { PriorityHint } from './PriorityHint';
+import { EVAssetCheck } from './EVAssetCheck';
+import type { EvLastCheck } from './EVAssetCheck';
 
 export interface TripFormProps {
   queue: QueueSnapshot | null;         setQueue: (q: QueueSnapshot) => void;
@@ -17,6 +20,13 @@ export interface TripFormProps {
   canStart: boolean;
   onShuttleToggle: (checked: boolean) => void;
   onStartTrip: () => void;
+  vehicleUnit?: string;                setVehicleUnit?: (v: string) => void;
+  teslaVehicle?: Vehicle | null;
+  evCableStatus?: EvAssetStatus | null;
+  evAdapterStatus?: EvAssetStatus | null;
+  setEvCableStatus?: (s: EvAssetStatus | null) => void;
+  setEvAdapterStatus?: (s: EvAssetStatus | null) => void;
+  lastEvCheck?: EvLastCheck | null;
 }
 
 export function TripForm({
@@ -25,6 +35,10 @@ export function TripForm({
   isShuttle, shuttlePlate, setShuttlePlate,
   topClasses, flaggedClasses, canStart,
   onShuttleToggle, onStartTrip,
+  vehicleUnit, setVehicleUnit,
+  teslaVehicle,
+  evCableStatus, evAdapterStatus, setEvCableStatus, setEvAdapterStatus,
+  lastEvCheck,
 }: TripFormProps) {
   const { user } = useAuth();
 
@@ -101,6 +115,36 @@ export function TripForm({
           <option value="PERSONAL">Personal — Proactive</option>
         </select>
       </div>
+
+      {setVehicleUnit !== undefined && (
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+            Vehicle Unit <span className="font-normal normal-case text-gray-400">(if moving a Tesla)</span>
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. 5513130"
+            value={vehicleUnit ?? ''}
+            onChange={e => setVehicleUnit(e.target.value.toUpperCase())}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
+          />
+          {teslaVehicle && (
+            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold mt-1">
+              ⚡ {teslaVehicle.year} {teslaVehicle.make} {teslaVehicle.model} · {teslaVehicle.licensePlate}
+            </p>
+          )}
+        </div>
+      )}
+
+      {teslaVehicle && setEvCableStatus && setEvAdapterStatus && (
+        <EVAssetCheck
+          cableStatus={evCableStatus ?? null}
+          adapterStatus={evAdapterStatus ?? null}
+          onCableChange={setEvCableStatus}
+          onAdapterChange={setEvAdapterStatus}
+          lastCheck={lastEvCheck}
+        />
+      )}
 
       {user && (
         <p className="text-xs text-gray-400 dark:text-gray-500">
