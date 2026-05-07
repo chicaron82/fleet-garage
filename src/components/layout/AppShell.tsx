@@ -83,7 +83,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell />
+            <NotificationBell onNavigate={handleNavigate} />
             <UserProfileMenu />
           </div>
         </div>

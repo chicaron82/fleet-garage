@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../data/notifications';
 import { hapticLight } from '../lib/haptics';
 import type { MockNotification, NotificationSeverity } from '../data/notifications';
-import type { UserRole } from '../types';
+import type { UserRole, Screen } from '../types';
 
 interface LiveNotification {
   id: string;
@@ -19,7 +19,7 @@ interface LiveNotification {
   metadata?: Record<string, unknown>;
 }
 
-export function NotificationBell() {
+export function NotificationBell({ onNavigate }: { onNavigate?: (screen: Screen) => void }) {
   const { user, activeBranch } = useAuth();
   const [mode, setMode] = useState<'demo' | 'live'>('live');
   const [mockNotifications, setMockNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
@@ -71,6 +71,16 @@ export function NotificationBell() {
     setLiveNotifications(prev => prev.map(l =>
       l.id === n.id ? { ...l, read_by: [...l.read_by, user.id] } : l
     ));
+  };
+
+  const handleTap = async (n: LiveNotification) => {
+    hapticLight();
+    await handleMarkOneRead(n);
+    const vehicleId = n.metadata?.vehicleId as string | undefined;
+    if (vehicleId && onNavigate) {
+      onNavigate({ name: 'vehicle', vehicleId });
+      setInboxOpen(false);
+    }
   };
 
   const formatTime = (iso: string) =>
@@ -160,7 +170,7 @@ export function NotificationBell() {
                     return (
                       <button
                         key={n.id}
-                        onClick={() => handleMarkOneRead(n)}
+                        onClick={() => handleTap(n)}
                         className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${isUnread ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < liveNotifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''} hover:bg-gray-50 dark:hover:bg-gray-800/40`}
                       >
                         <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">

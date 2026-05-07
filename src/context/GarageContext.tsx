@@ -125,7 +125,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
     await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
-      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`);
+      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
@@ -164,7 +164,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
     await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
-      `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning');
+      `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
 
     await supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId);
 
@@ -202,7 +202,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
     await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
-      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success');
+      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
 
     await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
 
@@ -245,7 +245,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     await supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId);
     const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
     await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], '🔁',
-      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent');
+      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
       ...h, status: 'RETURNED',
       release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
