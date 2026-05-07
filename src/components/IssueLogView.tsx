@@ -100,7 +100,7 @@ export function IssueLogView() {
       .from('issue_events')
       .select('*')
       .eq('issue_id', issue.id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
     const events: IssueEvent[] = (data ?? []).map(r => ({
       id:        r.id as string,
       eventType: r.event_type as IssueEvent['eventType'],
@@ -110,7 +110,7 @@ export function IssueLogView() {
     }));
     // Issues created before migration 027 have no 'opened' event row — synthesize one
     if (!events.some(e => e.eventType === 'opened')) {
-      events.unshift({
+      events.push({
         id:        `synthetic-opened-${issue.id}`,
         eventType: 'opened',
         userId:    issue.reportedById,
