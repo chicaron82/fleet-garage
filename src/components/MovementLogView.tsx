@@ -7,11 +7,12 @@ import { supabase } from '../lib/supabase';
 import { hapticMedium } from '../lib/haptics';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
+import type { TripStartInfo } from './VSAMovementLog';
 import { OffStandardTimeLog } from './OffStandardTimeLog';
 import { DriverLiveForm } from './DriverLiveForm';
 import { PriorityHint } from './PriorityHint';
 import { getTripDurationMinutes, isTripFlagged } from '../lib/trip-utils';
-import type { ScannedPayload, OffStandardEntry, OffStandardReason } from '../types';
+import type { ScannedPayload, OffStandardEntry } from '../types';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { loadFlags } from '../lib/manifestFlags';
@@ -57,17 +58,6 @@ function rowToTrip(row: Record<string, unknown>): TripRun {
   };
 }
 
-function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
-  return {
-    id:           row.id as string,
-    startTime:    row.start_time as string,
-    stopTime:     row.stop_time as string,
-    minutes:      row.minutes as number,
-    reason:       row.reason as OffStandardReason,
-    explanation:  (row.explanation as string | null) ?? undefined,
-    autoFromTrip: (row.auto_from_trip as boolean) ?? false,
-  };
-}
 
 export function MovementLogView() {
   const { user } = useAuth();
@@ -86,9 +76,14 @@ export function MovementLogView() {
 
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
-  const [offStandardEntries, setOffStandardEntries] = useState<OffStandardEntry[]>([]);
-  const [offStandardSaveError, setOffStandardSaveError] = useState(false);
+  const [offStandardRefresh, setOffStandardRefresh] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  // Trip persistence state
+  const [pendingTripId, setPendingTripId]     = useState<string | null>(null);
+  const [inProgressTrip, setInProgressTrip]   = useState<{
+    id: string; departLocation: string; departTime: string; tripType: string;
+  } | null>(null);
 
   const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
@@ -113,27 +108,29 @@ export function MovementLogView() {
         .gte('depart_time', todayStart.toISOString())
         .order('depart_time', { ascending: false });
       if (data) setLiveTrips((data as Record<string, unknown>[]).map(rowToTrip));
+
+      // Check for any in_progress trip for this user
+      if (user?.role === 'VSA' || user?.role === 'Lead VSA') {
+        const { data: inProg } = await supabase
+          .from('vsa_trips')
+          .select('id, depart_location, depart_time, trip_type')
+          .eq('driver_id', user!.id)
+          .eq('status', 'in_progress')
+          .maybeSingle();
+        if (inProg) {
+          const row = inProg as Record<string, unknown>;
+          setInProgressTrip({
+            id:             row.id as string,
+            departLocation: row.depart_location as string,
+            departTime:     row.depart_time as string,
+            tripType:       row.trip_type as string,
+          });
+          setPendingTripId(row.id as string);
+        }
+      }
     }
     loadTrips();
-  }, []);
-
-  // Load today's off-standard entries — VSA only, survives tab/module navigation
-  useEffect(() => {
-    if (!user) return;
-    if (user.role !== 'VSA' && user.role !== 'Lead VSA') return;
-    async function loadOffStandard() {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data } = await supabase
-        .from('off_standard_entries')
-        .select('*')
-        .eq('user_id', user!.id)
-        .gte('start_time', todayStart.toISOString())
-        .order('start_time', { ascending: true });
-      if (data) setOffStandardEntries((data as Record<string, unknown>[]).map(rowToOffStandard));
-    }
-    loadOffStandard();
-  }, [user]);
+  }, [user?.id, user?.role]);
 
   if (!user) return null;
 
@@ -216,72 +213,146 @@ export function MovementLogView() {
   if (isVSA) {
     const myLiveTrips  = liveTrips.filter(t => t.driverId === user.id);
 
-    const addOffStandardEntry = async (entry: OffStandardEntry) => {
-      setOffStandardEntries(prev => [...prev, entry]);
-      setOffStandardSaveError(false);
-      // id omitted — UUID column, let DB generate it via DEFAULT gen_random_uuid()
-      const { error } = await supabase.from('off_standard_entries').insert({
-        user_id:          user.id,
-        branch_id:        user.branchId,
-        date:             localDateStr(0),
-        start_time:       entry.startTime,
-        stop_time:        entry.stopTime,
-        minutes:          entry.minutes,
-        reason:           entry.reason,
-        explanation:      entry.explanation ?? null,
-        auto_from_trip:   entry.autoFromTrip,
-        ...(entry.presetReason ? { preset_reason:  entry.presetReason  } : {}),
-        ...(entry.linkedHoldId ? { linked_hold_id: entry.linkedHoldId  } : {}),
+    const addAutoOffStandardEntry = async (entry: OffStandardEntry) => {
+      await supabase.from('off_standard_entries').insert({
+        user_id:        user.id,
+        branch_id:      user.branchId,
+        date:           localDateStr(0),
+        start_time:     entry.startTime,
+        stop_time:      entry.stopTime,
+        minutes:        entry.minutes,
+        reason:         entry.reason,
+        explanation:    entry.explanation ?? null,
+        auto_from_trip: true,
+        status:         'complete',
       });
-      if (error) {
-        console.error('Off-standard insert failed:', error);
-        setOffStandardSaveError(true);
-        return;
-      }
-      if (entry.presetReason === 'edv' && entry.linkedHoldId) {
-        await supabase
-          .from('holds')
-          .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
-          .eq('id', entry.linkedHoldId);
+      setOffStandardRefresh(n => n + 1);
+    };
+
+    const handleTripStarted = (info: TripStartInfo) => {
+      supabase.from('vsa_trips').insert({
+        vehicle_plate:       '',
+        vehicle_unit:        '',
+        depart_location:     'Airport Run',
+        depart_time:         info.departTime,
+        arrive_time:         null,
+        trip_type:           info.tripType,
+        driver_id:           user.id,
+        branch_id:           user.branchId,
+        is_vsa_interruption: true,
+        auth_type:           info.authorization,
+        reason:              info.reason,
+        queue_at_departure:  info.queueAtDeparture ?? null,
+        notes:               info.notes || null,
+        is_shuttle:          info.tripType === 'transfer',
+        status:              'in_progress',
+      }).select('id').single().then(({ data, error }) => {
+        if (error) { console.error('Trip start write failed:', error); return; }
+        setPendingTripId((data as { id: string }).id);
+      });
+    };
+
+    const handleRecoverArrived = async () => {
+      if (!inProgressTrip) return;
+      hapticMedium();
+      const arrived = new Date().toISOString();
+      const minutes = Math.round(
+        (new Date(arrived).getTime() - new Date(inProgressTrip.departTime).getTime()) / 60000
+      );
+      const { error } = await supabase.from('vsa_trips').update({
+        arrive_location: 'Airport Run',
+        arrive_time:     arrived,
+        status:          'complete',
+      }).eq('id', inProgressTrip.id);
+      if (!error) {
+        if (minutes >= 5) {
+          addAutoOffStandardEntry({
+            id:           `auto-${inProgressTrip.id}`,
+            startTime:    inProgressTrip.departTime,
+            stopTime:     arrived,
+            minutes,
+            reason:       'OTH',
+            explanation:  'VSA Airport Run',
+            autoFromTrip: true,
+          });
+        }
+        setLiveTrips(prev => [{
+          id:                inProgressTrip.id,
+          vehiclePlate:      '',
+          vehicleUnit:       '',
+          tripType:          (inProgressTrip.tripType as TripRun['tripType']) ?? 'clean',
+          departLocation:    inProgressTrip.departLocation,
+          arriveLocation:    'Airport Run',
+          departTime:        inProgressTrip.departTime,
+          arriveTime:        arrived,
+          gasLevel:          '',
+          odometer:          0,
+          driverId:          user.id,
+          branchId:          user.branchId,
+          isVsaInterruption: true,
+        }, ...prev]);
+        setInProgressTrip(null);
+        setPendingTripId(null);
       }
     };
 
-    const handleTripComplete = async (trip: TripRun) => {
-      const { error } = await supabase.from('vsa_trips').insert({
-        id:                  trip.id,
-        vehicle_plate:       trip.vehiclePlate,
-        vehicle_unit:        trip.vehicleUnit,
-        trip_type:           trip.tripType,
-        depart_location:     trip.departLocation,
-        arrive_location:     trip.arriveLocation,
-        depart_time:         trip.departTime,
-        arrive_time:         trip.arriveTime,
-        driver_id:           trip.driverId,
-        is_vsa_interruption: trip.isVsaInterruption ?? false,
-        auth_type:           trip.authorization ?? null,
-        reason:              trip.reason ?? null,
-        queue_at_departure:  trip.queueAtDeparture ?? null,
-        fuel_on_arrival:     trip.fuelOnArrival ?? null,
-        condition:           trip.condition ?? null,
-        is_shuttle:          trip.tripType === 'transfer',
-        notes:               trip.notes ?? null,
-        branch_id:           trip.branchId,
-      });
-      if (!error) setLiveTrips(prev => [trip, ...prev]);
+    const handleCancelTrip = async () => {
+      if (!inProgressTrip) return;
+      await supabase.from('vsa_trips').delete().eq('id', inProgressTrip.id);
+      setInProgressTrip(null);
+      setPendingTripId(null);
+    };
 
-      // Auto-create off-standard entry for VSA airport runs (≥5 min)
+    const handleTripComplete = async (trip: TripRun) => {
+      if (pendingTripId) {
+        const { error } = await supabase.from('vsa_trips').update({
+          arrive_location: trip.arriveLocation,
+          arrive_time:     trip.arriveTime,
+          fuel_on_arrival: trip.fuelOnArrival ?? null,
+          condition:       trip.condition ?? null,
+          notes:           trip.notes ?? null,
+          status:          'complete',
+        }).eq('id', pendingTripId);
+        if (!error) {
+          setLiveTrips(prev => [{ ...trip, id: pendingTripId }, ...prev]);
+          setPendingTripId(null);
+        }
+      } else {
+        const { error } = await supabase.from('vsa_trips').insert({
+          id:                  trip.id,
+          vehicle_plate:       trip.vehiclePlate,
+          vehicle_unit:        trip.vehicleUnit,
+          trip_type:           trip.tripType,
+          depart_location:     trip.departLocation,
+          arrive_location:     trip.arriveLocation,
+          depart_time:         trip.departTime,
+          arrive_time:         trip.arriveTime,
+          driver_id:           trip.driverId,
+          is_vsa_interruption: trip.isVsaInterruption ?? false,
+          auth_type:           trip.authorization ?? null,
+          reason:              trip.reason ?? null,
+          queue_at_departure:  trip.queueAtDeparture ?? null,
+          fuel_on_arrival:     trip.fuelOnArrival ?? null,
+          condition:           trip.condition ?? null,
+          is_shuttle:          trip.tripType === 'transfer',
+          notes:               trip.notes ?? null,
+          branch_id:           trip.branchId,
+        });
+        if (!error) setLiveTrips(prev => [trip, ...prev]);
+      }
+
       if (trip.isVsaInterruption) {
         const minutes = Math.round(
           (new Date(trip.arriveTime).getTime() - new Date(trip.departTime).getTime()) / 60000
         );
         if (minutes >= 5) {
-          addOffStandardEntry({
+          addAutoOffStandardEntry({
             id:           `auto-${trip.id}`,
             startTime:    trip.departTime,
             stopTime:     trip.arriveTime,
             minutes,
             reason:       'OTH',
-            explanation:  `VSA Airport Run`,
+            explanation:  'VSA Airport Run',
             autoFromTrip: true,
           });
         }
@@ -317,7 +388,33 @@ export function MovementLogView() {
         {/* Tab content */}
         {activeTab === 'movement-log' ? (
           <>
-            <VSAMovementLog onTripComplete={handleTripComplete} />
+            {inProgressTrip && (
+              <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">🚗 Trip in progress</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    {inProgressTrip.departLocation} · Departed {fmtTime(inProgressTrip.departTime)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRecoverArrived}
+                    className="flex-1 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold transition cursor-pointer"
+                  >
+                    Mark Arrived
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelTrip}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
+                  >
+                    Cancel Trip
+                  </button>
+                </div>
+              </div>
+            )}
+            <VSAMovementLog onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
             {myLiveTrips.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
@@ -326,12 +423,7 @@ export function MovementLogView() {
             )}
           </>
         ) : (
-          <OffStandardTimeLog
-            entries={offStandardEntries}
-            onAddEntry={addOffStandardEntry}
-            saveError={offStandardSaveError}
-            user={user}
-          />
+          <OffStandardTimeLog user={user} refreshTrigger={offStandardRefresh} />
         )}
       </div>
     );

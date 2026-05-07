@@ -14,7 +14,22 @@ import { TripComplete } from './TripComplete';
 
 export type { TripState };
 
-export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: TripRun) => void }) {
+export type TripStartInfo = {
+  departTime: string;
+  tripType: 'clean' | 'transfer';
+  authorization: Authorization;
+  reason: Reason;
+  queueAtDeparture: QueueSnapshot | null;
+  notes: string;
+};
+
+export function VSAMovementLog({
+  onTripComplete,
+  onTripStarted,
+}: {
+  onTripComplete?: (trip: TripRun) => void;
+  onTripStarted?: (info: TripStartInfo) => void;
+}) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate } = useGarage();
 
@@ -53,9 +68,18 @@ export function VSAMovementLog({ onTripComplete }: { onTripComplete?: (trip: Tri
 
   const handleStartTrip = () => {
     hapticMedium();
-    setDepartureTime(new Date().toISOString());
+    const now = new Date().toISOString();
+    setDepartureTime(now);
     setElapsed('0m 00s');
     setTripState('in_transit');
+    onTripStarted?.({
+      departTime:       now,
+      tripType:         isShuttle ? 'transfer' : 'clean',
+      authorization:    authorization!,
+      reason:           reason!,
+      queueAtDeparture: queue,
+      notes:            notes.trim(),
+    });
   };
 
   const handleArrived = async () => {

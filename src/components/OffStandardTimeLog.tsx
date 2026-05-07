@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
+import { supabase } from '../lib/supabase';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
@@ -13,10 +14,8 @@ const STANDARD_RATE = 3.0;
 const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
 interface Props {
-  entries: OffStandardEntry[];
-  onAddEntry: (entry: OffStandardEntry) => void;
-  saveError?: boolean;
   user: User;
+  refreshTrigger?: number;
 }
 
 function fmtMinutes(totalMinutes: number): string {
@@ -33,6 +32,18 @@ function fmtTime(iso: string): string {
 function todayDateStr(): string {
   const d = new Date();
   return d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
+  return {
+    id:           row.id as string,
+    startTime:    row.start_time as string,
+    stopTime:     row.stop_time as string,
+    minutes:      row.minutes as number,
+    reason:       row.reason as OffStandardReason,
+    explanation:  (row.explanation as string | null) ?? undefined,
+    autoFromTrip: (row.auto_from_trip as boolean) ?? false,
+  };
 }
 
 function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number): string {
@@ -83,7 +94,7 @@ function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned
 
 // ── Timer section ─────────────────────────────────────────────────────────────
 
-type TimerState = 'idle' | 'running' | 'pending-confirm';
+type TimerState = 'idle' | 'running' | 'complete';
 
 function ElapsedTicker({ startTime }: { startTime: string }) {
   const [elapsed, setElapsed] = useState(0);
@@ -100,7 +111,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Props) {
+export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { getTodayWashbayLog, holds, vehicles } = useGarage();
   const washbayLog = getTodayWashbayLog();
   const carsNum = washbayLog
@@ -108,12 +119,15 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
     : 0;
 
   const [timerState, setTimerState]         = useState<TimerState>('idle');
+  const [inProgressId, setInProgressId]     = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<OffStandardReason>('WFW');
   const [startTimestamp, setStartTimestamp] = useState<string>('');
   const [stopTimestamp, setStopTimestamp]   = useState<string>('');
   const [pendingMinutes, setPendingMinutes] = useState(0);
   const [explanation, setExplanation]       = useState('');
   const [copied, setCopied]                 = useState(false);
+  const [startError, setStartError]         = useState(false);
+  const [entries, setEntries]               = useState<OffStandardEntry[]>([]);
 
   // Preset + EDV state
   const [selectedPreset, setSelectedPreset]     = useState<OffStandardPresetReason | null>(null);
@@ -121,6 +135,42 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
   const [edvUnitNumber, setEdvUnitNumber]       = useState<string>('');
   const [edvManagerName, setEdvManagerName]     = useState<string>('');
   const [edvNoMatch, setEdvNoMatch]             = useState(false);
+
+  // Load completed entries for today
+  useEffect(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    supabase
+      .from('off_standard_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'complete')
+      .gte('start_time', todayStart.toISOString())
+      .order('start_time', { ascending: true })
+      .then(({ data }) => {
+        if (data) setEntries((data as Record<string, unknown>[]).map(rowToOffStandard));
+      });
+  }, [user.id, refreshTrigger]);
+
+  // Recovery: restore any in_progress entry on mount
+  useEffect(() => {
+    supabase
+      .from('off_standard_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'in_progress')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const row = data as Record<string, unknown>;
+        setInProgressId(row.id as string);
+        setStartTimestamp(row.start_time as string);
+        setSelectedReason(row.reason as OffStandardReason);
+        setExplanation((row.explanation as string | null) ?? '');
+        if (row.preset_reason) setSelectedPreset(row.preset_reason as OffStandardPresetReason);
+        setTimerState('running');
+      });
+  }, [user.id]);
 
   // ── Preset helpers ────────────────────────────────────────────────────────
 
@@ -154,78 +204,124 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
   }
 
   function presetExplanation(): string {
-    if (selectedPreset === 'edv')           return `EDV — ${edvUnitNumber} — Released by ${edvManagerName}`;
-    if (selectedPreset === 'fleeting_cars') return 'Fleeting cars';
+    if (selectedPreset === 'edv')            return `EDV — ${edvUnitNumber} — Released by ${edvManagerName}`;
+    if (selectedPreset === 'fleeting_cars')  return 'Fleeting cars';
     if (selectedPreset === 'closing_duties') return 'Closing duties';
     return '';
   }
 
+  // ── DB helpers ────────────────────────────────────────────────────────────
+
+  const saveNotes = async (val: string) => {
+    if (!inProgressId) return;
+    await supabase
+      .from('off_standard_entries')
+      .update({ explanation: val.trim() || null })
+      .eq('id', inProgressId);
+  };
+
   // ── Timer controls ────────────────────────────────────────────────────────
 
-  const handleStart = () => {
+  const handleStart = async () => {
     hapticLight();
+    setStartError(false);
     const now = new Date().toISOString();
+    const expl = selectedPreset ? presetExplanation() : explanation;
+    if (selectedPreset) setExplanation(expl);
+
+    const { data, error } = await supabase
+      .from('off_standard_entries')
+      .insert({
+        user_id:        user.id,
+        branch_id:      user.branchId,
+        date:           localDateStr(0),
+        start_time:     now,
+        stop_time:      null,
+        minutes:        null,
+        reason:         selectedReason,
+        explanation:    expl.trim() || null,
+        auto_from_trip: false,
+        status:         'in_progress',
+        ...(selectedPreset ? { preset_reason: selectedPreset } : {}),
+        ...(selectedPreset === 'edv' && edvLinkedHoldId ? { linked_hold_id: edvLinkedHoldId } : {}),
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Off-standard start write failed:', error);
+      setStartError(true);
+      return;
+    }
+
+    setInProgressId((data as { id: string }).id);
     setStartTimestamp(now);
-    if (selectedPreset) setExplanation(presetExplanation());
     setTimerState('running');
   };
 
-  const handleStop = () => {
+  const handleEnd = async () => {
     hapticLight();
     const now = new Date().toISOString();
-    setStopTimestamp(now);
-    const mins = Math.round((new Date(now).getTime() - new Date(startTimestamp).getTime()) / 60000);
-    setPendingMinutes(mins);
-    setTimerState('pending-confirm');
-  };
+    const mins = Math.round(
+      (new Date(now).getTime() - new Date(startTimestamp).getTime()) / 60000
+    );
 
-  const handleConfirm = () => {
-    if (pendingMinutes < MIN_ENTRY_MINUTES) {
+    if (mins < MIN_ENTRY_MINUTES) {
+      if (inProgressId) {
+        await supabase.from('off_standard_entries').delete().eq('id', inProgressId);
+      }
       handleDiscard();
       return;
     }
-    hapticLight();
-    onAddEntry({
-      id:            `manual-${Date.now()}`,
-      startTime:     startTimestamp,
-      stopTime:      stopTimestamp,
-      minutes:       pendingMinutes,
-      reason:        selectedReason,
-      explanation:   explanation.trim() || undefined,
-      autoFromTrip:  false,
-      presetReason:  selectedPreset,
-      linkedHoldId:  selectedPreset === 'edv' ? edvLinkedHoldId : null,
-    });
-    setTimerState('idle');
-    setExplanation('');
-    setPendingMinutes(0);
-    setSelectedPreset(null);
-    setEdvLinkedHoldId(null);
-    setEdvUnitNumber('');
-    setEdvManagerName('');
-    setEdvNoMatch(false);
+
+    const { error } = await supabase
+      .from('off_standard_entries')
+      .update({
+        stop_time:   now,
+        minutes:     mins,
+        explanation: explanation.trim() || null,
+        status:      'complete',
+      })
+      .eq('id', inProgressId!);
+
+    if (!error) {
+      if (selectedPreset === 'edv' && edvLinkedHoldId) {
+        await supabase
+          .from('holds')
+          .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
+          .eq('id', edvLinkedHoldId);
+      }
+      setStopTimestamp(now);
+      setPendingMinutes(mins);
+      setEntries(prev => [...prev, {
+        id:           inProgressId!,
+        startTime:    startTimestamp,
+        stopTime:     now,
+        minutes:      mins,
+        reason:       selectedReason,
+        explanation:  explanation.trim() || undefined,
+        autoFromTrip: false,
+        presetReason: selectedPreset,
+        linkedHoldId: selectedPreset === 'edv' ? edvLinkedHoldId : null,
+      }]);
+      setTimerState('complete');
+    }
   };
 
   const handleDiscard = () => {
     setTimerState('idle');
-    setExplanation('');
-    setPendingMinutes(0);
+    setInProgressId(null);
     setStartTimestamp('');
     setStopTimestamp('');
+    setPendingMinutes(0);
+    setExplanation('');
     setSelectedPreset(null);
     setEdvLinkedHoldId(null);
     setEdvUnitNumber('');
     setEdvManagerName('');
     setEdvNoMatch(false);
+    setStartError(false);
   };
-
-  // ── Save error banner ─────────────────────────────────────────────────────
-
-  const saveErrorBanner = saveError ? (
-    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
-      <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
-    </div>
-  ) : null;
 
   // ── Tally ─────────────────────────────────────────────────────────────────
 
@@ -242,7 +338,6 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
 
   const handleExport = async () => {
     hapticMedium();
-    // Sync cars value from DOM (carsRef) into the generator
     const reportText = generateReportText(entries, user, carsNum);
     if (navigator.share) {
       try {
@@ -274,7 +369,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
         </div>
         <div className="p-4 space-y-4">
 
-          {/* Reason pills — always visible */}
+          {/* Reason pills — disabled while running or complete */}
           <div>
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Reason</p>
             <div className="flex flex-wrap gap-2">
@@ -282,8 +377,8 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
                 <button
                   key={r}
                   type="button"
-                  disabled={timerState === 'running'}
-                  onClick={() => { if (timerState !== 'running') { hapticLight(); setSelectedReason(r); } }}
+                  disabled={timerState !== 'idle'}
+                  onClick={() => { if (timerState === 'idle') { hapticLight(); setSelectedReason(r); } }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
                     selectedReason === r
                       ? 'bg-yellow-400 border-yellow-400 text-gray-900'
@@ -296,7 +391,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
             </div>
           </div>
 
-          {/* Preset selector — visible when OTH selected and timer not running */}
+          {/* Preset selector — visible when OTH selected and timer idle */}
           {selectedReason === 'OTH' && timerState === 'idle' && (
             <div>
               <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Quick reason (optional)</p>
@@ -344,7 +439,14 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
             🔗 Airport trips log automatically from the Movement Log — no need to add them here.
           </p>
 
-          {/* Timer idle → Start */}
+          {/* Start error */}
+          {startError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
+              <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+            </div>
+          )}
+
+          {/* idle → Start */}
           {timerState === 'idle' && (
             <button
               type="button"
@@ -355,7 +457,7 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
             </button>
           )}
 
-          {/* Timer running → elapsed + Stop */}
+          {/* running → elapsed + notes + End */}
           {timerState === 'running' && (
             <div className="space-y-3">
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-4 text-center">
@@ -369,69 +471,57 @@ export function OffStandardTimeLog({ entries, onAddEntry, saveError, user }: Pro
                   Started {fmtTime(startTimestamp)}
                 </p>
               </div>
+              <div>
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={explanation}
+                  onChange={e => setExplanation(e.target.value)}
+                  onBlur={e => saveNotes(e.target.value)}
+                  placeholder="e.g. Waiting for dirties to arrive…"
+                  className={INPUT}
+                />
+              </div>
               <button
                 type="button"
-                onClick={handleStop}
+                onClick={handleEnd}
                 className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer"
               >
-                Stop
+                End
               </button>
             </div>
           )}
 
-          {/* Pending confirm — show duration, explanation, confirm/discard */}
-          {timerState === 'pending-confirm' && (
+          {/* complete → saved card + notes still editable + Done */}
+          {timerState === 'complete' && (
             <div className="space-y-3">
-              <div className={`rounded-xl px-4 py-3 border ${
-                pendingMinutes < MIN_ENTRY_MINUTES
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40'
-                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40'
-              }`}>
-                <p className={`text-sm font-semibold ${pendingMinutes < MIN_ENTRY_MINUTES ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
-                  {fmtTime(startTimestamp)} – {fmtTime(stopTimestamp)} · {fmtMinutes(pendingMinutes)}
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1">✓ Entry saved</p>
+                <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                  {selectedReason} · {fmtTime(startTimestamp)} – {fmtTime(stopTimestamp)} · {fmtMinutes(pendingMinutes)}
                 </p>
-                {pendingMinutes < MIN_ENTRY_MINUTES && (
-                  <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">Under 5 minutes — will be discarded</p>
-                )}
               </div>
-
-              {pendingMinutes >= MIN_ENTRY_MINUTES && (
-                <div>
-                  <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Explanation (optional)</label>
-                  <input
-                    type="text"
-                    value={explanation}
-                    onChange={e => setExplanation(e.target.value)}
-                    placeholder="e.g. Waiting for dirties to arrive…"
-                    className={INPUT}
-                    autoFocus
-                  />
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className={`flex-1 py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
-                    pendingMinutes >= MIN_ENTRY_MINUTES
-                      ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {pendingMinutes >= MIN_ENTRY_MINUTES ? 'Add Entry' : 'Discard'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDiscard}
-                  className="px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
+              <div>
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={explanation}
+                  onChange={e => setExplanation(e.target.value)}
+                  onBlur={e => saveNotes(e.target.value)}
+                  placeholder="e.g. Waiting for dirties to arrive…"
+                  className={INPUT}
+                  autoFocus
+                />
               </div>
+              <button
+                type="button"
+                onClick={handleDiscard}
+                className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           )}
-          {saveErrorBanner}
         </div>
       </div>
 
