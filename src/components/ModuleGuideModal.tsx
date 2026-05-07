@@ -15,13 +15,13 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     mockNote: 'Seeded with 8 check-in records across all statuses — clean returns, pending washbay review, escalated holds, and one management-pinned record for a customer dispute.',
   },
   'audits': {
-    what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered.",
-    roles: ['Lead VSA', 'Branch Manager', 'Operations Manager'],
-    mockNote: 'Demo audit records use UV7 crew names as staff. In production, real Employee IDs resolve to real names.',
+    what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered. Completed audits are saved to the live dashboard and cleared at midnight; use Export & Send on each form to keep a permanent record.",
+    roles: ['Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
+    mockNote: 'Switch to Demo mode to browse 7 seeded audit records. Live mode shows today\'s audits for this branch — empty until one is completed and exported.',
   },
   'analytics': {
-    what: 'Fleet health metrics for management. Exception approval rates, hold durations, repeat offender vehicles, VSA interruption frequency, and daily in/out counts. Permission-gated — managers see their location, regional sees all branches.',
-    roles: ['Branch Manager', 'Operations Manager', 'City Manager'],
+    what: 'Fleet health metrics for management. Exception approval rates, hold durations, repeat offender vehicles, VSA interruption frequency, and daily in/out counts. Branch managers see their location; AGM, GM, and City Manager see across all branches.',
+    roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
     mockNote: 'Charts use seeded trend data to demonstrate the analytics layer with real data flowing in. All numbers are illustrative of the reporting capability.',
   },
   'movement-log': {
@@ -30,9 +30,9 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     mockNote: 'Seeded with example runs showing the full trip card format including VSA Interruption and Proactive Run badges.',
   },
   'inventory': {
-    what: 'Daily lot snapshot organized by zones — Standard (Rows 1–6), Overflow (Rows 7–12), Hold Bay (auto-populated from active holds), and Other for creative parking situations. Scan a vehicle, classify it, assign a zone. Session-scoped — resets daily.',
-    roles: ['VSA', 'Lead VSA', 'Manager'],
-    mockNote: '13 seeded vehicles across all zones including 2 "Other" entries with real location descriptions. Hold Bay auto-wires from the holds module — no manual entry needed.',
+    what: 'Shift Duties — the operational end-of-shift summary. Closing Duties shows the washbay log: cars in, cars cleaned, throughput rate, and pipeline breakdown (rentables processed, delivered to airport, held). A performance card benchmarks the team against the location standard. Lot Snapshot organizes vehicles by zone — Standard, Overflow, Hold Bay (auto-populated from active holds), and Other.',
+    roles: ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
+    mockNote: 'Closing Duties uses live demo data — the 8.9/hr throughput and pipeline numbers reflect the seeded shift. Lot Snapshot has 13 vehicles across all zones; Hold Bay auto-wires from active holds with no manual entry.',
   },
   'lost-and-found': {
     what: 'Log items found in returned vehicles. Scan or enter the unit number, photograph the item, and the record is timestamped to your Employee ID. Creates a clear chain of custody from discovery through resolution.',
