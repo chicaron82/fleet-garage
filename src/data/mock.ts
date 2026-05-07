@@ -29,6 +29,8 @@ export const USERS: User[] = [
   { id: 'u13', employeeId: 'BOSS', name: 'Big Boss', role: 'City Manager', password: '!Bananarama1982', branchId: 'ALL' },
   { id: 'u14', employeeId: 'YYC-VSA-01', name: 'Marcus L.', role: 'VSA', password: '!Bananarama1982', branchId: 'YYC' },
   { id: 'u15', employeeId: 'YVR-VSA-01', name: 'Linh T.', role: 'VSA', password: '!Bananarama1982', branchId: 'YVR' },
+  { id: 'u16', employeeId: 'AGM-001', name: 'Harpreet T.', role: 'Operations Manager', password: '!HertzYWG_1577erin', branchId: 'ALL' },
+  { id: 'u17', employeeId: 'GM-001', name: 'Howard W.', role: 'City Manager', password: '!HertzYWG_1577erin', branchId: 'ALL' },
 ];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────

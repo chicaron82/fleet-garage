@@ -8,6 +8,7 @@ export interface IssuesSlice {
   facilityIssues: FacilityIssue[];
   addIssue: (data: { title: string; description?: string; severity: IssueSeverity }) => Promise<void>;
   clearIssue: (issueId: string, notes?: string) => Promise<void>;
+  reopenIssue: (issueId: string, note?: string) => Promise<void>;
 }
 
 export function useIssues(
@@ -25,7 +26,15 @@ export function useIssues(
       severity,
       reported_by: user!.id,
     }).select().single();
-    if (data) setFacilityIssues(prev => [mapIssue(data), ...prev]);
+    if (data) {
+      setFacilityIssues(prev => [mapIssue(data), ...prev]);
+      await supabase.from('issue_events').insert({
+        issue_id:   (data as Record<string, unknown>).id as string,
+        event_type: 'opened',
+        user_id:    user!.id,
+        note:       null,
+      });
+    }
   };
 
   const clearIssue = async (issueId: string, notes?: string) => {
@@ -34,14 +43,44 @@ export function useIssues(
       cleared_by: user!.id,
       cleared_at: clearedAt,
       notes,
+      status:     'resolved',
     }).eq('id', issueId);
+    await supabase.from('issue_events').insert({
+      issue_id:   issueId,
+      event_type: 'resolved',
+      user_id:    user!.id,
+      note:       notes || null,
+    });
     setFacilityIssues(prev =>
       prev.map(i => i.id === issueId
-        ? { ...i, clearedById: user!.id, clearedAt, notes }
+        ? { ...i, clearedById: user!.id, clearedAt, notes, status: 'resolved' as const }
         : i
       )
     );
   };
 
-  return { facilityIssues, addIssue, clearIssue, setFacilityIssues };
+  const reopenIssue = async (issueId: string, note?: string) => {
+    const currentCount = facilityIssues.find(i => i.id === issueId)?.reopenCount ?? 0;
+    const newCount = currentCount + 1;
+    await supabase.from('facility_issues').update({
+      cleared_by:   null,
+      cleared_at:   null,
+      status:       'reopened',
+      reopen_count: newCount,
+    }).eq('id', issueId);
+    await supabase.from('issue_events').insert({
+      issue_id:   issueId,
+      event_type: 'reopened',
+      user_id:    user!.id,
+      note:       note || null,
+    });
+    setFacilityIssues(prev =>
+      prev.map(i => i.id === issueId
+        ? { ...i, clearedById: undefined, clearedAt: undefined, status: 'reopened' as const, reopenCount: newCount }
+        : i
+      )
+    );
+  };
+
+  return { facilityIssues, addIssue, clearIssue, reopenIssue, setFacilityIssues };
 }

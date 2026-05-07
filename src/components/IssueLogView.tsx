@@ -2,12 +2,27 @@ import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
 import { USERS } from '../data/mock';
 import { hapticLight, hapticMedium } from '../lib/haptics';
+import { supabase } from '../lib/supabase';
 import type { FacilityIssue, IssueSeverity } from '../types';
+
+interface IssueEvent {
+  id: string;
+  eventType: 'opened' | 'resolved' | 'reopened';
+  userId: string;
+  note: string | null;
+  createdAt: string;
+}
 
 const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = {
   low:    { icon: '🟢', label: 'Low' },
   medium: { icon: '🟡', label: 'Medium' },
   high:   { icon: '🔴', label: 'High' },
+};
+
+const EVENT_LABELS: Record<IssueEvent['eventType'], string> = {
+  opened:   'Opened',
+  resolved: 'Resolved',
+  reopened: 'Reopened',
 };
 
 function daysOpen(reportedAt: string): string {
@@ -17,13 +32,24 @@ function daysOpen(reportedAt: string): string {
   return `Day ${days}`;
 }
 
+function fmtEventTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 export function IssueLogView() {
-  const { facilityIssues, addIssue, clearIssue } = useGarage();
+  const { facilityIssues, addIssue, clearIssue, reopenIssue } = useGarage();
 
   const [clearingId, setClearingId]         = useState<string | null>(null);
   const [clearNote, setClearNote]           = useState('');
+  const [reopenId, setReopenId]             = useState<string | null>(null);
+  const [reopenNote, setReopenNote]         = useState('');
   const [showCleared, setShowCleared]       = useState(false);
   const [showNewForm, setShowNewForm]       = useState(false);
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [eventsCache, setEventsCache]       = useState<Record<string, IssueEvent[]>>({});
 
   // New issue form state
   const [newTitle, setNewTitle]             = useState('');
@@ -31,18 +57,62 @@ export function IssueLogView() {
   const [newSeverity, setNewSeverity]       = useState<IssueSeverity>('medium');
   const [submitting, setSubmitting]         = useState(false);
 
-  const openIssues    = facilityIssues.filter(i => !i.clearedAt);
-  const clearedIssues = facilityIssues.filter(i => !!i.clearedAt);
-  const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
+  const q = searchQuery.trim().toLowerCase();
+  const matchesSearch = (issue: FacilityIssue) =>
+    !q ||
+    issue.title.toLowerCase().includes(q) ||
+    (issue.description ?? '').toLowerCase().includes(q) ||
+    (issue.notes ?? '').toLowerCase().includes(q);
+
+  const openIssues     = facilityIssues.filter(i => i.status !== 'resolved' && matchesSearch(i));
+  const clearedIssues  = facilityIssues.filter(i => i.status === 'resolved'  && matchesSearch(i));
+  const openHighIssues = facilityIssues.filter(i => i.status !== 'resolved'  && i.severity === 'high').length;
+  const shouldShowCleared = showCleared || (!!q && clearedIssues.length > 0);
 
   const getUserName = (userId: string) =>
     USERS.find((u: { id: string; name: string }) => u.id === userId)?.name ?? userId;
+
+  const invalidateCache = (issueId: string) =>
+    setEventsCache(prev => { const next = { ...prev }; delete next[issueId]; return next; });
 
   const handleClear = async (issueId: string) => {
     hapticMedium();
     await clearIssue(issueId, clearNote.trim() || undefined);
     setClearingId(null);
     setClearNote('');
+    invalidateCache(issueId);
+  };
+
+  const handleReopen = async (issueId: string) => {
+    hapticMedium();
+    await reopenIssue(issueId, reopenNote.trim() || undefined);
+    setReopenId(null);
+    setReopenNote('');
+    invalidateCache(issueId);
+  };
+
+  const handleToggleHistory = async (issueId: string) => {
+    hapticLight();
+    if (expandedHistoryId === issueId) { setExpandedHistoryId(null); return; }
+    setExpandedHistoryId(issueId);
+    if (eventsCache[issueId]) return;
+    const { data } = await supabase
+      .from('issue_events')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: true });
+    if (data) {
+      setEventsCache(prev => ({
+        ...prev,
+        [issueId]: data.map(r => ({
+          id:        r.id as string,
+          eventType: r.event_type as IssueEvent['eventType'],
+          userId:    r.user_id as string,
+          note:      r.note as string | null,
+          createdAt: r.created_at as string,
+        })),
+      }));
+    }
   };
 
   const handleSubmitNew = async () => {
@@ -60,8 +130,10 @@ export function IssueLogView() {
   const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
 
   const renderIssueCard = (issue: FacilityIssue, cleared = false) => {
-    const cfg = SEVERITY_CONFIG[issue.severity];
-    const isClearingThis = clearingId === issue.id;
+    const cfg             = SEVERITY_CONFIG[issue.severity];
+    const isClearingThis  = clearingId === issue.id;
+    const isReopeningThis = reopenId === issue.id;
+    const isHistoryOpen   = expandedHistoryId === issue.id;
 
     return (
       <div
@@ -78,25 +150,39 @@ export function IssueLogView() {
             <p className={`text-sm font-semibold truncate ${cleared ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
               {issue.title}
             </p>
+            {issue.reopenCount >= 2 && (
+              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                🔁 {issue.reopenCount}
+              </span>
+            )}
           </div>
-          {!cleared && (
-            <button
-              type="button"
-              onClick={() => { hapticLight(); setClearingId(isClearingThis ? null : issue.id); setClearNote(''); }}
-              className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600 dark:hover:text-green-400 transition cursor-pointer"
-            >
-              Clear
-            </button>
-          )}
-          {cleared && issue.clearedAt && (
-            <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
-              Cleared {new Date(issue.clearedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-            </span>
-          )}
+          <div className="shrink-0">
+            {!cleared && (
+              <button
+                type="button"
+                onClick={() => { hapticLight(); setClearingId(isClearingThis ? null : issue.id); setClearNote(''); setReopenId(null); }}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600 dark:hover:text-green-400 transition cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+            {cleared && (
+              <button
+                type="button"
+                onClick={() => { hapticLight(); setReopenId(isReopeningThis ? null : issue.id); setReopenNote(''); setClearingId(null); }}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-amber-400 hover:text-amber-600 dark:hover:text-amber-400 transition cursor-pointer"
+              >
+                Reopen
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Reported by {getUserName(issue.reportedById)} · {daysOpen(issue.reportedAt)}
+          {cleared && issue.clearedAt && (
+            <span> · Cleared {new Date(issue.clearedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+          )}
         </p>
 
         {issue.description && (
@@ -107,6 +193,7 @@ export function IssueLogView() {
           <p className="text-xs text-green-600 dark:text-green-400">✓ {issue.notes}</p>
         )}
 
+        {/* Clear prompt */}
         {isClearingThis && (
           <div className="mt-2 space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
             <input
@@ -135,6 +222,70 @@ export function IssueLogView() {
             </div>
           </div>
         )}
+
+        {/* Reopen prompt */}
+        {isReopeningThis && (
+          <div className="mt-2 space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <input
+              type="text"
+              placeholder="Reopen note (optional)"
+              value={reopenNote}
+              onChange={e => setReopenNote(e.target.value)}
+              className={inputCls}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleReopen(issue.id)}
+                className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition cursor-pointer"
+              >
+                ↩ Confirm Reopen
+              </button>
+              <button
+                type="button"
+                onClick={() => { hapticLight(); setReopenId(null); }}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-gray-300 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* History toggle + panel */}
+        <button
+          type="button"
+          onClick={() => handleToggleHistory(issue.id)}
+          className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer pt-1"
+        >
+          <span>{isHistoryOpen ? '▾' : '▸'}</span>
+          <span>History</span>
+        </button>
+
+        {isHistoryOpen && (
+          <div className="pt-1 space-y-1.5 border-t border-gray-100 dark:border-gray-800">
+            {(eventsCache[issue.id] ?? []).length === 0 ? (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 italic pt-1">No events recorded.</p>
+            ) : (
+              (eventsCache[issue.id] ?? []).map(ev => (
+                <div key={ev.id} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11px] pt-1">
+                  <span className={`font-semibold ${
+                    ev.eventType === 'opened'   ? 'text-blue-500 dark:text-blue-400' :
+                    ev.eventType === 'resolved' ? 'text-green-500 dark:text-green-400' :
+                                                  'text-amber-500 dark:text-amber-400'
+                  }`}>
+                    [{EVENT_LABELS[ev.eventType]}]
+                  </span>
+                  <span className="text-gray-500 dark:text-gray-400">{fmtEventTime(ev.createdAt)}</span>
+                  <span className="text-gray-500 dark:text-gray-400">·</span>
+                  <span className="text-gray-600 dark:text-gray-300">{getUserName(ev.userId)}</span>
+                  {ev.note && <span className="text-gray-400 dark:text-gray-500 italic">"{ev.note}"</span>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -154,7 +305,16 @@ export function IssueLogView() {
         </div>
       </div>
 
-      {/* High-severity banner — all roles */}
+      {/* Search */}
+      <input
+        type="search"
+        placeholder="Search issues…"
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        className={inputCls}
+      />
+
+      {/* High-severity banner */}
       {openHighIssues > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl px-4 py-3 flex items-center gap-3">
           <span className="text-lg shrink-0">🔴</span>
@@ -177,7 +337,9 @@ export function IssueLogView() {
 
         {openIssues.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
-            <p className="text-sm text-gray-400 dark:text-gray-500">All clear. Nothing logged.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">
+              {q ? 'No matching open issues.' : 'All clear. Nothing logged.'}
+            </p>
           </div>
         )}
 
@@ -214,10 +376,9 @@ export function IssueLogView() {
             className={`${inputCls} resize-none`}
           />
 
-          {/* Severity pills */}
           <div className="flex gap-2">
             {(['low', 'medium', 'high'] as IssueSeverity[]).map(s => {
-              const cfg = SEVERITY_CONFIG[s];
+              const cfg    = SEVERITY_CONFIG[s];
               const active = newSeverity === s;
               return (
                 <button
@@ -256,7 +417,7 @@ export function IssueLogView() {
         </div>
       )}
 
-      {/* Cleared Issues — collapsed by default */}
+      {/* Cleared Issues */}
       {clearedIssues.length > 0 && (
         <section className="space-y-3">
           <button
@@ -264,11 +425,11 @@ export function IssueLogView() {
             onClick={() => { hapticLight(); setShowCleared(s => !s); }}
             className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
           >
-            <span>{showCleared ? '▾' : '▸'}</span>
+            <span>{shouldShowCleared ? '▾' : '▸'}</span>
             <span>Cleared · {clearedIssues.length}</span>
           </button>
 
-          {showCleared && clearedIssues.map(issue => renderIssueCard(issue, true))}
+          {shouldShowCleared && clearedIssues.map(issue => renderIssueCard(issue, true))}
         </section>
       )}
 

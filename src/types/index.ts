@@ -273,6 +273,8 @@ export interface FacilityIssue {
   clearedById?: string;
   clearedAt?: string;
   notes?: string;
+  status: 'open' | 'resolved' | 'reopened';
+  reopenCount: number;
 }
 
 // ── Washbay Log ───────────────────────────────────────────────────────────────

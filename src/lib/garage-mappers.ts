@@ -84,6 +84,8 @@ export function mapIssue(row: Row): FacilityIssue {
     clearedById:  optStr(row, 'cleared_by'),
     clearedAt:    optStr(row, 'cleared_at'),
     notes:        optStr(row, 'notes'),
+    status:       ((row.status as string) ?? 'open') as 'open' | 'resolved' | 'reopened',
+    reopenCount:  (row.reopen_count as number) ?? 0,
   };
 }
 
