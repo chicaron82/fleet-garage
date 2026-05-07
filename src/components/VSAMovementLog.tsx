@@ -5,6 +5,7 @@ import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { loadFlags } from '../lib/manifestFlags';
+import { loadOverrides } from '../lib/classOverrides';
 import { elapsedSince, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
@@ -51,12 +52,14 @@ export function VSAMovementLog({
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
 
   const { topClasses, flaggedClasses } = useMemo(() => {
-    const manifest = generateDayManifest();
-    const flags    = loadFlags();
-    const next5    = getNextFiveNeeded(manifest);
+    const manifest  = generateDayManifest();
+    const flags     = loadFlags();
+    const overrides = loadOverrides();
+    const next5     = getNextFiveNeeded(manifest);
+    const manifestFlagged = [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))];
     return {
       topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
-      flaggedClasses: [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))],
+      flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
     };
   }, []);
 
