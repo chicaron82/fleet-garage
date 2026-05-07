@@ -100,6 +100,7 @@ export function mapWashbayLog(row: Row): WashbayLog {
     cleanNotPickedUp:  reqNum(row, 'clean_not_picked_up', 'mapWashbayLog'),
     teamSize:          reqNum(row, 'team_size',           'mapWashbayLog'),
     shiftHours:        Number(row['shift_hours']),
+    overtimeHours:     (row['overtime_hours'] as number) ?? 0,
     loggedById:        reqStr(row, 'logged_by',           'mapWashbayLog'),
     loggedAt:          reqStr(row, 'logged_at',           'mapWashbayLog'),
   };

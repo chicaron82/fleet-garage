@@ -42,6 +42,7 @@ export function useWashbayHandoff(
         clean_not_picked_up: data.cleanNotPickedUp,
         team_size:           data.teamSize,
         shift_hours:         data.shiftHours,
+        overtime_hours:      data.overtimeHours,
         logged_by:           user!.id,
         logged_at:           loggedAt,
       }, { onConflict: 'branch_id, date' }).select().single();

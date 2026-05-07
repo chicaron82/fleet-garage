@@ -289,6 +289,7 @@ export interface WashbayLog {
   cleanNotPickedUp: number;  // Clean cars on lot, not yet sent to airport
   teamSize: number;          // VSAs on shift
   shiftHours: number;        // Hours washbay ran (default 8)
+  overtimeHours: number;     // Extended operating hours beyond base (0–3)
   loggedById: string;        // User.id
   loggedAt: string;          // ISO timestamp
 }

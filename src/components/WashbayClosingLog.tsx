@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGarage } from '../context/GarageContext';
 import { useAuth } from '../context/AuthContext';
+import { useSchedule } from '../context/ScheduleContext';
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -8,17 +9,21 @@ const SHIFT_HOURS = 8;
 export function WashbayClosingLog() {
   const { holds, submitWashbayLog, getTodayWashbayLog } = useGarage();
   const { user } = useAuth();
+  const { isPeakSeason } = useSchedule();
 
   const [fullPages,        setFullPages]        = useState(0);
   const [lastPageEntries,  setLastPageEntries]  = useState(0);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(3);
+  const [overtimeHours,    setOvertimeHours]    = useState(0);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
 
   const todayLog    = getTodayWashbayLog();
   const showSummary = !!todayLog && !editing;
+
+  const baseHours = isPeakSeason ? 16 : 15;
 
   // Pre-fill when entering edit mode
   useEffect(() => {
@@ -28,6 +33,7 @@ export function WashbayClosingLog() {
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setTeamSize(todayLog.teamSize);
+      setOvertimeHours(todayLog.overtimeHours);
     }
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -35,7 +41,8 @@ export function WashbayClosingLog() {
   const cnpu = parseInt(cleanNotPickedUp) || 0;
   const carsIn      = fullPages * 19 + lastPageEntries;
   const carsCleaned = Math.max(0, carsIn - cr);
-  const throughput  = carsCleaned / SHIFT_HOURS;
+  const operatingHours = baseHours + overtimeHours;
+  const throughput  = operatingHours > 0 ? carsCleaned / operatingHours : 0;
   const delta       = throughput - COMPANY_STANDARD;
 
   const heldToday          = holds.filter(h => h.status === 'ACTIVE').length;
@@ -47,7 +54,7 @@ export function WashbayClosingLog() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS, overtimeHours });
     setEditing(false);
     setSubmitting(false);
   };
@@ -55,13 +62,14 @@ export function WashbayClosingLog() {
   // ── Summary view (after submit) ──────────────────────────────────────────
 
   if (showSummary && todayLog) {
-    const ci = todayLog.fullPages * 19 + todayLog.lastPageEntries;
-    const cc = Math.max(0, ci - todayLog.carsRemaining);
-    const tp = todayLog.shiftHours > 0 ? cc / todayLog.shiftHours : 0;
-    const d  = tp - COMPANY_STANDARD;
-    const ht = holds.filter(h => h.status === 'ACTIVE').length;
-    const rp = Math.max(0, ci - ht);
-    const da = Math.max(0, rp - todayLog.cleanNotPickedUp);
+    const ci  = todayLog.fullPages * 19 + todayLog.lastPageEntries;
+    const cc  = Math.max(0, ci - todayLog.carsRemaining);
+    const opH = baseHours + todayLog.overtimeHours;
+    const tp  = opH > 0 ? cc / opH : 0;
+    const d   = tp - COMPANY_STANDARD;
+    const ht  = holds.filter(h => h.status === 'ACTIVE').length;
+    const rp  = Math.max(0, ci - ht);
+    const da  = Math.max(0, rp - todayLog.cleanNotPickedUp);
 
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -111,6 +119,10 @@ export function WashbayClosingLog() {
             </p>
             <p className={`text-xs mt-0.5 ${d >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
               vs {COMPANY_STANDARD.toFixed(1)} standard · {d >= 0 ? `+${d.toFixed(1)} above` : `${d.toFixed(1)} below`} {d >= 0 ? '✅' : '⚠️'}
+            </p>
+            <p className={`text-xs mt-1 ${d >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'} opacity-75`}>
+              {opH}h operating window{isPeakSeason ? ' · peak season' : ''}
+              {todayLog.overtimeHours > 0 && ` · Extended operations: +${todayLog.overtimeHours}h`}
             </p>
           </div>
         </div>
@@ -196,6 +208,32 @@ export function WashbayClosingLog() {
               +
             </button>
           </div>
+        </div>
+
+        {/* Overtime hours */}
+        <div>
+          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+            Overtime hours <span className="font-normal">(if applicable)</span>
+          </label>
+          <div className="flex gap-2">
+            {[0, 1, 2, 3].map(h => (
+              <button
+                key={h}
+                type="button"
+                onClick={() => setOvertimeHours(h)}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                  overtimeHours === h
+                    ? 'bg-yellow-400 dark:bg-yellow-500 border-yellow-400 dark:border-yellow-500 text-gray-900'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                {h === 0 ? '0' : `+${h}h`}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+            Base: {baseHours}h{isPeakSeason ? ' (peak)' : ''} + {overtimeHours}h = {operatingHours}h operating window
+          </p>
         </div>
 
         {carsIn > 0 && (

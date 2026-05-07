@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
+import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
@@ -113,6 +114,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { getTodayWashbayLog, holds, vehicles } = useGarage();
+  const { isPeakSeason } = useSchedule();
   const washbayLog = getTodayWashbayLog();
   const carsNum = washbayLog
     ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
@@ -325,13 +327,17 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   // ── Tally ─────────────────────────────────────────────────────────────────
 
-  const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
-  const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  const activeHours   = activeMinutes / 60;
-  const rate          = activeHours > 0 && carsNum > 0 ? carsNum / activeHours : 0;
-  const rateColor     = !washbayLog ? 'text-gray-400 dark:text-gray-500'
-    : rate >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
-    : rate >= 2.5 ? 'text-amber-500'
+  const offTotal         = entries.reduce((s, e) => s + e.minutes, 0);
+  const activeMinutes    = Math.max(0, SHIFT_HOURS * 60 - offTotal);
+  const activeHours      = activeMinutes / 60;
+  const personalRate     = activeHours > 0 && carsNum > 0 ? carsNum / activeHours : 0;
+  const branchBaseHours  = isPeakSeason ? 16 : 15;
+  const branchOpHours    = branchBaseHours + (washbayLog?.overtimeHours ?? 0);
+  const branchRate       = carsNum > 0 ? carsNum / branchOpHours : 0;
+  const rate             = personalRate; // kept for rateColor + report text
+  const rateColor        = !washbayLog ? 'text-gray-400 dark:text-gray-500'
+    : personalRate >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
+    : personalRate >= 2.5 ? 'text-amber-500'
     : 'text-red-600 dark:text-red-400';
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -607,8 +613,12 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{STANDARD_RATE.toFixed(1)} / hr</span>
               </div>
               <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Team rate</span>
-                <span className={`text-lg font-bold ${rateColor}`}>{rate.toFixed(1)} / hr</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Personal rate</span>
+                <span className={`text-lg font-bold ${rateColor}`}>{personalRate.toFixed(1)} / hr</span>
+              </div>
+              <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Branch rate ({branchOpHours}h window)</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{branchRate.toFixed(1)} / hr</span>
               </div>
             </div>
           )}
