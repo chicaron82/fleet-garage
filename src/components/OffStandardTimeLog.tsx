@@ -333,7 +333,9 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const personalRate     = activeHours > 0 && carsNum > 0 ? carsNum / activeHours : 0;
   const branchBaseHours  = isPeakSeason ? 16 : 15;
   const branchOpHours    = branchBaseHours + (washbayLog?.overtimeHours ?? 0);
-  const branchRate       = carsNum > 0 ? carsNum / branchOpHours : 0;
+  const cleansNotSent    = washbayLog?.cleanNotPickedUp ?? 0;
+  const cleanedRate      = carsNum > 0 ? carsNum / branchOpHours : 0;
+  const dispatchedRate   = branchOpHours > 0 ? Math.max(0, carsNum - cleansNotSent) / branchOpHours : 0;
   const rate             = personalRate; // kept for rateColor + report text
   const rateColor        = !washbayLog ? 'text-gray-400 dark:text-gray-500'
     : personalRate >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
@@ -616,9 +618,18 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 <span className="text-xs text-gray-500 dark:text-gray-400">Personal rate</span>
                 <span className={`text-lg font-bold ${rateColor}`}>{personalRate.toFixed(1)} / hr</span>
               </div>
-              <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Branch rate ({branchOpHours}h window)</span>
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{branchRate.toFixed(1)} / hr</span>
+              <div className="mt-1 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Cleaned rate ({branchOpHours}h window)</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cleanedRate.toFixed(1)} / hr</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Dispatched rate</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dispatchedRate.toFixed(1)} / hr</span>
+                </div>
+                {cleansNotSent > 0 && (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">Cleans not sent: {cleansNotSent}</p>
+                )}
               </div>
             </div>
           )}
