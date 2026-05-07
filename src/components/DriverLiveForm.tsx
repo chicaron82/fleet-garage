@@ -5,8 +5,10 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
+import { EVAssetCheck } from './EVAssetCheck';
 import type { TripRun } from '../data/trips';
 import type { RentalClass } from '../data/manifest';
+import type { EvAssetStatus } from '../types';
 import { PriorityHint } from './PriorityHint';
 
 const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
@@ -36,6 +38,9 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const [elapsed, setElapsed]             = useState('');
   const [submitting, setSubmitting]       = useState(false);
   const [saveError, setSaveError]         = useState(false);
+  const [isTeslaRun, setIsTeslaRun]       = useState(false);
+  const [evCableStatus, setEvCableStatus] = useState<EvAssetStatus | null>(null);
+  const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
 
   useEffect(() => {
     if (liveState !== 'in_transit' || !departureTime) return;
@@ -110,18 +115,20 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
       };
 
       const { error } = await supabase.from('vsa_trips').insert({
-        id:              trip.id,
-        vehicle_plate:   trip.vehiclePlate,
-        vehicle_unit:    '',
-        trip_type:       trip.tripType,
-        depart_location: trip.departLocation,
-        arrive_location: trip.arriveLocation,
-        depart_time:     trip.departTime,
-        arrive_time:     trip.arriveTime,
-        driver_id:       trip.driverId,
-        is_shuttle:      isShuttle,
-        notes:           trip.notes ?? null,
-        branch_id:       trip.branchId,
+        id:               trip.id,
+        vehicle_plate:    trip.vehiclePlate,
+        vehicle_unit:     '',
+        trip_type:        trip.tripType,
+        depart_location:  trip.departLocation,
+        arrive_location:  trip.arriveLocation,
+        depart_time:      trip.departTime,
+        arrive_time:      trip.arriveTime,
+        driver_id:        trip.driverId,
+        is_shuttle:       isShuttle,
+        notes:            trip.notes ?? null,
+        branch_id:        trip.branchId,
+        ev_cable_status:  isTeslaRun ? (evCableStatus ?? null) : null,
+        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
       });
 
       if (error) {
@@ -165,6 +172,9 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     setArrivalTime('');
     setElapsed('');
     setSaveError(false);
+    setIsTeslaRun(false);
+    setEvCableStatus(null);
+    setEvAdapterStatus(null);
   };
 
   // ── Form ──────────────────────────────────────────────────────────────────
@@ -246,20 +256,37 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
             }}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
           />
-          <label className="flex items-center gap-2 mt-3 cursor-pointer group">
-            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
-              {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
-            </div>
-            <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => {
-              hapticLight();
-              const checked = e.target.checked;
-              setIsShuttle(checked);
-              if (checked && shuttlePlate) setPlate(shuttlePlate.toUpperCase());
-              else if (!checked && shuttlePlate && plate === shuttlePlate.toUpperCase()) setPlate('');
-            }} />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
-          </label>
+          <div className="flex items-center gap-4 mt-3">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+                {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
+              </div>
+              <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => {
+                hapticLight();
+                const checked = e.target.checked;
+                setIsShuttle(checked);
+                if (checked && shuttlePlate) setPlate(shuttlePlate.toUpperCase());
+                else if (!checked && shuttlePlate && plate === shuttlePlate.toUpperCase()) setPlate('');
+              }} />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Lot Shuttle</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group" onClick={() => { hapticLight(); setIsTeslaRun(v => !v); }}>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isTeslaRun ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+                {isTeslaRun && <span className="text-xs font-bold leading-none">✓</span>}
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Tesla ⚡</span>
+            </label>
+          </div>
         </div>
+
+        {isTeslaRun && (
+          <EVAssetCheck
+            cableStatus={evCableStatus}
+            adapterStatus={evAdapterStatus}
+            onCableChange={setEvCableStatus}
+            onAdapterChange={setEvAdapterStatus}
+          />
+        )}
 
         <NotesField value={notes} onChange={setNotes} tripState="form" />
 

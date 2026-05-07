@@ -231,7 +231,7 @@ export function MovementLogView() {
 
     const handleTripStarted = (info: TripStartInfo) => {
       supabase.from('vsa_trips').insert({
-        vehicle_plate:       info.teslaPlate ?? '',
+        vehicle_plate:       '',
         vehicle_unit:        '',
         depart_location:     'Airport Run',
         depart_time:         info.departTime,

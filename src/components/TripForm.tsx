@@ -20,7 +20,6 @@ export interface TripFormProps {
   onShuttleToggle: (checked: boolean) => void;
   onStartTrip: () => void;
   isTeslaRun: boolean;                 setIsTeslaRun: (v: boolean) => void;
-  teslaPlate: string;                  setTeslaPlate: (v: string) => void;
   evCableStatus: EvAssetStatus | null;
   evAdapterStatus: EvAssetStatus | null;
   setEvCableStatus: (s: EvAssetStatus | null) => void;
@@ -34,7 +33,6 @@ export function TripForm({
   topClasses, flaggedClasses, canStart,
   onShuttleToggle, onStartTrip,
   isTeslaRun, setIsTeslaRun,
-  teslaPlate, setTeslaPlate,
   evCableStatus, evAdapterStatus, setEvCableStatus, setEvAdapterStatus,
 }: TripFormProps) {
   const { user } = useAuth();
@@ -43,15 +41,23 @@ export function TripForm({
     <>
       <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} />
 
-      {/* Lot Shuttle */}
+      {/* Lot Shuttle + Tesla */}
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 cursor-pointer group">
-          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
-            {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
-          </div>
-          <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => onShuttleToggle(e.target.checked)} />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Using Lot Shuttle</span>
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+              {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
+            </div>
+            <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => onShuttleToggle(e.target.checked)} />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Lot Shuttle</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer group" onClick={() => { hapticLight(); setIsTeslaRun(!isTeslaRun); }}>
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isTeslaRun ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+              {isTeslaRun && <span className="text-xs font-bold leading-none">✓</span>}
+            </div>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Tesla ⚡</span>
+          </label>
+        </div>
         {user && canRelease(user.role) && (
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Designated Plate:</span>
@@ -113,37 +119,13 @@ export function TripForm({
         </select>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer group">
-        <div
-          onClick={() => { hapticLight(); setIsTeslaRun(!isTeslaRun); }}
-          className={`w-5 h-5 rounded border flex items-center justify-center transition-colors cursor-pointer ${isTeslaRun ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}
-        >
-          {isTeslaRun && <span className="text-xs font-bold leading-none">✓</span>}
-        </div>
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Moving a Tesla ⚡</span>
-      </label>
-
       {isTeslaRun && (
-        <>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-              License Plate <span className="font-normal normal-case text-gray-400">(optional)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. LJF 684"
-              value={teslaPlate}
-              onChange={e => setTeslaPlate(e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition uppercase"
-            />
-          </div>
-          <EVAssetCheck
-            cableStatus={evCableStatus}
-            adapterStatus={evAdapterStatus}
-            onCableChange={setEvCableStatus}
-            onAdapterChange={setEvAdapterStatus}
-          />
-        </>
+        <EVAssetCheck
+          cableStatus={evCableStatus}
+          adapterStatus={evAdapterStatus}
+          onCableChange={setEvCableStatus}
+          onAdapterChange={setEvAdapterStatus}
+        />
       )}
 
       {user && (
