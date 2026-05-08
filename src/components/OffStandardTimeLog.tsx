@@ -337,7 +337,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const branchOpHours    = branchBaseHours + (washbayLog?.overtimeHours ?? 0);
   const cleansNotSent       = washbayLog?.cleanNotPickedUp ?? 0;
   const unreleasedHoldsToday = holds.filter(h => {
-    if (!h.createdAt.startsWith(localDateStr(0))) return false;
+    if (!h.flaggedAt.startsWith(localDateStr(0))) return false;
     if (h.status === 'RELEASED') return false;
     const vehicle = vehicles.find(v => v.id === h.vehicleId);
     return !(vehicle && EXCLUDED_UNITS.includes(vehicle.unitNumber));
