@@ -116,6 +116,9 @@ export const VEHICLES: Vehicle[] = [
   },
 ];
 
+// Unit 5513130 is a real vehicle — excluded from filtering
+export const MOCK_VEHICLE_UNITS = VEHICLES.map(v => v.unitNumber);
+
 // ── Demo Holds ────────────────────────────────────────────────────────────────
 
 export const HOLDS: Hold[] = [
