@@ -231,9 +231,14 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
     });
     await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
-    await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+    const otherActiveHolds = holds.filter(
+      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
+    );
+    if (otherActiveHolds.length === 0) {
+      await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
+      setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'CLEAR' }));
+    }
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'CLEAR' }));
   };
 
   const markReturned = async (holdId: string) => {
