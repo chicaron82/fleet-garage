@@ -16,6 +16,7 @@ import { AnalyticsActivityChart } from './AnalyticsActivityChart';
 import { AnalyticsFleetBalance } from './AnalyticsFleetBalance';
 import { TripAnalyticsSection } from './analytics/TripAnalyticsSection';
 import { DriverCoverageSection, isManagement } from './analytics/DriverCoverageSection';
+import { WashbayHistorySection } from './WashbayHistorySection';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
@@ -311,6 +312,10 @@ export function AnalyticsDashboard() {
               />
             )}
           </div>
+
+          {isManagement(user.role) && (
+            <WashbayHistorySection washbayLogs={washbayLogs} />
+          )}
 
           <TripAnalyticsSection isDemo={isDemo} activeBranch={activeBranch} />
 
