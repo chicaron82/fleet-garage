@@ -19,6 +19,7 @@ export function WashbayClosingLog() {
   const [overtimeHours,    setOvertimeHours]    = useState(0);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
+  const [overtimeOpen,     setOvertimeOpen]     = useState(false);
 
   const todayLog    = getTodayWashbayLog();
   const showSummary = !!todayLog && !editing;
@@ -210,30 +211,44 @@ export function WashbayClosingLog() {
           </div>
         </div>
 
-        {/* Overtime hours */}
+        {/* Overtime hours — collapsed by default */}
         <div>
-          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
-            Overtime hours <span className="font-normal">(if applicable)</span>
-          </label>
-          <div className="flex gap-2">
-            {[0, 1, 2, 3].map(h => (
-              <button
-                key={h}
-                type="button"
-                onClick={() => setOvertimeHours(h)}
-                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                  overtimeHours === h
-                    ? 'bg-yellow-400 dark:bg-yellow-500 border-yellow-400 dark:border-yellow-500 text-gray-900'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                {h === 0 ? '0' : `+${h}h`}
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
-            Base: {baseHours}h{isPeakSeason ? ' (peak)' : ''} + {overtimeHours}h = {operatingHours}h operating window
-          </p>
+          <button
+            type="button"
+            onClick={() => setOvertimeOpen(o => !o)}
+            className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+          >
+            <span>{overtimeOpen ? '▴' : '▾'}</span>
+            <span>Overtime hours <span className="font-normal">(if applicable)</span></span>
+            {overtimeHours > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                +{overtimeHours}h
+              </span>
+            )}
+          </button>
+          {overtimeOpen && (
+            <div className="mt-2 space-y-1.5">
+              <div className="flex gap-2">
+                {[0, 1, 2, 3].map(h => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setOvertimeHours(h)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                      overtimeHours === h
+                        ? 'bg-yellow-400 dark:bg-yellow-500 border-yellow-400 dark:border-yellow-500 text-gray-900'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    {h === 0 ? '0' : `+${h}h`}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                Base: {baseHours}h{isPeakSeason ? ' (peak)' : ''} + {overtimeHours}h = {operatingHours}h operating window
+              </p>
+            </div>
+          )}
         </div>
 
         {carsIn > 0 && (
