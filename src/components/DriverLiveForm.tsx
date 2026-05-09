@@ -41,6 +41,35 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const [isTeslaRun, setIsTeslaRun]       = useState(false);
   const [evCableStatus, setEvCableStatus] = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
+  const [inProgressId, setInProgressId]   = useState<string | null>(null);
+
+  // Recovery: restore any in_progress trip for this driver on mount
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('vsa_trips')
+      .select('id, vehicle_plate, depart_location, arrive_location, depart_time, is_shuttle, notes, trip_type')
+      .eq('driver_id', user.id)
+      .eq('status', 'in_progress')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const row = data as Record<string, unknown>;
+        const depLoc = (row.depart_location as string) ?? '';
+        const arrLoc = (row.arrive_location as string) ?? '';
+        setInProgressId(row.id as string);
+        setPlate((row.vehicle_plate as string) ?? '');
+        if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
+        else { setFrom('Other'); setCustomFrom(depLoc); }
+        if (LOCATIONS.includes(arrLoc as Location)) setTo(arrLoc as Location);
+        else { setTo('Other'); setCustomTo(arrLoc); }
+        setRouteStep('confirmed');
+        setIsShuttle((row.is_shuttle as boolean) ?? false);
+        setNotes((row.notes as string | null) ?? '');
+        setDepartureTime(row.depart_time as string);
+        setLiveState('in_transit');
+      });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (liveState !== 'in_transit' || !departureTime) return;
@@ -83,75 +112,109 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     setRouteStep('origin');
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     hapticMedium();
-    setDepartureTime(new Date().toISOString());
+    const now = new Date().toISOString();
+    setDepartureTime(now);
     setElapsed('0m 00s');
     setLiveState('in_transit');
+
+    const { data, error } = await supabase.from('vsa_trips').insert({
+      vehicle_plate:     plate.trim().toUpperCase(),
+      vehicle_unit:      '',
+      trip_type:         isShuttle ? 'transfer' : 'clean',
+      depart_location:   fromLabel,
+      arrive_location:   toLabel,
+      depart_time:       now,
+      arrive_time:       null,
+      driver_id:         user!.id,
+      branch_id:         user!.branchId,
+      is_shuttle:        isShuttle,
+      notes:             notes.trim() || null,
+      ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+      ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+      status:            'in_progress',
+    }).select('id').single();
+
+    if (!error && data) setInProgressId((data as { id: string }).id);
   };
 
   const handleArrived = async () => {
     hapticMedium();
     setSaveError(false);
     setSubmitting(true);
-    const arrived = arrivalTime || new Date().toISOString();
-    if (!arrivalTime) setArrivalTime(arrived);
+    const arrived = new Date().toISOString();
+    setArrivalTime(arrived);
 
-    if (user) {
-      const trip: TripRun = {
-        id:             `live-${Date.now()}`,
-        vehiclePlate:   plate.trim().toUpperCase(),
-        vehicleUnit:    '',
-        tripType:       isShuttle ? 'transfer' : 'clean',
-        departLocation: fromLabel,
-        arriveLocation: toLabel,
-        departTime:     departureTime,
-        arriveTime:     arrived,
-        gasLevel:       '',
-        odometer:       0,
-        driverId:       user.id,
-        branchId:       user.branchId,
-        notes:          notes.trim() || undefined,
-      };
+    if (!user) { setSubmitting(false); return; }
 
-      const { error } = await supabase.from('vsa_trips').insert({
-        id:               trip.id,
-        vehicle_plate:    trip.vehiclePlate,
-        vehicle_unit:     '',
-        trip_type:        trip.tripType,
-        depart_location:  trip.departLocation,
-        arrive_location:  trip.arriveLocation,
-        depart_time:      trip.departTime,
-        arrive_time:      trip.arriveTime,
-        driver_id:        trip.driverId,
-        is_shuttle:       isShuttle,
-        notes:            trip.notes ?? null,
-        branch_id:        trip.branchId,
-        ev_cable_status:  isTeslaRun ? (evCableStatus ?? null) : null,
+    let error: { message: string } | null = null;
+
+    if (inProgressId) {
+      // Happy path: complete the in_progress record
+      ({ error } = await supabase.from('vsa_trips').update({
+        arrive_time:       arrived,
+        notes:             notes.trim() || null,
+        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
         ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-      });
+        status:            'complete',
+      }).eq('id', inProgressId));
+    } else {
+      // Fallback: start write failed, insert now
+      ({ error } = await supabase.from('vsa_trips').insert({
+        vehicle_plate:     plate.trim().toUpperCase(),
+        vehicle_unit:      '',
+        trip_type:         isShuttle ? 'transfer' : 'clean',
+        depart_location:   fromLabel,
+        arrive_location:   toLabel,
+        depart_time:       departureTime,
+        arrive_time:       arrived,
+        driver_id:         user.id,
+        branch_id:         user.branchId,
+        is_shuttle:        isShuttle,
+        notes:             notes.trim() || null,
+        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+        status:            'complete',
+      }));
+    }
 
-      if (error) {
-        setSubmitting(false);
-        setSaveError(true);
-        return;
-      }
+    if (error) {
+      setSubmitting(false);
+      setSaveError(true);
+      return;
+    }
 
-      onTripComplete(trip);
+    const trip: TripRun = {
+      id:             inProgressId ?? `live-${Date.now()}`,
+      vehiclePlate:   plate.trim().toUpperCase(),
+      vehicleUnit:    '',
+      tripType:       isShuttle ? 'transfer' : 'clean',
+      departLocation: fromLabel,
+      arriveLocation: toLabel,
+      departTime:     departureTime,
+      arriveTime:     arrived,
+      gasLevel:       '',
+      odometer:       0,
+      driverId:       user.id,
+      branchId:       user.branchId,
+      notes:          notes.trim() || undefined,
+    };
 
-      const elapsedMinutes = Math.round(
-        (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
+    onTripComplete(trip);
+
+    const elapsedMinutes = Math.round(
+      (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
+    );
+    if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
+      await pushNotification(
+        user.branchId,
+        ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
+        '🐢',
+        `Long trip flagged — ${user.name} · ${plate.trim().toUpperCase()} · ${fromLabel} → ${toLabel} · ${elapsedMinutes} minutes`,
+        'warning',
+        { driverId: user.id, plate: plate.trim().toUpperCase(), from: fromLabel, to: toLabel, elapsedMinutes, tripDate: arrived.split('T')[0] },
       );
-      if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
-        await pushNotification(
-          user.branchId,
-          ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
-          '🐢',
-          `Long trip flagged — ${user.name} · ${plate.trim().toUpperCase()} · ${fromLabel} → ${toLabel} · ${elapsedMinutes} minutes`,
-          'warning',
-          { driverId: user.id, plate: plate.trim().toUpperCase(), from: fromLabel, to: toLabel, elapsedMinutes, tripDate: arrived.split('T')[0] },
-        );
-      }
     }
 
     setSubmitting(false);
@@ -175,6 +238,12 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     setIsTeslaRun(false);
     setEvCableStatus(null);
     setEvAdapterStatus(null);
+    setInProgressId(null);
+  };
+
+  const handleCancelTrip = async () => {
+    if (inProgressId) await supabase.from('vsa_trips').delete().eq('id', inProgressId);
+    handleReset();
   };
 
   // ── Form ──────────────────────────────────────────────────────────────────
@@ -335,6 +404,12 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
           className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
         >
           {submitting ? 'Saving…' : '✓ Arrived at Destination'}
+        </button>
+        <button
+          type="button" onClick={handleCancelTrip}
+          className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer py-1"
+        >
+          Cancel trip
         </button>
       </div>
     );
