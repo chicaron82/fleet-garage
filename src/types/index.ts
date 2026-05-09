@@ -32,6 +32,33 @@ export function canActionLostFound(role: UserRole): boolean {
   return CAN_ACTION_LOST_FOUND.includes(role);
 }
 
+const CAN_WRITE_WHITEBOARD: UserRole[] = ['Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+
+export function canWriteWhiteboard(role: UserRole): boolean {
+  return CAN_WRITE_WHITEBOARD.includes(role);
+}
+
+// ── Whiteboard ───────────────────────────────────────────────────────────────
+
+export type WhiteboardSection = 'reminders' | 'downtime' | 'airport';
+export type WhiteboardTriggerType = 'manual' | 'seasonal' | 'calendar_month';
+
+export interface WhiteboardNote {
+  id: string;
+  branchId: string;
+  section: WhiteboardSection;
+  body: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  triggerType: WhiteboardTriggerType;
+  activeMonths?: number[];
+  status: 'active' | 'archived';
+  createdAt: string;
+  archivedAt?: string;
+  archivedById?: string;
+}
+
 // ── Users ────────────────────────────────────────────────────────────────────
 
 export interface User {

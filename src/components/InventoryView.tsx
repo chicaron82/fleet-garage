@@ -8,6 +8,7 @@ import type { InventoryItem, InventoryClassification, Zone } from '../data/inven
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { WashbayClosingLog } from './WashbayClosingLog';
 import { HandoffForm } from './HandoffForm';
+import { WhiteboardView } from './WhiteboardView';
 import { StatusBadge } from './StatusBadge';
 import type { ScannedPayload, HoldType, LotStatus, HandoffNote } from '../types';
 import { canLogHandoff } from '../types';
@@ -351,7 +352,7 @@ export function InventoryView() {
   const todayISO = toISO(new Date());
   const isClosingShift = shifts.some(s => s.userId === user!.id && s.date === todayISO && s.shiftType === 'closing');
 
-  const [activeTab, setActiveTab] = useState<'closing-duties' | 'lot-snapshot'>('closing-duties');
+  const [activeTab, setActiveTab] = useState<'closing-duties' | 'lot-snapshot' | 'whiteboard'>('closing-duties');
   const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -438,6 +439,7 @@ export function InventoryView() {
         {([
           { id: 'closing-duties', label: 'Closing Duties' },
           { id: 'lot-snapshot',   label: 'Lot Snapshot' },
+          { id: 'whiteboard',     label: 'Whiteboard' },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -595,6 +597,9 @@ export function InventoryView() {
           </ZoneSection>
         </>
       )}
+
+      {/* Whiteboard tab */}
+      {activeTab === 'whiteboard' && <WhiteboardView />}
 
       {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
 
