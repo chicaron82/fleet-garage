@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
-import type { WashbayLog } from '../types';
+import type { WashbayLog, HandoffNote } from '../types';
 
 interface BackfillEntry {
   id: string;
@@ -22,10 +22,12 @@ interface DayRow {
   label: string;          // "Wed May 7"
   primary: WashbayLog | null;
   backfill: BackfillEntry | null;
+  handoff: HandoffNote | null;
 }
 
 interface Props {
   washbayLogs: WashbayLog[];
+  handoffNotes: HandoffNote[];
 }
 
 const COMPANY_STANDARD = 3.0;
@@ -54,9 +56,18 @@ function deriveStats(entry: { fullPages: number; lastPageEntries: number; carsRe
   return { carsIn, carsCleaned, opHours, throughput };
 }
 
+function deriveHandoffStats(note: HandoffNote) {
+  const carsIn = note.fullPages * 19 + note.lastPageEntries;
+  const dateStr = new Date(note.loggedAt).toLocaleDateString('en-CA');
+  const shiftStart = new Date(`${dateStr}T06:45:00`);
+  const handoffHours = Math.max(0, (new Date(note.loggedAt).getTime() - shiftStart.getTime()) / 3_600_000);
+  const partialRate = handoffHours > 0 ? carsIn / handoffHours : 0;
+  return { carsIn, handoffHours, partialRate };
+}
+
 const BLANK_FORM = { fullPages: 0, lastPageEntries: 0, carsRemaining: '', cleanNotPickedUp: '', teamSize: 3, overtimeHours: 0 };
 
-export function WashbayHistorySection({ washbayLogs }: Props) {
+export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
   const { user } = useAuth();
   const { isPeakSeason } = useSchedule();
 
@@ -98,6 +109,10 @@ export function WashbayHistorySection({ washbayLogs }: Props) {
     label:    fmtDateLabel(date),
     primary:  washbayLogs.find(l => l.date.startsWith(date)) ?? null,
     backfill: backfillEntries.find(b => b.date.startsWith(date)) ?? null,
+    // Latest handoff for this date — first match since handoffNotes are DESC by loggedAt
+    handoff:  handoffNotes.find(n =>
+      new Date(n.loggedAt).toLocaleDateString('en-CA') === date
+    ) ?? null,
   }));
 
   const missingCount = rows.filter(r => !r.primary && !r.backfill).length;
@@ -208,6 +223,20 @@ export function WashbayHistorySection({ washbayLogs }: Props) {
                             {row.backfill && !row.primary && (
                               <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">backfill</span>
                             )}
+                          </div>
+                        );
+                      })() : row.handoff ? (() => {
+                        const { carsIn, handoffHours, partialRate } = deriveHandoffStats(row.handoff);
+                        const color = partialRate >= COMPANY_STANDARD
+                          ? 'text-green-600 dark:text-green-400'
+                          : partialRate >= 2.5 ? 'text-amber-500' : 'text-red-500 dark:text-red-400';
+                        const handoffTime = new Date(row.handoff.loggedAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <div className="flex items-center gap-3 text-xs flex-wrap">
+                            <span className="text-gray-700 dark:text-gray-300 font-medium">{carsIn} cleaned</span>
+                            <span className={`font-semibold ${color}`}>{partialRate.toFixed(1)}/hr</span>
+                            <span className="text-gray-400 dark:text-gray-500">{handoffHours.toFixed(1)}h window</span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">⚠️ mid-shift · {handoffTime}</span>
                           </div>
                         );
                       })() : (

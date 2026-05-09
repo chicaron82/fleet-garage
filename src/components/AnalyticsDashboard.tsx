@@ -23,7 +23,7 @@ interface TripRow { trip_type: string; driver_id: string; }
 
 export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
-  const { holds, vehicles, washbayLogs, getTodayWashbayLog, facilityIssues } = useGarage();
+  const { holds, vehicles, washbayLogs, handoffNotes, getTodayWashbayLog, facilityIssues } = useGarage();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity'>('holds');
@@ -315,7 +315,7 @@ export function AnalyticsDashboard() {
           </div>
 
           {isManagement(user.role) && (
-            <WashbayHistorySection washbayLogs={washbayLogs} />
+            <WashbayHistorySection washbayLogs={washbayLogs} handoffNotes={handoffNotes} />
           )}
 
           <TripAnalyticsSection isDemo={isDemo} activeBranch={activeBranch} />
