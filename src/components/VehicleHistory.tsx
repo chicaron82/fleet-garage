@@ -31,6 +31,17 @@ function fmtDate(iso: string) {
   });
 }
 
+function holdActionLabel(holdTypes: string[]): string {
+  if (holdTypes.some(t => t === 'detail' || t === 'mechanical')) return 'Mark as Done';
+  return 'Mark as Repaired';
+}
+
+function holdConfirmBody(holdTypes: string[]): string {
+  if (holdTypes.includes('detail'))     return 'This marks the detail work as complete.';
+  if (holdTypes.includes('mechanical')) return 'This marks the service as complete.';
+  return 'This marks the damage as fully repaired.';
+}
+
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
   const { releaseStreak } = useGarage();
@@ -106,7 +117,9 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                     onClick={h.openRepairAction}
                     className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
                   >
-                    ✓ Mark as Repaired
+                    ✓ {h.repairableHolds.length === 1
+                      ? holdActionLabel(h.repairableHolds[0].holdTypes)
+                      : 'Mark as Done'}
                   </button>
                 )}
               </>
@@ -146,13 +159,17 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         )}
 
         {/* Repair Confirm */}
-        {h.showRepairConfirm && (
+        {h.showRepairConfirm && (() => {
+          const confirmHold = h.holds.find(hold => hold.id === h.showRepairConfirm);
+          const actionLabel = confirmHold ? holdActionLabel(confirmHold.holdTypes) : 'Mark as Done';
+          const bodyText    = confirmHold ? holdConfirmBody(confirmHold.holdTypes) : 'This marks the work as complete.';
+          return (
           <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/40 p-5 space-y-4">
             <h2 className="text-xs font-semibold text-green-800 dark:text-green-300 uppercase tracking-widest">
-              Confirm Repair
+              Confirm
             </h2>
             <p className="text-sm text-green-900 dark:text-green-200">
-              This marks the damage as fully repaired. The vehicle will be set to <strong>Clear</strong> and returned to service.
+              {bodyText} The vehicle will be set to <strong>Clear</strong> and returned to service.
             </p>
             <div>
               <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">
@@ -180,11 +197,12 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 onClick={h.handleRepair}
                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
               >
-                {h.repairing ? 'Saving…' : 'Confirm Repair'}
+                {h.repairing ? 'Saving…' : actionLabel}
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Hold Picker — shown when multiple holds are repairable */}
         {h.showHoldPicker && (
