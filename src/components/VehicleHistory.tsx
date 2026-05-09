@@ -91,29 +91,25 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 + Flag Issue
               </button>
             )}
-            {h.activeHold && canRelease(h.user.role) && (
+            {canRelease(h.user.role) && (
               <>
-                <button
-                  onClick={() => { hapticHeavy(); h.openReleaseForm(h.activeHold!.id); }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-                >
-                  Approve Release
-                </button>
-                <button
-                  onClick={() => h.openRepairConfirm(h.activeHold!.id)}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-                >
-                  ✓ Mark as Repaired
-                </button>
+                {h.activeHold && (
+                  <button
+                    onClick={() => { hapticHeavy(); h.openReleaseForm(h.activeHold!.id); }}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                  >
+                    Approve Release
+                  </button>
+                )}
+                {h.repairableHolds.length > 0 && (
+                  <button
+                    onClick={h.openRepairAction}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                  >
+                    ✓ Mark as Repaired
+                  </button>
+                )}
               </>
-            )}
-            {!h.activeHold && h.repairableHold && canRelease(h.user.role) && (
-              <button
-                onClick={() => h.openRepairConfirm(h.repairableHold!.id)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-              >
-                ✓ Mark as Repaired
-              </button>
             )}
             {h.activeHold && !canRelease(h.user.role) && (
               <>
@@ -188,6 +184,46 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Hold Picker — shown when multiple holds are repairable */}
+        {h.showHoldPicker && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-40" onClick={h.closeHoldPicker} />
+            <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    Which hold are you resolving?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={h.closeHoldPicker}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {h.repairableHolds.map(hold => (
+                    <button
+                      key={hold.id}
+                      type="button"
+                      onClick={() => h.pickHoldForRepair(hold.id)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
+                    >
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {hold.damageDescription}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Damage History */}

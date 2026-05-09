@@ -4,6 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
 import { USERS } from '../data/mock';
 import { hapticMedium } from '../lib/haptics';
+import type { Hold } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
@@ -22,10 +23,14 @@ export function useVehicleHistory(vehicleId: string) {
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
 
-  // For PRE_EXISTING vehicles: the most recent released hold without a repair record
-  const repairableHold = !activeHold && vehicle?.status === 'PRE_EXISTING'
-    ? holds.find(h => h.status === 'RELEASED' && !h.repair)
-    : undefined;
+  // All holds currently eligible for the repair action
+  const repairableHolds: Hold[] = activeHold
+    ? holds.filter(h => h.status === 'ACTIVE')
+    : vehicle?.status === 'PRE_EXISTING'
+      ? holds.filter(h => h.status === 'RELEASED' && !h.repair)
+      : [];
+
+  const [showHoldPicker, setShowHoldPicker] = useState(false);
 
   const addPhotoClick = (holdId: string, ref: React.RefObject<HTMLInputElement | null>) => {
     pendingHoldId.current = holdId;
@@ -59,7 +64,22 @@ export function useVehicleHistory(vehicleId: string) {
     setShowRepairConfirm(holdId);
     setShowReleaseForm(null);
     setShowVerbalOverride(null);
+    setShowHoldPicker(false);
   };
+
+  const openRepairAction = () => {
+    if (repairableHolds.length === 1) {
+      openRepairConfirm(repairableHolds[0].id);
+    } else if (repairableHolds.length > 1) {
+      setShowHoldPicker(true);
+      setShowReleaseForm(null);
+      setShowVerbalOverride(null);
+      setShowRepairConfirm(null);
+    }
+  };
+
+  const pickHoldForRepair = (holdId: string) => openRepairConfirm(holdId);
+  const closeHoldPicker   = () => setShowHoldPicker(false);
 
   const closeReleaseForm = () => setShowReleaseForm(null);
   const closeVerbalOverride = () => setShowVerbalOverride(null);
@@ -90,10 +110,11 @@ export function useVehicleHistory(vehicleId: string) {
 
   return {
     user: user!,
-    vehicle, holds, activeHold, repairableHold,
+    vehicle, holds, activeHold, repairableHolds,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
+    showHoldPicker, openRepairAction, pickHoldForRepair, closeHoldPicker,
     repairNotes, setRepairNotes, repairing,
     lightboxPhotos, lightboxIndex,
     openLightbox: (photos: string[], index: number) => { setLightboxPhotos(photos); setLightboxIndex(index); },
