@@ -72,7 +72,6 @@ export function Pill({ label, active, danger, onClick }: {
 export const TRIP_NOTE_PRESETS = [
   'Airport full of dirties',
   'No clean units at airport',
-  'Washbay backed up',
   'Customer waiting',
   'Priority unit requested',
 ];
