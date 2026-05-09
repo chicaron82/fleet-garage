@@ -9,6 +9,14 @@ export const ALL_RENTAL_CLASSES: RentalClass[] = [
   'R', 'S', 'O6', 'A6',
 ];
 
+export const CLASS_GROUPS: { label: string; classes: RentalClass[] }[] = [
+  { label: 'Sedans', classes: ['A', 'B', 'C', 'D', 'F'] },
+  { label: 'CUVs',   classes: ['B4', 'B5'] },
+  { label: 'SUVs',   classes: ['Q4', 'L', 'L2', 'T', 'T4', 'T6'] },
+  { label: 'EVs',    classes: ['E1', 'E6', 'E7', 'E8', 'E9'] },
+  { label: 'Other',  classes: ['R', 'S', 'O6', 'A6'] },
+];
+
 export const CLASS_LABELS: Record<RentalClass, string> = {
   'A':  'Economy',      'A6': "Mgr's Special",
   'B':  'Small Sedan',  'B4': 'Small CUV',    'B5': 'Std CUV',
@@ -43,6 +51,18 @@ export function loadOverrides(): Set<RentalClass> {
 export function toggleOverride(cls: RentalClass): Set<RentalClass> {
   const current = loadOverrides();
   if (current.has(cls)) current.delete(cls); else current.add(cls);
+  localStorage.setItem(storageKey(), JSON.stringify([...current]));
+  return new Set(current);
+}
+
+export function toggleGroupOverride(classes: RentalClass[]): Set<RentalClass> {
+  const current = loadOverrides();
+  const allActive = classes.every(c => current.has(c));
+  if (allActive) {
+    classes.forEach(c => current.delete(c));
+  } else {
+    classes.forEach(c => current.add(c));
+  }
   localStorage.setItem(storageKey(), JSON.stringify([...current]));
   return new Set(current);
 }

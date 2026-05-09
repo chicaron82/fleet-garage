@@ -7,8 +7,8 @@ import {
 } from '../data/manifest';
 import { canFlagReservation, loadFlags, saveFlag, removeFlag } from '../lib/manifestFlags';
 import {
-  canSetOverride, loadOverrides, toggleOverride, clearAllOverrides,
-  ALL_RENTAL_CLASSES, CLASS_LABELS,
+  canSetOverride, loadOverrides, toggleOverride, toggleGroupOverride, clearAllOverrides,
+  ALL_RENTAL_CLASSES, CLASS_LABELS, CLASS_GROUPS,
 } from '../lib/classOverrides';
 
 // ── Season display config ─────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ export function ManifestView() {
   const flaggedReservations = useMemo(() => today.filter(r => flags.has(r.id)), [today, flags]);
 
   const handleToggleOverride = (cls: RentalClass) => setOverrides(toggleOverride(cls));
+  const handleToggleGroup    = (classes: RentalClass[]) => setOverrides(toggleGroupOverride(classes));
   const handleClearOverrides = () => { clearAllOverrides(); setOverrides(new Set()); };
 
   useEffect(() => {
@@ -209,6 +210,30 @@ export function ManifestView() {
 
           {canOverride ? (
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-orange-200 dark:border-orange-800/50 p-3 transition-colors">
+              {/* Group quick-select */}
+              <div className="flex flex-wrap gap-1.5 mb-2.5 pb-2.5 border-b border-orange-100 dark:border-orange-900/30">
+                {CLASS_GROUPS.map(group => {
+                  const allOn  = group.classes.every(c => overrides.has(c));
+                  const someOn = !allOn && group.classes.some(c => overrides.has(c));
+                  return (
+                    <button
+                      key={group.label}
+                      type="button"
+                      onClick={() => handleToggleGroup(group.classes)}
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold transition cursor-pointer ${
+                        allOn
+                          ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-400 dark:ring-red-600'
+                          : someOn
+                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 ring-1 ring-orange-300 dark:ring-orange-700'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {group.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Individual class pills */}
               <div className="flex flex-wrap gap-1.5">
                 {ALL_RENTAL_CLASSES.map(cls => (
                   <button
