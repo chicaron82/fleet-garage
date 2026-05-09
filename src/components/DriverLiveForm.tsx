@@ -114,12 +114,14 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
 
   const handleStart = async () => {
     hapticMedium();
-    const now = new Date().toISOString();
+    const now    = new Date().toISOString();
+    const tripId = crypto.randomUUID();
     setDepartureTime(now);
     setElapsed('0m 00s');
     setLiveState('in_transit');
 
-    const { data, error } = await supabase.from('vsa_trips').insert({
+    const { error } = await supabase.from('vsa_trips').insert({
+      id:                tripId,
       vehicle_plate:     plate.trim().toUpperCase(),
       vehicle_unit:      '',
       trip_type:         isShuttle ? 'transfer' : 'clean',
@@ -134,9 +136,10 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
       ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
       ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
       status:            'in_progress',
-    }).select('id').single();
+    });
 
-    if (!error && data) setInProgressId((data as { id: string }).id);
+    if (error) console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
+    else setInProgressId(tripId);
   };
 
   const handleArrived = async () => {
