@@ -9,6 +9,7 @@ import { loadOverrides } from '../lib/classOverrides';
 import { elapsedSince, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
+import { detectTeslaByPlate } from '../lib/ev-detection';
 import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
@@ -74,6 +75,15 @@ export function VSAMovementLog({
   const handleShuttleToggle = (checked: boolean) => {
     hapticLight();
     setIsShuttle(checked);
+  };
+
+  const handlePlateBlur = async () => {
+    const result = await detectTeslaByPlate(vehiclePlate);
+    if (result.isTesla) {
+      setIsTeslaRun(true);
+      setEvCableStatus(result.lastCable);
+      setEvAdapterStatus(result.lastAdapter);
+    }
   };
 
   const canStart = reason !== null && !!authorization && queue !== null;
@@ -185,7 +195,7 @@ export function VSAMovementLog({
             authorization={authorization} setAuthorization={setAuthorization}
             notes={notes}           setNotes={setNotes}
             isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-            vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate}
+            vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
             topClasses={topClasses} flaggedClasses={flaggedClasses}
             canStart={canStart}
             onShuttleToggle={handleShuttleToggle}

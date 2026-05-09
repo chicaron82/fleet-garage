@@ -5,6 +5,7 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
+import { detectTeslaByPlate } from '../lib/ev-detection';
 import { EVAssetCheck } from './EVAssetCheck';
 import type { TripRun } from '../data/trips';
 import type { RentalClass } from '../data/manifest';
@@ -84,6 +85,15 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     && routeStep === 'confirmed'
     && (from !== 'Other' || customFrom.trim().length > 0)
     && (to   !== 'Other' || customTo.trim().length > 0);
+
+  const handlePlateBlur = async () => {
+    const result = await detectTeslaByPlate(plate);
+    if (result.isTesla) {
+      setIsTeslaRun(true);
+      setEvCableStatus(result.lastCable);
+      setEvAdapterStatus(result.lastAdapter);
+    }
+  };
 
   const handleLocationTap = (loc: Location) => {
     if (routeStep === 'origin') {
@@ -326,6 +336,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               setPlate(val);
               if (shuttlePlate) setIsShuttle(val.trim() === shuttlePlate.toUpperCase().trim());
             }}
+            onBlur={handlePlateBlur}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
           />
           <div className="flex items-center gap-4 mt-3">
