@@ -24,6 +24,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
+  setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
 }
@@ -258,12 +259,18 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
   };
 
+  const setCoverPhoto = async (vehicleId: string, url: string | null) => {
+    await supabase.from('vehicles').update({ cover_photo_url: url }).eq('id', vehicleId);
+    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, coverPhotoUrl: url ?? undefined }));
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
+      setCoverPhoto,
       shuttlePlate, setShuttlePlate,
       ...issuesSlice,
       ...washbaySlice,

@@ -44,7 +44,7 @@ function holdConfirmBody(holdTypes: string[]): string {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
-  const { releaseStreak } = useGarage();
+  const { releaseStreak, setCoverPhoto } = useGarage();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -301,20 +301,36 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-2 items-center">
-                    {(hold.photos ?? []).map((src, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => h.openLightbox(hold.photos ?? [], i)}
-                        className="cursor-pointer"
-                      >
-                        <img
-                          src={src}
-                          alt={`Damage photo ${i + 1}`}
-                          className="w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-gray-800 hover:opacity-80 transition"
-                        />
-                      </button>
-                    ))}
+                    {(hold.photos ?? []).map((src, i) => {
+                      const isCover = vehicle.coverPhotoUrl === src;
+                      return (
+                        <div key={i} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => h.openLightbox(hold.photos ?? [], i)}
+                            className="cursor-pointer block"
+                          >
+                            <img
+                              src={src}
+                              alt={`Damage photo ${i + 1}`}
+                              className="w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-gray-800 hover:opacity-80 transition"
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            title={isCover ? 'Remove card photo' : 'Set as card photo'}
+                            onClick={() => setCoverPhoto(vehicle.id, isCover ? null : src)}
+                            className={`absolute bottom-0.5 right-0.5 w-5 h-5 rounded text-[10px] flex items-center justify-center transition cursor-pointer ${
+                              isCover
+                                ? 'bg-yellow-400 text-black'
+                                : 'bg-black/50 text-white hover:bg-black/70'
+                            }`}
+                          >
+                            📌
+                          </button>
+                        </div>
+                      );
+                    })}
                     {(hold.photos ?? []).length < MAX_PHOTOS && (
                       <div className="flex gap-1.5">
                         <button

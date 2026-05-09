@@ -298,6 +298,13 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                           {streak}× unrepaired
                         </span>
                       )}
+                      {vehicle.coverPhotoUrl && (
+                        <img
+                          src={vehicle.coverPhotoUrl}
+                          alt="Vehicle"
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-700 mt-0.5"
+                        />
+                      )}
                     </div>
                   </div>
                 </button>

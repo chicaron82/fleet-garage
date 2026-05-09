@@ -43,6 +43,7 @@ export function mapVehicle(row: Row): Vehicle {
     color:        reqStr(row, 'color',         'mapVehicle'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:     (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
+    coverPhotoUrl: optStr(row, 'cover_photo_url'),
   };
 }
 

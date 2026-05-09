@@ -85,6 +85,7 @@ export interface Vehicle {
   color: string;
   status: VehicleStatus;
   branchId: BranchId;
+  coverPhotoUrl?: string;
 }
 
 // ── Holds ────────────────────────────────────────────────────────────────────
