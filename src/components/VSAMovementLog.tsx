@@ -23,6 +23,7 @@ export type TripStartInfo = {
   reason: Reason;
   queueAtDeparture: QueueSnapshot | null;
   notes: string;
+  vehiclePlate?: string;
   evCableStatus?: 'present' | 'missing' | null;
   evAdapterStatus?: 'present' | 'missing' | null;
 };
@@ -47,6 +48,7 @@ export function VSAMovementLog({
   const [arrivalTime, setArrivalTime]       = useState('');
   const [elapsed, setElapsed]               = useState('');
 
+  const [vehiclePlate, setVehiclePlate]       = useState('');
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
   const [evCableStatus, setEvCableStatus]     = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
@@ -89,6 +91,7 @@ export function VSAMovementLog({
       reason:           reason!,
       queueAtDeparture: queue,
       notes:            notes.trim(),
+      vehiclePlate:     vehiclePlate.trim() || undefined,
       evCableStatus:    isTeslaRun ? evCableStatus : undefined,
       evAdapterStatus:  isTeslaRun ? evAdapterStatus : undefined,
     });
@@ -149,6 +152,7 @@ export function VSAMovementLog({
     setDepartureTime('');
     setArrivalTime('');
     setElapsed('');
+    setVehiclePlate('');
     setIsTeslaRun(false);
     setEvCableStatus(null);
     setEvAdapterStatus(null);
@@ -181,6 +185,7 @@ export function VSAMovementLog({
             authorization={authorization} setAuthorization={setAuthorization}
             notes={notes}           setNotes={setNotes}
             isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
+            vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate}
             topClasses={topClasses} flaggedClasses={flaggedClasses}
             canStart={canStart}
             onShuttleToggle={handleShuttleToggle}

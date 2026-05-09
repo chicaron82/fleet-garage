@@ -380,6 +380,31 @@ export interface LostFoundItem {
   resolvedAt?: string;
 }
 
+// ── Vehicle Registry ──────────────────────────────────────────────────────────
+
+export interface VehicleRegistryEntry {
+  id: string;
+  branchId: string;
+  vehicleId?: string | null;
+  plate?: string | null;
+  unitNumber?: string | null;
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  color?: string | null;
+  arrivedAt?: string | null;
+  cleanedAt?: string | null;
+  dispatchedAt?: string | null;
+  needsReview: boolean;
+  createdAt: string;
+  date: string;
+}
+
+export type RegistryLookupResult =
+  | { status: 'found';           entry: VehicleRegistryEntry }
+  | { status: 'merge_candidate'; existing: VehicleRegistryEntry }
+  | { status: 'not_found' };
+
 // ── Off-Standard Time ─────────────────────────────────────────────────────────
 
 export type OffStandardReason = 'CLASS' | 'WFW' | 'MTG' | 'WTH' | 'OTH';

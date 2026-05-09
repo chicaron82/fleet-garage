@@ -1,16 +1,18 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { EVAssetCheck } from './EVAssetCheck';
 import type { EvLastCheck } from './EVAssetCheck';
+import { VehicleMergePrompt } from './VehicleMergePrompt';
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { compressImage } from '../lib/image';
 import { isTesla } from '../lib/vehicles';
-import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus } from '../types';
+import { createOrEnrichRegistry, lookupRegistry, mergeRegistryRecords } from '../lib/vehicleRegistry';
+import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus, VehicleRegistryEntry } from '../types';
 import { deriveRouting } from '../types';
 
 interface Props {
@@ -113,6 +115,14 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [evAdapterStatus, setEvAdapterStatus]   = useState<EvAssetStatus | null>(null);
   const [lastEvCheck, setLastEvCheck]           = useState<EvLastCheck | null>(null);
 
+  // Plate-only arrival path (for vehicles not in fleet database)
+  const [plateArrivalOpen, setPlateArrivalOpen]     = useState(false);
+  const [plateArrival, setPlateArrival]             = useState('');
+  const [plateArrivalSaving, setPlateArrivalSaving] = useState(false);
+  const [plateArrivalDone, setPlateArrivalDone]     = useState(false);
+  const [plateArrivalEntry, setPlateArrivalEntry]   = useState<VehicleRegistryEntry | null>(null);
+  const [plateArrivalMerge, setPlateArrivalMerge]   = useState<VehicleRegistryEntry | null>(null);
+
   const routing = useMemo<CheckInRouting | null>(() => {
     if (!interiorCondition || !exteriorCondition) return null;
     return deriveRouting(interiorCondition, exteriorCondition);
@@ -122,6 +132,67 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   }, []);
+
+  useEffect(() => {
+    setPlateArrivalOpen(false);
+    setPlateArrival('');
+    setPlateArrivalDone(false);
+    setPlateArrivalEntry(null);
+    setPlateArrivalMerge(null);
+  }, [unitSearch]);
+
+  const handlePlateArrival = useCallback(async () => {
+    if (!user || !plateArrival.trim()) return;
+    setPlateArrivalSaving(true);
+    const plate = plateArrival.trim().toUpperCase();
+    const result = await lookupRegistry({ plate, branchId: user.branchId });
+    if (result.status === 'merge_candidate') {
+      setPlateArrivalMerge(result.existing);
+      setPlateArrivalSaving(false);
+      return;
+    }
+    const entry = await createOrEnrichRegistry({
+      branchId: user.branchId,
+      plate,
+      arrivedAt: new Date().toISOString(),
+    });
+    setPlateArrivalEntry(entry);
+    setPlateArrivalSaving(false);
+    setPlateArrivalDone(true);
+  }, [user, plateArrival]);
+
+  const handlePlateArrivalMerge = useCallback(async () => {
+    if (!user || !plateArrivalMerge) return;
+    setPlateArrivalSaving(true);
+    // Create the new plate-only entry first, then merge into the existing one
+    const newEntry = await createOrEnrichRegistry({
+      branchId: user.branchId,
+      plate: plateArrival.trim().toUpperCase(),
+      arrivedAt: new Date().toISOString(),
+    });
+    if (newEntry) {
+      await mergeRegistryRecords(plateArrivalMerge.id, newEntry.id);
+    }
+    setPlateArrivalMerge(null);
+    setPlateArrivalEntry(plateArrivalMerge);
+    setPlateArrivalSaving(false);
+    setPlateArrivalDone(true);
+  }, [user, plateArrival, plateArrivalMerge]);
+
+  const handlePlateArrivalCreateNew = useCallback(async () => {
+    if (!user) return;
+    setPlateArrivalSaving(true);
+    const entry = await createOrEnrichRegistry({
+      branchId: user.branchId,
+      plate: plateArrival.trim().toUpperCase(),
+      arrivedAt: new Date().toISOString(),
+      needsReview: true,
+    } as Parameters<typeof createOrEnrichRegistry>[0]);
+    setPlateArrivalMerge(null);
+    setPlateArrivalEntry(entry);
+    setPlateArrivalSaving(false);
+    setPlateArrivalDone(true);
+  }, [user, plateArrival]);
 
   const fetchEvLastCheck = useCallback(async (vehicle: Vehicle) => {
     const unit = vehicle.unitNumber;
@@ -247,6 +318,19 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     }
 
     setSubmitted(true);
+
+    // Fire-and-forget registry write — records arrival timestamp for turnaround tracking
+    void createOrEnrichRegistry({
+      branchId: user.branchId,
+      vehicleId: scanned.vehicle.id,
+      plate: scanned.vehicle.licensePlate,
+      unitNumber: scanned.vehicle.unitNumber,
+      make: scanned.vehicle.make,
+      model: scanned.vehicle.model,
+      year: scanned.vehicle.year,
+      color: scanned.vehicle.color,
+      arrivedAt: scanned.timestamp,
+    });
   };
 
   const handleReset = () => {
@@ -263,6 +347,11 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setEvCableStatus(null);
     setEvAdapterStatus(null);
     setLastEvCheck(null);
+    setPlateArrivalOpen(false);
+    setPlateArrival('');
+    setPlateArrivalDone(false);
+    setPlateArrivalEntry(null);
+    setPlateArrivalMerge(null);
   };
 
   const handleReHold = useCallback(async (
@@ -354,8 +443,58 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                     ).slice(0, 5);
                     if (results.length === 0) {
                       return (
-                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">"{unitSearch}" not in the system.</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">"{unitSearch}" not in the system.</p>
+                            {!plateArrivalOpen && !plateArrivalDone && (
+                              <button
+                                type="button"
+                                onClick={() => setPlateArrivalOpen(true)}
+                                className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer ml-3 shrink-0"
+                              >
+                                + Record arrival by plate
+                              </button>
+                            )}
+                          </div>
+
+                          {plateArrivalOpen && !plateArrivalDone && !plateArrivalMerge && (
+                            <div className="space-y-2 px-1">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Plate (e.g. LUR156)"
+                                  value={plateArrival}
+                                  onChange={e => setPlateArrival(e.target.value.toUpperCase())}
+                                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!plateArrival.trim() || plateArrivalSaving}
+                                  onClick={handlePlateArrival}
+                                  className="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white text-sm font-semibold transition cursor-pointer"
+                                >
+                                  {plateArrivalSaving ? '…' : 'Log'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {plateArrivalMerge && (
+                            <VehicleMergePrompt
+                              plate={plateArrival.trim().toUpperCase()}
+                              existing={plateArrivalMerge}
+                              onMerge={handlePlateArrivalMerge}
+                              onCreateNew={handlePlateArrivalCreateNew}
+                            />
+                          )}
+
+                          {plateArrivalDone && (
+                            <div className="px-3.5 py-2.5 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 rounded-lg">
+                              <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                                Arrival recorded for {plateArrivalEntry?.plate ?? plateArrival}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       );
                     }

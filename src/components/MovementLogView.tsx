@@ -17,6 +17,7 @@ import { generateDayManifest, getNextFiveNeeded } from '../data/manifest';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { loadFlags } from '../lib/manifestFlags';
 import { loadOverrides } from '../lib/classOverrides';
+import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -230,8 +231,17 @@ export function MovementLogView() {
     };
 
     const handleTripStarted = (info: TripStartInfo) => {
+      // Enrich registry with dispatched_at if the driver provided a plate
+      if (info.vehiclePlate) {
+        void createOrEnrichRegistry({
+          branchId: user.branchId,
+          plate: info.vehiclePlate,
+          dispatchedAt: info.departTime,
+        });
+      }
+
       supabase.from('vsa_trips').insert({
-        vehicle_plate:       '',
+        vehicle_plate:       info.vehiclePlate ?? '',
         vehicle_unit:        '',
         depart_location:     'Airport Run',
         depart_time:         info.departTime,

@@ -1,12 +1,14 @@
 import { useRef, useCallback } from 'react';
 import { useNewHold } from '../hooks/useNewHold';
 import { useGarage } from '../context/GarageContext';
+import { useAuth } from '../context/AuthContext';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import { parseFleetBarcode } from '../lib/barcode';
 import { DAMAGE_PRESETS, MECHANICAL_PRESETS } from '../lib/hold-presets';
 import { getTireSwapSeason } from '../lib/holdBadge';
+import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 import { DETAIL_REASON_LABELS } from '../types';
 import type { DetailReason, MechanicalSubType } from '../types';
 
@@ -19,7 +21,25 @@ interface Props {
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
-  const { getVehicleByUnit } = useGarage();
+  const { getVehicleByUnit, vehicles } = useGarage();
+  const { user } = useAuth();
+
+  const selectVehicleAndLink = useCallback((vehicleId: string) => {
+    h.selectVehicle(vehicleId);
+    if (!user) return;
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+    void createOrEnrichRegistry({
+      branchId: user.branchId,
+      vehicleId: vehicle.id,
+      plate: vehicle.licensePlate,
+      unitNumber: vehicle.unitNumber,
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year,
+      color: vehicle.color,
+    });
+  }, [h, user, vehicles]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
@@ -27,7 +47,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
   const handleBarcodeUnit = useCallback((unit: string) => {
     const vehicle = getVehicleByUnit(unit);
     if (vehicle) {
-      h.selectVehicle(vehicle.id);
+      selectVehicleAndLink(vehicle.id);
     } else {
       h.setUnitSearch(unit.toUpperCase());
     }
@@ -141,7 +161,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => h.selectVehicle(v.id)}
+                        onClick={() => selectVehicleAndLink(v.id)}
                         className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
                       >
                         <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>

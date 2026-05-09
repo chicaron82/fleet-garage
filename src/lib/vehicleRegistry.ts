@@ -1,0 +1,234 @@
+import { supabase } from './supabase';
+import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
+
+// ── Mapper ────────────────────────────────────────────────────────────────────
+
+type Row = Record<string, unknown>;
+
+function mapEntry(row: Row): VehicleRegistryEntry {
+  return {
+    id:           row['id']         as string,
+    branchId:     row['branch_id']  as string,
+    vehicleId:    (row['vehicle_id']   as string  | null) ?? null,
+    plate:        (row['plate']        as string  | null) ?? null,
+    unitNumber:   (row['unit_number']  as string  | null) ?? null,
+    make:         (row['make']         as string  | null) ?? null,
+    model:        (row['model']        as string  | null) ?? null,
+    year:         (row['year']         as number  | null) ?? null,
+    color:        (row['color']        as string  | null) ?? null,
+    arrivedAt:    (row['arrived_at']   as string  | null) ?? null,
+    cleanedAt:    (row['cleaned_at']   as string  | null) ?? null,
+    dispatchedAt: (row['dispatched_at']as string  | null) ?? null,
+    needsReview:  (row['needs_review'] as boolean)        ?? false,
+    createdAt:    row['created_at']  as string,
+    date:         row['date']        as string,
+  };
+}
+
+// ── Pairing lookup ────────────────────────────────────────────────────────────
+
+async function resolveConfirmedPair(
+  plate?: string | null,
+  unitNumber?: string | null,
+): Promise<{ plate: string; unitNumber: string } | null> {
+  if (!plate && !unitNumber) return null;
+
+  let query = supabase
+    .from('vehicle_identifiers')
+    .select('plate, unit_number')
+    .eq('confirmed', true);
+
+  if (plate)       query = query.eq('plate', plate);
+  else if (unitNumber) query = query.eq('unit_number', unitNumber);
+
+  const { data } = await query.maybeSingle();
+  if (!data) return null;
+  return { plate: data.plate as string, unitNumber: data.unit_number as string };
+}
+
+// ── Core lookup ───────────────────────────────────────────────────────────────
+
+export async function lookupRegistry(params: {
+  plate?: string | null;
+  unitNumber?: string | null;
+  branchId: string;
+  date?: string; // defaults to today
+}): Promise<RegistryLookupResult> {
+  const { plate, unitNumber, branchId, date } = params;
+  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+
+  // 1. Resolve confirmed pair first — if we know this vehicle, go straight to both
+  const pair = await resolveConfirmedPair(plate, unitNumber);
+
+  let query = supabase
+    .from('vehicle_registry')
+    .select('*')
+    .eq('branch_id', branchId)
+    .eq('date', targetDate);
+
+  if (pair) {
+    query = query.or(`plate.eq.${pair.plate},unit_number.eq.${pair.unitNumber}`);
+  } else if (plate) {
+    query = query.eq('plate', plate);
+  } else if (unitNumber) {
+    query = query.eq('unit_number', unitNumber);
+  } else {
+    return { status: 'not_found' };
+  }
+
+  const { data } = await query.maybeSingle();
+  if (!data) return { status: 'not_found' };
+
+  const entry = mapEntry(data as Row);
+
+  // 2. If caller provided an identifier the record doesn't have → merge candidate
+  const missingPlate       = plate       && !entry.plate;
+  const missingUnit        = unitNumber  && !entry.unitNumber;
+  const conflictingPlate   = plate       && entry.plate       && entry.plate       !== plate;
+  const conflictingUnit    = unitNumber  && entry.unitNumber  && entry.unitNumber  !== unitNumber;
+
+  if (!pair && (missingPlate || missingUnit || conflictingPlate || conflictingUnit)) {
+    return { status: 'merge_candidate', existing: entry };
+  }
+
+  return { status: 'found', entry };
+}
+
+// ── Create or enrich ──────────────────────────────────────────────────────────
+
+export async function createOrEnrichRegistry(params: {
+  branchId:    string;
+  vehicleId?:  string | null;
+  plate?:      string | null;
+  unitNumber?: string | null;
+  make?:       string | null;
+  model?:      string | null;
+  year?:       number | null;
+  color?:      string | null;
+  arrivedAt?:  string | null;
+  cleanedAt?:  string | null;
+  dispatchedAt?: string | null;
+  date?: string;
+}): Promise<VehicleRegistryEntry | null> {
+  const { branchId, date, ...fields } = params;
+  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+
+  // Try to find an existing entry for today
+  const lookup = await lookupRegistry({
+    plate:      fields.plate,
+    unitNumber: fields.unitNumber,
+    branchId,
+    date:       targetDate,
+  });
+
+  if (lookup.status === 'found') {
+    // Enrich: only update fields that are currently null
+    const existing = lookup.entry;
+    const updates: Record<string, unknown> = {};
+    if (fields.vehicleId   && !existing.vehicleId)   updates['vehicle_id']    = fields.vehicleId;
+    if (fields.plate       && !existing.plate)       updates['plate']         = fields.plate;
+    if (fields.unitNumber  && !existing.unitNumber)  updates['unit_number']   = fields.unitNumber;
+    if (fields.make        && !existing.make)        updates['make']          = fields.make;
+    if (fields.model       && !existing.model)       updates['model']         = fields.model;
+    if (fields.year        && !existing.year)        updates['year']          = fields.year;
+    if (fields.color       && !existing.color)       updates['color']         = fields.color;
+    if (fields.arrivedAt   && !existing.arrivedAt)   updates['arrived_at']    = fields.arrivedAt;
+    if (fields.cleanedAt   && !existing.cleanedAt)   updates['cleaned_at']    = fields.cleanedAt;
+    if (fields.dispatchedAt && !existing.dispatchedAt) updates['dispatched_at'] = fields.dispatchedAt;
+
+    if (Object.keys(updates).length === 0) return existing;
+
+    const { data } = await supabase
+      .from('vehicle_registry')
+      .update(updates)
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    return data ? mapEntry(data as Row) : null;
+  }
+
+  // Create new entry
+  const { data } = await supabase
+    .from('vehicle_registry')
+    .insert({
+      branch_id:    branchId,
+      date:         targetDate,
+      vehicle_id:   fields.vehicleId   ?? null,
+      plate:        fields.plate       ?? null,
+      unit_number:  fields.unitNumber  ?? null,
+      make:         fields.make        ?? null,
+      model:        fields.model       ?? null,
+      year:         fields.year        ?? null,
+      color:        fields.color       ?? null,
+      arrived_at:   fields.arrivedAt   ?? null,
+      cleaned_at:   fields.cleanedAt   ?? null,
+      dispatched_at: fields.dispatchedAt ?? null,
+    })
+    .select()
+    .single();
+
+  return data ? mapEntry(data as Row) : null;
+}
+
+// ── Confirm pairing ───────────────────────────────────────────────────────────
+
+export async function confirmPairing(
+  plate: string,
+  unitNumber: string,
+  confirmedBy = 'user',
+): Promise<void> {
+  await supabase.from('vehicle_identifiers').upsert(
+    { plate, unit_number: unitNumber, confirmed: true, confirmed_at: new Date().toISOString(), confirmed_by: confirmedBy },
+    { onConflict: 'plate,unit_number' },
+  );
+}
+
+// ── Merge records ─────────────────────────────────────────────────────────────
+
+export async function mergeRegistryRecords(
+  keepId: string,
+  mergeId: string,
+): Promise<void> {
+  const { data: rows } = await supabase
+    .from('vehicle_registry')
+    .select('*')
+    .in('id', [keepId, mergeId]);
+
+  if (!rows || rows.length !== 2) return;
+
+  const keep  = mapEntry(rows.find((r: Row) => r['id'] === keepId)!  as Row);
+  const merge = mapEntry(rows.find((r: Row) => r['id'] === mergeId)! as Row);
+
+  // Preserve earliest timestamps across both records
+  function earliest(a: string | null | undefined, b: string | null | undefined): string | null {
+    if (!a && !b) return null;
+    if (!a) return b!;
+    if (!b) return a;
+    return a < b ? a : b;
+  }
+
+  const updates: Record<string, unknown> = {
+    plate:         keep.plate       ?? merge.plate,
+    unit_number:   keep.unitNumber  ?? merge.unitNumber,
+    vehicle_id:    keep.vehicleId   ?? merge.vehicleId,
+    make:          keep.make        ?? merge.make,
+    model:         keep.model       ?? merge.model,
+    year:          keep.year        ?? merge.year,
+    color:         keep.color       ?? merge.color,
+    arrived_at:    earliest(keep.arrivedAt,    merge.arrivedAt),
+    cleaned_at:    earliest(keep.cleanedAt,    merge.cleanedAt),
+    dispatched_at: earliest(keep.dispatchedAt, merge.dispatchedAt),
+    needs_review:  false,
+  };
+
+  await supabase.from('vehicle_registry').update(updates).eq('id', keepId);
+  await supabase.from('vehicle_registry').delete().eq('id', mergeId);
+
+  // Confirm the pairing now that we know both identifiers
+  const plate      = (updates['plate']       as string | null);
+  const unitNumber = (updates['unit_number'] as string | null);
+  if (plate && unitNumber) {
+    await confirmPairing(plate, unitNumber);
+  }
+}
