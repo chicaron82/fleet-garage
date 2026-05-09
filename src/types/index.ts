@@ -365,7 +365,7 @@ export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; ful
   OTH:   { short: 'OTH',   full: 'Other' },
 };
 
-export type OffStandardPresetReason = 'fleeting_cars' | 'closing_duties' | 'edv';
+export type OffStandardPresetReason = 'fleeting_cars' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv';
 
 export interface OffStandardEntry {
   id: string;

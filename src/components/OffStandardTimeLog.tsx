@@ -209,8 +209,10 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   function presetExplanation(): string {
     if (selectedPreset === 'edv')            return `EDV — ${edvUnitNumber} — Released by ${edvManagerName}`;
-    if (selectedPreset === 'fleeting_cars')  return 'Fleeting cars';
-    if (selectedPreset === 'closing_duties') return 'Closing duties';
+    if (selectedPreset === 'fleeting_cars')   return 'Fleeting cars';
+    if (selectedPreset === 'closing_duties')  return 'Closing duties';
+    if (selectedPreset === 'opening_duties')  return 'Opening duties';
+    if (selectedPreset === 'lot_organization') return 'Lot organization';
     return '';
   }
 
@@ -414,9 +416,11 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Quick reason (optional)</p>
               <div className="flex flex-wrap gap-2">
                 {([
-                  { value: 'fleeting_cars',  label: 'Fleeting Cars' },
-                  { value: 'closing_duties', label: 'Closing Duties' },
-                  { value: 'edv',            label: 'EDV' },
+                  { value: 'fleeting_cars',   label: 'Fleeting Cars' },
+                  { value: 'closing_duties',  label: 'Closing Duties' },
+                  { value: 'opening_duties',  label: 'Opening Duties' },
+                  { value: 'lot_organization', label: 'Lot Organization' },
+                  { value: 'edv',             label: 'EDV' },
                 ] as { value: OffStandardPresetReason; label: string }[]).map(p => (
                   <button
                     key={p.value}
