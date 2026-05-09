@@ -4,7 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { compressImage } from '../lib/image';
 import type { LostFoundItem, LostFoundLocation, LostFoundStatus } from '../types';
-import { LOST_FOUND_LOCATION_LABELS } from '../types';
+import { LOST_FOUND_LOCATION_LABELS, canActionLostFound } from '../types';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -22,11 +22,12 @@ const LOCATION_ORDER: LostFoundLocation[] = ['visor', 'front_seat', 'back_seat',
 interface CardProps {
   item: LostFoundItem;
   updating: boolean;
+  canAction: boolean;
   onContactCustomer: () => void;
   onMarkReturned: () => void;
 }
 
-function LostFoundCard({ item, updating, onContactCustomer, onMarkReturned }: CardProps) {
+function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkReturned }: CardProps) {
   const vehicleLabel = item.unitNumber
     ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
@@ -82,26 +83,28 @@ function LostFoundCard({ item, updating, onContactCustomer, onMarkReturned }: Ca
       )}
 
       {/* Actions */}
-      <div className="flex gap-2 pt-0.5">
-        {item.status === 'holding' && (
+      {canAction && (
+        <div className="flex gap-2 pt-0.5">
+          {item.status === 'holding' && (
+            <button
+              type="button"
+              disabled={updating}
+              onClick={onContactCustomer}
+              className="flex-1 py-2 text-xs font-semibold rounded-lg border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition cursor-pointer"
+            >
+              Customer contacted
+            </button>
+          )}
           <button
             type="button"
             disabled={updating}
-            onClick={onContactCustomer}
-            className="flex-1 py-2 text-xs font-semibold rounded-lg border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition cursor-pointer"
+            onClick={onMarkReturned}
+            className="flex-1 py-2 text-xs font-semibold rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition cursor-pointer"
           >
-            Customer contacted
+            {updating ? 'Updating…' : 'Mark returned'}
           </button>
-        )}
-        <button
-          type="button"
-          disabled={updating}
-          onClick={onMarkReturned}
-          className="flex-1 py-2 text-xs font-semibold rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition cursor-pointer"
-        >
-          {updating ? 'Updating…' : 'Mark returned'}
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -184,6 +187,7 @@ export function LostAndFoundView() {
   const itemCamRef      = useRef<HTMLInputElement>(null);
   const itemGalleryRef  = useRef<HTMLInputElement>(null);
 
+  const canAction = user ? canActionLostFound(user.role) : false;
   const holding = lostFoundItems.filter(i => i.status !== 'returned');
   const resolved = lostFoundItems.filter(i => i.status === 'returned');
 
@@ -263,6 +267,7 @@ export function LostAndFoundView() {
               key={item.id}
               item={item}
               updating={updatingId === item.id}
+              canAction={canAction}
               onContactCustomer={() => handleStatusUpdate(item.id, 'customer_contacted')}
               onMarkReturned={() => handleStatusUpdate(item.id, 'returned')}
             />

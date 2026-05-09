@@ -26,6 +26,12 @@ export function canLogHandoff(role: UserRole): boolean {
   return CAN_LOG_HANDOFF.includes(role);
 }
 
+const CAN_ACTION_LOST_FOUND: UserRole[] = ['CSR', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+
+export function canActionLostFound(role: UserRole): boolean {
+  return CAN_ACTION_LOST_FOUND.includes(role);
+}
+
 // ── Users ────────────────────────────────────────────────────────────────────
 
 export interface User {
