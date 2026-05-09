@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { hapticLight } from '../lib/haptics';
 import { canRelease } from '../types';
 import type { EvAssetStatus } from '../types';
 import { REASON_LABELS, Pill, NotesField, TRIP_NOTE_PRESETS } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot } from '../lib/vsa-trip';
+import { searchVehicles, detectTeslaByPlate } from '../lib/ev-detection';
+import type { VehicleSearchResult } from '../lib/ev-detection';
 import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 
@@ -40,6 +43,41 @@ export function TripForm({
 }: TripFormProps) {
   const { user } = useAuth();
 
+  const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (vehiclePlate.trim().length < 2) {
+        setPlateSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+      if (plateSuggestions.some(p => p.license_plate === vehiclePlate.trim().toUpperCase()) && !showSuggestions) return;
+      const results = await searchVehicles(vehiclePlate);
+      setPlateSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [vehiclePlate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSuggestionSelect = (v: VehicleSearchResult) => {
+    hapticLight();
+    setVehiclePlate(v.license_plate);
+    setShowSuggestions(false);
+    detectTeslaByPlate(v.license_plate).then(res => {
+      if (res.isTesla) {
+        setIsTeslaRun(true);
+        setEvCableStatus(res.lastCable);
+        setEvAdapterStatus(res.lastAdapter);
+      } else {
+        setIsTeslaRun(false);
+        setEvCableStatus(null);
+        setEvAdapterStatus(null);
+      }
+    });
+  };
+
   return (
     <>
       <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} />
@@ -74,7 +112,7 @@ export function TripForm({
       </div>
 
       {/* Vehicle plate (optional — for registry tracking) */}
-      <div>
+      <div className="relative z-10">
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
           Vehicle Plate <span className="text-gray-400 dark:text-gray-600 normal-case font-normal">optional</span>
         </label>
@@ -82,10 +120,35 @@ export function TripForm({
           type="text"
           placeholder="e.g. LUR156"
           value={vehiclePlate}
-          onChange={e => setVehiclePlate(e.target.value.toUpperCase())}
-          onBlur={onPlateBlur}
+          onChange={e => {
+            const val = e.target.value.toUpperCase();
+            setVehiclePlate(val);
+            if (!val) setShowSuggestions(false);
+          }}
+          onBlur={() => {
+            setTimeout(() => setShowSuggestions(false), 200);
+            onPlateBlur?.();
+          }}
+          onFocus={() => {
+            if (plateSuggestions.length > 0) setShowSuggestions(true);
+          }}
           className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
         />
+        {showSuggestions && plateSuggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-[66px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
+            {plateSuggestions.map(v => (
+              <button
+                key={v.license_plate}
+                type="button"
+                onClick={() => handleSuggestionSelect(v)}
+                className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
+              >
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.license_plate}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Queue */}

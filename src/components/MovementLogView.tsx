@@ -108,7 +108,34 @@ export function MovementLogView() {
         .select('*')
         .gte('depart_time', todayStart.toISOString())
         .order('depart_time', { ascending: false });
-      if (data) setLiveTrips((data as Record<string, unknown>[]).map(rowToTrip));
+
+      if (data) {
+        const rows = data as Record<string, unknown>[];
+        const plates = [...new Set(rows.map(r => r.vehicle_plate as string).filter(Boolean))];
+        
+        let vehicleMap = new Map();
+        if (plates.length > 0) {
+          const { data: vData } = await supabase
+            .from('vehicles')
+            .select('license_plate, make, model, year, color')
+            .in('license_plate', plates);
+          if (vData) {
+            vehicleMap = new Map(vData.map(v => [v.license_plate, v]));
+          }
+        }
+
+        setLiveTrips(rows.map(row => {
+          const trip = rowToTrip(row);
+          const vInfo = vehicleMap.get(trip.vehiclePlate);
+          if (vInfo) {
+            trip.vehicleMake = vInfo.make;
+            trip.vehicleModel = vInfo.model;
+            trip.vehicleYear = vInfo.year;
+            trip.vehicleColor = vInfo.color;
+          }
+          return trip;
+        }));
+      }
 
       // Check for any in_progress trip for this user
       if (user?.role === 'VSA' || user?.role === 'Lead VSA') {
@@ -658,10 +685,25 @@ function TripList({ trips, isManagement }: { trips: typeof MOCK_TRIPS; isManagem
           <div key={trip.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">{trip.vehicleUnit}</span>
-                  <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-                  <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">{trip.vehiclePlate}</span>
+                <div className="mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">{trip.vehicleUnit}</span>
+                    <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
+                    {trip.vehicleMake ? (
+                      <span className="text-gray-700 dark:text-gray-300 text-sm transition-colors">
+                        {trip.vehicleYear} {trip.vehicleMake} {trip.vehicleModel} <span className="text-gray-500 dark:text-gray-400">· {trip.vehicleColor}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">{trip.vehiclePlate}</span>
+                    )}
+                  </div>
+                  {trip.vehicleMake && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="opacity-0 font-semibold text-sm">{trip.vehicleUnit}</span>
+                      <span className="opacity-0 text-xs">·</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">Plate: {trip.vehiclePlate}</span>
+                    </div>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
                   {trip.departLocation === trip.arriveLocation

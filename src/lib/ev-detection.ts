@@ -5,6 +5,12 @@ export interface TeslaDetectionResult {
   isTesla: boolean;
   lastCable: EvAssetStatus | null;
   lastAdapter: EvAssetStatus | null;
+  vehicle?: {
+    make: string;
+    model: string;
+    year: number;
+    color: string;
+  };
 }
 
 export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionResult> {
@@ -13,12 +19,28 @@ export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionR
 
   const { data: vehicle } = await supabase
     .from('vehicles')
-    .select('make')
+    .select('make, model, year, color')
     .ilike('license_plate', trimmed)
     .maybeSingle();
 
-  if (!vehicle || (vehicle.make as string)?.toLowerCase() !== 'tesla') {
+  if (!vehicle) {
     return { isTesla: false, lastCable: null, lastAdapter: null };
+  }
+
+  const isTesla = (vehicle.make as string)?.toLowerCase() === 'tesla';
+
+  if (!isTesla) {
+    return {
+      isTesla: false,
+      lastCable: null,
+      lastAdapter: null,
+      vehicle: {
+        make: vehicle.make as string,
+        model: vehicle.model as string,
+        year: vehicle.year as number,
+        color: vehicle.color as string,
+      }
+    };
   }
 
   // Most recent trip with EV status recorded for this plate
@@ -35,5 +57,32 @@ export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionR
     isTesla: true,
     lastCable:   (lastTrip?.ev_cable_status   as EvAssetStatus) ?? null,
     lastAdapter: (lastTrip?.ev_adapter_status as EvAssetStatus) ?? null,
+    vehicle: {
+      make: vehicle.make as string,
+      model: vehicle.model as string,
+      year: vehicle.year as number,
+      color: vehicle.color as string,
+    }
   };
+}
+
+export interface VehicleSearchResult {
+  license_plate: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+}
+
+export async function searchVehicles(query: string): Promise<VehicleSearchResult[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const { data } = await supabase
+    .from('vehicles')
+    .select('license_plate, make, model, year, color')
+    .ilike('license_plate', `${trimmed}%`)
+    .limit(5);
+
+  return (data as VehicleSearchResult[]) || [];
 }

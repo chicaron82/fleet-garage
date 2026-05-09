@@ -5,7 +5,8 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
-import { detectTeslaByPlate } from '../lib/ev-detection';
+import { detectTeslaByPlate, searchVehicles } from '../lib/ev-detection';
+import type { VehicleSearchResult } from '../lib/ev-detection';
 import { EVAssetCheck } from './EVAssetCheck';
 import type { TripRun } from '../data/trips';
 import type { RentalClass } from '../data/manifest';
@@ -42,7 +43,11 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const [isTeslaRun, setIsTeslaRun]       = useState(false);
   const [evCableStatus, setEvCableStatus] = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
+  const [vehicleDetails, setVehicleDetails] = useState<{ make: string, model: string, year: number, color: string } | null>(null);
   const [inProgressId, setInProgressId]   = useState<string | null>(null);
+
+  const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Recovery: restore any in_progress trip for this driver on mount
   useEffect(() => {
@@ -59,7 +64,11 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         const depLoc = (row.depart_location as string) ?? '';
         const arrLoc = (row.arrive_location as string) ?? '';
         setInProgressId(row.id as string);
-        setPlate((row.vehicle_plate as string) ?? '');
+        const loadedPlate = (row.vehicle_plate as string) ?? '';
+        setPlate(loadedPlate);
+        detectTeslaByPlate(loadedPlate).then(res => {
+          setVehicleDetails(res.vehicle ?? null);
+        });
         if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
         else { setFrom('Other'); setCustomFrom(depLoc); }
         if (LOCATIONS.includes(arrLoc as Location)) setTo(arrLoc as Location);
@@ -78,6 +87,22 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     return () => clearInterval(id);
   }, [liveState, departureTime]);
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (plate.trim().length < 2) {
+        setPlateSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+      // Don't search if we already selected a full match
+      if (plateSuggestions.some(p => p.license_plate === plate.trim().toUpperCase()) && !showSuggestions) return;
+      const results = await searchVehicles(plate);
+      setPlateSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [plate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fromLabel = from === 'Other' ? (customFrom || 'Other') : (from ?? '');
   const toLabel   = to   === 'Other' ? (customTo   || 'Other') : (to   ?? '');
 
@@ -88,11 +113,30 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
 
   const handlePlateBlur = async () => {
     const result = await detectTeslaByPlate(plate);
+    setVehicleDetails(result.vehicle ?? null);
     if (result.isTesla) {
       setIsTeslaRun(true);
       setEvCableStatus(result.lastCable);
       setEvAdapterStatus(result.lastAdapter);
     }
+  };
+
+  const handleSuggestionSelect = (v: VehicleSearchResult) => {
+    hapticLight();
+    setPlate(v.license_plate);
+    setShowSuggestions(false);
+    setVehicleDetails({ make: v.make, model: v.model, year: v.year, color: v.color });
+    detectTeslaByPlate(v.license_plate).then(res => {
+      if (res.isTesla) {
+        setIsTeslaRun(true);
+        setEvCableStatus(res.lastCable);
+        setEvAdapterStatus(res.lastAdapter);
+      } else {
+        setIsTeslaRun(false);
+        setEvCableStatus(null);
+        setEvAdapterStatus(null);
+      }
+    });
   };
 
   const handleLocationTap = (loc: Location) => {
@@ -251,6 +295,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     setIsTeslaRun(false);
     setEvCableStatus(null);
     setEvAdapterStatus(null);
+    setVehicleDetails(null);
     setInProgressId(null);
   };
 
@@ -327,7 +372,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         </div>
 
         {/* License Plate */}
-        <div>
+        <div className="relative z-10">
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
           <input
             type="text" placeholder="e.g. JFT 881" value={plate}
@@ -335,10 +380,33 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               const val = e.target.value.toUpperCase();
               setPlate(val);
               if (shuttlePlate) setIsShuttle(val.trim() === shuttlePlate.toUpperCase().trim());
+              if (!val) setShowSuggestions(false);
             }}
-            onBlur={handlePlateBlur}
+            onBlur={() => {
+              // Delay hiding to allow click event on suggestion
+              setTimeout(() => setShowSuggestions(false), 200);
+              handlePlateBlur();
+            }}
+            onFocus={() => {
+              if (plateSuggestions.length > 0) setShowSuggestions(true);
+            }}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
           />
+          {showSuggestions && plateSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-[68px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
+              {plateSuggestions.map(v => (
+                <button
+                  key={v.license_plate}
+                  type="button"
+                  onClick={() => handleSuggestionSelect(v)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
+                >
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.license_plate}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-4 mt-3">
             <label className="flex items-center gap-2 cursor-pointer group">
               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
@@ -397,7 +465,12 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                {vehicleDetails ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}` : plate}
+              </p>
+              {vehicleDetails && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Plate: {plate}</p>
+              )}
               <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 font-medium">{fromLabel} → {toLabel}</p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Departed {fmtTime(departureTime)}</p>
             </div>
@@ -436,7 +509,12 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     <div className="space-y-3">
       <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg px-4 py-3 transition-colors">
         <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
-        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{plate}</p>
+        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+          {vehicleDetails ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}` : plate}
+        </p>
+        {vehicleDetails && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Plate: {plate}</p>
+        )}
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">{fromLabel} → {toLabel}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
           {fmtTime(departureTime)} → {fmtTime(arrivalTime)} · {dur}m

@@ -6,6 +6,10 @@ export interface TripRun {
   id: string;
   vehicleUnit: string;
   vehiclePlate: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  vehicleColor?: string;
   tripType: 'clean' | 'dirty' | 'customer' | 'transfer';
   departLocation: string;
   arriveLocation: string;
