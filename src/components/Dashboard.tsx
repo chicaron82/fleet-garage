@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease } from '../types';
@@ -19,7 +19,10 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
   const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = sessionStorage.getItem('dashboard_page');
+    return saved ? parseInt(saved, 10) : 1;
+  });
   const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -34,6 +37,10 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('dashboard_page', String(currentPage));
+  }, [currentPage]);
 
   const ITEMS_PER_PAGE = 15;
 
