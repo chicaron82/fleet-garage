@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { hapticLight } from '../lib/haptics';
 import { canRelease } from '../types';
 import type { EvAssetStatus } from '../types';
-import { REASON_LABELS, Pill, NotesField } from '../lib/vsa-trip';
+import { REASON_LABELS, Pill, NotesField, TRIP_NOTE_PRESETS } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot } from '../lib/vsa-trip';
 import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
@@ -118,7 +118,7 @@ export function TripForm({
         </div>
       </div>
 
-      <NotesField value={notes} onChange={setNotes} tripState="form" />
+      <NotesField value={notes} onChange={setNotes} tripState="form" presets={TRIP_NOTE_PRESETS} />
 
       {/* Authorization */}
       <div>

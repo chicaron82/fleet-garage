@@ -69,14 +69,38 @@ export function Pill({ label, active, danger, onClick }: {
   );
 }
 
-export function NotesField({ value, onChange, tripState }: {
+export const TRIP_NOTE_PRESETS = [
+  'Airport full of dirties',
+  'No clean units at airport',
+  'Washbay backed up',
+  'Customer waiting',
+  'Priority unit requested',
+];
+
+export function NotesField({ value, onChange, tripState, presets }: {
   value: string; onChange: (v: string) => void; tripState: TripState;
+  presets?: string[];
 }) {
+  const handlePreset = (p: string) => onChange(value ? `${value} · ${p}` : p);
+
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
         {tripState === 'form' ? 'Notes' : 'Context / Delays'}
       </label>
+      {presets && presets.length > 0 && tripState === 'form' && (
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
+          {presets.map(p => (
+            <button
+              key={p} type="button"
+              onClick={() => handlePreset(p)}
+              className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 hover:text-yellow-700 dark:hover:text-yellow-400 transition cursor-pointer"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
         value={value}
         onChange={e => {
