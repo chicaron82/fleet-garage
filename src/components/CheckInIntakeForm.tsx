@@ -187,7 +187,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
       plate: plateArrival.trim().toUpperCase(),
       arrivedAt: new Date().toISOString(),
       needsReview: true,
-    } as Parameters<typeof createOrEnrichRegistry>[0]);
+    });
     setPlateArrivalMerge(null);
     setPlateArrivalEntry(entry);
     setPlateArrivalSaving(false);

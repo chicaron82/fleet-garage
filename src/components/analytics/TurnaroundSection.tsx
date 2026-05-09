@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SectionHeader, EmptyState } from '../../lib/analytics';
+import { localDateStr } from '../../hooks/useFleetBalance';
 import type { VehicleRegistryEntry } from '../../types';
 
 interface Props { activeBranch: string; }
@@ -58,7 +59,7 @@ export function TurnaroundSection({ activeBranch }: Props) {
 
   useEffect(() => {
     setLoading(true);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateStr(0);
     let q = supabase
       .from('vehicle_registry')
       .select('*')

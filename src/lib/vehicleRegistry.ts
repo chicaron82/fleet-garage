@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { localDateStr } from '../hooks/useFleetBalance';
 import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export async function lookupRegistry(params: {
   date?: string; // defaults to today
 }): Promise<RegistryLookupResult> {
   const { plate, unitNumber, branchId, date } = params;
-  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+  const targetDate = date ?? localDateStr(0);
 
   // 1. Resolve confirmed pair first — if we know this vehicle, go straight to both
   const pair = await resolveConfirmedPair(plate, unitNumber);
@@ -97,21 +98,22 @@ export async function lookupRegistry(params: {
 // ── Create or enrich ──────────────────────────────────────────────────────────
 
 export async function createOrEnrichRegistry(params: {
-  branchId:    string;
-  vehicleId?:  string | null;
-  plate?:      string | null;
-  unitNumber?: string | null;
-  make?:       string | null;
-  model?:      string | null;
-  year?:       number | null;
-  color?:      string | null;
-  arrivedAt?:  string | null;
-  cleanedAt?:  string | null;
+  branchId:     string;
+  vehicleId?:   string | null;
+  plate?:       string | null;
+  unitNumber?:  string | null;
+  make?:        string | null;
+  model?:       string | null;
+  year?:        number | null;
+  color?:       string | null;
+  arrivedAt?:   string | null;
+  cleanedAt?:   string | null;
   dispatchedAt?: string | null;
+  needsReview?: boolean;
   date?: string;
 }): Promise<VehicleRegistryEntry | null> {
   const { branchId, date, ...fields } = params;
-  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+  const targetDate = date ?? localDateStr(0);
 
   // Try to find an existing entry for today
   const lookup = await lookupRegistry({
@@ -135,6 +137,7 @@ export async function createOrEnrichRegistry(params: {
     if (fields.arrivedAt   && !existing.arrivedAt)   updates['arrived_at']    = fields.arrivedAt;
     if (fields.cleanedAt   && !existing.cleanedAt)   updates['cleaned_at']    = fields.cleanedAt;
     if (fields.dispatchedAt && !existing.dispatchedAt) updates['dispatched_at'] = fields.dispatchedAt;
+    if (fields.needsReview) updates['needs_review'] = true;
 
     if (Object.keys(updates).length === 0) return existing;
 
@@ -161,9 +164,10 @@ export async function createOrEnrichRegistry(params: {
       model:        fields.model       ?? null,
       year:         fields.year        ?? null,
       color:        fields.color       ?? null,
-      arrived_at:   fields.arrivedAt   ?? null,
-      cleaned_at:   fields.cleanedAt   ?? null,
+      arrived_at:   fields.arrivedAt    ?? null,
+      cleaned_at:   fields.cleanedAt    ?? null,
       dispatched_at: fields.dispatchedAt ?? null,
+      needs_review:  fields.needsReview  ?? false,
     })
     .select()
     .single();
