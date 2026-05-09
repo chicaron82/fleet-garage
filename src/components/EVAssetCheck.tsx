@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { hapticLight } from '../lib/haptics';
 import type { EvAssetStatus } from '../types';
 
@@ -43,6 +44,12 @@ export function EVAssetCheck({
   onAdapterChange,
   lastCheck,
 }: EVAssetCheckProps) {
+  // Default both to present on mount — normal case requires zero taps
+  useEffect(() => {
+    if (cableStatus === null)   onCableChange('present');
+    if (adapterStatus === null) onAdapterChange('present');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const statuses: Record<'cable' | 'adapter', EvAssetStatus | null> = {
     cable:   cableStatus,
     adapter: adapterStatus,
@@ -61,39 +68,47 @@ export function EVAssetCheck({
         </p>
       </div>
 
-      <div className="p-3 space-y-2">
+      <div className="p-3 space-y-1">
         {ASSETS.map(({ key, label }) => {
-          const val = statuses[key];
-          const set = handlers[key];
+          const val       = statuses[key];
+          const set       = handlers[key];
+          const isPresent = val !== 'missing';
           return (
-            <div key={key} className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { hapticLight(); set(val === 'present' ? null : 'present'); }}
-                className={`flex-1 py-3 rounded-lg text-sm font-semibold border transition cursor-pointer ${
-                  val === 'present'
-                    ? 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-600 text-green-700 dark:text-green-400'
-                    : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600 dark:hover:text-green-400'
-                }`}
-              >
-                ✓ Present
-              </button>
-              <button
-                type="button"
-                onClick={() => { hapticLight(); set(val === 'missing' ? null : 'missing'); }}
-                className={`flex-1 py-3 rounded-lg text-sm font-semibold border transition cursor-pointer ${
-                  val === 'missing'
-                    ? 'bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-600 text-red-700 dark:text-red-400'
-                    : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400'
-                }`}
-              >
-                ✗ Missing
-              </button>
-              <span className="text-xs text-gray-500 dark:text-gray-400 w-36 shrink-0">{label}</span>
-            </div>
+            <label key={key} className="flex items-center gap-3 cursor-pointer py-2">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                isPresent
+                  ? 'bg-blue-500 border-blue-500 text-white'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600'
+              }`}>
+                {isPresent && <span className="text-xs font-bold leading-none">✓</span>}
+              </div>
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={isPresent}
+                onChange={() => { hapticLight(); set(isPresent ? 'missing' : 'present'); }}
+              />
+              <span className={`text-sm font-medium transition-colors ${
+                isPresent
+                  ? 'text-gray-700 dark:text-gray-300'
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {label}
+              </span>
+              {val === 'missing' && (
+                <span className="text-[10px] text-red-500 dark:text-red-400 font-semibold ml-auto">Missing</span>
+              )}
+            </label>
           );
         })}
       </div>
+
+      {cableStatus === 'missing' && adapterStatus === 'missing' && (
+        <div className="mx-3 mb-3 rounded-lg bg-red-600 dark:bg-red-700 px-4 py-3 text-center">
+          <p className="text-xs font-black text-white uppercase tracking-widest">🚨 Hold Vehicle · Do Not Rent</p>
+          <p className="text-[10px] text-red-200 mt-0.5">Both EV assets missing — flag before dispatch</p>
+        </div>
+      )}
 
       {lastCheck && (
         <div className="px-4 py-2 border-t border-blue-200 dark:border-blue-800/50">
