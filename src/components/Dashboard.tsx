@@ -121,9 +121,15 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const getLatestHold = (vehicleId: string) =>
-    holds.filter(h => h.vehicleId === vehicleId)
-         .sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a))[0];
+  const getDisplayHold = (vehicleId: string, status: VehicleStatus) => {
+    const vh = holds.filter(h => h.vehicleId === vehicleId);
+    if (vh.length === 0) return undefined;
+    // For status-specific states, prefer the hold that caused that status
+    if (status === 'HELD')             return vh.find(h => h.status === 'ACTIVE') ?? vh[0];
+    if (status === 'PRE_EXISTING')     return vh.find(h => h.release?.releaseType === 'PRE_EXISTING') ?? vh[0];
+    if (status === 'OUT_ON_EXCEPTION') return vh.find(h => h.release?.releaseType === 'EXCEPTION') ?? vh[0];
+    return vh.sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a))[0];
+  };
 
   const getFlaggedBy = (userId: string) =>
     USERS.find(u => u.id === userId)?.name ?? 'Unknown';
@@ -224,7 +230,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
           )}
 
           {paginatedVehicles.map(vehicle => {
-            const latestHold = getLatestHold(vehicle.id);
+            const latestHold = getDisplayHold(vehicle.id, vehicle.status);
             const streak = releaseStreak(vehicle.id);
             const isPinned = pinnedVehicleIds.has(vehicle.id);
             const isManagement = canRelease(user!.role);
@@ -362,7 +368,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
         {/* Search confirmation sheet */}
         {pendingVehicle && (() => {
-          const hold = getLatestHold(pendingVehicle.id);
+          const hold = getDisplayHold(pendingVehicle.id, pendingVehicle.status);
           return (
             <>
               <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setPendingVehicle(null)} />
