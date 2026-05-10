@@ -16,7 +16,8 @@ import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import { supabase } from '../../lib/supabase';
-import type { Module, Screen, BranchId, UserRole } from '../../types';
+import { mapHandoffNote } from '../../lib/garage-mappers';
+import type { Module, Screen, BranchId, UserRole, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
 import type { MockNotification } from '../../data/notifications';
 
@@ -105,6 +106,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [offStandardMinutes, setOffStandardMinutes] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [latestBackfill, setLatestBackfill] = useState<any>(null);
+  const [todayHandoff, setTodayHandoff] = useState<HandoffNote | null>(null);
+  const [userShiftType, setUserShiftType] = useState<ShiftType | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -179,6 +182,38 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       });
   }, [user?.id, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch today's handoff note for the active date
+  useEffect(() => {
+    if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA') || !recentLogDate) return;
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    supabase
+      .from('handoff_notes')
+      .select('*')
+      .eq('branch_id', branchId)
+      .gte('logged_at', recentLogDate + 'T00:00:00')
+      .lte('logged_at', recentLogDate + 'T23:59:59')
+      .order('logged_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        try {
+          setTodayHandoff(data ? mapHandoffNote(data as Record<string, unknown>) : null);
+        } catch { setTodayHandoff(null); }
+      });
+  }, [user?.id, activeBranch, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch user's shift type for the active date
+  useEffect(() => {
+    if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA') || !recentLogDate) return;
+    supabase
+      .from('shifts')
+      .select('shift_type')
+      .eq('user_id', user.id)
+      .eq('date', recentLogDate)
+      .maybeSingle()
+      .then(({ data }) => setUserShiftType((data?.shift_type as ShiftType) ?? null));
+  }, [user?.id, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleMarkLiveAllRead = async () => {
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
@@ -236,9 +271,46 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const teamThroughput = carsCleaned != null ? carsCleaned / teamOpHours : null;
 
   const adjustedOpHours = Math.max(0.1, teamOpHours - (offStandardMinutes / 60));
-  const recentRate    = carsCleaned != null 
+  const dailyRate     = carsCleaned != null 
     ? (offStandardMinutes > 0 ? Math.round((carsCleaned / adjustedOpHours) * 10) / 10 : Math.round(teamThroughput! * 10) / 10) 
     : null;
+
+  // ── Morning / Closing split rates ──────────────────────────────────────────
+  const morningCleaned = todayHandoff
+    ? todayHandoff.fullPages * 19 + todayHandoff.lastPageEntries
+    : null;
+  const morningOpHours = todayHandoff
+    ? Math.max(0.1, (() => {
+        const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA');
+        const shiftStart = new Date(`${dateStr}T06:45:00`);
+        return (new Date(todayHandoff.loggedAt).getTime() - shiftStart.getTime()) / 3_600_000;
+      })())
+    : null;
+  const closingCleaned = morningCleaned != null && carsCleaned != null
+    ? Math.max(0, carsCleaned - morningCleaned)
+    : null;
+  const closingOpHours = morningOpHours != null
+    ? Math.max(0.1, teamOpHours - morningOpHours)
+    : null;
+  const morningRate  = morningCleaned != null && morningOpHours != null
+    ? Math.round((morningCleaned / morningOpHours) * 10) / 10
+    : null;
+  const closingRate  = closingCleaned != null && closingOpHours != null
+    ? Math.round((closingCleaned / closingOpHours) * 10) / 10
+    : null;
+
+  // Resolve which rate to display based on handoff + schedule
+  const hasSplit = morningRate != null && closingRate != null;
+  const resolvedRate = hasSplit && userShiftType
+    ? userShiftType === 'opening' ? morningRate
+    : userShiftType === 'closing' ? closingRate
+    : dailyRate  // mid shift → daily baseline
+    : dailyRate;
+  const resolvedShiftIcon = hasSplit && userShiftType === 'opening' ? '☀️'
+    : hasSplit && userShiftType === 'closing' ? '🌙'
+    : null;
+
+  const recentRate = resolvedRate;
     
   const recentLabel   = recentLogDate === localDateStr(0)  ? 'Earlier today'
                       : recentLogDate === localDateStr(-1) ? 'Yesterday'
@@ -380,12 +452,21 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           {recentRate != null ? (
             <>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{recentLabel}</span>
+                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  {resolvedShiftIcon ? `${resolvedShiftIcon} ` : ''}{recentLabel}{resolvedShiftIcon && userShiftType ? ` (${userShiftType})` : ''}
+                </span>
                 <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{recentRate}/hr</span>
                 {deltaLabel && (
                   <span className={`text-xs font-semibold ${deltaColor}`}>{deltaLabel}</span>
                 )}
               </div>
+              {hasSplit && !userShiftType && (
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">☀️ AM: {morningRate}/hr</span>
+                  <span className="text-[10px] text-gray-300 dark:text-gray-600">·</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">🌙 PM: {closingRate}/hr</span>
+                </div>
+              )}
               {weekAvgRate != null && (
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">This week avg: {weekAvgRate}/hr</p>
               )}
