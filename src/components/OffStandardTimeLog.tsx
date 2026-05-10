@@ -49,11 +49,12 @@ function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
   };
 }
 
-function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number): string {
+function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number, isPeakSeason: boolean, overtimeHours: number): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
   const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  const activeHours = activeMinutes / 60;
-  const rate = activeHours > 0 ? carsCleaned / activeHours : 0;
+  const branchOpHours = (isPeakSeason ? 16 : 15) + overtimeHours;
+  const adjustedOpHours = Math.max(0.1, branchOpHours - (offTotal / 60));
+  const rate = adjustedOpHours > 0 ? carsCleaned / adjustedOpHours : 0;
 
   const lines: string[] = [
     'OFF-STANDARD TIME REPORT',
@@ -85,7 +86,7 @@ function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned
     `Total off-standard:  ${fmtMinutes(offTotal)}`,
     `Active cleaning:     ${fmtMinutes(activeMinutes)}`,
     `Cars cleaned (team): ${carsCleaned}`,
-    `Adjusted team rate:  ${rate.toFixed(1)} / hr  ${rateLabel}`,
+    `Adjusted personal rate: ${rate.toFixed(1)} / hr  ${rateLabel}`,
     '',
     'Manager approval: _________________',
     '─'.repeat(37),
@@ -330,14 +331,15 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   };
 
   // ── Tally ─────────────────────────────────────────────────────────────────
-
   const offTotal         = entries.reduce((s, e) => s + e.minutes, 0);
   const activeMinutes    = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  const activeHours      = activeMinutes / 60;
-  const personalRate     = activeHours > 0 && carsNum > 0 ? carsNum / activeHours : 0;
+  
   const branchBaseHours  = isPeakSeason ? 16 : 15;
   const branchOpHours    = branchBaseHours + (washbayLog?.overtimeHours ?? 0);
-  const cleansNotSent       = washbayLog?.cleanNotPickedUp ?? 0;
+  const adjustedOpHours  = Math.max(0.1, branchOpHours - (offTotal / 60));
+  const personalRate     = adjustedOpHours > 0 && carsNum > 0 ? carsNum / adjustedOpHours : 0;
+  
+  const cleansNotSent    = washbayLog?.cleanNotPickedUp ?? 0;
   const unreleasedHoldsToday = holds.filter(h => {
     if (!h.flaggedAt.startsWith(localDateStr(0))) return false;
     if (h.status === 'RELEASED') return false;
@@ -357,7 +359,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   const handleExport = async () => {
     hapticMedium();
-    const reportText = generateReportText(entries, user, carsNum);
+    const reportText = generateReportText(entries, user, carsNum, isPeakSeason, washbayLog?.overtimeHours ?? 0);
     if (navigator.share) {
       try {
         await navigator.share({

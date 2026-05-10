@@ -9,6 +9,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../../context/AuthContext';
 import { useGarage } from '../../context/GarageContext';
+import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
@@ -89,9 +90,9 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
   const { facilityIssues, washbayLogs } = useGarage();
+  const { isPeakSeason } = useSchedule();
   const { getTodayEntry } = useFleetBalance();
   const todayFleetEntry = getTodayEntry();
-  const recentLogDate = washbayLogs[0]?.date;
   const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
@@ -102,6 +103,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [hidden, setHidden]                   = useState<Module[]>([]);
   const [driverWeekTrips, setDriverWeekTrips]     = useState<{ depart_time: string }[]>([]);
   const [offStandardMinutes, setOffStandardMinutes] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [latestBackfill, setLatestBackfill] = useState<any>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -138,6 +141,22 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   }, [notifMode, desktopInboxOpen, user, activeBranch]);
 
   useEffect(() => {
+    if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA')) return;
+    let query = supabase.from('washbay_backfill_logs').select('*').order('date', { ascending: false }).limit(1);
+    if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
+    query.maybeSingle().then(({ data }) => setLatestBackfill(data));
+  }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recentPrimary = washbayLogs.length > 0 ? washbayLogs[0] : null;
+  const activeLog = (() => {
+    if (!recentPrimary && !latestBackfill) return null;
+    if (!recentPrimary) return latestBackfill;
+    if (!latestBackfill) return recentPrimary;
+    return recentPrimary.date >= latestBackfill.date ? recentPrimary : latestBackfill;
+  })();
+  const recentLogDate = activeLog?.date;
+
+  useEffect(() => {
     if (!user || user.role !== 'Driver') return;
     let q = supabase
       .from('vsa_trips')
@@ -172,54 +191,11 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     })));
   };
 
-  if (!user) return null;
-
-  const isVSA    = user.role === 'VSA' || user.role === 'Lead VSA';
-  const isDriver = user.role === 'Driver';
-
-  // ── VSA productivity strip derivations ────────────────────────────────────
-  const recentLog     = washbayLogs.length > 0 ? washbayLogs[0] : null;
-  const carsIn        = recentLog ? recentLog.fullPages * 19 + recentLog.lastPageEntries : null;
-  const carsCleaned   = carsIn != null ? carsIn - (recentLog?.carsRemaining ?? 0) : null;
-  const activeHours   = Math.max((8 * 60 - offStandardMinutes) / 60, 0.1);
-  const recentRate    = carsCleaned != null ? Math.round((carsCleaned / activeHours) * 10) / 10 : null;
-  const recentLabel   = recentLog?.date === localDateStr(0)  ? 'Earlier today'
-                      : recentLog?.date === localDateStr(-1) ? 'Yesterday'
-                      : recentLog?.date ?? 'Last shift';
-
-  const weekLogs    = washbayLogs
-    .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
-    .filter(l => l.fullPages > 0 || l.lastPageEntries > 0);
-  const weekAvgRate = weekLogs.length >= 3
-    ? Math.round(weekLogs.reduce((s, l) => {
-        const ci = l.fullPages * 19 + l.lastPageEntries;
-        return s + (ci - l.carsRemaining) / 8;
-      }, 0) / weekLogs.length * 10) / 10
-    : null;
-
-  const delta      = recentRate != null && weekAvgRate != null
-    ? Math.round((recentRate - weekAvgRate) * 10) / 10
-    : null;
-  const deltaLabel = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : null;
-  const deltaColor = delta != null
-    ? delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-    : '';
-
-  // ── Driver productivity strip derivations ──────────────────────────────────
-  const tripsToday = driverWeekTrips.filter(t => t.depart_time.startsWith(localDateStr(0))).length;
-  const byDay      = driverWeekTrips.reduce((acc, t) => {
-    const date = t.depart_time.split('T')[0];
-    acc[date] = (acc[date] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  const weekAvgTrips = Object.keys(byDay).length >= 3
-    ? Math.round(Object.values(byDay).reduce((s, n) => s + n, 0) / Object.keys(byDay).length * 10) / 10
-    : null;
-
-  const defaultNavItems = getNavItemsForRole(user.role, activeBranch);
+  const defaultNavItems = getNavItemsForRole(user?.role ?? 'Driver', activeBranch);
   const defaultOrder    = defaultNavItems.map(i => i.module);
 
   useEffect(() => {
+    if (!user) return;
     const applyPrefs = (saved: { order: Module[]; hidden: Module[] } | null) => {
       if (saved) {
         const newModules = defaultOrder.filter(
@@ -243,7 +219,62 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
         saveSidebarPrefs(user.id, remote);
       }
     });
-  }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  if (!user) return null;
+
+  const isVSA    = user.role === 'VSA' || user.role === 'Lead VSA';
+  const isDriver = user.role === 'Driver';
+
+  // ── VSA productivity strip derivations ────────────────────────────────────
+  const isBackfill    = activeLog && 'full_pages' in activeLog;
+  const carsIn        = activeLog ? (isBackfill ? activeLog.full_pages * 19 + activeLog.last_page_entries : activeLog.fullPages * 19 + activeLog.lastPageEntries) : null;
+  const carsCleaned   = carsIn != null ? carsIn - (isBackfill ? activeLog.cars_remaining : activeLog.carsRemaining) : null;
+  
+  const teamOpHours   = isPeakSeason ? 16 : 15 + (activeLog ? (isBackfill ? activeLog.overtime_hours : activeLog.overtimeHours) : 0);
+  const teamThroughput = carsCleaned != null ? carsCleaned / teamOpHours : null;
+
+  const adjustedOpHours = Math.max(0.1, teamOpHours - (offStandardMinutes / 60));
+  const recentRate    = carsCleaned != null 
+    ? (offStandardMinutes > 0 ? Math.round((carsCleaned / adjustedOpHours) * 10) / 10 : Math.round(teamThroughput! * 10) / 10) 
+    : null;
+    
+  const recentLabel   = recentLogDate === localDateStr(0)  ? 'Earlier today'
+                      : recentLogDate === localDateStr(-1) ? 'Yesterday'
+                      : recentLogDate ?? 'Last shift';
+
+  const weekLogs    = washbayLogs
+    .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
+    .filter(l => l.fullPages > 0 || l.lastPageEntries > 0);
+  const weekAvgRate = weekLogs.length >= 3
+    ? Math.round(weekLogs.reduce((s, l) => {
+        const ci = l.fullPages * 19 + l.lastPageEntries;
+        const throughput = (ci - l.carsRemaining) / (isPeakSeason ? 16 : 15 + l.overtimeHours);
+        return s + throughput;
+      }, 0) / weekLogs.length * 10) / 10
+    : null;
+
+  const delta      = recentRate != null && weekAvgRate != null
+    ? Math.round((recentRate - weekAvgRate) * 10) / 10
+    : null;
+  const deltaLabel = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : null;
+  const deltaColor = delta != null
+    ? delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+    : '';
+
+  // ── Driver productivity strip derivations ──────────────────────────────────
+  const tripsToday = driverWeekTrips.filter(t => t.depart_time.startsWith(localDateStr(0))).length;
+  const byDay      = driverWeekTrips.reduce((acc, t) => {
+    const date = t.depart_time.split('T')[0];
+    acc[date] = (acc[date] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const weekAvgTrips = Object.keys(byDay).length >= 3
+    ? Math.round(Object.values(byDay).reduce((s, n) => s + n, 0) / Object.keys(byDay).length * 10) / 10
+    : null;
+
+
 
   const displayedItems = localOrder
     .filter(m => !hidden.includes(m))
