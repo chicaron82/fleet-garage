@@ -51,8 +51,8 @@ function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
 
 function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number, isPeakSeason: boolean, overtimeHours: number): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
-  const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
   const branchOpHours = (isPeakSeason ? 16 : 15) + overtimeHours;
+  const activeMinutes = Math.max(0, branchOpHours * 60 - offTotal);
   const adjustedOpHours = Math.max(0.1, branchOpHours - (offTotal / 60));
   const rate = adjustedOpHours > 0 ? carsCleaned / adjustedOpHours : 0;
 

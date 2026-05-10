@@ -103,7 +103,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const [localOrder, setLocalOrder]           = useState<Module[]>([]);
   const [hidden, setHidden]                   = useState<Module[]>([]);
   const [driverWeekTrips, setDriverWeekTrips]     = useState<{ depart_time: string }[]>([]);
-  const [offStandardMinutes, setOffStandardMinutes] = useState(0);
+  const [offStandardEntries, setOffStandardEntries] = useState<{ minutes: number; startTime: string }[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [latestBackfill, setLatestBackfill] = useState<any>(null);
   const [todayHandoff, setTodayHandoff] = useState<HandoffNote | null>(null);
@@ -174,11 +174,14 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA') || !recentLogDate) return;
     supabase
       .from('off_standard_entries')
-      .select('minutes')
+      .select('minutes, start_time')
       .eq('user_id', user.id)
       .eq('date', recentLogDate)
       .then(({ data }) => {
-        setOffStandardMinutes((data ?? []).reduce((sum, e: { minutes: number }) => sum + e.minutes, 0));
+        setOffStandardEntries((data ?? []).map((e: { minutes: number; start_time: string }) => ({
+          minutes: e.minutes,
+          startTime: e.start_time,
+        })));
       });
   }, [user?.id, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -266,13 +269,15 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const isBackfill    = activeLog && 'full_pages' in activeLog;
   const carsIn        = activeLog ? (isBackfill ? activeLog.full_pages * 19 + activeLog.last_page_entries : activeLog.fullPages * 19 + activeLog.lastPageEntries) : null;
   const carsCleaned   = carsIn != null ? carsIn - (isBackfill ? activeLog.cars_remaining : activeLog.carsRemaining) : null;
-  
+
+  const offStandardMinutes = offStandardEntries.reduce((s, e) => s + e.minutes, 0);
+
   const teamOpHours   = isPeakSeason ? 16 : 15 + (activeLog ? (isBackfill ? activeLog.overtime_hours : activeLog.overtimeHours) : 0);
   const teamThroughput = carsCleaned != null ? carsCleaned / teamOpHours : null;
 
   const adjustedOpHours = Math.max(0.1, teamOpHours - (offStandardMinutes / 60));
-  const dailyRate     = carsCleaned != null 
-    ? (offStandardMinutes > 0 ? Math.round((carsCleaned / adjustedOpHours) * 10) / 10 : Math.round(teamThroughput! * 10) / 10) 
+  const dailyRate     = carsCleaned != null
+    ? (offStandardMinutes > 0 ? Math.round((carsCleaned / adjustedOpHours) * 10) / 10 : Math.round(teamThroughput! * 10) / 10)
     : null;
 
   // ── Morning / Closing split rates ──────────────────────────────────────────
@@ -298,11 +303,24 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const closingOpHours = morningOpHours != null
     ? Math.max(0.1, teamOpHours - morningOpHours)
     : null;
-  const morningRate  = morningCleaned != null && morningOpHours != null
-    ? Math.round((morningCleaned / morningOpHours) * 10) / 10
+
+  // Per-window OTH partitioning — assign each entry to the window its startTime falls in
+  const handoffTimestamp = todayHandoff ? new Date(todayHandoff.loggedAt) : null;
+  const morningOTH = handoffTimestamp
+    ? offStandardEntries.filter(e => new Date(e.startTime) < handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
+    : offStandardMinutes;
+  const closingOTH = handoffTimestamp
+    ? offStandardEntries.filter(e => new Date(e.startTime) >= handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
+    : 0;
+
+  const morningAdjustedHours = morningOpHours != null ? Math.max(0.1, morningOpHours - morningOTH / 60) : null;
+  const closingAdjustedHours = closingOpHours != null ? Math.max(0.1, closingOpHours - closingOTH / 60) : null;
+
+  const morningRate  = morningCleaned != null && morningAdjustedHours != null
+    ? Math.round((morningCleaned / morningAdjustedHours) * 10) / 10
     : null;
-  const closingRate  = closingCleaned != null && closingOpHours != null
-    ? Math.round((closingCleaned / closingOpHours) * 10) / 10
+  const closingRate  = closingCleaned != null && closingAdjustedHours != null
+    ? Math.round((closingCleaned / closingAdjustedHours) * 10) / 10
     : null;
 
   // Resolve which rate to display based on handoff + schedule
