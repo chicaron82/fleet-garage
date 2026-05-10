@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
 import { hapticLight } from '../lib/haptics';
-import { isNoteActiveForMonth, seasonalStarterBody } from '../lib/whiteboard-schedule';
+import { isNoteActiveForMonth, seasonalStarterBody, VISIBILITY_PRESETS } from '../lib/whiteboard-schedule';
+import type { VisibilityPreset } from '../lib/whiteboard-schedule';
 import type { WhiteboardNote, WhiteboardSection } from '../types';
 import { canWriteWhiteboard } from '../types';
 
@@ -43,20 +44,22 @@ interface SectionProps {
   archived: WhiteboardNote[];
   canWrite: boolean;
   onArchive: (id: string) => void;
-  onAdd: (section: WhiteboardSection, body: string) => Promise<void>;
+  onAdd: (section: WhiteboardSection, body: string, activeMonths: number[]) => Promise<void>;
 }
 
 function WhiteboardSection({ icon, title, section, active, archived, canWrite, onArchive, onAdd }: SectionProps) {
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  const [addOpen, setAddOpen]         = useState(false);
-  const [body, setBody]               = useState('');
-  const [saving, setSaving]           = useState(false);
+  const [archiveOpen, setArchiveOpen]   = useState(false);
+  const [addOpen, setAddOpen]           = useState(false);
+  const [body, setBody]                 = useState('');
+  const [visibility, setVisibility]     = useState<VisibilityPreset>('always');
+  const [saving, setSaving]             = useState(false);
 
   const handleSubmit = async () => {
     if (!body.trim()) return;
     setSaving(true);
-    await onAdd(section, body.trim());
+    await onAdd(section, body.trim(), VISIBILITY_PRESETS[visibility].months);
     setBody('');
+    setVisibility('always');
     setAddOpen(false);
     setSaving(false);
   };
@@ -90,14 +93,25 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
             onChange={e => setBody(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
           />
-          <button
-            type="button"
-            disabled={!body.trim() || saving}
-            onClick={handleSubmit}
-            className="px-4 py-1.5 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-lg transition cursor-pointer"
-          >
-            {saving ? 'Saving…' : 'Post note'}
-          </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={visibility}
+              onChange={e => setVisibility(e.target.value as VisibilityPreset)}
+              className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+            >
+              {(Object.entries(VISIBILITY_PRESETS) as [VisibilityPreset, { label: string }][]).map(([key, { label }]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!body.trim() || saving}
+              onClick={handleSubmit}
+              className="px-4 py-1.5 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-lg transition cursor-pointer shrink-0"
+            >
+              {saving ? 'Saving…' : 'Post note'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -110,9 +124,21 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
             <div key={note.id} className="px-4 py-3 space-y-1">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors whitespace-pre-wrap">{note.body}</p>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
-                  {note.authorName} · {note.authorRole} · {fmtNoteDate(note.createdAt)}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
+                    {note.authorName} · {note.authorRole} · {fmtNoteDate(note.createdAt)}
+                  </p>
+                  {note.activeMonths && note.activeMonths.length > 0 && (() => {
+                    const preset = Object.values(VISIBILITY_PRESETS).find(p =>
+                      p.months.length === note.activeMonths!.length &&
+                      p.months.every(m => note.activeMonths!.includes(m))
+                    );
+                    return preset ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">
+                        {preset.label}
+                      </span>
+                    ) : null;
+                  })()}</div>
                 {canWrite && (
                   <button
                     type="button"
@@ -235,19 +261,20 @@ export function WhiteboardView() {
     setNotes(prev => prev.map(n => n.id !== id ? n : { ...n, status: 'archived', archivedAt: now }));
   };
 
-  const handleAdd = async (section: WhiteboardSection, body: string) => {
+  const handleAdd = async (section: WhiteboardSection, body: string, activeMonths: number[]) => {
     if (!user) return;
     const { data, error } = await supabase
       .from('whiteboard_notes')
       .insert({
-        branch_id:   branchId,
+        branch_id:    branchId,
         section,
         body,
-        author_id:   user.id,
-        author_name: user.name,
-        author_role: user.role,
+        author_id:    user.id,
+        author_name:  user.name,
+        author_role:  user.role,
         trigger_type: 'manual',
-        status: 'active',
+        active_months: activeMonths.length > 0 ? activeMonths : null,
+        status:       'active',
       })
       .select()
       .single();
