@@ -2,19 +2,22 @@ import { COMPANY_STANDARD, EmptyState } from '../lib/analytics';
 import type { Hold, WashbayLog } from '../types';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
 
-export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg }: {
+export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg, isPeakSeason }: {
   todayWashbayLog: WashbayLog | undefined;
   todayBalanceEntry: FleetBalanceEntry | undefined;
   activeHolds: Hold[];
   liveWashbay30DayAvg: number | null;
+  isPeakSeason: boolean;
 }) {
   if (!todayWashbayLog) {
     return <EmptyState message="No closing log submitted today. Log it in Lot Inventory → Closing Duties." />;
   }
 
+  const baseHours = isPeakSeason ? 16 : 15;
+  const opHours = baseHours + todayWashbayLog.overtimeHours;
   const ci  = todayWashbayLog.fullPages * 19 + todayWashbayLog.lastPageEntries;
   const cc  = Math.max(0, ci - todayWashbayLog.carsRemaining);
-  const tp  = todayWashbayLog.shiftHours > 0 ? cc / todayWashbayLog.shiftHours : 0;
+  const tp  = opHours > 0 ? cc / opHours : 0;
   const ht  = activeHolds.length;
   const rp  = Math.max(0, ci - ht);
   const da  = Math.max(0, rp - todayWashbayLog.cleanNotPickedUp);

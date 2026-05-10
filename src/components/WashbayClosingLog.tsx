@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
@@ -26,9 +26,9 @@ export function WashbayClosingLog() {
 
   const baseHours = isPeakSeason ? 16 : 15;
 
-  // Pre-fill when entering edit mode
-  useEffect(() => {
-    if (todayLog && editing) {
+  // Pre-fill form when entering edit mode
+  const enterEditMode = () => {
+    if (todayLog) {
       setFullPages(todayLog.fullPages);
       setLastPageEntries(todayLog.lastPageEntries);
       setCarsRemaining(String(todayLog.carsRemaining));
@@ -36,7 +36,8 @@ export function WashbayClosingLog() {
       setTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
     }
-  }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+    setEditing(true);
+  };
 
   const cr   = parseInt(carsRemaining)    || 0;
   const cnpu = parseInt(cleanNotPickedUp) || 0;
@@ -78,7 +79,7 @@ export function WashbayClosingLog() {
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Closing Duties · Washbay Log</p>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => enterEditMode()}
             className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold hover:underline cursor-pointer"
           >
             Edit

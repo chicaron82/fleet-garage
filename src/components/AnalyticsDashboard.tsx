@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useGarage } from '../context/GarageContext';
+import { useSchedule } from '../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../hooks/useFleetBalance';
 import {
   canEnterFleetBalance, StatCard,
@@ -25,6 +26,7 @@ interface TripRow { trip_type: string; driver_id: string; }
 export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, handoffNotes, getTodayWashbayLog, facilityIssues } = useGarage();
+  const { isPeakSeason } = useSchedule();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity'>('holds');
@@ -312,6 +314,7 @@ export function AnalyticsDashboard() {
                 todayBalanceEntry={todayBalanceEntry}
                 activeHolds={activeHolds}
                 liveWashbay30DayAvg={liveWashbay30DayAvg}
+                isPeakSeason={isPeakSeason}
               />
             )}
           </div>
