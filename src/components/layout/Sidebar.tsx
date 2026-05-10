@@ -283,7 +283,13 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     ? Math.max(0.1, (() => {
         const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA');
         const shiftStart = new Date(`${dateStr}T06:45:00`);
-        return (new Date(todayHandoff.loggedAt).getTime() - shiftStart.getTime()) / 3_600_000;
+        // Clamp to opening shift end — handles after-hours handoff entries
+        const openingEnd = new Date(`${dateStr}T15:15:00`);
+        const handoffTime = Math.min(
+          new Date(todayHandoff.loggedAt).getTime(),
+          openingEnd.getTime()
+        );
+        return (handoffTime - shiftStart.getTime()) / 3_600_000;
       })())
     : null;
   const closingCleaned = morningCleaned != null && carsCleaned != null
