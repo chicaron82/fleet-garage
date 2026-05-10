@@ -20,6 +20,7 @@ import { DriverCoverageSection, isManagement } from './analytics/DriverCoverageS
 import { TurnaroundSection } from './analytics/TurnaroundSection';
 import { WashbayHistorySection } from './WashbayHistorySection';
 import { EVAssetStatusSection } from './analytics/EVAssetStatusSection';
+import { ClassDispatchSection } from './analytics/ClassDispatchSection';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
@@ -318,6 +319,10 @@ export function AnalyticsDashboard() {
               />
             )}
           </div>
+
+          {isManagement(user.role) && (
+            <ClassDispatchSection activeBranch={activeBranch} />
+          )}
 
           {isManagement(user.role) && (
             <EVAssetStatusSection activeBranch={activeBranch} />

@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { hapticLight } from '../lib/haptics';
 import { CLASS_INFO } from '../data/classSubstitutions';
+import { getExampleVehicleByClass } from '../data/ywgVehicleClasses';
 import type { RentalClass } from '../data/manifest';
 
 interface Props {
   flaggedClasses: string[];
   topClasses: string[];
+  isDemoMode?: boolean;
 }
 
-export function PriorityHint({ flaggedClasses, topClasses }: Props) {
+export function PriorityHint({ flaggedClasses, topClasses, isDemoMode = false }: Props) {
   const [subGuideOpen, setSubGuideOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<RentalClass | null>(null);
 
@@ -58,13 +60,25 @@ export function PriorityHint({ flaggedClasses, topClasses }: Props) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-amber-700 dark:text-amber-400 w-6">{cls}</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300">{info.label}</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">· {info.example}</span>
+                        {!isDemoMode && <span className="text-xs text-gray-400 dark:text-gray-500">· {info.example}</span>}
                       </div>
                       <span className="text-xs text-gray-400">{isSelected ? '▴' : '▾'}</span>
                     </button>
 
                     {isSelected && (
                       <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 space-y-1.5 text-xs">
+                        {isDemoMode && (() => {
+                          const ex = getExampleVehicleByClass(cls);
+                          return ex ? (
+                            <p className="text-gray-500 dark:text-gray-400">
+                              Example on lot:{' '}
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                {ex.unit} {ex.make} {ex.model}
+                              </span>
+                              {' · '}{ex.color}{' · '}{ex.plate}
+                            </p>
+                          ) : null;
+                        })()}
                         {info.acceptable.length > 0 && (
                           <p><span className="font-semibold text-green-600 dark:text-green-400">✅ Acceptable:</span>{' '}<span className="text-gray-700 dark:text-gray-300">{info.acceptable.join(', ')}</span></p>
                         )}

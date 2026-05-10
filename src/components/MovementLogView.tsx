@@ -523,7 +523,7 @@ export function MovementLogView() {
           <div className="p-4 space-y-4">
             {tripState === 'idle' && (
               <>
-                <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} />
+                <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} isDemoMode={true} />
                 <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">From</label>
