@@ -1,15 +1,16 @@
+// Matches the Hertz "Location Daily Vehicle Inventory" form (8073-16)
+// Columns: Owning · Unit # · License · Class · Status · Notes
+
 interface ExportEntry {
   unitNumber: string;
   licensePlate: string;
-  year: number;
-  make: string;
-  model: string;
-  color: string;
   classification: string | null;
   holdType?: string;
   zone: string | null;
   row: string | null;
   locationText: string;
+  rentalClass?: string;
+  owningArea?: string;
 }
 
 interface ExportMeta {
@@ -22,31 +23,43 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function classLabel(entry: ExportEntry): string {
+// Single-letter status matching what goes on the paper form
+function statusLetter(entry: ExportEntry): string {
+  if (entry.classification === 'Rentable') return 'A';
+  if (entry.classification === 'Dirty')    return 'D';
   if (entry.classification === 'Held') {
-    return entry.holdType === 'damage' ? 'Body Damage' : entry.holdType === 'mechanical' ? 'Mechanical' : 'Held';
+    return entry.holdType === 'damage' ? 'B' : 'M';
   }
-  return entry.classification ?? '';
+  return '';
 }
 
-function locationLabel(entry: ExportEntry): string {
-  if (entry.zone === 'Other') return entry.locationText || 'Other';
-  if (entry.row) return `${entry.row} · ${entry.zone}`;
-  return entry.zone ?? '';
+// Pre-fill notes with lot location so the closer doesn't have to retype it
+function defaultNotes(entry: ExportEntry): string {
+  if (entry.classification === 'Held') {
+    return entry.holdType === 'damage' ? 'Body damage — see hold' : entry.holdType === 'mechanical' ? 'Mechanical — see hold' : 'Held';
+  }
+  if (entry.zone === 'Other') return entry.locationText || '';
+  if (entry.row && entry.zone) return `${entry.row}, ${entry.zone}`;
+  return '';
+}
+
+// Unit number formatted as printed on tag: 5426408 → 542 6408
+function formatUnit(unit: string): string {
+  const digits = unit.replace(/\D/g, '');
+  if (digits.length === 7) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return unit;
 }
 
 export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta): string {
   const rows = entries
     .map(e => `
       <tr>
-        <td>YWG</td>
-        <td>${esc(e.unitNumber)}</td>
+        <td>${esc(e.owningArea ?? '')}</td>
+        <td>${esc(formatUnit(e.unitNumber))}</td>
         <td>${esc(e.licensePlate)}</td>
-        <td>${esc(e.year > 0 ? String(e.year) : '')}</td>
-        <td>${esc(e.make)} ${esc(e.model)}</td>
-        <td>${esc(classLabel(e))}</td>
-        <td>${esc(locationLabel(e))}</td>
-        <td><input type="text" class="note-input" placeholder="Notes…" /></td>
+        <td>${esc(e.rentalClass ?? '')}</td>
+        <td class="status ${statusLetter(e).toLowerCase()}">${esc(statusLetter(e))}</td>
+        <td><input type="text" class="note-input" value="${esc(defaultNotes(e))}" placeholder="Notes…" /></td>
       </tr>`)
     .join('');
 
@@ -69,6 +82,11 @@ export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta
   th { background: #f0f0f0; text-align: left; padding: 6px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border: 1px solid #ddd; }
   td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: middle; }
   tr:nth-child(even) td { background: #fafafa; }
+  td.status { text-align: center; font-weight: 700; font-size: 15px; }
+  td.status.a { color: #16a34a; }
+  td.status.d { color: #d97706; }
+  td.status.b { color: #dc2626; }
+  td.status.m { color: #ea580c; }
   .note-input { border: none; width: 100%; background: transparent; font-size: 12px; outline: none; }
   .note-input:focus { background: #fffde7; }
   @media print {
@@ -80,7 +98,7 @@ export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta
 </head>
 <body>
 <h1>Location Daily Vehicle Inventory</h1>
-<div class="meta">Owning Area: ${esc(meta.location)} · ${esc(meta.date)} · Logged by: ${esc(meta.loggedByName)}</div>
+<div class="meta">${esc(meta.location)} · ${esc(meta.date)} · Logged by: ${esc(meta.loggedByName)}</div>
 
 <div class="sign-row">
   <div class="sign-field">
@@ -96,13 +114,11 @@ export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta
 <table>
   <thead>
     <tr>
-      <th>Area</th>
+      <th>Owning</th>
       <th>Unit #</th>
-      <th>Plate</th>
-      <th>Year</th>
-      <th>Make / Model</th>
+      <th>License</th>
+      <th>Class</th>
       <th>Status</th>
-      <th>Location</th>
       <th>Notes</th>
     </tr>
   </thead>
@@ -122,10 +138,10 @@ export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta
 
 <script>
 function copyCSV() {
-  const rows = [['Area','Unit','Plate','Year','Make/Model','Status','Location','Notes']];
+  const rows = [['Owning','Unit #','License','Class','Status','Notes']];
   document.querySelectorAll('tbody tr').forEach(tr => {
     const cells = tr.querySelectorAll('td');
-    rows.push(Array.from(cells).map((td, i) => {
+    rows.push(Array.from(cells).map(td => {
       const input = td.querySelector('input');
       return input ? input.value : td.textContent.trim();
     }));

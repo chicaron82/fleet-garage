@@ -110,6 +110,14 @@ function extractPlate(text: string, excludeUnit: string | null): string | null {
   return null;
 }
 
+// Owning area + class: "08199 C" → owningArea="8199", rentalClass="C"
+function extractOwningAndClass(text: string): { owningArea: string; rentalClass: string } | null {
+  // 4-5 digits (with optional leading zero) followed by a single uppercase letter
+  const m = text.match(/\b0?(\d{4,5})\s+([A-Z])\b/);
+  if (!m) return null;
+  return { owningArea: m[1], rentalClass: m[2] };
+}
+
 // Color: "WHI 4DR" — first 3-letter word on that line
 function extractColor(text: string): string | null {
   // Look for a known color abbreviation near a door count ("4DR", "2DR")
@@ -184,14 +192,18 @@ export async function parseKeytag(imageDataUrl: string): Promise<ScannedPayload>
   const worker = await getWorker();
   const { data } = await worker.recognize(imageDataUrl, 'eng', TESSERACT_OPTIONS);
 
-  const unit        = extractUnit(data.text);
-  const codeAndYear = extractCodeAndYear(data.text);
-  const plate       = extractPlate(data.text, unit);
-  const color       = extractColor(data.text);
+  const unit          = extractUnit(data.text);
+  const codeAndYear   = extractCodeAndYear(data.text);
+  const plate         = extractPlate(data.text, unit);
+  const color         = extractColor(data.text);
+  const owningAndClass = extractOwningAndClass(data.text);
 
   const unitConf  = unit  ? minConfidence(data.words, unit)  : 0;
   const plateConf = plate ? minConfidence(data.words, plate) : 0;
   const needsReview = unitConf < 70 || plateConf < 70;
+
+  const rentalClass = owningAndClass?.rentalClass;
+  const owningArea  = owningAndClass?.owningArea;
 
   // Lookup chain: vehicle_identifiers → vehicles table
   const dbMatch = await lookupVehicle(plate, unit);
@@ -204,6 +216,8 @@ export async function parseKeytag(imageDataUrl: string): Promise<ScannedPayload>
       model:        dbMatch.model,
       year:         dbMatch.year,
       color:        dbMatch.color,
+      rentalClass,
+      owningArea,
       needsReview,
     };
   }
@@ -217,6 +231,8 @@ export async function parseKeytag(imageDataUrl: string): Promise<ScannedPayload>
     model:        codexEntry?.model ?? '',
     year:         codeAndYear?.year ?? 0,
     color:        color ?? '',
+    rentalClass,
+    owningArea,
     needsReview:  true,
   };
 }

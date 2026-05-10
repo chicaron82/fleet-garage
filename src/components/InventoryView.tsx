@@ -28,6 +28,8 @@ interface LiveEntry {
   make: string;
   model: string;
   color: string;
+  rentalClass?: string;
+  owningArea?: string;
   classification: 'Rentable' | 'Dirty' | 'Held' | null;
   holdType?: HoldType;
   zone: Zone | null;
@@ -596,6 +598,8 @@ export function InventoryView({ onHoldIntent }: Props) {
       make:          payload.make,
       model:         payload.model,
       color:         payload.color,
+      rentalClass:   payload.rentalClass,
+      owningArea:    payload.owningArea,
       classification: null,
       zone:          null,
       row:           null,

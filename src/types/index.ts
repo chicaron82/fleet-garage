@@ -184,6 +184,8 @@ export interface ScannedPayload {
   model: string;
   year: number;
   color: string;
+  rentalClass?: string;  // single letter from tag: C, B, D, etc.
+  owningArea?: string;   // owning area number: 8199
   needsReview?: boolean;
 }
 
