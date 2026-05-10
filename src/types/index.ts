@@ -177,12 +177,14 @@ export interface HandoffNote {
 // ── Scanner ───────────────────────────────────────────────────────────────────
 
 export interface ScannedPayload {
+  vehicleId?: string;
   unitNumber: string;
   licensePlate: string;
   make: string;
   model: string;
   year: number;
   color: string;
+  needsReview?: boolean;
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────
