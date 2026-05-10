@@ -49,7 +49,8 @@ export function AnalyticsDashboard() {
 
   // ── Live data derivations ──────────────────────────────────────────────────
 
-  const activeHolds  = holds.filter(h => h.status === 'ACTIVE');
+  const todayISO    = localDateStr(0);
+  const activeHolds  = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(todayISO));
   const onException  = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
   const oneWeekAgo   = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const returnedThisWeek = holds.filter(h =>

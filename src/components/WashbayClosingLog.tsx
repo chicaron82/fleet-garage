@@ -46,7 +46,7 @@ export function WashbayClosingLog() {
   const throughput  = operatingHours > 0 ? carsCleaned / operatingHours : 0;
   const delta       = throughput - COMPANY_STANDARD;
 
-  const heldToday          = holds.filter(h => h.status === 'ACTIVE').length;
+  const heldToday          = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(new Date().toLocaleDateString('en-CA'))).length;
   const rentablesProcessed = Math.max(0, carsIn - heldToday);
   const deliveredToAirport = Math.max(0, rentablesProcessed - cnpu);
 
@@ -68,7 +68,7 @@ export function WashbayClosingLog() {
     const opH = baseHours + todayLog.overtimeHours;
     const tp  = opH > 0 ? cc / opH : 0;
     const d   = tp - COMPANY_STANDARD;
-    const ht  = holds.filter(h => h.status === 'ACTIVE').length;
+    const ht  = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(new Date().toLocaleDateString('en-CA'))).length;
     const rp  = Math.max(0, ci - ht);
     const da  = Math.max(0, rp - todayLog.cleanNotPickedUp);
 
