@@ -44,10 +44,11 @@ interface SectionProps {
   archived: WhiteboardNote[];
   canWrite: boolean;
   onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
   onAdd: (section: WhiteboardSection, body: string, activeMonths: number[]) => Promise<void>;
 }
 
-function WhiteboardSection({ icon, title, section, active, archived, canWrite, onArchive, onAdd }: SectionProps) {
+function WhiteboardSection({ icon, title, section, active, archived, canWrite, onArchive, onRestore, onAdd }: SectionProps) {
   const [archiveOpen, setArchiveOpen]   = useState(false);
   const [addOpen, setAddOpen]           = useState(false);
   const [body, setBody]                 = useState('');
@@ -167,12 +168,23 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
         {archiveOpen && archived.length > 0 && (
           <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
             {archived.map(note => (
-              <div key={note.id} className="px-4 py-3 opacity-60 space-y-0.5">
-                <p className="text-sm text-gray-700 dark:text-gray-300 transition-colors whitespace-pre-wrap">{note.body}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
-                  {note.authorName} · {note.authorRole} · {fmtNoteDate(note.createdAt)}
-                  {note.archivedAt && ` · Archived ${fmtNoteDate(note.archivedAt)}`}
-                </p>
+              <div key={note.id} className="px-4 py-3 space-y-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors whitespace-pre-wrap">{note.body}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
+                    {note.authorName} · {fmtNoteDate(note.createdAt)}
+                    {note.archivedAt && ` · Archived ${fmtNoteDate(note.archivedAt)}`}
+                  </p>
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => { hapticLight(); onRestore(note.id); }}
+                      className="text-xs text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer transition shrink-0"
+                    >
+                      Restore
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -261,6 +273,14 @@ export function WhiteboardView() {
     setNotes(prev => prev.map(n => n.id !== id ? n : { ...n, status: 'archived', archivedAt: now }));
   };
 
+  const handleRestore = async (id: string) => {
+    await supabase
+      .from('whiteboard_notes')
+      .update({ status: 'active', archived_at: null, archived_by_id: null })
+      .eq('id', id);
+    setNotes(prev => prev.map(n => n.id !== id ? n : { ...n, status: 'active', archivedAt: undefined, archivedById: undefined }));
+  };
+
   const handleAdd = async (section: WhiteboardSection, body: string, activeMonths: number[]) => {
     if (!user) return;
     const { data, error } = await supabase
@@ -316,6 +336,7 @@ export function WhiteboardView() {
             archived={archived}
             canWrite={canWrite}
             onArchive={handleArchive}
+            onRestore={handleRestore}
             onAdd={handleAdd}
           />
         );
