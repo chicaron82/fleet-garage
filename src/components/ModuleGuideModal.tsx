@@ -54,6 +54,11 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['All roles'],
     mockNote: 'Generated fresh each day from a seeded algorithm. Same date always produces the same manifest — consistent across devices during a demo.',
   },
+  'fleet-master': {
+    what: 'Full fleet inventory for management. Every registered vehicle in one screen with its derived operational status — held, pre-existing, on exception, dirty, available, or clear. Pulled live from holds, releases, and inventory sessions. Search by plate or unit to quickly locate a vehicle, or register a new one directly if it\'s not in the system.',
+    roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
+    mockNote: 'Live data — status reflects active holds and today\'s inventory session entries for this branch.',
+  },
 };
 
 interface Props {
