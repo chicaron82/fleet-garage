@@ -325,10 +325,12 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
   // Resolve which rate to display based on handoff + schedule
   const hasSplit = morningRate != null && closingRate != null;
-  const resolvedRate = hasSplit && userShiftType
-    ? userShiftType === 'opening' ? morningRate
-    : userShiftType === 'closing' ? closingRate
-    : dailyRate  // mid shift → daily baseline
+  const resolvedRate = offStandardMinutes > 0
+    ? dailyRate
+    : hasSplit && userShiftType
+      ? userShiftType === 'opening' ? morningRate
+      : userShiftType === 'closing' ? closingRate
+      : dailyRate
     : dailyRate;
   const resolvedShiftIcon = hasSplit && userShiftType === 'opening' ? '☀️'
     : hasSplit && userShiftType === 'closing' ? '🌙'
@@ -489,6 +491,13 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                   <span className="text-[10px] text-gray-400 dark:text-gray-500">☀️ AM: {morningRate}/hr</span>
                   <span className="text-[10px] text-gray-300 dark:text-gray-600">·</span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500">🌙 PM: {closingRate}/hr</span>
+                </div>
+              )}
+              {!hasSplit && userShiftType && dailyRate != null && (
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {userShiftType === 'opening' ? '☀️ AM' : '🌙 PM'}: {dailyRate}/hr
+                  </span>
                 </div>
               )}
               {weekAvgRate != null && (
