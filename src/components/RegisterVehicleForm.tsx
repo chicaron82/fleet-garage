@@ -16,7 +16,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Corolla', 'Corolla Cross', 'Corolla Hybrid', 'Highlander', 'Prius', 'RAV4', 'Sienna', 'Tacoma'],
   Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
   Nissan:          ['Altima', 'Frontier', 'Kicks', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
-  Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson'],
+  Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson', 'Venue'],
   Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
@@ -29,6 +29,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   Audi:            ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
   Mazda:           ['CX-30', 'CX-5'],
   Volkswagen:      ['Atlas', 'Jetta', 'Passat', 'Taos', 'Tiguan'],
+  Volvo:           ['XC60', 'XC90'],
   Tesla:           ['Model 3', 'Model S', 'Model X', 'Model Y'],
   Other:           ['Other'],
 };
