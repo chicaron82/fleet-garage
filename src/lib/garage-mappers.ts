@@ -148,6 +148,7 @@ export function mapHandoffNote(row: Row): HandoffNote {
     teamSize:         reqNum(row, 'team_size',         'mapHandoffNote'),
     notes:            optStr(row, 'notes'),
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
+    morningHours:     (row['morning_hours'] as number) ?? 8.5,
   };
 }
 

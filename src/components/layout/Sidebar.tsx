@@ -285,17 +285,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     ? todayHandoff.fullPages * 19 + todayHandoff.lastPageEntries
     : null;
   const morningOpHours = todayHandoff
-    ? Math.max(0.1, (() => {
-        const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA');
-        const shiftStart = new Date(`${dateStr}T06:45:00`);
-        // Clamp to opening shift end — handles after-hours handoff entries
-        const openingEnd = new Date(`${dateStr}T15:15:00`);
-        const handoffTime = Math.min(
-          new Date(todayHandoff.loggedAt).getTime(),
-          openingEnd.getTime()
-        );
-        return (handoffTime - shiftStart.getTime()) / 3_600_000;
-      })())
+    ? todayHandoff.morningHours ?? 8.5
     : null;
   const closingCleaned = morningCleaned != null && carsCleaned != null
     ? Math.max(0, carsCleaned - morningCleaned)
@@ -305,7 +295,15 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     : null;
 
   // Per-window OTH partitioning — assign each entry to the window its startTime falls in
-  const handoffTimestamp = todayHandoff ? new Date(todayHandoff.loggedAt) : null;
+  const handoffTimestamp = todayHandoff
+    ? (() => {
+        const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA');
+        const totalMins = 6 * 60 + 45 + Math.round((todayHandoff.morningHours ?? 8.5) * 60);
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        return new Date(`${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+      })()
+    : null;
   const morningOTH = handoffTimestamp
     ? offStandardEntries.filter(e => new Date(e.startTime) < handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
     : offStandardMinutes;

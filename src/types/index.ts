@@ -172,6 +172,7 @@ export interface HandoffNote {
   teamSize: number;
   notes?: string;
   lotStatus: LotStatus;
+  morningHours: number;
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────

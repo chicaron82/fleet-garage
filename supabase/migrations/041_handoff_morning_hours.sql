@@ -1,0 +1,2 @@
+ALTER TABLE handoff_notes
+  ADD COLUMN IF NOT EXISTS morning_hours FLOAT NOT NULL DEFAULT 8.5;

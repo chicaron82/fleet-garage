@@ -11,7 +11,7 @@ export interface WashbayHandoffSlice {
   latestHandoff: HandoffNote | undefined;
   submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>) => Promise<boolean>;
   getTodayWashbayLog: () => WashbayLog | undefined;
-  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string }) => Promise<boolean>;
+  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number }) => Promise<boolean>;
 }
 
 export function useWashbayHandoff(
@@ -69,6 +69,7 @@ export function useWashbayHandoff(
     teamSize: number;
     lotStatus: LotStatus;
     notes?: string;
+    morningHours?: number;
   }): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
@@ -83,6 +84,7 @@ export function useWashbayHandoff(
         team_size:          data.teamSize,
         lot_status:         data.lotStatus,
         notes:              data.notes ?? null,
+        morning_hours:      data.morningHours ?? 8.5,
       }).select().single();
       if (error) throw error;
       setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);

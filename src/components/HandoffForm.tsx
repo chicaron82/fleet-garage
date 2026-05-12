@@ -23,10 +23,17 @@ export function HandoffForm({ onClose }: Props) {
   const [teamSize,        setTeamSize]        = useState(3);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
+  const [adjustMorning,   setAdjustMorning]   = useState(false);
+  const [morningHours,    setMorningHours]    = useState(8.5);
   const [submitting,      setSubmitting]      = useState(false);
 
   const carsIn    = fullPages * 19 + lastPageEntries;
   const canSubmit = !submitting && carsIn > 0;
+
+  function fmtPartitionTime(hours: number): string {
+    const totalMins = 6 * 60 + 45 + Math.round(hours * 60);
+    return `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+  }
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -37,6 +44,7 @@ export function HandoffForm({ onClose }: Props) {
       teamSize,
       lotStatus,
       notes: notes.trim() || undefined,
+      morningHours: adjustMorning ? morningHours : undefined,
     });
     if (ok) onClose();
     else setSubmitting(false);
@@ -123,6 +131,27 @@ export function HandoffForm({ onClose }: Props) {
               placeholder="Anything the next shift needs to know…"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
             />
+          </div>
+
+          {/* AM window adjust */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div
+                onClick={() => setAdjustMorning(v => !v)}
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${adjustMorning ? 'bg-yellow-400 border-yellow-400' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+              >
+                {adjustMorning && <span className="text-[10px] font-bold text-black leading-none">✓</span>}
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Adjust AM window</span>
+            </label>
+            {adjustMorning && (
+              <div className="mt-2.5 flex items-center gap-3">
+                <button type="button" onClick={() => setMorningHours(v => Math.max(4, Math.round((v - 0.5) * 10) / 10))} className={STEP_BTN}>−</button>
+                <span className="text-base font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{morningHours}</span>
+                <button type="button" onClick={() => setMorningHours(v => Math.min(12, Math.round((v + 0.5) * 10) / 10))} className={STEP_BTN}>+</button>
+                <span className="text-xs text-gray-400 dark:text-gray-500">hrs → closes {fmtPartitionTime(morningHours)}</span>
+              </div>
+            )}
           </div>
 
           <button
