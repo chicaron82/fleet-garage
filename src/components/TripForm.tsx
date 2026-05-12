@@ -124,6 +124,7 @@ export function TripForm({
           onChange={e => {
             const val = e.target.value.toUpperCase();
             setVehiclePlate(val);
+            if (shuttlePlate) onShuttleToggle(val.trim() === shuttlePlate.toUpperCase().trim());
             if (!val) setShowSuggestions(false);
           }}
           onBlur={() => {

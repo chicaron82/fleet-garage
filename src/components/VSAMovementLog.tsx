@@ -108,8 +108,11 @@ export function VSAMovementLog({
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleShuttleToggle = (checked: boolean) => {
+    if (checked === isShuttle) return;
     hapticLight();
     setIsShuttle(checked);
+    if (checked && shuttlePlate) setVehiclePlate(shuttlePlate.toUpperCase());
+    else if (!checked && shuttlePlate && vehiclePlate === shuttlePlate.toUpperCase()) setVehiclePlate('');
   };
 
   const handlePlateBlur = async () => {
