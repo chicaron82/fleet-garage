@@ -24,6 +24,7 @@ const AuditForm          = lazy(() => import('./components/AuditForm').then(m =>
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const IssueLogView       = lazy(() => import('./components/IssueLogView').then(m => ({ default: m.IssueLogView })));
 const ManifestView       = lazy(() => import('./components/ManifestView').then(m => ({ default: m.ManifestView })));
+const FleetMasterView    = lazy(() => import('./components/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
 
 // ── Chunk error boundary ─────────────────────────────────────────────────────
 // After a new deployment, stale browsers request chunk filenames that no longer
@@ -163,6 +164,13 @@ export default function App() {
         return <IssueLogView />;
       case 'manifest':
         return <ManifestView />;
+      case 'fleet-master':
+        return (
+          <FleetMasterView
+            onNavigate={navigate}
+            onRegisterNew={(prefill) => navigate({ name: 'register-vehicle', prefill })}
+          />
+        );
       default:
         return (
           <Dashboard
