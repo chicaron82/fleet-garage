@@ -25,7 +25,7 @@ export function StatusBadge({ status, holdTypes, mechanicalSubType }: { status: 
   const resolved =
     holdTypes && holdTypes.length > 0 && (status === 'HELD' || status === 'ACTIVE')
       ? holdBadgeConfig(holdTypes, mechanicalSubType)
-      : config;
+      : config ?? { label: String(status), className: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
 
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${resolved.className}`}>
