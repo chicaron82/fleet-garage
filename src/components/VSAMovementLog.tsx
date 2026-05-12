@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import type { TripRun } from '../data/trips';
@@ -71,6 +72,40 @@ export function VSAMovementLog({
     const id = setInterval(() => setElapsed(elapsedSince(departureTime)), 1000);
     return () => clearInterval(id);
   }, [tripState, departureTime]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('vsa_trips')
+      .select('id, vehicle_plate, depart_location, depart_time, trip_type, is_shuttle, auth_type, reason, queue_at_departure, ev_cable_status, ev_adapter_status')
+      .eq('driver_id', user.id)
+      .eq('status', 'in_progress')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const row = data as Record<string, unknown>;
+        setDepartureTime(row.depart_time as string);
+        setVehiclePlate((row.vehicle_plate as string) ?? '');
+        setIsShuttle((row.is_shuttle as boolean) ?? false);
+        setAuthorization((row.auth_type as Authorization) ?? null);
+        setReason((row.reason as Reason) ?? null);
+        const rawQueue = row.queue_at_departure;
+        setQueue(rawQueue
+          ? (typeof rawQueue === 'string' ? JSON.parse(rawQueue) : rawQueue as QueueSnapshot)
+          : { count: 0, label: 'Resumed' });
+        setTripState('in_transit');
+        const plate = (row.vehicle_plate as string) ?? '';
+        if (plate) {
+          detectTeslaByPlate(plate).then(res => {
+            if (res.isTesla) {
+              setIsTeslaRun(true);
+              setEvCableStatus((row.ev_cable_status as EvAssetStatus) ?? null);
+              setEvAdapterStatus((row.ev_adapter_status as EvAssetStatus) ?? null);
+            }
+          });
+        }
+      });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleShuttleToggle = (checked: boolean) => {
     hapticLight();
