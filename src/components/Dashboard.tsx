@@ -272,7 +272,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 overflow-hidden">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-base group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
                         <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
                         <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
                         {(() => {
@@ -282,9 +282,9 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                             : null;
                         })()}
                       </div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+                      <p className="text-base font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
                       {latestHold && (
-                        <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
                           {latestHold.damageDescription.slice(0, 40)}{latestHold.damageDescription.length > 40 ? '…' : ''}
                         </p>
                       )}
