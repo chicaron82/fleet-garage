@@ -24,13 +24,14 @@ interface QuickTap {
 }
 
 const QUICK_TAPS: QuickTap[] = [
-  { label: 'Opening Duties',   reason: 'OTH',   preset: 'opening_duties',   emoji: '🌅' },
-  { label: 'Closing Duties',   reason: 'OTH',   preset: 'closing_duties',   emoji: '🌙' },
-  { label: 'Fleeting Cars',    reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
-  { label: 'Lot Organization', reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
-  { label: 'EDV',              reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
-  { label: 'Waiting for Work', reason: 'WFW',   preset: null,               emoji: '⏳' },
-  { label: 'Training',         reason: 'CLASS', preset: null,               emoji: '📚' },
+  { label: 'Opening Duties',       reason: 'OTH',   preset: 'opening_duties',   emoji: '🌅' },
+  { label: 'Closing Duties',       reason: 'OTH',   preset: 'closing_duties',   emoji: '🌙' },
+  { label: 'Fleeting Cars',        reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
+  { label: 'Lot Organization',     reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
+  { label: 'EDV',                  reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
+  { label: 'Customer Pickup/Drop', reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
+  { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
+  { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
 ];
 
 interface Props {
@@ -163,6 +164,7 @@ function deriveExplanation(
   if (preset === 'closing_duties')   return 'Closing duties';
   if (preset === 'opening_duties')   return 'Opening duties';
   if (preset === 'lot_organization') return 'Lot organization';
+  if (preset === 'customer_pickup')  return 'Customer pickup / drop-off';
   return '';
 }
 
@@ -463,9 +465,9 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
       {/* Quick Start */}
       {timerState === 'idle' && (
-        <div className="mb-4">
-          <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
-            Quick Start
+        <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
+          <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+            ⚡ Quick Start
           </p>
           <div className="flex flex-wrap gap-2">
             {QUICK_TAPS.map(tap => (
@@ -473,9 +475,9 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 key={tap.label}
                 type="button"
                 onClick={() => handleQuickTap(tap)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 active:scale-95 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 active:scale-95 shadow-sm transition-all cursor-pointer"
               >
-                <span>{tap.emoji}</span>
+                <span className="text-base">{tap.emoji}</span>
                 <span>{tap.label}</span>
               </button>
             ))}
@@ -523,6 +525,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   { value: 'opening_duties',  label: 'Opening Duties' },
                   { value: 'lot_organization', label: 'Lot Organization' },
                   { value: 'edv',             label: 'EDV' },
+                  { value: 'customer_pickup', label: 'Customer Pickup/Drop-off' },
                 ] as { value: OffStandardPresetReason; label: string }[]).map(p => (
                   <button
                     key={p.value}
