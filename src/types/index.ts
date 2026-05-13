@@ -86,6 +86,12 @@ export interface Vehicle {
   status: VehicleStatus;
   branchId: BranchId;
   coverPhotoUrl?: string;
+  archivedAt?: string;
+  archivedById?: string;
+}
+
+export function canManageVehicles(role: UserRole): boolean {
+  return ['Branch Manager', 'Operations Manager', 'City Manager'].includes(role);
 }
 
 // ── Holds ────────────────────────────────────────────────────────────────────

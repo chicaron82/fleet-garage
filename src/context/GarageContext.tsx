@@ -24,6 +24,9 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
+  archiveVehicle: (vehicleId: string) => Promise<void>;
+  restoreVehicle: (vehicleId: string) => Promise<void>;
+  archivedVehicles: Vehicle[];
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
@@ -43,8 +46,13 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const { setAllLostFoundItems, ...lostFoundSlice }   = useLostFound(user, activeBranch, allVehicles);
 
   const vehicles = useMemo(() => {
-    if (activeBranch === 'ALL') return allVehicles;
-    return allVehicles.filter(v => v.branchId === activeBranch);
+    if (activeBranch === 'ALL') return allVehicles.filter(v => !v.archivedAt);
+    return allVehicles.filter(v => v.branchId === activeBranch && !v.archivedAt);
+  }, [allVehicles, activeBranch]);
+
+  const archivedVehicles = useMemo(() => {
+    if (activeBranch === 'ALL') return allVehicles.filter(v => !!v.archivedAt);
+    return allVehicles.filter(v => v.branchId === activeBranch && !!v.archivedAt);
   }, [allVehicles, activeBranch]);
 
   const holds = useMemo(() => {
@@ -260,6 +268,47 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
   };
 
+  const archiveVehicle = async (vehicleId: string) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ archived_at: now, archived_by_id: user!.id })
+      .eq('id', vehicleId);
+    if (error) return;
+    setAllVehicles(prev => prev.map(v =>
+      v.id === vehicleId ? { ...v, archivedAt: now, archivedById: user!.id } : v
+    ));
+    const vehicle = allVehicles.find(v => v.id === vehicleId);
+    await pushNotification(
+      vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
+      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      '📦',
+      `Unit ${vehicle?.unitNumber ?? vehicleId} archived by ${user!.name}.`,
+      'info',
+      { vehicleId },
+    );
+  };
+
+  const restoreVehicle = async (vehicleId: string) => {
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ archived_at: null, archived_by_id: null })
+      .eq('id', vehicleId);
+    if (error) return;
+    setAllVehicles(prev => prev.map(v =>
+      v.id === vehicleId ? { ...v, archivedAt: undefined, archivedById: undefined } : v
+    ));
+    const vehicle = allVehicles.find(v => v.id === vehicleId);
+    await pushNotification(
+      vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
+      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      '🔄',
+      `Unit ${vehicle?.unitNumber ?? vehicleId} restored to active service.`,
+      'info',
+      { vehicleId },
+    );
+  };
+
   const setCoverPhoto = async (vehicleId: string, url: string | null) => {
     await supabase.from('vehicles').update({ cover_photo_url: url }).eq('id', vehicleId);
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, coverPhotoUrl: url ?? undefined }));
@@ -271,6 +320,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
+      archiveVehicle, restoreVehicle, archivedVehicles,
       setCoverPhoto,
       shuttlePlate, setShuttlePlate,
       ...issuesSlice,

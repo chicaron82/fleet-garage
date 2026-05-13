@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { canRelease } from '../types';
+import { canRelease, canManageVehicles } from '../types';
 import { hapticLight } from '../lib/haptics';
 import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -17,7 +17,7 @@ interface Props {
 
 export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useGarage();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = sessionStorage.getItem('dashboard_page');
@@ -27,6 +27,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const [pinnedVehicleIds, setPinnedVehicleIds] = useState<Set<string>>(new Set());
 
   const togglePin = useCallback((vehicleId: string) => {
@@ -352,6 +353,53 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
             </div>
           )}
         </div>
+
+        {/* Archived Vehicles */}
+        {canManageVehicles(user!.role) && archivedVehicles.length > 0 && (
+          <section className="mt-6 px-4 pb-2">
+            <button
+              type="button"
+              onClick={() => setArchivedOpen(o => !o)}
+              className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest cursor-pointer"
+            >
+              <span>{archivedOpen ? '▾' : '▸'}</span>
+              <span>Archived · {archivedVehicles.length}</span>
+            </button>
+            {archivedOpen && (
+              <div className="mt-3 space-y-2">
+                {archivedVehicles.map(v => (
+                  <div
+                    key={v.id}
+                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        {v.unitNumber}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {v.year} {v.make} {v.model} · {v.licensePlate}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        Archived {v.archivedAt
+                          ? new Date(v.archivedAt).toLocaleDateString('en-CA', {
+                              month: 'short', day: 'numeric', year: 'numeric',
+                            })
+                          : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => { hapticLight(); await restoreVehicle(v.id); }}
+                      className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer shrink-0 ml-3"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Barcode toast */}
         {toast && (

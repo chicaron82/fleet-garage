@@ -1,9 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
-import { canRelease, REPAIR_OUTCOME_LABELS } from '../types';
+import { canRelease, canManageVehicles, REPAIR_OUTCOME_LABELS } from '../types';
 import type { RepairOutcome } from '../types';
-import { hapticHeavy, hapticLight } from '../lib/haptics';
+import { hapticHeavy, hapticLight, hapticMedium } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
@@ -45,9 +45,10 @@ function holdConfirmBody(holdTypes: string[]): string {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
-  const { releaseStreak, setCoverPhoto } = useGarage();
+  const { releaseStreak, setCoverPhoto, archiveVehicle } = useGarage();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   const { vehicle } = h;
   if (!vehicle) return null;
@@ -139,9 +140,56 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </>
             )}
           </div>
+          {canManageVehicles(h.user.role) && !vehicle.archivedAt && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowArchiveConfirm(true)}
+                className="text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
+              >
+                Archive vehicle
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Release Form */}
+        {/* Archive Confirm Dialog */}
+        {showArchiveConfirm && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4 bg-black/40">
+            <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Archive Unit {vehicle.unitNumber}?
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  This vehicle will be removed from active service. All hold history
+                  and records are preserved. You can restore it at any time.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    hapticMedium();
+                    await archiveVehicle(vehicle.id);
+                    setShowArchiveConfirm(false);
+                    onBack();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold cursor-pointer transition"
+                >
+                  Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {h.showReleaseForm && (
           <ReleaseForm
             holdId={h.showReleaseForm}

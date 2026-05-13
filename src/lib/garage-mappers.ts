@@ -44,6 +44,8 @@ export function mapVehicle(row: Row): Vehicle {
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:     (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
     coverPhotoUrl: optStr(row, 'cover_photo_url'),
+    archivedAt:   optStr(row, 'archived_at')    ?? undefined,
+    archivedById: optStr(row, 'archived_by_id') ?? undefined,
   };
 }
 
