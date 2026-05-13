@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 import { compressImage } from '../lib/image';
 import { isTesla } from '../lib/vehicles';
 import { createOrEnrichRegistry, lookupRegistry, mergeRegistryRecords } from '../lib/vehicleRegistry';
-import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus, VehicleRegistryEntry } from '../types';
+import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus, VehicleRegistryEntry, HoldType } from '../types';
 import { deriveRouting } from '../types';
 
 interface Props {
@@ -360,9 +360,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     notes: string,
     photos: string[],
     linkedHoldId: string,
+    holdTypes: HoldType[],
   ) => {
     if (!user) return;
-    await addHold(vehicleId, description, notes, user.id, photos, ['damage'], undefined, undefined, linkedHoldId);
+    await addHold(vehicleId, description, notes, user.id, photos, holdTypes, undefined, undefined, linkedHoldId);
     setReHolded(true);
   }, [user, addHold]);
 

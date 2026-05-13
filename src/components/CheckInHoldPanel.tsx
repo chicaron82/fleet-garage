@@ -6,7 +6,7 @@ import { hapticLight } from '../lib/haptics';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { StatusBadge } from './StatusBadge';
 import { PhotoLightbox } from './PhotoLightbox';
-import type { Hold, User, Vehicle } from '../types';
+import type { Hold, HoldType, User, Vehicle } from '../types';
 
 const MAX_PHOTOS = 4;
 
@@ -31,7 +31,7 @@ interface Props {
   vehicle: Vehicle;
   holds: Hold[];
   user: User;
-  onReHold: (vehicleId: string, description: string, notes: string, photos: string[], linkedHoldId: string) => Promise<void>;
+  onReHold: (vehicleId: string, description: string, notes: string, photos: string[], linkedHoldId: string, holdTypes: HoldType[]) => Promise<void>;
   autoExpand?: boolean;
 }
 
@@ -51,6 +51,8 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
   const [submitting, setSubmitting] = useState(false);
   const [reHolded, setReHolded] = useState(false);
   const [showPriorDamageForm, setShowPriorDamageForm] = useState(false);
+  const [newIssueHoldType, setNewIssueHoldType] = useState<HoldType>('damage');
+  const [newIssueDescription, setNewIssueDescription] = useState('');
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -83,11 +85,17 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
   };
 
   const handleReHoldSubmit = async () => {
-    const finalDescription = damageTypes.includes('Other') && customDamage.trim()
-      ? [...damageTypes.filter(d => d !== 'Other'), customDamage.trim()].join(', ')
-      : damageTypes.join(', ');
+    let finalDescription: string;
+    if (newIssueHoldType === 'damage') {
+      finalDescription = damageTypes.includes('Other') && customDamage.trim()
+        ? [...damageTypes.filter(d => d !== 'Other'), customDamage.trim()].join(', ')
+        : damageTypes.join(', ');
+    } else {
+      finalDescription = newIssueDescription.trim() ||
+        (newIssueHoldType === 'detail' ? 'Detail required' : 'Mechanical concern');
+    }
     setSubmitting(true);
-    await onReHold(vehicle.id, finalDescription, reHoldNotes, photos, mostRecent.id);
+    await onReHold(vehicle.id, finalDescription, reHoldNotes, photos, mostRecent.id, [newIssueHoldType]);
     setReHolded(true);
     setShowReHoldForm(false);
     setSubmitting(false);
@@ -99,7 +107,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
       ? originalPhotos
       : photos;
     setSubmitting(true);
-    await onReHold(vehicle.id, mostRecent.damageDescription, reHoldNotes, photosToSubmit, mostRecent.id);
+    await onReHold(vehicle.id, mostRecent.damageDescription, reHoldNotes, photosToSubmit, mostRecent.id, mostRecent.holdTypes ?? ['damage']);
     setReHolded(true);
     setShowPriorDamageForm(false);
     setSubmitting(false);
@@ -113,9 +121,15 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
     setReHoldNotes('');
     setPhotos([]);
     setReattachPhotos(true);
+    setNewIssueHoldType('damage');
+    setNewIssueDescription('');
   };
 
-  const canSubmitReHold = damageTypes.length > 0 && photos.length > 0 && !submitting;
+  const canSubmitReHold = (
+    (newIssueHoldType === 'damage' ? damageTypes.length > 0 : true) &&
+    photos.length > 0 &&
+    !submitting
+  );
 
   const renderHoldCard = (hold: Hold, isFirst: boolean) => (
     <div key={hold.id} className={isFirst ? '' : 'mt-4 pt-4 border-t border-gray-100 dark:border-gray-800'}>
@@ -229,14 +243,14 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                     onClick={() => setShowPriorDamageForm(true)}
                     className="w-full px-4 py-2.5 border-2 border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 font-semibold text-sm rounded-lg transition cursor-pointer text-left"
                   >
-                    Prior damage still present — re-hold
+                    Prior damage/issue — re-hold
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowReHoldForm(true)}
                     className="w-full px-4 py-2.5 border-2 border-red-400 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-sm rounded-lg transition cursor-pointer text-left"
                   >
-                    New damage found — re-hold
+                    New damage/issue — re-hold
                   </button>
                 </div>
               </div>
@@ -244,7 +258,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
 
             {reHolded && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <p className="text-sm font-semibold text-red-700 dark:text-red-400">Vehicle re-held. Damage logged.</p>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">Vehicle re-held. Issue logged.</p>
               </div>
             )}
 
@@ -399,46 +413,87 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
 
             {showReHoldForm && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-4">
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-widest">New Damage Found</p>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-widest">New Issue</p>
 
-                {/* Damage type grid */}
+                {/* Hold type selector */}
                 <div>
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                      Damage Type *
-                    </label>
-                    {damageTypes.length > 0 && (
-                      <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
-                        {damageTypes.length} selected
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {DAMAGE_PRESETS.map(preset => (
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+                    Hold Type *
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['damage', 'detail', 'mechanical'] as HoldType[]).map(ht => (
                       <button
-                        key={preset}
+                        key={ht}
                         type="button"
-                        onClick={() => toggleDamageType(preset)}
-                        className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                          damageTypes.includes(preset)
-                            ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                            : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+                        onClick={() => { hapticLight(); setNewIssueHoldType(ht); setDamageTypes([]); }}
+                        className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer capitalize ${
+                          newIssueHoldType === ht
+                            ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
+                            : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
                         }`}
                       >
-                        {preset}
+                        {ht === 'damage' ? '🔧 Damage' : ht === 'detail' ? '🧹 Detail' : '⚙️ Mechanical'}
                       </button>
                     ))}
                   </div>
-                  {damageTypes.includes('Other') && (
-                    <input
-                      type="text"
-                      placeholder="Describe the damage…"
-                      value={customDamage}
-                      onChange={e => setCustomDamage(e.target.value)}
-                      className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-                    />
-                  )}
                 </div>
+
+                {/* Damage presets — only for damage holds */}
+                {newIssueHoldType === 'damage' && (
+                  <div>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                        Damage Type *
+                      </label>
+                      {damageTypes.length > 0 && (
+                        <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                          {damageTypes.length} selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {DAMAGE_PRESETS.map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => toggleDamageType(preset)}
+                          className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
+                            damageTypes.includes(preset)
+                              ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
+                              : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    {damageTypes.includes('Other') && (
+                      <input
+                        type="text"
+                        placeholder="Describe the damage…"
+                        value={customDamage}
+                        onChange={e => setCustomDamage(e.target.value)}
+                        className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Description — for detail / mechanical */}
+                {newIssueHoldType !== 'damage' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+                      Description (optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder={newIssueHoldType === 'detail' ? 'e.g. Full detail needed, pet hair in rear…' : 'e.g. Vibration at highway speed, noise from engine…'}
+                      value={newIssueDescription}
+                      onChange={e => setNewIssueDescription(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+                    />
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>
