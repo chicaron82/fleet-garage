@@ -191,8 +191,15 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const releaseId = crypto.randomUUID();
     const newRelease: Release = { ...release, id: releaseId };
+    const otherUnresolvedHolds = holds.filter(
+      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
+    );
     const newVehicleStatus: VehicleStatus =
-      release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
+      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
+        ? 'HELD'
+        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
+          ? 'PRE_EXISTING'
+          : release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
 
     const { error } = await supabase.from('releases').insert({
       id: releaseId, hold_id: holdId,
