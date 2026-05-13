@@ -53,6 +53,8 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
   const [showPriorDamageForm, setShowPriorDamageForm] = useState(false);
   const [newIssueHoldType, setNewIssueHoldType] = useState<HoldType>('damage');
   const [newIssueDescription, setNewIssueDescription] = useState('');
+  const [detailOdourChecked, setDetailOdourChecked] = useState(false);
+  const [mechanicalPMChecked, setMechanicalPMChecked] = useState(false);
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -90,6 +92,14 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
       finalDescription = damageTypes.includes('Other') && customDamage.trim()
         ? [...damageTypes.filter(d => d !== 'Other'), customDamage.trim()].join(', ')
         : damageTypes.join(', ');
+    } else if (newIssueHoldType === 'detail' && detailOdourChecked) {
+      finalDescription = newIssueDescription.trim()
+        ? `Odour/smoke/vape — ${newIssueDescription.trim()}`
+        : 'Odour/smoke/vape';
+    } else if (newIssueHoldType === 'mechanical' && mechanicalPMChecked) {
+      finalDescription = newIssueDescription.trim()
+        ? `PM due — ${newIssueDescription.trim()}`
+        : 'PM due';
     } else {
       finalDescription = newIssueDescription.trim() ||
         (newIssueHoldType === 'detail' ? 'Detail required' : 'Mechanical concern');
@@ -123,11 +133,16 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
     setReattachPhotos(true);
     setNewIssueHoldType('damage');
     setNewIssueDescription('');
+    setDetailOdourChecked(false);
+    setMechanicalPMChecked(false);
   };
 
+  const photoBypassActive =
+    (newIssueHoldType === 'detail' && detailOdourChecked) ||
+    (newIssueHoldType === 'mechanical' && mechanicalPMChecked);
   const canSubmitReHold = (
     (newIssueHoldType === 'damage' ? damageTypes.length > 0 : true) &&
-    photos.length > 0 &&
+    (photos.length > 0 || photoBypassActive) &&
     !submitting
   );
 
@@ -425,7 +440,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                       <button
                         key={ht}
                         type="button"
-                        onClick={() => { hapticLight(); setNewIssueHoldType(ht); setDamageTypes([]); }}
+                        onClick={() => { hapticLight(); setNewIssueHoldType(ht); setDamageTypes([]); setDetailOdourChecked(false); setMechanicalPMChecked(false); }}
                         className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer capitalize ${
                           newIssueHoldType === ht
                             ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
@@ -481,17 +496,41 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
 
                 {/* Description — for detail / mechanical */}
                 {newIssueHoldType !== 'damage' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                      Description (optional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder={newIssueHoldType === 'detail' ? 'e.g. Full detail needed, pet hair in rear…' : 'e.g. Vibration at highway speed, noise from engine…'}
-                      value={newIssueDescription}
-                      onChange={e => setNewIssueDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
-                    />
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+                        Description (optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder={newIssueHoldType === 'detail' ? 'e.g. Full detail needed, pet hair in rear…' : 'e.g. Vibration at highway speed, noise from engine…'}
+                        value={newIssueDescription}
+                        onChange={e => setNewIssueDescription(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+                      />
+                    </div>
+                    {newIssueHoldType === 'detail' && (
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={detailOdourChecked}
+                          onChange={e => { hapticLight(); setDetailOdourChecked(e.target.checked); }}
+                          className="w-4 h-4 rounded accent-yellow-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Odour / smoke / vape — photo not possible</span>
+                      </label>
+                    )}
+                    {newIssueHoldType === 'mechanical' && (
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={mechanicalPMChecked}
+                          onChange={e => { hapticLight(); setMechanicalPMChecked(e.target.checked); }}
+                          className="w-4 h-4 rounded accent-yellow-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">PM due — no visible defect to photograph</span>
+                      </label>
+                    )}
                   </div>
                 )}
 
@@ -509,10 +548,10 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                   />
                 </div>
 
-                {/* Photos — required */}
+                {/* Photos — required unless bypass active */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                    Photos * (required · max {MAX_PHOTOS})
+                    {photoBypassActive ? `Photos (optional · max ${MAX_PHOTOS})` : `Photos * (required · max ${MAX_PHOTOS})`}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {photos.map((src, i) => (
@@ -554,7 +593,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                   </div>
                   <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoAdd} className="hidden" />
                   <input ref={galleryRef} type="file" accept="image/*" multiple onChange={handlePhotoAdd} className="hidden" />
-                  {photos.length === 0 && (
+                  {photos.length === 0 && !photoBypassActive && (
                     <p className="text-xs text-red-500 dark:text-red-400 mt-1">At least one photo required.</p>
                   )}
                 </div>
