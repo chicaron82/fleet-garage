@@ -25,6 +25,7 @@ export interface TripFormProps {
   canStart: boolean;
   onShuttleToggle: (checked: boolean) => void;
   onStartTrip: () => void;
+  onCodeRedDispatch?: () => void;
   isTeslaRun: boolean;                 setIsTeslaRun: (v: boolean) => void;
   evCableStatus: EvAssetStatus | null;
   evAdapterStatus: EvAssetStatus | null;
@@ -38,7 +39,7 @@ export function TripForm({
   isShuttle, shuttlePlate, setShuttlePlate,
   vehiclePlate, setVehiclePlate, onPlateBlur,
   topClasses, flaggedClasses, isDemoMode, canStart,
-  onShuttleToggle, onStartTrip,
+  onShuttleToggle, onStartTrip, onCodeRedDispatch,
   isTeslaRun, setIsTeslaRun,
   evCableStatus, evAdapterStatus, setEvCableStatus, setEvAdapterStatus,
 }: TripFormProps) {
@@ -81,6 +82,17 @@ export function TripForm({
 
   return (
     <>
+      {onCodeRedDispatch && (
+        <button
+          type="button"
+          onClick={onCodeRedDispatch}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold text-sm transition-all cursor-pointer shadow-sm"
+        >
+          <span>🚨</span>
+          <span>Code Red — Dispatch Now</span>
+        </button>
+      )}
+
       <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} isDemoMode={isDemoMode} />
 
       {/* Lot Shuttle + Tesla */}

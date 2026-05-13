@@ -16,6 +16,23 @@ const STANDARD_RATE = 3.0;
 
 const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
+interface QuickTap {
+  label: string;
+  reason: OffStandardReason;
+  preset: OffStandardPresetReason | null;
+  emoji: string;
+}
+
+const QUICK_TAPS: QuickTap[] = [
+  { label: 'Opening Duties',   reason: 'OTH',   preset: 'opening_duties',   emoji: '🌅' },
+  { label: 'Closing Duties',   reason: 'OTH',   preset: 'closing_duties',   emoji: '🌙' },
+  { label: 'Fleeting Cars',    reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
+  { label: 'Lot Organization', reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
+  { label: 'EDV',              reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
+  { label: 'Waiting for Work', reason: 'WFW',   preset: null,               emoji: '⏳' },
+  { label: 'Training',         reason: 'CLASS', preset: null,               emoji: '📚' },
+];
+
 interface Props {
   user: User;
   refreshTrigger?: number;
@@ -94,6 +111,21 @@ function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned
   );
 
   return lines.join('\n');
+}
+
+function deriveExplanation(
+  preset: OffStandardPresetReason | null,
+  unit: string,
+  mgr: string,
+  freeText: string,
+): string {
+  if (!preset) return freeText;
+  if (preset === 'edv')              return unit ? `EDV — ${unit} — Released by ${mgr}` : 'EDV';
+  if (preset === 'fleeting_cars')    return 'Fleeting cars';
+  if (preset === 'closing_duties')   return 'Closing duties';
+  if (preset === 'opening_duties')   return 'Opening duties';
+  if (preset === 'lot_organization') return 'Lot organization';
+  return '';
 }
 
 // ── Timer section ─────────────────────────────────────────────────────────────
@@ -208,15 +240,6 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     setEdvManagerName(manager?.name ?? edvHold.release?.approvedById ?? 'Unknown');
   }
 
-  function presetExplanation(): string {
-    if (selectedPreset === 'edv')            return `EDV — ${edvUnitNumber} — Released by ${edvManagerName}`;
-    if (selectedPreset === 'fleeting_cars')   return 'Fleeting cars';
-    if (selectedPreset === 'closing_duties')  return 'Closing duties';
-    if (selectedPreset === 'opening_duties')  return 'Opening duties';
-    if (selectedPreset === 'lot_organization') return 'Lot organization';
-    return '';
-  }
-
   // ── DB helpers ────────────────────────────────────────────────────────────
 
   const saveNotes = async (val: string) => {
@@ -229,12 +252,15 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   // ── Timer controls ────────────────────────────────────────────────────────
 
-  const handleStart = async () => {
-    hapticLight();
+  const handleStartWith = async (
+    reason: OffStandardReason,
+    preset: OffStandardPresetReason | null,
+    linkedHoldId: string | null = null,
+  ) => {
     setStartError(false);
-    const now = new Date().toISOString();
-    const expl = selectedPreset ? presetExplanation() : explanation;
-    if (selectedPreset) setExplanation(expl);
+    const now  = new Date().toISOString();
+    const expl = deriveExplanation(preset, edvUnitNumber, edvManagerName, explanation);
+    if (preset) setExplanation(expl);
 
     const { data, error } = await supabase
       .from('off_standard_entries')
@@ -245,12 +271,12 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
         start_time:     now,
         stop_time:      null,
         minutes:        null,
-        reason:         selectedReason,
+        reason,
         explanation:    expl.trim() || null,
         auto_from_trip: false,
         status:         'in_progress',
-        ...(selectedPreset ? { preset_reason: selectedPreset } : {}),
-        ...(selectedPreset === 'edv' && edvLinkedHoldId ? { linked_hold_id: edvLinkedHoldId } : {}),
+        ...(preset ? { preset_reason: preset } : {}),
+        ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
       })
       .select('id')
       .single();
@@ -264,6 +290,19 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     setInProgressId((data as { id: string }).id);
     setStartTimestamp(now);
     setTimerState('running');
+  };
+
+  const handleStart = async () => {
+    hapticLight();
+    await handleStartWith(selectedReason, selectedPreset, edvLinkedHoldId);
+  };
+
+  const handleQuickTap = async (tap: QuickTap) => {
+    if (timerState !== 'idle') return;
+    hapticMedium();
+    setSelectedReason(tap.reason);
+    setSelectedPreset(tap.preset);
+    await handleStartWith(tap.reason, tap.preset);
   };
 
   const handleEnd = async () => {
@@ -382,6 +421,28 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   return (
     <div className="space-y-5">
+
+      {/* Quick Start */}
+      {timerState === 'idle' && (
+        <div className="mb-4">
+          <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
+            Quick Start
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_TAPS.map(tap => (
+              <button
+                key={tap.label}
+                type="button"
+                onClick={() => handleQuickTap(tap)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <span>{tap.emoji}</span>
+                <span>{tap.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Timer card */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">

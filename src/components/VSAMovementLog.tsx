@@ -126,23 +126,37 @@ export function VSAMovementLog({
 
   const canStart = reason !== null && !!authorization && queue !== null;
 
-  const handleStartTrip = () => {
+  const handleStartTripWith = (r: Reason, auth: Authorization, tripNotes: string) => {
     hapticMedium();
     const now = new Date().toISOString();
+    setReason(r);
+    setAuthorization(auth);
+    setNotes(tripNotes);
     setDepartureTime(now);
     setElapsed('0m 00s');
     setTripState('in_transit');
     onTripStarted?.({
       departTime:       now,
       tripType:         isShuttle ? 'transfer' : 'clean',
-      authorization:    authorization!,
-      reason:           reason!,
+      authorization:    auth,
+      reason:           r,
       queueAtDeparture: queue,
-      notes:            notes.trim(),
+      notes:            tripNotes.trim(),
       vehiclePlate:     vehiclePlate.trim() || undefined,
       evCableStatus:    isTeslaRun ? evCableStatus : undefined,
       evAdapterStatus:  isTeslaRun ? evAdapterStatus : undefined,
     });
+  };
+
+  const handleStartTrip = () => {
+    handleStartTripWith(reason!, authorization!, notes);
+  };
+
+  const handleCodeRedDispatch = () => {
+    if (!queue) {
+      setQueue('0');
+    }
+    handleStartTripWith('CODE_RED', 'MANAGEMENT', 'Code Red dispatch');
   };
 
   const handleArrived = async () => {
@@ -238,6 +252,7 @@ export function VSAMovementLog({
             canStart={canStart}
             onShuttleToggle={handleShuttleToggle}
             onStartTrip={handleStartTrip}
+            onCodeRedDispatch={handleCodeRedDispatch}
             isTeslaRun={isTeslaRun}         setIsTeslaRun={setIsTeslaRun}
             evCableStatus={evCableStatus}   setEvCableStatus={setEvCableStatus}
             evAdapterStatus={evAdapterStatus} setEvAdapterStatus={setEvAdapterStatus}
