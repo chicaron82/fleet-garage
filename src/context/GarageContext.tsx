@@ -230,6 +230,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     await supabase.from('repairs').insert({
       id: repairId, hold_id: holdId,
       repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
+      outcome: repair.outcome,
     });
     await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
     const otherActiveHolds = holds.filter(

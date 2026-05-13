@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
+import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -70,6 +70,7 @@ export function mapRepair(row: Row): Repair {
     repairedById:  reqStr(row, 'repaired_by_id',  'mapRepair'),
     repairedAt:    reqStr(row, 'repaired_at',     'mapRepair'),
     notes:         optStr(row, 'notes') ?? '',
+    outcome:       (optStr(row, 'outcome') ?? 'clean') as RepairOutcome,
   };
 }
 

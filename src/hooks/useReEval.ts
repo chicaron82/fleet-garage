@@ -55,6 +55,7 @@ export function useReEval() {
       repairedById: user.id,
       repairedAt: new Date().toISOString(),
       notes: notes.trim() || 'Cleared during re-evaluation — issue resolved',
+      outcome: 'clean',
     });
     setActiveHoldId(null);
     setActiveAction(null);

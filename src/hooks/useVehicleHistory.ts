@@ -4,7 +4,7 @@ import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
 import { USERS } from '../data/mock';
 import { hapticMedium } from '../lib/haptics';
-import type { Hold } from '../types';
+import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
@@ -13,6 +13,7 @@ export function useVehicleHistory(vehicleId: string) {
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
   const [repairNotes, setRepairNotes] = useState('');
+  const [repairOutcome, setRepairOutcome] = useState<RepairOutcome>('clean');
   const [repairing, setRepairing] = useState(false);
   const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -92,16 +93,19 @@ export function useVehicleHistory(vehicleId: string) {
       repairedById: user!.id,
       repairedAt: new Date().toISOString(),
       notes: repairNotes.trim(),
+      outcome: repairOutcome,
     });
     hapticMedium();
     setShowRepairConfirm(null);
     setRepairNotes('');
+    setRepairOutcome('clean');
     setRepairing(false);
   };
 
   const cancelRepair = () => {
     setShowRepairConfirm(null);
     setRepairNotes('');
+    setRepairOutcome('clean');
   };
 
   const getName = (userId: string) => USERS.find(u => u.id === userId)?.name ?? 'Unknown';
@@ -115,7 +119,7 @@ export function useVehicleHistory(vehicleId: string) {
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
     showHoldPicker, openRepairAction, pickHoldForRepair, closeHoldPicker,
-    repairNotes, setRepairNotes, repairing,
+    repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing,
     lightboxPhotos, lightboxIndex,
     openLightbox: (photos: string[], index: number) => { setLightboxPhotos(photos); setLightboxIndex(index); },
     closeLightbox: () => setLightboxPhotos([]),

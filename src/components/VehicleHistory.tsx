@@ -1,8 +1,9 @@
 import { useRef } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
-import { canRelease } from '../types';
-import { hapticHeavy } from '../lib/haptics';
+import { canRelease, REPAIR_OUTCOME_LABELS } from '../types';
+import type { RepairOutcome } from '../types';
+import { hapticHeavy, hapticLight } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
@@ -182,6 +183,29 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 onChange={e => h.setRepairNotes(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-green-300 dark:border-green-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
               />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-green-800 dark:text-green-300 uppercase tracking-wide">
+                Repair outcome
+              </p>
+              <div className="flex gap-2">
+                {(['clean', 'scar-remains'] as RepairOutcome[]).map(o => (
+                  <button
+                    key={o}
+                    type="button"
+                    onClick={() => { hapticLight(); h.setRepairOutcome(o); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                      h.repairOutcome === o
+                        ? o === 'clean'
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 text-green-700 dark:text-green-400'
+                          : 'bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400'
+                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    {REPAIR_OUTCOME_LABELS[o]}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex gap-2">
               <button

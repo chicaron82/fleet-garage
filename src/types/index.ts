@@ -149,12 +149,20 @@ export interface Release {
 
 // ── Repairs ──────────────────────────────────────────────────────────────────
 
+export type RepairOutcome = 'clean' | 'scar-remains';
+
+export const REPAIR_OUTCOME_LABELS: Record<RepairOutcome, string> = {
+  'clean':        'Repaired — clean',
+  'scar-remains': 'Repaired — scar remains',
+};
+
 export interface Repair {
   id: string;
   holdId: string;
   repairedById: string;   // User.id — Manager only
   repairedAt: string;     // ISO timestamp
   notes: string;
+  outcome: RepairOutcome;
 }
 
 // ── Handoff Notes ─────────────────────────────────────────────────────────────

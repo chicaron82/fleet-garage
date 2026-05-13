@@ -116,8 +116,12 @@ export function HoldRecordFooter({ hold, getName, getRole, getEmpId, fmt, fmtDat
       )}
       {hold.repair && (
         <div className="p-4 border-t bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40">
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-green-800 dark:text-green-300">
-            ✓ Damage Repaired
+          <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${
+            hold.repair.outcome === 'scar-remains'
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-green-800 dark:text-green-300'
+          }`}>
+            ✓ {hold.repair.outcome === 'scar-remains' ? 'Repaired — Scar Remains' : 'Damage Repaired'}
           </p>
           <p className="text-xs text-green-900 dark:text-green-200">
             Confirmed by <span className="font-semibold">{getName(hold.repair.repairedById)}</span>
