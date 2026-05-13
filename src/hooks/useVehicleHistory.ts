@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
@@ -8,7 +8,7 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired } = useGarage();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, syncVehicleStatus } = useGarage();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
@@ -19,6 +19,13 @@ export function useVehicleHistory(vehicleId: string) {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const pendingHoldId = useRef<string | null>(null);
+
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (syncedRef.current) return;
+    syncedRef.current = true;
+    void syncVehicleStatus(vehicleId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);

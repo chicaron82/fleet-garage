@@ -24,6 +24,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
+  syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;
   restoreVehicle: (vehicleId: string) => Promise<void>;
   archivedVehicles: Vehicle[];
@@ -248,13 +249,19 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       outcome: repair.outcome,
     });
     await supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId);
-    const otherActiveHolds = holds.filter(
+    const otherUnresolvedHolds = holds.filter(
       h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
     );
-    if (otherActiveHolds.length === 0) {
-      await supabase.from('vehicles').update({ status: 'CLEAR' }).eq('id', hold.vehicleId);
-      setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'CLEAR' }));
-    }
+    const newVehicleStatus: VehicleStatus =
+      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
+        ? 'HELD'
+        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
+          ? 'PRE_EXISTING'
+          : otherUnresolvedHolds.some(h => h.release)
+            ? 'OUT_ON_EXCEPTION'
+            : 'CLEAR';
+    await supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId);
+    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
   };
 
@@ -316,6 +323,23 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const syncVehicleStatus = async (vehicleId: string) => {
+    const vehicle = allVehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+    const vehicleHolds = holds.filter(h => h.vehicleId === vehicleId && h.status !== 'REPAIRED');
+    const correctStatus: VehicleStatus =
+      vehicleHolds.some(h => h.status === 'ACTIVE')
+        ? 'HELD'
+        : vehicleHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
+          ? 'PRE_EXISTING'
+          : vehicleHolds.some(h => h.release)
+            ? 'OUT_ON_EXCEPTION'
+            : 'CLEAR';
+    if (vehicle.status === correctStatus) return;
+    await supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId);
+    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: correctStatus }));
+  };
+
   const setCoverPhoto = async (vehicleId: string, url: string | null) => {
     await supabase.from('vehicles').update({ cover_photo_url: url }).eq('id', vehicleId);
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, coverPhotoUrl: url ?? undefined }));
@@ -326,7 +350,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
-      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned,
+      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
       archiveVehicle, restoreVehicle, archivedVehicles,
       setCoverPhoto,
       shuttlePlate, setShuttlePlate,
