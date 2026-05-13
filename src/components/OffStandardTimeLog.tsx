@@ -3,7 +3,7 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, ShiftType, ShiftWithUser, User, WashbayLog } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { USERS, MOCK_VEHICLE_UNITS } from '../data/mock';
@@ -66,12 +66,38 @@ function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
   };
 }
 
-function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned: number, isPeakSeason: boolean, overtimeHours: number): string {
+function shiftTypeLabel(shiftType: ShiftType): string {
+  if (shiftType === 'day-off') return 'Day Off';
+  if (shiftType === 'pto') return 'PTO';
+  if (shiftType === 'sick') return 'Sick Day';
+  return `${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} shift`;
+}
+
+function deriveShiftLine(shifts: ShiftWithUser[], userId: string): string {
+  const today = localDateStr(0);
+  const todaysShifts = shifts.filter(s => s.userId === userId && s.date === today);
+  if (todaysShifts.length === 0) return '8-hour shift';
+
+  const withTimes = todaysShifts.find(s => s.startTime && s.endTime);
+  const chosen = withTimes ?? todaysShifts[0];
+  if (!chosen) return '8-hour shift';
+
+  const label = shiftTypeLabel(chosen.shiftType);
+  if (chosen.startTime && chosen.endTime) {
+    return `${label} ${chosen.startTime}-${chosen.endTime}`;
+  }
+  return label;
+}
+
+function generateReportText(
+  entries: OffStandardEntry[],
+  user: User,
+  washbayLog: WashbayLog | null,
+  isPeakSeason: boolean,
+  shiftLine: string,
+): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
-  const branchOpHours = (isPeakSeason ? 16 : 15) + overtimeHours;
-  const activeMinutes = Math.max(0, branchOpHours * 60 - offTotal);
-  const adjustedOpHours = Math.max(0.1, branchOpHours - (offTotal / 60));
-  const rate = adjustedOpHours > 0 ? carsCleaned / adjustedOpHours : 0;
+  const branchOpHours = (isPeakSeason ? 16 : 15) + (washbayLog?.overtimeHours ?? 0);
 
   const lines: string[] = [
     'OFF-STANDARD TIME REPORT',
@@ -79,7 +105,7 @@ function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned
     `Name:     ${user.name}`,
     `EEID:     ${user.employeeId}`,
     `Date:     ${todayDateStr()}`,
-    `Shift:    8-hour shift`,
+    `Shift:    ${shiftLine}`,
     '',
     'OFF-STANDARD ENTRIES',
     '─'.repeat(37),
@@ -95,15 +121,27 @@ function generateReportText(entries: OffStandardEntry[], user: User, carsCleaned
     }
   }
 
-  const rateLabel = rate >= STANDARD_RATE ? '✅ Above standard' : rate >= 2.5 ? '⚠️ Near standard' : '❌ Below standard';
-
   lines.push(
     '',
     '─'.repeat(37),
     `Total off-standard:  ${fmtMinutes(offTotal)}`,
-    `Active cleaning:     ${fmtMinutes(activeMinutes)}`,
-    `Cars cleaned (team): ${carsCleaned}`,
-    `Adjusted personal rate: ${rate.toFixed(1)} / hr  ${rateLabel}`,
+  );
+
+  if (washbayLog) {
+    const carsCleaned = Math.max(
+      0,
+      washbayLog.fullPages * 19 + washbayLog.lastPageEntries - washbayLog.carsRemaining,
+    );
+    const adjustedOpHours = Math.max(0.1, branchOpHours - (offTotal / 60));
+    const rate = carsCleaned / adjustedOpHours;
+    const rateLabel = rate >= STANDARD_RATE ? '✅ Above standard' : rate >= 2.5 ? '⚠️ Near standard' : '❌ Below standard';
+    lines.push(
+      `Cars cleaned (team): ${carsCleaned}`,
+      `Adjusted personal rate: ${rate.toFixed(1)} / hr  ${rateLabel}`,
+    );
+  }
+
+  lines.push(
     '',
     'Manager approval: _________________',
     '─'.repeat(37),
@@ -149,7 +187,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { getTodayWashbayLog, holds, vehicles } = useGarage();
-  const { isPeakSeason } = useSchedule();
+  const { isPeakSeason, shifts } = useSchedule();
   const washbayLog = getTodayWashbayLog();
   const carsNum = washbayLog
     ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
@@ -398,7 +436,8 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   const handleExport = async () => {
     hapticMedium();
-    const reportText = generateReportText(entries, user, carsNum, isPeakSeason, washbayLog?.overtimeHours ?? 0);
+    const shiftLine = deriveShiftLine(shifts, user.id);
+    const reportText = generateReportText(entries, user, washbayLog ?? null, isPeakSeason, shiftLine);
     if (navigator.share) {
       try {
         await navigator.share({
