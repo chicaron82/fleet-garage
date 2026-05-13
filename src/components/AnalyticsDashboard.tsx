@@ -271,7 +271,7 @@ export function AnalyticsDashboard() {
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
                     </div>
                   ))}
                 </div>
@@ -285,8 +285,8 @@ export function AnalyticsDashboard() {
                     { label: 'Delivered to airport', value: DEMO_WASHBAY_TODAY.deliveredToAirport, indent: false },
                   ].map(({ label, value, indent, minus }) => (
                     <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                      <span className="text-xs">{minus ? '− ' : ''}{label}</span>
-                      <span className="text-xs tabular-nums">{value}</span>
+                      <span className="text-sm">{minus ? '− ' : ''}{label}</span>
+                      <span className="text-sm tabular-nums">{value}</span>
                     </div>
                   ))}
                 </div>

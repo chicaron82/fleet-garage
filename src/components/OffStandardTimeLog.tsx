@@ -667,13 +667,13 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {fmtTime(entry.startTime)} – {fmtTime(entry.stopTime)}
                     </span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                       {entry.reason}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       {fmtMinutes(entry.minutes)}
                     </span>
                     {entry.autoFromTrip && (
@@ -681,7 +681,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                     )}
                   </div>
                   {entry.explanation && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{entry.explanation}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{entry.explanation}</p>
                   )}
                 </div>
               </div>

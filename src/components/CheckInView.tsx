@@ -277,11 +277,11 @@ function CheckInCard({ checkIn: ci, isManagement }: { checkIn: VehicleCheckIn; i
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">
+              <span className="font-semibold text-gray-900 dark:text-gray-100 text-base transition-colors">
                 {ci.vehicleUnit}
               </span>
               <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-              <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">
+              <span className="text-gray-500 dark:text-gray-400 text-sm transition-colors">
                 {ci.vehiclePlate}
               </span>
             </div>

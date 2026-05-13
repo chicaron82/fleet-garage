@@ -163,10 +163,10 @@ export function FleetMasterView({ onNavigate, onRegisterNew }: Props) {
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap shrink-0 ${badgeClass}`}>
                             {label}
                           </span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
+                          <span className="text-base font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">·</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap truncate">
+                          <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
+                          <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap truncate">
                             {v.make} {v.model} {v.year} · {v.color}
                           </span>
                         </div>

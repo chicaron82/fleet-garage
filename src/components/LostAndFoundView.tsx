@@ -51,7 +51,7 @@ function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkRet
           </div>
         )}
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="font-medium text-gray-900 dark:text-gray-100 text-sm transition-colors">
+          <p className="font-medium text-gray-900 dark:text-gray-100 text-base transition-colors">
             {item.description ?? <span className="text-gray-400 dark:text-gray-500 italic">No description</span>}
           </p>
           {(item.location || vehicleLabel) && (
@@ -79,7 +79,7 @@ function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkRet
 
       {/* Notes */}
       {item.notes && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 italic transition-colors">"{item.notes}"</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 italic transition-colors">"{item.notes}"</p>
       )}
 
       {/* Actions */}
@@ -302,7 +302,7 @@ export function LostAndFoundView() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-700 dark:text-gray-300 text-sm transition-colors">
+                  <p className="font-medium text-gray-700 dark:text-gray-300 text-base transition-colors">
                     {item.description ?? <span className="italic text-gray-400">No description</span>}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">

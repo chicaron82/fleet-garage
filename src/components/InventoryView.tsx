@@ -115,12 +115,12 @@ function LiveEntryCard({ entry, onChange, onHoldTap, onDismiss }: {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{entry.unitNumber || '—'} · {entry.licensePlate || '—'}</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100 text-base">{entry.unitNumber || '—'} · {entry.licensePlate || '—'}</p>
               {entry.needsReview && !complete && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-200 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 font-semibold">⚠ Review</span>
               )}
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{entry.year > 0 ? entry.year : ''} {entry.make} {entry.model}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{entry.year > 0 ? entry.year : ''} {entry.make} {entry.model}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {entry.classification && (
@@ -338,11 +338,11 @@ function InventoryCard({
     <div className="px-4 py-3 flex items-start justify-between gap-3 transition-colors">
       <div className="min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{unitNumber}</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100 text-base">{unitNumber}</span>
           <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">{licensePlate}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{licensePlate}</span>
         </div>
-        <p className="text-xs text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{locationLabel}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -367,12 +367,12 @@ function HoldCard({
     <div className="px-4 py-3 flex items-start justify-between gap-3 transition-colors">
       <div className="min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{unitNumber}</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100 text-base">{unitNumber}</span>
           <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">{licensePlate}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{licensePlate}</span>
           <span className="text-xs text-gray-400 dark:text-gray-500">🔗</span>
         </div>
-        <p className="text-xs text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{year} {make} {model}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Hold Bay</p>
       </div>
       <StatusBadge status={status as 'HELD'} holdTypes={holdTypes} />
@@ -491,8 +491,8 @@ function ClosingChecklist({ defaultOpen }: { defaultOpen: boolean }) {
             <li key={i} className="px-4 py-3 flex gap-3">
               <span className="shrink-0 text-xs font-semibold text-gray-400 dark:text-gray-500 w-5 text-right tabular-nums mt-0.5">{i + 1}.</span>
               <div className="min-w-0">
-                <p className="text-sm text-gray-800 dark:text-gray-200">{step}</p>
-                {note && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{note}</p>}
+                <p className="text-base text-gray-800 dark:text-gray-200">{step}</p>
+                {note && <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{note}</p>}
               </div>
             </li>
           ))}

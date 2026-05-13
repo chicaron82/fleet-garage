@@ -153,7 +153,7 @@ export function IssueLogView() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="shrink-0">{cfg.icon}</span>
-            <p className={`text-sm font-semibold truncate ${cleared ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
+            <p className={`text-base font-semibold truncate ${cleared ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
               {issue.title}
             </p>
             {issue.reopenCount >= 2 && (
@@ -192,11 +192,11 @@ export function IssueLogView() {
         </p>
 
         {issue.description && (
-          <p className="text-xs text-gray-600 dark:text-gray-300 italic">"{issue.description}"</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{issue.description}"</p>
         )}
 
         {cleared && issue.notes && (
-          <p className="text-xs text-green-600 dark:text-green-400">✓ {issue.notes}</p>
+          <p className="text-sm text-green-600 dark:text-green-400">✓ {issue.notes}</p>
         )}
 
         {/* Clear prompt */}

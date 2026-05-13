@@ -77,8 +77,8 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{vehicle.unitNumber}</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
+              <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+              <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <StatusBadge status={vehicle.status} />
@@ -302,7 +302,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                       onClick={() => h.pickHoldForRepair(hold.id)}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
                     >
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">
                         {hold.damageDescription}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -335,7 +335,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-start justify-between gap-3 mb-1">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
+                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
                       {(hold.holdTypes.length > 1 || hold.holdTypes[0] !== 'damage') && hold.holdTypes.map(type => (
                         <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>
                           {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -370,7 +370,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                     {' '}· {h.getEmpId(hold.flaggedById)} ({h.getRole(hold.flaggedById)}) · {fmt(hold.flaggedAt)}
                   </p>
                   {hold.notes && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-2 items-center">
                     {(hold.photos ?? []).map((src, i) => {

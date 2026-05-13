@@ -76,7 +76,7 @@ function ReservationRow({
       {flagged && <span className="text-xs shrink-0">🚨</span>}
 
       {/* Time */}
-      <span className={`text-xs font-mono w-10 shrink-0 ${
+      <span className={`text-sm font-mono w-10 shrink-0 ${
         flagged   ? 'text-red-700 dark:text-red-400 font-semibold' :
         highlight ? 'text-amber-700 dark:text-amber-400 font-semibold' :
         'text-gray-500 dark:text-gray-400'
@@ -90,7 +90,7 @@ function ReservationRow({
       </span>
 
       {/* Customer */}
-      <span className={`text-xs flex-1 truncate ${
+      <span className={`text-sm flex-1 truncate ${
         flagged   ? 'text-gray-900 dark:text-gray-100 font-semibold' :
         highlight ? 'text-gray-900 dark:text-gray-100 font-medium' :
         'text-gray-600 dark:text-gray-400'
