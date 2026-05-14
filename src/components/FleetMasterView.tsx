@@ -170,10 +170,17 @@ export function FleetMasterView({ onNavigate, onRegisterNew }: Props) {
                             {v.make} {v.model} {v.year} · {v.color}
                           </span>
                         </div>
-                        {(status === 'held' || status === 'pre-existing' || status === 'on-exception') && v.holdType && (
-                          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                            Hold: {v.holdType}{v.holdFlaggedAt ? ` · Flagged ${fmtRelative(v.holdFlaggedAt)}` : ''}
-                          </p>
+                        {(status === 'held' || status === 'pre-existing' || status === 'on-exception') && v.holdSummary.length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                              Hold: {v.holdSummary.join(', ')}{v.holdFlaggedAt ? ` · Flagged ${fmtRelative(v.holdFlaggedAt)}` : ''}
+                            </p>
+                            {v.holdCount > 1 && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 shrink-0">
+                                {v.holdCount} holds
+                              </span>
+                            )}
+                          </div>
                         )}
                       </button>
                     ))}

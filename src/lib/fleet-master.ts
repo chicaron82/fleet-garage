@@ -10,13 +10,15 @@ export type FleetStatus =
 
 export interface FleetVehicle {
   id: string;
-  unitNumber: string;
+  unitNumber: string | null;
   licensePlate: string;
   make: string;
   model: string;
   year: number;
   color: string;
   status: FleetStatus;
+  holdCount: number;
+  holdSummary: string[];
   holdId?: string;
   holdType?: string;
   holdFlaggedAt?: string;
@@ -72,46 +74,75 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
     }
   } catch { /* inventory_sessions not yet deployed — skip priorities 4–6 */ }
 
-  // One hold per vehicle — ACTIVE wins over RELEASED
-  const holdsByVehicle = new Map<string, HoldRow>();
+  // All holds per vehicle
+  const holdsByVehicle = new Map<string, HoldRow[]>();
   for (const hold of holds) {
-    const existing = holdsByVehicle.get(hold.vehicle_id);
-    if (!existing || (hold.status === 'ACTIVE' && existing.status === 'RELEASED')) {
-      holdsByVehicle.set(hold.vehicle_id, hold);
+    const existing = holdsByVehicle.get(hold.vehicle_id) ?? [];
+    holdsByVehicle.set(hold.vehicle_id, [...existing, hold]);
+  }
+
+  function fmtType(t: string): string {
+    return t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Deduplicated type labels across a set of holds
+  function allTypeLabels(hs: HoldRow[]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const h of hs) {
+      for (const t of (h.hold_types ?? [])) {
+        const label = fmtType(t);
+        if (!seen.has(label)) { seen.add(label); out.push(label); }
+      }
     }
+    return out.length > 0 ? out : ['Hold'];
   }
 
   const result: FleetVehicle[] = vehicles.map(v => {
-    const hold = holdsByVehicle.get(v.id);
+    const vehicleHolds = holdsByVehicle.get(v.id) ?? [];
+    const activeHolds = vehicleHolds.filter(h => h.status === 'ACTIVE');
+    const nonPreExActive = activeHolds.filter(h => !h.hold_types?.includes('pre-existing'));
+    const preExActive = activeHolds.filter(h => h.hold_types?.includes('pre-existing'));
+    const exceptionReleased = vehicleHolds.filter(h =>
+      h.status === 'RELEASED' &&
+      (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
+    );
+
     let status: FleetStatus = 'clear';
     let holdId: string | undefined;
     let holdType: string | undefined;
     let holdFlaggedAt: string | undefined;
+    let holdCount = 0;
+    let holdSummary: string[] = [];
 
-    if (hold) {
-      const holdTypes = Array.isArray(hold.hold_types) ? hold.hold_types : [];
-      const releases = hold.releases ?? [];
-
-      if (hold.status === 'ACTIVE' && holdTypes.includes('pre-existing')) {
-        status = 'pre-existing';
-        holdId = hold.id;
-        holdType = 'Pre-existing';
-        holdFlaggedAt = hold.created_at;
-      } else if (hold.status === 'RELEASED' && releases.some(r => r.release_type === 'EXCEPTION' && !r.actual_return)) {
-        status = 'on-exception';
-        holdId = hold.id;
-        holdType = 'Exception';
-        holdFlaggedAt = hold.created_at;
-      } else if (hold.status === 'ACTIVE') {
-        status = 'held';
-        holdId = hold.id;
-        holdType = holdTypes.length > 0
-          ? holdTypes.map(t => t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(', ')
-          : 'Hold';
-        holdFlaggedAt = hold.created_at;
-      }
-      // RELEASED hold with no active exception — fall through to inventory
+    if (nonPreExActive.length > 0) {
+      // ACTIVE non-pre-existing holds → held (earliest is primary for navigation)
+      const sorted = nonPreExActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      status = 'held';
+      holdId = sorted[0].id;
+      holdFlaggedAt = sorted[0].created_at;
+      holdCount = activeHolds.length;
+      holdSummary = allTypeLabels(activeHolds);
+      holdType = holdSummary[0];
+    } else if (preExActive.length > 0) {
+      // Only pre-existing ACTIVE holds
+      const sorted = preExActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      status = 'pre-existing';
+      holdId = sorted[0].id;
+      holdFlaggedAt = sorted[0].created_at;
+      holdCount = preExActive.length;
+      holdSummary = ['Pre-existing'];
+      holdType = 'Pre-existing';
+    } else if (exceptionReleased.length > 0) {
+      const sorted = exceptionReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      status = 'on-exception';
+      holdId = sorted[0].id;
+      holdFlaggedAt = sorted[0].created_at;
+      holdCount = exceptionReleased.length;
+      holdSummary = ['Exception'];
+      holdType = 'Exception';
     }
+    // RELEASED hold with no active exception — fall through to inventory
 
     if (status === 'clear') {
       const inv = inventoryMap.get(v.license_plate.toUpperCase());
@@ -122,13 +153,15 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
 
     return {
       id: v.id,
-      unitNumber: v.unit_number,
+      unitNumber: v.unit_number as string | null,
       licensePlate: v.license_plate,
       make: v.make,
       model: v.model,
       year: v.year,
       color: v.color,
       status,
+      holdCount,
+      holdSummary,
       holdId,
       holdType,
       holdFlaggedAt,
