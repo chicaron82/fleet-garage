@@ -312,7 +312,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
         location:     item.location,
         itemPhoto:    item.additionalPhoto,
         licensePlate: scanned.vehicle.licensePlate,
-        unitNumber:   scanned.vehicle.unitNumber,
+        unitNumber:   scanned.vehicle.unitNumber ?? undefined,
       })));
       setLoggedCount(validItems.length);
     }

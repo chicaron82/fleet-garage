@@ -776,7 +776,7 @@ export function InventoryView({ onHoldIntent }: Props) {
           <ZoneSection title="Hold Bay" count={holdCount}
             colorClass="text-amber-700 dark:text-amber-500" collapsed={!!collapsed['Hold Bay']} onToggle={() => toggleCollapse('Hold Bay')}>
             {heldVehicles.map(v => (
-              <HoldCard key={v.id} unitNumber={v.unitNumber} licensePlate={v.licensePlate}
+              <HoldCard key={v.id} unitNumber={v.unitNumber ?? ''} licensePlate={v.licensePlate}
                 year={v.year} make={v.make} model={v.model} status={v.status}
                 holdTypes={getActiveHold(v.id)?.holdTypes} />
             ))}

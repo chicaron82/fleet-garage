@@ -21,7 +21,7 @@ export interface LostFoundSlice {
 export function useLostFound(
   user: User | null,
   activeBranch: BranchId | 'ALL',
-  allVehicles: { licensePlate: string; unitNumber: string; year: number; make: string; model: string }[],
+  allVehicles: { licensePlate: string; unitNumber: string | null; year: number; make: string; model: string }[],
 ): LostFoundSlice & { setAllLostFoundItems: React.Dispatch<React.SetStateAction<LostFoundItem[]>> } {
   const [allLostFoundItems, setAllLostFoundItems] = useState<LostFoundItem[]>([]);
 
@@ -51,7 +51,7 @@ export function useLostFound(
         v => v.licensePlate.toLowerCase() === data.licensePlate!.toLowerCase()
       );
       if (matched) {
-        unitNumber = matched.unitNumber;
+        unitNumber = matched.unitNumber ?? undefined;
         vehicleMake = `${matched.year} ${matched.make} ${matched.model}`;
       }
     }
