@@ -440,14 +440,33 @@ export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; ful
 
 export type OffStandardPresetReason = 'fleeting_cars' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv' | 'customer_pickup';
 
+export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string> = {
+  opening_duties:  'Opening Duties',
+  closing_duties:  'Closing Duties',
+  fleeting_cars:   'Fleeting Cars',
+  lot_organization:'Lot Organization',
+  edv:             'EDV',
+  customer_pickup: 'Customer Pickup/Drop',
+};
+
+export type OthEditStatus = 'pending' | 'approved' | 'denied';
+
 export interface OffStandardEntry {
   id: string;
-  startTime: string;       // ISO timestamp
-  stopTime: string;        // ISO timestamp
+  startTime: string;
+  stopTime: string;
   minutes: number;
   reason: OffStandardReason;
   explanation?: string;
-  autoFromTrip: boolean;   // true = locked, came from movement log
+  autoFromTrip: boolean;
   presetReason?: OffStandardPresetReason | null;
   linkedHoldId?: string | null;
+  // edit & approval fields
+  editedEndTime?:   string;
+  editRequestedAt?: string;
+  editRequestedBy?: string;
+  editStatus?:      OthEditStatus | null;
+  editReviewedBy?:  string;
+  editReviewedAt?:  string;
+  editStaffNote?:   string;
 }

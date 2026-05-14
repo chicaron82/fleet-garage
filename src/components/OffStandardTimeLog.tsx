@@ -3,8 +3,10 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, ShiftType, ShiftWithUser, User, WashbayLog } from '../types';
-import { OFF_STANDARD_LABELS } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User, WashbayLog } from '../types';
+import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
+import { pushNotification } from '../lib/garage-uploads';
+import { OthEditSheet } from './OthEditSheet';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { USERS, MOCK_VEHICLE_UNITS } from '../data/mock';
 
@@ -57,13 +59,20 @@ function todayDateStr(): string {
 
 function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {
   return {
-    id:           row.id as string,
-    startTime:    row.start_time as string,
-    stopTime:     row.stop_time as string,
-    minutes:      row.minutes as number,
-    reason:       row.reason as OffStandardReason,
-    explanation:  (row.explanation as string | null) ?? undefined,
-    autoFromTrip: (row.auto_from_trip as boolean) ?? false,
+    id:              row.id as string,
+    startTime:       row.start_time as string,
+    stopTime:        row.stop_time as string,
+    minutes:         row.minutes as number,
+    reason:          row.reason as OffStandardReason,
+    explanation:     (row.explanation as string | null) ?? undefined,
+    autoFromTrip:    (row.auto_from_trip as boolean) ?? false,
+    editedEndTime:   (row.edited_end_time as string | null) ?? undefined,
+    editRequestedAt: (row.edit_requested_at as string | null) ?? undefined,
+    editRequestedBy: (row.edit_requested_by as string | null) ?? undefined,
+    editStatus:      (row.edit_status as OthEditStatus | null) ?? null,
+    editReviewedBy:  (row.edit_reviewed_by as string | null) ?? undefined,
+    editReviewedAt:  (row.edit_reviewed_at as string | null) ?? undefined,
+    editStaffNote:   (row.edit_staff_note as string | null) ?? undefined,
   };
 }
 
@@ -205,6 +214,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const [copied, setCopied]                 = useState(false);
   const [startError, setStartError]         = useState(false);
   const [entries, setEntries]               = useState<OffStandardEntry[]>([]);
+  const [editingEntry, setEditingEntry]     = useState<OffStandardEntry | null>(null);
 
   // Preset + EDV state
   const [selectedPreset, setSelectedPreset]     = useState<OffStandardPresetReason | null>(null);
@@ -409,6 +419,60 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     setStartError(false);
   };
 
+  // ── Edit handlers ─────────────────────────────────────────────────────────
+
+  const handleSaveEdit = async (newEndTime: string, newMinutes: number) => {
+    if (!editingEntry) return;
+    const { error } = await supabase.from('off_standard_entries').update({
+      stop_time:        newEndTime,
+      minutes:          newMinutes,
+      edit_status:      null,
+      edited_end_time:  null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_staff_note:  null,
+    }).eq('id', editingEntry.id);
+    if (!error) {
+      setEntries(prev => prev.map(e => e.id === editingEntry.id
+        ? { ...e, stopTime: newEndTime, minutes: newMinutes, editStatus: null }
+        : e
+      ));
+      setEditingEntry(null);
+    }
+  };
+
+  const handleRequestEdit = async (newEndTime: string, newMinutes: number, note: string) => {
+    if (!editingEntry) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('off_standard_entries').update({
+      edited_end_time:  newEndTime,
+      edit_requested_at: now,
+      edit_requested_by: user.id,
+      edit_status:      'pending',
+      edit_staff_note:  note || null,
+      edit_reviewed_by: null,
+      edit_reviewed_at: null,
+    }).eq('id', editingEntry.id);
+    if (!error) {
+      const label = editingEntry.presetReason
+        ? (OFF_STANDARD_PRESET_LABELS[editingEntry.presetReason] ?? OFF_STANDARD_LABELS[editingEntry.reason].short)
+        : OFF_STANDARD_LABELS[editingEntry.reason].short;
+      await pushNotification(
+        user.branchId,
+        ['Branch Manager', 'Operations Manager'],
+        '⏱️',
+        `${user.name} requested an OTH edit — ${label} — ${editingEntry.minutes}m → ${newMinutes}m`,
+        'warning',
+        { type: 'oth_edit_request', entryId: editingEntry.id },
+      );
+      setEntries(prev => prev.map(e => e.id === editingEntry.id
+        ? { ...e, editStatus: 'pending', editedEndTime: newEndTime, editRequestedBy: user.id, editRequestedAt: now, editStaffNote: note || undefined }
+        : e
+      ));
+      setEditingEntry(null);
+    }
+  };
+
   // ── Tally ─────────────────────────────────────────────────────────────────
   const offTotal         = entries.reduce((s, e) => s + e.minutes, 0);
   const activeMinutes    = Math.max(0, SHIFT_HOURS * 60 - offTotal);
@@ -461,6 +525,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
 
   return (
+    <>
     <div className="space-y-5">
 
       {/* Quick Start */}
@@ -665,7 +730,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {fmtTime(entry.startTime)} – {fmtTime(entry.stopTime)}
@@ -679,11 +744,26 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                     {entry.autoFromTrip && (
                       <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">🔗 From movement log</span>
                     )}
+                    {entry.editStatus === 'pending' && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Pending approval</span>
+                    )}
                   </div>
                   {entry.explanation && (
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{entry.explanation}</p>
                   )}
+                  {entry.editStatus === 'denied' && (
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Edit denied — you may request again</p>
+                  )}
                 </div>
+                {!entry.autoFromTrip && entry.editStatus !== 'pending' && (
+                  <button
+                    onClick={() => { hapticLight(); setEditingEntry(entry); }}
+                    className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm cursor-pointer transition-colors"
+                    aria-label="Edit entry"
+                  >
+                    ✏️
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -768,5 +848,15 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       </div>
 
     </div>
+
+    {editingEntry && (
+      <OthEditSheet
+        entry={editingEntry}
+        onSave={handleSaveEdit}
+        onRequest={handleRequestEdit}
+        onClose={() => setEditingEntry(null)}
+      />
+    )}
+    </>
   );
 }

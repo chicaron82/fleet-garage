@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../UserProfileMenu';
 import { ModuleGuideModal } from '../ModuleGuideModal';
 import { NotificationBell } from '../NotificationBell';
+import { OthEditApprovalSheet } from '../OthEditApprovalSheet';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
@@ -19,6 +20,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
   const { user, activeBranch } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
+  const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
 
   const visibleNotifications = getVisibleNotifications(notifications, user, activeBranch);
@@ -83,7 +85,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell onNavigate={handleNavigate} />
+            <NotificationBell onNavigate={handleNavigate} onOthEditApproval={setPendingApprovalEntryId} />
             <UserProfileMenu />
           </div>
         </div>
@@ -97,6 +99,13 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
         <ModuleGuideModal
           initialModule={guideModule}
           onClose={() => setGuideModule(null)}
+        />
+      )}
+
+      {pendingApprovalEntryId && (
+        <OthEditApprovalSheet
+          entryId={pendingApprovalEntryId}
+          onClose={() => setPendingApprovalEntryId(null)}
         />
       )}
     </div>
