@@ -323,12 +323,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
 
   // Resolve which rate to display based on handoff + schedule
   const hasSplit = morningRate != null && closingRate != null;
-  const resolvedRate = offStandardMinutes > 0
-    ? dailyRate
-    : hasSplit && userShiftType
-      ? userShiftType === 'opening' ? morningRate
-      : userShiftType === 'closing' ? closingRate
-      : dailyRate
+  const resolvedRate = hasSplit && userShiftType
+    ? userShiftType === 'opening' ? morningRate
+    : userShiftType === 'closing' ? closingRate
+    : dailyRate
     : dailyRate;
   const resolvedShiftIcon = hasSplit && userShiftType === 'opening' ? '☀️'
     : hasSplit && userShiftType === 'closing' ? '🌙'
