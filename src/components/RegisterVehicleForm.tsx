@@ -6,6 +6,7 @@ interface Props {
   prefill?: string;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
+  returnTo?: 'fleet' | 'hold';
 }
 
 const COLORS = ['White', 'Black', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 'Brown', 'Gold', 'Other'];
@@ -46,7 +47,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
     : { unit: '', plate: value };
 }
 
-export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
+export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
   const { addVehicle } = useGarage();
   const seed = classifyPrefill(prefill);
 
@@ -59,6 +60,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
   const [year, setYear] = useState(currentYear);
   const [color, setColor] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
 
@@ -85,7 +87,12 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
         color,
       });
       hapticMedium();
-      onSuccess(id);
+      if (returnTo === 'fleet') {
+        setSuccessToast(`✅ Vehicle ${unit.trim()} registered`);
+        setTimeout(() => onSuccess(id), 2500);
+      } else {
+        onSuccess(id);
+      }
     } catch {
       setSubmitting(false);
     }
@@ -224,6 +231,14 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess }: Props) {
 
         </form>
       </div>
+
+      {successToast && (
+        <div className="fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
+          <div className="px-5 py-3 rounded-2xl bg-green-800/90 text-white text-sm font-semibold shadow-xl backdrop-blur-sm">
+            {successToast}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

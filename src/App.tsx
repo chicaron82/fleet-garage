@@ -132,12 +132,17 @@ export default function App() {
         return (
           <RegisterVehicleForm
             prefill={screen.prefill}
+            returnTo={screen.fromHold ? 'hold' : 'fleet'}
             onBack={() =>
               screen.fromHold
                 ? navigate({ name: 'new-hold' })
                 : navigate({ name: 'dashboard' })
             }
-            onSuccess={(vehicleId) => navigate({ name: 'new-hold', vehicleId, fromRegister: true })}
+            onSuccess={(vehicleId) =>
+              screen.fromHold
+                ? navigate({ name: 'new-hold', vehicleId, fromRegister: true })
+                : navigate({ name: 'fleet-master' })
+            }
           />
         );
       case 'check-in':
