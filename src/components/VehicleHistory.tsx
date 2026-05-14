@@ -302,9 +302,18 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                       onClick={() => h.pickHoldForRepair(hold.id)}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
                     >
-                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-                        {hold.damageDescription}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-base font-medium text-gray-900 dark:text-gray-100">
+                          {hold.damageDescription}
+                        </p>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          hold.status === 'ACTIVE'
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                        }`}>
+                          {hold.status === 'ACTIVE' ? 'ACTIVE' : 'RELEASED'}
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                         {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
                       </p>

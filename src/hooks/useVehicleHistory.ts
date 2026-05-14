@@ -31,12 +31,12 @@ export function useVehicleHistory(vehicleId: string) {
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
 
-  // All holds currently eligible for the repair action
-  const repairableHolds: Hold[] = activeHold
-    ? holds.filter(h => h.status === 'ACTIVE')
-    : vehicle?.status === 'PRE_EXISTING'
-      ? holds.filter(h => h.status === 'RELEASED' && !h.repair)
-      : [];
+  // All holds currently eligible for the repair action:
+  // ACTIVE holds always eligible; RELEASED holds eligible if not yet repaired.
+  const repairableHolds: Hold[] = holds.filter(
+    h => h.vehicleId === vehicle?.id &&
+      (h.status === 'ACTIVE' || (h.status === 'RELEASED' && !h.repair))
+  );
 
   const [showHoldPicker, setShowHoldPicker] = useState(false);
 
