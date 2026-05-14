@@ -34,7 +34,7 @@ export function useNewHold(preselectedId?: string) {
 
   const searchResults = unitSearch.trim().length >= 2
     ? vehicles.filter(v =>
-        v.unitNumber.toUpperCase().includes(unitSearch) ||
+        (v.unitNumber?.toUpperCase() ?? '').includes(unitSearch) ||
         v.licensePlate.toUpperCase().includes(unitSearch)
       ).slice(0, 5)
     : [];

@@ -46,7 +46,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew }: Props) {
   const filtered = term
     ? vehicles.filter(v =>
         v.licensePlate.toUpperCase().includes(term) ||
-        v.unitNumber.toUpperCase().includes(term)
+        (v.unitNumber?.toUpperCase() ?? '').includes(term)
       )
     : vehicles;
 

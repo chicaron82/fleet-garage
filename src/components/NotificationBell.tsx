@@ -19,9 +19,10 @@ interface LiveNotification {
   metadata?: Record<string, unknown>;
 }
 
-export function NotificationBell({ onNavigate, onOthEditApproval }: {
+export function NotificationBell({ onNavigate, onOthEditApproval, onVehicleEditApproval }: {
   onNavigate?: (screen: Screen) => void;
   onOthEditApproval?: (entryId: string) => void;
+  onVehicleEditApproval?: (vehicleId: string) => void;
 }) {
   const { user, activeBranch } = useAuth();
   const [mode, setMode] = useState<'demo' | 'live'>('live');
@@ -81,6 +82,11 @@ export function NotificationBell({ onNavigate, onOthEditApproval }: {
     await handleMarkOneRead(n);
     if (n.metadata?.type === 'oth_edit_request' && onOthEditApproval) {
       onOthEditApproval(n.metadata.entryId as string);
+      setInboxOpen(false);
+      return;
+    }
+    if (n.metadata?.type === 'vehicle_edit_request' && onVehicleEditApproval) {
+      onVehicleEditApproval(n.metadata.vehicleId as string);
       setInboxOpen(false);
       return;
     }

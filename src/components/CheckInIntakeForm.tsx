@@ -439,7 +439,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 <div className="space-y-1">
                   {(() => {
                     const results = vehicles.filter(v =>
-                      v.unitNumber.toUpperCase().includes(unitSearch.trim().toUpperCase()) ||
+                      (v.unitNumber?.toUpperCase() ?? '').includes(unitSearch.trim().toUpperCase()) ||
                       v.licensePlate.toUpperCase().includes(unitSearch.trim().toUpperCase())
                     ).slice(0, 5);
                     if (results.length === 0) {

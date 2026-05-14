@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
+import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -30,12 +30,20 @@ function optStrArray(row: Row, key: string): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
 
+// Returns string | null — distinct from optStr which returns string | undefined.
+// Used for columns that are intentionally nullable (e.g. edit_suggested_unit can be null to mean "clear unit").
+function nullableStr(row: Row, key: string): string | null {
+  const v = row[key];
+  if (typeof v === 'string') return v;
+  return null;
+}
+
 // ── Mappers ────────────────────────────────────────────────────────────────
 
 export function mapVehicle(row: Row): Vehicle {
   return {
     id:           reqStr(row, 'id',            'mapVehicle'),
-    unitNumber:   reqStr(row, 'unit_number',   'mapVehicle'),
+    unitNumber:   nullableStr(row, 'unit_number'),
     licensePlate: reqStr(row, 'license_plate', 'mapVehicle'),
     make:         reqStr(row, 'make',          'mapVehicle'),
     model:        reqStr(row, 'model',         'mapVehicle'),
@@ -46,6 +54,14 @@ export function mapVehicle(row: Row): Vehicle {
     coverPhotoUrl: optStr(row, 'cover_photo_url'),
     archivedAt:   optStr(row, 'archived_at')    ?? undefined,
     archivedById: optStr(row, 'archived_by_id') ?? undefined,
+    editSuggestedUnit:  'edit_suggested_unit'  in row ? nullableStr(row, 'edit_suggested_unit') : undefined,
+    editSuggestedPlate: optStr(row, 'edit_suggested_plate'),
+    editSuggestedBy:    optStr(row, 'edit_suggested_by'),
+    editSuggestedAt:    optStr(row, 'edit_suggested_at'),
+    editSuggestionNote: optStr(row, 'edit_suggestion_note'),
+    editStatus:         (optStr(row, 'edit_status') as VehicleEditStatus | undefined) ?? null,
+    editReviewedBy:     optStr(row, 'edit_reviewed_by'),
+    editReviewedAt:     optStr(row, 'edit_reviewed_at'),
   };
 }
 

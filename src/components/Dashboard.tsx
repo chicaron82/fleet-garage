@@ -109,7 +109,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const filtered = vehicles
     .filter(v => {
       const matchesSearch = search === '' ||
-        v.unitNumber.toUpperCase().includes(search) ||
+        (v.unitNumber?.toUpperCase() ?? '').includes(search) ||
         v.licensePlate.toUpperCase().includes(search) ||
         v.make.toUpperCase().includes(search) ||
         v.model.toUpperCase().includes(search);

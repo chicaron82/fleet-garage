@@ -72,12 +72,13 @@ export interface User {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus  = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
-export type EvAssetStatus  = 'present' | 'missing';
+export type VehicleStatus    = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
+export type EvAssetStatus    = 'present' | 'missing';
+export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
 export interface Vehicle {
   id: string;
-  unitNumber: string;
+  unitNumber: string | null;
   licensePlate: string;
   make: string;
   model: string;
@@ -88,6 +89,15 @@ export interface Vehicle {
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;
+  // Edit suggestion fields
+  editSuggestedUnit?: string | null;
+  editSuggestedPlate?: string;
+  editSuggestedBy?: string;
+  editSuggestedAt?: string;
+  editSuggestionNote?: string;
+  editStatus?: VehicleEditStatus | null;
+  editReviewedBy?: string;
+  editReviewedAt?: string;
 }
 
 export function canManageVehicles(role: UserRole): boolean {

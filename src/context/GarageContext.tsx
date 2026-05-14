@@ -29,6 +29,8 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   restoreVehicle: (vehicleId: string) => Promise<void>;
   archivedVehicles: Vehicle[];
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
+  markVehicleEditPending: (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => void;
+  applyVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
 }
@@ -84,7 +86,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
-    vehicles.find(v => v.unitNumber.toLowerCase() === unitNumber.toLowerCase());
+    vehicles.find(v => v.unitNumber?.toLowerCase() === unitNumber.toLowerCase());
 
   function latestActivity(hold: Hold): number {
     if (hold.repair?.repairedAt)  return new Date(hold.repair.repairedAt).getTime();
@@ -345,6 +347,38 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, coverPhotoUrl: url ?? undefined }));
   };
 
+  const markVehicleEditPending = (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => {
+    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
+      ...v,
+      editSuggestedUnit: patch.unit,
+      editSuggestedPlate: patch.plate,
+      editSuggestedBy: patch.by,
+      editSuggestedAt: patch.at,
+      editSuggestionNote: patch.note,
+      editStatus: 'pending',
+    }));
+  };
+
+  const applyVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('vehicles').update({
+      unit_number: unit,
+      license_plate: plate,
+      edit_status: 'approved',
+      edit_reviewed_by: user!.id,
+      edit_reviewed_at: now,
+    }).eq('id', vehicleId);
+    if (error) return;
+    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
+      ...v,
+      unitNumber: unit,
+      licensePlate: plate,
+      editStatus: 'approved',
+      editReviewedBy: user!.id,
+      editReviewedAt: now,
+    }));
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
@@ -353,6 +387,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
       archiveVehicle, restoreVehicle, archivedVehicles,
       setCoverPhoto,
+      markVehicleEditPending, applyVehicleIdentity,
       shuttlePlate, setShuttlePlate,
       ...issuesSlice,
       ...washbaySlice,

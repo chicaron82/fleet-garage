@@ -3,6 +3,7 @@ import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
 import { canRelease, canManageVehicles, REPAIR_OUTCOME_LABELS } from '../types';
 import type { RepairOutcome } from '../types';
+import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { hapticHeavy, hapticLight, hapticMedium } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
@@ -49,6 +50,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showEditSuggestion, setShowEditSuggestion] = useState(false);
 
   const { vehicle } = h;
   if (!vehicle) return null;
@@ -56,6 +58,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const streak = releaseStreak(vehicleId);
 
   return (
+    <>
     <div className="transition-colors">
       {/* Nav */}
       <nav className="bg-white dark:bg-gray-900 transition-colors border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
@@ -66,7 +69,9 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           ← Back
         </button>
         <span className="text-gray-300">|</span>
-        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{vehicle.unitNumber}</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+          {vehicle.unitNumber ?? <span className="text-gray-400 italic">Unit # pending</span>}
+        </span>
         <StatusBadge status={vehicle.status} />
       </nav>
 
@@ -76,9 +81,38 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 p-5">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{vehicle.unitNumber}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {vehicle.unitNumber ?? <span className="text-gray-400 dark:text-gray-500 italic font-normal text-lg">Unit # pending</span>}
+                </h1>
+                {vehicle.editStatus !== 'pending' && (
+                  <button
+                    onClick={() => setShowEditSuggestion(true)}
+                    title="Suggest identity edit"
+                    className="text-gray-300 dark:text-gray-600 hover:text-amber-500 dark:hover:text-amber-400 transition-colors cursor-pointer text-base leading-none"
+                  >
+                    ✏️
+                  </button>
+                )}
+              </div>
               <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
               <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
+              {vehicle.editStatus === 'pending' && (
+                <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                  Edit pending approval
+                </span>
+              )}
+              {vehicle.editStatus === 'denied' && (
+                <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  Edit denied.{' '}
+                  <button
+                    onClick={() => setShowEditSuggestion(true)}
+                    className="underline text-amber-600 dark:text-amber-400 cursor-pointer hover:text-amber-800 dark:hover:text-amber-300"
+                  >
+                    Submit a new suggestion
+                  </button>
+                </p>
+              )}
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <StatusBadge status={vehicle.status} />
@@ -491,5 +525,13 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         />
       )}
     </div>
+
+    {showEditSuggestion && (
+      <VehicleEditSuggestionSheet
+        vehicle={vehicle}
+        onClose={() => setShowEditSuggestion(false)}
+      />
+    )}
+    </>
   );
 }
