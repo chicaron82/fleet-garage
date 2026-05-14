@@ -110,7 +110,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .from('branch_settings')
       .select('peak_season')
       .eq('id', 1)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data) setIsPeakSeason(data.peak_season as boolean);
       });
