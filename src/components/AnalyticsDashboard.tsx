@@ -19,6 +19,7 @@ import { TripAnalyticsSection } from './analytics/TripAnalyticsSection';
 import { DriverCoverageSection, isManagement } from './analytics/DriverCoverageSection';
 import { TurnaroundSection } from './analytics/TurnaroundSection';
 import { WashbayHistorySection } from './WashbayHistorySection';
+import { ShiftThroughputSection } from './ShiftThroughputSection';
 import { EVAssetStatusSection } from './analytics/EVAssetStatusSection';
 import { ClassDispatchSection } from './analytics/ClassDispatchSection';
 
@@ -330,6 +331,15 @@ export function AnalyticsDashboard() {
 
           {isManagement(user.role) && (
             <WashbayHistorySection washbayLogs={washbayLogs} handoffNotes={handoffNotes} />
+          )}
+
+          {isManagement(user.role) && (
+            <ShiftThroughputSection
+              washbayLogs={washbayLogs}
+              handoffNotes={handoffNotes}
+              isDemo={isDemo}
+              isPeakSeason={isPeakSeason}
+            />
           )}
 
           <TripAnalyticsSection isDemo={isDemo} activeBranch={activeBranch} />
