@@ -80,7 +80,19 @@ export function NotesField({ value, onChange, tripState, presets }: {
   value: string; onChange: (v: string) => void; tripState: TripState;
   presets?: string[];
 }) {
-  const handlePreset = (p: string) => onChange(value ? `${value} · ${p}` : p);
+  const activePills = new Set(
+    (value ?? '').split(' · ').map(p => p.trim()).filter(Boolean)
+  );
+
+  const handlePillToggle = (pill: string) => {
+    hapticLight();
+    const parts = (value ?? '').split(' · ').map(p => p.trim()).filter(Boolean);
+    if (parts.includes(pill)) {
+      onChange(parts.filter(p => p !== pill).join(' · '));
+    } else {
+      onChange(parts.length > 0 ? `${value} · ${pill}` : pill);
+    }
+  };
 
   return (
     <div>
@@ -92,8 +104,12 @@ export function NotesField({ value, onChange, tripState, presets }: {
           {presets.map(p => (
             <button
               key={p} type="button"
-              onClick={() => handlePreset(p)}
-              className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 hover:text-yellow-700 dark:hover:text-yellow-400 transition cursor-pointer"
+              onClick={() => handlePillToggle(p)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
+                activePills.has(p)
+                  ? 'bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-400 text-yellow-800 dark:text-yellow-300'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 hover:text-yellow-700 dark:hover:text-yellow-400'
+              }`}
             >
               {p}
             </button>
