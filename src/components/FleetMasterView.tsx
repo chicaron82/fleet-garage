@@ -7,9 +7,10 @@ import type { Screen } from '../types';
 interface Props {
   onNavigate: (screen: Screen) => void;
   onRegisterNew: (prefill?: string) => void;
+  refreshKey?: number;
 }
 
-const COLLAPSED_BY_DEFAULT = new Set<FleetStatus>(['available', 'clear']);
+const COLLAPSED_BY_DEFAULT = new Set<FleetStatus>(['clear']);
 
 const STATUS_GROUPS: { status: FleetStatus; label: string; dot: string; badgeClass: string; headerClass: string }[] = [
   { status: 'held',         label: 'Held',         dot: '🔴', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/40',       headerClass: 'text-red-700 dark:text-red-400' },
@@ -26,7 +27,7 @@ function fmtRelative(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function FleetMasterView({ onNavigate, onRegisterNew }: Props) {
+export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props) {
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew }: Props) {
       setVehicles(data);
       setLoading(false);
     });
-  }, [user?.branchId]);
+  }, [user?.branchId, refreshKey]);
 
   const term = search.trim().toUpperCase();
   const filtered = term

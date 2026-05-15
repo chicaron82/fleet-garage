@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
+import { useAuth } from '../context/AuthContext';
 import { hapticMedium } from '../lib/haptics';
 
 interface Props {
@@ -49,6 +50,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 
 export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
   const { addVehicle } = useGarage();
+  const { user } = useAuth();
   const seed = classifyPrefill(prefill);
 
   const currentYear = new Date().getFullYear();
@@ -85,6 +87,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         model,
         year: year,
         color,
+        branchId: user?.branchId,
       });
       hapticMedium();
       if (returnTo === 'fleet') {

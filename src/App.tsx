@@ -61,6 +61,7 @@ export default function App() {
   );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [prevUserId, setPrevUserId] = useState(user?.id);
+  const [fleetRefreshKey, setFleetRefreshKey] = useState(0);
 
   const navigate = useCallback((next: Screen) => {
     window.history.pushState(next, '');
@@ -138,11 +139,14 @@ export default function App() {
                 ? navigate({ name: 'new-hold' })
                 : navigate({ name: 'dashboard' })
             }
-            onSuccess={(vehicleId) =>
-              screen.fromHold
-                ? navigate({ name: 'new-hold', vehicleId, fromRegister: true })
-                : navigate({ name: 'fleet-master' })
-            }
+            onSuccess={(vehicleId) => {
+              if (screen.fromHold) {
+                navigate({ name: 'new-hold', vehicleId, fromRegister: true });
+              } else {
+                setFleetRefreshKey(k => k + 1);
+                navigate({ name: 'fleet-master' });
+              }
+            }}
           />
         );
       case 'check-in':
@@ -174,6 +178,7 @@ export default function App() {
           <FleetMasterView
             onNavigate={navigate}
             onRegisterNew={(prefill) => navigate({ name: 'register-vehicle', prefill })}
+            refreshKey={fleetRefreshKey}
           />
         );
       default:

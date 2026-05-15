@@ -18,7 +18,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
-  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>) => Promise<string>;
+  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }) => Promise<string>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
@@ -122,9 +122,9 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     });
   }, [holds]);
 
-  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'>): Promise<string> => {
+  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {
     const id = `veh-${Date.now()}`;
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const branchId = vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch);
     const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,
@@ -133,6 +133,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       model:         vehicle.model,
       year:          vehicle.year,
       color:         vehicle.color,
+      branch_id:     branchId,
       status:        'HELD',
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
@@ -171,6 +172,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       flagged_by_id: flaggedById, flagged_at: flaggedAt,
       notes, photos: photoUrls, status: 'ACTIVE',
       linked_hold_id: linkedHoldId ?? null,
+      branch_id: branchId,
     });
     if (error) throw new Error(`Failed to add hold: ${error.message}`);
 
