@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { useNewHold } from '../hooks/useNewHold';
 import { useGarage } from '../context/GarageContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,7 @@ import { parseFleetBarcode } from '../lib/barcode';
 import { DAMAGE_PRESETS, MECHANICAL_PRESETS } from '../lib/hold-presets';
 import { getTireSwapSeason } from '../lib/holdBadge';
 import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
-import { DETAIL_REASON_LABELS } from '../types';
+import { DETAIL_REASON_LABELS, canRelease } from '../types';
 import type { DetailReason, MechanicalSubType } from '../types';
 
 interface Props {
@@ -21,7 +21,7 @@ interface Props {
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
-  const { getVehicleByUnit, vehicles } = useGarage();
+  const { getVehicleByUnit, vehicles, addVehicle } = useGarage();
   const { user } = useAuth();
 
   const selectVehicleAndLink = useCallback((vehicleId: string) => {
@@ -40,6 +40,28 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
       color: vehicle.color,
     });
   }, [h, user, vehicles]);
+  const [creatingPlateOnly, setCreatingPlateOnly] = useState(false);
+
+  const handleFlagUnknownPlate = async () => {
+    if (!user) return;
+    setCreatingPlateOnly(true);
+    hapticLight();
+    try {
+      const vehicleId = await addVehicle({
+        unitNumber: null,
+        licensePlate: h.unitSearch.trim().toUpperCase(),
+        make: 'Unknown',
+        model: 'Unknown',
+        year: new Date().getFullYear(),
+        color: 'Unknown',
+        branchId: user.branchId,
+      });
+      h.selectVehicle(vehicleId);
+    } finally {
+      setCreatingPlateOnly(false);
+    }
+  };
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
@@ -174,15 +196,23 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   </div>
                 )}
                 {h.noResults && (
-                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
+                  <div className="px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800 space-y-2">
                     <p className="text-xs text-gray-500 dark:text-gray-400">"{h.unitSearch}" not in the system.</p>
-                    {onRegisterNew && (
+                    <button
+                      type="button"
+                      onClick={handleFlagUnknownPlate}
+                      disabled={creatingPlateOnly}
+                      className="text-xs font-semibold text-red-600 hover:text-red-800 transition cursor-pointer disabled:opacity-50"
+                    >
+                      {creatingPlateOnly ? 'Setting up…' : '🚨 Flag damage on this plate →'}
+                    </button>
+                    {onRegisterNew && canRelease(user?.role) && (
                       <button
                         type="button"
                         onClick={() => onRegisterNew(h.unitSearch)}
-                        className="text-xs font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer whitespace-nowrap ml-3"
+                        className="block text-xs text-gray-400 hover:text-gray-600 transition cursor-pointer"
                       >
-                        + Add to ledger →
+                        + Register vehicle (management)
                       </button>
                     )}
                   </div>
