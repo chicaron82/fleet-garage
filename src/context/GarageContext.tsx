@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem } from '../lib/garage-mappers';
@@ -124,7 +124,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {
     const id = `veh-${Date.now()}`;
-    const branchId = vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch);
+    const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
     const { error } = await supabase.from('vehicles').insert({
       id,
       unit_number:   vehicle.unitNumber,

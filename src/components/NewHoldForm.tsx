@@ -206,7 +206,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     >
                       {creatingPlateOnly ? 'Setting up…' : '🚨 Flag damage on this plate →'}
                     </button>
-                    {onRegisterNew && canRelease(user?.role) && (
+                    {onRegisterNew && user && canRelease(user.role) && (
                       <button
                         type="button"
                         onClick={() => onRegisterNew(h.unitSearch)}

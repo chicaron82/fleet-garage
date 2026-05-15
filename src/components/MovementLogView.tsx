@@ -81,7 +81,6 @@ export function MovementLogView() {
   const [copied, setCopied] = useState(false);
 
   // Trip persistence state
-  const [pendingTripId, setPendingTripId]     = useState<string | null>(null);
   const [inProgressTrip, setInProgressTrip]   = useState<{
     id: string; departLocation: string; departTime: string; tripType: string;
   } | null>(null);
@@ -153,7 +152,6 @@ export function MovementLogView() {
             departTime:     row.depart_time as string,
             tripType:       row.trip_type as string,
           });
-          setPendingTripId(row.id as string);
         }
       }
     }
@@ -308,7 +306,6 @@ export function MovementLogView() {
           isVsaInterruption: true,
         }, ...prev]);
         setInProgressTrip(null);
-        setPendingTripId(null);
       }
     };
 
@@ -316,7 +313,6 @@ export function MovementLogView() {
       if (!inProgressTrip) return;
       await supabase.from('vsa_trips').delete().eq('id', inProgressTrip.id);
       setInProgressTrip(null);
-      setPendingTripId(null);
     };
 
     const handleTripComplete = (trip: TripRun) => {
