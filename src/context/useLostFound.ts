@@ -16,6 +16,12 @@ export interface LostFoundSlice {
     notes?: string;
   }) => Promise<boolean>;
   updateLostFoundStatus: (id: string, status: LostFoundStatus, notes?: string) => Promise<boolean>;
+  updateLostFoundItem: (id: string, patch: {
+    description: string;
+    location: LostFoundLocation | null;
+    licensePlate: string;
+    notes: string;
+  }) => Promise<boolean>;
 }
 
 export function useLostFound(
@@ -120,5 +126,32 @@ export function useLostFound(
     }
   };
 
-  return { lostFoundItems, addLostFoundItem, updateLostFoundStatus, setAllLostFoundItems };
+  const updateLostFoundItem = async (
+    id: string,
+    patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string },
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase.from('lost_found').update({
+        description:   patch.description   || null,
+        location:      patch.location,
+        license_plate: patch.licensePlate  || null,
+        notes:         patch.notes         || null,
+      }).eq('id', id);
+      if (error) return false;
+      setAllLostFoundItems(prev => prev.map(i =>
+        i.id !== id ? i : {
+          ...i,
+          description:  patch.description  || undefined,
+          location:     patch.location     ?? undefined,
+          licensePlate: patch.licensePlate || undefined,
+          notes:        patch.notes        || undefined,
+        }
+      ));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  return { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem, setAllLostFoundItems };
 }
