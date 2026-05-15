@@ -196,7 +196,7 @@ export interface HandoffNote {
   teamSize: number;
   notes?: string;
   lotStatus: LotStatus;
-  morningHours: number;
+  morningHours: number; // default 8.0 — productive hours (excludes 30min unpaid lunch)
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────

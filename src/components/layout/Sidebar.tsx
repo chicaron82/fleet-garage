@@ -285,7 +285,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     ? todayHandoff.fullPages * 19 + todayHandoff.lastPageEntries
     : null;
   const morningOpHours = todayHandoff
-    ? todayHandoff.morningHours ?? 8.5
+    ? todayHandoff.morningHours ?? 8.0
     : null;
   const closingCleaned = morningCleaned != null && carsCleaned != null
     ? Math.max(0, carsCleaned - morningCleaned)
@@ -298,10 +298,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const handoffTimestamp = todayHandoff
     ? (() => {
         const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA');
-        const totalMins = 6 * 60 + 45 + Math.round((todayHandoff.morningHours ?? 8.5) * 60);
-        const h = Math.floor(totalMins / 60);
-        const m = totalMins % 60;
-        return new Date(`${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+        return new Date(`${dateStr}T15:15:00`);
       })()
     : null;
   const morningOTH = handoffTimestamp

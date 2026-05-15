@@ -24,16 +24,11 @@ export function HandoffForm({ onClose }: Props) {
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,   setAdjustMorning]   = useState(false);
-  const [morningHours,    setMorningHours]    = useState(8.5);
+  const [morningHours,    setMorningHours]    = useState(8.0);
   const [submitting,      setSubmitting]      = useState(false);
 
   const carsIn    = fullPages * 19 + lastPageEntries;
   const canSubmit = !submitting && carsIn > 0;
-
-  function fmtPartitionTime(hours: number): string {
-    const totalMins = 6 * 60 + 45 + Math.round(hours * 60);
-    return `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
-  }
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -149,7 +144,7 @@ export function HandoffForm({ onClose }: Props) {
                 <button type="button" onClick={() => setMorningHours(v => Math.max(4, Math.round((v - 0.5) * 10) / 10))} className={STEP_BTN}>−</button>
                 <span className="text-base font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{morningHours}</span>
                 <button type="button" onClick={() => setMorningHours(v => Math.min(12, Math.round((v + 0.5) * 10) / 10))} className={STEP_BTN}>+</button>
-                <span className="text-xs text-gray-400 dark:text-gray-500">hrs → closes {fmtPartitionTime(morningHours)}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">hrs productive  ·  partition: 15:15</span>
               </div>
             )}
           </div>

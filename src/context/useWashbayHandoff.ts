@@ -84,7 +84,7 @@ export function useWashbayHandoff(
         team_size:          data.teamSize,
         lot_status:         data.lotStatus,
         notes:              data.notes ?? null,
-        morning_hours:      data.morningHours ?? 8.5,
+        morning_hours:      data.morningHours ?? 8.0,
       }).select().single();
       if (error) throw error;
       setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
