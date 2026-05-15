@@ -259,7 +259,6 @@ export function MovementLogView() {
     };
 
     const handleTripStarted = (info: TripStartInfo) => {
-      // Enrich registry with dispatched_at if the driver provided a plate
       if (info.vehiclePlate) {
         void createOrEnrichRegistry({
           branchId: user.branchId,
@@ -267,29 +266,6 @@ export function MovementLogView() {
           dispatchedAt: info.departTime,
         });
       }
-
-      supabase.from('vsa_trips').insert({
-        vehicle_plate:       info.vehiclePlate ?? '',
-        vehicle_unit:        '',
-        depart_location:     'Airport Run',
-        depart_time:         info.departTime,
-        arrive_time:         null,
-        trip_type:           info.tripType,
-        driver_id:           user.id,
-        branch_id:           user.branchId,
-        is_vsa_interruption: true,
-        auth_type:           info.authorization,
-        reason:              info.reason,
-        queue_at_departure:  info.queueAtDeparture ?? null,
-        notes:               info.notes || null,
-        is_shuttle:          info.tripType === 'transfer',
-        status:              'in_progress',
-        ev_cable_status:     info.evCableStatus ?? null,
-        ev_adapter_status:   info.evAdapterStatus ?? null,
-      }).select('id').single().then(({ data, error }) => {
-        if (error) { console.error('Trip start write failed:', error); return; }
-        setPendingTripId((data as { id: string }).id);
-      });
     };
 
     const handleRecoverArrived = async () => {
@@ -343,43 +319,8 @@ export function MovementLogView() {
       setPendingTripId(null);
     };
 
-    const handleTripComplete = async (trip: TripRun) => {
-      if (pendingTripId) {
-        const { error } = await supabase.from('vsa_trips').update({
-          arrive_location: trip.arriveLocation,
-          arrive_time:     trip.arriveTime,
-          fuel_on_arrival: trip.fuelOnArrival ?? null,
-          condition:       trip.condition ?? null,
-          notes:           trip.notes ?? null,
-          status:          'complete',
-        }).eq('id', pendingTripId);
-        if (!error) {
-          setLiveTrips(prev => [{ ...trip, id: pendingTripId }, ...prev]);
-          setPendingTripId(null);
-        }
-      } else {
-        const { error } = await supabase.from('vsa_trips').insert({
-          id:                  trip.id,
-          vehicle_plate:       trip.vehiclePlate,
-          vehicle_unit:        trip.vehicleUnit,
-          trip_type:           trip.tripType,
-          depart_location:     trip.departLocation,
-          arrive_location:     trip.arriveLocation,
-          depart_time:         trip.departTime,
-          arrive_time:         trip.arriveTime,
-          driver_id:           trip.driverId,
-          is_vsa_interruption: trip.isVsaInterruption ?? false,
-          auth_type:           trip.authorization ?? null,
-          reason:              trip.reason ?? null,
-          queue_at_departure:  trip.queueAtDeparture ?? null,
-          fuel_on_arrival:     trip.fuelOnArrival ?? null,
-          condition:           trip.condition ?? null,
-          is_shuttle:          trip.tripType === 'transfer',
-          notes:               trip.notes ?? null,
-          branch_id:           trip.branchId,
-        });
-        if (!error) setLiveTrips(prev => [trip, ...prev]);
-      }
+    const handleTripComplete = (trip: TripRun) => {
+      setLiveTrips(prev => [trip, ...prev]);
 
       if (trip.isVsaInterruption) {
         const minutes = Math.round(

@@ -54,6 +54,8 @@ export function VSAMovementLog({
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
   const [evCableStatus, setEvCableStatus]     = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
+  const [pendingTripId, setPendingTripId]     = useState<string | null>(null);
+  const [starting, setStarting]               = useState(false);
 
   const { topClasses, flaggedClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
@@ -93,6 +95,7 @@ export function VSAMovementLog({
         setQueue(rawQueue
           ? (typeof rawQueue === 'string' ? JSON.parse(rawQueue) : rawQueue as QueueSnapshot)
           : { count: 0, label: 'Resumed' });
+        setPendingTripId(row.id as string);
         setTripState('in_transit');
         const plate = (row.vehicle_plate as string) ?? '';
         if (plate) {
@@ -126,15 +129,59 @@ export function VSAMovementLog({
 
   const canStart = reason !== null && !!authorization && queue !== null;
 
-  const handleStartTripWith = (r: Reason, auth: Authorization, tripNotes: string) => {
+  // ─── WRITE-FIRST RULE ────────────────────────────────────────────────────────
+  // Always await the Supabase insert before setting tripState.
+  // Never delegate the write to a parent callback.
+  // Violating this causes silent persistence failure on module switch —
+  // the component unmounts before the write lands, recovery finds nothing.
+  //
+  // Reference implementation: handleStartWith() in OffStandardTimeLog.tsx
+  // ─────────────────────────────────────────────────────────────────────────────
+  const handleStartTripWith = async (r: Reason, auth: Authorization, tripNotes: string) => {
+    if (!user || starting) return;
+    setStarting(true);
     hapticMedium();
     const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('vsa_trips')
+      .insert({
+        vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
+        vehicle_unit:        '',
+        trip_type:           isShuttle ? 'transfer' : 'clean',
+        depart_location:     'Airport Run',
+        arrive_location:     null,
+        depart_time:         now,
+        arrive_time:         null,
+        driver_id:           user.id,
+        branch_id:           user.branchId,
+        is_vsa_interruption: true,
+        is_shuttle:          isShuttle,
+        auth_type:           auth,
+        reason:              r,
+        queue_at_departure:  queue,
+        notes:               tripNotes.trim() || null,
+        ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
+        ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
+        status:              'in_progress',
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[VSAMovementLog] trip start write failed:', error);
+    }
+
+    if (data) setPendingTripId((data as { id: string }).id);
+
     setReason(r);
     setAuthorization(auth);
     setNotes(tripNotes);
     setDepartureTime(now);
     setElapsed('0m 00s');
+    setStarting(false);
     setTripState('in_transit');
+
     onTripStarted?.({
       departTime:       now,
       tripType:         isShuttle ? 'transfer' : 'clean',
@@ -149,14 +196,12 @@ export function VSAMovementLog({
   };
 
   const handleStartTrip = () => {
-    handleStartTripWith(reason!, authorization!, notes);
+    void handleStartTripWith(reason!, authorization!, notes);
   };
 
   const handleCodeRedDispatch = () => {
-    if (!queue) {
-      setQueue('0');
-    }
-    handleStartTripWith('CODE_RED', 'MANAGEMENT', 'Code Red dispatch');
+    if (!queue) setQueue('0');
+    void handleStartTripWith('CODE_RED', 'MANAGEMENT', 'Code Red dispatch');
   };
 
   const handleArrived = async () => {
@@ -165,11 +210,25 @@ export function VSAMovementLog({
     setArrivalTime(arrived);
     setTripState('complete');
 
+    if (user && pendingTripId) {
+      await supabase
+        .from('vsa_trips')
+        .update({
+          arrive_location:   'Airport Run',
+          arrive_time:       arrived,
+          notes:             notes.trim() || null,
+          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:            'complete',
+        })
+        .eq('id', pendingTripId);
+    }
+
     if (onTripComplete && user) {
       onTripComplete({
-        id:                `vsa-session-${Date.now()}`,
+        id:                pendingTripId ?? `vsa-session-${Date.now()}`,
         vehicleUnit:       '',
-        vehiclePlate:      '',
+        vehiclePlate:      vehiclePlate.trim(),
         tripType:          isShuttle ? 'transfer' : 'clean',
         departLocation:    'Airport Run',
         arriveLocation:    'Airport Run',
@@ -206,6 +265,7 @@ export function VSAMovementLog({
 
   const handleReset = () => {
     setTripState('form');
+    setPendingTripId(null);
     setReason(null);
     setQueue(null);
     setAuthorization(null);

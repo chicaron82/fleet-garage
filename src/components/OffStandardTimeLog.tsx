@@ -302,6 +302,11 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   // ── Timer controls ────────────────────────────────────────────────────────
 
+  // ─── WRITE-FIRST RULE (canonical reference) ──────────────────────────────────
+  // Write confirmed before state update. This is the correct pattern.
+  // Any feature that starts a session and needs to survive navigation
+  // must follow this same pattern. See VSAMovementLog.handleStartTripWith.
+  // ─────────────────────────────────────────────────────────────────────────────
   const handleStartWith = async (
     reason: OffStandardReason,
     preset: OffStandardPresetReason | null,
