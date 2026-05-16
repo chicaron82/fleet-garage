@@ -246,7 +246,7 @@ export function MovementLogView() {
     };
 
     const handleTripComplete = (trip: TripRun) => {
-      setLiveTrips(prev => [trip, ...prev]);
+      setLiveTrips(prev => [trip, ...prev.filter(t => t.id !== trip.id)]);
 
       if (trip.isVsaInterruption) {
         const minutes = Math.round(
