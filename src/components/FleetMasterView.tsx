@@ -133,7 +133,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           {STATUS_GROUPS.map(({ status, label, dot, badgeClass, headerClass }) => {
             const group = filtered.filter(v => v.status === status);
             if (group.length === 0) return null;
-            const isCollapsed = collapsed.has(status);
+            const isCollapsed = term ? false : collapsed.has(status);
             return (
               <div key={status} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <button
