@@ -3,25 +3,14 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User, HandoffNote } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
 import { OthEditSheet } from './OthEditSheet';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { USERS } from '../data/mock';
-import {
-  buildShiftPartition,
-  computeShiftRates,
-  deriveShiftWindow,
-  deriveUserShiftType,
-  pickShift,
-  type ShiftSnapshot,
-  type ShiftWindow,
-} from '../lib/shift-metrics';
 
-const SHIFT_HOURS = 8;
 const MIN_ENTRY_MINUTES = 5;
-const STANDARD_RATE = 3.0;
 
 const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
@@ -106,10 +95,12 @@ function deriveShiftLine(shifts: ShiftWithUser[], userId: string): string {
   return label;
 }
 
-function generateReportText(
+interface TripRow { depart_time: string; arrive_time: string; is_shuttle: boolean | null; reason: string | null; }
+
+function generateOffStandardReport(
   entries: OffStandardEntry[],
+  trips: TripRow[],
   user: User,
-  rates: { window: ShiftWindow; snapshot: ShiftSnapshot; baseline: number | null; yourEffort: number | null },
   shiftLine: string,
 ): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
@@ -136,22 +127,17 @@ function generateReportText(
     }
   }
 
-  lines.push(
-    '',
-    '─'.repeat(37),
-    `Total off-standard:  ${fmtMinutes(offTotal)}`,
-  );
+  lines.push('', `Total off-standard:  ${fmtMinutes(offTotal)}`);
 
-  if (rates.snapshot.cleaned != null && rates.yourEffort != null && rates.baseline != null) {
-    const label = rates.yourEffort >= STANDARD_RATE ? '✅ Above standard'
-      : rates.yourEffort >= 2.5 ? '⚠️ Near standard'
-      : '❌ Below standard';
-    const windowLabel = rates.window === 'morning' ? 'Morning' : 'Closing';
-    lines.push(
-      `Cars cleaned (your shift): ${rates.snapshot.cleaned}`,
-      `Shift baseline (${rates.snapshot.hours}h ${windowLabel}): ${rates.baseline.toFixed(1)} / hr`,
-      `Your effort: ${rates.yourEffort.toFixed(1)} / hr  ${label}`,
-    );
+  if (trips.length > 0) {
+    lines.push('', 'AIRPORT TRIPS', '─'.repeat(37));
+    for (const t of trips) {
+      const mins = Math.round(
+        (new Date(t.arrive_time).getTime() - new Date(t.depart_time).getTime()) / 60000
+      );
+      const label = t.is_shuttle ? 'Shuttle Transfer' : (t.reason ?? 'Airport Run');
+      lines.push(`${fmtTime(t.depart_time)} – ${fmtTime(t.arrive_time)}  ${label}  (${mins}m)`);
+    }
   }
 
   lines.push(
@@ -200,15 +186,8 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
-  const { getTodayWashbayLog, handoffNotes, holds, vehicles } = useGarage();
+  const { holds, vehicles } = useGarage();
   const { shifts } = useSchedule();
-  const washbayLog = getTodayWashbayLog();
-  const fullDayCleaned = washbayLog
-    ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
-    : null;
-  const todayHandoff: HandoffNote | null = handoffNotes.find(n =>
-    new Date(n.loggedAt).toLocaleDateString('en-CA') === localDateStr(0)
-  ) ?? null;
 
   const [timerState, setTimerState]         = useState<TimerState>('idle');
   const [inProgressId, setInProgressId]     = useState<string | null>(null);
@@ -484,34 +463,27 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     }
   };
 
-  // ── Tally ─────────────────────────────────────────────────────────────────
-  const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
-  const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-
-  const userShiftType = deriveUserShiftType(shifts, user.id);
-  const window        = deriveShiftWindow(userShiftType) ?? 'morning';
-  const partition     = buildShiftPartition({
-    handoff:            todayHandoff,
-    fullDayCleaned,
-    offStandardEntries: entries,
-  });
-  const mySnapshot    = pickShift(partition, window);
-  const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
-  const myCarsCleaned = mySnapshot.cleaned;
-  const hasShiftData  = yourEffort != null;
-  const rateColor     = !hasShiftData ? 'text-gray-400 dark:text-gray-500'
-    : yourEffort! >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
-    : yourEffort! >= 2.5 ? 'text-amber-500'
-    : 'text-red-600 dark:text-red-400';
 
   // ── Export ────────────────────────────────────────────────────────────────
 
   const handleExport = async () => {
     hapticMedium();
-    const shiftLine = deriveShiftLine(shifts, user.id);
-    const reportText = generateReportText(entries, user, {
-      window, snapshot: mySnapshot, baseline: shiftBaseline, yourEffort,
-    }, shiftLine);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: tripRows } = await supabase
+      .from('vsa_trips')
+      .select('depart_time, arrive_time, is_shuttle, reason')
+      .eq('driver_id', user.id)
+      .gte('depart_time', todayStart.toISOString())
+      .not('arrive_time', 'is', null)
+      .order('depart_time', { ascending: true });
+    const shiftLine  = deriveShiftLine(shifts, user.id);
+    const reportText = generateOffStandardReport(
+      entries,
+      (tripRows ?? []) as TripRow[],
+      user,
+      shiftLine,
+    );
     if (navigator.share) {
       try {
         await navigator.share({
@@ -779,74 +751,13 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       )}
 
       {/* Shift summary + export */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Shift Summary</p>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600 dark:text-gray-400">
-              <span>Shift hours</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">{SHIFT_HOURS}h</span>
-            </div>
-            <div className="flex justify-between text-gray-600 dark:text-gray-400">
-              <span>Off-standard total</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">{fmtMinutes(offTotal)}</span>
-            </div>
-            <div className="flex justify-between text-gray-600 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
-              <span>Active cleaning</span>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtMinutes(activeMinutes)}</span>
-            </div>
-          </div>
-
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>Cars cleaned (your shift)</span>
-            {myCarsCleaned != null ? (
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{myCarsCleaned}</span>
-            ) : (
-              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                {window === 'morning' ? 'Submit handoff to see' : 'Submit closing duties to see'}
-              </span>
-            )}
-          </div>
-
-          {hasShiftData && (
-            <div className={`rounded-lg px-4 py-3 border ${
-              yourEffort! >= STANDARD_RATE
-                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50'
-                : yourEffort! >= 2.5
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
-                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
-            }`}>
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Standard rate</span>
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{STANDARD_RATE.toFixed(1)} / hr</span>
-              </div>
-              <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Shift baseline ({mySnapshot.hours}h window)</span>
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{shiftBaseline!.toFixed(1)} / hr</span>
-              </div>
-              <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Your effort</span>
-                <span className={`text-lg font-bold ${rateColor}`}>{yourEffort!.toFixed(1)} / hr</span>
-              </div>
-              {offTotal > 0 && (
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                  Adjusted for {fmtMinutes(offTotal)} off-standard
-                </p>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleExport}
-            className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer"
-          >
-            {copied ? '✓ Copied to clipboard' : 'Export Shift Report'}
-          </button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={handleExport}
+        className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer"
+      >
+        {copied ? '✓ Copied to clipboard' : 'Export Off-Standard'}
+      </button>
 
     </div>
 

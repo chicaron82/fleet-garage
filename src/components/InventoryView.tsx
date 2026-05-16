@@ -7,6 +7,7 @@ import { WashbayClosingLog } from './WashbayClosingLog';
 import { HandoffForm } from './HandoffForm';
 import { WhiteboardView } from './WhiteboardView';
 import { ShiftSummarySection } from './analytics/ShiftSummarySection';
+import { ShiftRatesCard } from './analytics/ShiftRatesCard';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { LotStatus, HandoffNote } from '../types';
 import { canLogHandoff } from '../types';
@@ -145,7 +146,7 @@ export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
         {([
           { id: 'closing-duties', label: 'Closing Duties' },
-          { id: 'summary',        label: 'My Shift' },
+          { id: 'summary',        label: 'Shift Summary' },
           { id: 'whiteboard',     label: 'Whiteboard' },
         ] as const).map(tab => (
           <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
@@ -168,9 +169,12 @@ export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
         </>
       )}
 
-      {/* My Shift summary */}
+      {/* Shift Summary */}
       {activeTab === 'summary' && (
-        <ShiftSummarySection activeBranch={activeBranch} />
+        <>
+          <ShiftRatesCard />
+          <ShiftSummarySection activeBranch={activeBranch} />
+        </>
       )}
 
       {/* Whiteboard */}
