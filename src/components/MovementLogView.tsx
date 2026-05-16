@@ -365,32 +365,6 @@ export function MovementLogView() {
         {/* Tab content */}
         {activeTab === 'movement-log' ? (
           <>
-            {inProgressTrip && (
-              <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">🚗 Trip in progress</p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                    {inProgressTrip.departLocation} · Departed {fmtTime(inProgressTrip.departTime)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRecoverArrived}
-                    className="flex-1 py-2.5 rounded-xl bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold transition cursor-pointer"
-                  >
-                    Mark Arrived
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelTrip}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
-                  >
-                    Cancel Trip
-                  </button>
-                </div>
-              </div>
-            )}
             <VSAMovementLog onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
             {myLiveTrips.length > 0 && (
               <div className="space-y-2">
