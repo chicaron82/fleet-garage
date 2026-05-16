@@ -36,6 +36,8 @@ function mapNote(row: Record<string, unknown>): WhiteboardNote {
 
 // ── Section component ─────────────────────────────────────────────────────────
 
+const SHIFT_BOARD_MAX = 200;
+
 interface SectionProps {
   icon: string;
   title: string;
@@ -43,12 +45,13 @@ interface SectionProps {
   active: WhiteboardNote[];
   archived: WhiteboardNote[];
   canWrite: boolean;
+  isShiftBoard?: boolean;
   onArchive: (id: string) => void;
   onRestore: (id: string) => void;
   onAdd: (section: WhiteboardSection, body: string, activeMonths: number[]) => Promise<void>;
 }
 
-function WhiteboardSection({ icon, title, section, active, archived, canWrite, onArchive, onRestore, onAdd }: SectionProps) {
+function WhiteboardSection({ icon, title, section, active, archived, canWrite, isShiftBoard, onArchive, onRestore, onAdd }: SectionProps) {
   const [archiveOpen, setArchiveOpen]   = useState(false);
   const [addOpen, setAddOpen]           = useState(false);
   const [body, setBody]                 = useState('');
@@ -57,8 +60,9 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
 
   const handleSubmit = async () => {
     if (!body.trim()) return;
+    if (isShiftBoard && body.length > SHIFT_BOARD_MAX) return;
     setSaving(true);
-    await onAdd(section, body.trim(), VISIBILITY_PRESETS[visibility].months);
+    await onAdd(section, body.trim(), isShiftBoard ? [] : VISIBILITY_PRESETS[visibility].months);
     setBody('');
     setVisibility('always');
     setAddOpen(false);
@@ -66,9 +70,17 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+    <div className={`bg-white dark:bg-gray-900 rounded-xl border overflow-hidden transition-colors ${
+      isShiftBoard
+        ? 'border-amber-200 dark:border-amber-800/50'
+        : 'border-gray-200 dark:border-gray-800'
+    }`}>
       {/* Section header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+      <div className={`flex items-center justify-between px-4 py-3 border-b transition-colors ${
+        isShiftBoard
+          ? 'border-amber-100 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-900/10'
+          : 'border-gray-100 dark:border-gray-800'
+      }`}>
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 transition-colors">
           {icon} {title}
         </p>
@@ -78,39 +90,45 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
             onClick={() => { hapticLight(); setAddOpen(o => !o); }}
             className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer transition"
           >
-            {addOpen ? 'Cancel' : '+ Add'}
+            {addOpen ? 'Cancel' : '+ Post'}
           </button>
         )}
       </div>
 
       {/* Add form */}
       {addOpen && (
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 space-y-2">
+        <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-800/40 space-y-2">
           <textarea
             rows={2}
             autoFocus
-            placeholder="Note text…"
+            placeholder="Quick note for the shift…"
             value={body}
-            onChange={e => setBody(e.target.value)}
+            onChange={e => isShiftBoard ? setBody(e.target.value.slice(0, SHIFT_BOARD_MAX)) : setBody(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
           />
           <div className="flex items-center gap-2">
-            <select
-              value={visibility}
-              onChange={e => setVisibility(e.target.value as VisibilityPreset)}
-              className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
-            >
-              {(Object.entries(VISIBILITY_PRESETS) as [VisibilityPreset, { label: string }][]).map(([key, { label }]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
+            {isShiftBoard ? (
+              <p className={`flex-1 text-xs transition-colors ${body.length > SHIFT_BOARD_MAX * 0.9 ? 'text-amber-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                {body.length}/{SHIFT_BOARD_MAX}
+              </p>
+            ) : (
+              <select
+                value={visibility}
+                onChange={e => setVisibility(e.target.value as VisibilityPreset)}
+                className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+              >
+                {(Object.entries(VISIBILITY_PRESETS) as [VisibilityPreset, { label: string }][]).map(([key, { label }]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            )}
             <button
               type="button"
               disabled={!body.trim() || saving}
               onClick={handleSubmit}
               className="px-4 py-1.5 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-lg transition cursor-pointer shrink-0"
             >
-              {saving ? 'Saving…' : 'Post note'}
+              {saving ? 'Saving…' : 'Post'}
             </button>
           </div>
         </div>
@@ -196,10 +214,11 @@ function WhiteboardSection({ icon, title, section, active, archived, canWrite, o
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 
-const SECTIONS: { section: WhiteboardSection; icon: string; title: string }[] = [
-  { section: 'reminders', icon: '📋', title: 'Reminders' },
-  { section: 'downtime',  icon: '⏱',  title: 'Downtime' },
-  { section: 'airport',   icon: '✈️',  title: 'Airport' },
+const SECTIONS: { section: WhiteboardSection; icon: string; title: string; shiftBoard?: boolean }[] = [
+  { section: 'shift_board', icon: '📌', title: 'Shift Board', shiftBoard: true },
+  { section: 'reminders',   icon: '📋', title: 'Reminders' },
+  { section: 'downtime',    icon: '⏱',  title: 'Downtime' },
+  { section: 'airport',     icon: '✈️',  title: 'Airport' },
 ];
 
 export function WhiteboardView() {
@@ -216,6 +235,17 @@ export function WhiteboardView() {
   const currentMonth = new Date().getMonth() + 1;
 
   async function loadNotes() {
+    // Auto-archive shift_board notes from previous days
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    await supabase
+      .from('whiteboard_notes')
+      .update({ status: 'archived', archived_at: new Date().toISOString(), archived_by_id: 'system' })
+      .eq('branch_id', branchId)
+      .eq('section', 'shift_board')
+      .eq('status', 'active')
+      .lt('created_at', todayStart.toISOString());
+
     const { data } = await supabase
       .from('whiteboard_notes')
       .select('*')
@@ -318,7 +348,7 @@ export function WhiteboardView() {
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Operational notes for today's shift</p>
       </div>
 
-      {SECTIONS.map(({ section, icon, title }) => {
+      {SECTIONS.map(({ section, icon, title, shiftBoard }) => {
         const sectionNotes = notes.filter(n => n.section === section);
         const active = sectionNotes.filter(n =>
           n.status === 'active' && isNoteActiveForMonth(n, currentMonth)
@@ -334,7 +364,8 @@ export function WhiteboardView() {
             section={section}
             active={active}
             archived={archived}
-            canWrite={canWrite}
+            canWrite={shiftBoard ? !!user : canWrite}
+            isShiftBoard={shiftBoard}
             onArchive={handleArchive}
             onRestore={handleRestore}
             onAdd={handleAdd}

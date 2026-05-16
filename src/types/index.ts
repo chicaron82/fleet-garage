@@ -40,7 +40,7 @@ export function canWriteWhiteboard(role: UserRole): boolean {
 
 // ── Whiteboard ───────────────────────────────────────────────────────────────
 
-export type WhiteboardSection = 'reminders' | 'downtime' | 'airport';
+export type WhiteboardSection = 'reminders' | 'downtime' | 'airport' | 'shift_board';
 export type WhiteboardTriggerType = 'manual' | 'seasonal' | 'calendar_month';
 
 export interface WhiteboardNote {
