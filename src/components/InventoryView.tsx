@@ -8,6 +8,7 @@ import { HandoffForm } from './HandoffForm';
 import { WhiteboardView } from './WhiteboardView';
 import { ShiftSummarySection } from './analytics/ShiftSummarySection';
 import { ShiftRatesCard } from './analytics/ShiftRatesCard';
+import { ShiftReportExport } from './analytics/ShiftReportExport';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { LotStatus, HandoffNote } from '../types';
 import { canLogHandoff } from '../types';
@@ -174,6 +175,7 @@ export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
         <>
           <ShiftRatesCard />
           <ShiftSummarySection activeBranch={activeBranch} />
+          <ShiftReportExport />
         </>
       )}
 
