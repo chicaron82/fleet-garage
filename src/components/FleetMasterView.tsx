@@ -154,8 +154,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                 {!isCollapsed && (
                   <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
                     {group.map(v => {
-                      const evBothMissing  = v.isTesla && v.hasMobileCable === false && v.hasJ1772Adapter === false;
-                      const evOneMissing   = v.isTesla && !evBothMissing && (v.hasMobileCable === false || v.hasJ1772Adapter === false);
+                      const isTesla        = v.isTesla || v.make.toLowerCase() === 'tesla';
+                      const evBothMissing  = isTesla && v.hasMobileCable === false && v.hasJ1772Adapter === false;
+                      const evOneMissing   = isTesla && !evBothMissing && (v.hasMobileCable === false || v.hasJ1772Adapter === false);
                       const evBorderClass  = evBothMissing ? 'border-l-4 border-l-red-500' : evOneMissing ? 'border-l-4 border-l-amber-400' : '';
                       return (
                       <button
@@ -171,7 +172,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           <span className="text-base font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">·</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
-                          {v.isTesla && (
+                          {isTesla && (
                             <span className={`text-[10px] font-bold shrink-0 ${evBothMissing ? 'text-red-500' : evOneMissing ? 'text-amber-500' : 'text-blue-400'}`}>
                               ⚡
                             </span>

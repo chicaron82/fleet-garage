@@ -188,7 +188,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         </div>
 
         {/* EV Assets — Teslas only */}
-        {vehicle.isTesla && (
+        {(vehicle.isTesla || vehicle.make.toLowerCase() === 'tesla') && (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">⚡ EV Assets</p>
 
