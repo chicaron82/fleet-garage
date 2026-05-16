@@ -140,10 +140,12 @@ export function VSAMovementLog({
     setStarting(true);
     hapticMedium();
     const now = new Date().toISOString();
+    const tripId = `trip-${Date.now()}`;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('vsa_trips')
       .insert({
+        id:                  tripId,
         vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
         vehicle_unit:        '',
         trip_type:           isShuttle ? 'transfer' : 'clean',
@@ -162,15 +164,13 @@ export function VSAMovementLog({
         ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
         ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
         status:              'in_progress',
-      })
-      .select('id')
-      .single();
+      });
 
     if (error) {
       console.error('[VSAMovementLog] trip start write failed:', error);
     }
 
-    if (data) setPendingTripId((data as { id: string }).id);
+    setPendingTripId(tripId);
 
     setReason(r);
     setAuthorization(auth);
