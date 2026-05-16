@@ -1,4 +1,5 @@
 import type { WashbayLog, HandoffNote } from '../types';
+import { CLOSING_SHIFT_HOURS } from '../lib/shift-metrics';
 
 const COMPANY_STANDARD = 3.0;
 
@@ -21,7 +22,6 @@ interface Props {
   washbayLogs: WashbayLog[];
   handoffNotes: HandoffNote[];
   isDemo: boolean;
-  isPeakSeason: boolean;
 }
 
 const DEMO_DAYS: DayData[] = [
@@ -42,7 +42,6 @@ const DEMO_TODAY: TodaySnapshot = {
 function buildLiveDays(
   washbayLogs: WashbayLog[],
   handoffNotes: HandoffNote[],
-  isPeakSeason: boolean,
 ): DayData[] {
   const days: DayData[] = [];
   for (let i = 7; i >= 1; i--) {
@@ -67,14 +66,11 @@ function buildLiveDays(
     }
 
     let closingRate: number | null = null;
-    if (log && morningCleaned != null && morningHours != null) {
+    if (log && morningCleaned != null) {
       const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
-      const baseHours = isPeakSeason ? 16 : 15;
-      const fullDayOpHours = baseHours + log.overtimeHours;
       const closingCleaned = fullDayCleaned - morningCleaned;
-      const closingHours = fullDayOpHours - morningHours;
-      if (closingHours > 0 && closingCleaned >= 0) {
-        closingRate = closingCleaned / closingHours;
+      if (closingCleaned >= 0) {
+        closingRate = closingCleaned / CLOSING_SHIFT_HOURS;
       }
     }
 
@@ -86,7 +82,6 @@ function buildLiveDays(
 function buildTodaySnapshot(
   washbayLogs: WashbayLog[],
   handoffNotes: HandoffNote[],
-  isPeakSeason: boolean,
 ): TodaySnapshot {
   const todayStr = new Date().toLocaleDateString('en-CA');
   const handoff = handoffNotes.find(n =>
@@ -108,13 +103,11 @@ function buildTodaySnapshot(
   let closingHours: number | null = null;
   let closingRate: number | null = null;
 
-  if (log && morningCleaned != null && morningHours != null) {
+  if (log && morningCleaned != null) {
     const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
-    const baseHours = isPeakSeason ? 16 : 15;
-    const fullDayOpHours = baseHours + log.overtimeHours;
     closingCleaned = fullDayCleaned - morningCleaned;
-    closingHours = fullDayOpHours - morningHours;
-    if (closingHours > 0 && closingCleaned >= 0) {
+    closingHours = CLOSING_SHIFT_HOURS;
+    if (closingCleaned >= 0) {
       closingRate = closingCleaned / closingHours;
     }
   }
@@ -128,9 +121,9 @@ function rateColor(rate: number): string {
   return 'text-red-500 dark:text-red-400';
 }
 
-export function ShiftThroughputSection({ washbayLogs, handoffNotes, isDemo, isPeakSeason }: Props) {
-  const days = isDemo ? DEMO_DAYS : buildLiveDays(washbayLogs, handoffNotes, isPeakSeason);
-  const today = isDemo ? DEMO_TODAY : buildTodaySnapshot(washbayLogs, handoffNotes, isPeakSeason);
+export function ShiftThroughputSection({ washbayLogs, handoffNotes, isDemo }: Props) {
+  const days = isDemo ? DEMO_DAYS : buildLiveDays(washbayLogs, handoffNotes);
+  const today = isDemo ? DEMO_TODAY : buildTodaySnapshot(washbayLogs, handoffNotes);
 
   const morningRates = days.map(d => d.morningRate).filter((r): r is number => r != null);
   const closingRates = days.map(d => d.closingRate).filter((r): r is number => r != null);

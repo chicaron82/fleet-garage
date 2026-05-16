@@ -290,9 +290,9 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const closingCleaned = morningCleaned != null && carsCleaned != null
     ? Math.max(0, carsCleaned - morningCleaned)
     : null;
-  const closingOpHours = morningOpHours != null
-    ? Math.max(0.1, teamOpHours - morningOpHours)
-    : null;
+  // Closing crew always works 8h (13:30–22:00 non-peak, 14:30–23:00 peak).
+  // The branch operating span overlaps with morning, so closingOpHours is independent of morningOpHours.
+  const closingOpHours: number | null = morningOpHours != null ? 8.0 : null;
 
   // Per-window OTH partitioning — assign each entry to the window its startTime falls in
   const handoffTimestamp = todayHandoff

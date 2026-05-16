@@ -68,6 +68,34 @@ export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeH
         </div>
       )}
 
+      <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Branch Day · Rates</p>
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Throughput ({opHours.toFixed(0)}h window)</span>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{tp.toFixed(1)} / hr</span>
+        </div>
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Cleaned rate{ht > 0 ? ' *' : ''}
+          </span>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {(opHours > 0 ? Math.max(0, cc - ht) / opHours : 0).toFixed(1)} / hr
+          </span>
+        </div>
+        {ht > 0 && (
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">* Adjusted for {ht} unreleased hold{ht !== 1 ? 's' : ''} today</p>
+        )}
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Dispatched rate</span>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {(opHours > 0 ? Math.max(0, cc - ht - todayWashbayLog.cleanNotPickedUp) / opHours : 0).toFixed(1)} / hr
+          </span>
+        </div>
+        {todayWashbayLog.cleanNotPickedUp > 0 && (
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">Cleans not sent: {todayWashbayLog.cleanNotPickedUp}</p>
+        )}
+      </div>
+
       <div className={`rounded-lg px-4 py-3 ${d >= 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50'}`}>
         <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">vs Company Standard</p>
         <div className="flex items-baseline justify-between">

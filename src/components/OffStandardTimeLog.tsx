@@ -3,14 +3,21 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase } from '../lib/supabase';
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User, WashbayLog } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User, HandoffNote } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
 import { OthEditSheet } from './OthEditSheet';
 import { localDateStr } from '../hooks/useFleetBalance';
-import { USERS, MOCK_VEHICLE_UNITS } from '../data/mock';
-
-const EXCLUDED_UNITS = MOCK_VEHICLE_UNITS.filter(u => u !== '5513130');
+import { USERS } from '../data/mock';
+import {
+  buildShiftPartition,
+  computeShiftRates,
+  deriveShiftWindow,
+  deriveUserShiftType,
+  pickShift,
+  type ShiftSnapshot,
+  type ShiftWindow,
+} from '../lib/shift-metrics';
 
 const SHIFT_HOURS = 8;
 const MIN_ENTRY_MINUTES = 5;
@@ -102,12 +109,10 @@ function deriveShiftLine(shifts: ShiftWithUser[], userId: string): string {
 function generateReportText(
   entries: OffStandardEntry[],
   user: User,
-  washbayLog: WashbayLog | null,
-  isPeakSeason: boolean,
+  rates: { window: ShiftWindow; snapshot: ShiftSnapshot; baseline: number | null; yourEffort: number | null },
   shiftLine: string,
 ): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
-  const branchOpHours = (isPeakSeason ? 16 : 15) + (washbayLog?.overtimeHours ?? 0);
 
   const lines: string[] = [
     'OFF-STANDARD TIME REPORT',
@@ -137,17 +142,15 @@ function generateReportText(
     `Total off-standard:  ${fmtMinutes(offTotal)}`,
   );
 
-  if (washbayLog) {
-    const carsCleaned = Math.max(
-      0,
-      washbayLog.fullPages * 19 + washbayLog.lastPageEntries - washbayLog.carsRemaining,
-    );
-    const adjustedOpHours = Math.max(0.1, branchOpHours - (offTotal / 60));
-    const rate = carsCleaned / adjustedOpHours;
-    const rateLabel = rate >= STANDARD_RATE ? '✅ Above standard' : rate >= 2.5 ? '⚠️ Near standard' : '❌ Below standard';
+  if (rates.snapshot.cleaned != null && rates.yourEffort != null && rates.baseline != null) {
+    const label = rates.yourEffort >= STANDARD_RATE ? '✅ Above standard'
+      : rates.yourEffort >= 2.5 ? '⚠️ Near standard'
+      : '❌ Below standard';
+    const windowLabel = rates.window === 'morning' ? 'Morning' : 'Closing';
     lines.push(
-      `Cars cleaned (team): ${carsCleaned}`,
-      `Adjusted personal rate: ${rate.toFixed(1)} / hr  ${rateLabel}`,
+      `Cars cleaned (your shift): ${rates.snapshot.cleaned}`,
+      `Shift baseline (${rates.snapshot.hours}h ${windowLabel}): ${rates.baseline.toFixed(1)} / hr`,
+      `Your effort: ${rates.yourEffort.toFixed(1)} / hr  ${label}`,
     );
   }
 
@@ -197,12 +200,15 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
-  const { getTodayWashbayLog, holds, vehicles } = useGarage();
-  const { isPeakSeason, shifts } = useSchedule();
+  const { getTodayWashbayLog, handoffNotes, holds, vehicles } = useGarage();
+  const { shifts } = useSchedule();
   const washbayLog = getTodayWashbayLog();
-  const carsNum = washbayLog
+  const fullDayCleaned = washbayLog
     ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
-    : 0;
+    : null;
+  const todayHandoff: HandoffNote | null = handoffNotes.find(n =>
+    new Date(n.loggedAt).toLocaleDateString('en-CA') === localDateStr(0)
+  ) ?? null;
 
   const [timerState, setTimerState]         = useState<TimerState>('idle');
   const [inProgressId, setInProgressId]     = useState<string | null>(null);
@@ -479,28 +485,23 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   };
 
   // ── Tally ─────────────────────────────────────────────────────────────────
-  const offTotal         = entries.reduce((s, e) => s + e.minutes, 0);
-  const activeMinutes    = Math.max(0, SHIFT_HOURS * 60 - offTotal);
-  
-  const branchBaseHours  = isPeakSeason ? 16 : 15;
-  const branchOpHours    = branchBaseHours + (washbayLog?.overtimeHours ?? 0);
-  const adjustedOpHours  = Math.max(0.1, branchOpHours - (offTotal / 60));
-  const personalRate     = adjustedOpHours > 0 && carsNum > 0 ? carsNum / adjustedOpHours : 0;
-  
-  const cleansNotSent    = washbayLog?.cleanNotPickedUp ?? 0;
-  const unreleasedHoldsToday = holds.filter(h => {
-    if (!h.flaggedAt.startsWith(localDateStr(0))) return false;
-    if (h.status === 'RELEASED') return false;
-    const vehicle = vehicles.find(v => v.id === h.vehicleId);
-    return !(vehicle && EXCLUDED_UNITS.includes(vehicle.unitNumber));
-  }).length;
-  const adjustedCleaned  = Math.max(0, carsNum - unreleasedHoldsToday);
-  const cleanedRate      = adjustedCleaned > 0 ? adjustedCleaned / branchOpHours : 0;
-  const dispatchedRate   = branchOpHours > 0 ? Math.max(0, adjustedCleaned - cleansNotSent) / branchOpHours : 0;
-  const rate             = personalRate; // kept for rateColor + report text
-  const rateColor        = !washbayLog ? 'text-gray-400 dark:text-gray-500'
-    : personalRate >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
-    : personalRate >= 2.5 ? 'text-amber-500'
+  const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
+  const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
+
+  const userShiftType = deriveUserShiftType(shifts, user.id);
+  const window        = deriveShiftWindow(userShiftType) ?? 'morning';
+  const partition     = buildShiftPartition({
+    handoff:            todayHandoff,
+    fullDayCleaned,
+    offStandardEntries: entries,
+  });
+  const mySnapshot    = pickShift(partition, window);
+  const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
+  const myCarsCleaned = mySnapshot.cleaned;
+  const hasShiftData  = yourEffort != null;
+  const rateColor     = !hasShiftData ? 'text-gray-400 dark:text-gray-500'
+    : yourEffort! >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
+    : yourEffort! >= 2.5 ? 'text-amber-500'
     : 'text-red-600 dark:text-red-400';
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -508,7 +509,9 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const handleExport = async () => {
     hapticMedium();
     const shiftLine = deriveShiftLine(shifts, user.id);
-    const reportText = generateReportText(entries, user, washbayLog ?? null, isPeakSeason, shiftLine);
+    const reportText = generateReportText(entries, user, {
+      window, snapshot: mySnapshot, baseline: shiftBaseline, yourEffort,
+    }, shiftLine);
     if (navigator.share) {
       try {
         await navigator.share({
@@ -797,19 +800,21 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
           </div>
 
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>Cars cleaned (team)</span>
-            {washbayLog ? (
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{carsNum}</span>
+            <span>Cars cleaned (your shift)</span>
+            {myCarsCleaned != null ? (
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{myCarsCleaned}</span>
             ) : (
-              <span className="text-xs text-gray-400 dark:text-gray-500 italic">Submit closing duties to see</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                {window === 'morning' ? 'Submit handoff to see' : 'Submit closing duties to see'}
+              </span>
             )}
           </div>
 
-          {washbayLog && (
+          {hasShiftData && (
             <div className={`rounded-lg px-4 py-3 border ${
-              rate >= STANDARD_RATE
+              yourEffort! >= STANDARD_RATE
                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50'
-                : rate >= 2.5
+                : yourEffort! >= 2.5
                 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
                 : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
             }`}>
@@ -818,27 +823,18 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{STANDARD_RATE.toFixed(1)} / hr</span>
               </div>
               <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Personal rate</span>
-                <span className={`text-lg font-bold ${rateColor}`}>{personalRate.toFixed(1)} / hr</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Shift baseline ({mySnapshot.hours}h window)</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{shiftBaseline!.toFixed(1)} / hr</span>
               </div>
-              <div className="mt-1 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-1">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Cleaned rate ({branchOpHours}h window){unreleasedHoldsToday > 0 ? ' *' : ''}
-                  </span>
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cleanedRate.toFixed(1)} / hr</span>
-                </div>
-                {unreleasedHoldsToday > 0 && (
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500">* Adjusted for {unreleasedHoldsToday} unreleased hold{unreleasedHoldsToday !== 1 ? 's' : ''} today</p>
-                )}
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Dispatched rate</span>
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dispatchedRate.toFixed(1)} / hr</span>
-                </div>
-                {cleansNotSent > 0 && (
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500">Cleans not sent: {cleansNotSent}</p>
-                )}
+              <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Your effort</span>
+                <span className={`text-lg font-bold ${rateColor}`}>{yourEffort!.toFixed(1)} / hr</span>
               </div>
+              {offTotal > 0 && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                  Adjusted for {fmtMinutes(offTotal)} off-standard
+                </p>
+              )}
             </div>
           )}
 

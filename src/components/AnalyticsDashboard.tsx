@@ -343,7 +343,6 @@ export function AnalyticsDashboard() {
               washbayLogs={washbayLogs}
               handoffNotes={handoffNotes}
               isDemo={isDemo}
-              isPeakSeason={isPeakSeason}
             />
           )}
 
