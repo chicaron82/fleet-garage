@@ -21,7 +21,7 @@ export type { TripState };
 export type TripStartInfo = {
   departTime: string;
   tripType: 'clean' | 'transfer';
-  authorization: Authorization;
+  authorization: Authorization | null;
   reason: Reason;
   queueAtDeparture: QueueSnapshot | null;
   notes: string;
@@ -127,8 +127,6 @@ export function VSAMovementLog({
     }
   };
 
-  const canStart = reason !== null && !!authorization && queue !== null;
-
   // ─── WRITE-FIRST RULE ────────────────────────────────────────────────────────
   // Always await the Supabase insert before setting tripState.
   // Never delegate the write to a parent callback.
@@ -137,7 +135,7 @@ export function VSAMovementLog({
   //
   // Reference implementation: handleStartWith() in OffStandardTimeLog.tsx
   // ─────────────────────────────────────────────────────────────────────────────
-  const handleStartTripWith = async (r: Reason, auth: Authorization, tripNotes: string) => {
+  const handleStartTripWith = async (r: Reason, auth: Authorization | null, tripNotes: string) => {
     if (!user || starting) return;
     setStarting(true);
     hapticMedium();
@@ -195,13 +193,13 @@ export function VSAMovementLog({
     });
   };
 
-  const handleStartTrip = () => {
-    void handleStartTripWith(reason!, authorization!, notes);
-  };
-
   const handleCodeRedDispatch = () => {
     if (!queue) setQueue('0');
     void handleStartTripWith('CODE_RED', 'MANAGEMENT', 'Code Red dispatch');
+  };
+
+  const handleQuickStart = (r: Reason) => {
+    void handleStartTripWith(r, null, '');
   };
 
   const handleArrived = async () => {
@@ -214,12 +212,14 @@ export function VSAMovementLog({
       await supabase
         .from('vsa_trips')
         .update({
-          arrive_location:   'Airport Run',
-          arrive_time:       arrived,
-          notes:             notes.trim() || null,
-          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:            'complete',
+          arrive_location:    'Airport Run',
+          arrive_time:        arrived,
+          auth_type:          authorization ?? null,
+          queue_at_departure: queue ?? null,
+          notes:              notes.trim() || null,
+          ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:             'complete',
         })
         .eq('id', pendingTripId);
     }
@@ -302,17 +302,12 @@ export function VSAMovementLog({
       <div className="p-4 space-y-4">
         {tripState === 'form' && (
           <TripForm
-            queue={queue}           setQueue={setQueue}
-            reason={reason}         setReason={setReason}
-            authorization={authorization} setAuthorization={setAuthorization}
-            notes={notes}           setNotes={setNotes}
             isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
             vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
             topClasses={topClasses} flaggedClasses={flaggedClasses}
-            canStart={canStart}
             onShuttleToggle={handleShuttleToggle}
-            onStartTrip={handleStartTrip}
             onCodeRedDispatch={handleCodeRedDispatch}
+            onQuickStart={handleQuickStart}
             isTeslaRun={isTeslaRun}         setIsTeslaRun={setIsTeslaRun}
             evCableStatus={evCableStatus}   setEvCableStatus={setEvCableStatus}
             evAdapterStatus={evAdapterStatus} setEvAdapterStatus={setEvAdapterStatus}
@@ -321,9 +316,10 @@ export function VSAMovementLog({
 
         {tripState === 'in_transit' && (
           <TripInTransit
-            authorization={authorization}
+            authorization={authorization} setAuthorization={setAuthorization}
+            queue={queue}                 setQueue={setQueue}
             departureTime={departureTime} elapsed={elapsed}
-            notes={notes}           setNotes={setNotes}
+            notes={notes}                 setNotes={setNotes}
             onArrived={handleArrived}
           />
         )}
