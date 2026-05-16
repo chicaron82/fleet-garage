@@ -158,7 +158,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
       .from('shifts')
       .select('user_id, start_time, end_time')
       .in('user_id', driverIds)
-      .gte('start_time', todayStart);
+      .eq('date', localDateStr(0));
 
     const tripsQ = supabase
       .from('vsa_trips')
@@ -201,7 +201,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
     if (driverName in historyData) return;
     setHistoryLoading(driverName);
 
-    const thirtyDaysAgo = localDateStr(-30) + 'T00:00:00';
+    const thirtyDaysAgo = localDateStr(-30);
     const driverIds     = [userId];
 
     const [shiftsRes, tripsRes] = await Promise.all([
@@ -209,7 +209,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
         .from('shifts')
         .select('user_id, start_time, end_time, date')
         .in('user_id', driverIds)
-        .gte('start_time', thirtyDaysAgo),
+        .gte('date', thirtyDaysAgo),
       supabase
         .from('vsa_trips')
         .select('driver_id, arrive_time, depart_time')
