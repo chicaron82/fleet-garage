@@ -185,7 +185,7 @@ export default function App() {
         return (
           <Dashboard
             onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
-            onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', prefill })}
+            onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
           />
         );
     }
