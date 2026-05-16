@@ -17,7 +17,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
   { module: 'movement-log',   label: 'Movement Log',  icon: '🚗', defaultScreen: { name: 'movement-log' } },
   { module: 'schedule',       label: 'Schedule',      icon: '📅', defaultScreen: { name: 'schedule' } },
-  { module: 'inventory',      label: 'Shift Duties',  icon: '📋', defaultScreen: { name: 'inventory' } },
+  { module: 'inventory',      label: 'My Shift',      icon: '📋', defaultScreen: { name: 'inventory' } },
   { module: 'lost-and-found', label: 'Lost & Found',  icon: '📦', defaultScreen: { name: 'lost-and-found' } },
   { module: 'issue-log',      label: 'Issue Log',     icon: '⚠️', defaultScreen: { name: 'issue-log' } },
   { module: 'manifest',       label: 'Outbound Manifest', icon: '📋', defaultScreen: { name: 'manifest' } },
