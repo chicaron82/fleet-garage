@@ -22,6 +22,7 @@ import { WashbayHistorySection } from './WashbayHistorySection';
 import { ShiftThroughputSection } from './ShiftThroughputSection';
 import { EVAssetStatusSection } from './analytics/EVAssetStatusSection';
 import { ClassDispatchSection } from './analytics/ClassDispatchSection';
+import { ShiftSummarySection } from './analytics/ShiftSummarySection';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
@@ -31,7 +32,7 @@ export function AnalyticsDashboard() {
   const { isPeakSeason } = useSchedule();
   const { entries, loading, upsertEntry, getTodayEntry } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');
-  const [activeTab, setActiveTab] = useState<'holds' | 'productivity'>('holds');
+  const [activeTab, setActiveTab] = useState<'holds' | 'productivity' | 'my-shift'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 
   useEffect(() => {
@@ -199,18 +200,22 @@ export function AnalyticsDashboard() {
 
       {/* Tab toggle */}
       <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {(['holds', 'productivity'] as const).map(tab => (
+        {([
+          { key: 'holds',        label: 'Holds' },
+          { key: 'productivity', label: 'Productivity' },
+          { key: 'my-shift',     label: 'My Shift' },
+        ] as const).map(({ key, label }) => (
           <button
-            key={tab}
+            key={key}
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => setActiveTab(key)}
             className={`flex-1 py-2 text-sm font-semibold transition-colors ${
-              activeTab === tab
+              activeTab === key
                 ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
                 : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
-            {tab === 'holds' ? 'Holds' : 'Productivity'}
+            {label}
           </button>
         ))}
       </div>
@@ -352,6 +357,11 @@ export function AnalyticsDashboard() {
             <DriverCoverageSection isDemo={isDemo} activeBranch={activeBranch} />
           )}
         </>
+      )}
+
+      {/* My Shift tab */}
+      {activeTab === 'my-shift' && (
+        <ShiftSummarySection activeBranch={activeBranch} />
       )}
 
     </div>
