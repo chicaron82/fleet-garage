@@ -34,7 +34,7 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
     return (
       <button type="button" onClick={onLogHandoff}
         className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
-        Log Shift Handoff →
+        Log Morning Shift Handoff →
       </button>
     );
   }
@@ -146,7 +146,7 @@ export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
       {/* Tab strip */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
         {([
-          { id: 'closing-duties', label: 'Closing Duties' },
+          { id: 'closing-duties', label: 'Shift Duties' },
           { id: 'summary',        label: 'Shift Summary' },
           { id: 'whiteboard',     label: 'Whiteboard' },
         ] as const).map(tab => (
@@ -161,11 +161,11 @@ export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
         ))}
       </div>
 
-      {/* Closing Duties */}
+      {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
-          <WashbayClosingLog />
           <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
+          <WashbayClosingLog />
           <ClosingChecklist defaultOpen={isClosingShift} />
         </>
       )}
