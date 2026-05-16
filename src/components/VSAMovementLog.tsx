@@ -146,11 +146,11 @@ export function VSAMovementLog({
       .from('vsa_trips')
       .insert({
         id:                  tripId,
-        vehicle_plate:       vehiclePlate.trim().toUpperCase() || '',
+        vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
         vehicle_unit:        '',
         trip_type:           isShuttle ? 'transfer' : 'clean',
         depart_location:     'Airport Run',
-        arrive_location:     '',
+        arrive_location:     null,
         depart_time:         now,
         arrive_time:         null,
         driver_id:           user.id,
