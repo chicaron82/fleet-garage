@@ -80,10 +80,6 @@ export function MovementLogView() {
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // Trip persistence state
-  const [inProgressTrip, setInProgressTrip]   = useState<{
-    id: string; departLocation: string; departTime: string; tripType: string;
-  } | null>(null);
 
   const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
@@ -137,23 +133,6 @@ export function MovementLogView() {
       }
 
       // Check for any in_progress trip for this user
-      if (user?.role === 'VSA' || user?.role === 'Lead VSA') {
-        const { data: inProg } = await supabase
-          .from('vsa_trips')
-          .select('id, depart_location, depart_time, trip_type')
-          .eq('driver_id', user!.id)
-          .eq('status', 'in_progress')
-          .maybeSingle();
-        if (inProg) {
-          const row = inProg as Record<string, unknown>;
-          setInProgressTrip({
-            id:             row.id as string,
-            departLocation: row.depart_location as string,
-            departTime:     row.depart_time as string,
-            tripType:       row.trip_type as string,
-          });
-        }
-      }
     }
     loadTrips();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,55 +243,6 @@ export function MovementLogView() {
           dispatchedAt: info.departTime,
         });
       }
-    };
-
-    const handleRecoverArrived = async () => {
-      if (!inProgressTrip) return;
-      hapticMedium();
-      const arrived = new Date().toISOString();
-      const minutes = Math.round(
-        (new Date(arrived).getTime() - new Date(inProgressTrip.departTime).getTime()) / 60000
-      );
-      const { error } = await supabase.from('vsa_trips').update({
-        arrive_location: 'Airport Run',
-        arrive_time:     arrived,
-        status:          'complete',
-      }).eq('id', inProgressTrip.id);
-      if (!error) {
-        if (minutes >= 5) {
-          addAutoOffStandardEntry({
-            id:           `auto-${inProgressTrip.id}`,
-            startTime:    inProgressTrip.departTime,
-            stopTime:     arrived,
-            minutes,
-            reason:       'OTH',
-            explanation:  'VSA Airport Run',
-            autoFromTrip: true,
-          });
-        }
-        setLiveTrips(prev => [{
-          id:                inProgressTrip.id,
-          vehiclePlate:      '',
-          vehicleUnit:       '',
-          tripType:          (inProgressTrip.tripType as TripRun['tripType']) ?? 'clean',
-          departLocation:    inProgressTrip.departLocation,
-          arriveLocation:    'Airport Run',
-          departTime:        inProgressTrip.departTime,
-          arriveTime:        arrived,
-          gasLevel:          '',
-          odometer:          0,
-          driverId:          user.id,
-          branchId:          user.branchId,
-          isVsaInterruption: true,
-        }, ...prev]);
-        setInProgressTrip(null);
-      }
-    };
-
-    const handleCancelTrip = async () => {
-      if (!inProgressTrip) return;
-      await supabase.from('vsa_trips').delete().eq('id', inProgressTrip.id);
-      setInProgressTrip(null);
     };
 
     const handleTripComplete = (trip: TripRun) => {
