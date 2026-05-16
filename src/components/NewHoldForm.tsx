@@ -48,13 +48,16 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
     hapticLight();
     try {
       const vehicleId = await addVehicle({
-        unitNumber: null,
-        licensePlate: h.unitSearch.trim().toUpperCase(),
-        make: 'Unknown',
-        model: 'Unknown',
-        year: new Date().getFullYear(),
-        color: 'Unknown',
-        branchId: user.branchId,
+        unitNumber:      null,
+        licensePlate:    h.unitSearch.trim().toUpperCase(),
+        make:            'Unknown',
+        model:           'Unknown',
+        year:            new Date().getFullYear(),
+        color:           'Unknown',
+        branchId:        user.branchId,
+        isTesla:         false,
+        hasMobileCable:  null,
+        hasJ1772Adapter: null,
       });
       h.selectVehicle(vehicleId);
     } finally {

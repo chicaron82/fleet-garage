@@ -19,6 +19,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }) => Promise<string>;
+  updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
@@ -127,14 +128,17 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
     const { error } = await supabase.from('vehicles').insert({
       id,
-      unit_number:   vehicle.unitNumber,
-      license_plate: vehicle.licensePlate,
-      make:          vehicle.make,
-      model:         vehicle.model,
-      year:          vehicle.year,
-      color:         vehicle.color,
-      branch_id:     branchId,
-      status:        'HELD',
+      unit_number:       vehicle.unitNumber,
+      license_plate:     vehicle.licensePlate,
+      make:              vehicle.make,
+      model:             vehicle.model,
+      year:              vehicle.year,
+      color:             vehicle.color,
+      branch_id:         branchId,
+      status:            'HELD',
+      is_tesla:          vehicle.isTesla ?? false,
+      has_mobile_cable:  vehicle.hasMobileCable ?? null,
+      has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
     });
     if (error) throw new Error(`Failed to add vehicle: ${error.message}`);
     await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
@@ -142,6 +146,16 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
+  };
+
+  const updateVehicleEVAssets = async (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => {
+    await supabase.from('vehicles').update({
+      has_mobile_cable:  hasMobileCable,
+      has_j1772_adapter: hasJ1772Adapter,
+    }).eq('id', vehicleId);
+    setAllVehicles(prev => prev.map(v =>
+      v.id === vehicleId ? { ...v, hasMobileCable, hasJ1772Adapter } : v
+    ));
   };
 
   const addHold = async (
@@ -386,7 +400,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
-      addVehicle, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
+      addVehicle, updateVehicleEVAssets, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
       archiveVehicle, restoreVehicle, archivedVehicles,
       setCoverPhoto,
       markVehicleEditPending, applyVehicleIdentity,

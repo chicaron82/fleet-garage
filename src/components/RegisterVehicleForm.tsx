@@ -61,6 +61,8 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const [model, setModel] = useState('');
   const [year, setYear] = useState(currentYear);
   const [color, setColor] = useState('');
+  const [hasMobileCable,  setHasMobileCable]  = useState(true);
+  const [hasJ1772Adapter, setHasJ1772Adapter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -80,14 +82,18 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
 
     setSubmitting(true);
     try {
+      const isTesla = make === 'Tesla';
       const id = await addVehicle({
-        unitNumber: unit.trim(),
-        licensePlate: plate.trim().toUpperCase(),
+        unitNumber:     unit.trim(),
+        licensePlate:   plate.trim().toUpperCase(),
         make,
         model,
-        year: year,
+        year:           year,
         color,
-        branchId: user?.branchId,
+        branchId:       user?.branchId,
+        isTesla,
+        hasMobileCable:  isTesla ? hasMobileCable  : null,
+        hasJ1772Adapter: isTesla ? hasJ1772Adapter : null,
       });
       hapticMedium();
       if (returnTo === 'fleet') {
@@ -214,6 +220,27 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
               </div>
             </div>
           </div>
+
+          {/* EV Asset Check — shown when Tesla is selected */}
+          {make === 'Tesla' && (
+            <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
+              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-widest">⚡ EV Asset Check</p>
+              {([
+                { label: 'Mobile Charge Cable',  checked: hasMobileCable,  onChange: setHasMobileCable },
+                { label: 'J1772 Adapter',        checked: hasJ1772Adapter, onChange: setHasJ1772Adapter },
+              ] as const).map(({ label, checked, onChange }) => (
+                <label key={label} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => onChange(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
+                </label>
+              ))}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <button

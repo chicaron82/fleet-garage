@@ -23,6 +23,9 @@ export interface FleetVehicle {
   holdType?: string;
   holdFlaggedAt?: string;
   branchId: string;
+  isTesla: boolean;
+  hasMobileCable: boolean | null;
+  hasJ1772Adapter: boolean | null;
 }
 
 export const STATUS_ORDER: Record<FleetStatus, number> = {
@@ -44,7 +47,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter')
       .eq('branch_id', branchId),
     supabase
       .from('holds')
@@ -165,7 +168,10 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
       holdId,
       holdType,
       holdFlaggedAt,
-      branchId: v.branch_id,
+      branchId:       v.branch_id,
+      isTesla:        (v as Record<string, unknown>)['is_tesla']          as boolean        ?? false,
+      hasMobileCable: (v as Record<string, unknown>)['has_mobile_cable']  as boolean | null ?? null,
+      hasJ1772Adapter:(v as Record<string, unknown>)['has_j1772_adapter'] as boolean | null ?? null,
     };
   });
 

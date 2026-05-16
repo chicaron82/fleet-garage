@@ -153,12 +153,16 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
 
                 {!isCollapsed && (
                   <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
-                    {group.map(v => (
+                    {group.map(v => {
+                      const evBothMissing  = v.isTesla && v.hasMobileCable === false && v.hasJ1772Adapter === false;
+                      const evOneMissing   = v.isTesla && !evBothMissing && (v.hasMobileCable === false || v.hasJ1772Adapter === false);
+                      const evBorderClass  = evBothMissing ? 'border-l-4 border-l-red-500' : evOneMissing ? 'border-l-4 border-l-amber-400' : '';
+                      return (
                       <button
                         key={v.id}
                         type="button"
                         onClick={() => onNavigate({ name: 'vehicle', vehicleId: v.id })}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer"
+                        className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer ${evBorderClass}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap shrink-0 ${badgeClass}`}>
@@ -167,6 +171,11 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           <span className="text-base font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">·</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
+                          {v.isTesla && (
+                            <span className={`text-[10px] font-bold shrink-0 ${evBothMissing ? 'text-red-500' : evOneMissing ? 'text-amber-500' : 'text-blue-400'}`}>
+                              ⚡
+                            </span>
+                          )}
                           <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap truncate">
                             {v.make} {v.model} {v.year} · {v.color}
                           </span>
@@ -184,7 +193,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           </div>
                         )}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

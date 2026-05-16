@@ -1,0 +1,4 @@
+ALTER TABLE vehicles
+  ADD COLUMN IF NOT EXISTS is_tesla          BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS has_mobile_cable  BOOLEAN,
+  ADD COLUMN IF NOT EXISTS has_j1772_adapter BOOLEAN;

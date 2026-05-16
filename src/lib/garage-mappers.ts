@@ -50,7 +50,10 @@ export function mapVehicle(row: Row): Vehicle {
     year:         reqNum(row, 'year',          'mapVehicle'),
     color:        reqStr(row, 'color',         'mapVehicle'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
-    branchId:     (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
+    branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
+    isTesla:        (row['is_tesla'] as boolean)          ?? false,
+    hasMobileCable: (row['has_mobile_cable'] as boolean | null) ?? null,
+    hasJ1772Adapter:(row['has_j1772_adapter'] as boolean | null) ?? null,
     coverPhotoUrl: optStr(row, 'cover_photo_url'),
     archivedAt:   optStr(row, 'archived_at')    ?? undefined,
     archivedById: optStr(row, 'archived_by_id') ?? undefined,

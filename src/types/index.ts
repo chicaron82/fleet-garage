@@ -89,6 +89,10 @@ export interface Vehicle {
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;
+  // EV / Tesla accessories
+  isTesla: boolean;
+  hasMobileCable: boolean | null;
+  hasJ1772Adapter: boolean | null;
   // Edit suggestion fields
   editSuggestedUnit?: string | null;
   editSuggestedPlate?: string;
