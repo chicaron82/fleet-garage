@@ -150,7 +150,7 @@ export function VSAMovementLog({
         vehicle_unit:        '',
         trip_type:           isShuttle ? 'transfer' : 'clean',
         depart_location:     'Airport Run',
-        arrive_location:     null,
+        arrive_location:     '',
         depart_time:         now,
         arrive_time:         null,
         driver_id:           user.id,
