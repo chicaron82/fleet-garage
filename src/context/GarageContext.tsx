@@ -32,6 +32,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   markVehicleEditPending: (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => void;
   applyVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
+  directEditVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
 }
@@ -375,6 +376,28 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const directEditVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
+    const { error } = await supabase.from('vehicles').update({
+      unit_number:        unit,
+      license_plate:      plate,
+      edit_status:        null,
+      edit_suggested_unit:  null,
+      edit_suggested_plate: null,
+      edit_suggested_by:    null,
+      edit_suggested_at:    null,
+      edit_suggestion_note: null,
+      edit_reviewed_by:   null,
+      edit_reviewed_at:   null,
+    }).eq('id', vehicleId);
+    if (error) return;
+    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
+      ...v,
+      unitNumber: unit,
+      licensePlate: plate,
+      editStatus: null,
+    }));
+  };
+
   const applyVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
     const now = new Date().toISOString();
     const { error } = await supabase.from('vehicles').update({
@@ -403,7 +426,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       addVehicle, updateVehicleEVAssets, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
       archiveVehicle, restoreVehicle, archivedVehicles,
       setCoverPhoto,
-      markVehicleEditPending, applyVehicleIdentity,
+      markVehicleEditPending, applyVehicleIdentity, directEditVehicleIdentity,
       shuttlePlate, setShuttlePlate,
       ...issuesSlice,
       ...washbaySlice,
