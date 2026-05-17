@@ -224,18 +224,14 @@ function LostFoundCard({ item, currentUserName, updating, canAction, onContactCu
                 />
               </div>
 
-              {canAction ? (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={handleSave}
-                  className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </button>
-              ) : (
-                <p className="text-xs text-center text-gray-400 dark:text-gray-500">View only — contact management to edit</p>
-              )}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleSave}
+                className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+              >
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
