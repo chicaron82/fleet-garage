@@ -22,10 +22,12 @@ Fleet Garage has evolved far beyond a simple damage ledger. It now encompasses t
 - **Intake Flow:** Simulated barcode scanning with manual fallback support.
 - **Exception Handling:** Automatically detects when a vehicle returning from an "exception release" requires immediate management review.
 
-### 4. Fleet Inventory & Audits
-- **Zone Mapping:** Track vehicle locations across physical lot zones (Front Lot, Washbay, Overflow, Shop).
-- **Lot Audits:** Perform blind or guided audits with integrated photo capture to verify physical inventory against the system ledger.
-- **Missing Vehicles:** Quickly identify missing units or ghost holds.
+### 4. My Shift
+
+- **Shift Summary:** Personal throughput rate, cars cleaned in your shift window, and effort score adjusted for off-standard time.
+- **Save Summary:** Snapshot your shift to the 7-day history — saving again updates rather than duplicating.
+- **Team Today:** Management view showing all saved summaries for the branch in one screen.
+- **Shift Duties:** Washbay closing log — cars in, cars cleaned, throughput rate, and pipeline breakdown.
 
 ### 5. Staff Scheduling
 - **Shift Management:** Weekly crew scheduling with role-based assignments.

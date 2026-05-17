@@ -30,9 +30,9 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     mockNote: 'Seeded with example runs showing the full trip card format including VSA Interruption and Proactive Run badges.',
   },
   'inventory': {
-    what: 'Shift Duties — the operational end-of-shift summary. Closing Duties shows the washbay log: cars in, cars cleaned, throughput rate, and pipeline breakdown (rentables processed, delivered to airport, held). A performance card benchmarks the team against the location standard. Lot Snapshot organizes vehicles by zone — Standard, Overflow, Hold Bay (auto-populated from active holds), and Other.',
+    what: 'My Shift — personal productivity summary and shift duties. Shift Summary shows your throughput rate, cars cleaned in your shift window, and your effort score adjusted for off-standard time. Save Summary snapshots your shift for the 7-day history. Management sees Team Today — all saved summaries for the branch in one view. Shift Duties covers the washbay closing log: cars in, cars cleaned, throughput rate, and pipeline breakdown.',
     roles: ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
-    mockNote: 'Closing Duties uses live demo data — the 8.9/hr throughput and pipeline numbers reflect the seeded shift. Lot Snapshot has 13 vehicles across all zones; Hold Bay auto-wires from active holds with no manual entry.',
+    mockNote: 'Shift Summary pulls live OTH and washbay data for today. Save Summary to capture a snapshot — saving again updates it rather than creating a duplicate. Management\'s Team Today view shows all saved summaries for the branch.',
   },
   'lost-and-found': {
     what: 'Log items found in returned vehicles. Scan or enter the unit number, photograph the item, and the record is timestamped to your Employee ID. Creates a clear chain of custody from discovery through resolution.',
