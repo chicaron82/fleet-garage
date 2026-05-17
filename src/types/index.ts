@@ -413,6 +413,8 @@ export interface LostFoundItem {
   status: LostFoundStatus;
   notes?: string;
   resolvedAt?: string;
+  editedByName?: string;
+  editedAt?: string;
 }
 
 // ── Vehicle Registry ──────────────────────────────────────────────────────────

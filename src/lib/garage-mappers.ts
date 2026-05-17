@@ -191,5 +191,7 @@ export function mapLostFoundItem(row: Row): LostFoundItem {
     status:         reqStr(row, 'status',         'mapLostFoundItem') as LostFoundStatus,
     notes:          optStr(row, 'notes'),
     resolvedAt:     optStr(row, 'resolved_at'),
+    editedByName:   optStr(row, 'edited_by_name'),
+    editedAt:       optStr(row, 'edited_at'),
   };
 }

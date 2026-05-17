@@ -21,15 +21,16 @@ const LOCATION_ORDER: LostFoundLocation[] = ['visor', 'front_seat', 'back_seat',
 
 interface CardProps {
   item: LostFoundItem;
+  currentUserName: string;
   updating: boolean;
   canAction: boolean;
   onContactCustomer: () => void;
   onMarkReturned: () => void;
   onPhotoTap: (url: string) => void;
-  onEditSave: (patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string }) => Promise<boolean>;
+  onEditSave: (patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string; editedByName: string }) => Promise<boolean>;
 }
 
-function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkReturned, onPhotoTap, onEditSave }: CardProps) {
+function LostFoundCard({ item, currentUserName, updating, canAction, onContactCustomer, onMarkReturned, onPhotoTap, onEditSave }: CardProps) {
   const vehicleLabel = item.unitNumber
     ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
@@ -58,6 +59,7 @@ function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkRet
       location:     editLocation,
       licensePlate: editPlate.trim().toUpperCase(),
       notes:        editNotes.trim(),
+      editedByName: currentUserName,
     });
     setSaving(false);
     setEditOpen(false);
@@ -67,8 +69,9 @@ function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkRet
     <>
       <div
         onClick={handleOpenEdit}
-        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors cursor-pointer hover:border-gray-300 dark:hover:border-gray-700"
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 relative"
       >
+        <span className="absolute top-3 right-3 text-gray-300 dark:text-gray-600 text-xs select-none">✏️</span>
         {/* Photos row */}
         <div className="flex gap-2" onClick={e => e.stopPropagation()}>
           {item.keyTagPhotoUrl ? (
@@ -110,6 +113,11 @@ function LostFoundCard({ item, updating, canAction, onContactCustomer, onMarkRet
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors">
               Found by <span className="font-medium text-gray-600 dark:text-gray-400">{item.foundByName}</span> · {fmtRelativeDate(item.foundAt)}
             </p>
+            {item.editedByName && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
+                Edited by <span className="font-medium text-gray-600 dark:text-gray-400">{item.editedByName}</span>{item.editedAt ? ` · ${fmtRelativeDate(item.editedAt)}` : ''}
+              </p>
+            )}
           </div>
         </div>
 
@@ -297,6 +305,7 @@ export function LostAndFoundView() {
   const { user } = useAuth();
   const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem } = useGarage();
 
+  const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
   const [showSheet, setShowSheet]           = useState(false);
   const [step, setStep]                     = useState<1 | 2>(1);
@@ -318,6 +327,14 @@ export function LostAndFoundView() {
   const canAction = user ? canActionLostFound(user.role) : false;
   const holding = lostFoundItems.filter(i => i.status !== 'returned');
   const resolved = lostFoundItems.filter(i => i.status === 'returned');
+
+  const q = query.trim().toLowerCase();
+  const filteredHolding = q
+    ? holding.filter(i =>
+        [i.description, i.licensePlate, i.unitNumber, i.notes, i.vehicleMake]
+          .some(f => f?.toLowerCase().includes(q))
+      )
+    : holding;
 
   const handlePhotoCapture = (setter: (v: string) => void) =>
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -386,14 +403,28 @@ export function LostAndFoundView() {
         </button>
       </div>
 
+      {/* Search */}
+      {holding.length > 0 && (
+        <input
+          type="search"
+          placeholder="Search by description, plate, notes…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+        />
+      )}
+
       {/* Holding items */}
       {holding.length > 0 ? (
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Holding</p>
-          {holding.map(item => (
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+            Holding{q ? ` · ${filteredHolding.length} of ${holding.length}` : ''}
+          </p>
+          {filteredHolding.length > 0 ? filteredHolding.map(item => (
             <LostFoundCard
               key={item.id}
               item={item}
+              currentUserName={user?.name ?? ''}
               updating={updatingId === item.id}
               canAction={canAction}
               onContactCustomer={() => handleStatusUpdate(item.id, 'customer_contacted')}
@@ -401,7 +432,9 @@ export function LostAndFoundView() {
               onPhotoTap={setLightboxUrl}
               onEditSave={patch => updateLostFoundItem(item.id, patch)}
             />
-          ))}
+          )) : (
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No items match "{query}"</p>
+          )}
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">

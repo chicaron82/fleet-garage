@@ -21,6 +21,7 @@ export interface LostFoundSlice {
     location: LostFoundLocation | null;
     licensePlate: string;
     notes: string;
+    editedByName: string;
   }) => Promise<boolean>;
 }
 
@@ -128,14 +129,17 @@ export function useLostFound(
 
   const updateLostFoundItem = async (
     id: string,
-    patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string },
+    patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string; editedByName: string },
   ): Promise<boolean> => {
+    const editedAt = new Date().toISOString();
     try {
       const { error } = await supabase.from('lost_found').update({
-        description:   patch.description   || null,
-        location:      patch.location,
-        license_plate: patch.licensePlate  || null,
-        notes:         patch.notes         || null,
+        description:    patch.description   || null,
+        location:       patch.location,
+        license_plate:  patch.licensePlate  || null,
+        notes:          patch.notes         || null,
+        edited_by_name: patch.editedByName,
+        edited_at:      editedAt,
       }).eq('id', id);
       if (error) return false;
       setAllLostFoundItems(prev => prev.map(i =>
@@ -145,6 +149,8 @@ export function useLostFound(
           location:     patch.location     ?? undefined,
           licensePlate: patch.licensePlate || undefined,
           notes:        patch.notes        || undefined,
+          editedByName: patch.editedByName,
+          editedAt,
         }
       ));
       return true;
