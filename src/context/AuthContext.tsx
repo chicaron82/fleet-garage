@@ -1,60 +1,66 @@
-import { createContext, useContext, useState } from 'react';
-import type { User, BranchId } from '../types';
-import { USERS } from '../data/mock';
-
-const AUTH_STORAGE_KEY = 'fg_auth_userId';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { User, UserRole, BranchId } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface AuthContextValue {
   user: User | null;
-  login: (employeeId: string, password: string) => boolean;
-  logout: () => void;
+  loading: boolean;
+  login: (employeeId: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   activeBranch: BranchId;
   setActiveBranch: (branch: BranchId) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function fetchProfile(userId: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('employee_id, name, role, branch_id')
+    .eq('id', userId)
+    .single();
+  if (error || !data) return null;
+  return {
+    id: userId,
+    employeeId: data.employee_id as string,
+    name: data.name as string,
+    role: data.role as UserRole,
+    branchId: data.branch_id as BranchId,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const savedId = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (savedId) return USERS.find(u => u.id === savedId) ?? null;
-    } catch { /* localStorage unavailable — fail silently */ }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeBranch, setActiveBranch] = useState<BranchId>('YWG');
 
-  const [activeBranch, setActiveBranch] = useState<BranchId>(() => {
-    try {
-      const savedId = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (savedId) {
-        const found = USERS.find(u => u.id === savedId);
-        return found?.branchId ?? 'YWG';
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const profile = await fetchProfile(session.user.id);
+        setUser(profile);
+        if (profile) setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
+      } else {
+        setUser(null);
+        setActiveBranch('YWG');
       }
-    } catch { /* localStorage unavailable */ }
-    return 'YWG';
-  });
+      setLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const login = (employeeId: string, password: string): boolean => {
-    const found = USERS.find(
-      u => u.employeeId.toLowerCase() === employeeId.toLowerCase() && u.password === password
-    );
-    if (found) {
-      setUser(found);
-      setActiveBranch(found.branchId === 'ALL' ? 'ALL' : found.branchId);
-      localStorage.setItem(AUTH_STORAGE_KEY, found.id);
-      return true;
-    }
-    return false;
+  const login = async (employeeId: string, password: string): Promise<boolean> => {
+    const email = `${employeeId.toLowerCase()}@fleet-garage.internal`;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return !error;
   };
 
-  const logout = () => {
-    setUser(null);
-    setActiveBranch('YWG');
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, activeBranch, setActiveBranch }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, activeBranch, setActiveBranch }}>
       {children}
     </AuthContext.Provider>
   );

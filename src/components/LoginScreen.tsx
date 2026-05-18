@@ -10,15 +10,13 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const ok = login(employeeId.trim(), password);
-      if (!ok) { hapticHeavy(); setError('Invalid Employee ID or password.'); }
-      setLoading(false);
-    }, 600);
+    const ok = await login(employeeId.trim(), password);
+    if (!ok) { hapticHeavy(); setError('Invalid Employee ID or password.'); }
+    setLoading(false);
   };
 
   return (

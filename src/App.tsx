@@ -55,7 +55,7 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { errored: b
 }
 
 export default function App() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [screen, setScreen] = useState<Screen>(() =>
     user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' }
   );
@@ -96,6 +96,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePop);
   }, [user]);
 
+  if (loading) return null;
   if (!user) return <LoginScreen />;
 
   const activeModule = getActiveModule(screen);

@@ -66,7 +66,6 @@ export interface User {
   employeeId: string;
   name: string;
   role: UserRole;
-  password: string; // demo only — plaintext fine for POC
   branchId: BranchId;
 }
 
