@@ -20,30 +20,42 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col px-4 overflow-y-auto transition-colors text-gray-900 dark:text-gray-100">
-      {/* Spacer pushing content down */}
-      <div className="flex-1 min-h-[2rem]"></div>
+    <div className="min-h-screen flex flex-col px-4 overflow-y-auto" style={{ backgroundColor: '#1a5c3a' }}>
+      <div className="flex-1 min-h-[2rem]" />
 
       <div className="w-full max-w-sm mx-auto flex-none flex flex-col items-center">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors">
-              <span className="text-black font-bold text-sm">FG</span>
-            </div>
-            <span className="text-xl font-semibold tracking-tight transition-colors">Fleet Garage</span>
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">Winnipeg Logistics Hub · Ops Pilot Program</p>
+        {/* Logo */}
+        <div className="mb-8 flex flex-col items-center">
+          <img
+            src="/fleet-garage-logo.png"
+            alt="Fleet Garage"
+            className="w-64 select-none"
+            draggable={false}
+          />
+          <p className="text-sm mt-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Winnipeg Logistics Hub · Ops Pilot Program
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-8 transition-colors">
-          <h1 className="text-lg font-semibold mb-1 transition-colors">Sign in</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 transition-colors">Use your Hertz Employee ID</p>
+        {/* Frosted glass card */}
+        <div
+          className="w-full rounded-2xl p-8"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}
+        >
+          <h1 className="text-lg font-semibold mb-1 text-white">Sign in</h1>
+          <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Use your Hertz Employee ID
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide transition-colors">
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 Employee ID
               </label>
               <input
@@ -52,12 +64,17 @@ export function LoginScreen() {
                 onChange={e => setEmployeeId(e.target.value.toUpperCase())}
                 placeholder="e.g. 331965"
                 autoFocus
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition uppercase"
+                className="w-full px-3.5 py-2.5 rounded-lg uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                style={{
+                  background: 'rgba(255,255,255,0.10)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white',
+                }}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide transition-colors">
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 Password
               </label>
               <div className="relative">
@@ -66,13 +83,19 @@ export function LoginScreen() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3.5 py-2.5 pr-12 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-500 focus:border-transparent transition"
+                  className="w-full px-3.5 py-2.5 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                  style={{
+                    background: 'rgba(255,255,255,0.10)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: 'white',
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer text-lg leading-none pt-0.5"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 transition-opacity hover:opacity-100 cursor-pointer text-lg leading-none pt-0.5"
+                  style={{ color: 'rgba(255,255,255,0.5)' }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
                 >
                   {showPassword ? '🫣' : '👁️'}
@@ -81,23 +104,27 @@ export function LoginScreen() {
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-900/50 rounded-lg px-3 py-2 transition-colors">{error}</p>
+              <p className="text-xs rounded-lg px-3 py-2" style={{ color: '#fca5a5', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                {error}
+              </p>
             )}
 
             <button
               type="submit"
               disabled={!employeeId || !password || loading}
-              className="w-full py-2.5 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+              className="w-full py-2.5 font-semibold text-sm rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed"
+              style={{
+                background: !employeeId || !password || loading ? 'rgba(255,255,255,0.15)' : '#facc15',
+                color: !employeeId || !password || loading ? 'rgba(255,255,255,0.4)' : '#000',
+              }}
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
-
         </div>
       </div>
 
-      {/* Spacer pulling content up */}
-      <div className="flex-1 min-h-[2rem]"></div>
+      <div className="flex-1 min-h-[2rem]" />
     </div>
   );
 }

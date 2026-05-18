@@ -51,11 +51,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (employeeId: string, password: string): Promise<boolean> => {
     const email = `${employeeId.toLowerCase()}@fleet-garage.internal`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return !error;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return false;
+    const profile = await fetchProfile(data.user.id);
+    if (profile) {
+      setUser(profile);
+      setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
+    }
+    return !!profile;
   };
 
   const logout = async () => {
+    setUser(null);
+    setActiveBranch('YWG');
     await supabase.auth.signOut();
   };
 
