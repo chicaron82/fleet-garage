@@ -81,6 +81,7 @@ npm run lint     # eslint
 - **Preferences:** Robust user preference context for persisting UI settings (e.g., Dark Mode, Default Tabs, Notification preferences).
 
 ## POC Limitations
+
 While highly functional, this remains a proof-of-concept:
-- **Authentication:** Currently relies on a client-side mock authentication layer (`USERS` array) rather than true server-side JWT validation.
+- **Authentication:** Supabase Auth with employee ID login. Staff authenticate using their Employee ID — a fake internal email is constructed under the hood before `signInWithPassword`. Sessions are JWT-based with server-side validation. Profiles table (migration 054) links auth UUIDs to employee ID, name, role, and branch.
 - **Offline Support:** Lacks full service-worker caching required for true "dead zone" lot walks.
