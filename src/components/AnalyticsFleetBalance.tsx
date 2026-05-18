@@ -9,13 +9,15 @@ interface BalanceDay {
   hasData: boolean;
 }
 
-export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, canEnter, onSubmit }: {
+export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, canEnter, onSubmit, weekdayAvgBalance }: {
   fleetBalanceData: BalanceDay[];
   loading: boolean;
   todayEntry: FleetBalanceEntry | undefined;
   canEnter: boolean;
   onSubmit: (outCount: number, inCount: number) => Promise<boolean>;
+  weekdayAvgBalance?: { avgOut: number; avgIn: number } | null;
 }) {
+  const todayStr = fleetBalanceData[fleetBalanceData.length - 1]?.date;
   const daysWithData = fleetBalanceData.filter(d => d.hasData);
   const maxFleetCount = Math.max(...fleetBalanceData.filter(d => d.hasData).flatMap(d => [d.outCount ?? 0, d.inCount ?? 0]), 10);
 
@@ -43,21 +45,33 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
           <>
             <div className="flex items-end gap-2 h-28 mb-3">
               {fleetBalanceData.map(d => {
-                const outHeight = d.hasData && maxFleetCount > 0 ? ((d.outCount ?? 0) / maxFleetCount) * 100 : 8;
-                const inHeight  = d.hasData && maxFleetCount > 0 ? ((d.inCount  ?? 0) / maxFleetCount) * 100 : 8;
+                const isToday = d.date === todayStr;
+                const useAvg  = isToday && !d.hasData && !!weekdayAvgBalance;
+                const outVal  = useAvg ? weekdayAvgBalance!.avgOut : (d.outCount ?? 0);
+                const inVal   = useAvg ? weekdayAvgBalance!.avgIn  : (d.inCount  ?? 0);
+                const outHeight = (d.hasData || useAvg) && maxFleetCount > 0 ? (outVal / maxFleetCount) * 100 : 8;
+                const inHeight  = (d.hasData || useAvg) && maxFleetCount > 0 ? (inVal  / maxFleetCount) * 100 : 8;
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                     <div className="w-full flex items-end gap-0.5 h-24">
                       <div
-                        className={`flex-1 rounded-t transition-all ${d.hasData ? 'bg-amber-400' : 'bg-gray-100 dark:bg-gray-800'}`}
+                        className={`flex-1 rounded-t transition-all ${
+                          d.hasData ? 'bg-amber-400'
+                          : useAvg  ? 'border-2 border-dashed border-amber-300 bg-amber-50 opacity-60'
+                          : 'bg-gray-100 dark:bg-gray-800'
+                        }`}
                         style={{ height: `${outHeight}%` }}
                       />
                       <div
-                        className={`flex-1 rounded-t transition-all ${d.hasData ? 'bg-green-400' : 'bg-gray-100 dark:bg-gray-800'}`}
+                        className={`flex-1 rounded-t transition-all ${
+                          d.hasData ? 'bg-green-400'
+                          : useAvg  ? 'border-2 border-dashed border-green-300 bg-green-50 opacity-60'
+                          : 'bg-gray-100 dark:bg-gray-800'
+                        }`}
                         style={{ height: `${inHeight}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{d.day}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{useAvg ? 'avg' : d.day}</span>
                   </div>
                 );
               })}

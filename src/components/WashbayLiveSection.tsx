@@ -2,12 +2,13 @@ import { COMPANY_STANDARD, EmptyState } from '../lib/analytics';
 import type { Hold, WashbayLog } from '../types';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
 
-export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg, isPeakSeason }: {
+export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg, isPeakSeason, weekdayAvgBalance }: {
   todayWashbayLog: WashbayLog | undefined;
   todayBalanceEntry: FleetBalanceEntry | undefined;
   activeHolds: Hold[];
   liveWashbay30DayAvg: number | null;
   isPeakSeason: boolean;
+  weekdayAvgBalance?: { avgOut: number; avgIn: number } | null;
 }) {
   if (!todayWashbayLog) {
     return <EmptyState message="No closing log submitted today. Log it in Lot Inventory → Closing Duties." />;
@@ -22,8 +23,9 @@ export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeH
   const rp  = Math.max(0, ci - ht);
   const da  = Math.max(0, rp - todayWashbayLog.cleanNotPickedUp);
   const d   = tp - COMPANY_STANDARD;
-  const openingOut = todayBalanceEntry?.outCount ?? null;
-  const netFlow    = openingOut !== null ? ci - openingOut : null;
+  const openingOut    = todayBalanceEntry?.outCount ?? weekdayAvgBalance?.avgOut ?? null;
+  const isAvgFallback = !todayBalanceEntry && openingOut !== null;
+  const netFlow       = openingOut !== null ? ci - openingOut : null;
 
   return (
     <div className="space-y-4">
@@ -58,13 +60,18 @@ export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeH
 
       {openingOut !== null && netFlow !== null && (
         <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Net Flow (vs Opening)</p>
+          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+            {isAvgFallback ? 'Net Flow (vs Avg Opening)' : 'Net Flow (vs Opening)'}
+          </p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
             {openingOut} out → {ci} in
             <span className={`ml-2 font-semibold ${netFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
               Net {netFlow >= 0 ? `+${netFlow}` : netFlow} today
             </span>
           </p>
+          {isAvgFallback && (
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Based on weekday average — today's balance not yet entered</p>
+          )}
         </div>
       )}
 

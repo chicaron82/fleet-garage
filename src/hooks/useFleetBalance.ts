@@ -87,10 +87,23 @@ export function useFleetBalance() {
     return entries.find(e => e.date === today);
   }
 
+  function getWeekdayAverage(): { avgOut: number; avgIn: number } | null {
+    const today = localDateStr();
+    const weekdayEntries = entries.filter(e => {
+      const day = new Date(e.date + 'T00:00:00').getDay();
+      return e.date !== today && day >= 1 && day <= 5;
+    });
+    if (weekdayEntries.length < 2) return null;
+    const avgOut = Math.round(weekdayEntries.reduce((s, e) => s + e.outCount, 0) / weekdayEntries.length);
+    const avgIn  = Math.round(weekdayEntries.reduce((s, e) => s + e.inCount,  0) / weekdayEntries.length);
+    return { avgOut, avgIn };
+  }
+
   return {
     entries,
     loading,
     upsertEntry,
     getTodayEntry,
+    getWeekdayAverage,
   };
 }
