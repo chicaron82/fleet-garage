@@ -72,6 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setActiveBranch('YWG');
     await supabase.auth.signOut();
+    // The lock no-op (needed for Strict Mode) lets a concurrent token refresh race
+    // signOut and re-write a fresh session to localStorage. Sweep any remaining
+    // Supabase keys so a page refresh finds no session.
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('sb-')) localStorage.removeItem(key);
+    }
   };
 
   return (
