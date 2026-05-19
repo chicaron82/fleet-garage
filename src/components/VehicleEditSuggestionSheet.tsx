@@ -34,7 +34,8 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
   const canSubmit = hasChange && note.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
-    if (!canSubmit || !user) return;
+    if (!canSubmit) return;
+    if (!user) { setError('Session error — please refresh and try again.'); return; }
     hapticMedium();
     setSubmitting(true);
     setError(null);

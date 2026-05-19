@@ -143,7 +143,7 @@ export function useAudit() {
         crew:           crewMembers,
         sections,
         status:         finalStatus,
-      });
+      }).then(({ error }) => { if (error) console.error('[useAudit] insert failed:', error); });
     }
 
     setTimeout(() => {

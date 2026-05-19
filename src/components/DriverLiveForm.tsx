@@ -170,9 +170,6 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     hapticMedium();
     const now    = new Date().toISOString();
     const tripId = crypto.randomUUID();
-    setDepartureTime(now);
-    setElapsed('0m 00s');
-    setLiveState('in_transit');
 
     const { error } = await supabase.from('vsa_trips').insert({
       id:                tripId,
@@ -192,8 +189,17 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
       status:            'in_progress',
     });
 
-    if (error) console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
-    else setInProgressId(tripId);
+    if (error) {
+      console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
+      setSaveError(true);
+      return;
+    }
+
+    setSaveError(false);
+    setInProgressId(tripId);
+    setDepartureTime(now);
+    setElapsed('0m 00s');
+    setLiveState('in_transit');
   };
 
   const handleArrived = async () => {
@@ -203,7 +209,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     const arrived = new Date().toISOString();
     setArrivalTime(arrived);
 
-    if (!user) { setSubmitting(false); return; }
+    if (!user) { setSaveError(true); setSubmitting(false); return; }
 
     let error: { message: string } | null = null;
 

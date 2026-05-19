@@ -262,7 +262,8 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   }, [getVehicleByUnit, showToast, fetchEvLastCheck]);
 
   const handleSubmit = async () => {
-    if (!user || !scanned || !interiorCondition || !exteriorCondition) return;
+    if (!scanned || !interiorCondition || !exteriorCondition) return;
+    if (!user) { setSaveError(true); return; }
     hapticMedium();
     setSubmitting(true);
     setSaveError(false);

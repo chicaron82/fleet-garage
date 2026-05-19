@@ -238,13 +238,14 @@ export function WhiteboardView() {
     // Auto-archive shift_board notes from previous days
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    await supabase
+    const { error: archiveErr } = await supabase
       .from('whiteboard_notes')
       .update({ status: 'archived', archived_at: new Date().toISOString(), archived_by_id: 'system' })
       .eq('branch_id', branchId)
       .eq('section', 'shift_board')
       .eq('status', 'active')
       .lt('created_at', todayStart.toISOString());
+    if (archiveErr) console.error('[WhiteboardView] shift_board auto-archive failed:', archiveErr);
 
     const { data } = await supabase
       .from('whiteboard_notes')
@@ -273,13 +274,14 @@ export function WhiteboardView() {
       const now = new Date().toISOString();
       const toArchive = notes.filter(n => n.status === 'active' && n.triggerType === 'seasonal');
       if (toArchive.length > 0) {
-        await supabase
+        const { error: seasonArchiveErr } = await supabase
           .from('whiteboard_notes')
           .update({ status: 'archived', archived_at: now, archived_by_id: 'system' })
           .in('id', toArchive.map(n => n.id));
+        if (seasonArchiveErr) console.error('[WhiteboardView] seasonal auto-archive failed:', seasonArchiveErr);
       }
       const starterBody = seasonalStarterBody(isPeakSeason);
-      await supabase.from('whiteboard_notes').insert({
+      const { error: starterErr } = await supabase.from('whiteboard_notes').insert({
         branch_id: branchId,
         section: 'reminders',
         body: starterBody,
@@ -289,6 +291,7 @@ export function WhiteboardView() {
         trigger_type: 'seasonal',
         status: 'active',
       });
+      if (starterErr) console.error('[WhiteboardView] seasonal starter insert failed:', starterErr);
       loadNotes();
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -35,15 +35,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeBranch, setActiveBranch] = useState<BranchId>('YWG');
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const profile = await fetchProfile(session.user.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        setActiveBranch('YWG');
+        setLoading(false);
+        return;
+      }
+      const profile = await fetchProfile(session.user.id);
+      if (profile) {
         setUser(profile);
-        if (profile) setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
-      } else {
+        setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
+      } else if (event === 'INITIAL_SESSION') {
         setUser(null);
         setActiveBranch('YWG');
       }
+      // SIGNED_IN with no profile: leave user alone — login() already set it
       setLoading(false);
     });
     return () => subscription.unsubscribe();

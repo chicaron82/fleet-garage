@@ -56,6 +56,7 @@ export function VSAMovementLog({
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
   const [pendingTripId, setPendingTripId]     = useState<string | null>(null);
   const [starting, setStarting]               = useState(false);
+  const [startError, setStartError]           = useState(false);
 
   const { topClasses, flaggedClasses } = useMemo(() => {
     const manifest  = generateDayManifest();
@@ -168,7 +169,11 @@ export function VSAMovementLog({
 
     if (error) {
       console.error('[VSAMovementLog] trip start write failed:', error);
+      setStartError(true);
+      setStarting(false);
+      return;
     }
+    setStartError(false);
 
     setPendingTripId(tripId);
 
@@ -205,8 +210,6 @@ export function VSAMovementLog({
   const handleArrived = async () => {
     hapticMedium();
     const arrived = new Date().toISOString();
-    setArrivalTime(arrived);
-    setTripState('complete');
 
     if (user && pendingTripId) {
       await supabase
@@ -223,6 +226,9 @@ export function VSAMovementLog({
         })
         .eq('id', pendingTripId);
     }
+
+    setArrivalTime(arrived);
+    setTripState('complete');
 
     if (onTripComplete && user) {
       onTripComplete({
@@ -301,17 +307,24 @@ export function VSAMovementLog({
 
       <div className="p-4 space-y-4">
         {tripState === 'form' && (
-          <TripForm
-            isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-            vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
-            topClasses={topClasses} flaggedClasses={flaggedClasses}
-            onShuttleToggle={handleShuttleToggle}
-            onCodeRedDispatch={handleCodeRedDispatch}
-            onQuickStart={handleQuickStart}
-            isTeslaRun={isTeslaRun}         setIsTeslaRun={setIsTeslaRun}
-            evCableStatus={evCableStatus}   setEvCableStatus={setEvCableStatus}
-            evAdapterStatus={evAdapterStatus} setEvAdapterStatus={setEvAdapterStatus}
-          />
+          <>
+            <TripForm
+              isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
+              vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
+              topClasses={topClasses} flaggedClasses={flaggedClasses}
+              onShuttleToggle={handleShuttleToggle}
+              onCodeRedDispatch={handleCodeRedDispatch}
+              onQuickStart={handleQuickStart}
+              isTeslaRun={isTeslaRun}         setIsTeslaRun={setIsTeslaRun}
+              evCableStatus={evCableStatus}   setEvCableStatus={setEvCableStatus}
+              evAdapterStatus={evAdapterStatus} setEvAdapterStatus={setEvAdapterStatus}
+            />
+            {startError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+              </div>
+            )}
+          </>
         )}
 
         {tripState === 'in_transit' && (

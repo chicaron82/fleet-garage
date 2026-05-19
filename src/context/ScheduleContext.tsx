@@ -156,10 +156,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const updatePtoEntitlement = async (days: number) => {
     if (!user) return;
-    await supabase
+    const { error } = await supabase
       .from('user_pto')
       .upsert({ user_id: user.id, pto_entitlement: days, updated_at: new Date().toISOString() });
-    setPtoEntitlement(days);
+    if (!error) setPtoEntitlement(days);
   };
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
