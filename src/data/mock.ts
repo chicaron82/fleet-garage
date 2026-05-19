@@ -92,7 +92,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v1',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Deep scratch on driver-side rear door. Paint chipped to metal. Approx 8 inches.',
-    flaggedById: 'u1', // Aaron S.
+    flaggedById: 'u1', flaggedByName: '', flaggedByEmployeeId: '', // Aaron S.
     flaggedAt: '2026-04-05T14:22:00',
     notes: 'Customer denied damage at return. Documented on lot before next rental.',
     status: 'ACTIVE',
@@ -105,7 +105,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v2',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Cracked windshield — passenger side. Spider crack from lower corner, approx 14 inches.',
-    flaggedById: 'u3', // Belle
+    flaggedById: 'u3', flaggedByName: '', flaggedByEmployeeId: '', // Belle
     flaggedAt: '2026-03-28T09:10:00',
     notes: 'Flagged before lot went to critical shortage. Repair appointment scheduled for Apr 12.',
     status: 'RELEASED',
@@ -129,7 +129,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v3',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Front bumper damage — passenger side. Impact dent with cracked housing. Turn signal intact.',
-    flaggedById: 'u2', // DiZee
+    flaggedById: 'u2', flaggedByName: '', flaggedByEmployeeId: '', // DiZee
     flaggedAt: '2026-03-10T16:05:00',
     notes: 'Vehicle returned from 3-week rental. Damage not on pre-rental inspection sheet.',
     status: 'RETURNED',
@@ -154,7 +154,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v3',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Interior — rear seat. Beverage stain, passenger side. Detailing could not fully remove.',
-    flaggedById: 'u4', // CoZee (CSR)
+    flaggedById: 'u4', flaggedByName: '', flaggedByEmployeeId: '', // CoZee (CSR)
     flaggedAt: '2026-02-14T13:45:00',
     notes: 'Customer returned late. Stain noticed during check-in. Photos taken.',
     status: 'RETURNED',
@@ -179,7 +179,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v5',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Missing driver-side mirror cap. Mirror glass intact. Clip housing broken.',
-    flaggedById: 'u1', // Aaron S.
+    flaggedById: 'u1', flaggedByName: '', flaggedByEmployeeId: '', // Aaron S.
     flaggedAt: '2026-04-07T08:55:00',
     notes: 'Noticed during lot walk. Not on last return inspection. Part ordered.',
     status: 'ACTIVE',
@@ -192,7 +192,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v7',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Dent — major / crumple',
-    flaggedById: 'u3', // Belle (HIR)
+    flaggedById: 'u3', flaggedByName: '', flaggedByEmployeeId: '', // Belle (HIR)
     flaggedAt: '2025-11-14T10:20:00',
     notes: 'Rear liftgate / bumper area. Impact dent, no paint break. Previously documented.',
     status: 'RETURNED',
@@ -217,7 +217,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v7',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Dent — major / crumple',
-    flaggedById: 'u1', // Aaron S.
+    flaggedById: 'u1', flaggedByName: '', flaggedByEmployeeId: '', // Aaron S.
     flaggedAt: '2026-04-08T11:30:00',
     notes: 'Same rear liftgate dent. Pre-existing — has been on this vehicle for months. Flagging again for new staff awareness.',
     status: 'ACTIVE',
@@ -231,7 +231,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v8',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Front bumper scrape — passenger side. Cosmetic, paint scuffed, no structural damage. Approx 6 inches.',
-    flaggedById: 'u14', // Marcus L. (Calgary VSA)
+    flaggedById: 'u14', flaggedByName: '', flaggedByEmployeeId: '', // Marcus L. (Calgary VSA)
     flaggedAt: '2026-04-05T11:20:00',
     notes: 'Customer return scrape at YYC. Hold remains active during inter-branch transfer to YWG for inventory rebalancing. YWG team to verify match on arrival — do not flag as new.',
     status: 'ACTIVE',
@@ -244,7 +244,7 @@ export const HOLDS: Hold[] = [
     vehicleId: 'v9',
     holdTypes: ['damage'], holdType: 'damage' as const,
     damageDescription: 'Rear quarter panel dent — driver side. Impact dent, no paint break. Approx 4 inches diameter.',
-    flaggedById: 'u3', // Belle (YWG VSA)
+    flaggedById: 'u3', flaggedByName: '', flaggedByEmployeeId: '', // Belle (YWG VSA)
     flaggedAt: '2026-04-14T09:45:00',
     notes: 'Discovered during arrival inspection of YVR one-way customer drop-off. Vehicle was clean at YVR origin (last check-in by Linh T., Apr 12 — exterior clean, no holds). Damage occurred during rental — new flag.',
     status: 'ACTIVE',

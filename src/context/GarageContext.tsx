@@ -202,7 +202,8 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const newHold: Hold = {
       id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
-      damageDescription, flaggedById, flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
+      damageDescription, flaggedById, flaggedByName: user?.name ?? '', flaggedByEmployeeId: user?.employeeId ?? '',
+      flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
     setAllHolds(prev => [newHold, ...prev]);
     setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
