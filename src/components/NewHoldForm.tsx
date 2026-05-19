@@ -496,6 +496,13 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             </div>
           )}
 
+          {/* Submit error */}
+          {h.submitError && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-900 dark:text-amber-300">
+              {h.submitError}
+            </div>
+          )}
+
           {/* Submit */}
           <div className="flex gap-2">
             <button

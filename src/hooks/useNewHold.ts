@@ -23,6 +23,7 @@ export function useNewHold(preselectedId?: string) {
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const selectedVehicle = selectedVehicleId
     ? vehicles.find(v => v.id === selectedVehicleId)
@@ -109,13 +110,20 @@ export function useNewHold(preselectedId?: string) {
 
   const submit = async (): Promise<string | null> => {
     if (!canSubmit || !selectedVehicle) return null;
+    if (!user?.id || !user?.name) {
+      setSubmitError('Session error — please refresh and try again.');
+      return null;
+    }
+    setSubmitError(null);
     setSubmitting(true);
     try {
-      await addHold(selectedVehicle.id, finalDamage, notes, user!.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
+      await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
       return selectedVehicle.id;
     } catch {
-      setSubmitting(false);
+      setSubmitError('Something went wrong. Please try again.');
       return null;
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -133,7 +141,7 @@ export function useNewHold(preselectedId?: string) {
     mechanicalSubType, setMechanicalSubType,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
-    submitting, canSubmit,
+    submitting, submitError, canSubmit,
     selectVehicle, clearVehicle,
     submit,
     MAX_PHOTOS,

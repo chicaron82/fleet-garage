@@ -11,12 +11,23 @@ export function base64ToBlob(base64: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
+const UPLOAD_TIMEOUT_MS = 15_000;
+
+function withUploadTimeout<T extends { error: unknown }>(
+  promise: Promise<T>,
+): Promise<T> {
+  const timeout = new Promise<T>(resolve =>
+    setTimeout(() => resolve({ error: new Error('Upload timeout') } as T), UPLOAD_TIMEOUT_MS)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 export async function uploadPhoto(base64: string, holdId: string): Promise<string | null> {
   const blob = base64ToBlob(base64);
   const path = `${holdId}/${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage
-    .from('damage-photos')
-    .upload(path, blob, { contentType: 'image/jpeg' });
+  const { error } = await withUploadTimeout(
+    supabase.storage.from('damage-photos').upload(path, blob, { contentType: 'image/jpeg' })
+  );
   if (error) return null;
   return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
 }
@@ -24,9 +35,9 @@ export async function uploadPhoto(base64: string, holdId: string): Promise<strin
 export async function uploadLostFoundPhoto(base64: string, itemId: string, slot: 'key-tag' | 'item'): Promise<string | null> {
   const blob = base64ToBlob(base64);
   const path = `${itemId}/${slot}.jpg`;
-  const { error } = await supabase.storage
-    .from('lost-found-photos')
-    .upload(path, blob, { contentType: 'image/jpeg' });
+  const { error } = await withUploadTimeout(
+    supabase.storage.from('lost-found-photos').upload(path, blob, { contentType: 'image/jpeg' })
+  );
   if (error) return null;
   return supabase.storage.from('lost-found-photos').getPublicUrl(path).data.publicUrl;
 }
