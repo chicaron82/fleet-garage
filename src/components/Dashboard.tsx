@@ -291,7 +291,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       )}
                       {latestHold && (
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                          Flagged by {getFlaggedBy(latestHold.flaggedById)}
+                          Flagged by {latestHold.flaggedByName || getFlaggedBy(latestHold.flaggedById)}
                         </p>
                       )}
                     </div>

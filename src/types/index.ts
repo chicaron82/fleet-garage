@@ -134,7 +134,9 @@ export interface Hold {
   detailReason?: DetailReason;
   mechanicalSubType?: MechanicalSubType | null;
   damageDescription: string;   // for damage holds; "Detail required — X" for detail holds
-  flaggedById: string;         // User.id
+  flaggedById: string;         // User.id (auth UUID)
+  flaggedByName: string;
+  flaggedByEmployeeId: string;
   flaggedAt: string;           // ISO timestamp
   notes: string;
   photos?: string[];

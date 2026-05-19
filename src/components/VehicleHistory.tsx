@@ -475,8 +475,8 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Flagged by <span className="font-medium text-gray-700 dark:text-gray-300">{h.getName(hold.flaggedById)}</span>
-                    {' '}· {h.getEmpId(hold.flaggedById)} ({h.getRole(hold.flaggedById)}) · {fmt(hold.flaggedAt)}
+                    Flagged by <span className="font-medium text-gray-700 dark:text-gray-300">{hold.flaggedByName || h.getName(hold.flaggedById)}</span>
+                    {' '}· {hold.flaggedByEmployeeId || h.getEmpId(hold.flaggedById)} · {fmt(hold.flaggedAt)}
                   </p>
                   {hold.notes && (
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>
