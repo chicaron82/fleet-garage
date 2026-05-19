@@ -102,6 +102,7 @@ export function MovementLogView() {
         .from('vsa_trips')
         .select('*')
         .gte('depart_time', todayStart.toISOString())
+        .not('arrive_time', 'is', null)
         .order('depart_time', { ascending: false });
 
       if (data) {
@@ -292,20 +293,19 @@ export function MovementLogView() {
           ))}
         </div>
 
-        {/* Tab content */}
-        {activeTab === 'movement-log' ? (
-          <>
-            <VSAMovementLog onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
-            {myLiveTrips.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
-                <TripList trips={myLiveTrips} isManagement={false} />
-              </div>
-            )}
-          </>
-        ) : (
+        {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
+        <div className={activeTab === 'movement-log' ? undefined : 'hidden'}>
+          <VSAMovementLog onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
+          {myLiveTrips.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
+              <TripList trips={myLiveTrips} isManagement={false} />
+            </div>
+          )}
+        </div>
+        <div className={activeTab === 'off-standard' ? undefined : 'hidden'}>
           <OffStandardTimeLog user={user} refreshTrigger={offStandardRefresh} />
-        )}
+        </div>
       </div>
     );
   }

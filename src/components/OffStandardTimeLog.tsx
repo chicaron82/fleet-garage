@@ -191,6 +191,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { shifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
 
+  const [isRecovering, setIsRecovering]     = useState(true);
   const [timerState, setTimerState]         = useState<TimerState>('idle');
   const [inProgressId, setInProgressId]     = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<OffStandardReason>('WFW');
@@ -200,6 +201,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const [explanation, setExplanation]       = useState('');
   const [copied, setCopied]                 = useState(false);
   const [startError, setStartError]         = useState(false);
+  const [endError, setEndError]             = useState(false);
   const [entries, setEntries]               = useState<OffStandardEntry[]>([]);
   const [editingEntry, setEditingEntry]     = useState<OffStandardEntry | null>(null);
 
@@ -228,7 +230,12 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   // Recovery: restore any in_progress entry on mount
   useInProgressRecovery(
-    { table: 'off_standard_entries', userField: 'user_id', userId: user.id },
+    {
+      table: 'off_standard_entries',
+      userField: 'user_id',
+      userId: user.id,
+      onSettled: () => setIsRecovering(false),
+    },
     row => {
       setInProgressId(row.id as string);
       setStartTimestamp(row.start_time as string);
@@ -342,6 +349,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   const handleEnd = async () => {
     hapticLight();
+    setEndError(false);
     const now = new Date().toISOString();
     const mins = Math.round(
       (new Date(now).getTime() - new Date(startTimestamp).getTime()) / 60000
@@ -364,6 +372,12 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
         status:      'complete',
       })
       .eq('id', inProgressId!);
+
+    if (error) {
+      console.error('[handleEnd] update failed:', error);
+      setEndError(true);
+      return;
+    }
 
     if (!error) {
       if (selectedPreset === 'edv' && edvLinkedHoldId) {
@@ -402,6 +416,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     setEdvManagerName('');
     setEdvNoMatch(false);
     setStartError(false);
+    setEndError(false);
   };
 
   // ── Edit handlers ─────────────────────────────────────────────────────────
@@ -504,7 +519,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     <div className="space-y-5">
 
       {/* Quick Start */}
-      {timerState === 'idle' && (
+      {timerState === 'idle' && !isRecovering && (
         <>
           <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
             <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
@@ -621,15 +636,21 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
             </div>
           )}
 
-          {/* idle → Start */}
+          {/* idle → Start (or recovering placeholder) */}
           {timerState === 'idle' && (
-            <button
-              type="button"
-              onClick={handleStart}
-              className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition cursor-pointer"
-            >
-              Start
-            </button>
+            isRecovering ? (
+              <div className="flex items-center justify-center py-3">
+                <p className="text-xs text-gray-400 dark:text-gray-500">Resuming session…</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStart}
+                className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition cursor-pointer"
+              >
+                Start
+              </button>
+            )
           )}
 
           {/* running → elapsed + notes + End */}
@@ -657,6 +678,11 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   className={INPUT}
                 />
               </div>
+              {endError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
+                  <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleEnd}

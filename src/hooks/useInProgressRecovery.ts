@@ -20,16 +20,19 @@ interface UseInProgressRecoveryOptions {
   userId: string | null | undefined;
   /** Columns to project. Defaults to `'*'`. */
   columns?: string;
+  /** Called after the recovery query resolves, whether or not a record was found. */
+  onSettled?: () => void;
 }
 
 /**
  * Mount-time recovery hook for the Write-First Pattern.
  *
  * Fires once per `userId` change. On finding an `in_progress` row, calls
- * `onRecover` so the component can rehydrate UI state.
+ * `onRecover` so the component can rehydrate UI state. Always calls
+ * `onSettled` when the query resolves, enabling callers to clear loading states.
  *
- * The `onRecover` callback is held in a ref so its identity does not
- * re-trigger the effect — callers can pass an inline arrow without memoizing.
+ * Both callbacks are held in refs so their identity does not re-trigger the
+ * effect — callers can pass inline arrows without memoizing.
  */
 export function useInProgressRecovery(
   opts: UseInProgressRecoveryOptions,
@@ -38,6 +41,11 @@ export function useInProgressRecovery(
   const onRecoverRef = useRef(onRecover);
   useEffect(() => {
     onRecoverRef.current = onRecover;
+  });
+
+  const onSettledRef = useRef(opts.onSettled);
+  useEffect(() => {
+    onSettledRef.current = opts.onSettled;
   });
 
   const { table, userField, userId, columns } = opts;
@@ -52,6 +60,7 @@ export function useInProgressRecovery(
       columns,
     }).then(row => {
       if (row) onRecoverRef.current(row);
+      onSettledRef.current?.();
     });
   }, [table, userField, userId, columns]);
 }

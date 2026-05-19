@@ -172,6 +172,7 @@ export function VSAMovementLog({
       return;
     }
     setStartError(false);
+    setStarting(false);
 
     setPendingTripId(tripId);
 
@@ -282,6 +283,7 @@ export function VSAMovementLog({
     setIsTeslaRun(false);
     setEvCableStatus(null);
     setEvAdapterStatus(null);
+    setStarting(false);
   };
 
   return (
