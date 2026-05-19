@@ -3,7 +3,7 @@ import { hapticMedium, hapticLight } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from '../context/AuthContext';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import type { OffStandardReason, OffStandardPresetReason } from '../types';
 
@@ -43,6 +43,7 @@ function entryLabel(reason: OffStandardReason, preset: OffStandardPresetReason |
 
 export function OthEditApprovalSheet({ entryId, onClose }: Props) {
   const { user } = useAuth();
+  const { getProfile } = useUserResolver();
   const [entry, setEntry] = useState<EntryRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +71,7 @@ export function OthEditApprovalSheet({ entryId, onClose }: Props) {
     );
   }
 
-  const staffUser = USERS.find(u => u.id === entry.edit_requested_by);
+  const staffUser = getProfile(entry.edit_requested_by);
   const newMins = Math.round(
     (new Date(entry.edited_end_time).getTime() - new Date(entry.start_time).getTime()) / 60000
   );

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 
 interface Props {
   vehicleId: string;
@@ -25,6 +25,7 @@ interface VehicleRow {
 export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
   const { user } = useAuth();
   const { applyVehicleIdentity } = useGarage();
+  const { getProfile } = useUserResolver();
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +53,7 @@ export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
     );
   }
 
-  const staffUser = USERS.find(u => u.id === vehicle.edit_suggested_by);
+  const staffUser = getProfile(vehicle.edit_suggested_by);
 
   const unitChanged = vehicle.edit_suggested_unit !== vehicle.unit_number;
   const plateChanged = vehicle.edit_suggested_plate !== vehicle.license_plate;

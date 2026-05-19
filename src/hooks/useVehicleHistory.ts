@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { compressImage } from '../lib/image';
-import { USERS } from '../data/mock';
+import { useUserResolver } from './useUserResolver';
 import { hapticMedium } from '../lib/haptics';
 import type { Hold, RepairOutcome } from '../types';
 
@@ -115,9 +115,7 @@ export function useVehicleHistory(vehicleId: string) {
     setRepairOutcome('clean');
   };
 
-  const getName = (userId: string) => USERS.find(u => u.id === userId)?.name ?? 'Unknown';
-  const getRole = (userId: string) => USERS.find(u => u.id === userId)?.role ?? '';
-  const getEmpId = (userId: string) => USERS.find(u => u.id === userId)?.employeeId ?? '';
+  const { getName, getRole, getEmpId } = useUserResolver();
 
   return {
     user: user!,

@@ -69,6 +69,14 @@ export interface User {
   branchId: BranchId;
 }
 
+/**
+ * Row from the `profiles` table (migration 054). Same shape as `User`, but
+ * separately named to mark intent: a `Profile` is "any team member you might
+ * need to resolve by id", whereas `User` is "the currently authenticated user
+ * in this session".
+ */
+export type Profile = User;
+
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
 export type VehicleStatus    = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';

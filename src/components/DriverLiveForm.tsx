@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { elapsedSince, fmtTime, NotesField, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
 import { detectTeslaByPlate, searchVehicles } from '../lib/ev-detection';
+import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
 import type { VehicleSearchResult } from '../lib/ev-detection';
 import { EVAssetCheck } from './EVAssetCheck';
 import type { TripRun } from '../data/trips';
@@ -50,36 +51,33 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Recovery: restore any in_progress trip for this driver on mount
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('vsa_trips')
-      .select('id, vehicle_plate, depart_location, arrive_location, depart_time, is_shuttle, notes, trip_type')
-      .eq('driver_id', user.id)
-      .eq('status', 'in_progress')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        const row = data as Record<string, unknown>;
-        const depLoc = (row.depart_location as string) ?? '';
-        const arrLoc = (row.arrive_location as string) ?? '';
-        setInProgressId(row.id as string);
-        const loadedPlate = (row.vehicle_plate as string) ?? '';
-        setPlate(loadedPlate);
-        detectTeslaByPlate(loadedPlate).then(res => {
-          setVehicleDetails(res.vehicle ?? null);
-        });
-        if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
-        else { setFrom('Other'); setCustomFrom(depLoc); }
-        if (LOCATIONS.includes(arrLoc as Location)) setTo(arrLoc as Location);
-        else { setTo('Other'); setCustomTo(arrLoc); }
-        setRouteStep('confirmed');
-        setIsShuttle((row.is_shuttle as boolean) ?? false);
-        setNotes((row.notes as string | null) ?? '');
-        setDepartureTime(row.depart_time as string);
-        setLiveState('in_transit');
+  useInProgressRecovery(
+    {
+      table: 'vsa_trips',
+      userField: 'driver_id',
+      userId: user?.id,
+      columns: 'id, vehicle_plate, depart_location, arrive_location, depart_time, is_shuttle, notes, trip_type',
+    },
+    row => {
+      const depLoc = (row.depart_location as string) ?? '';
+      const arrLoc = (row.arrive_location as string) ?? '';
+      setInProgressId(row.id as string);
+      const loadedPlate = (row.vehicle_plate as string) ?? '';
+      setPlate(loadedPlate);
+      detectTeslaByPlate(loadedPlate).then(res => {
+        setVehicleDetails(res.vehicle ?? null);
       });
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
+      else { setFrom('Other'); setCustomFrom(depLoc); }
+      if (LOCATIONS.includes(arrLoc as Location)) setTo(arrLoc as Location);
+      else { setTo('Other'); setCustomTo(arrLoc); }
+      setRouteStep('confirmed');
+      setIsShuttle((row.is_shuttle as boolean) ?? false);
+      setNotes((row.notes as string | null) ?? '');
+      setDepartureTime(row.depart_time as string);
+      setLiveState('in_transit');
+    },
+  );
 
   useEffect(() => {
     if (liveState !== 'in_transit' || !departureTime) return;

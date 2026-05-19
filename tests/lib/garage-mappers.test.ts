@@ -69,9 +69,13 @@ describe('mapVehicle', () => {
   });
 
   it('throws a clear mapper error when required vehicle fields are missing', () => {
-    expect(() => mapVehicle({ ...vehicleRow, unit_number: undefined })).toThrow(
-      "mapVehicle: expected string at 'unit_number'",
+    expect(() => mapVehicle({ ...vehicleRow, license_plate: undefined })).toThrow(
+      "mapVehicle: expected string at 'license_plate'",
     );
+  });
+
+  it('tolerates a missing unit_number (legacy / not-yet-assigned rows)', () => {
+    expect(mapVehicle({ ...vehicleRow, unit_number: undefined }).unitNumber).toBeNull();
   });
 });
 

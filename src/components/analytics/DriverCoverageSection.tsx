@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useGarage } from '../../context/GarageContext';
+import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { DEMO_DRIVER_COVERAGE, SectionHeader } from '../../lib/analytics';
-import { USERS } from '../../data/mock';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -136,11 +136,12 @@ function HistoryPanel({ name, data }: { name: string; data: HistoryData | null }
 
 interface Props { isDemo: boolean; activeBranch: string; }
 
-const DRIVER_USERS = USERS.filter(u => u.role === 'Driver');
 const MGMT_ROLES   = ['Branch Manager', 'Operations Manager', 'City Manager'];
 
 export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
   const { washbayLogs } = useGarage();
+  const teamMembers = useTeamMembers();
+  const driverUsers = useMemo(() => teamMembers.filter(u => u.role === 'Driver'), [teamMembers]);
   const [liveRows, setLiveRows]     = useState<LiveDriverRow[]>([]);
   const [loading, setLoading]       = useState(false);
   const [expanded, setExpanded]     = useState<string | null>(null);
@@ -152,7 +153,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
     setLoading(true);
 
     const todayStart = localDateStr(0) + 'T00:00:00';
-    const driverIds  = DRIVER_USERS.map(u => u.id);
+    const driverIds  = driverUsers.map(u => u.id);
 
     const shiftsQ = supabase
       .from('shifts')
@@ -179,7 +180,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
       const shiftMap = new Map<string, { start_time: string; end_time: string; }>();
       for (const s of shifts) shiftMap.set(s.user_id, s);
 
-      const rows: LiveDriverRow[] = DRIVER_USERS
+      const rows: LiveDriverRow[] = driverUsers
         .filter(u => activeBranch === 'ALL' || u.branchId === activeBranch)
         .map(u => {
           const shift = shiftMap.get(u.id);
@@ -195,7 +196,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
       setLiveRows(rows);
       setLoading(false);
     });
-  }, [isDemo, activeBranch]);
+  }, [isDemo, activeBranch, driverUsers]);
 
   async function loadHistory(driverName: string, userId: string) {
     if (driverName in historyData) return;

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useAudit } from '../hooks/useAudit';
 import { exportAuditToHtml } from '../lib/audit-export';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import { hapticMedium, hapticLight } from '../lib/haptics';
 import { AUDIT_POSITION_LABELS } from '../types';
 import type { AuditSection, AuditStatus, AuditCrewMember, AuditPosition } from '../types';
@@ -202,7 +202,8 @@ function CrewRow({ member, showRemove, onChange, onRemove }: {
   onChange: (patch: Partial<AuditCrewMember>) => void;
   onRemove: () => void;
 }) {
-  const resolvedUser = USERS.find(u => u.employeeId === member.employeeId);
+  const { getByEmployeeId } = useUserResolver();
+  const resolvedUser = getByEmployeeId(member.employeeId);
   const isKnown      = !!resolvedUser;
   const showManual   = member.employeeId.length >= 6 && !isKnown;
 
@@ -218,7 +219,7 @@ function CrewRow({ member, showRemove, onChange, onRemove }: {
           value={member.employeeId}
           onChange={e => {
             const id    = e.target.value.toUpperCase();
-            const match = USERS.find(u => u.employeeId === id);
+            const match = getByEmployeeId(id);
             onChange({ employeeId: id, name: match?.name ?? (isKnown ? '' : member.name) });
           }}
           placeholder="Employee ID"

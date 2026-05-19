@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
-import { USERS } from '../../data/mock';
+import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
@@ -35,6 +35,7 @@ interface Props { today: string; visibleUserIds: Set<string>; }
 export function WeekView({ today, visibleUserIds }: Props) {
   const { shifts, currentDate, canEditShift, loading, goToPrev, goToNext } = useSchedule();
   const { user } = useAuth();
+  const teamMembers = useTeamMembers();
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
   const [flipShift, setFlipShift]     = useState<ShiftWithUser | null>(null);
   const [addForDate, setAddForDate]   = useState<string | null>(null);
@@ -69,10 +70,10 @@ export function WeekView({ today, visibleUserIds }: Props) {
   const shiftMap = new Map<string, ShiftWithUser>();
   for (const s of shifts) shiftMap.set(`${s.userId}-${s.date}`, s);
 
-  // Visible users: self pinned first, rest in USERS order
+  // Visible users: self pinned first, rest in team-member order
   const visibleUsers = [
-    ...USERS.filter(u => u.id === user?.id && visibleUserIds.has(u.id)),
-    ...USERS.filter(u => u.id !== user?.id && visibleUserIds.has(u.id)),
+    ...teamMembers.filter(u => u.id === user?.id && visibleUserIds.has(u.id)),
+    ...teamMembers.filter(u => u.id !== user?.id && visibleUserIds.has(u.id)),
   ];
 
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

@@ -1,6 +1,6 @@
 import { SectionHeader } from '../lib/analytics';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
 
 interface BalanceDay {
@@ -17,6 +17,7 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
   onSubmit: (outCount: number, inCount: number) => Promise<boolean>;
   weekdayAvgBalance?: { avgOut: number; avgIn: number } | null;
 }) {
+  const { getName } = useUserResolver();
   const todayStr = fleetBalanceData[fleetBalanceData.length - 1]?.date;
   const daysWithData = fleetBalanceData.filter(d => d.hasData);
   const maxFleetCount = Math.max(...fleetBalanceData.filter(d => d.hasData).flatMap(d => [d.outCount ?? 0, d.inCount ?? 0]), 10);
@@ -135,7 +136,7 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
                   </span>
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  Logged by {USERS.find(u => u.id === todayEntry.enteredById)?.name ?? todayEntry.enteredById}
+                  Logged by {getName(todayEntry.enteredById)}
                   {' · '}
                   {new Date(todayEntry.enteredAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
                 </p>

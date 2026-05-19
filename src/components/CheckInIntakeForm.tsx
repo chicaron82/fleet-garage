@@ -1,39 +1,22 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { EVAssetCheck } from './EVAssetCheck';
 import type { EvLastCheck } from './EVAssetCheck';
-import { VehicleMergePrompt } from './VehicleMergePrompt';
+import { VehicleScanAndMatch } from './VehicleScanAndMatch';
+import { LostFoundItemList, type InlineFoundItem } from './LostFoundItemList';
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
-import { compressImage } from '../lib/image';
 import { isTesla } from '../lib/vehicles';
-import { createOrEnrichRegistry, lookupRegistry, mergeRegistryRecords } from '../lib/vehicleRegistry';
-import type { Vehicle, ConditionRating, CheckInRouting, LostFoundLocation, EvAssetStatus, VehicleRegistryEntry, HoldType } from '../types';
+import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
+import type { Vehicle, ConditionRating, CheckInRouting, EvAssetStatus, HoldType } from '../types';
 import { deriveRouting } from '../types';
 
 interface Props {
   onFlagIssue: (vehicleId: string) => void;
 }
-
-interface InlineFoundItem {
-  id: string;
-  description: string;
-  location?: LostFoundLocation;
-  additionalPhoto?: string;
-}
-
-const FOUND_LOCATIONS: { value: LostFoundLocation; label: string }[] = [
-  { value: 'trunk',      label: 'Trunk' },
-  { value: 'back_seat',  label: 'Back Seat' },
-  { value: 'front_seat', label: 'Front' },
-  { value: 'visor',      label: 'Visor' },
-  { value: 'under_seat', label: 'Under Seat' },
-  { value: 'other',      label: 'Other' },
-];
 
 const FUEL_LABELS: Record<number, string> = {
   0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
@@ -115,14 +98,6 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [evAdapterStatus, setEvAdapterStatus]   = useState<EvAssetStatus | null>(null);
   const [lastEvCheck, setLastEvCheck]           = useState<EvLastCheck | null>(null);
 
-  // Plate-only arrival path (for vehicles not in fleet database)
-  const [plateArrivalOpen, setPlateArrivalOpen]     = useState(false);
-  const [plateArrival, setPlateArrival]             = useState('');
-  const [plateArrivalSaving, setPlateArrivalSaving] = useState(false);
-  const [plateArrivalDone, setPlateArrivalDone]     = useState(false);
-  const [plateArrivalEntry, setPlateArrivalEntry]   = useState<VehicleRegistryEntry | null>(null);
-  const [plateArrivalMerge, setPlateArrivalMerge]   = useState<VehicleRegistryEntry | null>(null);
-
   const routing = useMemo<CheckInRouting | null>(() => {
     if (!interiorCondition || !exteriorCondition) return null;
     return deriveRouting(interiorCondition, exteriorCondition);
@@ -132,67 +107,6 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   }, []);
-
-  useEffect(() => {
-    setPlateArrivalOpen(false);
-    setPlateArrival('');
-    setPlateArrivalDone(false);
-    setPlateArrivalEntry(null);
-    setPlateArrivalMerge(null);
-  }, [unitSearch]);
-
-  const handlePlateArrival = useCallback(async () => {
-    if (!user || !plateArrival.trim()) return;
-    setPlateArrivalSaving(true);
-    const plate = plateArrival.trim().toUpperCase();
-    const result = await lookupRegistry({ plate, branchId: user.branchId });
-    if (result.status === 'merge_candidate') {
-      setPlateArrivalMerge(result.existing);
-      setPlateArrivalSaving(false);
-      return;
-    }
-    const entry = await createOrEnrichRegistry({
-      branchId: user.branchId,
-      plate,
-      arrivedAt: new Date().toISOString(),
-    });
-    setPlateArrivalEntry(entry);
-    setPlateArrivalSaving(false);
-    setPlateArrivalDone(true);
-  }, [user, plateArrival]);
-
-  const handlePlateArrivalMerge = useCallback(async () => {
-    if (!user || !plateArrivalMerge) return;
-    setPlateArrivalSaving(true);
-    // Create the new plate-only entry first, then merge into the existing one
-    const newEntry = await createOrEnrichRegistry({
-      branchId: user.branchId,
-      plate: plateArrival.trim().toUpperCase(),
-      arrivedAt: new Date().toISOString(),
-    });
-    if (newEntry) {
-      await mergeRegistryRecords(plateArrivalMerge.id, newEntry.id);
-    }
-    setPlateArrivalMerge(null);
-    setPlateArrivalEntry(plateArrivalMerge);
-    setPlateArrivalSaving(false);
-    setPlateArrivalDone(true);
-  }, [user, plateArrival, plateArrivalMerge]);
-
-  const handlePlateArrivalCreateNew = useCallback(async () => {
-    if (!user) return;
-    setPlateArrivalSaving(true);
-    const entry = await createOrEnrichRegistry({
-      branchId: user.branchId,
-      plate: plateArrival.trim().toUpperCase(),
-      arrivedAt: new Date().toISOString(),
-      needsReview: true,
-    });
-    setPlateArrivalMerge(null);
-    setPlateArrivalEntry(entry);
-    setPlateArrivalSaving(false);
-    setPlateArrivalDone(true);
-  }, [user, plateArrival]);
 
   const fetchEvLastCheck = useCallback(async (vehicle: Vehicle) => {
     const unit = vehicle.unitNumber;
@@ -234,18 +148,9 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setLastEvCheck(candidates[0]);
   }, []);
 
-  const handleDecode = useCallback((raw: string, timestamp: string) => {
-    const result = parseFleetBarcode(raw);
-    if (!result.ok) {
-      showToast('Unrecognized barcode — enter unit number manually');
-      return;
-    }
-    const vehicle = getVehicleByUnit(result.unit);
-    if (!vehicle) {
-      showToast(`Unit ${result.unit} not in system`);
-      return;
-    }
+  const handleVehicleSelected = useCallback((vehicle: Vehicle, timestamp: string) => {
     setScanned({ vehicle, timestamp });
+    setUnitSearch('');
     setMileage('');
     setFuelLevel(null);
     setPhotoCount(0);
@@ -259,7 +164,21 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setEvAdapterStatus(null);
     setLastEvCheck(null);
     if (isTesla(vehicle)) fetchEvLastCheck(vehicle);
-  }, [getVehicleByUnit, showToast, fetchEvLastCheck]);
+  }, [fetchEvLastCheck]);
+
+  const handleDecode = useCallback((raw: string, timestamp: string) => {
+    const result = parseFleetBarcode(raw);
+    if (!result.ok) {
+      showToast('Unrecognized barcode — enter unit number manually');
+      return;
+    }
+    const vehicle = getVehicleByUnit(result.unit);
+    if (!vehicle) {
+      showToast(`Unit ${result.unit} not in system`);
+      return;
+    }
+    handleVehicleSelected(vehicle, timestamp);
+  }, [getVehicleByUnit, showToast, handleVehicleSelected]);
 
   const handleSubmit = async () => {
     if (!scanned || !interiorCondition || !exteriorCondition) return;
@@ -348,11 +267,8 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setEvCableStatus(null);
     setEvAdapterStatus(null);
     setLastEvCheck(null);
-    setPlateArrivalOpen(false);
-    setPlateArrival('');
-    setPlateArrivalDone(false);
-    setPlateArrivalEntry(null);
-    setPlateArrivalMerge(null);
+    // PlateArrivalSection owns its own state — it auto-resets on unitSearch
+    // changes and unmounts whenever a vehicle is scanned.
   };
 
   const handleReHold = useCallback(async (
@@ -405,127 +321,13 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
 
       <div className="p-4 space-y-4">
         {!scanned && (
-          <div className="py-2">
-            <div className="flex flex-col items-center gap-3 py-4">
-              <p className="text-sm text-gray-400 dark:text-gray-500 text-center">
-                Scan the vehicle barcode to begin intake
-              </p>
-              <CameraBarcodeScanner onDecode={handleDecode} label="Scan to Check In" />
-            </div>
-
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
-              <span className="flex-shrink-0 mx-4 text-gray-400 dark:text-gray-500 text-xs font-semibold uppercase tracking-wider">or</span>
-              <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
-            </div>
-
-            <div className="space-y-3 pt-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Or enter unit # or plate…"
-                  value={unitSearch}
-                  onChange={e => setUnitSearch(e.target.value.toUpperCase())}
-                  className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
-                />
-                {unitSearch && (
-                  <button
-                    onClick={() => setUnitSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
-                    aria-label="Clear search"
-                  >×</button>
-                )}
-              </div>
-              {unitSearch.trim().length >= 2 && (
-                <div className="space-y-1">
-                  {(() => {
-                    const results = vehicles.filter(v =>
-                      (v.unitNumber?.toUpperCase() ?? '').includes(unitSearch.trim().toUpperCase()) ||
-                      v.licensePlate.toUpperCase().includes(unitSearch.trim().toUpperCase())
-                    ).slice(0, 5);
-                    if (results.length === 0) {
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg border border-gray-200 dark:border-gray-800">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">"{unitSearch}" not in the system.</p>
-                            {!plateArrivalOpen && !plateArrivalDone && (
-                              <button
-                                type="button"
-                                onClick={() => setPlateArrivalOpen(true)}
-                                className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer ml-3 shrink-0"
-                              >
-                                + Record arrival by plate
-                              </button>
-                            )}
-                          </div>
-
-                          {plateArrivalOpen && !plateArrivalDone && !plateArrivalMerge && (
-                            <div className="space-y-2 px-1">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Plate (e.g. LUR156)"
-                                  value={plateArrival}
-                                  onChange={e => setPlateArrival(e.target.value.toUpperCase())}
-                                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={!plateArrival.trim() || plateArrivalSaving}
-                                  onClick={handlePlateArrival}
-                                  className="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white text-sm font-semibold transition cursor-pointer"
-                                >
-                                  {plateArrivalSaving ? '…' : 'Log'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {plateArrivalMerge && (
-                            <VehicleMergePrompt
-                              plate={plateArrival.trim().toUpperCase()}
-                              existing={plateArrivalMerge}
-                              onMerge={handlePlateArrivalMerge}
-                              onCreateNew={handlePlateArrivalCreateNew}
-                            />
-                          )}
-
-                          {plateArrivalDone && (
-                            <div className="px-3.5 py-2.5 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 rounded-lg">
-                              <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
-                                Arrival recorded for {plateArrivalEntry?.plate ?? plateArrival}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-                    return results.map(v => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => {
-                          setScanned({ vehicle: v, timestamp: new Date().toISOString() });
-                          setUnitSearch('');
-                          setEvCableStatus(null);
-                          setEvAdapterStatus(null);
-                          setLastEvCheck(null);
-                          if (isTesla(v)) fetchEvLastCheck(v);
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
-                      >
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
-                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
-                        <span className="text-gray-500 dark:text-gray-400">{v.licensePlate}</span>
-                        <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
-                        <span className="text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
-                      </button>
-                    ));
-                  })()}
-                </div>
-              )}
-            </div>
-          </div>
+          <VehicleScanAndMatch
+            vehicles={vehicles}
+            unitSearch={unitSearch}
+            onUnitSearchChange={setUnitSearch}
+            onDecode={handleDecode}
+            onSelectVehicle={handleVehicleSelected}
+          />
         )}
 
         {scanned && !submitted && (
@@ -706,103 +508,15 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
               />
             )}
 
-            {/* Items Found */}
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-              {!showFoundSection ? (
-                <button
-                  type="button"
-                  onClick={() => { setShowFoundSection(true); addFoundItem(); }}
-                  className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer"
-                >
-                  + Log Found Item
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Items Found</p>
-                  {foundItems.map((item, idx) => (
-                    <div key={item.id} className="bg-white dark:bg-gray-900 rounded-lg p-3 space-y-2.5 border border-gray-200 dark:border-gray-800 transition-colors">
-                      {foundItems.length > 1 && (
-                        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Item {idx + 1}</p>
-                      )}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Description *</label>
-                        <input
-                          type="text"
-                          placeholder="Wooden rod, jacket, luggage…"
-                          value={item.description}
-                          onChange={e => updateFoundItem(item.id, { description: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Location</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {FOUND_LOCATIONS.map(loc => (
-                            <button
-                              key={loc.value}
-                              type="button"
-                              onClick={() => updateFoundItem(item.id, { location: item.location === loc.value ? undefined : loc.value })}
-                              className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                                item.location === loc.value
-                                  ? 'bg-teal-100 text-teal-700 border-teal-300 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700'
-                                  : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                              }`}
-                            >
-                              {loc.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Photo (optional)</label>
-                        {item.additionalPhoto ? (
-                          <div className="flex items-center gap-2">
-                            <img src={item.additionalPhoto} alt="Found item" className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                            <button
-                              type="button"
-                              onClick={() => updateFoundItem(item.id, { additionalPhoto: undefined })}
-                              className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
-                            >
-                              Remove photo
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer">
-                            📷 Add photo
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={async e => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                const compressed = await compressImage(file);
-                                updateFoundItem(item.id, { additionalPhoto: compressed });
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFoundItem(item.id)}
-                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addFoundItem}
-                    className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition cursor-pointer"
-                  >
-                    + Add another item
-                  </button>
-                </div>
-              )}
-            </div>
+            <LostFoundItemList
+              show={showFoundSection}
+              items={foundItems}
+              onOpen={() => { setShowFoundSection(true); addFoundItem(); }}
+              onAdd={addFoundItem}
+              onRemove={removeFoundItem}
+              onUpdate={updateFoundItem}
+            />
+
 
             {saveError && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3 transition-colors">

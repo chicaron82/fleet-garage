@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
 
 export function FleetBalanceEntryForm({ onSubmit, todayEntry }: Props) {
   const { user } = useAuth();
+  const { getName } = useUserResolver();
   const [editing, setEditing] = useState(!todayEntry);
   const [outCount, setOutCount] = useState(todayEntry?.outCount.toString() ?? '');
   const [inCount, setInCount] = useState(todayEntry?.inCount.toString() ?? '');
@@ -33,9 +34,6 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry }: Props) {
   };
 
   const canSubmit = outCount && parseInt(outCount, 10) > 0 && inCount && parseInt(inCount, 10) > 0 && !submitting;
-
-  // Find who entered today's data (if it exists)
-  const enteredByUser = todayEntry ? USERS.find(u => u.id === todayEntry.enteredById) : null;
 
   if (todayEntry && !editing) {
     // Show summary with edit button
@@ -69,7 +67,7 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry }: Props) {
           </div>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-          Logged by {enteredByUser?.name ?? 'Unknown'} · {enteredTime}
+          Logged by {getName(todayEntry.enteredById)} · {enteredTime}
         </p>
       </div>
     );

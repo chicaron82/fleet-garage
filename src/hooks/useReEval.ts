@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import type { Hold, Vehicle, DetailReason } from '../types';
 import { getReEvalActions, type ReEvalAction } from '../lib/re-eval-actions';
-import { USERS } from '../data/mock';
+import { useUserResolver } from './useUserResolver';
 
 export type { ReEvalAction };
 
@@ -15,6 +15,7 @@ export interface ReEvalItem {
 export function useReEval() {
   const { user } = useAuth();
   const { vehicles, holds, markReturned, markRepaired, addHold } = useGarage();
+  const { getName } = useUserResolver();
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ReEvalAction | 'confirm-return' | null>(null);
   const [notes, setNotes] = useState('');
@@ -84,8 +85,6 @@ export function useReEval() {
     setNotes('');
     setProcessing(false);
   };
-
-  const getName = (userId: string) => USERS.find(u => u.id === userId)?.name ?? 'Unknown';
 
   return {
     items,

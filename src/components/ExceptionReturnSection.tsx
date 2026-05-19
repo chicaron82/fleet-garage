@@ -1,11 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
-import { USERS } from '../data/mock';
-
-function getName(userId: string) {
-  return USERS.find(u => u.id === userId)?.name ?? userId;
-}
+import { useUserResolver } from '../hooks/useUserResolver';
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -14,6 +10,7 @@ function fmtDate(iso: string) {
 export function ExceptionReturnSection() {
   const { user } = useAuth();
   const { vehicles, getHoldsForVehicle, addHold } = useGarage();
+  const { getName } = useUserResolver();
 
   const items = vehicles
     .filter(v => v.status === 'OUT_ON_EXCEPTION')

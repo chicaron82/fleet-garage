@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from './AuthContext';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import type { BranchId, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,23 +43,27 @@ function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserI
     && actingId !== targetUserId;
 }
 
-function rowToShift(row: Record<string, unknown>): ShiftWithUser {
-  const userId = row.user_id as string;
-  const u = USERS.find(u => u.id === userId);
-  return {
-    id:              row.id as string,
-    userId,
-    date:            row.date as string,
-    startTime:       (row.start_time        as string | null) ?? undefined,
-    endTime:         (row.end_time          as string | null) ?? undefined,
-    shiftType:       row.shift_type as ShiftType,
-    notes:           (row.notes             as string | null) ?? undefined,
-    actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
-    isStat:          (row.is_stat as boolean | null) ?? false,
-    createdAt:       row.created_at as string,
-    updatedAt:       row.updated_at as string,
-    branchId:        (u?.branchId ?? 'YWG') as BranchId, // Mock fallback
-    user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
+import type { Profile } from '../types';
+
+function buildRowToShift(resolveUser: (id: string) => Profile | null) {
+  return function rowToShift(row: Record<string, unknown>): ShiftWithUser {
+    const userId = row.user_id as string;
+    const u = resolveUser(userId);
+    return {
+      id:              row.id as string,
+      userId,
+      date:            row.date as string,
+      startTime:       (row.start_time        as string | null) ?? undefined,
+      endTime:         (row.end_time          as string | null) ?? undefined,
+      shiftType:       row.shift_type as ShiftType,
+      notes:           (row.notes             as string | null) ?? undefined,
+      actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
+      isStat:          (row.is_stat as boolean | null) ?? false,
+      createdAt:       row.created_at as string,
+      updatedAt:       row.updated_at as string,
+      branchId:        (u?.branchId ?? 'YWG') as BranchId,
+      user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
+    };
   };
 }
 
@@ -94,6 +98,8 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
+  const { getProfile } = useUserResolver();
+  const rowToShift = useMemo(() => buildRowToShift(getProfile), [getProfile]);
   const [shifts, setShifts]           = useState<ShiftWithUser[]>([]);
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
@@ -201,7 +207,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (shift.shiftType === 'sick') setSickDaysUsed(prev => prev + 1);
     }
     if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
-      const target = USERS.find(u => u.id === shift.userId);
+      const target = getProfile(shift.userId);
       if (target) {
         await pushNotification(
           user.branchId, [target.role], '📅',
@@ -244,7 +250,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
     if (user && existing && isManagerEditingOtherUser(user.role, user.id, existing.userId)) {
-      const target = USERS.find(u => u.id === existing.userId);
+      const target = getProfile(existing.userId);
       if (target) {
         const from = formatShiftLabel(existing.shiftType, existing.date);
         const newType = updates.shiftType ?? existing.shiftType;
@@ -271,7 +277,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (deleted.shiftType === 'sick') setSickDaysUsed(prev => Math.max(0, prev - 1));
     }
     if (user && deleted && isManagerEditingOtherUser(user.role, user.id, deleted.userId)) {
-      const target = USERS.find(u => u.id === deleted.userId);
+      const target = getProfile(deleted.userId);
       if (target) {
         await pushNotification(
           user.branchId, [target.role], '📅',

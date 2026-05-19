@@ -6,7 +6,7 @@ import { hapticLight } from '../lib/haptics';
 import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { holdContextEmojis } from '../lib/holdBadge';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { parseFleetBarcode } from '../lib/barcode';
@@ -139,8 +139,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
     return vh.sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a))[0];
   };
 
-  const getFlaggedBy = (userId: string) =>
-    USERS.find(u => u.id === userId)?.name ?? 'Unknown';
+  const { getName } = useUserResolver();
 
   const paginationControls = totalPages > 1 ? (
     <div className="flex items-center justify-between py-2 transition-colors">
@@ -291,7 +290,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
                       )}
                       {latestHold && (
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                          Flagged by {latestHold.flaggedByName || getFlaggedBy(latestHold.flaggedById)}
+                          Flagged by {getName(latestHold.flaggedById, latestHold.flaggedByName)}
                         </p>
                       )}
                     </div>

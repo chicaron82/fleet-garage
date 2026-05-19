@@ -178,16 +178,17 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
     )).filter((url): url is string => url !== null);
 
+    // Attribution is resolved at read time via `useUserResolver` (profiles
+    // join). The denorm columns from migration 056 are deprecated as of
+    // migration 057 — see ARCHITECTURE.md / migrations/057.
     const { error } = await supabase.from('holds').insert({
       id: holdId, vehicle_id: vehicleId,
       hold_type: holdTypes[0], hold_types: holdTypes,
       detail_reason: detailReason ?? null,
       mechanical_sub_type: mechanicalSubType ?? null,
       damage_description: damageDescription,
-      flagged_by_id:          flaggedById,
-      flagged_by_name:        user?.name ?? '',
-      flagged_by_employee_id: user?.employeeId ?? '',
-      flagged_at:             flaggedAt,
+      flagged_by_id: flaggedById,
+      flagged_at:    flaggedAt,
       notes, photos: photoUrls, status: 'ACTIVE',
       linked_hold_id: linkedHoldId ?? null,
       branch_id: branchId,
@@ -202,7 +203,10 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const newHold: Hold = {
       id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
-      damageDescription, flaggedById, flaggedByName: user?.name ?? '', flaggedByEmployeeId: user?.employeeId ?? '',
+      damageDescription, flaggedById,
+      // Empty strings here are the new contract: the resolver will produce
+      // the display name from profiles at read time.
+      flaggedByName: '', flaggedByEmployeeId: '',
       flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
     setAllHolds(prev => [newHold, ...prev]);

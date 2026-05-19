@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
-import { USERS } from '../../data/mock';
+import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { SCHEDULE_GROUPS } from '../../lib/scheduleGroups';
 import type { ScheduleGroup } from '../../lib/scheduleGroups';
 import { WeekView } from './WeekView';
@@ -23,6 +23,7 @@ function monthLabel(date: Date): string {
 export function ScheduleScreen() {
   const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
+  const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
   const [showLogSick, setShowLogSick] = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);
@@ -45,7 +46,7 @@ export function ScheduleScreen() {
     for (const g of activeGroups) {
       const group = SCHEDULE_GROUPS.find(sg => sg.id === g);
       if (!group) continue;
-      for (const u of USERS) {
+      for (const u of teamMembers) {
         if (group.roles.includes(u.role) && u.id !== user?.id) {
           if (activeBranch === 'ALL' || u.branchId === activeBranch) {
             ids.add(u.id);
@@ -54,7 +55,7 @@ export function ScheduleScreen() {
       }
     }
     return ids;
-  }, [activeGroups, user, activeBranch]);
+  }, [activeGroups, user, activeBranch, teamMembers]);
   const isCurrentPeriod = viewMode === 'week'
     ? (() => { const { start, end } = getWeekBounds(new Date()); return toISO(currentDate) >= toISO(start) && toISO(currentDate) <= toISO(end); })()
     : currentDate.getFullYear() === new Date().getFullYear() && currentDate.getMonth() === new Date().getMonth();

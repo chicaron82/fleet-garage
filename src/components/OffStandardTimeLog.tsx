@@ -8,7 +8,8 @@ import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
 import { OthEditSheet } from './OthEditSheet';
 import { localDateStr } from '../hooks/useFleetBalance';
-import { USERS } from '../data/mock';
+import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
+import { useUserResolver } from '../hooks/useUserResolver';
 
 const MIN_ENTRY_MINUTES = 5;
 
@@ -188,6 +189,7 @@ function ElapsedTicker({ startTime }: { startTime: string }) {
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { holds, vehicles } = useGarage();
   const { shifts } = useSchedule();
+  const { getName: resolveName } = useUserResolver();
 
   const [timerState, setTimerState]         = useState<TimerState>('idle');
   const [inProgressId, setInProgressId]     = useState<string | null>(null);
@@ -225,24 +227,17 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   }, [user.id, refreshTrigger]);
 
   // Recovery: restore any in_progress entry on mount
-  useEffect(() => {
-    supabase
-      .from('off_standard_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'in_progress')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        const row = data as Record<string, unknown>;
-        setInProgressId(row.id as string);
-        setStartTimestamp(row.start_time as string);
-        setSelectedReason(row.reason as OffStandardReason);
-        setExplanation((row.explanation as string | null) ?? '');
-        if (row.preset_reason) setSelectedPreset(row.preset_reason as OffStandardPresetReason);
-        setTimerState('running');
-      });
-  }, [user.id]);
+  useInProgressRecovery(
+    { table: 'off_standard_entries', userField: 'user_id', userId: user.id },
+    row => {
+      setInProgressId(row.id as string);
+      setStartTimestamp(row.start_time as string);
+      setSelectedReason(row.reason as OffStandardReason);
+      setExplanation((row.explanation as string | null) ?? '');
+      if (row.preset_reason) setSelectedPreset(row.preset_reason as OffStandardPresetReason);
+      setTimerState('running');
+    },
+  );
 
   // ── Preset helpers ────────────────────────────────────────────────────────
 
@@ -268,11 +263,11 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     if (!edvHold) { setEdvNoMatch(true); return; }
 
     const vehicle = vehicles.find(v => v.id === edvHold.vehicleId);
-    const manager = USERS.find(u => u.id === edvHold.release?.approvedById);
+    const approvedById = edvHold.release?.approvedById;
 
     setEdvLinkedHoldId(edvHold.id);
     setEdvUnitNumber(vehicle?.unitNumber ?? edvHold.vehicleId);
-    setEdvManagerName(manager?.name ?? edvHold.release?.approvedById ?? 'Unknown');
+    setEdvManagerName(approvedById ? resolveName(approvedById) : 'Unknown');
   }
 
   // ── DB helpers ────────────────────────────────────────────────────────────

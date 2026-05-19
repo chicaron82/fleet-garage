@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import { DAMAGE_PRESETS } from '../lib/hold-presets';
 import { compressImage } from '../lib/image';
 import { hapticLight } from '../lib/haptics';
@@ -10,15 +10,6 @@ import type { Hold, HoldType, User, Vehicle } from '../types';
 
 const MAX_PHOTOS = 4;
 
-function getName(userId: string) {
-  return USERS.find(u => u.id === userId)?.name ?? userId;
-}
-function getRole(userId: string) {
-  return USERS.find(u => u.id === userId)?.role ?? '—';
-}
-function getEmpId(userId: string) {
-  return USERS.find(u => u.id === userId)?.employeeId ?? '—';
-}
 function fmt(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }) +
     ' · ' + new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -36,6 +27,7 @@ interface Props {
 }
 
 export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }: Props) {
+  const { getName, getRole, getEmpId } = useUserResolver();
   const [expanded, setExpanded] = useState(autoExpand ?? false);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [showReHoldForm, setShowReHoldForm] = useState(false);
@@ -154,7 +146,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
             {hold.damageDescription}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-            Flagged {fmtDate(hold.flaggedAt)} · {getName(hold.flaggedById)} ({getEmpId(hold.flaggedById)} · {getRole(hold.flaggedById)})
+            Flagged {fmtDate(hold.flaggedAt)} · {getName(hold.flaggedById, hold.flaggedByName)} ({getEmpId(hold.flaggedById, hold.flaggedByEmployeeId) || '—'} · {getRole(hold.flaggedById) || '—'})
           </p>
           {hold.notes && (
             <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">"{hold.notes}"</p>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
-import { USERS } from '../data/mock';
+import { useUserResolver } from '../hooks/useUserResolver';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import type { FacilityIssue, IssueSeverity } from '../types';
@@ -40,6 +40,7 @@ function fmtEventTime(iso: string): string {
 
 export function IssueLogView() {
   const { facilityIssues, addIssue, clearIssue, reopenIssue } = useGarage();
+  const { getName: getUserName } = useUserResolver();
 
   const [clearingId, setClearingId]         = useState<string | null>(null);
   const [clearNote, setClearNote]           = useState('');
@@ -68,9 +69,6 @@ export function IssueLogView() {
   const clearedIssues  = facilityIssues.filter(i => i.status === 'resolved'  && matchesSearch(i));
   const openHighIssues = facilityIssues.filter(i => i.status !== 'resolved'  && i.severity === 'high').length;
   const shouldShowCleared = showCleared || (!!q && clearedIssues.length > 0);
-
-  const getUserName = (userId: string) =>
-    USERS.find((u: { id: string; name: string }) => u.id === userId)?.name ?? userId;
 
   const invalidateCache = (issueId: string) =>
     setEventsCache(prev => { const next = { ...prev }; delete next[issueId]; return next; });
