@@ -64,7 +64,8 @@ describe('mapVehicle', () => {
   });
 
   it('falls back to YWG for legacy branchless vehicle rows', () => {
-    const { branch_id: _branchId, ...legacyRow } = vehicleRow;
+    const legacyRow = { ...vehicleRow };
+    delete (legacyRow as Record<string, unknown>).branch_id;
     expect(mapVehicle(legacyRow).branchId).toBe('YWG');
   });
 
@@ -97,7 +98,9 @@ describe('mapRelease and mapRepair', () => {
   });
 
   it('defaults older release rows to standard exception releases', () => {
-    const { release_type: _releaseType, release_method: _releaseMethod, ...legacyRow } = releaseRow;
+    const legacyRow = { ...releaseRow };
+    delete (legacyRow as Record<string, unknown>).release_type;
+    delete (legacyRow as Record<string, unknown>).release_method;
     const release = mapRelease(legacyRow);
     expect(release.releaseType).toBe('EXCEPTION');
     expect(release.releaseMethod).toBe('standard');
@@ -125,12 +128,14 @@ describe('mapHold', () => {
   });
 
   it('falls back to YWG for legacy branchless hold rows', () => {
-    const { branch_id: _branchId, ...legacyRow } = holdRow;
+    const legacyRow = { ...holdRow };
+    delete (legacyRow as Record<string, unknown>).branch_id;
     expect(mapHold(legacyRow).branchId).toBe('YWG');
   });
 
   it('defaults older hold rows to damage holds', () => {
-    const { hold_type: _holdType, ...legacyRow } = holdRow;
+    const legacyRow = { ...holdRow };
+    delete (legacyRow as Record<string, unknown>).hold_type;
     expect(mapHold(legacyRow).holdType).toBe('damage');
   });
 });

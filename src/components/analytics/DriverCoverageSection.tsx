@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useGarage } from '../../context/GarageContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
-import { DEMO_DRIVER_COVERAGE, SectionHeader } from '../../lib/analytics';
+import { DEMO_DRIVER_COVERAGE } from '../../lib/analytics';
+import { SectionHeader } from './AnalyticsComponents';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -136,20 +137,21 @@ function HistoryPanel({ name, data }: { name: string; data: HistoryData | null }
 
 interface Props { isDemo: boolean; activeBranch: string; }
 
-const MGMT_ROLES   = ['Branch Manager', 'Operations Manager', 'City Manager'];
+
 
 export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
   const { washbayLogs } = useGarage();
   const teamMembers = useTeamMembers();
   const driverUsers = useMemo(() => teamMembers.filter(u => u.role === 'Driver'), [teamMembers]);
   const [liveRows, setLiveRows]     = useState<LiveDriverRow[]>([]);
-  const [loading, setLoading]       = useState(false);
+  const [loading, setLoading]       = useState(!isDemo);
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<Record<string, HistoryData | null>>({});
   const [historyLoading, setHistoryLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (isDemo) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     const todayStart = localDateStr(0) + 'T00:00:00';
@@ -391,6 +393,4 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
   );
 }
 
-export function isManagement(role: string): boolean {
-  return MGMT_ROLES.includes(role);
-}
+

@@ -1,4 +1,4 @@
-import { SectionHeader, EmptyState } from '../lib/analytics';
+import { SectionHeader, EmptyState } from './analytics/AnalyticsComponents';
 
 interface LiveTripRow { trip_type: string; driver_id: string; }
 interface DemoDriverRow { name: string; total: number; clean: number; dirty: number; other: number; }

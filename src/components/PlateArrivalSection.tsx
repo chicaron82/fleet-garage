@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { createOrEnrichRegistry, lookupRegistry, mergeRegistryRecords } from '../lib/vehicleRegistry';
 import type { VehicleRegistryEntry } from '../types';
@@ -22,15 +22,6 @@ export function PlateArrivalSection({ unitSearch }: Props) {
   const [entry, setEntry]             = useState<VehicleRegistryEntry | null>(null);
   const [mergeTarget, setMergeTarget] = useState<VehicleRegistryEntry | null>(null);
 
-  // Reset when the parent search term changes — a new search shouldn't see
-  // leftover plate-arrival UI from the previous one.
-  useEffect(() => {
-    setOpen(false);
-    setPlate('');
-    setDone(false);
-    setEntry(null);
-    setMergeTarget(null);
-  }, [unitSearch]);
 
   const handleConfirm = useCallback(async () => {
     if (!user || !plate.trim()) return;

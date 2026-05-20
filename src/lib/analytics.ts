@@ -140,27 +140,7 @@ export const DEMO_WASHBAY_30DAY_AVG = Math.round(
   (DEMO_WASHBAY_HISTORY.reduce((s, d) => s + d.throughput, 0) / DEMO_WASHBAY_HISTORY.length) * 10
 ) / 10;
 
-// ── Shared micro-components ───────────────────────────────────────────────────
-
-export function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-    </div>
-  );
-}
-
-export function SectionHeader({ title }: { title: string }) {
-  return (
-    <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-      {title}
-    </h2>
-  );
-}
-
-export function EmptyState({ message }: { message: string }) {
-  return (
-    <p className="text-sm text-gray-400 dark:text-gray-500 italic text-center py-4">{message}</p>
-  );
+export const MGMT_ROLES = ['Branch Manager', 'Operations Manager', 'City Manager'];
+export function isManagement(role: string): boolean {
+  return MGMT_ROLES.includes(role);
 }

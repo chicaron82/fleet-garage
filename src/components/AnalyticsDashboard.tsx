@@ -5,18 +5,20 @@ import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../hooks/useFleetBalance';
 import {
-  canEnterFleetBalance, StatCard,
+  canEnterFleetBalance,
+  isManagement,
   DEMO_HOLD_TYPES, DEMO_DAMAGE_TYPES, DEMO_WEEK_ACTIVITY,
   DEMO_GLANCE, DEMO_EXCEPTION_SUMMARY, DEMO_TRIPS_TODAY,
   DEMO_WASHBAY_TODAY, DEMO_WASHBAY_30DAY_AVG, COMPANY_STANDARD,
 } from '../lib/analytics';
+import { StatCard } from './analytics/AnalyticsComponents';
 import { AnalyticsTripsSummary } from './AnalyticsTripsSummary';
 import { WashbayLiveSection } from './WashbayLiveSection';
 import { AnalyticsHoldsSummary } from './AnalyticsHoldsSummary';
 import { AnalyticsActivityChart } from './AnalyticsActivityChart';
 import { AnalyticsFleetBalance } from './AnalyticsFleetBalance';
 import { TripAnalyticsSection } from './analytics/TripAnalyticsSection';
-import { DriverCoverageSection, isManagement } from './analytics/DriverCoverageSection';
+import { DriverCoverageSection } from './analytics/DriverCoverageSection';
 import { TurnaroundSection } from './analytics/TurnaroundSection';
 import { WashbayHistorySection } from './WashbayHistorySection';
 import { ShiftThroughputSection } from './ShiftThroughputSection';

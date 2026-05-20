@@ -46,7 +46,7 @@ export function ShiftRatesCard() {
           }))
         );
       });
-  }, [user?.id]);
+  }, [user]);
 
   if (!user) return null;
 

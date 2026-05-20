@@ -1,4 +1,5 @@
-import { COMPANY_STANDARD, EmptyState } from '../lib/analytics';
+import { COMPANY_STANDARD } from '../lib/analytics';
+import { EmptyState } from './analytics/AnalyticsComponents';
 import type { Hold, WashbayLog } from '../types';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
 

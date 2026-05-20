@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { SectionHeader, EmptyState } from '../../lib/analytics';
+import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import type { VehicleRegistryEntry } from '../../types';
 
@@ -55,9 +55,10 @@ function mapRow(row: Row): VehicleRegistryEntry {
 
 export function TurnaroundSection({ activeBranch }: Props) {
   const [entries, setEntries] = useState<VehicleRegistryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const today = localDateStr(0);
     let q = supabase

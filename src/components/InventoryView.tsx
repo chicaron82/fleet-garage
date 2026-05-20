@@ -115,11 +115,7 @@ function ClosingChecklist({ defaultOpen }: { defaultOpen: boolean }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-interface Props {
-  onHoldIntent: (vehicleId?: string) => void;
-}
-
-export function InventoryView({ onHoldIntent: _onHoldIntent }: Props) {
+export function InventoryView() {
   const { user, activeBranch } = useAuth();
   const { latestHandoff } = useGarage();
   const { shifts } = useSchedule();

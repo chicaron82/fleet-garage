@@ -1,4 +1,4 @@
-import { SectionHeader, EmptyState } from '../lib/analytics';
+import { SectionHeader, EmptyState } from './analytics/AnalyticsComponents';
 
 interface DayActivity { day: string; holds: number; releases: number; }
 interface ExceptionEntry { reason: string; count: number; }

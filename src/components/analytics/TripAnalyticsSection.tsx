@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
-import { DEMO_DRIVER_TRIP_STATS, SectionHeader, EmptyState } from '../../lib/analytics';
+import { DEMO_DRIVER_TRIP_STATS } from '../../lib/analytics';
+import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import { TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
 
 interface TripRow { driver_id: string; depart_time: string; arrive_time: string; }
@@ -25,10 +26,11 @@ function avgMin(trips: TripRow[]): number {
 
 export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
   const [rows, setRows]       = useState<DriverStatRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!isDemo);
 
   useEffect(() => {
     if (isDemo) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const today   = localDateStr(0)  + 'T00:00:00';
     const weekAgo = localDateStr(-6) + 'T00:00:00';

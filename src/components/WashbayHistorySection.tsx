@@ -99,7 +99,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
           enteredAt:        r.entered_at as string,
         })));
       });
-  }, [user?.branchId]);
+  }, [user]);
 
   if (!user) return null;
 

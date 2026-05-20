@@ -1,4 +1,4 @@
-import { SectionHeader, EmptyState } from '../lib/analytics';
+import { SectionHeader, EmptyState } from './analytics/AnalyticsComponents';
 
 interface HoldType { label: string; count: number; color: string; text: string; }
 interface DamageType { label: string; count: number; }

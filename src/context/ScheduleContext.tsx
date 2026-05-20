@@ -184,7 +184,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       setShifts(activeBranch === 'ALL' ? rows : rows.filter(s => s.branchId === activeBranch));
     }
     setLoading(false);
-  }, [activeBranch]);
+  }, [activeBranch, rowToShift]);
 
   const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
     

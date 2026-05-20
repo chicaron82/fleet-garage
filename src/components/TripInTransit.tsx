@@ -1,5 +1,6 @@
-import { NotesField, Pill, fmtTime } from '../lib/vsa-trip';
+import { fmtTime } from '../lib/vsa-trip';
 import type { Authorization, QueueSnapshot } from '../lib/vsa-trip';
+import { NotesField, Pill } from './VSATripComponents';
 
 export function TripInTransit({
   authorization, setAuthorization,

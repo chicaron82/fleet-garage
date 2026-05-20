@@ -1,5 +1,6 @@
-import { NotesField, REASON_LABELS, fmtTime } from '../lib/vsa-trip';
+import { REASON_LABELS, fmtTime } from '../lib/vsa-trip';
 import type { Authorization, Reason, QueueSnapshot } from '../lib/vsa-trip';
+import { NotesField } from './VSATripComponents';
 
 export function TripComplete({ isShuttle, authorization, reason, departureTime, arrivalTime, queue, notes, setNotes, onReset }: {
   isShuttle: boolean;

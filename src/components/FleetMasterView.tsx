@@ -36,6 +36,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
 
   useEffect(() => {
     if (!user?.branchId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     loadFleet(user.branchId).then(data => {
       setVehicles(data);

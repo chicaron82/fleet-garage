@@ -116,12 +116,14 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return count;
   };
 
-  const staleHolds = useMemo(() => {
+  const [staleHolds, setStaleHolds] = useState<Hold[]>([]);
+  useEffect(() => {
     const now = Date.now();
-    return holds.filter(h => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStaleHolds(holds.filter(h => {
       if (h.status !== 'ACTIVE') return false;
       return (now - new Date(h.flaggedAt).getTime()) > 48 * 60 * 60 * 1000;
-    });
+    }));
   }, [holds]);
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {

@@ -1,4 +1,4 @@
-import { SectionHeader } from '../lib/analytics';
+import { SectionHeader } from './analytics/AnalyticsComponents';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
 import { useUserResolver } from '../hooks/useUserResolver';
 import type { FleetBalanceEntry } from '../hooks/useFleetBalance';

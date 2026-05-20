@@ -66,7 +66,7 @@ export function VehicleScanAndMatch({
         {term.length >= 2 && (
           <div className="space-y-1">
             {results.length === 0
-              ? <PlateArrivalSection unitSearch={unitSearch} />
+              ? <PlateArrivalSection key={unitSearch} unitSearch={unitSearch} />
               : results.map(v => (
                   <button
                     key={v.id}

@@ -156,12 +156,7 @@ export default function App() {
         return <MovementLogView />;
       case 'schedule':
         return <ScheduleView />;
-      case 'inventory':
-        return (
-          <InventoryView
-            onHoldIntent={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
-          />
-        );
+        return <InventoryView />;
       case 'lost-and-found':
         return <LostAndFoundView />;
       case 'audits':

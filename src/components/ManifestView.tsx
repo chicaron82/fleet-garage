@@ -143,6 +143,11 @@ export function ManifestView() {
   const priority = SEASON_PRIORITY[season];
   const nextFive = useMemo(() => getNextFiveNeeded(today, now), [today, now]);
   const nextFiveIds = useMemo(() => new Set(nextFive.map(r => r.id)), [nextFive]);
+  const nowIndex = useMemo(() => {
+    const currentIdx = today.findIndex(r => isCurrentWindow(r.time, now));
+    if (currentIdx !== -1) return currentIdx;
+    return today.findIndex(r => !isPast(r.time, now));
+  }, [today, now]);
   const nowLineRef = useRef<HTMLDivElement>(null);
 
   const [flags, setFlags]       = useState<Set<string>>(() => loadFlags());
@@ -332,17 +337,10 @@ export function ManifestView() {
         <div className="space-y-0.5">
           {today.map((r, i) => {
             const past    = isPast(r.time, now);
-            const current = isCurrentWindow(r.time, now);
+            const showNowLine = i === nowIndex;
             return (
               <div key={r.id}>
-                {current && (
-                  <div ref={nowLineRef} className="flex items-center gap-2 my-1">
-                    <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
-                    <span className="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400 shrink-0">NOW</span>
-                    <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
-                  </div>
-                )}
-                {!current && i > 0 && isPast(today[i - 1].time, now) && !past && !nowLineRef.current && (
+                {showNowLine && (
                   <div ref={nowLineRef} className="flex items-center gap-2 my-1">
                     <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
                     <span className="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400 shrink-0">NOW</span>

@@ -76,7 +76,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
     } else {
       h.setUnitSearch(unit.toUpperCase());
     }
-  }, [getVehicleByUnit, h]);
+  }, [getVehicleByUnit, h, selectVehicleAndLink]);
 
   const handleBarcodeUnrecognized = useCallback(() => {
     // No-op — existing "no results" UI handles unknown input

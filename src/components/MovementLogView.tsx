@@ -136,7 +136,6 @@ export function MovementLogView() {
       // Check for any in_progress trip for this user
     }
     loadTrips();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role]);
 
   if (!user) return null;
