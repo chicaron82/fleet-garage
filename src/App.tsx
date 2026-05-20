@@ -156,6 +156,7 @@ export default function App() {
         return <MovementLogView />;
       case 'schedule':
         return <ScheduleView />;
+      case 'my-shift':
         return <InventoryView />;
       case 'lost-and-found':
         return <LostAndFoundView />;

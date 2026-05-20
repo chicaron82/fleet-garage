@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'fleet-garage' | 'movement-log' | 'check-in' | 'inventory' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
+export type Module = 'fleet-garage' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -236,7 +236,7 @@ export type Screen =
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
   | { name: 'movement-log' }
   | { name: 'check-in' }
-  | { name: 'inventory' }
+  | { name: 'my-shift' }
   | { name: 'lost-and-found' }
   | { name: 'audits' }
   | { name: 'audit-form' }

@@ -29,7 +29,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['VSA', 'Lead VSA', 'Driver'],
     mockNote: 'Seeded with example runs showing the full trip card format including VSA Interruption and Proactive Run badges.',
   },
-  'inventory': {
+  'my-shift': {
     what: 'My Shift — personal productivity summary and shift duties. Shift Summary shows your throughput rate, cars cleaned in your shift window, and your effort score adjusted for off-standard time. Save Summary snapshots your shift for the 7-day history. Management sees Team Today — all saved summaries for the branch in one view. Shift Duties covers the washbay closing log: cars in, cars cleaned, throughput rate, and pipeline breakdown.',
     roles: ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
     mockNote: 'Shift Summary pulls live OTH and washbay data for today. Save Summary to capture a snapshot — saving again updates it rather than creating a duplicate. Management\'s Team Today view shows all saved summaries for the branch.',
