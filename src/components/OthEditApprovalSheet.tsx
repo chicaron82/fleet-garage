@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { hapticMedium, hapticLight } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from '../context/AuthContext';
 import { useUserResolver } from '../hooks/useUserResolver';
@@ -81,13 +81,15 @@ export function OthEditApprovalSheet({ entryId, onClose }: Props) {
     hapticMedium();
     setSubmitting(true);
     const now = new Date().toISOString();
-    const { error } = await supabase.from('off_standard_entries').update({
-      stop_time:        entry.edited_end_time,
-      minutes:          newMins,
-      edit_status:      'approved',
-      edit_reviewed_by: user.id,
-      edit_reviewed_at: now,
-    }).eq('id', entryId);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('off_standard_entries').update({
+        stop_time:        entry.edited_end_time,
+        minutes:          newMins,
+        edit_status:      'approved',
+        edit_reviewed_by: user.id,
+        edit_reviewed_at: now,
+      }).eq('id', entryId)
+    );
     if (!error) {
       await pushNotification(
         entry.branch_id,
@@ -107,11 +109,13 @@ export function OthEditApprovalSheet({ entryId, onClose }: Props) {
     hapticLight();
     setSubmitting(true);
     const now = new Date().toISOString();
-    const { error } = await supabase.from('off_standard_entries').update({
-      edit_status:      'denied',
-      edit_reviewed_by: user.id,
-      edit_reviewed_at: now,
-    }).eq('id', entryId);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('off_standard_entries').update({
+        edit_status:      'denied',
+        edit_reviewed_by: user.id,
+        edit_reviewed_at: now,
+      }).eq('id', entryId)
+    );
     if (!error) {
       await pushNotification(
         entry.branch_id,

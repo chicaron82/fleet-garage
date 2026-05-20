@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { LostFoundItem, LostFoundLocation, LostFoundStatus, BranchId } from '../types';
 import type { User } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadLostFoundPhoto } from '../lib/garage-uploads';
 
 export interface LostFoundSlice {
@@ -69,22 +69,24 @@ export function useLostFound(
     ]);
 
     try {
-      const { error } = await supabase.from('lost_found').insert({
-        id:            itemId,
-        branch_id:     branchId,
-        found_by:      user.id,
-        found_by_name: user.name,
-        found_at:      foundAt,
-        key_tag_photo: keyTagPhotoUrl ?? null,
-        item_photo:    itemPhotoUrl ?? null,
-        description:   data.description ?? null,
-        location:      data.location ?? null,
-        license_plate: data.licensePlate ?? null,
-        unit_number:   unitNumber ?? null,
-        vehicle_make:  vehicleMake ?? null,
-        status:        'holding',
-        notes:         data.notes ?? null,
-      });
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('lost_found').insert({
+          id:            itemId,
+          branch_id:     branchId,
+          found_by:      user.id,
+          found_by_name: user.name,
+          found_at:      foundAt,
+          key_tag_photo: keyTagPhotoUrl ?? null,
+          item_photo:    itemPhotoUrl ?? null,
+          description:   data.description ?? null,
+          location:      data.location ?? null,
+          license_plate: data.licensePlate ?? null,
+          unit_number:   unitNumber ?? null,
+          vehicle_make:  vehicleMake ?? null,
+          status:        'holding',
+          notes:         data.notes ?? null,
+        })
+      );
       if (error) return false;
       const newItem: LostFoundItem = {
         id: itemId, branchId,
@@ -108,11 +110,13 @@ export function useLostFound(
   const updateLostFoundStatus = async (id: string, status: LostFoundStatus, notes?: string): Promise<boolean> => {
     const resolvedAt = status === 'returned' ? new Date().toISOString() : undefined;
     try {
-      const { error } = await supabase.from('lost_found').update({
-        status,
-        ...(notes !== undefined ? { notes } : {}),
-        ...(resolvedAt ? { resolved_at: resolvedAt } : {}),
-      }).eq('id', id);
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('lost_found').update({
+          status,
+          ...(notes !== undefined ? { notes } : {}),
+          ...(resolvedAt ? { resolved_at: resolvedAt } : {}),
+        }).eq('id', id)
+      );
       if (error) return false;
       setAllLostFoundItems(prev => prev.map(i =>
         i.id !== id ? i : {
@@ -133,14 +137,16 @@ export function useLostFound(
   ): Promise<boolean> => {
     const editedAt = new Date().toISOString();
     try {
-      const { error } = await supabase.from('lost_found').update({
-        description:    patch.description   || null,
-        location:       patch.location,
-        license_plate:  patch.licensePlate  || null,
-        notes:          patch.notes         || null,
-        edited_by_name: patch.editedByName,
-        edited_at:      editedAt,
-      }).eq('id', id);
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('lost_found').update({
+          description:    patch.description   || null,
+          location:       patch.location,
+          license_plate:  patch.licensePlate  || null,
+          notes:          patch.notes         || null,
+          edited_by_name: patch.editedByName,
+          edited_at:      editedAt,
+        }).eq('id', id)
+      );
       if (error) return false;
       setAllLostFoundItems(prev => prev.map(i =>
         i.id !== id ? i : {

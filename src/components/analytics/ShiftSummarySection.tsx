@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { isManagement } from '../../lib/analytics';
@@ -192,19 +192,21 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     hapticMedium();
     setSaving(true);
 
-    const { error } = await supabase.from('shift_summaries').upsert({
-      user_id:                user.id,
-      user_name:              user.name,
-      branch_id:              user.branchId,
-      date:                   todayISO,
-      first_activity_at:      live.firstActivityAt,
-      saved_at:               new Date().toISOString(),
-      off_standard_minutes:   live.offStandardMinutes,
-      off_standard_breakdown: Object.keys(live.offStandardBreakdown).length > 0 ? live.offStandardBreakdown : null,
-      trip_count:             live.tripCount,
-      trip_minutes:           live.tripMinutes,
-      holds_flagged:          live.holdsFlagged,
-    }, { onConflict: 'user_id,date' });
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('shift_summaries').upsert({
+        user_id:                user.id,
+        user_name:              user.name,
+        branch_id:              user.branchId,
+        date:                   todayISO,
+        first_activity_at:      live.firstActivityAt,
+        saved_at:               new Date().toISOString(),
+        off_standard_minutes:   live.offStandardMinutes,
+        off_standard_breakdown: Object.keys(live.offStandardBreakdown).length > 0 ? live.offStandardBreakdown : null,
+        trip_count:             live.tripCount,
+        trip_minutes:           live.tripMinutes,
+        holds_flagged:          live.holdsFlagged,
+      }, { onConflict: 'user_id,date' })
+    );
 
     if (!error) {
       setSavedToday(true);

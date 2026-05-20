@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../data/notifications';
 import { hapticLight } from '../lib/haptics';
 import type { MockNotification, NotificationSeverity } from '../data/notifications';
@@ -60,7 +60,7 @@ export function NotificationBell({ onNavigate, onOthEditApproval, onVehicleEditA
     } else {
       const unread = liveNotifications.filter(n => !n.read_by.includes(user.id));
       await Promise.all(unread.map(n =>
-        supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id)
+        writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id))
       ));
       setLiveNotifications(prev => prev.map(n => ({
         ...n,
@@ -71,7 +71,7 @@ export function NotificationBell({ onNavigate, onOthEditApproval, onVehicleEditA
 
   const handleMarkOneRead = async (n: LiveNotification) => {
     if (n.read_by.includes(user.id)) return;
-    await supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id);
+    await writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id));
     setLiveNotifications(prev => prev.map(l =>
       l.id === n.id ? { ...l, read_by: [...l.read_by, user.id] } : l
     ));

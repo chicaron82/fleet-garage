@@ -8,7 +8,7 @@ import { VehicleScanAndMatch } from './VehicleScanAndMatch';
 import { LostFoundItemList, type InlineFoundItem } from './LostFoundItemList';
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticLight, hapticMedium } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { isTesla } from '../lib/vehicles';
 import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 import type { Vehicle, ConditionRating, CheckInRouting, EvAssetStatus, HoldType } from '../types';
@@ -190,23 +190,25 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     const derivedRouting = deriveRouting(interiorCondition, exteriorCondition);
     const isTeslaVehicle = isTesla(scanned.vehicle);
 
-    const { error } = await supabase.from('vehicle_checkins').insert({
-      branch_id:          user.branchId,
-      vehicle_id:         scanned.vehicle.id,
-      vehicle_unit:       scanned.vehicle.unitNumber,
-      vehicle_plate:      scanned.vehicle.licensePlate,
-      checked_in_by_id:   user.id,
-      checked_in_by_name: user.name,
-      mileage:            mileage ? Number(mileage) : null,
-      fuel_level:         fuelLevel,
-      photo_count:        photoCount,
-      interior_condition: interiorCondition,
-      exterior_condition: exteriorCondition,
-      routing:            derivedRouting,
-      condition_notes:    conditionNotes.trim() || null,
-      ev_cable_status:    isTeslaVehicle ? (evCableStatus ?? null) : null,
-      ev_adapter_status:  isTeslaVehicle ? (evAdapterStatus ?? null) : null,
-    });
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicle_checkins').insert({
+        branch_id:          user.branchId,
+        vehicle_id:         scanned.vehicle.id,
+        vehicle_unit:       scanned.vehicle.unitNumber,
+        vehicle_plate:      scanned.vehicle.licensePlate,
+        checked_in_by_id:   user.id,
+        checked_in_by_name: user.name,
+        mileage:            mileage ? Number(mileage) : null,
+        fuel_level:         fuelLevel,
+        photo_count:        photoCount,
+        interior_condition: interiorCondition,
+        exterior_condition: exteriorCondition,
+        routing:            derivedRouting,
+        condition_notes:    conditionNotes.trim() || null,
+        ev_cable_status:    isTeslaVehicle ? (evCableStatus ?? null) : null,
+        ev_adapter_status:  isTeslaVehicle ? (evAdapterStatus ?? null) : null,
+      })
+    );
 
     setSubmitting(false);
     if (error) { setSaveError(true); return; }

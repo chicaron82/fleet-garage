@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { elapsedSince, fmtTime, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { NotesField } from './VSATripComponents';
 import { pushNotification } from '../lib/garage-uploads';
@@ -170,23 +170,25 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     const now    = new Date().toISOString();
     const tripId = crypto.randomUUID();
 
-    const { error } = await supabase.from('vsa_trips').insert({
-      id:                tripId,
-      vehicle_plate:     plate.trim().toUpperCase(),
-      vehicle_unit:      '',
-      trip_type:         isShuttle ? 'transfer' : 'clean',
-      depart_location:   fromLabel,
-      arrive_location:   toLabel,
-      depart_time:       now,
-      arrive_time:       null,
-      driver_id:         user!.id,
-      branch_id:         user!.branchId,
-      is_shuttle:        isShuttle,
-      notes:             notes.trim() || null,
-      ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-      ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-      status:            'in_progress',
-    });
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vsa_trips').insert({
+        id:                tripId,
+        vehicle_plate:     plate.trim().toUpperCase(),
+        vehicle_unit:      '',
+        trip_type:         isShuttle ? 'transfer' : 'clean',
+        depart_location:   fromLabel,
+        arrive_location:   toLabel,
+        depart_time:       now,
+        arrive_time:       null,
+        driver_id:         user!.id,
+        branch_id:         user!.branchId,
+        is_shuttle:        isShuttle,
+        notes:             notes.trim() || null,
+        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+        status:            'in_progress',
+      })
+    );
 
     if (error) {
       console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
@@ -214,16 +216,16 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
 
     if (inProgressId) {
       // Happy path: complete the in_progress record
-      ({ error } = await supabase.from('vsa_trips').update({
+      ({ error } = await writeWithRefresh(() => supabase.from('vsa_trips').update({
         arrive_time:       arrived,
         notes:             notes.trim() || null,
         ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
         ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
         status:            'complete',
-      }).eq('id', inProgressId));
+      }).eq('id', inProgressId)));
     } else {
       // Fallback: start write failed, insert now
-      ({ error } = await supabase.from('vsa_trips').insert({
+      ({ error } = await writeWithRefresh(() => supabase.from('vsa_trips').insert({
         vehicle_plate:     plate.trim().toUpperCase(),
         vehicle_unit:      '',
         trip_type:         isShuttle ? 'transfer' : 'clean',
@@ -238,7 +240,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
         ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
         status:            'complete',
-      }));
+      })));
     }
 
     if (error) {
@@ -305,7 +307,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   };
 
   const handleCancelTrip = async () => {
-    if (inProgressId) await supabase.from('vsa_trips').delete().eq('id', inProgressId);
+    if (inProgressId) await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
     handleReset();
   };
 

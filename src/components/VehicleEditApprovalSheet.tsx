@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { hapticMedium, hapticLight } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
@@ -62,13 +62,15 @@ export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
     hapticMedium();
     setSubmitting(true);
     const now = new Date().toISOString();
-    const { error } = await supabase.from('vehicles').update({
-      unit_number:      vehicle.edit_suggested_unit,
-      license_plate:    vehicle.edit_suggested_plate,
-      edit_status:      'approved',
-      edit_reviewed_by: user.id,
-      edit_reviewed_at: now,
-    }).eq('id', vehicleId);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({
+        unit_number:      vehicle.edit_suggested_unit,
+        license_plate:    vehicle.edit_suggested_plate,
+        edit_status:      'approved',
+        edit_reviewed_by: user.id,
+        edit_reviewed_at: now,
+      }).eq('id', vehicleId)
+    );
 
     if (!error) {
       await applyVehicleIdentity(vehicleId, vehicle.edit_suggested_unit, vehicle.edit_suggested_plate);
@@ -90,11 +92,13 @@ export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
     hapticLight();
     setSubmitting(true);
     const now = new Date().toISOString();
-    const { error } = await supabase.from('vehicles').update({
-      edit_status:      'denied',
-      edit_reviewed_by: user.id,
-      edit_reviewed_at: now,
-    }).eq('id', vehicleId);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({
+        edit_status:      'denied',
+        edit_reviewed_by: user.id,
+        edit_reviewed_at: now,
+      }).eq('id', vehicleId)
+    );
 
     if (!error) {
       await pushNotification(

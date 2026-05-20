@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { hapticLight } from '../lib/haptics';
 import { isNoteActiveForMonth, seasonalStarterBody, VISIBILITY_PRESETS } from '../lib/whiteboard-schedule';
 import type { VisibilityPreset } from '../lib/whiteboard-schedule';
@@ -238,13 +238,15 @@ export function WhiteboardView() {
     // Auto-archive shift_board notes from previous days
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const { error: archiveErr } = await supabase
-      .from('whiteboard_notes')
-      .update({ status: 'archived', archived_at: new Date().toISOString(), archived_by_id: 'system' })
-      .eq('branch_id', branchId)
-      .eq('section', 'shift_board')
-      .eq('status', 'active')
-      .lt('created_at', todayStart.toISOString());
+    const { error: archiveErr } = await writeWithRefresh(() =>
+      supabase
+        .from('whiteboard_notes')
+        .update({ status: 'archived', archived_at: new Date().toISOString(), archived_by_id: 'system' })
+        .eq('branch_id', branchId)
+        .eq('section', 'shift_board')
+        .eq('status', 'active')
+        .lt('created_at', todayStart.toISOString())
+    );
     if (archiveErr) console.error('[WhiteboardView] shift_board auto-archive failed:', archiveErr);
 
     const { data } = await supabase
@@ -274,14 +276,16 @@ export function WhiteboardView() {
       const now = new Date().toISOString();
       const toArchive = notes.filter(n => n.status === 'active' && n.triggerType === 'seasonal');
       if (toArchive.length > 0) {
-        const { error: seasonArchiveErr } = await supabase
-          .from('whiteboard_notes')
-          .update({ status: 'archived', archived_at: now, archived_by_id: 'system' })
-          .in('id', toArchive.map(n => n.id));
+        const { error: seasonArchiveErr } = await writeWithRefresh(() =>
+          supabase
+            .from('whiteboard_notes')
+            .update({ status: 'archived', archived_at: now, archived_by_id: 'system' })
+            .in('id', toArchive.map(n => n.id))
+        );
         if (seasonArchiveErr) console.error('[WhiteboardView] seasonal auto-archive failed:', seasonArchiveErr);
       }
       const starterBody = seasonalStarterBody(isPeakSeason);
-      const { error: starterErr } = await supabase.from('whiteboard_notes').insert({
+      const { error: starterErr } = await writeWithRefresh(() => supabase.from('whiteboard_notes').insert({
         branch_id: branchId,
         section: 'reminders',
         body: starterBody,
@@ -290,7 +294,7 @@ export function WhiteboardView() {
         author_role: 'Seasonal',
         trigger_type: 'seasonal',
         status: 'active',
-      });
+      }));
       if (starterErr) console.error('[WhiteboardView] seasonal starter insert failed:', starterErr);
       loadNotes();
     })();
@@ -299,38 +303,44 @@ export function WhiteboardView() {
 
   const handleArchive = async (id: string) => {
     const now = new Date().toISOString();
-    await supabase
-      .from('whiteboard_notes')
-      .update({ status: 'archived', archived_at: now, archived_by_id: user?.id ?? null })
-      .eq('id', id);
+    await writeWithRefresh(() =>
+      supabase
+        .from('whiteboard_notes')
+        .update({ status: 'archived', archived_at: now, archived_by_id: user?.id ?? null })
+        .eq('id', id)
+    );
     setNotes(prev => prev.map(n => n.id !== id ? n : { ...n, status: 'archived', archivedAt: now }));
   };
 
   const handleRestore = async (id: string) => {
-    await supabase
-      .from('whiteboard_notes')
-      .update({ status: 'active', archived_at: null, archived_by_id: null })
-      .eq('id', id);
+    await writeWithRefresh(() =>
+      supabase
+        .from('whiteboard_notes')
+        .update({ status: 'active', archived_at: null, archived_by_id: null })
+        .eq('id', id)
+    );
     setNotes(prev => prev.map(n => n.id !== id ? n : { ...n, status: 'active', archivedAt: undefined, archivedById: undefined }));
   };
 
   const handleAdd = async (section: WhiteboardSection, body: string, activeMonths: number[]) => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from('whiteboard_notes')
-      .insert({
-        branch_id:    branchId,
-        section,
-        body,
-        author_id:    user.id,
-        author_name:  user.name,
-        author_role:  user.role,
-        trigger_type: 'manual',
-        active_months: activeMonths.length > 0 ? activeMonths : null,
-        status:       'active',
-      })
-      .select()
-      .single();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase
+        .from('whiteboard_notes')
+        .insert({
+          branch_id:    branchId,
+          section,
+          body,
+          author_id:    user.id,
+          author_name:  user.name,
+          author_role:  user.role,
+          trigger_type: 'manual',
+          active_months: activeMonths.length > 0 ? activeMonths : null,
+          status:       'active',
+        })
+        .select()
+        .single()
+    );
     if (!error && data) {
       setNotes(prev => [mapNote(data), ...prev]);
     }

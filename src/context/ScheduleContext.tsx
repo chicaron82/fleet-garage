@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from './AuthContext';
 import { useUserResolver } from '../hooks/useUserResolver';
@@ -124,10 +124,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const togglePeakSeason = async () => {
     const next = !isPeakSeason;
-    const { error } = await supabase
-      .from('branch_settings')
-      .update({ peak_season: next, updated_at: new Date().toISOString() })
-      .eq('id', 1);
+    const { error } = await writeWithRefresh(() =>
+      supabase
+        .from('branch_settings')
+        .update({ peak_season: next, updated_at: new Date().toISOString() })
+        .eq('id', 1)
+    );
     if (error) throw error;
     setIsPeakSeason(next);
   };
@@ -162,9 +164,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const updatePtoEntitlement = async (days: number) => {
     if (!user) return;
-    const { error } = await supabase
-      .from('user_pto')
-      .upsert({ user_id: user.id, pto_entitlement: days, updated_at: new Date().toISOString() });
+    const { error } = await writeWithRefresh(() =>
+      supabase
+        .from('user_pto')
+        .upsert({ user_id: user.id, pto_entitlement: days, updated_at: new Date().toISOString() })
+    );
     if (!error) setPtoEntitlement(days);
   };
 
@@ -188,17 +192,19 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
     
-    const { data, error } = await supabase.from('shifts').insert({
-      user_id: shift.userId,
-      date: shift.date,
-      start_time: shift.startTime,
-      end_time: shift.endTime,
-      shift_type: shift.shiftType,
-      notes: shift.notes,
-      actual_start_time: shift.actualStartTime,
-      actual_end_time: shift.actualEndTime,
-      is_stat: shift.isStat,
-    }).select().single();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('shifts').insert({
+        user_id: shift.userId,
+        date: shift.date,
+        start_time: shift.startTime,
+        end_time: shift.endTime,
+        shift_type: shift.shiftType,
+        notes: shift.notes,
+        actual_start_time: shift.actualStartTime,
+        actual_end_time: shift.actualEndTime,
+        is_stat: shift.isStat,
+      }).select().single()
+    );
     if (error) throw error;
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
     const thisYear = new Date().getFullYear();
@@ -227,26 +233,28 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       shift_type: s.shiftType,
       notes:      s.notes     ?? null,
     }));
-    const { data, error } = await supabase.from('shifts').insert(rows).select();
+    const { data, error } = await writeWithRefresh(() => supabase.from('shifts').insert(rows).select());
     if (error) throw error;
     setShifts(prev => [...prev, ...(data as Record<string, unknown>[]).map(rowToShift)]);
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {
     const existing = shifts.find(s => s.id === id);
-    const { data, error } = await supabase
-      .from('shifts')
-      .update({
-        date:       updates.date,
-        start_time: updates.startTime ?? null,
-        end_time:   updates.endTime   ?? null,
-        shift_type: updates.shiftType,
-        notes:      updates.notes     ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase
+        .from('shifts')
+        .update({
+          date:       updates.date,
+          start_time: updates.startTime ?? null,
+          end_time:   updates.endTime   ?? null,
+          shift_type: updates.shiftType,
+          notes:      updates.notes     ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+    );
     if (error) throw error;
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
     if (user && existing && isManagerEditingOtherUser(user.role, user.id, existing.userId)) {
@@ -268,7 +276,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const deleteShift = async (id: string) => {
     const deleted = shifts.find(s => s.id === id);
-    const { error } = await supabase.from('shifts').delete().eq('id', id);
+    const { error } = await writeWithRefresh(() => supabase.from('shifts').delete().eq('id', id));
     if (error) throw error;
     setShifts(prev => prev.filter(s => s.id !== id));
     const thisYear = new Date().getFullYear();
@@ -289,17 +297,19 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logActualHours = async (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => {
-    const { data, error } = await supabase
-      .from('shifts')
-      .update({
-        actual_start_time: actualStartTime || null,
-        actual_end_time:   actualEndTime   || null,
-        is_stat:           isStat,
-        updated_at:        new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase
+        .from('shifts')
+        .update({
+          actual_start_time: actualStartTime || null,
+          actual_end_time:   actualEndTime   || null,
+          is_stat:           isStat,
+          updated_at:        new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+    );
     if (error) throw error;
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
   };

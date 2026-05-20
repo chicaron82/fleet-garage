@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { AuditSection, AuditResult, AuditCrewMember, AuditPosition } from '../types';
 
 // ── Initial checklist ─────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ export function useAudit() {
     // Persist to Supabase (fire-and-forget)
     if (user) {
       const finalStatus = (overallStatus === 'IN_PROGRESS' ? 'FAILED' : overallStatus) as 'PASSED' | 'FAILED';
-      supabase.from('audits').insert({
+      void writeWithRefresh(() => supabase.from('audits').insert({
         branch_id:      user.branchId,
         date:           new Date().toISOString().split('T')[0],
         auditor_id:     user.id,
@@ -143,7 +143,7 @@ export function useAudit() {
         crew:           crewMembers,
         sections,
         status:         finalStatus,
-      }).then(({ error }) => { if (error) console.error('[useAudit] insert failed:', error); });
+      })).then(({ error }) => { if (error) console.error('[useAudit] insert failed:', error); });
     }
 
     setTimeout(() => {

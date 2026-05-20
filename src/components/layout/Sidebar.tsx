@@ -15,7 +15,7 @@ import { UserProfileMenu } from '../UserProfileMenu';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
-import { supabase } from '../../lib/supabase';
+import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { mapHandoffNote } from '../../lib/garage-mappers';
 import type { Module, Screen, BranchId, UserRole, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
@@ -221,7 +221,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
     await Promise.all(unread.map(n =>
-      supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id)
+      writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id))
     ));
     setLiveNotifs(prev => prev.map(n => ({
       ...n,

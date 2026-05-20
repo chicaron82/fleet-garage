@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
@@ -41,14 +41,16 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
     setError(null);
 
     const now = new Date().toISOString();
-    const { error: dbError } = await supabase.from('vehicles').update({
-      edit_suggested_unit:  suggestedUnit,
-      edit_suggested_plate: suggestedPlate,
-      edit_suggested_by:    user.id,
-      edit_suggested_at:    now,
-      edit_suggestion_note: note.trim(),
-      edit_status:          'pending',
-    }).eq('id', vehicle.id);
+    const { error: dbError } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({
+        edit_suggested_unit:  suggestedUnit,
+        edit_suggested_plate: suggestedPlate,
+        edit_suggested_by:    user.id,
+        edit_suggested_at:    now,
+        edit_suggestion_note: note.trim(),
+        edit_status:          'pending',
+      }).eq('id', vehicle.id)
+    );
 
     if (dbError) {
       setError('Failed to submit — please try again.');

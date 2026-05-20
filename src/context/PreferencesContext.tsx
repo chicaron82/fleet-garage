@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 
 interface Preferences {
   darkMode: boolean;
@@ -23,7 +23,7 @@ function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: P
   const payload: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
   if ('avatar' in patch) payload.avatar = patch.avatar ?? null;
   if ('prefs' in patch) payload.prefs = patch.prefs;
-  supabase.from('user_preferences').upsert(payload, { onConflict: 'user_id' }).then(() => {});
+  void writeWithRefresh(() => supabase.from('user_preferences').upsert(payload, { onConflict: 'user_id' }));
 }
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {

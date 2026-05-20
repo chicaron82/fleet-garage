@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { canRelease } from '../types';
 import { MOCK_TRIPS } from '../data/trips';
 import type { TripRun } from '../data/trips';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { hapticMedium } from '../lib/haptics';
 import { MockBarcodeScanner } from './MockBarcodeScanner';
 import { VSAMovementLog } from './VSAMovementLog';
@@ -220,7 +220,7 @@ export function MovementLogView() {
     const myLiveTrips  = liveTrips.filter(t => t.driverId === user.id);
 
     const addAutoOffStandardEntry = async (entry: OffStandardEntry) => {
-      await supabase.from('off_standard_entries').insert({
+      await writeWithRefresh(() => supabase.from('off_standard_entries').insert({
         user_id:        user.id,
         branch_id:      user.branchId,
         date:           localDateStr(0),
@@ -231,7 +231,7 @@ export function MovementLogView() {
         explanation:    entry.explanation ?? null,
         auto_from_trip: true,
         status:         'complete',
-      });
+      }));
       setOffStandardRefresh(n => n + 1);
     };
 

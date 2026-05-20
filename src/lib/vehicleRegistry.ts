@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, writeWithRefresh } from './supabase';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
 
@@ -182,10 +182,10 @@ export async function confirmPairing(
   unitNumber: string,
   confirmedBy = 'user',
 ): Promise<void> {
-  await supabase.from('vehicle_identifiers').upsert(
+  await writeWithRefresh(() => supabase.from('vehicle_identifiers').upsert(
     { plate, unit_number: unitNumber, confirmed: true, confirmed_at: new Date().toISOString(), confirmed_by: confirmedBy },
     { onConflict: 'plate,unit_number' },
-  );
+  ));
 }
 
 // ── Merge records ─────────────────────────────────────────────────────────────
@@ -226,8 +226,8 @@ export async function mergeRegistryRecords(
     needs_review:  false,
   };
 
-  await supabase.from('vehicle_registry').update(updates).eq('id', keepId);
-  await supabase.from('vehicle_registry').delete().eq('id', mergeId);
+  await writeWithRefresh(() => supabase.from('vehicle_registry').update(updates).eq('id', keepId));
+  await writeWithRefresh(() => supabase.from('vehicle_registry').delete().eq('id', mergeId));
 
   // Confirm the pairing now that we know both identifiers
   const plate      = (updates['plate']       as string | null);

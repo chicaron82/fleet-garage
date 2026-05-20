@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import type { WashbayLog, HandoffNote } from '../types';
@@ -148,7 +148,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
 
     const existing = backfillEntries.find(b => b.date.startsWith(openDate));
     if (existing) {
-      await supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id);
+      await writeWithRefresh(() => supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id));
       setBackfillEntries(prev => prev.map(b => b.id === existing.id ? { ...b, ...{
         fullPages: form.fullPages, lastPageEntries: form.lastPageEntries,
         carsRemaining: parseInt(String(form.carsRemaining)) || 0,
@@ -156,7 +156,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
         teamSize: form.teamSize, overtimeHours: form.overtimeHours,
       }} : b));
     } else {
-      const { data } = await supabase.from('washbay_backfill_logs').insert(payload).select('id').single();
+      const { data } = await writeWithRefresh(() => supabase.from('washbay_backfill_logs').insert(payload).select('id').single());
       if (data) {
         setBackfillEntries(prev => [...prev, {
           id: (data as { id: string }).id, date: openDate,

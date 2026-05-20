@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, writeWithRefresh } from './supabase';
 import type { UserRole } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
 
@@ -51,7 +51,7 @@ export async function pushNotification(
   metadata?: Record<string, unknown>,
   recipientUserId?: string,
 ): Promise<void> {
-  await supabase.from('notifications').insert({
+  await writeWithRefresh(() => supabase.from('notifications').insert({
     branch_id:         branchId,
     recipient_roles:   roles,
     icon,
@@ -59,5 +59,5 @@ export async function pushNotification(
     severity,
     metadata,
     recipient_user_id: recipientUserId ?? null,
-  });
+  }));
 }
