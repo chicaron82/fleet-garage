@@ -48,13 +48,14 @@ export function AuditDashboard({ onNewAudit }: Props) {
   useEffect(() => {
     if (mode !== 'live' || !user) return;
     async function loadLive() {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 6);
+      weekAgo.setHours(0, 0, 0, 0);
       const { data } = await supabase
         .from('audits')
         .select('*')
         .eq('branch_id', user!.branchId)
-        .gte('created_at', todayStart.toISOString())
+        .gte('created_at', weekAgo.toISOString())
         .order('created_at', { ascending: false });
       if (data) setLiveAudits((data as Record<string, unknown>[]).map(rowToAudit));
     }
@@ -111,7 +112,7 @@ export function AuditDashboard({ onNewAudit }: Props) {
             </>
           ) : (
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              {mode === 'live' ? 'No audits logged today. Export to keep a record.' : 'No audits.'}
+              {mode === 'live' ? 'No audits in the last 7 days.' : 'No audits.'}
             </p>
           )}
         </div>
@@ -126,9 +127,9 @@ export function AuditDashboard({ onNewAudit }: Props) {
 
       {/* Live mode notice */}
       {mode === 'live' && (
-        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-700 dark:text-amber-400">
-          <span className="shrink-0">⚠️</span>
-          <p>Live audits are cleared at midnight. Use <strong>Export & Send</strong> on each audit form to keep a permanent record.</p>
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
+          <span className="shrink-0">ℹ️</span>
+          <p>Showing the last 7 days. Use <strong>Export & Send</strong> on each audit form for your permanent records.</p>
         </div>
       )}
 

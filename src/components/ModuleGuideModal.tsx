@@ -15,7 +15,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     mockNote: 'Seeded with 8 check-in records across all statuses — clean returns, pending washbay review, escalated holds, and one management-pinned record for a customer dispute.',
   },
   'audits': {
-    what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered. Completed audits are saved to the live dashboard and cleared at midnight; use Export & Send on each form to keep a permanent record.",
+    what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered. Completed audits are saved to the live dashboard for 7 days — use Export & Send on each form for your permanent records.",
     roles: ['Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
     mockNote: 'Switch to Demo mode to browse 7 seeded audit records. Live mode shows today\'s audits for this branch — empty until one is completed and exported.',
   },
