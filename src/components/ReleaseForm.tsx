@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
-import { canRelease } from '../types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import type { ReleaseType } from '../types';
 
@@ -46,11 +45,12 @@ const MECHANICAL_RELEASE_REASONS = [
   'Management decision — operational need',
 ];
 
-export function ReleaseForm({ holdId, onClose, streak }: Props) {
+export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const { user } = useAuth();
-  const { addRelease, holds } = useGarage();
+  const { addRelease, holds, vehicles } = useGarage();
 
-  const hold = holds.find(h => h.id === holdId);
+  const hold    = holds.find(h => h.id === holdId);
+  const vehicle = vehicles.find(v => v.id === vehicleId);
   const isDetailHold = hold?.holdType === 'detail';
 
   const [releaseType, setReleaseType] = useState<ReleaseType>('EXCEPTION');
@@ -58,6 +58,7 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
   const [customReason, setCustomReason] = useState('');
   const [expectedReturn, setExpectedReturn] = useState('');
   const [notes, setNotes] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -83,9 +84,14 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
     if (t === 'PRE_EXISTING') setExpectedReturn('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
+    hapticMedium();
+    setConfirming(true);
+  };
+
+  const handleConfirm = async () => {
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -99,16 +105,13 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
         expectedReturn: needsReturn && expectedReturn.trim() ? expectedReturn : undefined,
         notes,
       });
-      if (user && canRelease(user.role)) {
-        hapticHeavy();
-      } else {
-        hapticMedium();
-      }
+      hapticHeavy();
       onClose();
     } catch (err) {
       hapticHeavy();
       setSubmitError(err instanceof Error ? err.message : 'Failed to approve release — try again.');
       setSubmitting(false);
+      setConfirming(false);
     }
   };
 
@@ -151,6 +154,99 @@ export function ReleaseForm({ holdId, onClose, streak }: Props) {
     isException  ? 'Vehicle will move to Out on Exception status' :
     isMechanical ? 'Mechanical hold — short term, must return for service' :
                    'Vehicle will be marked Pre-existing — renting as-is';
+
+  const releaseTypeLabel =
+    isException  ? 'Exception' :
+    isMechanical ? 'Mechanical Release' :
+                   'Pre-existing';
+
+  if (confirming) {
+    return (
+      <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${borderClass}`}>
+        <div className={`px-5 py-4 border-b ${headerClass}`}>
+          <h3 className={`font-semibold text-sm ${titleClass}`}>Confirm Release</h3>
+          <p className={`text-xs mt-0.5 ${subtitleClass}`}>
+            This vehicle has documented damage and will go out on the lot.
+          </p>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {vehicle && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Vehicle</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {vehicle.unitNumber} · {vehicle.licensePlate}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}
+              </p>
+            </div>
+          )}
+
+          {hold?.damageDescription && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Damage</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{hold.damageDescription}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Release Type</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{releaseTypeLabel}</p>
+            </div>
+            {expectedReturn && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Expected Return</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{expectedReturn}</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Reason</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{finalReason}</p>
+          </div>
+
+          {notes.trim() && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Notes</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{notes}</p>
+            </div>
+          )}
+
+          <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+            Approving as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
+          </div>
+
+          {submitError && (
+            <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-3 py-2">
+              {submitError}
+            </p>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={submitting}
+              className="flex-1 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={submitting}
+              className={`flex-1 py-2.5 font-semibold text-sm rounded-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${submitClass}`}
+            >
+              {submitting ? 'Releasing…' : 'Confirm — Release Vehicle'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${borderClass}`}>

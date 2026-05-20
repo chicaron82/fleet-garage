@@ -69,7 +69,11 @@ function SortableNavItem({
       <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
         {item.icon} {item.label}
       </span>
-      {badge ? <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /> : null}
+      {badge ? (
+        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums shrink-0">
+          {badge}
+        </span>
+      ) : null}
       <button
         type="button"
         className="text-gray-400 cursor-grab active:cursor-grabbing px-1 touch-none"
@@ -90,12 +94,16 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
-  const { facilityIssues, washbayLogs } = useGarage();
+  const { facilityIssues, washbayLogs, holds } = useGarage();
   const { isPeakSeason } = useSchedule();
   const { getTodayEntry } = useFleetBalance();
   const todayFleetEntry = getTodayEntry();
-  const openHighIssues = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
-  const MODULE_BADGES: Partial<Record<Module, number>> = { 'issue-log': openHighIssues };
+  const openHighIssues  = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
+  const activeHolds     = holds.filter(h => h.status === 'ACTIVE').length;
+  const MODULE_BADGES: Partial<Record<Module, number>> = {
+    'fleet-garage': activeHolds,
+    'issue-log':    openHighIssues,
+  };
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
   const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('live');
   const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
@@ -555,7 +563,9 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                 <span className="text-base leading-none">{item.icon}</span>
                 <span>{item.label}</span>
                 {MODULE_BADGES[item.module] ? (
-                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums shrink-0">
+                    {MODULE_BADGES[item.module]}
+                  </span>
                 ) : null}
               </button>
               {onShowGuide && (
