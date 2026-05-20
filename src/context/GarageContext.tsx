@@ -86,6 +86,41 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Realtime holds subscription — live dashboard updates across all connected devices.
+  // Re-fetches the full hold with relations on each event so nested releases/repairs
+  // are always consistent. INSERT handler upserts to avoid duplicates when the local
+  // mutation already applied the optimistic update.
+  useEffect(() => {
+    const refetch = async (id: string) => {
+      const { data } = await supabase
+        .from('holds')
+        .select('*, releases(*), repairs(*)')
+        .eq('id', id)
+        .single();
+      return data ? mapHold(data) : null;
+    };
+
+    const channel = supabase
+      .channel('garage-holds-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'holds' }, async (payload) => {
+        const hold = await refetch((payload.new as { id: string }).id);
+        if (!hold) return;
+        setAllHolds(prev =>
+          prev.some(h => h.id === hold.id)
+            ? prev.map(h => h.id === hold.id ? hold : h)
+            : [hold, ...prev]
+        );
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'holds' }, async (payload) => {
+        const hold = await refetch((payload.new as { id: string }).id);
+        if (!hold) return;
+        setAllHolds(prev => prev.map(h => h.id === hold.id ? hold : h));
+      })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber?.toLowerCase() === unitNumber.toLowerCase());
