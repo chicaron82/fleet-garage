@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
-import { isManagement } from './DriverCoverageSection';
+import { isManagement } from '../../lib/analytics';
 
 function fmtMinutes(mins: number): string {
   if (mins === 0) return '0m';
