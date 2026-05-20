@@ -125,6 +125,7 @@ export function InventoryView() {
 
   const [activeTab, setActiveTab]       = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
   const [showHandoffForm, setShowHandoffForm] = useState(false);
+  const [reportDate, setReportDate]     = useState(() => localDateStr(0));
 
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -170,8 +171,8 @@ export function InventoryView() {
       {activeTab === 'summary' && (
         <>
           <ShiftRatesCard />
-          <ShiftSummarySection activeBranch={activeBranch} />
-          <ShiftReportExport />
+          <ShiftSummarySection activeBranch={activeBranch} onViewDateChange={setReportDate} />
+          <ShiftReportExport date={reportDate} />
         </>
       )}
 

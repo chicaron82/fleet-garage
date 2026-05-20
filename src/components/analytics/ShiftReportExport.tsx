@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
-import { localDateStr } from '../../hooks/useFleetBalance';
 import { hapticMedium } from '../../lib/haptics';
 import type { ShiftWithUser, ShiftType } from '../../types';
 
@@ -19,8 +18,9 @@ function fmtMinutes(total: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-function todayDateStr(): string {
-  return new Date().toLocaleDateString('en-CA', {
+function formatDateStr(dateISO: string): string {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 }
@@ -34,9 +34,8 @@ const SHIFT_TYPE_LABEL: Record<ShiftType, string> = {
   sick:     'Sick Day',
 };
 
-function deriveShiftLine(shifts: ShiftWithUser[], userId: string): string {
-  const today = localDateStr(0);
-  const todayShifts = shifts.filter(s => s.userId === userId && s.date === today);
+function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date: string): string {
+  const todayShifts = shifts.filter(s => s.userId === userId && s.date === date);
   if (todayShifts.length === 0) return '8-hour shift';
   const withTimes = todayShifts.find(s => s.startTime && s.endTime);
   const chosen = withTimes ?? todayShifts[0];
@@ -60,6 +59,7 @@ function formatHoldTypes(types: string[]): string {
 
 interface ReportData {
   shiftLine: string;
+  dateLabel: string;
   userName: string;
   employeeId: string;
   offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
@@ -78,7 +78,7 @@ function buildReport(d: ReportData): string {
     SEP,
     `Name:     ${d.userName}`,
     `EEID:     ${d.employeeId}`,
-    `Date:     ${todayDateStr()}`,
+    `Date:     ${d.dateLabel}`,
     `Shift:    ${d.shiftLine}`,
   ];
 
@@ -147,7 +147,7 @@ function buildReport(d: ReportData): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ShiftReportExport() {
+export function ShiftReportExport({ date }: { date: string }) {
   const { user } = useAuth();
   const { shifts } = useSchedule();
   const [loading, setLoading] = useState(false);
@@ -159,58 +159,60 @@ export function ShiftReportExport() {
     hapticMedium();
     setLoading(true);
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartISO = todayStart.toISOString();
-    const todayDate     = localDateStr(0);
+    const dayStart = new Date(date + 'T00:00:00');
+    const dayEnd   = new Date(date + 'T00:00:00');
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const dayStartISO = dayStart.toISOString();
+    const dayEndISO   = dayEnd.toISOString();
 
     const [othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip')
         .eq('user_id', user.id).eq('status', 'complete')
-        .gte('start_time', todayStartISO)
+        .gte('start_time', dayStartISO).lt('start_time', dayEndISO)
         .order('start_time', { ascending: true }),
 
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time, is_shuttle, reason')
         .eq('driver_id', user.id)
-        .gte('depart_time', todayStartISO)
+        .gte('depart_time', dayStartISO).lt('depart_time', dayEndISO)
         .not('arrive_time', 'is', null)
         .order('depart_time', { ascending: true }),
 
       supabase.from('holds')
         .select('flagged_at, hold_types')
         .eq('flagged_by_id', user.id)
-        .gte('flagged_at', todayStartISO)
+        .gte('flagged_at', dayStartISO).lt('flagged_at', dayEndISO)
         .order('flagged_at', { ascending: true }),
 
       supabase.from('vehicle_checkins')
         .select('checked_in_at, vehicle_unit, vehicle_plate')
         .eq('checked_in_by_id', user.id)
-        .gte('checked_in_at', todayStartISO)
+        .gte('checked_in_at', dayStartISO).lt('checked_in_at', dayEndISO)
         .order('checked_in_at', { ascending: true }),
 
       supabase.from('lost_found')
         .select('found_at, description, location, unit_number')
         .eq('found_by', user.id)
-        .gte('found_at', todayStartISO)
+        .gte('found_at', dayStartISO).lt('found_at', dayEndISO)
         .order('found_at', { ascending: true }),
 
       supabase.from('audits')
         .select('created_at, vehicle_number, status')
         .eq('auditor_id', user.id)
-        .eq('date', todayDate)
+        .eq('date', date)
         .order('created_at', { ascending: true }),
 
       supabase.from('facility_issues')
         .select('reported_at, title, severity')
         .eq('reported_by', user.id)
-        .gte('reported_at', todayStartISO)
+        .gte('reported_at', dayStartISO).lt('reported_at', dayEndISO)
         .order('reported_at', { ascending: true }),
     ]);
 
     const reportText = buildReport({
-      shiftLine:  deriveShiftLine(shifts, user.id),
+      shiftLine:  deriveShiftLine(shifts, user.id, date),
+      dateLabel:  formatDateStr(date),
       userName:   user.name,
       employeeId: user.employeeId,
       offStandard: (othRes.data ?? []).map((r: Record<string, unknown>) => ({
@@ -259,7 +261,7 @@ export function ShiftReportExport() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Shift Report — ${user.name} · ${todayDateStr()}`,
+          title: `Shift Report — ${user.name} · ${formatDateStr(date)}`,
           text:  reportText,
         });
         return;

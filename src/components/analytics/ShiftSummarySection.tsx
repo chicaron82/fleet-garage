@@ -89,47 +89,55 @@ function HistoryCard({ s }: { s: SavedSummary }) {
   );
 }
 
-export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) {
+export function ShiftSummarySection({ activeBranch, onViewDateChange }: { activeBranch: string; onViewDateChange?: (date: string) => void }) {
   const { user } = useAuth();
   const [live, setLive]           = useState<LiveSummary | null>(null);
   const [history, setHistory]     = useState<SavedSummary[]>([]);
   const [team, setTeam]           = useState<SavedSummary[]>([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
-  const [savedToday, setSavedToday] = useState(false);
+  const [savedForDate, setSavedForDate] = useState(false);
 
-  const todayISO = localDateStr(0);
+  const todayISO     = localDateStr(0);
+  const yesterdayISO = localDateStr(-1);
+  const [viewDate, setViewDate] = useState(todayISO);
+  const isViewingYesterday = viewDate === yesterdayISO;
+
   const branchId = activeBranch === 'ALL' ? (user?.branchId ?? 'YWG') : activeBranch;
 
   useEffect(() => {
     if (!user) return;
-    loadData();
+    loadData(viewDate);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, branchId, todayISO]);
+  }, [user?.id, branchId, viewDate]);
 
-  async function loadData() {
+  async function loadData(date: string) {
     if (!user) return;
     setLoading(true);
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartISO = todayStart.toISOString();
+    const dayStart = new Date(date + 'T00:00:00');
+    const dayEnd   = new Date(date + 'T00:00:00');
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const dayStartISO = dayStart.toISOString();
+    const dayEndISO   = dayEnd.toISOString();
 
     const [osResult, tripsResult, holdsResult, histResult] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, minutes, reason')
         .eq('user_id', user.id)
-        .eq('date', todayISO)
+        .eq('date', date)
         .not('minutes', 'is', null),
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time')
         .eq('driver_id', user.id)
-        .gte('depart_time', todayStartISO)
+        .gte('depart_time', dayStartISO)
+        .lt('depart_time', dayEndISO)
         .not('arrive_time', 'is', null),
       supabase.from('holds')
         .select('flagged_at')
         .eq('flagged_by_id', user.id)
-        .gte('flagged_at', todayStartISO),
+        .gte('flagged_at', dayStartISO)
+        .lt('flagged_at', dayEndISO),
       supabase.from('shift_summaries')
         .select('*')
         .eq('user_id', user.id)
@@ -173,13 +181,13 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
 
     const saved = (histResult.data ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>));
     setHistory(saved);
-    setSavedToday(saved.some(s => s.date === todayISO));
+    setSavedForDate(saved.some(s => s.date === date));
 
     if (isManagement(user.role)) {
       const { data: teamData } = await supabase.from('shift_summaries')
         .select('*')
         .eq('branch_id', branchId)
-        .eq('date', todayISO)
+        .eq('date', date)
         .order('saved_at', { ascending: false });
       setTeam((teamData ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>)));
     }
@@ -197,7 +205,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         user_id:                user.id,
         user_name:              user.name,
         branch_id:              user.branchId,
-        date:                   todayISO,
+        date:                   viewDate,
         first_activity_at:      live.firstActivityAt,
         saved_at:               new Date().toISOString(),
         off_standard_minutes:   live.offStandardMinutes,
@@ -209,7 +217,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     );
 
     if (!error) {
-      setSavedToday(true);
+      setSavedForDate(true);
       const { data } = await supabase.from('shift_summaries')
         .select('*')
         .eq('user_id', user.id)
@@ -240,16 +248,44 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
   return (
     <div className="space-y-4">
 
+      {/* Day toggle */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => { setViewDate(todayISO); onViewDateChange?.(todayISO); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            !isViewingYesterday
+              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={() => { setViewDate(yesterdayISO); onViewDateChange?.(yesterdayISO); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            isViewingYesterday
+              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          Yesterday
+        </button>
+      </div>
+
       {/* Live card */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">My Shift Today</p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+              {isViewingYesterday ? 'My Shift · Yesterday' : 'My Shift Today'}
+            </p>
             {live?.firstActivityAt && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Active since {fmtTime(live.firstActivityAt)}</p>
             )}
           </div>
-          {savedToday && (
+          {savedForDate && (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 mt-0.5">
               ✓ Saved
             </span>
@@ -304,7 +340,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
             disabled={saving || !hasActivity}
             className="w-full py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-300"
           >
-            {saving ? 'Saving…' : savedToday ? 'Update Summary' : 'Save Summary'}
+            {saving ? 'Saving…' : savedForDate ? 'Update Summary' : isViewingYesterday ? 'Save Yesterday\'s Summary' : 'Save Summary'}
           </button>
         </div>
       </div>

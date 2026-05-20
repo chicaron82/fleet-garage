@@ -4,6 +4,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { DEMO_DRIVER_TRIP_STATS } from '../../lib/analytics';
 import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import { TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
+import { useProfiles } from '../../context/ProfilesContext';
 
 interface TripRow { driver_id: string; depart_time: string; arrive_time: string; }
 
@@ -25,6 +26,7 @@ function avgMin(trips: TripRow[]): number {
 }
 
 export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
+  const profiles              = useProfiles();
   const [rows, setRows]       = useState<DriverStatRow[]>([]);
   const [loading, setLoading] = useState(!isDemo);
 
@@ -122,7 +124,9 @@ export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
                   key={row.driverId}
                   className="grid grid-cols-[1fr_auto_auto] gap-x-6 items-center py-2 border-b border-gray-50 dark:border-gray-800/50 last:border-0"
                 >
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{row.driverId}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {profiles.get(row.driverId)?.name ?? row.driverId}
+                  </span>
                   <span className="w-12 text-center text-sm font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                     {row.tripsToday}
                   </span>
