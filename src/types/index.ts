@@ -372,6 +372,19 @@ export interface WashbayLog {
   loggedAt: string;          // ISO timestamp
 }
 
+// ── Shift Checkpoints ──────────────────────────────────────────────────────────
+
+export interface ShiftCheckpoint {
+  id: string;
+  branchId: string;
+  date: string;           // ISO date: '2026-05-20'
+  checkpointType: string; // 'closing_arrival'
+  fullPages: number;
+  lastPageEntries: number;
+  loggedBy: string;       // user ID
+  loggedAt: string;       // ISO timestamp
+}
+
 // ── Check-in Condition ────────────────────────────────────────────────────────
 
 export type ConditionRating = 'clean' | 'good' | 'questionable' | 'escalated';

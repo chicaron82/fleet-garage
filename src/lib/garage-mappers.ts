@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation } from '../types';
+import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation, ShiftCheckpoint } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -173,6 +173,19 @@ export function mapHandoffNote(row: Row): HandoffNote {
     notes:            optStr(row, 'notes'),
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
     morningHours:     (row['morning_hours'] as number) ?? 8.5,
+  };
+}
+
+export function mapCheckpoint(row: Row): ShiftCheckpoint {
+  return {
+    id:              reqStr(row, 'id',                'mapCheckpoint'),
+    branchId:        reqStr(row, 'branch_id',         'mapCheckpoint'),
+    date:            reqStr(row, 'date',              'mapCheckpoint'),
+    checkpointType:  reqStr(row, 'checkpoint_type',   'mapCheckpoint'),
+    fullPages:       reqNum(row, 'full_pages',        'mapCheckpoint'),
+    lastPageEntries: reqNum(row, 'last_page_entries', 'mapCheckpoint'),
+    loggedBy:        reqStr(row, 'logged_by',         'mapCheckpoint'),
+    loggedAt:        reqStr(row, 'logged_at',         'mapCheckpoint'),
   };
 }
 

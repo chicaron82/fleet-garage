@@ -1,4 +1,4 @@
-import type { HandoffNote, ShiftType, ShiftWithUser } from '../types';
+import type { HandoffNote, ShiftCheckpoint, ShiftType, ShiftWithUser } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
 
 // Morning shift runs 06:45–15:15 year-round; closing always 8h.
@@ -51,20 +51,26 @@ export function splitOffStandard(
 }
 
 // Build a full shift partition from today's handoff, closing log, and OTH entries.
+// checkpoint, when present, sets closing's car count start at arrival (not at handoff).
 export function buildShiftPartition(args: {
   handoff: HandoffNote | null | undefined;
+  checkpoint: ShiftCheckpoint | null | undefined;
   fullDayCleaned: number | null;
   offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
 }): ShiftPartition {
-  const { handoff, fullDayCleaned, offStandardEntries } = args;
+  const { handoff, checkpoint, fullDayCleaned, offStandardEntries } = args;
 
   const morningCleaned = handoff
     ? handoff.fullPages * 19 + handoff.lastPageEntries
     : null;
   const morningHours = handoff?.morningHours ?? MORNING_SHIFT_HOURS;
 
-  const closingCleaned = morningCleaned != null && fullDayCleaned != null
-    ? Math.max(0, fullDayCleaned - morningCleaned)
+  const checkpointCount = checkpoint
+    ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries
+    : null;
+  const closingStartCount = checkpointCount ?? morningCleaned;
+  const closingCleaned = closingStartCount != null && fullDayCleaned != null
+    ? Math.max(0, fullDayCleaned - closingStartCount)
     : null;
 
   const boundary = handoff ? morningHandoffBoundary(handoff) : null;

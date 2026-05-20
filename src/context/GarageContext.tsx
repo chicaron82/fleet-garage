@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId, ShiftCheckpoint } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem } from '../lib/garage-mappers';
+import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem, mapCheckpoint } from '../lib/garage-mappers';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { useLostFound, type LostFoundSlice } from './useLostFound';
 import { useIssues, type IssuesSlice } from './useIssues';
@@ -13,6 +13,9 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   holds: Hold[];
   staleHolds: Hold[];
   loading: boolean;
+  shiftCheckpoints: ShiftCheckpoint[];
+  getTodayCheckpoint: () => ShiftCheckpoint | null;
+  submitCheckpoint: (fullPages: number, lastPageEntries: number) => Promise<boolean>;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
@@ -43,6 +46,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
+  const [shiftCheckpoints, setShiftCheckpoints] = useState<ShiftCheckpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
@@ -67,13 +71,14 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }] = await Promise.all([
+      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }, { data: cpData }] = await Promise.all([
         supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
         supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
         supabase.from('facility_issues').select('*').order('reported_at', { ascending: false }),
         supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
         supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
         supabase.from('lost_found').select('*').order('found_at', { ascending: false }).limit(100),
+        supabase.from('shift_checkpoints').select('*').order('logged_at', { ascending: false }).limit(30),
       ]);
       setAllVehicles((vData ?? []).map(mapVehicle));
       setAllHolds((hData ?? []).map(mapHold));
@@ -81,6 +86,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       setWashbayLogs((wData ?? []).map(mapWashbayLog));
       setHandoffNotes((nData ?? []).map(mapHandoffNote));
       setAllLostFoundItems((lfData ?? []).map(mapLostFoundItem));
+      setShiftCheckpoints((cpData ?? []).map(mapCheckpoint));
       setLoading(false);
     }
     load();
@@ -118,6 +124,26 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe();
 
+    return () => { void supabase.removeChannel(channel); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Realtime checkpoint subscription — live updates when closing crew checks in.
+  useEffect(() => {
+    const channel = supabase
+      .channel('garage-checkpoints-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'shift_checkpoints' }, (payload) => {
+        const cp = mapCheckpoint(payload.new as Record<string, unknown>);
+        setShiftCheckpoints(prev =>
+          prev.some(c => c.id === cp.id)
+            ? prev.map(c => c.id === cp.id ? cp : c)
+            : [cp, ...prev]
+        );
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shift_checkpoints' }, (payload) => {
+        const cp = mapCheckpoint(payload.new as Record<string, unknown>);
+        setShiftCheckpoints(prev => prev.map(c => c.id === cp.id ? cp : c));
+      })
+      .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -497,9 +523,45 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const getTodayCheckpoint = (): ShiftCheckpoint | null => {
+    const today = new Date().toLocaleDateString('en-CA');
+    return shiftCheckpoints.find(c => c.date === today && c.checkpointType === 'closing_arrival') ?? null;
+  };
+
+  const submitCheckpoint = async (fullPages: number, lastPageEntries: number): Promise<boolean> => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('shift_checkpoints').upsert({
+        branch_id:         branchId,
+        date:              today,
+        checkpoint_type:   'closing_arrival',
+        full_pages:        fullPages,
+        last_page_entries: lastPageEntries,
+        logged_by:         user!.id,
+        logged_at:         new Date().toISOString(),
+      }, { onConflict: 'branch_id,date,checkpoint_type' }).select().single()
+    );
+    if (error) return false;
+    if (data) {
+      const mapped = mapCheckpoint(data as unknown as Record<string, unknown>);
+      setShiftCheckpoints(prev => {
+        const idx = prev.findIndex(c => c.id === mapped.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = mapped;
+          return next;
+        }
+        return [mapped, ...prev];
+      });
+    }
+    return true;
+  };
+
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
+      shiftCheckpoints, getTodayCheckpoint, submitCheckpoint,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, updateVehicleEVAssets, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,

@@ -94,7 +94,7 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
-  const { facilityIssues, washbayLogs, holds } = useGarage();
+  const { facilityIssues, washbayLogs, holds, shiftCheckpoints } = useGarage();
   const { isPeakSeason } = useSchedule();
   const { getTodayEntry } = useFleetBalance();
   const todayFleetEntry = getTodayEntry();
@@ -295,8 +295,11 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const morningOpHours = todayHandoff
     ? todayHandoff.morningHours ?? 8.0
     : null;
-  const closingCleaned = morningCleaned != null && carsCleaned != null
-    ? Math.max(0, carsCleaned - morningCleaned)
+  const activeCheckpoint = shiftCheckpoints.find(c => c.date === recentLogDate && c.checkpointType === 'closing_arrival') ?? null;
+  const checkpointCount  = activeCheckpoint ? activeCheckpoint.fullPages * 19 + activeCheckpoint.lastPageEntries : null;
+  const closingStartCount = checkpointCount ?? morningCleaned;
+  const closingCleaned = closingStartCount != null && carsCleaned != null
+    ? Math.max(0, carsCleaned - closingStartCount)
     : null;
   // Closing crew always works 8h (13:30–22:00 non-peak, 14:30–23:00 peak).
   // The branch operating span overlaps with morning, so closingOpHours is independent of morningOpHours.

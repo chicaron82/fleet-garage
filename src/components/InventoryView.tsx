@@ -5,6 +5,7 @@ import { useSchedule } from '../context/ScheduleContext';
 import { toISO } from '../context/ScheduleContext';
 import { WashbayClosingLog } from './WashbayClosingLog';
 import { HandoffForm } from './HandoffForm';
+import { ClosingCheckIn } from './ClosingCheckIn';
 import { WhiteboardView } from './WhiteboardView';
 import { ShiftSummarySection } from './analytics/ShiftSummarySection';
 import { ShiftRatesCard } from './analytics/ShiftRatesCard';
@@ -161,6 +162,9 @@ export function InventoryView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
+          {(isClosingShift || ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role)) && (
+            <ClosingCheckIn />
+          )}
           <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
           <WashbayClosingLog />
           <ClosingChecklist defaultOpen={isClosingShift} />

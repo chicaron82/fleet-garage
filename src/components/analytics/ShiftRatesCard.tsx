@@ -24,7 +24,7 @@ function fmtMinutes(total: number): string {
 
 export function ShiftRatesCard() {
   const { user } = useAuth();
-  const { getTodayWashbayLog, handoffNotes } = useGarage();
+  const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint } = useGarage();
   const { shifts } = useSchedule();
   const [entries, setEntries] = useState<{ startTime: string; minutes: number }[]>([]);
 
@@ -63,7 +63,8 @@ export function ShiftRatesCard() {
 
   const userShiftType = deriveUserShiftType(shifts, user.id);
   const window        = deriveShiftWindow(userShiftType) ?? 'morning';
-  const partition     = buildShiftPartition({ handoff: todayHandoff, fullDayCleaned, offStandardEntries: entries });
+  const checkpoint    = getTodayCheckpoint();
+  const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries });
   const mySnapshot    = pickShift(partition, window);
   const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
   const myCarsCleaned = mySnapshot.cleaned;

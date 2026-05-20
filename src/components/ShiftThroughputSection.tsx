@@ -1,4 +1,4 @@
-import type { WashbayLog, HandoffNote } from '../types';
+import type { WashbayLog, HandoffNote, ShiftCheckpoint } from '../types';
 import { CLOSING_SHIFT_HOURS } from '../lib/shift-metrics';
 
 const COMPANY_STANDARD = 3.0;
@@ -21,6 +21,7 @@ interface TodaySnapshot {
 interface Props {
   washbayLogs: WashbayLog[];
   handoffNotes: HandoffNote[];
+  checkpoints: ShiftCheckpoint[];
   isDemo: boolean;
 }
 
@@ -42,6 +43,7 @@ const DEMO_TODAY: TodaySnapshot = {
 function buildLiveDays(
   washbayLogs: WashbayLog[],
   handoffNotes: HandoffNote[],
+  checkpoints: ShiftCheckpoint[],
 ): DayData[] {
   const days: DayData[] = [];
   for (let i = 7; i >= 1; i--) {
@@ -54,6 +56,7 @@ function buildLiveDays(
     const handoff = handoffNotes.find(n =>
       new Date(n.loggedAt).toLocaleDateString('en-CA') === dateStr
     );
+    const checkpoint = checkpoints.find(c => c.date === dateStr && c.checkpointType === 'closing_arrival') ?? null;
 
     let morningRate: number | null = null;
     let morningCleaned: number | null = null;
@@ -68,7 +71,9 @@ function buildLiveDays(
     let closingRate: number | null = null;
     if (log && morningCleaned != null) {
       const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
-      const closingCleaned = fullDayCleaned - morningCleaned;
+      const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
+      const closingStartCount = checkpointCount ?? morningCleaned;
+      const closingCleaned = fullDayCleaned - closingStartCount;
       if (closingCleaned >= 0) {
         closingRate = closingCleaned / CLOSING_SHIFT_HOURS;
       }
@@ -82,12 +87,14 @@ function buildLiveDays(
 function buildTodaySnapshot(
   washbayLogs: WashbayLog[],
   handoffNotes: HandoffNote[],
+  checkpoints: ShiftCheckpoint[],
 ): TodaySnapshot {
   const todayStr = new Date().toLocaleDateString('en-CA');
   const handoff = handoffNotes.find(n =>
     new Date(n.loggedAt).toLocaleDateString('en-CA') === todayStr
   );
   const log = washbayLogs.find(l => l.date === todayStr);
+  const checkpoint = checkpoints.find(c => c.date === todayStr && c.checkpointType === 'closing_arrival') ?? null;
 
   let morningCleaned: number | null = null;
   let morningHours: number | null = null;
@@ -105,7 +112,9 @@ function buildTodaySnapshot(
 
   if (log && morningCleaned != null) {
     const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
-    closingCleaned = fullDayCleaned - morningCleaned;
+    const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
+    const closingStartCount = checkpointCount ?? morningCleaned;
+    closingCleaned = fullDayCleaned - closingStartCount;
     closingHours = CLOSING_SHIFT_HOURS;
     if (closingCleaned >= 0) {
       closingRate = closingCleaned / closingHours;
@@ -121,9 +130,9 @@ function rateColor(rate: number): string {
   return 'text-red-500 dark:text-red-400';
 }
 
-export function ShiftThroughputSection({ washbayLogs, handoffNotes, isDemo }: Props) {
-  const days = isDemo ? DEMO_DAYS : buildLiveDays(washbayLogs, handoffNotes);
-  const today = isDemo ? DEMO_TODAY : buildTodaySnapshot(washbayLogs, handoffNotes);
+export function ShiftThroughputSection({ washbayLogs, handoffNotes, checkpoints, isDemo }: Props) {
+  const days = isDemo ? DEMO_DAYS : buildLiveDays(washbayLogs, handoffNotes, checkpoints);
+  const today = isDemo ? DEMO_TODAY : buildTodaySnapshot(washbayLogs, handoffNotes, checkpoints);
 
   const morningRates = days.map(d => d.morningRate).filter((r): r is number => r != null);
   const closingRates = days.map(d => d.closingRate).filter((r): r is number => r != null);
