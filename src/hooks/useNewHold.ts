@@ -60,7 +60,8 @@ export function useNewHold(preselectedId?: string) {
     (mechanicalTypes.filter(t => t !== 'Other').length > 0 ||
      (mechanicalTypes.includes('Other') && !!customMechanical.trim()));
 
-  const canSubmit = !!(selectedVehicle && !alreadyHeld && !submitting && damageOk && detailOk && mechanicalOk);
+  const photosOk  = !holdTypes.includes('damage') || photos.length > 0;
+  const canSubmit = !!(selectedVehicle && !alreadyHeld && !submitting && damageOk && detailOk && mechanicalOk && photosOk);
 
   // Primary holdType for backwards compat
   const holdType = holdTypes[0];
@@ -141,7 +142,7 @@ export function useNewHold(preselectedId?: string) {
     mechanicalSubType, setMechanicalSubType,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
-    submitting, submitError, canSubmit,
+    submitting, submitError, canSubmit, photosOk,
     selectVehicle, clearVehicle,
     submit,
     MAX_PHOTOS,

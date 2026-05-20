@@ -431,8 +431,13 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
               {/* Photos */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Photos (optional · max {h.MAX_PHOTOS})
+                  Photos {h.holdTypes.includes('damage') ? <span className="text-red-500">*</span> : <span className="normal-case font-normal text-gray-400 dark:text-gray-500">(optional)</span>} · max {h.MAX_PHOTOS}
                 </label>
+                {h.holdTypes.includes('damage') && h.photos.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
+                    At least one photo is required for damage holds.
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {h.photos.map((src, i) => (
                     <div key={i} className="relative">
