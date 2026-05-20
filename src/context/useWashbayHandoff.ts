@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { WashbayLog, HandoffNote, LotStatus, BranchId } from '../types';
 import type { User } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { mapWashbayLog, mapHandoffNote } from '../lib/garage-mappers';
 import { localDateStr } from '../hooks/useFleetBalance';
 
@@ -33,19 +33,21 @@ export function useWashbayHandoff(
     const date = localDateStr(0);
     const loggedAt = new Date().toISOString();
     try {
-      const { data: row, error } = await supabase.from('washbay_logs').upsert({
-        branch_id:           branchId,
-        date,
-        full_pages:          data.fullPages,
-        last_page_entries:   data.lastPageEntries,
-        cars_remaining:      data.carsRemaining,
-        clean_not_picked_up: data.cleanNotPickedUp,
-        team_size:           data.teamSize,
-        shift_hours:         data.shiftHours,
-        overtime_hours:      data.overtimeHours,
-        logged_by:           user!.id,
-        logged_at:           loggedAt,
-      }, { onConflict: 'branch_id, date' }).select().single();
+      const { data: row, error } = await writeWithRefresh(() =>
+        supabase.from('washbay_logs').upsert({
+          branch_id:           branchId,
+          date,
+          full_pages:          data.fullPages,
+          last_page_entries:   data.lastPageEntries,
+          cars_remaining:      data.carsRemaining,
+          clean_not_picked_up: data.cleanNotPickedUp,
+          team_size:           data.teamSize,
+          shift_hours:         data.shiftHours,
+          overtime_hours:      data.overtimeHours,
+          logged_by:           user!.id,
+          logged_at:           loggedAt,
+        }, { onConflict: 'branch_id, date' }).select().single()
+      );
       if (error) throw error;
       const newLog = mapWashbayLog(row);
       setWashbayLogs(prev => {
@@ -74,18 +76,20 @@ export function useWashbayHandoff(
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
     try {
-      const { data: row, error } = await supabase.from('handoff_notes').insert({
-        branch_id:          branchId,
-        logged_by:          user!.id,
-        logged_by_name:     user!.name,
-        logged_at:          loggedAt,
-        full_pages:         data.fullPages,
-        last_page_entries:  data.lastPageEntries,
-        team_size:          data.teamSize,
-        lot_status:         data.lotStatus,
-        notes:              data.notes ?? null,
-        morning_hours:      data.morningHours ?? 8.0,
-      }).select().single();
+      const { data: row, error } = await writeWithRefresh(() =>
+        supabase.from('handoff_notes').insert({
+          branch_id:          branchId,
+          logged_by:          user!.id,
+          logged_by_name:     user!.name,
+          logged_at:          loggedAt,
+          full_pages:         data.fullPages,
+          last_page_entries:  data.lastPageEntries,
+          team_size:          data.teamSize,
+          lot_status:         data.lotStatus,
+          notes:              data.notes ?? null,
+          morning_hours:      data.morningHours ?? 8.0,
+        }).select().single()
+      );
       if (error) throw error;
       setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
       return true;

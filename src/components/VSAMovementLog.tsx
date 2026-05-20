@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
@@ -141,29 +141,31 @@ export function VSAMovementLog({
     const now = new Date().toISOString();
     const tripId = `trip-${Date.now()}`;
 
-    const { error } = await supabase
-      .from('vsa_trips')
-      .insert({
-        id:                  tripId,
-        vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
-        vehicle_unit:        '',
-        trip_type:           isShuttle ? 'transfer' : 'clean',
-        depart_location:     'Airport Run',
-        arrive_location:     null,
-        depart_time:         now,
-        arrive_time:         null,
-        driver_id:           user.id,
-        branch_id:           user.branchId,
-        is_vsa_interruption: true,
-        is_shuttle:          isShuttle,
-        auth_type:           auth,
-        reason:              r,
-        queue_at_departure:  queue,
-        notes:               tripNotes.trim() || null,
-        ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
-        ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
-        status:              'in_progress',
-      });
+    const { error } = await writeWithRefresh(() =>
+      supabase
+        .from('vsa_trips')
+        .insert({
+          id:                  tripId,
+          vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
+          vehicle_unit:        '',
+          trip_type:           isShuttle ? 'transfer' : 'clean',
+          depart_location:     'Airport Run',
+          arrive_location:     null,
+          depart_time:         now,
+          arrive_time:         null,
+          driver_id:           user.id,
+          branch_id:           user.branchId,
+          is_vsa_interruption: true,
+          is_shuttle:          isShuttle,
+          auth_type:           auth,
+          reason:              r,
+          queue_at_departure:  queue,
+          notes:               tripNotes.trim() || null,
+          ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:              'in_progress',
+        })
+    );
 
     if (error) {
       console.error('[VSAMovementLog] trip start write failed:', error);
@@ -211,19 +213,21 @@ export function VSAMovementLog({
     const arrived = new Date().toISOString();
 
     if (user && pendingTripId) {
-      await supabase
-        .from('vsa_trips')
-        .update({
-          arrive_location:    'Airport Run',
-          arrive_time:        arrived,
-          auth_type:          authorization ?? null,
-          queue_at_departure: queue ?? null,
-          notes:              notes.trim() || null,
-          ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:             'complete',
-        })
-        .eq('id', pendingTripId);
+      await writeWithRefresh(() =>
+        supabase
+          .from('vsa_trips')
+          .update({
+            arrive_location:    'Airport Run',
+            arrive_time:        arrived,
+            auth_type:          authorization ?? null,
+            queue_at_departure: queue ?? null,
+            notes:              notes.trim() || null,
+            ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
+            ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
+            status:             'complete',
+          })
+          .eq('id', pendingTripId)
+      );
     }
 
     setArrivalTime(arrived);

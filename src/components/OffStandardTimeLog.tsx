@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
-import { supabase } from '../lib/supabase';
+import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
@@ -304,24 +304,26 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     const expl = deriveExplanation(preset, edvUnitNumber, edvManagerName, explanation);
     if (preset) setExplanation(expl);
 
-    const { data, error } = await supabase
-      .from('off_standard_entries')
-      .insert({
-        user_id:        user.id,
-        branch_id:      user.branchId,
-        date:           localDateStr(0),
-        start_time:     now,
-        stop_time:      null,
-        minutes:        null,
-        reason,
-        explanation:    expl.trim() || null,
-        auto_from_trip: false,
-        status:         'in_progress',
-        ...(preset ? { preset_reason: preset } : {}),
-        ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
-      })
-      .select('id')
-      .single();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase
+        .from('off_standard_entries')
+        .insert({
+          user_id:        user.id,
+          branch_id:      user.branchId,
+          date:           localDateStr(0),
+          start_time:     now,
+          stop_time:      null,
+          minutes:        null,
+          reason,
+          explanation:    expl.trim() || null,
+          auto_from_trip: false,
+          status:         'in_progress',
+          ...(preset ? { preset_reason: preset } : {}),
+          ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
+        })
+        .select('id')
+        .single()
+    );
 
     if (error) {
       console.error('Off-standard start write failed:', error);
@@ -357,21 +359,25 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
     if (mins < MIN_ENTRY_MINUTES) {
       if (inProgressId) {
-        await supabase.from('off_standard_entries').delete().eq('id', inProgressId);
+        await writeWithRefresh(() =>
+          supabase.from('off_standard_entries').delete().eq('id', inProgressId!)
+        );
       }
       handleDiscard();
       return;
     }
 
-    const { error } = await supabase
-      .from('off_standard_entries')
-      .update({
-        stop_time:   now,
-        minutes:     mins,
-        explanation: explanation.trim() || null,
-        status:      'complete',
-      })
-      .eq('id', inProgressId!);
+    const { error } = await writeWithRefresh(() =>
+      supabase
+        .from('off_standard_entries')
+        .update({
+          stop_time:   now,
+          minutes:     mins,
+          explanation: explanation.trim() || null,
+          status:      'complete',
+        })
+        .eq('id', inProgressId!)
+    );
 
     if (error) {
       console.error('[handleEnd] update failed:', error);

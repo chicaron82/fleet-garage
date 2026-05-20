@@ -35,6 +35,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeBranch, setActiveBranch] = useState<BranchId>('YWG');
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void supabase.auth.startAutoRefresh();
+      } else {
+        void supabase.auth.stopAutoRefresh();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setUser(null);
