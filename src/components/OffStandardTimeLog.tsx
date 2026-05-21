@@ -429,15 +429,17 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
   const handleSaveEdit = async (newEndTime: string, newMinutes: number) => {
     if (!editingEntry) return;
-    const { error } = await supabase.from('off_standard_entries').update({
-      stop_time:        newEndTime,
-      minutes:          newMinutes,
-      edit_status:      null,
-      edited_end_time:  null,
-      edit_requested_at: null,
-      edit_requested_by: null,
-      edit_staff_note:  null,
-    }).eq('id', editingEntry.id);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('off_standard_entries').update({
+        stop_time:        newEndTime,
+        minutes:          newMinutes,
+        edit_status:      null,
+        edited_end_time:  null,
+        edit_requested_at: null,
+        edit_requested_by: null,
+        edit_staff_note:  null,
+      }).eq('id', editingEntry.id)
+    );
     if (!error) {
       setEntries(prev => prev.map(e => e.id === editingEntry.id
         ? { ...e, stopTime: newEndTime, minutes: newMinutes, editStatus: null }
@@ -450,15 +452,17 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const handleRequestEdit = async (newEndTime: string, newMinutes: number, note: string) => {
     if (!editingEntry) return;
     const now = new Date().toISOString();
-    const { error } = await supabase.from('off_standard_entries').update({
-      edited_end_time:  newEndTime,
-      edit_requested_at: now,
-      edit_requested_by: user.id,
-      edit_status:      'pending',
-      edit_staff_note:  note || null,
-      edit_reviewed_by: null,
-      edit_reviewed_at: null,
-    }).eq('id', editingEntry.id);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('off_standard_entries').update({
+        edited_end_time:  newEndTime,
+        edit_requested_at: now,
+        edit_requested_by: user.id,
+        edit_status:      'pending',
+        edit_staff_note:  note || null,
+        edit_reviewed_by: null,
+        edit_reviewed_at: null,
+      }).eq('id', editingEntry.id)
+    );
     if (!error) {
       const label = editingEntry.presetReason
         ? (OFF_STANDARD_PRESET_LABELS[editingEntry.presetReason] ?? OFF_STANDARD_LABELS[editingEntry.reason].short)
