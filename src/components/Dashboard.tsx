@@ -172,7 +172,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-        {/* Stale Holds Alert — VSA, Lead VSA, and management */}
+        {/* Stale Holds Alert — management only */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}
@@ -667,8 +667,8 @@ function StaleHoldsAlert({ role, staleHolds, vehicles, onSelectVehicle }: {
   vehicles: Vehicle[];
   onSelectVehicle: (vehicleId: string) => void;
 }) {
-  // Not relevant for CSR/HIR — they handle returns, not hold follow-up
-  if (role === 'CSR' || role === 'HIR') return null;
+  // Management only — VSA/Lead VSA see ⚠️ on individual hold cards, not the fleet-level banner
+  if (!canRelease(role)) return null;
   if (staleHolds.length === 0) return null;
 
   const staleItems = staleHolds.map(h => {
