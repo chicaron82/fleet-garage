@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
-import { hapticLight } from '../lib/haptics';
+import { hapticLight, hapticMedium } from '../lib/haptics';
+import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../lib/gas-sheet';
 import { localDateStr } from '../hooks/useFleetBalance';
 
 const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
@@ -11,12 +12,13 @@ export function ClosingCheckIn() {
 
   const existing = getTodayCheckpoint();
 
-  const [fullPages,       setFullPages]       = useState(existing?.fullPages       ?? 0);
-  const [lastPageEntries, setLastPageEntries] = useState(existing?.lastPageEntries ?? 0);
-  const [submitting,      setSubmitting]      = useState(false);
-  const [collapsed,       setCollapsed]       = useState(!!existing);
+  const initPages = existing ? convertFromBackend(existing.fullPages, existing.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+  const [totalPages,           setTotalPages]           = useState(initPages.totalPages);
+  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(initPages.entriesOnCurrentPage);
+  const [submitting,           setSubmitting]           = useState(false);
+  const [collapsed,            setCollapsed]            = useState(!!existing);
 
-  const carsIn    = fullPages * 19 + lastPageEntries;
+  const carsIn    = carsFromPageCounter(totalPages, entriesOnCurrentPage);
   const canSubmit = !submitting && carsIn > 0;
 
   const todayHandoff = handoffNotes.find(n =>
@@ -29,11 +31,23 @@ export function ClosingCheckIn() {
     ? Math.max(0, morningCleaned - checkpointCount)
     : null;
 
+  const handleEntryIncrement = () => {
+    if (entriesOnCurrentPage === 19) { setTotalPages(p => p + 1); setEntriesOnCurrentPage(0); hapticMedium(); }
+    else { setEntriesOnCurrentPage(e => e + 1); hapticLight(); }
+  };
+  const handleEntryDecrement = () => {
+    if (entriesOnCurrentPage === 0 && totalPages > 0) { setTotalPages(p => p - 1); setEntriesOnCurrentPage(19); hapticMedium(); }
+    else if (entriesOnCurrentPage > 0) { setEntriesOnCurrentPage(e => e - 1); hapticLight(); }
+  };
+  const handlePageIncrement = () => { setTotalPages(p => p + 1); setEntriesOnCurrentPage(19); hapticLight(); };
+  const handlePageDecrement = () => { setTotalPages(p => Math.max(0, p - 1)); hapticLight(); };
+
   const handleEdit = () => {
     hapticLight();
     if (existing) {
-      setFullPages(existing.fullPages);
-      setLastPageEntries(existing.lastPageEntries);
+      const { totalPages: tp, entriesOnCurrentPage: ep } = convertFromBackend(existing.fullPages, existing.lastPageEntries);
+      setTotalPages(tp);
+      setEntriesOnCurrentPage(ep);
     }
     setCollapsed(false);
   };
@@ -41,6 +55,7 @@ export function ClosingCheckIn() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
     const ok = await submitCheckpoint(fullPages, lastPageEntries);
     if (ok) setCollapsed(true);
     else setSubmitting(false);
@@ -85,19 +100,21 @@ export function ClosingCheckIn() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Count — On Arrival</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Full pages</label>
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Pages</label>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setFullPages(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
-                <span className={STEP_VAL}>{fullPages}</span>
-                <button type="button" onClick={() => setFullPages(v => v + 1)} className={STEP_BTN}>+</button>
+                <button type="button" onClick={handlePageDecrement} className={STEP_BTN}>−</button>
+                <span className={STEP_VAL}>{totalPages}</span>
+                <button type="button" onClick={handlePageIncrement} className={STEP_BTN}>+</button>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Last page entries</label>
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+                {totalPages > 0 ? `Entries on page ${totalPages}` : 'Entries'}
+              </label>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setLastPageEntries(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
-                <span className={STEP_VAL}>{lastPageEntries}</span>
-                <button type="button" onClick={() => setLastPageEntries(v => Math.min(19, v + 1))} className={STEP_BTN}>+</button>
+                <button type="button" onClick={handleEntryDecrement} className={STEP_BTN}>−</button>
+                <span className={STEP_VAL}>{entriesOnCurrentPage}</span>
+                <button type="button" onClick={handleEntryIncrement} className={STEP_BTN}>+</button>
               </div>
             </div>
           </div>

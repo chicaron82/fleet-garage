@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
+import { hapticLight, hapticMedium } from '../lib/haptics';
+import { convertToBackendFormat, carsFromPageCounter } from '../lib/gas-sheet';
 import type { LotStatus } from '../types';
 
 interface Props {
@@ -18,8 +20,8 @@ const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-ce
 export function HandoffForm({ onClose }: Props) {
   const { submitHandoff } = useGarage();
 
-  const [fullPages,       setFullPages]       = useState(0);
-  const [lastPageEntries, setLastPageEntries] = useState(0);
+  const [totalPages,           setTotalPages]           = useState(0);
+  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(0);
   const [teamSize,        setTeamSize]        = useState(3);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
@@ -27,12 +29,24 @@ export function HandoffForm({ onClose }: Props) {
   const [morningHours,    setMorningHours]    = useState(8.0);
   const [submitting,      setSubmitting]      = useState(false);
 
-  const carsIn    = fullPages * 19 + lastPageEntries;
+  const carsIn    = carsFromPageCounter(totalPages, entriesOnCurrentPage);
   const canSubmit = !submitting && carsIn > 0;
+
+  const handleEntryIncrement = () => {
+    if (entriesOnCurrentPage === 19) { setTotalPages(p => p + 1); setEntriesOnCurrentPage(0); hapticMedium(); }
+    else { setEntriesOnCurrentPage(e => e + 1); hapticLight(); }
+  };
+  const handleEntryDecrement = () => {
+    if (entriesOnCurrentPage === 0 && totalPages > 0) { setTotalPages(p => p - 1); setEntriesOnCurrentPage(19); hapticMedium(); }
+    else if (entriesOnCurrentPage > 0) { setEntriesOnCurrentPage(e => e - 1); hapticLight(); }
+  };
+  const handlePageIncrement = () => { setTotalPages(p => p + 1); setEntriesOnCurrentPage(19); hapticLight(); };
+  const handlePageDecrement = () => { setTotalPages(p => Math.max(0, p - 1)); hapticLight(); };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
     const ok = await submitHandoff({
       fullPages,
       lastPageEntries,
@@ -62,19 +76,21 @@ export function HandoffForm({ onClose }: Props) {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Pages — This Shift</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Full pages</label>
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Pages</label>
                 <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => setFullPages(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
-                  <span className={STEP_VAL}>{fullPages}</span>
-                  <button type="button" onClick={() => setFullPages(v => v + 1)} className={STEP_BTN}>+</button>
+                  <button type="button" onClick={handlePageDecrement} className={STEP_BTN}>−</button>
+                  <span className={STEP_VAL}>{totalPages}</span>
+                  <button type="button" onClick={handlePageIncrement} className={STEP_BTN}>+</button>
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Last page entries</label>
+                <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+                  {totalPages > 0 ? `Entries on page ${totalPages}` : 'Entries'}
+                </label>
                 <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => setLastPageEntries(v => Math.max(0, v - 1))} className={STEP_BTN}>−</button>
-                  <span className={STEP_VAL}>{lastPageEntries}</span>
-                  <button type="button" onClick={() => setLastPageEntries(v => Math.min(19, v + 1))} className={STEP_BTN}>+</button>
+                  <button type="button" onClick={handleEntryDecrement} className={STEP_BTN}>−</button>
+                  <span className={STEP_VAL}>{entriesOnCurrentPage}</span>
+                  <button type="button" onClick={handleEntryIncrement} className={STEP_BTN}>+</button>
                 </div>
               </div>
             </div>

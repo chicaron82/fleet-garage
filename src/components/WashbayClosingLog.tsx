@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useGarage } from '../context/GarageContext';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
+import { hapticLight, hapticMedium } from '../lib/haptics';
+import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../lib/gas-sheet';
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -11,8 +13,8 @@ export function WashbayClosingLog() {
   const { user } = useAuth();
   const { isPeakSeason } = useSchedule();
 
-  const [fullPages,        setFullPages]        = useState(0);
-  const [lastPageEntries,  setLastPageEntries]  = useState(0);
+  const [totalPages,           setTotalPages]           = useState(0);
+  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(0);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(3);
@@ -26,11 +28,23 @@ export function WashbayClosingLog() {
 
   const baseHours = isPeakSeason ? 16 : 15;
 
+  const handleEntryIncrement = () => {
+    if (entriesOnCurrentPage === 19) { setTotalPages(p => p + 1); setEntriesOnCurrentPage(0); hapticMedium(); }
+    else { setEntriesOnCurrentPage(e => e + 1); hapticLight(); }
+  };
+  const handleEntryDecrement = () => {
+    if (entriesOnCurrentPage === 0 && totalPages > 0) { setTotalPages(p => p - 1); setEntriesOnCurrentPage(19); hapticMedium(); }
+    else if (entriesOnCurrentPage > 0) { setEntriesOnCurrentPage(e => e - 1); hapticLight(); }
+  };
+  const handlePageIncrement = () => { setTotalPages(p => p + 1); setEntriesOnCurrentPage(19); hapticLight(); };
+  const handlePageDecrement = () => { setTotalPages(p => Math.max(0, p - 1)); hapticLight(); };
+
   // Pre-fill form when entering edit mode
   const enterEditMode = () => {
     if (todayLog) {
-      setFullPages(todayLog.fullPages);
-      setLastPageEntries(todayLog.lastPageEntries);
+      const { totalPages: tp, entriesOnCurrentPage: ep } = convertFromBackend(todayLog.fullPages, todayLog.lastPageEntries);
+      setTotalPages(tp);
+      setEntriesOnCurrentPage(ep);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setTeamSize(todayLog.teamSize);
@@ -41,7 +55,7 @@ export function WashbayClosingLog() {
 
   const cr   = parseInt(carsRemaining)    || 0;
   const cnpu = parseInt(cleanNotPickedUp) || 0;
-  const carsIn      = fullPages * 19 + lastPageEntries;
+  const carsIn      = carsFromPageCounter(totalPages, entriesOnCurrentPage);
   const carsCleaned = Math.max(0, carsIn - cr);
   const operatingHours = baseHours + overtimeHours;
   const throughput  = operatingHours > 0 ? carsCleaned / operatingHours : 0;
@@ -56,6 +70,7 @@ export function WashbayClosingLog() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
     await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS, overtimeHours });
     setEditing(false);
     setSubmitting(false);
@@ -145,22 +160,24 @@ export function WashbayClosingLog() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Pages</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Full pages</label>
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Pages</label>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setFullPages(v => Math.max(0, v - 1))}
+                <button type="button" onClick={handlePageDecrement}
                   className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
-                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{fullPages}</span>
-                <button type="button" onClick={() => setFullPages(v => v + 1)}
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{totalPages}</span>
+                <button type="button" onClick={handlePageIncrement}
                   className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Last page entries</label>
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+                {totalPages > 0 ? `Entries on page ${totalPages}` : 'Entries'}
+              </label>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setLastPageEntries(v => Math.max(0, v - 1))}
+                <button type="button" onClick={handleEntryDecrement}
                   className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
-                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{lastPageEntries}</span>
-                <button type="button" onClick={() => setLastPageEntries(v => Math.min(19, v + 1))}
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{entriesOnCurrentPage}</span>
+                <button type="button" onClick={handleEntryIncrement}
                   className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
               </div>
             </div>
