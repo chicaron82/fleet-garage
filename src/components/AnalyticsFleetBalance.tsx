@@ -1,7 +1,7 @@
 import { SectionHeader } from './analytics/AnalyticsComponents';
 import { FleetBalanceEntryForm } from './FleetBalanceEntryForm';
 import { useUserResolver } from '../hooks/useUserResolver';
-import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
+import type { FleetBalanceEntry, FleetBalanceProjection } from '../hooks/useFleetBalance';
 
 interface BalanceDay {
   day: string; date: string;
@@ -9,13 +9,13 @@ interface BalanceDay {
   hasData: boolean;
 }
 
-export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, canEnter, onSubmit, weekdayAvgBalance }: {
+export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, canEnter, onSubmit, projection }: {
   fleetBalanceData: BalanceDay[];
   loading: boolean;
   todayEntry: FleetBalanceEntry | undefined;
   canEnter: boolean;
   onSubmit: (outCount: number, inCount: number) => Promise<boolean>;
-  weekdayAvgBalance?: { avgOut: number; avgIn: number } | null;
+  projection?: FleetBalanceProjection | null;
 }) {
   const { getName } = useUserResolver();
   const todayStr = fleetBalanceData[fleetBalanceData.length - 1]?.date;
@@ -35,7 +35,7 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
   return (
     <>
       {canEnter && (
-        <FleetBalanceEntryForm onSubmit={onSubmit} todayEntry={todayEntry} />
+        <FleetBalanceEntryForm onSubmit={onSubmit} todayEntry={todayEntry} projection={projection} />
       )}
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
@@ -47,9 +47,9 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
             <div className="flex items-end gap-2 h-28 mb-3">
               {fleetBalanceData.map(d => {
                 const isToday = d.date === todayStr;
-                const useAvg  = isToday && !d.hasData && !!weekdayAvgBalance;
-                const outVal  = useAvg ? weekdayAvgBalance!.avgOut : (d.outCount ?? 0);
-                const inVal   = useAvg ? weekdayAvgBalance!.avgIn  : (d.inCount  ?? 0);
+                const useAvg  = isToday && !d.hasData && !!projection;
+                const outVal  = useAvg ? projection!.avgOut : (d.outCount ?? 0);
+                const inVal   = useAvg ? projection!.avgIn  : (d.inCount  ?? 0);
                 const outHeight = (d.hasData || useAvg) && maxFleetCount > 0 ? (outVal / maxFleetCount) * 100 : 8;
                 const inHeight  = (d.hasData || useAvg) && maxFleetCount > 0 ? (inVal  / maxFleetCount) * 100 : 8;
                 return (

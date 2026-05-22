@@ -32,7 +32,7 @@ export function AnalyticsDashboard() {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, handoffNotes, getTodayWashbayLog, facilityIssues, shiftCheckpoints } = useGarage();
   const { isPeakSeason } = useSchedule();
-  const { entries, loading, upsertEntry, getTodayEntry, getWeekdayAverage } = useFleetBalance();
+  const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity' | 'my-shift'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
@@ -116,7 +116,7 @@ export function AnalyticsDashboard() {
 
   const todayWashbayLog   = getTodayWashbayLog();
   const todayBalanceEntry  = getTodayEntry();
-  const weekdayAvgBalance  = getWeekdayAverage();
+  const projection         = getProjection();
   const liveWashbay30DayAvg = washbayLogs.length >= 3
     ? Math.round((washbayLogs.reduce((s, l) => {
         const ci = l.fullPages * 19 + l.lastPageEntries;
@@ -257,7 +257,7 @@ export function AnalyticsDashboard() {
             todayEntry={todayBalanceEntry}
             canEnter={canEnter}
             onSubmit={(outCount, inCount) => upsertEntry(localDateStr(), outCount, inCount, user.id)}
-            weekdayAvgBalance={weekdayAvgBalance}
+            projection={projection}
           />
 
           <AnalyticsTripsSummary
@@ -326,7 +326,7 @@ export function AnalyticsDashboard() {
                 activeHolds={activeHolds}
                 liveWashbay30DayAvg={liveWashbay30DayAvg}
                 isPeakSeason={isPeakSeason}
-                weekdayAvgBalance={weekdayAvgBalance}
+                weekdayAvgBalance={projection}
               />
             )}
           </div>

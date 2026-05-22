@@ -20,22 +20,27 @@ export interface FleetBalanceEntry {
   enteredAt: string;    // ISO timestamp
 }
 
+export interface FleetBalanceProjection {
+  avgOut: number;
+  avgIn: number;
+  label: string;
+}
+
 export function useFleetBalance() {
   const [entries, setEntries] = useState<FleetBalanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch last 7 days on mount
   useEffect(() => {
-    fetchLast7Days();
+    fetchHistory();
   }, []);
 
-  async function fetchLast7Days() {
+  async function fetchHistory() {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('fleet_balance')
         .select('*')
-        .gte('date', localDateStr(-7))
+        .gte('date', localDateStr(-90))
         .order('date', { ascending: true });
 
       if (error) throw error;
@@ -73,8 +78,7 @@ export function useFleetBalance() {
 
       if (error) throw error;
 
-      // Refresh the list
-      await fetchLast7Days();
+      await fetchHistory();
       return true;
     } catch (err) {
       console.error('Failed to upsert fleet balance:', err);
@@ -87,16 +91,44 @@ export function useFleetBalance() {
     return entries.find(e => e.date === today);
   }
 
-  function getWeekdayAverage(): { avgOut: number; avgIn: number } | null {
+  function getProjection(): FleetBalanceProjection | null {
     const today = localDateStr();
-    const weekdayEntries = entries.filter(e => {
-      const day = new Date(e.date + 'T00:00:00').getDay();
-      return e.date !== today && day >= 1 && day <= 5;
+    const dayOfWeek = new Date(today + 'T00:00:00').getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const historical = entries.filter(e => e.date !== today);
+
+    if (isWeekend) {
+      const prior7 = historical.slice(-7);
+      if (prior7.length < 2) return null;
+      return {
+        avgOut: Math.round(prior7.reduce((s, e) => s + e.outCount, 0) / prior7.length),
+        avgIn:  Math.round(prior7.reduce((s, e) => s + e.inCount,  0) / prior7.length),
+        label:  'Based on prior week avg · Placeholder until today\'s balance is entered',
+      };
+    }
+
+    const dayName = new Date(today + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long' });
+    const sameDayEntries = historical.filter(e => new Date(e.date + 'T00:00:00').getDay() === dayOfWeek);
+    if (sameDayEntries.length >= 2) {
+      const n = sameDayEntries.length;
+      return {
+        avgOut: Math.round(sameDayEntries.reduce((s, e) => s + e.outCount, 0) / n),
+        avgIn:  Math.round(sameDayEntries.reduce((s, e) => s + e.inCount,  0) / n),
+        label:  `Based on ${n}-${dayName} avg · Placeholder until today's balance is entered`,
+      };
+    }
+
+    // Fallback: overall weekday average
+    const weekdayEntries = historical.filter(e => {
+      const d = new Date(e.date + 'T00:00:00').getDay();
+      return d >= 1 && d <= 5;
     });
     if (weekdayEntries.length < 2) return null;
-    const avgOut = Math.round(weekdayEntries.reduce((s, e) => s + e.outCount, 0) / weekdayEntries.length);
-    const avgIn  = Math.round(weekdayEntries.reduce((s, e) => s + e.inCount,  0) / weekdayEntries.length);
-    return { avgOut, avgIn };
+    return {
+      avgOut: Math.round(weekdayEntries.reduce((s, e) => s + e.outCount, 0) / weekdayEntries.length),
+      avgIn:  Math.round(weekdayEntries.reduce((s, e) => s + e.inCount,  0) / weekdayEntries.length),
+      label:  'Based on weekday avg · Placeholder until today\'s balance is entered',
+    };
   }
 
   return {
@@ -104,6 +136,6 @@ export function useFleetBalance() {
     loading,
     upsertEntry,
     getTodayEntry,
-    getWeekdayAverage,
+    getProjection,
   };
 }

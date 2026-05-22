@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUserResolver } from '../hooks/useUserResolver';
-import type { FleetBalanceEntry } from '../hooks/useFleetBalance';
+import type { FleetBalanceEntry, FleetBalanceProjection } from '../hooks/useFleetBalance';
 
 interface Props {
   onSubmit: (outCount: number, inCount: number) => Promise<boolean>;
   todayEntry?: FleetBalanceEntry;
+  projection?: FleetBalanceProjection | null;
 }
 
-export function FleetBalanceEntryForm({ onSubmit, todayEntry }: Props) {
+export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Props) {
   const { user } = useAuth();
   const { getName } = useUserResolver();
   const [editing, setEditing] = useState(!todayEntry);
@@ -79,6 +80,22 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry }: Props) {
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-4">
         Today's Fleet Numbers
       </h3>
+      {projection && (
+        <div className="mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500 italic">
+            <div>
+              <span className="text-xl font-semibold">Est. {projection.avgOut}</span>
+              <span className="text-xs ml-1.5">OUT</span>
+            </div>
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <div>
+              <span className="text-xl font-semibold">Est. {projection.avgIn}</span>
+              <span className="text-xs ml-1.5">IN</span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 italic">{projection.label}</p>
+        </div>
+      )}
       <div className="flex items-center gap-4 mb-4">
         <div className="flex-1">
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">OUT</label>
