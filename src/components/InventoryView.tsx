@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
@@ -114,19 +114,46 @@ function ClosingChecklist({ defaultOpen }: { defaultOpen: boolean }) {
   );
 }
 
+// ── StepSection ───────────────────────────────────────────────────────────────
+// Collapsed: dashed placeholder row (tappable to jump ahead). Expanded: children.
+
+function StepSection({ title, open, onToggle, children }: {
+  title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  if (!open) {
+    return (
+      <button type="button" onClick={onToggle}
+        className="w-full rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors cursor-pointer">
+        <span>{title}</span>
+        <span className="text-xs">▶</span>
+      </button>
+    );
+  }
+  return <>{children}</>;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function InventoryView() {
   const { user, activeBranch } = useAuth();
-  const { latestHandoff } = useGarage();
+  const { latestHandoff, getTodayCheckpoint } = useGarage();
   const { shifts } = useSchedule();
 
-  const todayISO = toISO(new Date());
-  const isClosingShift = shifts.some(s => s.userId === user!.id && s.date === todayISO && s.shiftType === 'closing');
+  const todayISO          = toISO(new Date());
+  const isScheduledToday  = shifts.some(s => s.userId === user!.id && s.date === todayISO);
+  const isManagementRole  = ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role);
+  const canSeeCheckIn     = isScheduledToday || isManagementRole;
 
-  const [activeTab, setActiveTab]       = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
+  const checkInDoneToday  = !!getTodayCheckpoint();
+  const handoffDoneToday  = !!latestHandoff && latestHandoff.loggedAt.startsWith(localDateStr(0));
+  const [activeTab, setActiveTab]             = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
   const [showHandoffForm, setShowHandoffForm] = useState(false);
-  const [reportDate, setReportDate]     = useState(() => localDateStr(0));
+  const [reportDate, setReportDate]           = useState(() => localDateStr(0));
+  const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
+  const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
+
+  useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
+  useEffect(() => { if (handoffDoneToday)  setClosingLogOpen(true); }, [handoffDoneToday]);
 
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -162,12 +189,14 @@ export function InventoryView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
-          {(isClosingShift || ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role)) && (
-            <ClosingCheckIn />
-          )}
-          <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
-          <WashbayClosingLog />
-          <ClosingChecklist defaultOpen={isClosingShift} />
+          {canSeeCheckIn && <ClosingCheckIn />}
+          <StepSection title="Shift Handoff" open={handoffOpen} onToggle={() => setHandoffOpen(o => !o)}>
+            <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
+          </StepSection>
+          <StepSection title="Closing Log" open={closingLogOpen} onToggle={() => setClosingLogOpen(o => !o)}>
+            <WashbayClosingLog />
+          </StepSection>
+          <ClosingChecklist defaultOpen={isScheduledToday} />
         </>
       )}
 
