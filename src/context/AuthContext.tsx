@@ -81,12 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // First sweep — synchronous, completes before any async op. Prevents hard-refresh
+    // race where INITIAL_SESSION finds a stale token and auto-logs back in.
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('sb-')) localStorage.removeItem(key);
+    }
     setUser(null);
     setActiveBranch('YWG');
     await supabase.auth.signOut();
-    // The lock no-op (needed for Strict Mode) lets a concurrent token refresh race
-    // signOut and re-write a fresh session to localStorage. Sweep any remaining
-    // Supabase keys so a page refresh finds no session.
+    // Second sweep — catches anything re-written by a concurrent token refresh
+    // racing signOut (the lock no-op needed for Strict Mode allows this).
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith('sb-')) localStorage.removeItem(key);
     }

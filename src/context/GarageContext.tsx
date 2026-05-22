@@ -108,14 +108,17 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
     const channel = supabase
       .channel('garage-holds-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'holds' }, async (payload) => {
-        const hold = await refetch((payload.new as { id: string }).id);
-        if (!hold) return;
-        setAllHolds(prev =>
-          prev.some(h => h.id === hold.id)
-            ? prev.map(h => h.id === hold.id ? hold : h)
-            : [hold, ...prev]
-        );
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'holds' }, (payload) => {
+        const id = (payload.new as { id: string }).id;
+        setAllHolds(prev => {
+          if (prev.some(h => h.id === id)) return prev; // optimistic update already applied — skip refetch
+          // Hold from another device/user — refetch to get full relations
+          void refetch(id).then(hold => {
+            if (!hold) return;
+            setAllHolds(p => p.some(h => h.id === hold.id) ? p : [hold, ...p]);
+          });
+          return prev;
+        });
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'holds' }, async (payload) => {
         const hold = await refetch((payload.new as { id: string }).id);
