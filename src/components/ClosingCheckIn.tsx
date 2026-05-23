@@ -76,7 +76,7 @@ export function ClosingCheckIn() {
             </p>
             {overlapCars != null && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
-                🤝 {overlapCars} cars cleaned together (13:30–15:15)
+                🤝 {overlapCars} cars cleaned with morning crew
               </p>
             )}
           </div>

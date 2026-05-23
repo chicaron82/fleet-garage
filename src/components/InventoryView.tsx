@@ -6,6 +6,7 @@ import { toISO } from '../context/ScheduleContext';
 import { WashbayClosingLog } from './WashbayClosingLog';
 import { HandoffForm } from './HandoffForm';
 import { ClosingCheckIn } from './ClosingCheckIn';
+import { MidShiftCheckIn } from './MidShiftCheckIn';
 import { WhiteboardView } from './WhiteboardView';
 import { ShiftSummarySection } from './analytics/ShiftSummarySection';
 import { ShiftRatesCard } from './analytics/ShiftRatesCard';
@@ -141,6 +142,7 @@ export function InventoryView() {
 
   const todayISO          = toISO(new Date());
   const isScheduledToday  = shifts.some(s => s.userId === user!.id && s.date === todayISO);
+  const isMidShift        = shifts.some(s => s.userId === user!.id && s.date === todayISO && s.shiftType === 'mid');
   const isManagementRole  = ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role);
   const canSeeCheckIn     = isScheduledToday || isManagementRole;
 
@@ -189,7 +191,7 @@ export function InventoryView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
-          {canSeeCheckIn && <ClosingCheckIn />}
+          {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <ClosingCheckIn />)}
           <StepSection title="Shift Handoff" open={handoffOpen} onToggle={() => setHandoffOpen(o => !o)}>
             <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
           </StepSection>
