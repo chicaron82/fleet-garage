@@ -116,7 +116,7 @@ describe('Write-First Pattern — ordering contract', () => {
 
     it('awaits a Supabase insert', () => {
       // The insert can be chained: .insert(...) or .insert(...).select().single()
-      const awaitInsertIdx = body.search(/await\s+supabase[\s\S]*?\.insert\s*\(/);
+      const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
       expect(
         awaitInsertIdx,
         `${fn} must contain "await supabase...insert(...)" — write-first contract`,
@@ -124,7 +124,7 @@ describe('Write-First Pattern — ordering contract', () => {
     });
 
     it('checks the error before any live-state setter fires', () => {
-      const awaitInsertIdx = body.search(/await\s+supabase[\s\S]*?\.insert\s*\(/);
+      const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
       // After the await, there must be an `if (error)` (or destructured-error check)
       // BEFORE any live-state setter is reached.
       const tail = body.slice(awaitInsertIdx);
@@ -138,7 +138,7 @@ describe('Write-First Pattern — ordering contract', () => {
     it.each(liveStateSetters)(
       'live-state setter %s appears AFTER the awaited insert',
       setter => {
-        const awaitInsertIdx = body.search(/await\s+supabase[\s\S]*?\.insert\s*\(/);
+        const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
         const setterIdx      = body.indexOf(setter);
 
         expect(

@@ -71,6 +71,7 @@ vi.mock('../../src/context/GarageContext', () => ({
 }));
 
 vi.mock('../../src/lib/supabase', () => ({
+  writeWithRefresh: vi.fn().mockImplementation((cb) => cb()),
   supabase: {
     from: () => ({
       insert: (...args: unknown[]) => {

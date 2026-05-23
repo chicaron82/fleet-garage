@@ -14,7 +14,7 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('movement-log');
     expect(modules).toContain('lost-and-found');
     expect(modules).not.toContain('fleet-garage');
-    expect(modules).not.toContain('inventory');
+    expect(modules).not.toContain('fleet-master');
     expect(modules).not.toContain('check-in');
   });
 
@@ -23,9 +23,9 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('fleet-garage');
   });
 
-  it('CSR does not see inventory', () => {
+  it('CSR does not see fleet-master', () => {
     const modules = getNavItemsForRole('CSR').map(n => n.module);
-    expect(modules).not.toContain('inventory');
+    expect(modules).not.toContain('fleet-master');
   });
 
   it('CSR sees manifest', () => {
@@ -38,7 +38,7 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('fleet-garage');
     expect(modules).toContain('check-in');
     expect(modules).toContain('analytics');
-    expect(modules).toContain('inventory');
+    expect(modules).toContain('fleet-master');
     expect(modules).toContain('lost-and-found');
   });
 
@@ -80,8 +80,8 @@ describe('getActiveModule', () => {
     expect(getActiveModule({ name: 'check-in' })).toBe('check-in');
   });
 
-  it('inventory screen → inventory module', () => {
-    expect(getActiveModule({ name: 'inventory' })).toBe('inventory');
+  it('fleet-master screen → fleet-master module', () => {
+    expect(getActiveModule({ name: 'fleet-master' })).toBe('fleet-master');
   });
 
   it('lost-and-found screen → lost-and-found module', () => {
