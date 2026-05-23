@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { OffStandardTimeLog } from '../../src/components/OffStandardTimeLog';
 import { enqueueOfflineAction } from '../../src/lib/offlineQueue';
+import type { User } from '../../src/types';
 
 // Mocks
-const TEST_USER = {
+const TEST_USER: User = {
   id: 'u1',
   employeeId: 'EMP100',
   name: 'Test VSA',
@@ -80,7 +82,7 @@ vi.mock('../../src/context/ScheduleContext', () => ({
 const RealDate = global.Date;
 let mockTime: number | null = null;
 
-const MockDate = new Proxy(RealDate, {
+const MockDate: DateConstructor = new Proxy(RealDate, {
   construct(target, args) {
     if (args.length === 0 && mockTime !== null) {
       return new RealDate(mockTime);
@@ -121,7 +123,7 @@ describe('OffStandardTimeLog Component', () => {
 
     const btn = await screen.findByText('Opening Duties');
     mockTime = new Date('2026-05-22T21:00:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(btn);
     global.Date = RealDate;
     mockTime = null;
@@ -141,7 +143,7 @@ describe('OffStandardTimeLog Component', () => {
 
     const btn = await screen.findByText('Opening Duties');
     mockTime = new Date('2026-05-22T21:00:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(btn);
     global.Date = RealDate;
     mockTime = null;
@@ -159,7 +161,7 @@ describe('OffStandardTimeLog Component', () => {
     // Start
     const btn = await screen.findByText('Opening Duties');
     mockTime = new Date('2026-05-22T21:00:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(btn);
     global.Date = RealDate;
     mockTime = null;
@@ -169,7 +171,7 @@ describe('OffStandardTimeLog Component', () => {
 
     // Advance mock time by 10 minutes
     mockTime = new Date('2026-05-22T21:10:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(endBtn);
     global.Date = RealDate;
     mockTime = null;
@@ -186,7 +188,7 @@ describe('OffStandardTimeLog Component', () => {
     // Start online
     const btn = await screen.findByText('Opening Duties');
     mockTime = new Date('2026-05-22T21:00:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(btn);
     global.Date = RealDate;
     mockTime = null;
@@ -198,7 +200,7 @@ describe('OffStandardTimeLog Component', () => {
 
     // Advance mock time by 10 minutes
     mockTime = new Date('2026-05-22T21:10:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(endBtn);
     global.Date = RealDate;
     mockTime = null;
@@ -215,7 +217,7 @@ describe('OffStandardTimeLog Component', () => {
     // Start
     const btn = await screen.findByText('Opening Duties');
     mockTime = new Date('2026-05-22T21:00:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(btn);
     global.Date = RealDate;
     mockTime = null;
@@ -224,7 +226,7 @@ describe('OffStandardTimeLog Component', () => {
 
     // Advance mock time by only 2 minutes (less than the 5-minute threshold)
     mockTime = new Date('2026-05-22T21:02:00.000Z').getTime();
-    global.Date = MockDate as any;
+    global.Date = MockDate;
     fireEvent.click(endBtn);
     global.Date = RealDate;
     mockTime = null;
