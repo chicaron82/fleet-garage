@@ -5,8 +5,9 @@ import { enqueueOfflineAction } from '../lib/offlineQueue';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User, Hold, Vehicle, ShiftWithUser } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
-import { localDateStr } from './useFleetBalance'; // Wait, let's verify if localDateStr is exported from hook or helper
+import { localDateStr } from './useFleetBalance';
 import { useInProgressRecovery } from './useInProgressRecovery';
+import { useOffStandardEDV } from './useOffStandardEDV';
 import {
   rowToOffStandard,
   deriveShiftLine,
@@ -70,11 +71,8 @@ export function useOffStandardTimer({
   const [editingEntry, setEditingEntry]     = useState<OffStandardEntry | null>(null);
 
   // Preset + EDV state
-  const [selectedPreset, setSelectedPreset]     = useState<OffStandardPresetReason | null>(null);
-  const [edvLinkedHoldId, setEdvLinkedHoldId]   = useState<string | null>(null);
-  const [edvUnitNumber, setEdvUnitNumber]       = useState<string>('');
-  const [edvManagerName, setEdvManagerName]     = useState<string>('');
-  const [edvNoMatch, setEdvNoMatch]             = useState(false);
+  const edv = useOffStandardEDV({ holds, vehicles, resolveName });
+  const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch, selectPreset } = edv;
 
   // Load completed entries for today
   useEffect(() => {
@@ -105,39 +103,10 @@ export function useOffStandardTimer({
       setStartTimestamp(row.start_time as string);
       setSelectedReason(row.reason as OffStandardReason);
       setExplanation((row.explanation as string | null) ?? '');
-      if (row.preset_reason) setSelectedPreset(row.preset_reason as OffStandardPresetReason);
+      if (row.preset_reason) edv.setSelectedPreset(row.preset_reason as OffStandardPresetReason);
       setTimerState('running');
     },
   );
-
-  function selectPreset(preset: OffStandardPresetReason) {
-    hapticLight();
-    const next = selectedPreset === preset ? null : preset;
-    setSelectedPreset(next);
-    setEdvLinkedHoldId(null);
-    setEdvUnitNumber('');
-    setEdvManagerName('');
-    setEdvNoMatch(false);
-
-    if (next !== 'edv') return;
-
-    const today = localDateStr(0);
-    const edvHold = holds.find(h =>
-      h.holdTypes.includes('detail') &&
-      h.status === 'RELEASED' &&
-      h.release?.approvedAt.startsWith(today) &&
-      !h.offstandardLinked
-    );
-
-    if (!edvHold) { setEdvNoMatch(true); return; }
-
-    const vehicle = vehicles.find(v => v.id === edvHold.vehicleId);
-    const approvedById = edvHold.release?.approvedById;
-
-    setEdvLinkedHoldId(edvHold.id);
-    setEdvUnitNumber(vehicle?.unitNumber ?? edvHold.vehicleId);
-    setEdvManagerName(approvedById ? resolveName(approvedById) : 'Unknown');
-  }
 
   const saveNotes = async (val: string) => {
     if (!inProgressId) return;
@@ -250,7 +219,7 @@ export function useOffStandardTimer({
     if (timerState !== 'idle') return;
     hapticMedium();
     setSelectedReason(tap.reason);
-    setSelectedPreset(tap.preset);
+    edv.setSelectedPreset(tap.preset);
     await handleStartWith(tap.reason, tap.preset);
   };
 
@@ -393,11 +362,7 @@ export function useOffStandardTimer({
     setStopTimestamp('');
     setPendingMinutes(0);
     setExplanation('');
-    setSelectedPreset(null);
-    setEdvLinkedHoldId(null);
-    setEdvUnitNumber('');
-    setEdvManagerName('');
-    setEdvNoMatch(false);
+    edv.resetEDV();
     setStartError(false);
     setEndError(false);
   };
