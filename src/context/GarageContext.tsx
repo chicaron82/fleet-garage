@@ -7,18 +7,14 @@ import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { useLostFound, type LostFoundSlice } from './useLostFound';
 import { useIssues, type IssuesSlice } from './useIssues';
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
+import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
 
-interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoffSlice {
+
+interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoffSlice, ShiftCheckpointsSlice {
   vehicles: Vehicle[];
   holds: Hold[];
   staleHolds: Hold[];
   loading: boolean;
-  shiftCheckpoints: ShiftCheckpoint[];
-  getTodayCheckpoint: () => ShiftCheckpoint | null;
-  getMidArrival: () => ShiftCheckpoint | null;
-  getMidDeparture: () => ShiftCheckpoint | null;
-  submitCheckpoint: (fullPages: number, lastPageEntries: number) => Promise<boolean>;
-  submitMidCheckpoint: (type: 'mid_arrival' | 'mid_departure', fullPages: number, lastPageEntries: number) => Promise<boolean>;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
@@ -49,13 +45,13 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
-  const [shiftCheckpoints, setShiftCheckpoints] = useState<ShiftCheckpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
   const { setFacilityIssues, ...issuesSlice }         = useIssues(user, activeBranch);
   const { setWashbayLogs, setHandoffNotes, ...washbaySlice } = useWashbayHandoff(user, activeBranch);
   const { setAllLostFoundItems, ...lostFoundSlice }   = useLostFound(user, activeBranch, allVehicles);
+  const { setShiftCheckpoints, ...checkpointsSlice }  = useShiftCheckpoints(user, activeBranch);
 
   const vehicles = useMemo(() => {
     if (activeBranch === 'ALL') return allVehicles.filter(v => !v.archivedAt);
@@ -529,89 +525,11 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const getTodayCheckpoint = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
-    return shiftCheckpoints.find(c => c.date === today && c.checkpointType === 'closing_arrival') ?? null;
-  };
 
-  const getMidArrival = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
-    return shiftCheckpoints.find(c => c.date === today && c.checkpointType === 'mid_arrival') ?? null;
-  };
-
-  const getMidDeparture = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
-    return shiftCheckpoints.find(c => c.date === today && c.checkpointType === 'mid_departure') ?? null;
-  };
-
-  const submitCheckpoint = async (fullPages: number, lastPageEntries: number): Promise<boolean> => {
-    const today = new Date().toLocaleDateString('en-CA');
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const { data, error } = await writeWithRefresh(() =>
-      supabase.from('shift_checkpoints').upsert({
-        branch_id:         branchId,
-        date:              today,
-        checkpoint_type:   'closing_arrival',
-        full_pages:        fullPages,
-        last_page_entries: lastPageEntries,
-        logged_by:         user!.id,
-        logged_at:         new Date().toISOString(),
-      }, { onConflict: 'branch_id,date,checkpoint_type' }).select().single()
-    );
-    if (error) return false;
-    if (data) {
-      const mapped = mapCheckpoint(data as unknown as Record<string, unknown>);
-      setShiftCheckpoints(prev => {
-        const idx = prev.findIndex(c => c.id === mapped.id);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = mapped;
-          return next;
-        }
-        return [mapped, ...prev];
-      });
-    }
-    return true;
-  };
-
-  const submitMidCheckpoint = async (
-    type: 'mid_arrival' | 'mid_departure',
-    fullPages: number,
-    lastPageEntries: number,
-  ): Promise<boolean> => {
-    const today = new Date().toLocaleDateString('en-CA');
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const { data, error } = await writeWithRefresh(() =>
-      supabase.from('shift_checkpoints').upsert({
-        branch_id:         branchId,
-        date:              today,
-        checkpoint_type:   type,
-        full_pages:        fullPages,
-        last_page_entries: lastPageEntries,
-        logged_by:         user!.id,
-        logged_at:         new Date().toISOString(),
-      }, { onConflict: 'branch_id,date,checkpoint_type' }).select().single()
-    );
-    if (error) return false;
-    if (data) {
-      const mapped = mapCheckpoint(data as unknown as Record<string, unknown>);
-      setShiftCheckpoints(prev => {
-        const idx = prev.findIndex(c => c.id === mapped.id);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = mapped;
-          return next;
-        }
-        return [mapped, ...prev];
-      });
-    }
-    return true;
-  };
 
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
-      shiftCheckpoints, getTodayCheckpoint, getMidArrival, getMidDeparture, submitCheckpoint, submitMidCheckpoint,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       addVehicle, updateVehicleEVAssets, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
@@ -622,6 +540,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       ...issuesSlice,
       ...washbaySlice,
       ...lostFoundSlice,
+      ...checkpointsSlice,
     }}>
       {children}
     </GarageContext.Provider>
