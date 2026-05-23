@@ -1,8 +1,10 @@
-refactor: extract ShiftSummary shared components to AnalyticsComponents
+refactor: extract useVehicleOperations hook from GarageContext
 
-Move SummaryRow, ShiftSparkline, HistoryCard, SavedSummary type,
-and mapSaved out of ShiftSummarySection into the shared analytics
-barrel file (AnalyticsComponents.tsx).
+All vehicle and hold write operations (addVehicle, addHold,
+addRelease, addPhotosToHold, markRepaired, markReturned,
+syncVehicleStatus, archiveVehicle, restoreVehicle, setCoverPhoto,
+markVehicleEditPending, applyVehicleIdentity, directEditVehicleIdentity)
+moved to src/context/useVehicleOperations.ts.
 
-ShiftSummarySection: 425 -> ~280 lines
-AnalyticsComponents: 23 -> ~140 lines
+GarageContext: 556 -> ~215 lines (data loading, realtime subs, computed values)
+useVehicleOperations: new, 370 lines

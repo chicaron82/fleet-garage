@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId } from '../types';
+import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType } from '../types';
 import { useAuth } from './AuthContext';
-import { supabase, writeWithRefresh } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem, mapCheckpoint } from '../lib/garage-mappers';
-import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { useLostFound, type LostFoundSlice } from './useLostFound';
 import { useIssues, type IssuesSlice } from './useIssues';
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
+import { useVehicleOperations } from './useVehicleOperations';
 
 
 interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoffSlice, ShiftCheckpointsSlice {
@@ -68,6 +68,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return allHolds.filter(h => h.branchId === activeBranch);
   }, [allHolds, activeBranch]);
 
+  // ── Initial data load ────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }, { data: cpData }] = await Promise.all([
@@ -91,10 +92,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime holds subscription — live dashboard updates across all connected devices.
-  // Re-fetches the full hold with relations on each event so nested releases/repairs
-  // are always consistent. INSERT handler upserts to avoid duplicates when the local
-  // mutation already applied the optimistic update.
+  // ── Realtime holds subscription ──────────────────────────────────────────────
   useEffect(() => {
     const refetch = async (id: string) => {
       const { data } = await supabase
@@ -110,8 +108,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'holds' }, (payload) => {
         const id = (payload.new as { id: string }).id;
         setAllHolds(prev => {
-          if (prev.some(h => h.id === id)) return prev; // optimistic update already applied — skip refetch
-          // Hold from another device/user — refetch to get full relations
+          if (prev.some(h => h.id === id)) return prev;
           void refetch(id).then(hold => {
             if (!hold) return;
             setAllHolds(p => p.some(h => h.id === hold.id) ? p : [hold, ...p]);
@@ -129,7 +126,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime checkpoint subscription — live updates when closing crew checks in.
+  // ── Realtime checkpoint subscription ─────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel('garage-checkpoints-realtime')
@@ -149,6 +146,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Computed values ──────────────────────────────────────────────────────────
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber?.toLowerCase() === unitNumber.toLowerCase());
@@ -189,353 +187,21 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [holds]);
 
-  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {
-    const id = `veh-${Date.now()}`;
-    const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').insert({
-        id,
-        unit_number:       vehicle.unitNumber,
-        license_plate:     vehicle.licensePlate,
-        make:              vehicle.make,
-        model:             vehicle.model,
-        year:              vehicle.year,
-        color:             vehicle.color,
-        branch_id:         branchId,
-        status:            'HELD',
-        is_tesla:          vehicle.isTesla ?? false,
-        has_mobile_cable:  vehicle.hasMobileCable ?? null,
-        has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
-      })
-    );
-    if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
-    await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
-      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
-    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
-    setAllVehicles(prev => [newVehicle, ...prev]);
-    return id;
-  };
-
-  const updateVehicleEVAssets = async (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => {
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({
-        has_mobile_cable:  hasMobileCable,
-        has_j1772_adapter: hasJ1772Adapter,
-      }).eq('id', vehicleId)
-    );
-    setAllVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, hasMobileCable, hasJ1772Adapter } : v
-    ));
-  };
-
-  const addHold = async (
-    vehicleId: string,
-    damageDescription: string,
-    notes: string,
-    flaggedById: string,
-    photos?: string[],
-    holdTypes: HoldType[] = ['damage'],
-    detailReason?: DetailReason,
-    mechanicalSubType?: MechanicalSubType | null,
-    linkedHoldId?: string,
-  ) => {
-    const holdId = crypto.randomUUID();
-    const flaggedAt = new Date().toISOString();
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-
-    const photoUrls = (await Promise.all(
-      (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
-    )).filter((url): url is string => url !== null);
-
-    // Attribution is resolved at read time via `useUserResolver` (profiles
-    // join). The denorm columns from migration 056 are deprecated as of
-    // migration 057 — see ARCHITECTURE.md / migrations/057.
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').insert({
-        id: holdId, vehicle_id: vehicleId,
-        hold_type: holdTypes[0], hold_types: holdTypes,
-        detail_reason: detailReason ?? null,
-        mechanical_sub_type: mechanicalSubType ?? null,
-        damage_description: damageDescription,
-        flagged_by_id: flaggedById,
-        flagged_at:    flaggedAt,
-        notes, photos: photoUrls, status: 'ACTIVE',
-        linked_hold_id: linkedHoldId ?? null,
-        branch_id: branchId,
-      })
-    );
-    if (error) throw new Error(`Failed to add hold: ${(error as { message?: string }).message}`);
-
-    const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
-    await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
-      `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
-
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId)
-    );
-
-    const newHold: Hold = {
-      id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
-      damageDescription, flaggedById,
-      // Empty strings here are the new contract: the resolver will produce
-      // the display name from profiles at read time.
-      flaggedByName: '', flaggedByEmployeeId: '',
-      flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
-    };
-    setAllHolds(prev => [newHold, ...prev]);
-    setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
-  };
-
-  const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
-
-    const releaseId = crypto.randomUUID();
-    const newRelease: Release = { ...release, id: releaseId };
-    const otherUnresolvedHolds = holds.filter(
-      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
-    );
-    const newVehicleStatus: VehicleStatus =
-      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
-
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('releases').insert({
-        id: releaseId, hold_id: holdId,
-        approved_by_id: release.approvedById, approved_at: release.approvedAt,
-        release_type: release.releaseType ?? 'EXCEPTION',
-        release_method: release.releaseMethod ?? 'standard',
-        override_authorization: release.overrideAuthorization ?? null,
-        reason: release.reason,
-        expected_return: release.expectedReturn ?? null,
-        actual_return: release.actualReturn ?? null,
-        notes: release.notes,
-      })
-    );
-    if (error) throw new Error(`Failed to add release: ${(error as { message?: string }).message}`);
-
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId)
-    );
-
-    const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
-      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
-
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
-    );
-
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
-  };
-
-  const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) return;
-    const uploadedUrls = (await Promise.all(newPhotos.map(b => uploadPhoto(b, holdId))))
-      .filter((url): url is string => url !== null);
-    if (uploadedUrls.length === 0) return;
-    const merged = [...(hold.photos ?? []), ...uploadedUrls];
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ photos: merged }).eq('id', holdId)
-    );
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, photos: merged }));
-  };
-
-  const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
-    const repairId = crypto.randomUUID();
-    const newRepair: Repair = { ...repair, id: repairId };
-    await writeWithRefresh(() =>
-      supabase.from('repairs').insert({
-        id: repairId, hold_id: holdId,
-        repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
-        outcome: repair.outcome,
-      })
-    );
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
-    );
-    const otherUnresolvedHolds = holds.filter(
-      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
-    );
-    const newVehicleStatus: VehicleStatus =
-      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : otherUnresolvedHolds.some(h => h.release)
-            ? 'OUT_ON_EXCEPTION'
-            : 'CLEAR';
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
-    );
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
-  };
-
-  const markReturned = async (holdId: string) => {
-    const returnedAt = new Date().toISOString();
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) return;
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId)
-    );
-    if (hold.release) await writeWithRefresh(() =>
-      supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release!.id)
-    );
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId)
-    );
-    const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], '🔁',
-      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent', { vehicleId: hold.vehicleId });
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
-      ...h, status: 'RETURNED',
-      release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
-    }));
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
-  };
-
-  const archiveVehicle = async (vehicleId: string) => {
-    const now = new Date().toISOString();
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ archived_at: now, archived_by_id: user!.id }).eq('id', vehicleId)
-    );
-    if (error) return;
-    setAllVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, archivedAt: now, archivedById: user!.id } : v
-    ));
-    const vehicle = allVehicles.find(v => v.id === vehicleId);
-    await pushNotification(
-      vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
-      '📦',
-      `Unit ${vehicle?.unitNumber ?? vehicleId} archived by ${user!.name}.`,
-      'info',
-      { vehicleId },
-    );
-  };
-
-  const restoreVehicle = async (vehicleId: string) => {
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ archived_at: null, archived_by_id: null }).eq('id', vehicleId)
-    );
-    if (error) return;
-    setAllVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, archivedAt: undefined, archivedById: undefined } : v
-    ));
-    const vehicle = allVehicles.find(v => v.id === vehicleId);
-    await pushNotification(
-      vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
-      '🔄',
-      `Unit ${vehicle?.unitNumber ?? vehicleId} restored to active service.`,
-      'info',
-      { vehicleId },
-    );
-  };
-
-  const syncVehicleStatus = async (vehicleId: string) => {
-    const vehicle = allVehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return;
-    const vehicleHolds = holds.filter(h => h.vehicleId === vehicleId && h.status !== 'REPAIRED');
-    const correctStatus: VehicleStatus =
-      vehicleHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : vehicleHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : vehicleHolds.some(h => h.release)
-            ? 'OUT_ON_EXCEPTION'
-            : 'CLEAR';
-    if (vehicle.status === correctStatus) return;
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId)
-    );
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: correctStatus }));
-  };
-
-  const setCoverPhoto = async (vehicleId: string, url: string | null) => {
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ cover_photo_url: url }).eq('id', vehicleId)
-    );
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, coverPhotoUrl: url ?? undefined }));
-  };
-
-  const markVehicleEditPending = (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => {
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
-      ...v,
-      editSuggestedUnit: patch.unit,
-      editSuggestedPlate: patch.plate,
-      editSuggestedBy: patch.by,
-      editSuggestedAt: patch.at,
-      editSuggestionNote: patch.note,
-      editStatus: 'pending',
-    }));
-  };
-
-  const directEditVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({
-        unit_number:          unit,
-        license_plate:        plate,
-        edit_status:          null,
-        edit_suggested_unit:  null,
-        edit_suggested_plate: null,
-        edit_suggested_by:    null,
-        edit_suggested_at:    null,
-        edit_suggestion_note: null,
-        edit_reviewed_by:     null,
-        edit_reviewed_at:     null,
-      }).eq('id', vehicleId)
-    );
-    if (error) return;
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
-      ...v,
-      unitNumber: unit,
-      licensePlate: plate,
-      editStatus: null,
-    }));
-  };
-
-  const applyVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
-    const now = new Date().toISOString();
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({
-        unit_number:      unit,
-        license_plate:    plate,
-        edit_status:      'approved',
-        edit_reviewed_by: user!.id,
-        edit_reviewed_at: now,
-      }).eq('id', vehicleId)
-    );
-    if (error) return;
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
-      ...v,
-      unitNumber: unit,
-      licensePlate: plate,
-      editStatus: 'approved',
-      editReviewedBy: user!.id,
-      editReviewedAt: now,
-    }));
-  };
-
-
+  // ── Vehicle & hold write operations (extracted hook) ─────────────────────────
+  const ops = useVehicleOperations({
+    allVehicles, holds, activeBranch,
+    userId: user?.id ?? '',
+    userName: user?.name ?? '',
+    setAllVehicles, setAllHolds,
+  });
 
   return (
     <GarageContext.Provider value={{
       vehicles, holds, staleHolds, loading,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
-      addVehicle, updateVehicleEVAssets, addHold, addRelease, addPhotosToHold, markRepaired, markReturned, syncVehicleStatus,
-      archiveVehicle, restoreVehicle, archivedVehicles,
-      setCoverPhoto,
-      markVehicleEditPending, applyVehicleIdentity, directEditVehicleIdentity,
+      ...ops,
+      archivedVehicles,
       shuttlePlate, setShuttlePlate,
       ...issuesSlice,
       ...washbaySlice,
