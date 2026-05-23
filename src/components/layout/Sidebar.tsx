@@ -10,7 +10,8 @@ import type { Module, BranchId } from '../../types';
 import type { MockNotification } from '../../data/notifications';
 import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
 import { BRANCH_CONFIGS } from '../../data/mock';
-import { SortableNavItem, restrictToVerticalAxis } from './SortableNavItem';
+import { SortableNavItem } from './SortableNavItem';
+import { restrictToVerticalAxis } from './dndModifiers';
 import { SidebarNotificationPopover } from './SidebarNotificationPopover';
 import { useSidebar } from './useSidebar';
 

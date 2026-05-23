@@ -2,7 +2,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { hapticLight } from '../../lib/haptics';
 import type { NavItem } from '../../lib/navigation';
-import type { Modifier } from '@dnd-kit/core';
 
 interface SortableNavItemProps {
   item: NavItem;
@@ -58,8 +57,3 @@ export function SortableNavItem({
     </div>
   );
 }
-
-export const restrictToVerticalAxis: Modifier = ({ transform }) => ({
-  ...transform,
-  x: 0,
-});

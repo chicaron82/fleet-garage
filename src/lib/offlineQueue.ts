@@ -4,9 +4,9 @@ export interface OfflineAction {
   id: string; // Unique action ID (e.g., UUID)
   table: string;
   action: 'insert' | 'update' | 'delete';
-  payload: any;
+  payload: Record<string, unknown>;
   eqField?: string;
-  eqValue?: any;
+  eqValue?: string | number | boolean | null;
 }
 
 const STORAGE_KEY = 'fg_offline_actions';

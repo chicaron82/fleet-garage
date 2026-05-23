@@ -443,7 +443,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
         enqueueOfflineAction({
           table: 'vsa_trips',
           action: 'delete',
-          payload: null,
+          payload: {},
           eqField: 'id',
           eqValue: inProgressId
         });

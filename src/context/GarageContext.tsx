@@ -124,7 +124,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Realtime checkpoint subscription ─────────────────────────────────────────
   useEffect(() => {

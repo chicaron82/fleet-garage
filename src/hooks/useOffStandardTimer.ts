@@ -268,7 +268,7 @@ export function useOffStandardTimer({
           enqueueOfflineAction({
             table: 'off_standard_entries',
             action: 'delete',
-            payload: null,
+            payload: {},
             eqField: 'id',
             eqValue: inProgressId
           });
@@ -280,7 +280,7 @@ export function useOffStandardTimer({
             enqueueOfflineAction({
               table: 'off_standard_entries',
               action: 'delete',
-              payload: null,
+              payload: {},
               eqField: 'id',
               eqValue: inProgressId
             });

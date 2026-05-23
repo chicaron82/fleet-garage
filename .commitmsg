@@ -1,0 +1,10 @@
+fix: resolve fast-refresh, any types, and stale eslint-disable
+
+- SortableNavItem.tsx: move restrictToVerticalAxis to dndModifiers.ts
+  so the component file exports only React components (fast-refresh)
+- offlineQueue.ts: replace `any` with Record<string,unknown> for
+  payload and string|number|boolean|null for eqValue; update delete
+  callers in useOffStandardTimer + useDriverLiveTrip to pass `{}`
+  instead of null for unused payload field
+- GarageContext.tsx: remove stale eslint-disable-line on holds
+  realtime subscription (no longer triggers the exhaustive-deps rule)
