@@ -7,71 +7,22 @@ import type { EvLastCheck } from './EVAssetCheck';
 import { VehicleScanAndMatch } from './VehicleScanAndMatch';
 import { LostFoundItemList, type InlineFoundItem } from './LostFoundItemList';
 import { parseFleetBarcode } from '../lib/barcode';
-import { hapticLight, hapticMedium } from '../lib/haptics';
+import { hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { isTesla } from '../lib/vehicles';
 import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 import type { Vehicle, ConditionRating, CheckInRouting, EvAssetStatus, HoldType } from '../types';
 import { deriveRouting } from '../types';
+import { ConditionRatingsSelector } from './ConditionRatingsSelector';
+import { FuelLevelSelector, FUEL_LABELS } from './FuelLevelSelector';
+import { CheckInRoutingPreview, ROUTING_CONFIG } from './CheckInRoutingPreview';
+
 
 interface Props {
   onFlagIssue: (vehicleId: string) => void;
 }
 
-const FUEL_LABELS: Record<number, string> = {
-  0: 'Empty', 1: '1/8', 2: '1/4', 3: '3/8',
-  4: '1/2',  5: '5/8', 6: '3/4', 7: '7/8', 8: 'Full',
-};
 
-function fuelColor(v: number): string {
-  if (v <= 1) return '#ef4444';
-  if (v <= 2) return '#f97316';
-  if (v <= 3) return '#eab308';
-  return '#22c55e';
-}
-
-const CONDITION_RATINGS: ConditionRating[] = ['clean', 'good', 'questionable', 'escalated'];
-
-const CONDITION_CONFIG: Record<ConditionRating, { label: string; activeClass: string }> = {
-  clean:        { label: 'Clean',        activeClass: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700' },
-  good:         { label: 'Good',         activeClass: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700' },
-  questionable: { label: 'Questionable', activeClass: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700' },
-  escalated:    { label: 'Escalated',    activeClass: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700' },
-};
-
-const ROUTING_CONFIG: Record<CheckInRouting, {
-  icon: string; label: string; description: string;
-  className: string; textClass: string;
-}> = {
-  flip: {
-    icon: '✅',
-    label: 'Flip Eligible',
-    description: 'Interior and exterior both clean. Vehicle can be flipped at the booth.',
-    className: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40',
-    textClass: 'text-green-700 dark:text-green-400',
-  },
-  washbay: {
-    icon: '🚿',
-    label: 'Send to Washbay',
-    description: 'Vehicle needs standard cleaning before returning to fleet.',
-    className: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40',
-    textClass: 'text-blue-700 dark:text-blue-400',
-  },
-  review: {
-    icon: '🔍',
-    label: 'Needs Review',
-    description: 'Condition is questionable. Hold at HIR for second opinion.',
-    className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40',
-    textClass: 'text-amber-700 dark:text-amber-400',
-  },
-  escalated: {
-    icon: '🚨',
-    label: 'Escalated',
-    description: 'Definite issue found. Flag for management review.',
-    className: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40',
-    textClass: 'text-red-700 dark:text-red-400',
-  },
-};
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const { user } = useAuth();
@@ -419,34 +370,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   </p>
                 )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Fuel Level</label>
-                <div className="space-y-2 px-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold" style={{ color: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}>
-                      ⛽ {fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '—'}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                      {fuelLevel !== null ? `${fuelLevel}/8` : 'set level'}
-                    </span>
-                  </div>
-                  <input
-                    type="range" min={0} max={8} step={1}
-                    value={fuelLevel ?? 4}
-                    onChange={e => setFuelLevel(Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 transition-colors"
-                    style={{ accentColor: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}
-                  />
-                  <div className="flex justify-between px-0.5">
-                    {Array.from({ length: 9 }, (_, i) => (
-                      <div key={i} className={`w-px h-1.5 rounded-full transition-colors ${fuelLevel !== null && i <= fuelLevel ? 'bg-gray-400 dark:bg-gray-400' : 'bg-gray-300 dark:bg-gray-700'}`} />
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
-                    <span>E</span><span>1/4</span><span>1/2</span><span>3/4</span><span>F</span>
-                  </div>
-                </div>
-              </div>
+              <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />
             </div>
 
             {/* Photos */}
@@ -470,64 +394,27 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
             </div>
 
             {/* Condition ratings */}
-            <div className="space-y-4">
-              {(['interior', 'exterior'] as const).map(side => {
-                const value = side === 'interior' ? interiorCondition : exteriorCondition;
-                const setter = side === 'interior' ? setInteriorCondition : setExteriorCondition;
-                return (
-                  <div key={side}>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                      {side === 'interior' ? 'Interior' : 'Exterior'} Condition *
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {CONDITION_RATINGS.map(rating => {
-                        const cfg = CONDITION_CONFIG[rating];
-                        const active = value === rating;
-                        return (
-                          <button
-                            key={rating}
-                            type="button"
-                            onClick={() => { hapticLight(); setter(r => r === rating ? null : rating); }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                              active
-                                ? cfg.activeClass
-                                : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
-                            }`}
-                          >
-                            {cfg.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+            <ConditionRatingsSelector
+              interiorCondition={interiorCondition}
+              setInteriorCondition={setInteriorCondition}
+              exteriorCondition={exteriorCondition}
+              setExteriorCondition={setExteriorCondition}
+            />
 
-              {/* Condition notes */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Condition Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Rear seat looks stained, possible food spill…"
-                  value={conditionNotes}
-                  onChange={e => setConditionNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
-                />
-              </div>
-
-              {/* Routing preview */}
-              {routing && (() => {
-                const cfg = ROUTING_CONFIG[routing];
-                return (
-                  <div className={`rounded-lg border px-4 py-3 transition-colors ${cfg.className}`}>
-                    <p className={`text-sm font-semibold ${cfg.textClass}`}>
-                      {cfg.icon} {cfg.label}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${cfg.textClass} opacity-80`}>{cfg.description}</p>
-                  </div>
-                );
-              })()}
+            {/* Condition notes */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Condition Notes</label>
+              <textarea
+                rows={2}
+                placeholder="Rear seat looks stained, possible food spill…"
+                value={conditionNotes}
+                onChange={e => setConditionNotes(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+              />
             </div>
+
+            {/* Routing preview */}
+            {routing && <CheckInRoutingPreview routing={routing} />}
 
             {scanned && isTesla(scanned.vehicle) && (
               <EVAssetCheck
