@@ -10,6 +10,9 @@ import { useUserResolver } from '../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { parseFleetBarcode } from '../lib/barcode';
+import { DashboardSummaryCards } from './DashboardSummaryCards';
+import { PendingApprovalsSection } from './PendingApprovalsSection';
+import { StaleHoldsAlert } from './StaleHoldsAlert';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -176,7 +179,7 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}
-        <SummaryCards
+        <DashboardSummaryCards
           role={user!.role}
           held={held}
           onException={onException}
@@ -487,16 +490,6 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
   );
 }
 
-// ── Role-aware summary cards ─────────────────────────────────────────────────
-
-const ACTIVE_CARD_STYLES: Record<VehicleStatus, string> = {
-  HELD:             'ring-2 ring-red-500 bg-red-50 dark:bg-red-950/30 border-transparent',
-  OUT_ON_EXCEPTION: 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/30 border-transparent',
-  PRE_EXISTING:     'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/30 border-transparent',
-  RETURNED:         'ring-2 ring-gray-400 bg-gray-100 dark:bg-gray-800/50 border-transparent',
-  CLEAR:            'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/30 border-transparent',
-};
-
 const STATUS_LABELS: Record<VehicleStatus, string> = {
   HELD:             'currently held',
   OUT_ON_EXCEPTION: 'on exception',
@@ -504,195 +497,3 @@ const STATUS_LABELS: Record<VehicleStatus, string> = {
   RETURNED:         'returned',
   CLEAR:            'repaired',
 };
-
-interface CardProps {
-  value: number;
-  label: string;
-  color: string;
-  status?: VehicleStatus;
-  activeFilter?: VehicleStatus | null;
-  onFilterChange?: (status: VehicleStatus) => void;
-}
-
-function Card({ value, label, color, status, activeFilter, onFilterChange }: CardProps) {
-  const isInteractive = !!onFilterChange && !!status;
-  const isActive = isInteractive && activeFilter === status;
-
-  if (!isInteractive) {
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
-        <p className={`text-2xl font-bold ${color}`}>{value}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-      </div>
-    );
-  }
-
-  const baseClasses = 'rounded-xl border p-4 text-center transition-all cursor-pointer';
-  const stateClasses = isActive
-    ? ACTIVE_CARD_STYLES[status!]
-    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm';
-
-  return (
-    <button
-      type="button"
-      onClick={() => { hapticLight(); onFilterChange!(status!); }}
-      aria-pressed={isActive}
-      className={`${baseClasses} ${stateClasses}`}
-    >
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-    </button>
-  );
-}
-
-function SummaryCards({ role, held, onException, preExisting, returned, cleared, activeFilter, onFilterChange }: {
-  role: UserRole;
-  held: number;
-  onException: number;
-  preExisting: number;
-  returned: number;
-  cleared: number;
-  activeFilter: VehicleStatus | null;
-  onFilterChange: (status: VehicleStatus) => void;
-}) {
-  // VSA & Lead VSA — no cards, just search and flag
-  if (role === 'VSA' || role === 'Lead VSA') return null;
-
-  // CSR & HIR — returned count only (display, no filter — single card has no drill-down value)
-  if (role === 'CSR' || role === 'HIR') {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
-        <Card value={returned} label="Returned" color="text-gray-500 dark:text-gray-400" />
-      </div>
-    );
-  }
-
-  // Management — full dashboard, tap any card to filter the list below
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-      <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"       status="HELD"             activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={onException} label="On Exception"   color="text-amber-500"                       status="OUT_ON_EXCEPTION" activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"     status="PRE_EXISTING"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"     status="RETURNED"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={cleared}     label="Repaired"       color="text-green-600 dark:text-green-500"   status="CLEAR"            activeFilter={activeFilter} onFilterChange={onFilterChange} />
-    </div>
-  );
-}
-
-// ── Pending approvals queue (managers) ──────────────────────────────────────
-
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 60)  return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)   return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
-function PendingApprovalsSection({ holds, vehicles, onSelectVehicle }: {
-  holds: Hold[];
-  vehicles: Vehicle[];
-  onSelectVehicle: (vehicleId: string) => void;
-}) {
-  const pending = holds
-    .filter(h => h.status === 'ACTIVE')
-    .sort((a, b) => new Date(a.flaggedAt).getTime() - new Date(b.flaggedAt).getTime()); // oldest first
-
-  const [open, setOpen] = useState(pending.length > 0);
-
-  if (pending.length === 0) return null;
-
-  return (
-    <div className="rounded-xl border border-orange-200 dark:border-orange-800/50 bg-orange-50 dark:bg-orange-950/20 overflow-hidden transition-colors">
-      <button
-        type="button"
-        onClick={() => { hapticLight(); setOpen(o => !o); }}
-        className="w-full flex items-center justify-between px-4 py-3 cursor-pointer"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-orange-800 dark:text-orange-300">
-            Pending Approval
-          </span>
-          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
-            {pending.length}
-          </span>
-        </div>
-        <span className="text-xs text-orange-400 dark:text-orange-500">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open && (
-        <div className="border-t border-orange-200 dark:border-orange-800/40">
-          {pending.map(hold => {
-            const vehicle = vehicles.find(v => v.id === hold.vehicleId);
-            return (
-              <button
-                key={hold.id}
-                type="button"
-                onClick={() => { hapticLight(); onSelectVehicle(hold.vehicleId); }}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-orange-100 dark:hover:bg-orange-900/30 border-b border-orange-100 dark:border-orange-900/30 last:border-0 transition-colors cursor-pointer"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                      {vehicle?.unitNumber ?? '—'}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-                    <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                      {vehicle?.licensePlate ?? ''}
-                    </span>
-                    <span className="text-xs text-orange-500 dark:text-orange-400 font-medium">
-                      {timeAgo(hold.flaggedAt)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                    {hold.damageDescription.slice(0, 55)}{hold.damageDescription.length > 55 ? '…' : ''}
-                  </p>
-                </div>
-                <span className="text-orange-400 dark:text-orange-500 text-xs ml-3 shrink-0">→</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Stale holds alert ───────────────────────────────────────────────────────
-
-function StaleHoldsAlert({ role, staleHolds, vehicles, onSelectVehicle }: {
-  role: UserRole;
-  staleHolds: Hold[];
-  vehicles: Vehicle[];
-  onSelectVehicle: (vehicleId: string) => void;
-}) {
-  // Management only — VSA/Lead VSA see ⚠️ on individual hold cards, not the fleet-level banner
-  if (!canRelease(role)) return null;
-  if (staleHolds.length === 0) return null;
-
-  const staleItems = staleHolds.map(h => {
-    const v = vehicles.find(v => v.id === h.vehicleId);
-    return { vehicleId: h.vehicleId, unitNumber: v?.unitNumber ?? 'Unknown' };
-  });
-
-  return (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
-      <p className="font-semibold mb-1.5">
-        ⚠️ {staleHolds.length} hold{staleHolds.length > 1 ? 's have' : ' has'} been active for more than 48 hours
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {staleItems.map(({ vehicleId, unitNumber }) => (
-          <button
-            key={vehicleId}
-            type="button"
-            onClick={() => onSelectVehicle(vehicleId)}
-            className="bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-md text-xs font-semibold hover:bg-amber-200 dark:hover:bg-amber-700/60 cursor-pointer transition-colors"
-          >
-            {unitNumber}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
