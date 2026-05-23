@@ -15,6 +15,8 @@ import type { TripRun } from '../data/trips';
 import type { RentalClass } from '../data/manifest';
 import type { EvAssetStatus } from '../types';
 import { PriorityHint } from './PriorityHint';
+import { DriverLiveTransitView } from './DriverLiveTransitView';
+import { DriverLiveCompleteView } from './DriverLiveCompleteView';
 
 const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
 type Location = typeof LOCATIONS[number];
@@ -619,74 +621,34 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   // ── In Transit ────────────────────────────────────────────────────────────
   if (liveState === 'in_transit') {
     return (
-      <div className="space-y-3">
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-4 transition-colors">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">In Transit</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                {vehicleDetails ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}` : plate}
-              </p>
-              {vehicleDetails && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Plate: {plate}</p>
-              )}
-              <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 font-medium">{fromLabel} → {toLabel}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Departed {fmtTime(departureTime)}</p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums">{elapsed || '0m 00s'}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">elapsed</p>
-            </div>
-          </div>
-        </div>
-        <NotesField value={notes} onChange={setNotes} tripState="in_transit" />
-        {saveError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
-            <p className="text-xs font-semibold text-red-700 dark:text-red-400">Couldn't save — check connection and try again.</p>
-          </div>
-        )}
-        <button
-          type="button" onClick={handleArrived} disabled={submitting}
-          className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-        >
-          {submitting ? 'Saving…' : '✓ Arrived at Destination'}
-        </button>
-        <button
-          type="button" onClick={handleCancelTrip}
-          className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer py-1"
-        >
-          Cancel trip
-        </button>
-      </div>
+      <DriverLiveTransitView
+        vehicleDetails={vehicleDetails}
+        plate={plate}
+        fromLabel={fromLabel}
+        toLabel={toLabel}
+        departureTime={departureTime}
+        elapsed={elapsed}
+        notes={notes}
+        setNotes={setNotes}
+        saveError={saveError}
+        submitting={submitting}
+        handleArrived={handleArrived}
+        handleCancelTrip={handleCancelTrip}
+      />
     );
   }
 
   // ── Complete ──────────────────────────────────────────────────────────────
-  const dur = Math.round((new Date(arrivalTime).getTime() - new Date(departureTime).getTime()) / 60000);
-
   return (
-    <div className="space-y-3">
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-lg px-4 py-3 transition-colors">
-        <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
-        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-          {vehicleDetails ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}` : plate}
-        </p>
-        {vehicleDetails && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Plate: {plate}</p>
-        )}
-        <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">{fromLabel} → {toLabel}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-          {fmtTime(departureTime)} → {fmtTime(arrivalTime)} · {dur}m
-        </p>
-        {notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic mt-2">"{notes}"</p>}
-      </div>
-      <button
-        type="button"
-        onClick={handleReset}
-        className="w-full py-2.5 rounded-lg border border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400 font-semibold text-sm transition cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20"
-      >
-        Log another →
-      </button>
-    </div>
+    <DriverLiveCompleteView
+      vehicleDetails={vehicleDetails}
+      plate={plate}
+      fromLabel={fromLabel}
+      toLabel={toLabel}
+      departureTime={departureTime}
+      arrivalTime={arrivalTime}
+      notes={notes}
+      handleReset={handleReset}
+    />
   );
 }
