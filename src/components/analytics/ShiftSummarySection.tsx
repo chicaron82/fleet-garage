@@ -4,6 +4,10 @@ import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { isManagement } from '../../lib/analytics';
+import {
+  SummaryRow, ShiftSparkline, HistoryCard,
+  type SavedSummary, mapSaved,
+} from './AnalyticsComponents';
 
 function fmtMinutes(mins: number): string {
   if (mins === 0) return '0m';
@@ -17,11 +21,6 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
 }
 
-function fmtDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
 interface LiveSummary {
   offStandardMinutes: number;
   offStandardBreakdown: Record<string, number>;
@@ -29,99 +28,6 @@ interface LiveSummary {
   tripMinutes: number;
   holdsFlagged: number;
   firstActivityAt: string | null;
-}
-
-interface SavedSummary {
-  id: string;
-  userId: string;
-  userName: string;
-  date: string;
-  savedAt: string;
-  offStandardMinutes: number;
-  offStandardBreakdown: Record<string, number> | null;
-  tripCount: number;
-  tripMinutes: number;
-  holdsFlagged: number;
-  firstActivityAt: string | null;
-}
-
-function mapSaved(row: Record<string, unknown>): SavedSummary {
-  return {
-    id:                    row.id as string,
-    userId:                row.user_id as string,
-    userName:              row.user_name as string,
-    date:                  row.date as string,
-    savedAt:               row.saved_at as string,
-    offStandardMinutes:    row.off_standard_minutes as number,
-    offStandardBreakdown:  row.off_standard_breakdown as Record<string, number> | null,
-    tripCount:             row.trip_count as number,
-    tripMinutes:           row.trip_minutes as number,
-    holdsFlagged:          row.holds_flagged as number,
-    firstActivityAt:       row.first_activity_at as string | null,
-  };
-}
-
-function SummaryRow({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
-  return (
-    <div className="px-4 py-3 flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
-        {sub}
-      </div>
-      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0">{value}</p>
-    </div>
-  );
-}
-
-function ShiftSparkline({ history }: { history: SavedSummary[] }) {
-  const points = [...history].reverse(); // chronological: oldest left, newest right
-  if (points.length < 2) return null;
-
-  const values = points.map(s => s.offStandardMinutes);
-  const max    = Math.max(...values, 1);
-  const min    = Math.min(...values);
-  const range  = max - min || 1;
-
-  const W = 80; const H = 24; const PAD = 3;
-  const plotW = W - PAD * 2;
-  const plotH = H - PAD * 2;
-
-  const coords = points.map((s, i) => ({
-    x: PAD + (i / (points.length - 1)) * plotW,
-    y: PAD + (1 - (s.offStandardMinutes - min) / range) * plotH,
-  }));
-
-  const polyline = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
-  const last     = coords[coords.length - 1];
-
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none" className="shrink-0">
-      <polyline
-        points={polyline}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="stroke-amber-400 dark:stroke-amber-500"
-      />
-      <circle cx={last.x.toFixed(1)} cy={last.y.toFixed(1)} r="2.5" className="fill-amber-500 dark:fill-amber-400" />
-    </svg>
-  );
-}
-
-function HistoryCard({ s }: { s: SavedSummary }) {
-  return (
-    <div className="px-4 py-3">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtDate(s.date)}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
-      </div>
-      <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-        <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
-        {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
-        {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} hold{s.holdsFlagged !== 1 ? 's' : ''}</span>}
-      </div>
-    </div>
-  );
 }
 
 export function ShiftSummarySection({ activeBranch, onViewDateChange }: { activeBranch: string; onViewDateChange?: (date: string) => void }) {
@@ -205,14 +111,7 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
       ...(holdsResult.data ?? []).map(r => r.flagged_at as string),
     ].filter(Boolean).sort();
 
-    setLive({
-      offStandardMinutes,
-      offStandardBreakdown,
-      tripCount,
-      tripMinutes,
-      holdsFlagged,
-      firstActivityAt: allTimes[0] ?? null,
-    });
+    setLive({ offStandardMinutes, offStandardBreakdown, tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null });
 
     const saved = (histResult.data ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>));
     setHistory(saved);

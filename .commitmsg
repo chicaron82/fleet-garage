@@ -1,1 +1,8 @@
-fix: resolve TS build errors from refactor session
+refactor: extract ShiftSummary shared components to AnalyticsComponents
+
+Move SummaryRow, ShiftSparkline, HistoryCard, SavedSummary type,
+and mapSaved out of ShiftSummarySection into the shared analytics
+barrel file (AnalyticsComponents.tsx).
+
+ShiftSummarySection: 425 -> ~280 lines
+AnalyticsComponents: 23 -> ~140 lines
