@@ -1,16 +1,20 @@
 import { useRef, useState } from 'react';
 import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
-import { canRelease, canManageVehicles, REPAIR_OUTCOME_LABELS } from '../types';
-import type { RepairOutcome } from '../types';
+import { canRelease, canManageVehicles } from '../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
-import { hapticHeavy, hapticLight, hapticMedium } from '../lib/haptics';
+import { hapticHeavy, hapticLight } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
 import { VerbalOverrideForm } from './VerbalOverrideForm';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { PhotoLightbox } from './PhotoLightbox';
+import { VehicleEVAssets } from './VehicleEVAssets';
+import { VehicleDirectEditModal } from './VehicleDirectEditModal';
+import { VehicleArchiveModal } from './VehicleArchiveModal';
+import { RepairConfirmSection } from './RepairConfirmSection';
+
 
 interface Props {
   vehicleId: string;
@@ -38,11 +42,7 @@ function holdActionLabel(holdTypes: string[]): string {
   return 'Mark as Repaired';
 }
 
-function holdConfirmBody(holdTypes: string[]): string {
-  if (holdTypes.includes('detail'))     return 'This marks the detail work as complete.';
-  if (holdTypes.includes('mechanical')) return 'This marks the service as complete.';
-  return 'This marks the damage as fully repaired.';
-}
+
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
@@ -199,96 +199,20 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           )}
         </div>
 
-        {/* EV Assets — Teslas only */}
-        {(vehicle.isTesla || vehicle.make.toLowerCase() === 'tesla') && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">⚡ EV Assets</p>
+        <VehicleEVAssets
+          vehicle={vehicle}
+          userRole={h.user.role}
+          updateVehicleEVAssets={updateVehicleEVAssets}
+        />
 
-            {/* Read-only status rows */}
-            <div className="space-y-2">
-              {([
-                { label: 'Mobile Charge Cable', present: vehicle.hasMobileCable },
-                { label: 'J1772 Adapter',       present: vehicle.hasJ1772Adapter },
-              ] as const).map(({ label, present }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-                  {present === null ? (
-                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">Not assessed</span>
-                  ) : present ? (
-                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">✓ Present</span>
-                  ) : (
-                    <span className="text-xs font-semibold text-red-600 dark:text-red-400">✗ Missing</span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Management direct-edit toggles */}
-            {canManageVehicles(h.user.role) && (
-              <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-3">
-                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Update</p>
-                {([
-                  { label: 'Mobile Charge Cable', current: vehicle.hasMobileCable ?? true, isAdapter: false },
-                  { label: 'J1772 Adapter',       current: vehicle.hasJ1772Adapter ?? true, isAdapter: true  },
-                ]).map(({ label, current, isAdapter }) => (
-                  <label key={label} className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={current}
-                      onChange={async e => {
-                        const next = e.target.checked;
-                        await updateVehicleEVAssets(
-                          vehicleId,
-                          isAdapter ? (vehicle.hasMobileCable  ?? true) : next,
-                          isAdapter ? next                               : (vehicle.hasJ1772Adapter ?? true),
-                        );
-                      }}
-                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Archive Confirm Dialog */}
         {showArchiveConfirm && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4 bg-black/40">
-            <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl p-5 space-y-4">
-              <div>
-                <p className="text-base font-bold text-gray-900 dark:text-gray-100">
-                  Archive Unit {vehicle.unitNumber}?
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  This vehicle will be removed from active service. All hold history
-                  and records are preserved. You can restore it at any time.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowArchiveConfirm(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    hapticMedium();
-                    await archiveVehicle(vehicle.id);
-                    setShowArchiveConfirm(false);
-                    onBack();
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold cursor-pointer transition"
-                >
-                  Archive
-                </button>
-              </div>
-            </div>
-          </div>
+          <VehicleArchiveModal
+            vehicleId={vehicle.id}
+            unitNumber={vehicle.unitNumber}
+            onClose={() => setShowArchiveConfirm(false)}
+            onBack={onBack}
+            archiveVehicle={archiveVehicle}
+          />
         )}
         {h.showReleaseForm && (
           <ReleaseForm
@@ -307,72 +231,20 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           />
         )}
 
-        {/* Repair Confirm */}
         {h.showRepairConfirm && (() => {
           const confirmHold = h.holds.find(hold => hold.id === h.showRepairConfirm);
-          const actionLabel = confirmHold ? holdActionLabel(confirmHold.holdTypes) : 'Mark as Done';
-          const bodyText    = confirmHold ? holdConfirmBody(confirmHold.holdTypes) : 'This marks the work as complete.';
+          if (!confirmHold) return null;
           return (
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/40 p-5 space-y-4">
-            <h2 className="text-xs font-semibold text-green-800 dark:text-green-300 uppercase tracking-widest">
-              Confirm
-            </h2>
-            <p className="text-sm text-green-900 dark:text-green-200">
-              {bodyText} The vehicle will be set to <strong>Clear</strong> and returned to service.
-            </p>
-            <div>
-              <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">
-                Notes (optional)
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Repair details, shop, completion date…"
-                value={h.repairNotes}
-                onChange={e => h.setRepairNotes(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-green-300 dark:border-green-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-green-800 dark:text-green-300 uppercase tracking-wide">
-                Repair outcome
-              </p>
-              <div className="flex gap-2">
-                {(['clean', 'scar-remains'] as RepairOutcome[]).map(o => (
-                  <button
-                    key={o}
-                    type="button"
-                    onClick={() => { hapticLight(); h.setRepairOutcome(o); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                      h.repairOutcome === o
-                        ? o === 'clean'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 text-green-700 dark:text-green-400'
-                          : 'bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400'
-                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {REPAIR_OUTCOME_LABELS[o]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={h.cancelRepair}
-                className="flex-1 py-2.5 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 font-medium text-sm rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={h.repairing}
-                onClick={h.handleRepair}
-                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
-              >
-                {h.repairing ? 'Saving…' : actionLabel}
-              </button>
-            </div>
-          </div>
+            <RepairConfirmSection
+              hold={confirmHold}
+              repairNotes={h.repairNotes}
+              setRepairNotes={h.setRepairNotes}
+              repairOutcome={h.repairOutcome}
+              setRepairOutcome={h.setRepairOutcome}
+              repairing={h.repairing}
+              onCancel={h.cancelRepair}
+              onConfirm={h.handleRepair}
+            />
           );
         })()}
 
@@ -600,67 +472,13 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
     )}
 
     {showDirectEdit && (
-      <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4 bg-black/40">
-        <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-base font-bold text-gray-900 dark:text-gray-100">Edit Identity</p>
-            <button
-              type="button"
-              onClick={() => setShowDirectEdit(false)}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Number</label>
-              <input
-                type="text"
-                value={editUnit}
-                onChange={e => setEditUnit(e.target.value)}
-                placeholder="Unit number (leave blank if unknown)"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">License Plate</label>
-              <input
-                type="text"
-                value={editPlate}
-                onChange={e => setEditPlate(e.target.value.toUpperCase())}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => setShowDirectEdit(false)}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!editPlate.trim() || editSaving}
-              onClick={async () => {
-                setEditSaving(true);
-                await directEditVehicleIdentity(
-                  vehicleId,
-                  editUnit.trim() || null,
-                  editPlate.trim().toUpperCase(),
-                );
-                setEditSaving(false);
-                setShowDirectEdit(false);
-              }}
-              className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black text-sm font-semibold transition cursor-pointer"
-            >
-              {editSaving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <VehicleDirectEditModal
+        vehicleId={vehicleId}
+        initialUnitNumber={vehicle.unitNumber}
+        initialLicensePlate={vehicle.licensePlate}
+        onClose={() => setShowDirectEdit(false)}
+        directEditVehicleIdentity={directEditVehicleIdentity}
+      />
     )}
     </>
   );
