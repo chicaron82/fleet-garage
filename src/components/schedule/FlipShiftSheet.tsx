@@ -40,10 +40,10 @@ interface Props {
 }
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
-  const { updateShift, logActualHours, isPeakSeason } = useSchedule();
+  const { updateShift, deleteShift, logActualHours, isPeakSeason } = useSchedule();
   const typeDefaults = getTypeDefaults(isPeakSeason);
 
-  const [shiftType, setShiftType] = useState<ShiftType>(shift.shiftType);
+  const [shiftType, setShiftType] = useState<ShiftType | null>(shift.shiftType);
   const [startTime, setStartTime] = useState(shift.startTime ?? '');
   const [endTime,   setEndTime]   = useState(shift.endTime   ?? '');
   const [saving,    setSaving]    = useState(false);
@@ -57,12 +57,12 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [savingActual, setSavingActual] = useState(false);
   const [actualError,  setActualError]  = useState('');
 
-  const isDayOff = isFullDayShift(shiftType);
+  const isDayOff = shiftType !== null && isFullDayShift(shiftType);
 
   // Live OT preview
   const previewOT = calcOT({
     ...shift,
-    shiftType,
+    shiftType: shiftType ?? shift.shiftType,
     actualStartTime: actualStart || undefined,
     actualEndTime:   actualEnd   || undefined,
     isStat,
@@ -70,12 +70,29 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const actualHrs = calcHours(actualStart, actualEnd);
 
   const handleTypeChange = (t: ShiftType) => {
+    if (t === shiftType) {
+      setShiftType(null);
+      return;
+    }
     setShiftType(t);
     setStartTime(typeDefaults[t].start);
     setEndTime(typeDefaults[t].end);
   };
 
   const handleSave = async () => {
+    if (shiftType === null) {
+      setSaving(true);
+      setError('');
+      try {
+        await deleteShift(shift.id);
+        onClose();
+      } catch {
+        setError('Failed to remove. Please try again.');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (!isDayOff && startTime >= endTime) {
       setError('End time must be after start time.');
       return;
@@ -169,9 +186,15 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full py-2.5 bg-gray-900 dark:bg-gray-100 hover:bg-gray-700 dark:hover:bg-gray-300 disabled:opacity-40 text-white dark:text-gray-900 font-semibold text-sm rounded-xl transition cursor-pointer"
+          className={`w-full py-2.5 disabled:opacity-40 font-semibold text-sm rounded-xl transition cursor-pointer ${
+            shiftType === null
+              ? 'bg-rose-600 hover:bg-rose-500 text-white'
+              : 'bg-gray-900 dark:bg-gray-100 hover:bg-gray-700 dark:hover:bg-gray-300 text-white dark:text-gray-900'
+          }`}
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving
+            ? (shiftType === null ? 'Removing…' : 'Saving…')
+            : (shiftType === null ? 'Remove Shift' : 'Save')}
         </button>
 
         {/* Divider */}
