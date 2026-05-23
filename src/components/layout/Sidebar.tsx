@@ -16,7 +16,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { mapHandoffNote } from '../../lib/garage-mappers';
-import type { Module, Screen, BranchId, UserRole, HandoffNote, ShiftType } from '../../types';
+import type { Module, Screen, BranchId, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
 import type { MockNotification } from '../../data/notifications';
 
@@ -25,12 +25,6 @@ import { BRANCH_CONFIGS } from '../../data/mock';
 import { SortableNavItem, restrictToVerticalAxis } from './SortableNavItem';
 import { SidebarNotificationPopover } from './SidebarNotificationPopover';
 import type { LiveNotification } from './SidebarNotificationPopover';
-
-interface LiveNotification {
-  id: string; branch_id: string; recipient_roles: UserRole[];
-  icon: string; text: string; is_read: boolean; read_by: string[];
-  created_at: string;
-}
 
 interface Props {
   activeModule: Module;

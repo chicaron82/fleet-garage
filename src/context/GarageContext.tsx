@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId, ShiftCheckpoint } from '../types';
+import type { Vehicle, Hold, Release, Repair, VehicleStatus, HoldType, DetailReason, MechanicalSubType, BranchId } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { mapVehicle, mapHold, mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem, mapCheckpoint } from '../lib/garage-mappers';

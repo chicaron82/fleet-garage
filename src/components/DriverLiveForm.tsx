@@ -62,7 +62,6 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     to,
   } = useDriverLiveTrip({
     user,
-    shuttlePlate,
     onTripComplete,
   });
 

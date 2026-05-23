@@ -16,7 +16,6 @@ interface PriorDamageReHoldFormProps {
 }
 
 export function PriorDamageReHoldForm({
-  vehicleId,
   mostRecent,
   user,
   submitting,

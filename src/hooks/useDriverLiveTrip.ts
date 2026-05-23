@@ -16,11 +16,10 @@ export type RouteStep = 'origin' | 'destination' | 'confirmed';
 
 interface UseDriverLiveTripProps {
   user: User | null;
-  shuttlePlate: string | undefined;
   onTripComplete: (trip: TripRun) => void;
 }
 
-export function useDriverLiveTrip({ user, shuttlePlate, onTripComplete }: UseDriverLiveTripProps) {
+export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripProps) {
   const [liveState, setLiveState]         = useState<'form' | 'in_transit' | 'complete'>('form');
   const [routeStep, setRouteStep]         = useState<RouteStep>('origin');
   const [from, setFrom]                   = useState<Location | null>(null);

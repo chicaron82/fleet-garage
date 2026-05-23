@@ -3,7 +3,7 @@ import { useVehicleHistory } from '../hooks/useVehicleHistory';
 import { useGarage } from '../context/GarageContext';
 import { canRelease, canManageVehicles } from '../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
-import { hapticHeavy, hapticLight } from '../lib/haptics';
+import { hapticHeavy } from '../lib/haptics';
 import { StatusBadge } from './StatusBadge';
 import { holdTypePillClass, getTireSwapSeason } from '../lib/holdBadge';
 import { ReleaseForm } from './ReleaseForm';
@@ -52,9 +52,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showEditSuggestion, setShowEditSuggestion] = useState(false);
   const [showDirectEdit, setShowDirectEdit]   = useState(false);
-  const [editUnit,        setEditUnit]         = useState('');
-  const [editPlate,       setEditPlate]        = useState('');
-  const [editSaving,      setEditSaving]       = useState(false);
+
 
   const { vehicle } = h;
   if (!vehicle) return null;
@@ -93,8 +91,6 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   <button
                     onClick={() => {
                       if (canManageVehicles(h.user.role)) {
-                        setEditUnit(vehicle.unitNumber ?? '');
-                        setEditPlate(vehicle.licensePlate);
                         setShowDirectEdit(true);
                       } else {
                         setShowEditSuggestion(true);
