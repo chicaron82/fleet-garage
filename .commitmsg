@@ -1,6 +1,0 @@
-fix: type useOffStandardTimer holds/vehicles/shifts properly
-
-Replace any[] with Hold[], Vehicle[], and ShiftWithUser[] in the
-UseOffStandardTimerProps interface. ShiftWithUser imported from the
-types barrel (where it is exported) rather than offStandardReport
-(where it is only imported internally).
