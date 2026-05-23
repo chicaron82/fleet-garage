@@ -1,10 +1,9 @@
-refactor: extract useVehicleOperations hook from GarageContext
+refactor: extract useSidebar hook from Sidebar.tsx
 
-All vehicle and hold write operations (addVehicle, addHold,
-addRelease, addPhotosToHold, markRepaired, markReturned,
-syncVehicleStatus, archiveVehicle, restoreVehicle, setCoverPhoto,
-markVehicleEditPending, applyVehicleIdentity, directEditVehicleIdentity)
-moved to src/context/useVehicleOperations.ts.
+All state, effects, data loading, productivity derivations, and
+handlers extracted to src/components/layout/useSidebar.ts.
+Sidebar.tsx is now a pure render component that destructures the
+hook result for layout and event wiring.
 
-GarageContext: 556 -> ~215 lines (data loading, realtime subs, computed values)
-useVehicleOperations: new, 370 lines
+Sidebar.tsx:   614 -> ~240 lines
+useSidebar.ts: new, ~270 lines
