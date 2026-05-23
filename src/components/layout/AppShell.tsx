@@ -8,6 +8,7 @@ import { VehicleEditApprovalSheet } from '../VehicleEditApprovalSheet';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
+import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
 import type { MockNotification } from '../../data/notifications';
 import type { Module, Screen } from '../../types';
 
@@ -19,6 +20,7 @@ interface Props {
 
 export function AppShell({ activeModule, onNavigate, children }: Props) {
   const { user, activeBranch } = useAuth();
+  const isOnline = useNavigatorOnLine();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
   const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
@@ -74,8 +76,14 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors">
+            <div className="w-6 h-6 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors relative">
               <span className="text-black font-bold text-[10px]">FG</span>
+              <span
+                className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 transition-colors ${
+                  isOnline ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
+                }`}
+                title={isOnline ? 'Online' : 'Offline'}
+              />
             </div>
             <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
             <button

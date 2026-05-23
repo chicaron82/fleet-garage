@@ -3,6 +3,7 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { enqueueOfflineAction } from '../lib/offlineQueue';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
@@ -304,10 +305,15 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     const expl = deriveExplanation(preset, edvUnitNumber, edvManagerName, explanation);
     if (preset) setExplanation(expl);
 
-    const { data, error } = await writeWithRefresh(() =>
-      supabase
-        .from('off_standard_entries')
-        .insert({
+    const entryId = crypto.randomUUID();
+    let error = null;
+
+    if (!navigator.onLine) {
+      enqueueOfflineAction({
+        table: 'off_standard_entries',
+        action: 'insert',
+        payload: {
+          id:             entryId,
           user_id:        user.id,
           branch_id:      user.branchId,
           date:           localDateStr(0),
@@ -320,10 +326,57 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
           status:         'in_progress',
           ...(preset ? { preset_reason: preset } : {}),
           ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
-        })
-        .select('id')
-        .single()
-    );
+        }
+      });
+    } else {
+      const res = await writeWithRefresh(() =>
+        supabase
+          .from('off_standard_entries')
+          .insert({
+            id:             entryId,
+            user_id:        user.id,
+            branch_id:      user.branchId,
+            date:           localDateStr(0),
+            start_time:     now,
+            stop_time:      null,
+            minutes:        null,
+            reason,
+            explanation:    expl.trim() || null,
+            auto_from_trip: false,
+            status:         'in_progress',
+            ...(preset ? { preset_reason: preset } : {}),
+            ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
+          })
+          .select('id')
+          .single()
+      );
+      if (res.error) {
+        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+        if (isNetworkErr) {
+          enqueueOfflineAction({
+            table: 'off_standard_entries',
+            action: 'insert',
+            payload: {
+              id:             entryId,
+              user_id:        user.id,
+              branch_id:      user.branchId,
+              date:           localDateStr(0),
+              start_time:     now,
+              stop_time:      null,
+              minutes:        null,
+              reason,
+              explanation:    expl.trim() || null,
+              auto_from_trip: false,
+              status:         'in_progress',
+              ...(preset ? { preset_reason: preset } : {}),
+              ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
+            }
+          });
+        } else {
+          error = res.error;
+        }
+      }
+    }
 
     if (error) {
       console.error('Off-standard start write failed:', error);
@@ -331,7 +384,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       return;
     }
 
-    setInProgressId((data as { id: string }).id);
+    setInProgressId(entryId);
     setStartTimestamp(now);
     setTimerState('running');
   };
@@ -359,25 +412,105 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
     if (mins < MIN_ENTRY_MINUTES) {
       if (inProgressId) {
-        await writeWithRefresh(() =>
-          supabase.from('off_standard_entries').delete().eq('id', inProgressId!)
-        );
+        if (!navigator.onLine) {
+          enqueueOfflineAction({
+            table: 'off_standard_entries',
+            action: 'delete',
+            payload: null,
+            eqField: 'id',
+            eqValue: inProgressId
+          });
+        } else {
+          const res = await writeWithRefresh(() =>
+            supabase.from('off_standard_entries').delete().eq('id', inProgressId!)
+          );
+          if (res.error && (!navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code)) {
+            enqueueOfflineAction({
+              table: 'off_standard_entries',
+              action: 'delete',
+              payload: null,
+              eqField: 'id',
+              eqValue: inProgressId
+            });
+          }
+        }
       }
       handleDiscard();
       return;
     }
 
-    const { error } = await writeWithRefresh(() =>
-      supabase
-        .from('off_standard_entries')
-        .update({
+    let error = null;
+
+    if (!navigator.onLine) {
+      enqueueOfflineAction({
+        table: 'off_standard_entries',
+        action: 'update',
+        payload: {
           stop_time:   now,
           minutes:     mins,
           explanation: explanation.trim() || null,
           status:      'complete',
-        })
-        .eq('id', inProgressId!)
-    );
+        },
+        eqField: 'id',
+        eqValue: inProgressId
+      });
+      if (selectedPreset === 'edv' && edvLinkedHoldId) {
+        enqueueOfflineAction({
+          table: 'holds',
+          action: 'update',
+          payload: { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
+          eqField: 'id',
+          eqValue: edvLinkedHoldId
+        });
+      }
+    } else {
+      const res = await writeWithRefresh(() =>
+        supabase
+          .from('off_standard_entries')
+          .update({
+            stop_time:   now,
+            minutes:     mins,
+            explanation: explanation.trim() || null,
+            status:      'complete',
+          })
+          .eq('id', inProgressId!)
+      );
+      if (res.error) {
+        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+        if (isNetworkErr) {
+          enqueueOfflineAction({
+            table: 'off_standard_entries',
+            action: 'update',
+            payload: {
+              stop_time:   now,
+              minutes:     mins,
+              explanation: explanation.trim() || null,
+              status:      'complete',
+            },
+            eqField: 'id',
+            eqValue: inProgressId
+          });
+          if (selectedPreset === 'edv' && edvLinkedHoldId) {
+            enqueueOfflineAction({
+              table: 'holds',
+              action: 'update',
+              payload: { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
+              eqField: 'id',
+              eqValue: edvLinkedHoldId
+            });
+          }
+        } else {
+          error = res.error;
+        }
+      } else {
+        if (selectedPreset === 'edv' && edvLinkedHoldId) {
+          await supabase
+            .from('holds')
+            .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
+            .eq('id', edvLinkedHoldId);
+        }
+      }
+    }
 
     if (error) {
       console.error('[handleEnd] update failed:', error);
@@ -385,28 +518,20 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       return;
     }
 
-    if (!error) {
-      if (selectedPreset === 'edv' && edvLinkedHoldId) {
-        await supabase
-          .from('holds')
-          .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
-          .eq('id', edvLinkedHoldId);
-      }
-      setStopTimestamp(now);
-      setPendingMinutes(mins);
-      setEntries(prev => [...prev, {
-        id:           inProgressId!,
-        startTime:    startTimestamp,
-        stopTime:     now,
-        minutes:      mins,
-        reason:       selectedReason,
-        explanation:  explanation.trim() || undefined,
-        autoFromTrip: false,
-        presetReason: selectedPreset,
-        linkedHoldId: selectedPreset === 'edv' ? edvLinkedHoldId : null,
-      }]);
-      setTimerState('complete');
-    }
+    setStopTimestamp(now);
+    setPendingMinutes(mins);
+    setEntries(prev => [...prev, {
+      id:           inProgressId!,
+      startTime:    startTimestamp,
+      stopTime:     now,
+      minutes:      mins,
+      reason:       selectedReason,
+      explanation:  explanation.trim() || undefined,
+      autoFromTrip: false,
+      presetReason: selectedPreset,
+      linkedHoldId: selectedPreset === 'edv' ? edvLinkedHoldId : null,
+    }]);
+    setTimerState('complete');
   };
 
   const handleDiscard = () => {

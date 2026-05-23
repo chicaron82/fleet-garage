@@ -97,6 +97,23 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const [evCableStatus, setEvCableStatus]       = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus]   = useState<EvAssetStatus | null>(null);
   const [lastEvCheck, setLastEvCheck]           = useState<EvLastCheck | null>(null);
+  const [lastMileage, setLastMileage]           = useState<number | null>(null);
+
+  const fetchLastMileage = useCallback(async (vehicle: Vehicle) => {
+    const { data } = await supabase
+      .from('vehicle_checkins')
+      .select('mileage')
+      .eq('vehicle_id', vehicle.id)
+      .not('mileage', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data && data.mileage) {
+      setLastMileage(Number(data.mileage));
+    } else {
+      setLastMileage(null);
+    }
+  }, []);
 
   const routing = useMemo<CheckInRouting | null>(() => {
     if (!interiorCondition || !exteriorCondition) return null;
@@ -163,8 +180,10 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setEvCableStatus(null);
     setEvAdapterStatus(null);
     setLastEvCheck(null);
+    setLastMileage(null);
+    fetchLastMileage(vehicle);
     if (isTesla(vehicle)) fetchEvLastCheck(vehicle);
-  }, [fetchEvLastCheck]);
+  }, [fetchEvLastCheck, fetchLastMileage]);
 
   const handleDecode = useCallback((raw: string, timestamp: string) => {
     const result = parseFleetBarcode(raw);
@@ -269,6 +288,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     setEvCableStatus(null);
     setEvAdapterStatus(null);
     setLastEvCheck(null);
+    setLastMileage(null);
     // PlateArrivalSection owns its own state — it auto-resets on unitSearch
     // changes and unmounts whenever a vehicle is scanned.
   };
@@ -387,8 +407,17 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   placeholder="e.g. 42800"
                   value={mileage}
                   onChange={e => setMileage(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                  className={`w-full px-3 py-2 rounded-lg border text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition ${
+                    lastMileage !== null && mileage && Number(mileage) < lastMileage
+                      ? 'border-amber-500 focus:ring-amber-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
                 />
+                {lastMileage !== null && mileage && Number(mileage) < lastMileage && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-semibold">
+                    ⚠️ Mileage is lower than last check-in ({lastMileage.toLocaleString()} km)
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Fuel Level</label>

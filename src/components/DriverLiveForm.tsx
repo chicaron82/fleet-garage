@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { enqueueOfflineAction } from '../lib/offlineQueue';
 import { elapsedSince, fmtTime, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
 import { NotesField } from './VSATripComponents';
 import { pushNotification } from '../lib/garage-uploads';
@@ -169,26 +170,79 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
     hapticMedium();
     const now    = new Date().toISOString();
     const tripId = crypto.randomUUID();
+    let error = null;
 
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vsa_trips').insert({
-        id:                tripId,
-        vehicle_plate:     plate.trim().toUpperCase(),
-        vehicle_unit:      '',
-        trip_type:         isShuttle ? 'transfer' : 'clean',
-        depart_location:   fromLabel,
-        arrive_location:   toLabel,
-        depart_time:       now,
-        arrive_time:       null,
-        driver_id:         user!.id,
-        branch_id:         user!.branchId,
-        is_shuttle:        isShuttle,
-        notes:             notes.trim() || null,
-        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-        status:            'in_progress',
-      })
-    );
+    if (!navigator.onLine) {
+      enqueueOfflineAction({
+        table: 'vsa_trips',
+        action: 'insert',
+        payload: {
+          id:                tripId,
+          vehicle_plate:     plate.trim().toUpperCase(),
+          vehicle_unit:      '',
+          trip_type:         isShuttle ? 'transfer' : 'clean',
+          depart_location:   fromLabel,
+          arrive_location:   toLabel,
+          depart_time:       now,
+          arrive_time:       null,
+          driver_id:         user!.id,
+          branch_id:         user!.branchId,
+          is_shuttle:        isShuttle,
+          notes:             notes.trim() || null,
+          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:            'in_progress',
+        }
+      });
+    } else {
+      const res = await writeWithRefresh(() =>
+        supabase.from('vsa_trips').insert({
+          id:                tripId,
+          vehicle_plate:     plate.trim().toUpperCase(),
+          vehicle_unit:      '',
+          trip_type:         isShuttle ? 'transfer' : 'clean',
+          depart_location:   fromLabel,
+          arrive_location:   toLabel,
+          depart_time:       now,
+          arrive_time:       null,
+          driver_id:         user!.id,
+          branch_id:         user!.branchId,
+          is_shuttle:        isShuttle,
+          notes:             notes.trim() || null,
+          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:            'in_progress',
+        })
+      );
+      if (res.error) {
+        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+        if (isNetworkErr) {
+          enqueueOfflineAction({
+            table: 'vsa_trips',
+            action: 'insert',
+            payload: {
+              id:                tripId,
+              vehicle_plate:     plate.trim().toUpperCase(),
+              vehicle_unit:      '',
+              trip_type:         isShuttle ? 'transfer' : 'clean',
+              depart_location:   fromLabel,
+              arrive_location:   toLabel,
+              depart_time:       now,
+              arrive_time:       null,
+              driver_id:         user!.id,
+              branch_id:         user!.branchId,
+              is_shuttle:        isShuttle,
+              notes:             notes.trim() || null,
+              ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+              ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+              status:            'in_progress',
+            }
+          });
+        } else {
+          error = res.error;
+        }
+      }
+    }
 
     if (error) {
       console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
@@ -216,31 +270,117 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
 
     if (inProgressId) {
       // Happy path: complete the in_progress record
-      ({ error } = await writeWithRefresh(() => supabase.from('vsa_trips').update({
-        arrive_time:       arrived,
-        notes:             notes.trim() || null,
-        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-        status:            'complete',
-      }).eq('id', inProgressId)));
+      if (!navigator.onLine) {
+        enqueueOfflineAction({
+          table: 'vsa_trips',
+          action: 'update',
+          payload: {
+            arrive_time:       arrived,
+            notes:             notes.trim() || null,
+            ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+            ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+            status:            'complete',
+          },
+          eqField: 'id',
+          eqValue: inProgressId
+        });
+      } else {
+        const res = await writeWithRefresh(() => supabase.from('vsa_trips').update({
+          arrive_time:       arrived,
+          notes:             notes.trim() || null,
+          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:            'complete',
+        }).eq('id', inProgressId));
+        if (res.error) {
+          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+          if (isNetworkErr) {
+            enqueueOfflineAction({
+              table: 'vsa_trips',
+              action: 'update',
+              payload: {
+                arrive_time:       arrived,
+                notes:             notes.trim() || null,
+                ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+                ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+                status:            'complete',
+              },
+              eqField: 'id',
+              eqValue: inProgressId
+            });
+          } else {
+            error = res.error;
+          }
+        }
+      }
     } else {
       // Fallback: start write failed, insert now
-      ({ error } = await writeWithRefresh(() => supabase.from('vsa_trips').insert({
-        vehicle_plate:     plate.trim().toUpperCase(),
-        vehicle_unit:      '',
-        trip_type:         isShuttle ? 'transfer' : 'clean',
-        depart_location:   fromLabel,
-        arrive_location:   toLabel,
-        depart_time:       departureTime,
-        arrive_time:       arrived,
-        driver_id:         user.id,
-        branch_id:         user.branchId,
-        is_shuttle:        isShuttle,
-        notes:             notes.trim() || null,
-        ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-        ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-        status:            'complete',
-      })));
+      if (!navigator.onLine) {
+        enqueueOfflineAction({
+          table: 'vsa_trips',
+          action: 'insert',
+          payload: {
+            vehicle_plate:     plate.trim().toUpperCase(),
+            vehicle_unit:      '',
+            trip_type:         isShuttle ? 'transfer' : 'clean',
+            depart_location:   fromLabel,
+            arrive_location:   toLabel,
+            depart_time:       departureTime,
+            arrive_time:       arrived,
+            driver_id:         user.id,
+            branch_id:         user.branchId,
+            is_shuttle:        isShuttle,
+            notes:             notes.trim() || null,
+            ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+            ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+            status:            'complete',
+          }
+        });
+      } else {
+        const res = await writeWithRefresh(() => supabase.from('vsa_trips').insert({
+          vehicle_plate:     plate.trim().toUpperCase(),
+          vehicle_unit:      '',
+          trip_type:         isShuttle ? 'transfer' : 'clean',
+          depart_location:   fromLabel,
+          arrive_location:   toLabel,
+          depart_time:       departureTime,
+          arrive_time:       arrived,
+          driver_id:         user.id,
+          branch_id:         user.branchId,
+          is_shuttle:        isShuttle,
+          notes:             notes.trim() || null,
+          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+          status:            'complete',
+        }));
+        if (res.error) {
+          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+          if (isNetworkErr) {
+            enqueueOfflineAction({
+              table: 'vsa_trips',
+              action: 'insert',
+              payload: {
+                vehicle_plate:     plate.trim().toUpperCase(),
+                vehicle_unit:      '',
+                trip_type:         isShuttle ? 'transfer' : 'clean',
+                depart_location:   fromLabel,
+                arrive_location:   toLabel,
+                depart_time:       departureTime,
+                arrive_time:       arrived,
+                driver_id:         user.id,
+                branch_id:         user.branchId,
+                is_shuttle:        isShuttle,
+                notes:             notes.trim() || null,
+                ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+                ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+                status:            'complete',
+              }
+            });
+          } else {
+            error = res.error;
+          }
+        }
+      }
     }
 
     if (error) {
@@ -307,7 +447,19 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   };
 
   const handleCancelTrip = async () => {
-    if (inProgressId) await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
+    if (inProgressId) {
+      if (!navigator.onLine) {
+        enqueueOfflineAction({
+          table: 'vsa_trips',
+          action: 'delete',
+          payload: null,
+          eqField: 'id',
+          eqValue: inProgressId
+        });
+      } else {
+        await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
+      }
+    }
     handleReset();
   };
 

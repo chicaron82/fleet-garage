@@ -21,6 +21,7 @@ import type { Module, Screen, BranchId, UserRole, HandoffNote, ShiftType } from 
 import type { NavItem } from '../../lib/navigation';
 import type { MockNotification } from '../../data/notifications';
 
+import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
 import { BRANCH_CONFIGS } from '../../data/mock';
 
 interface LiveNotification {
@@ -94,6 +95,7 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 
 export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
   const { user, activeBranch, setActiveBranch } = useAuth();
+  const isOnline = useNavigatorOnLine();
   const { facilityIssues, washbayLogs, holds, shiftCheckpoints } = useGarage();
   const { isPeakSeason } = useSchedule();
   const { getTodayEntry } = useFleetBalance();
@@ -429,8 +431,14 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       {/* Header */}
       <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-yellow-400 dark:bg-yellow-500 rounded-lg flex items-center justify-center transition-colors">
+          <div className="w-8 h-8 bg-yellow-400 dark:bg-yellow-500 rounded-lg flex items-center justify-center transition-colors relative">
             <span className="text-black font-bold text-xs">FG</span>
+            <span
+              className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 transition-colors ${
+                isOnline ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
+              }`}
+              title={isOnline ? 'Online' : 'Offline'}
+            />
           </div>
           <div>
             <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight transition-colors">Fleet Garage</p>
