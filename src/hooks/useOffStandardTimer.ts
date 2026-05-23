@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User, Hold, Vehicle, ShiftWithUser } from '../types';
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import { pushNotification } from '../lib/garage-uploads';
 import { localDateStr } from './useFleetBalance'; // Wait, let's verify if localDateStr is exported from hook or helper
@@ -12,7 +12,7 @@ import {
   deriveShiftLine,
   generateOffStandardReport,
   deriveExplanation,
-  todayDateStr
+  todayDateStr,
 } from '../lib/offStandardReport';
 import type { TripRow } from '../lib/offStandardReport';
 
@@ -41,9 +41,9 @@ export const QUICK_TAPS: QuickTap[] = [
 interface UseOffStandardTimerProps {
   user: User;
   refreshTrigger?: number;
-  holds: any[];
-  vehicles: any[];
-  shifts: any[];
+  holds: Hold[];
+  vehicles: Vehicle[];
+  shifts: ShiftWithUser[];
   resolveName: (id: string) => string;
 }
 
