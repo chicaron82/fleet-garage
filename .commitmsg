@@ -1,6 +1,0 @@
-fix: move mapSaved/SavedSummary/fmtDateShift to shiftSummaryUtils.ts
-
-AnalyticsComponents.tsx was exporting plain functions alongside React
-components, breaking fast-refresh. Non-component exports moved to a
-dedicated .ts file. AnalyticsComponents now satisfies the
-components-only export rule.
