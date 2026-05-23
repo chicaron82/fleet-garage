@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGarage } from '../context/GarageContext';
 import { canRelease, canManageVehicles } from '../types';
 import { hapticLight } from '../lib/haptics';
-import type { UserRole, Hold, Vehicle, VehicleStatus } from '../types';
+import type { Hold, Vehicle, VehicleStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { holdContextEmojis } from '../lib/holdBadge';
 import { useUserResolver } from '../hooks/useUserResolver';
