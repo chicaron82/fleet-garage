@@ -6,11 +6,13 @@ import { useBarcodeInterceptor } from '../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from './CameraBarcodeScanner';
 import { hapticLight, hapticMedium, hapticHeavy } from '../lib/haptics';
 import { parseFleetBarcode } from '../lib/barcode';
-import { DAMAGE_PRESETS, MECHANICAL_PRESETS } from '../lib/hold-presets';
 import { getTireSwapSeason } from '../lib/holdBadge';
 import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 import { DETAIL_REASON_LABELS, canRelease } from '../types';
 import type { DetailReason, MechanicalSubType } from '../types';
+import { DamagePresetsSelector } from './DamagePresetsSelector';
+import { MechanicalConcernSelector } from './MechanicalConcernSelector';
+
 
 interface Props {
   vehicleId?: string;
@@ -276,43 +278,12 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
 
               {/* Damage Type */}
               {h.holdTypes.includes('damage') && (
-              <div>
-                <div className="flex items-baseline justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                    Damage Type *
-                  </label>
-                  {h.damageTypes.length > 0 && (
-                    <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
-                      {h.damageTypes.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {DAMAGE_PRESETS.map(preset => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => { hapticLight(); h.toggleDamageType(preset); }}
-                      className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                        h.damageTypes.includes(preset)
-                          ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
-                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-                {h.damageTypes.includes('Other') && (
-                  <input
-                    type="text"
-                    placeholder="Describe the damage…"
-                    value={h.customDamage}
-                    onChange={e => h.setCustomDamage(e.target.value)}
-                    className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-                  />
-                )}
-              </div>
+                <DamagePresetsSelector
+                  damageTypes={h.damageTypes}
+                  toggleDamageType={h.toggleDamageType}
+                  customDamage={h.customDamage}
+                  setCustomDamage={h.setCustomDamage}
+                />
               )}
 
               {/* Detail Reason */}
@@ -342,43 +313,12 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
 
               {/* Mechanical Type */}
               {h.holdTypes.includes('mechanical') && (
-              <div>
-                <div className="flex items-baseline justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                    Concern *
-                  </label>
-                  {h.mechanicalTypes.length > 0 && (
-                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                      {h.mechanicalTypes.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {MECHANICAL_PRESETS.map(preset => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => { hapticLight(); h.toggleMechanicalType(preset); }}
-                      className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-                        h.mechanicalTypes.includes(preset)
-                          ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                          : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-                {h.mechanicalTypes.includes('Other') && (
-                  <input
-                    type="text"
-                    placeholder="Describe the concern…"
-                    value={h.customMechanical}
-                    onChange={e => h.setCustomMechanical(e.target.value)}
-                    className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
-                  />
-                )}
-              </div>
+                <MechanicalConcernSelector
+                  mechanicalTypes={h.mechanicalTypes}
+                  toggleMechanicalType={h.toggleMechanicalType}
+                  customMechanical={h.customMechanical}
+                  setCustomMechanical={h.setCustomMechanical}
+                />
               )}
 
               {/* Mechanical Sub-type */}
