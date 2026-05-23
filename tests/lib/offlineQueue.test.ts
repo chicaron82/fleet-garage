@@ -1,0 +1,185 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  getOfflineQueue,
+  saveOfflineQueue,
+  enqueueOfflineAction,
+  executeOfflineAction,
+  flushOfflineQueue,
+  OfflineAction
+} from '../../src/lib/offlineQueue';
+
+// Mock Supabase
+const mockInsert = vi.fn();
+const mockUpdate = vi.fn();
+const mockDelete = vi.fn();
+const mockEq = vi.fn();
+
+vi.mock('../../src/lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      insert: mockInsert,
+      update: mockUpdate,
+      delete: mockDelete,
+    })),
+  },
+}));
+
+describe('offlineQueue', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    
+    // Default navigator.onLine to true
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      configurable: true,
+      value: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('getOfflineQueue & saveOfflineQueue', () => {
+    it('returns empty array if nothing in localStorage', () => {
+      expect(getOfflineQueue()).toEqual([]);
+    });
+
+    it('saves and reads queue correctly', () => {
+      const actions: OfflineAction[] = [
+        { id: '1', table: 'table1', action: 'insert', payload: { x: 1 } }
+      ];
+      saveOfflineQueue(actions);
+      expect(getOfflineQueue()).toEqual(actions);
+    });
+
+    it('returns empty array if JSON parse fails', () => {
+      localStorage.setItem('fg_offline_actions', 'invalid-json');
+      expect(getOfflineQueue()).toEqual([]);
+    });
+  });
+
+  describe('enqueueOfflineAction', () => {
+    it('generates UUID, saves action to queue, and returns ID', () => {
+      const action = { table: 'table1', action: 'insert' as const, payload: { x: 1 } };
+      const id = enqueueOfflineAction(action);
+      expect(id).toBeDefined();
+      expect(typeof id).toBe('string');
+      
+      const queue = getOfflineQueue();
+      expect(queue).toHaveLength(1);
+      expect(queue[0]).toEqual({
+        ...action,
+        id,
+      });
+    });
+  });
+
+  describe('executeOfflineAction', () => {
+    it('performs insert correctly and returns true on success', async () => {
+      mockInsert.mockResolvedValue({ error: null });
+      const action: OfflineAction = { id: '1', table: 'test_table', action: 'insert', payload: { name: 'foo' } };
+      
+      const success = await executeOfflineAction(action);
+      expect(success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({ name: 'foo' });
+    });
+
+    it('performs update with filters correctly', async () => {
+      const updateQuery = { eq: mockEq };
+      mockUpdate.mockReturnValue(updateQuery);
+      mockEq.mockResolvedValue({ error: null });
+
+      const action: OfflineAction = {
+        id: '2',
+        table: 'test_table',
+        action: 'update',
+        payload: { name: 'bar' },
+        eqField: 'id',
+        eqValue: 'val-1'
+      };
+
+      const success = await executeOfflineAction(action);
+      expect(success).toBe(true);
+      expect(mockUpdate).toHaveBeenCalledWith({ name: 'bar' });
+      expect(mockEq).toHaveBeenCalledWith('id', 'val-1');
+    });
+
+    it('performs delete with filters correctly', async () => {
+      const deleteQuery = { eq: mockEq };
+      mockDelete.mockReturnValue(deleteQuery);
+      mockEq.mockResolvedValue({ error: null });
+
+      const action: OfflineAction = {
+        id: '3',
+        table: 'test_table',
+        action: 'delete',
+        payload: null,
+        eqField: 'id',
+        eqValue: 'val-2'
+      };
+
+      const success = await executeOfflineAction(action);
+      expect(success).toBe(true);
+      expect(mockDelete).toHaveBeenCalled();
+      expect(mockEq).toHaveBeenCalledWith('id', 'val-2');
+    });
+
+    it('returns false when database operation returns an error', async () => {
+      mockInsert.mockResolvedValue({ error: new Error('DB Error') });
+      const action: OfflineAction = { id: '4', table: 'test_table', action: 'insert', payload: {} };
+      
+      const success = await executeOfflineAction(action);
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('flushOfflineQueue', () => {
+    it('does not flush if navigator.onLine is false', async () => {
+      Object.defineProperty(navigator, 'onLine', { writable: true, value: false });
+      const actions: OfflineAction[] = [
+        { id: '1', table: 'table1', action: 'insert', payload: {} }
+      ];
+      saveOfflineQueue(actions);
+
+      await flushOfflineQueue();
+      expect(getOfflineQueue()).toHaveLength(1);
+    });
+
+    it('flushes all items chronologically on success', async () => {
+      const actions: OfflineAction[] = [
+        { id: '1', table: 'table1', action: 'insert', payload: { val: 1 } },
+        { id: '2', table: 'table2', action: 'insert', payload: { val: 2 } },
+      ];
+      saveOfflineQueue(actions);
+
+      mockInsert.mockResolvedValue({ error: null });
+
+      await flushOfflineQueue();
+      expect(getOfflineQueue()).toHaveLength(0);
+      expect(mockInsert).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops flushing and retains remaining actions on first failure', async () => {
+      const actions: OfflineAction[] = [
+        { id: '1', table: 'table1', action: 'insert', payload: { val: 1 } },
+        { id: '2', table: 'table2', action: 'insert', payload: { val: 2 } },
+        { id: '3', table: 'table3', action: 'insert', payload: { val: 3 } },
+      ];
+      saveOfflineQueue(actions);
+
+      // First succeeds, second fails
+      mockInsert.mockResolvedValueOnce({ error: null });
+      mockInsert.mockResolvedValueOnce({ error: new Error('DB Error') });
+
+      await flushOfflineQueue();
+
+      const queue = getOfflineQueue();
+      expect(queue).toHaveLength(2); // Second and third remain
+      expect(queue[0].id).toBe('2');
+      expect(queue[1].id).toBe('3');
+      expect(mockInsert).toHaveBeenCalledTimes(2); // First, second. Third never run.
+    });
+  });
+});
