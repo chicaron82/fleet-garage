@@ -1,9 +1,6 @@
-refactor: extract useSidebar hook from Sidebar.tsx
+fix: move mapSaved/SavedSummary/fmtDateShift to shiftSummaryUtils.ts
 
-All state, effects, data loading, productivity derivations, and
-handlers extracted to src/components/layout/useSidebar.ts.
-Sidebar.tsx is now a pure render component that destructures the
-hook result for layout and event wiring.
-
-Sidebar.tsx:   614 -> ~240 lines
-useSidebar.ts: new, ~270 lines
+AnalyticsComponents.tsx was exporting plain functions alongside React
+components, breaking fast-refresh. Non-component exports moved to a
+dedicated .ts file. AnalyticsComponents now satisfies the
+components-only export rule.

@@ -1,3 +1,7 @@
+import { fmtDateShift, type SavedSummary } from './shiftSummaryUtils';
+
+// ── Generic analytics primitives ─────────────────────────────────────────────
+
 export function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-center transition-colors">
@@ -21,39 +25,9 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-// ── ShiftSummarySection shared types & components ─────────────────────────────
+// ── ShiftSummarySection display components ────────────────────────────────────
 
-export interface SavedSummary {
-  id: string;
-  userId: string;
-  userName: string;
-  date: string;
-  savedAt: string;
-  offStandardMinutes: number;
-  offStandardBreakdown: Record<string, number> | null;
-  tripCount: number;
-  tripMinutes: number;
-  holdsFlagged: number;
-  firstActivityAt: string | null;
-}
-
-export function mapSaved(row: Record<string, unknown>): SavedSummary {
-  return {
-    id:                    row.id as string,
-    userId:                row.user_id as string,
-    userName:              row.user_name as string,
-    date:                  row.date as string,
-    savedAt:               row.saved_at as string,
-    offStandardMinutes:    row.off_standard_minutes as number,
-    offStandardBreakdown:  row.off_standard_breakdown as Record<string, number> | null,
-    tripCount:             row.trip_count as number,
-    tripMinutes:           row.trip_minutes as number,
-    holdsFlagged:          row.holds_flagged as number,
-    firstActivityAt:       row.first_activity_at as string | null,
-  };
-}
-
-function fmtMinutesShared(mins: number): string {
+function fmtMinutes(mins: number): string {
   if (mins === 0) return '0m';
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60);
@@ -61,13 +35,8 @@ function fmtMinutesShared(mins: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function fmtTimeShared(iso: string): string {
+function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
-}
-
-export function fmtDateShift(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export function SummaryRow({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
@@ -122,11 +91,11 @@ export function HistoryCard({ s }: { s: SavedSummary }) {
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtDateShift(s.date)}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTimeShared(s.savedAt)}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-        <span>⏱ {fmtMinutesShared(s.offStandardMinutes)}</span>
-        {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutesShared(s.tripMinutes)}</span>}
+        <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
+        {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
         {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} hold{s.holdsFlagged !== 1 ? 's' : ''}</span>}
       </div>
     </div>

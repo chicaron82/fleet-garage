@@ -6,8 +6,8 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { isManagement } from '../../lib/analytics';
 import {
   SummaryRow, ShiftSparkline, HistoryCard,
-  type SavedSummary, mapSaved,
 } from './AnalyticsComponents';
+import { type SavedSummary, mapSaved } from './shiftSummaryUtils';
 
 function fmtMinutes(mins: number): string {
   if (mins === 0) return '0m';
