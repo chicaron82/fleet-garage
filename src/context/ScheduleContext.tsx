@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from './AuthContext';
@@ -100,8 +100,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const { getProfile } = useUserResolver();
   const rowToShift = useMemo(() => buildRowToShift(getProfile), [getProfile]);
-  const rowToShiftRef = useRef(rowToShift);
-  rowToShiftRef.current = rowToShift;
   const [shifts, setShifts]           = useState<ShiftWithUser[]>([]);
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
@@ -122,7 +120,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .order('date', { ascending: true })
       .order('start_time', { ascending: true, nullsFirst: false });
     if (!error && data) {
-      const rows = (data as Record<string, unknown>[]).map(r => rowToShiftRef.current(r));
+      const rows = (data as Record<string, unknown>[]).map(r => rowToShift(r));
       setShifts(activeBranch === 'ALL' ? rows : rows.filter(s => s.branchId === activeBranch));
     }
     setLoading(false);
