@@ -1,29 +1,22 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useProfiles } from '../context/ProfilesContext';
 import type { UserResolver } from '../lib/user-resolver';
-import type { Profile } from '../types';
 
 /**
- * React adapter that returns a stable UserResolver whose functions read from
- * a ref at call time. ProfilesContext starts as an empty Map and replaces it
- * once the async fetch resolves — without the ref, that single Map swap
- * cascades through useMemo/useCallback chains and re-fires effects downstream
- * (e.g. ScheduleContext's auto-load). With a ref the returned object never
- * changes reference, so none of those deps are disturbed.
+ * Returns a UserResolver that re-creates when profiles load, so display
+ * components (hold attribution, shift names, etc.) re-render with correct data.
  *
- * The lookup logic mirrors createUserResolver exactly — kept inline here so
- * the pure factory and its tests stay untouched.
+ * ScheduleContext deliberately breaks the cascade at loadShifts using
+ * rowToShiftRef — that's the targeted fix for the auto-load double-fire.
+ * This hook stays reactive so the rest of the app updates normally.
  */
 export function useUserResolver(): UserResolver {
   const profiles = useProfiles();
-  const profilesRef = useRef<Map<string, Profile>>(profiles);
-  profilesRef.current = profiles;
 
   return useMemo((): UserResolver => {
-    const lookup = (id: string): Profile | null =>
-      profilesRef.current.get(id) ?? null;
-    const lookupByEmpId = (empId: string): Profile | null => {
-      for (const p of profilesRef.current.values()) {
+    const lookup = (id: string) => profiles.get(id) ?? null;
+    const lookupByEmpId = (empId: string) => {
+      for (const p of profiles.values()) {
         if (p.employeeId === empId) return p;
       }
       return null;
@@ -35,5 +28,5 @@ export function useUserResolver(): UserResolver {
       getRole:  id             => lookup(id)?.role       ?? '',
       getEmpId: (id, snapshot) => lookup(id)?.employeeId ?? (snapshot && snapshot.length > 0 ? snapshot : ''),
     };
-  }, []); // stable — functions read from profilesRef.current at call time
+  }, [profiles]); // reactive — re-creates when profiles load so display components update
 }
