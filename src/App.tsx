@@ -6,7 +6,7 @@ import { ScheduleProvider } from './context/ScheduleContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/LoginScreen';
 import { LogoutConfirm } from './components/LogoutConfirm';
-import { getActiveModule, getDefaultScreenForRole } from './lib/navigation';
+import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
 import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
@@ -72,12 +72,20 @@ export default function App() {
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (user) {
-      const defaultScreen = getDefaultScreenForRole(user.role, user.branchId);
+      const navItems = getNavItemsForRole(user.role, user.branchId);
+      const savedModule = sessionStorage.getItem('fg_last_module');
+      const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
+      const targetScreen = savedNavItem?.defaultScreen ?? getDefaultScreenForRole(user.role, user.branchId);
       window.history.replaceState({ appRoot: true }, '');
-      window.history.pushState(defaultScreen, '');
-      setScreen(defaultScreen);
+      window.history.pushState(targetScreen, '');
+      setScreen(targetScreen);
     }
   }
+
+  // Persist active module so it survives a page refresh
+  useEffect(() => {
+    if (user) sessionStorage.setItem('fg_last_module', getActiveModule(screen));
+  }, [screen, user]);
 
   // Handle Android / browser back button
   useEffect(() => {
