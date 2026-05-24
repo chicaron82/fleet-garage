@@ -3,7 +3,9 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { useAuth } from './AuthContext';
 import { useUserResolver } from '../hooks/useUserResolver';
-import type { BranchId, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
+import { usePeakSeason } from '../hooks/usePeakSeason';
+import { usePTOStats } from '../hooks/usePTOStats';
+import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,8 +44,6 @@ function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserI
   return ['Branch Manager', 'Operations Manager', 'City Manager'].includes(role)
     && actingId !== targetUserId;
 }
-
-import type { Profile } from '../types';
 
 function buildRowToShift(resolveUser: (id: string) => Profile | null) {
   return function rowToShift(row: Record<string, unknown>): ShiftWithUser {
@@ -106,73 +106,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isPeakSeason, setIsPeakSeason] = useState(false);
-  const [ptoEntitlement, setPtoEntitlement] = useState(15);
-  const [ptoUsed,        setPtoUsed]        = useState(0);
-  const [sickDaysUsed,   setSickDaysUsed]   = useState(0);
 
-  // ── Peak season ────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    supabase
-      .from('branch_settings')
-      .select('peak_season')
-      .eq('id', 1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setIsPeakSeason(data.peak_season as boolean);
-      });
-  }, []);
-
-  const togglePeakSeason = async () => {
-    const next = !isPeakSeason;
-    const { error } = await writeWithRefresh(() =>
-      supabase
-        .from('branch_settings')
-        .update({ peak_season: next, updated_at: new Date().toISOString() })
-        .eq('id', 1)
-    );
-    if (error) throw error;
-    setIsPeakSeason(next);
-  };
-
-  // ── PTO / sick stats ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!user) return;
-    const year = new Date().getFullYear();
-    supabase
-      .from('user_pto')
-      .select('pto_entitlement')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setPtoEntitlement(data.pto_entitlement as number); });
-
-    supabase
-      .from('shifts')
-      .select('shift_type')
-      .eq('user_id', user.id)
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
-      .in('shift_type', ['pto', 'sick'])
-      .then(({ data }) => {
-        if (data) {
-          const rows = data as { shift_type: string }[];
-          setPtoUsed(rows.filter(r => r.shift_type === 'pto').length);
-          setSickDaysUsed(rows.filter(r => r.shift_type === 'sick').length);
-        }
-      });
-  }, [user]);
-
-  const updatePtoEntitlement = async (days: number) => {
-    if (!user) return;
-    const { error } = await writeWithRefresh(() =>
-      supabase
-        .from('user_pto')
-        .upsert({ user_id: user.id, pto_entitlement: days, updated_at: new Date().toISOString() })
-    );
-    if (!error) setPtoEntitlement(days);
-  };
+  const { isPeakSeason, togglePeakSeason }                                          = usePeakSeason();
+  const { ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement, adjustPTO, adjustSick } = usePTOStats(user);
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
 
@@ -193,7 +129,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [activeBranch]);
 
   const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
-    
     const { data, error } = await writeWithRefresh(() =>
       supabase.from('shifts').insert({
         user_id: shift.userId,
@@ -211,8 +146,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
     const thisYear = new Date().getFullYear();
     if (shift.date.startsWith(String(thisYear))) {
-      if (shift.shiftType === 'pto')  setPtoUsed(prev => prev + 1);
-      if (shift.shiftType === 'sick') setSickDaysUsed(prev => prev + 1);
+      if (shift.shiftType === 'pto')  adjustPTO(1);
+      if (shift.shiftType === 'sick') adjustSick(1);
     }
     if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
       const target = getProfile(shift.userId);
@@ -283,8 +218,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setShifts(prev => prev.filter(s => s.id !== id));
     const thisYear = new Date().getFullYear();
     if (deleted && deleted.date.startsWith(String(thisYear))) {
-      if (deleted.shiftType === 'pto')  setPtoUsed(prev => Math.max(0, prev - 1));
-      if (deleted.shiftType === 'sick') setSickDaysUsed(prev => Math.max(0, prev - 1));
+      if (deleted.shiftType === 'pto')  adjustPTO(-1);
+      if (deleted.shiftType === 'sick') adjustSick(-1);
     }
     if (user && deleted && isManagerEditingOtherUser(user.role, user.id, deleted.userId)) {
       const target = getProfile(deleted.userId);
