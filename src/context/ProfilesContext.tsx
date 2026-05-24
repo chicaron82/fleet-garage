@@ -7,8 +7,7 @@ const ProfilesContext = createContext<Map<string, Profile>>(new Map());
 /**
  * Loads every row from `profiles` (migration 054) once on mount and exposes
  * them as a `Map<id, Profile>`. This is the source of truth for resolving
- * Supabase auth UUIDs to display info — paired with `useUserResolver` and
- * the legacy USERS-mock fallback for dev/mock data keyed on mock ids.
+ * Supabase auth UUIDs to display info — consumed by `useUserResolver`.
  *
  * RLS allows any authenticated user to read all profiles (see migration 054),
  * so a single fetch at app boot is sufficient.

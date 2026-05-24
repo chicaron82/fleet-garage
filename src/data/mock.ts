@@ -1,5 +1,5 @@
 
-import type { User, Vehicle, Hold, BranchConfig, BranchId } from '../types';
+import type { Vehicle, Hold, BranchConfig, BranchId } from '../types';
 
 // ── Branch Configs ────────────────────────────────────────────────────────────
 export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
@@ -10,27 +10,6 @@ export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
   'ALL':       { id: 'ALL',       name: 'All Branches',            enabledModules: ['fleet-garage', 'movement-log', 'check-in', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] }
 };
 
-
-// ── Demo Users (name/role fixture data — auth is handled by Supabase)
-export const USERS: User[] = [
-  { id: 'u1',  employeeId: '331965',     name: 'Aaron S.',    role: 'VSA',                branchId: 'YWG' },
-  { id: 'u2',  employeeId: 'VSA-002',    name: 'DiZee',       role: 'Lead VSA',           branchId: 'YWG' },
-  { id: 'u3',  employeeId: 'VSA-003',    name: 'Belle',       role: 'VSA',                branchId: 'YWG' },
-  { id: 'u4',  employeeId: 'CSR-001',    name: 'CoZee',       role: 'CSR',                branchId: 'YWG' },
-  { id: 'u5',  employeeId: 'HIR-001',    name: 'Tori',        role: 'HIR',                branchId: 'YWG' },
-  { id: 'u6',  employeeId: 'MGR-001',    name: 'ZeeRah',      role: 'Branch Manager',     branchId: 'YWG' },
-  { id: 'u7',  employeeId: 'OPS-001',    name: 'Zee',         role: 'Operations Manager', branchId: 'YWG' },
-  { id: 'u8',  employeeId: 'DRV-001',    name: 'GenZee',      role: 'Driver',             branchId: 'YWG' },
-  { id: 'u9',  employeeId: 'DRV-002',    name: 'ZeeDric',     role: 'Driver',             branchId: 'YWG' },
-  { id: 'u10', employeeId: 'VSA-004',    name: 'PerplexiZee', role: 'VSA',                branchId: 'YWG' },
-  { id: 'u11', employeeId: '256163',     name: 'Geoff N.',    role: 'Lead VSA',           branchId: 'YWG' },
-  { id: 'u12', employeeId: '300210',     name: 'Ray T.',      role: 'VSA',                branchId: 'YWG' },
-  { id: 'u13', employeeId: 'BOSS',       name: 'Big Boss',    role: 'City Manager',       branchId: 'ALL' },
-  { id: 'u14', employeeId: 'YYC-VSA-01', name: 'Marcus L.',   role: 'VSA',                branchId: 'YYC' },
-  { id: 'u15', employeeId: 'YVR-VSA-01', name: 'Linh T.',     role: 'VSA',                branchId: 'YVR' },
-  { id: 'u16', employeeId: 'AGM-001',    name: 'Harpreet T.', role: 'AGM',                branchId: 'ALL' },
-  { id: 'u17', employeeId: 'GM-001',     name: 'Howard W.',   role: 'GM',                 branchId: 'ALL' },
-];
 
 // ── Demo Vehicles ─────────────────────────────────────────────────────────────
 
