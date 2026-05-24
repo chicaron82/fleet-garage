@@ -1,7 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { useProfiles } from '../context/ProfilesContext';
-import { USERS } from '../data/mock';
-import type { UserResolver, MockFallbackUser } from '../lib/user-resolver';
+import type { UserResolver } from '../lib/user-resolver';
 import type { Profile } from '../types';
 
 /**
@@ -14,9 +13,6 @@ import type { Profile } from '../types';
  *
  * The lookup logic mirrors createUserResolver exactly — kept inline here so
  * the pure factory and its tests stay untouched.
- *
- * Future cleanup: once schedule/audit code paths are on real auth UUIDs the
- * USERS fallback can be dropped entirely.
  */
 export function useUserResolver(): UserResolver {
   const profiles = useProfiles();
@@ -24,20 +20,13 @@ export function useUserResolver(): UserResolver {
   profilesRef.current = profiles;
 
   return useMemo((): UserResolver => {
-    const lookup = (id: string): Profile | null => {
-      const live = profilesRef.current.get(id);
-      if (live) return live;
-      const mock = (USERS as MockFallbackUser[]).find(u => u.id === id);
-      if (!mock) return null;
-      return { id: mock.id, employeeId: mock.employeeId, name: mock.name, role: mock.role, branchId: mock.branchId ?? 'YWG' };
-    };
+    const lookup = (id: string): Profile | null =>
+      profilesRef.current.get(id) ?? null;
     const lookupByEmpId = (empId: string): Profile | null => {
       for (const p of profilesRef.current.values()) {
         if (p.employeeId === empId) return p;
       }
-      const mock = (USERS as MockFallbackUser[]).find(u => u.employeeId === empId);
-      if (!mock) return null;
-      return { id: mock.id, employeeId: mock.employeeId, name: mock.name, role: mock.role, branchId: mock.branchId ?? 'YWG' };
+      return null;
     };
     return {
       getProfile:      lookup,
