@@ -150,15 +150,15 @@ function buildReport(d: ReportData): string {
 export function ShiftReportExport({ date }: { date: string }) {
   const { user } = useAuth();
   const { shifts } = useSchedule();
-  const [loading, setLoading] = useState(false);
-  const [copied,  setCopied]  = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [copied,     setCopied]     = useState(false);
 
   if (!user) return null;
 
-  const handleExport = async () => {
-    hapticMedium();
-    setLoading(true);
+  const busy = loading || pdfLoading;
 
+  const fetchReportData = async (): Promise<ReportData> => {
     const dayStart = new Date(date + 'T00:00:00');
     const dayEnd   = new Date(date + 'T00:00:00');
     dayEnd.setDate(dayEnd.getDate() + 1);
@@ -210,17 +210,17 @@ export function ShiftReportExport({ date }: { date: string }) {
         .order('reported_at', { ascending: true }),
     ]);
 
-    const reportText = buildReport({
+    return {
       shiftLine:  deriveShiftLine(shifts, user.id, date),
       dateLabel:  formatDateStr(date),
       userName:   user.name,
       employeeId: user.employeeId,
       offStandard: (othRes.data ?? []).map((r: Record<string, unknown>) => ({
-        startTime:   r.start_time as string,
-        stopTime:    r.stop_time as string,
-        minutes:     r.minutes as number,
-        reason:      r.reason as string,
-        explanation: r.explanation as string | null,
+        startTime:    r.start_time as string,
+        stopTime:     r.stop_time as string,
+        minutes:      r.minutes as number,
+        reason:       r.reason as string,
+        explanation:  r.explanation as string | null,
         autoFromTrip: r.auto_from_trip as boolean,
       })),
       trips: (tripRes.data ?? []).map((r: Record<string, unknown>) => ({
@@ -230,8 +230,8 @@ export function ShiftReportExport({ date }: { date: string }) {
         reason:     r.reason as string | null,
       })),
       holds: (holdRes.data ?? []).map((r: Record<string, unknown>) => ({
-        flaggedAt:  r.flagged_at as string,
-        holdTypes:  (r.hold_types as string[] | null) ?? [],
+        flaggedAt: r.flagged_at as string,
+        holdTypes: (r.hold_types as string[] | null) ?? [],
       })),
       checkIns: (ciRes.data ?? []).map((r: Record<string, unknown>) => ({
         checkedInAt:  r.checked_in_at as string,
@@ -254,34 +254,70 @@ export function ShiftReportExport({ date }: { date: string }) {
         title:      r.title as string,
         severity:   r.severity as string,
       })),
-    });
+    };
+  };
 
-    setLoading(false);
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Shift Report — ${user.name} · ${formatDateStr(date)}`,
-          text:  reportText,
-        });
-        return;
-      } catch {
-        // fall through to clipboard
+  const handleExport = async () => {
+    hapticMedium();
+    setLoading(true);
+    try {
+      const data = await fetchReportData();
+      const reportText = buildReport(data);
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `Shift Report — ${user.name} · ${formatDateStr(date)}`, text: reportText });
+          return;
+        } catch { /* fall through to clipboard */ }
       }
+      await navigator.clipboard.writeText(reportText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } finally {
+      setLoading(false);
     }
-    await navigator.clipboard.writeText(reportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const handlePDFExport = async () => {
+    hapticMedium();
+    setPdfLoading(true);
+    try {
+      const data = await fetchReportData();
+      const [{ pdf }, { ShiftReportPDF }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('./ShiftReportPDF'),
+      ]);
+      const blob = await pdf(<ShiftReportPDF data={data} />).toBlob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `shift-report-${user.name.replace(/\s+/g, '-').toLowerCase()}-${date}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleExport}
-      disabled={loading}
-      className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {loading ? 'Generating…' : copied ? '✓ Copied to clipboard' : 'Export Shift Report'}
-    </button>
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={handleExport}
+        disabled={busy}
+        className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? 'Generating…' : copied ? '✓ Copied' : 'Export as Text'}
+      </button>
+      <button
+        type="button"
+        onClick={handlePDFExport}
+        disabled={busy}
+        className="flex-1 py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {pdfLoading ? 'Building PDF…' : 'Download PDF ↓'}
+      </button>
+    </div>
   );
 }
