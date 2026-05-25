@@ -16,7 +16,7 @@ const NewHoldForm        = lazy(() => import('./components/NewHoldForm').then(m 
 const RegisterVehicleForm = lazy(() => import('./components/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
 const MovementLogView    = lazy(() => import('./components/MovementLogView').then(m => ({ default: m.MovementLogView })));
 const ScheduleView       = lazy(() => import('./components/ScheduleView').then(m => ({ default: m.ScheduleView })));
-const InventoryView      = lazy(() => import('./components/InventoryView').then(m => ({ default: m.InventoryView })));
+const MyShiftView        = lazy(() => import('./components/MyShiftView').then(m => ({ default: m.MyShiftView })));
 const LostAndFoundView   = lazy(() => import('./components/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
 const CheckInView        = lazy(() => import('./components/CheckInView').then(m => ({ default: m.CheckInView })));
 const AuditDashboard     = lazy(() => import('./components/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
@@ -165,7 +165,7 @@ export default function App() {
       case 'schedule':
         return <ScheduleView />;
       case 'my-shift':
-        return <InventoryView />;
+        return <MyShiftView />;
       case 'lost-and-found':
         return <LostAndFoundView />;
       case 'audits':

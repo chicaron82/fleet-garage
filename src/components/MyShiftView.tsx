@@ -135,7 +135,7 @@ function StepSection({ title, open, onToggle, children }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function InventoryView() {
+export function MyShiftView() {
   const { user, activeBranch } = useAuth();
   const { latestHandoff, getTodayCheckpoint } = useGarage();
   const { shifts } = useSchedule();
