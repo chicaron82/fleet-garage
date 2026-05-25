@@ -66,7 +66,7 @@ export function exportAuditToHtml(data: ExportData): void {
 </head>
 <body>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #111827;">
-    <div style="width:36px;height:36px;background:#facc15;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;">FG</div>
+    <img src="${window.location.origin}/fleet-garage-logo.png" alt="Fleet Garage" style="height:44px;width:auto;flex-shrink:0;" />
     <div>
       <div style="font-size:18px;font-weight:700;">Vehicle Audit Report</div>
       <div style="font-size:12px;color:#6b7280;">Fleet Garage · ${fmtDate(data.date)}</div>

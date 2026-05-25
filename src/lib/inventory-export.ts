@@ -50,7 +50,7 @@ function formatUnit(unit: string): string {
   return unit;
 }
 
-export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta): string {
+export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta, logoUrl?: string): string {
   const rows = entries
     .map(e => `
       <tr>
@@ -97,8 +97,13 @@ export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta
 </style>
 </head>
 <body>
-<h1>Location Daily Vehicle Inventory</h1>
-<div class="meta">${esc(meta.location)} · ${esc(meta.date)} · Logged by: ${esc(meta.loggedByName)}</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #111827;">
+  ${logoUrl ? `<img src="${logoUrl}" alt="Fleet Garage" style="height:40px;width:auto;flex-shrink:0;" />` : ''}
+  <div>
+    <h1 style="margin:0;">Location Daily Vehicle Inventory</h1>
+    <div class="meta" style="margin:0;">${esc(meta.location)} · ${esc(meta.date)} · Logged by: ${esc(meta.loggedByName)}</div>
+  </div>
+</div>
 
 <div class="sign-row">
   <div class="sign-field">
