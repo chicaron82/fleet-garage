@@ -154,7 +154,9 @@ export function MyShiftView() {
   const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
   const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (handoffDoneToday)  setClosingLogOpen(true); }, [handoffDoneToday]);
 
   const today = new Date().toLocaleDateString('en-CA', {

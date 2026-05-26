@@ -101,7 +101,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { getProfile } = useUserResolver();
   const rowToShift = useMemo(() => buildRowToShift(getProfile), [getProfile]);
   const rowToShiftRef = useRef(rowToShift);
-  rowToShiftRef.current = rowToShift;
+  useEffect(() => { rowToShiftRef.current = rowToShift; });
   const [shifts, setShifts]           = useState<ShiftWithUser[]>([]);
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
@@ -291,15 +291,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // ── Auto-load ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (viewMode === 'week') {
       const { start, end } = getWeekBounds(currentDate);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadShifts(toISO(start), toISO(end));
     } else {
       const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const end   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       loadShifts(toISO(start), toISO(end));
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [currentDate, viewMode, loadShifts]);
 
   return (
