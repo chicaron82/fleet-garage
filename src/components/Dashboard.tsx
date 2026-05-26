@@ -13,6 +13,8 @@ import { parseFleetBarcode } from '../lib/barcode';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from './PendingApprovalsSection';
 import { StaleHoldsAlert } from './StaleHoldsAlert';
+import { BarcodeToast } from './BarcodeToast';
+import { PendingVehicleSheet } from './PendingVehicleSheet';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -413,79 +415,17 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
         )}
 
         {/* Barcode toast */}
-        {toast && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              position: 'fixed',
-              bottom: '1.5rem',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 50,
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              background: toast.type === 'success' ? 'rgba(22, 101, 52, 0.85)' : 'rgba(153, 27, 27, 0.85)',
-              color: 'white',
-              padding: '0.75rem 1.25rem',
-              borderRadius: '0.75rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              whiteSpace: 'nowrap' as const,
-            }}
-          >
-            {toast.message}
-          </div>
-        )}
+        <BarcodeToast toast={toast} />
 
         {/* Search confirmation sheet */}
-        {pendingVehicle && (() => {
-          const hold = getDisplayHold(pendingVehicle.id, pendingVehicle.status);
-          return (
-            <>
-              <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setPendingVehicle(null)} />
-              <div className="fixed inset-x-0 bottom-0 z-50 p-4">
-                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
-                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                    <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Confirm vehicle</p>
-                  </div>
-                  <div className="px-4 py-4">
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-gray-900 dark:text-gray-100">{pendingVehicle.unitNumber}</span>
-                          <span className="text-gray-400 text-xs">·</span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100 tracking-wide">{pendingVehicle.licensePlate}</span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{pendingVehicle.year} {pendingVehicle.make} {pendingVehicle.model}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{pendingVehicle.color}</p>
-                        {hold && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 truncate">{hold.damageDescription.slice(0, 60)}{hold.damageDescription.length > 60 ? '…' : ''}</p>
-                        )}
-                      </div>
-                      <StatusBadge status={pendingVehicle.status} holdTypes={hold?.holdTypes} mechanicalSubType={hold?.mechanicalSubType} />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPendingVehicle(null)}
-                        className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
-                      >
-                        Go back
-                      </button>
-                      <button
-                        onClick={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id); }}
-                        className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-sm font-semibold text-gray-900 transition cursor-pointer"
-                      >
-                        Yes, open it
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          );
-        })()}
+        {pendingVehicle && (
+          <PendingVehicleSheet
+            vehicle={pendingVehicle}
+            hold={getDisplayHold(pendingVehicle.id, pendingVehicle.status)}
+            onClose={() => setPendingVehicle(null)}
+            onConfirm={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id); }}
+          />
+        )}
       </div>
   );
 }
