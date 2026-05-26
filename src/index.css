@@ -1,6 +1,32 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Brand tokens ──────────────────────────────────────────────
+   FG yellow + semantic surface/border/text aliases.
+   @theme wires them into Tailwind utilities (bg-fg-*, text-fg-*).
+   ──────────────────────────────────────────────────────────── */
+
+@theme {
+  --color-fg-yellow:    #facc15;   /* yellow-400 — primary brand accent */
+  --color-fg-yellow-hi: #eab308;   /* yellow-500 — hover / pressed states */
+  --color-fg-surface:   #f9fafb;   /* gray-50 light  / gray-900 dark */
+  --color-fg-surface-2: #ffffff;   /* white light    / gray-800 dark */
+  --color-fg-border:    #e5e7eb;   /* gray-200 light / gray-700 dark */
+  --color-fg-text:      #111827;   /* gray-900 light / gray-100 dark */
+  --color-fg-text-2:    #4b5563;   /* gray-600 light / gray-400 dark */
+  --color-fg-text-3:    #9ca3af;   /* gray-400 light / gray-500 dark */
+}
+
+/* Dark-mode overrides for semantic tokens */
+:root.dark, .dark {
+  --color-fg-surface:   #111827;
+  --color-fg-surface-2: #1f2937;
+  --color-fg-border:    #374151;
+  --color-fg-text:      #f3f4f6;
+  --color-fg-text-2:    #9ca3af;
+  --color-fg-text-3:    #6b7280;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -15,8 +41,8 @@ body {
 }
 
 .dark body {
-  background: #111827; 
-  color: #f3f4f6; 
+  background: #111827;
+  color: #f3f4f6;
 }
 
 #root {
