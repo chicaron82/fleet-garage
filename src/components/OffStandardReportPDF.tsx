@@ -9,7 +9,6 @@ export interface OTHPDFData {
   dateLabel:   string;
   shiftLine:   string;
   entries:     { startTime: string; stopTime: string; minutes: number; reason: string; explanation?: string; autoFromTrip: boolean }[];
-  trips:       { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null }[];
 }
 
 const s = StyleSheet.create({
@@ -30,6 +29,7 @@ const s = StyleSheet.create({
   noData:        { fontSize: 8, color: '#9ca3af', fontStyle: 'italic', paddingLeft: 10, paddingBottom: 4 },
 
   row:           { flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
+  autoRow:       { flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#bfdbfe', backgroundColor: '#eff6ff' },
   timeCol:       { width: 100, fontSize: 8, color: '#6b7280' },
   mainCol:       { flex: 1 },
   mainText:      { fontSize: 8, color: '#111827' },
@@ -88,7 +88,7 @@ export function OffStandardReportPDF({ data }: { data: OTHPDFData }) {
             ? <Text style={s.noData}>(none)</Text>
             : <>
                 {data.entries.map((e, i) => (
-                  <View key={i} style={s.row}>
+                  <View key={i} style={e.autoFromTrip ? s.autoRow : s.row}>
                     <Text style={s.timeCol}>{fmtTime(e.startTime)} – {fmtTime(e.stopTime)}</Text>
                     <View style={s.mainCol}>
                       <Text style={s.mainText}>{e.reason}{e.autoFromTrip ? '  [auto]' : ''}</Text>
@@ -104,26 +104,7 @@ export function OffStandardReportPDF({ data }: { data: OTHPDFData }) {
           }
         </View>
 
-        {data.trips.length > 0 && (
-          <View style={s.section}>
-            <SectionHead title="AIRPORT TRIPS" />
-            {data.trips.map((t, i) => {
-              const mins = Math.round(
-                (new Date(t.arriveTime).getTime() - new Date(t.departTime).getTime()) / 60000
-              );
-              const label = t.isShuffle ? 'Shuttle Transfer' : (t.reason ?? 'Airport Run');
-              return (
-                <View key={i} style={s.row}>
-                  <Text style={s.timeCol}>{fmtTime(t.departTime)} – {fmtTime(t.arriveTime)}</Text>
-                  <Text style={[s.mainCol, s.mainText]}>{label}</Text>
-                  <Text style={s.mainText}>{mins}m</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        <View style={s.approval}>
+<View style={s.approval}>
           <Text style={s.approvalLabel}>Manager approval</Text>
           <View style={s.sigRow}>
             <View style={s.sigLine} />

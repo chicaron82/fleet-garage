@@ -514,16 +514,6 @@ export function useOffStandardTimer({
     hapticMedium();
     setPdfLoading(true);
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data: tripRows } = await supabase
-        .from('vsa_trips')
-        .select('depart_time, arrive_time, is_shuttle, reason')
-        .eq('driver_id', user.id)
-        .gte('depart_time', todayStart.toISOString())
-        .not('arrive_time', 'is', null)
-        .order('depart_time', { ascending: true });
-
       const [{ pdf }, { OffStandardReportPDF }] = await Promise.all([
         import('@react-pdf/renderer'),
         import('../components/OffStandardReportPDF'),
@@ -535,18 +525,12 @@ export function useOffStandardTimer({
         dateLabel:  todayDateStr(),
         shiftLine:  deriveShiftLine(shifts, user.id),
         entries:    entries.map(e => ({
-          startTime:   e.startTime,
-          stopTime:    e.stopTime,
-          minutes:     e.minutes,
-          reason:      e.reason,
-          explanation: e.explanation,
+          startTime:    e.startTime,
+          stopTime:     e.stopTime,
+          minutes:      e.minutes,
+          reason:       e.reason,
+          explanation:  e.explanation,
           autoFromTrip: e.autoFromTrip,
-        })),
-        trips: (tripRows ?? []).map((r: TripRow) => ({
-          departTime: r.depart_time,
-          arriveTime: r.arrive_time,
-          isShuffle:  r.is_shuttle,
-          reason:     r.reason,
         })),
       };
 
