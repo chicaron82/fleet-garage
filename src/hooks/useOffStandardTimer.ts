@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createElement, type ReactElement } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
@@ -550,7 +550,8 @@ export function useOffStandardTimer({
         })),
       };
 
-      const blob = await pdf(<OffStandardReportPDF data={data} />).toBlob();
+      // pdf() expects ReactElement<DocumentProps>; cast needed since createElement infers the component's own props
+      const blob = await pdf(createElement(OffStandardReportPDF, { data }) as ReactElement<never>).toBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
