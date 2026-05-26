@@ -75,7 +75,7 @@ export function generateOffStandardReport(
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
 
   const lines: string[] = [
-    'OFF-STANDARD TIME REPORT',
+    'FLEET GARAGE — OFF-STANDARD TIME REPORT',
     '─'.repeat(37),
     `Name:     ${user.name}`,
     `EEID:     ${user.employeeId}`,

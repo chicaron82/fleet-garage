@@ -1,4 +1,6 @@
-import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
+
+const LOGO_SRC = `${window.location.origin}/fleet-garage-logo.png`;
 
 // Redeclared locally — avoid circular import with ShiftReportExport
 export interface PDFReportData {
@@ -44,6 +46,7 @@ const s = StyleSheet.create({
 
   // Header
   header:        { backgroundColor: '#111827', borderRadius: 5, padding: 16, marginBottom: 22 },
+  logo:          { width: 32, height: 32, marginBottom: 8 },
   headerTitle:   { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#ffffff', marginBottom: 12 },
   headerGrid:    { flexDirection: 'row' },
   headerCol:     { flex: 1 },
@@ -101,6 +104,7 @@ export function ShiftReportPDF({ data }: { data: PDFReportData }) {
 
         {/* Header */}
         <View style={s.header}>
+          <Image src={LOGO_SRC} style={s.logo} />
           <Text style={s.headerTitle}>SHIFT REPORT</Text>
           <View style={s.headerGrid}>
             <View style={s.headerCol}>

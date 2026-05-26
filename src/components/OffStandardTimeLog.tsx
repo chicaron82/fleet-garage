@@ -52,6 +52,8 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     handleSaveEdit,
     handleRequestEdit,
     handleExport,
+    handlePDFExport,
+    pdfLoading,
   } = useOffStandardTimer({
     user,
     refreshTrigger,
@@ -279,13 +281,24 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       <OffStandardEntriesList entries={entries} onEditClick={setEditingEntry} />
 
       {/* Shift summary + export */}
-      <button
-        type="button"
-        onClick={handleExport}
-        className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer"
-      >
-        {copied ? '✓ Copied to clipboard' : 'Export Off-Standard'}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={pdfLoading}
+          className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {copied ? '✓ Copied' : '📄 Plain Text'}
+        </button>
+        <button
+          type="button"
+          onClick={handlePDFExport}
+          disabled={pdfLoading}
+          className="flex-1 py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {pdfLoading ? 'Building PDF…' : '📋 PDF'}
+        </button>
+      </div>
 
     </div>
 

@@ -34,7 +34,7 @@ export const QUICK_TAPS: QuickTap[] = [
   { label: 'Fleeting Cars',        reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
   { label: 'Lot Organization',     reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
   { label: 'EDV',                  reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
-  { label: 'Customer Pickup/Drop', reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
+  { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
   { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
   { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
 ];
@@ -65,6 +65,7 @@ export function useOffStandardTimer({
   const [pendingMinutes, setPendingMinutes] = useState(0);
   const [explanation, setExplanation]       = useState('');
   const [copied, setCopied]                 = useState(false);
+  const [pdfLoading, setPdfLoading]         = useState(false);
   const [startError, setStartError]         = useState(false);
   const [endError, setEndError]             = useState(false);
   const [entries, setEntries]               = useState<OffStandardEntry[]>([]);
@@ -457,6 +458,60 @@ export function useOffStandardTimer({
     setTimeout(() => setCopied(false), 3000);
   };
 
+  const handlePDFExport = async () => {
+    hapticMedium();
+    setPdfLoading(true);
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data: tripRows } = await supabase
+        .from('vsa_trips')
+        .select('depart_time, arrive_time, is_shuttle, reason')
+        .eq('driver_id', user.id)
+        .gte('depart_time', todayStart.toISOString())
+        .not('arrive_time', 'is', null)
+        .order('depart_time', { ascending: true });
+
+      const [{ pdf }, { OffStandardReportPDF }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('../components/OffStandardReportPDF'),
+      ]);
+
+      const data = {
+        userName:   user.name,
+        employeeId: user.employeeId,
+        dateLabel:  todayDateStr(),
+        shiftLine:  deriveShiftLine(shifts, user.id),
+        entries:    entries.map(e => ({
+          startTime:   e.startTime,
+          stopTime:    e.stopTime,
+          minutes:     e.minutes,
+          reason:      e.reason,
+          explanation: e.explanation,
+          autoFromTrip: e.autoFromTrip,
+        })),
+        trips: (tripRows ?? []).map((r: TripRow) => ({
+          departTime: r.depart_time,
+          arriveTime: r.arrive_time,
+          isShuffle:  r.is_shuttle,
+          reason:     r.reason,
+        })),
+      };
+
+      const blob = await pdf(<OffStandardReportPDF data={data} />).toBlob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `oth-report-${user.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return {
     isRecovering,
     timerState,
@@ -488,5 +543,7 @@ export function useOffStandardTimer({
     handleSaveEdit,
     handleRequestEdit,
     handleExport,
+    handlePDFExport,
+    pdfLoading,
   };
 }
