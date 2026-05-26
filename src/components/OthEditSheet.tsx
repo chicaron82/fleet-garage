@@ -4,8 +4,8 @@ import type { OffStandardEntry } from '../types';
 
 interface Props {
   entry: OffStandardEntry;
-  onSave: (newEndTime: string, newMinutes: number) => void;
-  onRequest: (newEndTime: string, newMinutes: number, note: string) => void;
+  onSave: (newEndTime: string, newMinutes: number, explanation: string) => void;
+  onRequest: (newEndTime: string, newMinutes: number, editNote: string, explanation: string) => void;
   onClose: () => void;
 }
 
@@ -22,7 +22,8 @@ function fmtMinutes(mins: number) {
 
 export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
   const [endTime, setEndTime] = useState(new Date(entry.stopTime));
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(entry.explanation ?? '');
+  const [editNote, setEditNote] = useState('');
 
   const newMinutes = Math.round(
     (endTime.getTime() - new Date(entry.startTime).getTime()) / 60000
@@ -30,6 +31,7 @@ export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
   const delta = newMinutes - entry.minutes;
   const isLonger = delta > 0;
   const isSame = delta === 0;
+  const noteChanged = note !== (entry.explanation ?? '');
 
   const minEnd = new Date(new Date(entry.startTime).getTime() + 5 * 60000);
   const canDecrease = endTime.getTime() - 60000 >= minEnd.getTime();
@@ -40,12 +42,12 @@ export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
   };
 
   const handleSubmit = () => {
-    if (isSame) { onClose(); return; }
+    if (isSame && !noteChanged) { onClose(); return; }
     hapticLight();
     if (isLonger) {
-      onRequest(endTime.toISOString(), newMinutes, note.trim());
+      onRequest(endTime.toISOString(), newMinutes, editNote.trim(), note.trim());
     } else {
-      onSave(endTime.toISOString(), newMinutes);
+      onSave(endTime.toISOString(), newMinutes, note.trim());
     }
   };
 
@@ -94,15 +96,30 @@ export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
           )}
         </div>
 
-        {/* Note — only for longer */}
+        {/* Entry note — always visible, locked for auto-trip entries */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+            Notes{entry.autoFromTrip && <span className="font-normal normal-case"> (auto-generated)</span>}
+          </p>
+          <textarea
+            value={note}
+            onChange={e => { if (!entry.autoFromTrip) setNote(e.target.value); }}
+            readOnly={entry.autoFromTrip}
+            rows={2}
+            placeholder="Add context for this entry…"
+            className={`w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${entry.autoFromTrip ? 'opacity-60 cursor-not-allowed' : ''}`}
+          />
+        </div>
+
+        {/* Edit reason — only for longer, approval context */}
         {isLonger && (
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               Reason for edit <span className="font-normal normal-case">(optional)</span>
             </p>
             <textarea
-              value={note}
-              onChange={e => setNote(e.target.value)}
+              value={editNote}
+              onChange={e => setEditNote(e.target.value)}
               rows={2}
               placeholder="Help your manager understand the context…"
               className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -123,7 +140,7 @@ export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSame}
+            disabled={isSame && !noteChanged}
             className={`flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
               isLonger
                 ? 'bg-amber-500 hover:bg-amber-600'

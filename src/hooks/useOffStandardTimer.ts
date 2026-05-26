@@ -368,12 +368,13 @@ export function useOffStandardTimer({
     setEndError(false);
   };
 
-  const handleSaveEdit = async (newEndTime: string, newMinutes: number) => {
+  const handleSaveEdit = async (newEndTime: string, newMinutes: number, explanation: string) => {
     if (!editingEntry) return;
     const { error } = await writeWithRefresh(() =>
       supabase.from('off_standard_entries').update({
         stop_time:        newEndTime,
         minutes:          newMinutes,
+        explanation:      explanation || null,
         edit_status:      null,
         edited_end_time:  null,
         edit_requested_at: null,
@@ -383,14 +384,14 @@ export function useOffStandardTimer({
     );
     if (!error) {
       setEntries(prev => prev.map(e => e.id === editingEntry.id
-        ? { ...e, stopTime: newEndTime, minutes: newMinutes, editStatus: null }
+        ? { ...e, stopTime: newEndTime, minutes: newMinutes, explanation: explanation || undefined, editStatus: null }
         : e
       ));
       setEditingEntry(null);
     }
   };
 
-  const handleRequestEdit = async (newEndTime: string, newMinutes: number, note: string) => {
+  const handleRequestEdit = async (newEndTime: string, newMinutes: number, editStaffNote: string, explanation: string) => {
     if (!editingEntry) return;
     const now = new Date().toISOString();
     const { error } = await writeWithRefresh(() =>
@@ -399,7 +400,8 @@ export function useOffStandardTimer({
         edit_requested_at: now,
         edit_requested_by: user.id,
         edit_status:      'pending',
-        edit_staff_note:  note || null,
+        edit_staff_note:  editStaffNote || null,
+        explanation:      explanation || null,
         edit_reviewed_by: null,
         edit_reviewed_at: null,
       }).eq('id', editingEntry.id)
@@ -417,7 +419,7 @@ export function useOffStandardTimer({
         { type: 'oth_edit_request', entryId: editingEntry.id },
       );
       setEntries(prev => prev.map(e => e.id === editingEntry.id
-        ? { ...e, editStatus: 'pending', editedEndTime: newEndTime, editRequestedBy: user.id, editRequestedAt: now, editStaffNote: note || undefined }
+        ? { ...e, explanation: explanation || undefined, editStatus: 'pending', editedEndTime: newEndTime, editRequestedBy: user.id, editRequestedAt: now, editStaffNote: editStaffNote || undefined }
         : e
       ));
       setEditingEntry(null);
