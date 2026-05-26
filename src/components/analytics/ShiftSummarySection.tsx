@@ -263,7 +263,7 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
             )}
 
             {live!.holdsFlagged > 0 && (
-              <SummaryRow label="Holds Flagged" value={String(live!.holdsFlagged)} />
+              <SummaryRow label="Units Flagged" value={String(live!.holdsFlagged)} />
             )}
           </div>
         )}
@@ -311,7 +311,7 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
                 <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
                   {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
-                  {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} hold{s.holdsFlagged !== 1 ? 's' : ''}</span>}
+                  {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} unit{s.holdsFlagged !== 1 ? 's' : ''} flagged</span>}
                 </div>
               </div>
             ))}

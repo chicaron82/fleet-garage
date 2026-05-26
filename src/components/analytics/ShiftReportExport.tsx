@@ -64,7 +64,7 @@ interface ReportData {
   employeeId: string;
   offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
   trips:        { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null }[];
-  holds:        { flaggedAt: string; holdTypes: string[] }[];
+  holds:        { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string }[];
   checkIns:     { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
   lostFound:    { foundAt: string; description: string; location: string; unitNumber: string | null }[];
   audits:       { createdAt: string; vehicleNumber: string; status: string }[];
@@ -105,9 +105,10 @@ function buildReport(d: ReportData): string {
   }
 
   if (d.holds.length > 0) {
-    lines.push('', 'HOLDS FLAGGED', SEP);
+    lines.push('', 'UNITS FLAGGED', SEP);
     for (const h of d.holds) {
-      lines.push(`${formatHoldTypes(h.holdTypes)} · ${fmtTime(h.flaggedAt)}`);
+      const desc = h.description ? `  — ${h.description}` : '';
+      lines.push(`${formatHoldTypes(h.holdTypes)} · Unit ${h.vehicleUnit}  ${h.vehiclePlate}${desc}  (${fmtTime(h.flaggedAt)})`);
     }
   }
 
@@ -180,7 +181,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         .order('depart_time', { ascending: true }),
 
       supabase.from('holds')
-        .select('flagged_at, hold_types')
+        .select('flagged_at, hold_types, damage_description, vehicles(unit_number, license_plate)')
         .eq('flagged_by_id', user.id)
         .gte('flagged_at', dayStartISO).lt('flagged_at', dayEndISO)
         .order('flagged_at', { ascending: true }),
@@ -229,10 +230,16 @@ export function ShiftReportExport({ date }: { date: string }) {
         isShuffle:  r.is_shuttle as boolean | null,
         reason:     r.reason as string | null,
       })),
-      holds: (holdRes.data ?? []).map((r: Record<string, unknown>) => ({
-        flaggedAt: r.flagged_at as string,
-        holdTypes: (r.hold_types as string[] | null) ?? [],
-      })),
+      holds: (holdRes.data ?? []).map((r: Record<string, unknown>) => {
+        const v = r.vehicles as { unit_number: string; license_plate: string } | null;
+        return {
+          flaggedAt:   r.flagged_at as string,
+          holdTypes:   (r.hold_types as string[] | null) ?? [],
+          vehicleUnit: v?.unit_number ?? '—',
+          vehiclePlate: v?.license_plate ?? '—',
+          description: (r.damage_description as string | null) ?? '',
+        };
+      }),
       checkIns: (ciRes.data ?? []).map((r: Record<string, unknown>) => ({
         checkedInAt:  r.checked_in_at as string,
         vehicleUnit:  r.vehicle_unit as string,

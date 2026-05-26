@@ -9,7 +9,7 @@ export interface PDFReportData {
   userName:    string;
   employeeId:  string;
   offStandard: { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
-  holds:       { flaggedAt: string; holdTypes: string[] }[];
+  holds:       { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string }[];
   checkIns:    { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
   lostFound:   { foundAt: string; description: string; location: string; unitNumber: string | null }[];
   audits:      { createdAt: string; vehicleNumber: string; status: string }[];
@@ -147,14 +147,17 @@ export function ShiftReportPDF({ data }: { data: PDFReportData }) {
           }
         </View>
 
-        {/* Holds Flagged */}
+        {/* Units Flagged */}
         {data.holds.length > 0 && (
           <View style={s.section}>
-            <SectionHead title="HOLDS FLAGGED" />
+            <SectionHead title="UNITS FLAGGED" />
             {data.holds.map((h, i) => (
               <View key={i} style={s.row}>
                 <Text style={s.timeCol}>{fmtTime(h.flaggedAt)}</Text>
-                <Text style={[s.mainCol, s.mainText]}>{formatHoldTypes(h.holdTypes)}</Text>
+                <View style={s.mainCol}>
+                  <Text style={s.mainText}>{formatHoldTypes(h.holdTypes)}  ·  Unit {h.vehicleUnit}  {h.vehiclePlate}</Text>
+                  {h.description ? <Text style={s.subText}>{h.description}</Text> : null}
+                </View>
               </View>
             ))}
           </View>
