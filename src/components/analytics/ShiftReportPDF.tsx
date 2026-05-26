@@ -9,7 +9,6 @@ export interface PDFReportData {
   userName:    string;
   employeeId:  string;
   offStandard: { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
-  trips:       { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null }[];
   holds:       { flaggedAt: string; holdTypes: string[] }[];
   checkIns:    { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
   lostFound:   { foundAt: string; description: string; location: string; unitNumber: string | null }[];
@@ -62,6 +61,7 @@ const s = StyleSheet.create({
 
   // Rows
   row:           { flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
+  autoRow:       { flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#bfdbfe', backgroundColor: '#eff6ff' },
   timeCol:       { width: 100, fontSize: 8, color: '#6b7280' },
   mainCol:       { flex: 1 },
   mainText:      { fontSize: 8, color: '#111827' },
@@ -129,7 +129,7 @@ export function ShiftReportPDF({ data }: { data: PDFReportData }) {
             ? <Text style={s.noData}>(none)</Text>
             : <>
                 {data.offStandard.map((e, i) => (
-                  <View key={i} style={s.row}>
+                  <View key={i} style={e.autoFromTrip ? s.autoRow : s.row}>
                     <Text style={s.timeCol}>{fmtTime(e.startTime)} – {fmtTime(e.stopTime)}</Text>
                     <View style={s.mainCol}>
                       <Text style={s.mainText}>
@@ -146,26 +146,6 @@ export function ShiftReportPDF({ data }: { data: PDFReportData }) {
               </>
           }
         </View>
-
-        {/* Airport Trips */}
-        {data.trips.length > 0 && (
-          <View style={s.section}>
-            <SectionHead title="AIRPORT TRIPS" />
-            {data.trips.map((t, i) => {
-              const mins = Math.round(
-                (new Date(t.arriveTime).getTime() - new Date(t.departTime).getTime()) / 60000
-              );
-              const label = t.isShuffle ? 'Shuttle Transfer' : (t.reason ?? 'Airport Run');
-              return (
-                <View key={i} style={s.row}>
-                  <Text style={s.timeCol}>{fmtTime(t.departTime)} – {fmtTime(t.arriveTime)}</Text>
-                  <Text style={[s.mainCol, s.mainText]}>{label}</Text>
-                  <Text style={s.mainText}>{mins}m</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
 
         {/* Holds Flagged */}
         {data.holds.length > 0 && (
