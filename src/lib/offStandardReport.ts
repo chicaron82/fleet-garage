@@ -39,7 +39,10 @@ export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry
     editStatus:      (row.edit_status as OthEditStatus | null) ?? null,
     editReviewedBy:  (row.edit_reviewed_by as string | null) ?? undefined,
     editReviewedAt:  (row.edit_reviewed_at as string | null) ?? undefined,
-    editStaffNote:   (row.edit_staff_note as string | null) ?? undefined,
+    editStaffNote:       (row.edit_staff_note as string | null) ?? undefined,
+    isBackdated:         (row.is_backdated as boolean | null) ?? false,
+    backdateApprovedBy:  (row.backdate_approved_by as string | null) ?? undefined,
+    backdateApprovedAt:  (row.backdate_approved_at as string | null) ?? undefined,
   };
 }
 

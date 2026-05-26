@@ -67,7 +67,8 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
         .select('start_time, minutes, reason')
         .eq('user_id', user.id)
         .eq('date', date)
-        .not('minutes', 'is', null),
+        .not('minutes', 'is', null)
+        .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved'),
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time')
         .eq('driver_id', user.id)

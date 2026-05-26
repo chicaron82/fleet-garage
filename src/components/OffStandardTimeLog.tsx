@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { hapticLight } from '../lib/haptics';
 import { useGarage } from '../context/GarageContext';
 import { useSchedule } from '../context/ScheduleContext';
 import type { OffStandardReason, OffStandardPresetReason, User } from '../types';
 import { OFF_STANDARD_LABELS } from '../types';
 import { OthEditSheet } from './OthEditSheet';
+import { BackdateEntrySheet } from './BackdateEntrySheet';
 import { useUserResolver } from '../hooks/useUserResolver';
 import { fmtTime, fmtMinutes } from '../lib/offStandardReport';
 import { ElapsedTicker } from './ElapsedTicker';
@@ -21,6 +23,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { holds, vehicles } = useGarage();
   const { shifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
+  const [showBackdate, setShowBackdate] = useState(false);
 
   const {
     isRecovering,
@@ -49,6 +52,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     handleQuickTap,
     handleEnd,
     handleDiscard,
+    handleSubmitBackdate,
     handleSaveEdit,
     handleRequestEdit,
     handleExport,
@@ -90,6 +94,14 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               ))}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowBackdate(true)}
+            className="w-full py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+          >
+            + Log Past Time
+          </button>
 
           {/* Start error — shown here so it's visible after a quick tap on mobile */}
           {startError && (
@@ -308,6 +320,13 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
         onSave={handleSaveEdit}
         onRequest={handleRequestEdit}
         onClose={() => setEditingEntry(null)}
+      />
+    )}
+
+    {showBackdate && (
+      <BackdateEntrySheet
+        onSubmit={(s, e, r, n) => { handleSubmitBackdate(s, e, r, n); setShowBackdate(false); }}
+        onClose={() => setShowBackdate(false)}
       />
     )}
     </>

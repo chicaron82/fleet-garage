@@ -38,6 +38,7 @@ export function ShiftRatesCard() {
       .eq('user_id', user.id)
       .eq('status', 'complete')
       .gte('start_time', todayStart.toISOString())
+      .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
       .then(({ data }) => {
         if (data) setEntries(
           (data as { start_time: string; minutes: number }[]).map(r => ({

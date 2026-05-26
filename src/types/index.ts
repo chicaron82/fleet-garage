@@ -507,4 +507,8 @@ export interface OffStandardEntry {
   editReviewedBy?:  string;
   editReviewedAt?:  string;
   editStaffNote?:   string;
+  // backdated entry fields
+  isBackdated?:          boolean;
+  backdateApprovedBy?:   string;
+  backdateApprovedAt?:   string;
 }

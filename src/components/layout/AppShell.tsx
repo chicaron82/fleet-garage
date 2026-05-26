@@ -4,6 +4,7 @@ import { UserProfileMenu } from '../UserProfileMenu';
 import { ModuleGuideModal } from '../ModuleGuideModal';
 import { NotificationBell } from '../NotificationBell';
 import { OthEditApprovalSheet } from '../OthEditApprovalSheet';
+import { BackdateApprovalSheet } from '../BackdateApprovalSheet';
 import { VehicleEditApprovalSheet } from '../VehicleEditApprovalSheet';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
@@ -24,7 +25,8 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
   const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
-  const [pendingVehicleEditId, setPendingVehicleEditId] = useState<string | null>(null);
+  const [pendingBackdateId, setPendingBackdateId]           = useState<string | null>(null);
+  const [pendingVehicleEditId, setPendingVehicleEditId]     = useState<string | null>(null);
   const [notifications, setNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
 
   const visibleNotifications = getVisibleNotifications(notifications, user, activeBranch);
@@ -95,7 +97,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell onNavigate={handleNavigate} onOthEditApproval={setPendingApprovalEntryId} onVehicleEditApproval={setPendingVehicleEditId} />
+            <NotificationBell onNavigate={handleNavigate} onOthEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
             <UserProfileMenu />
           </div>
         </div>
@@ -116,6 +118,13 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
         <OthEditApprovalSheet
           entryId={pendingApprovalEntryId}
           onClose={() => setPendingApprovalEntryId(null)}
+        />
+      )}
+
+      {pendingBackdateId && (
+        <BackdateApprovalSheet
+          entryId={pendingBackdateId}
+          onClose={() => setPendingBackdateId(null)}
         />
       )}
 

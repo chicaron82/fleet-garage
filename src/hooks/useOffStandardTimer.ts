@@ -14,6 +14,7 @@ import {
   generateOffStandardReport,
   deriveExplanation,
   todayDateStr,
+  fmtTime,
 } from '../lib/offStandardReport';
 import type { TripRow } from '../lib/offStandardReport';
 
@@ -368,6 +369,55 @@ export function useOffStandardTimer({
     setEndError(false);
   };
 
+  const handleSubmitBackdate = async (
+    startTime: string,
+    endTime:   string,
+    reason:    OffStandardReason,
+    notes:     string,
+  ) => {
+    const mins    = Math.round((new Date(endTime).getTime() - new Date(startTime).getTime()) / 60000);
+    const entryId = crypto.randomUUID();
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('off_standard_entries').insert({
+        id:             entryId,
+        user_id:        user.id,
+        branch_id:      user.branchId,
+        date:           localDateStr(0),
+        start_time:     startTime,
+        stop_time:      endTime,
+        minutes:        mins,
+        reason,
+        explanation:    notes || null,
+        auto_from_trip: false,
+        status:         'complete',
+        is_backdated:   true,
+        edit_status:    'pending',
+      })
+    );
+    if (!error) {
+      const label = OFF_STANDARD_LABELS[reason].short;
+      await pushNotification(
+        user.branchId,
+        ['Branch Manager', 'Operations Manager'],
+        '⏱️',
+        `${user.name} submitted a backdated OTH entry — ${label} — ${fmtTime(startTime)}–${fmtTime(endTime)} — ${notes}`,
+        'warning',
+        { type: 'oth_backdate_request', entryId },
+      );
+      setEntries(prev => [...prev, {
+        id:           entryId,
+        startTime,
+        stopTime:     endTime,
+        minutes:      mins,
+        reason,
+        explanation:  notes || undefined,
+        autoFromTrip: false,
+        isBackdated:  true,
+        editStatus:   'pending',
+      }]);
+    }
+  };
+
   const handleSaveEdit = async (newEndTime: string, newMinutes: number, explanation: string) => {
     if (!editingEntry) return;
     const { error } = await writeWithRefresh(() =>
@@ -542,6 +592,7 @@ export function useOffStandardTimer({
     handleQuickTap,
     handleEnd,
     handleDiscard,
+    handleSubmitBackdate,
     handleSaveEdit,
     handleRequestEdit,
     handleExport,

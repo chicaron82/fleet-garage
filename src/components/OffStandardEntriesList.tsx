@@ -37,6 +37,9 @@ export function OffStandardEntriesList({ entries, onEditClick }: OffStandardEntr
                 {entry.autoFromTrip && (
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">🔗 From movement log</span>
                 )}
+                {entry.isBackdated && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">Backdated</span>
+                )}
                 {entry.editStatus === 'pending' && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Pending approval</span>
                 )}
@@ -45,10 +48,12 @@ export function OffStandardEntriesList({ entries, onEditClick }: OffStandardEntr
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{entry.explanation}</p>
               )}
               {entry.editStatus === 'denied' && (
-                <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Edit denied — you may request again</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                  {entry.isBackdated ? 'Entry denied — not counted toward your rate' : 'Edit denied — you may request again'}
+                </p>
               )}
             </div>
-            {!entry.autoFromTrip && entry.editStatus !== 'pending' && (
+            {!entry.autoFromTrip && !entry.isBackdated && entry.editStatus !== 'pending' && (
               <button
                 onClick={() => { hapticLight(); onEditClick(entry); }}
                 className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm cursor-pointer transition-colors"
