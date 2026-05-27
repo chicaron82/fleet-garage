@@ -6,6 +6,8 @@ export interface ReportThroughput {
   shiftType:      ShiftType | null;
   openingCleaned: number | null;
   closingCleaned: number | null;
+  midCleaned:     number | null;
+  midShiftHours:  number | null;  // derived from mid_arrival → mid_departure timestamps
   fullDayCleaned: number | null;
   branchOpHours:  number;
   lotStatus:      string | null;
@@ -112,6 +114,14 @@ export function buildReport(d: ReportData): string {
 
     if (t.shiftType === 'opening') {
       if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
+    } else if (t.shiftType === 'mid') {
+      if (t.midCleaned != null) {
+        const hrs = t.midShiftHours != null ? ` (${t.midShiftHours.toFixed(1)}h window)` : '';
+        lines.push(`Mid shift: ${t.midCleaned} cars${hrs}`);
+      }
+      if (t.openingCleaned != null && t.midCleaned != null) {
+        lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
+      }
     } else {
       if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
       if (t.closingCleaned != null) lines.push(`Closing crew: ${t.closingCleaned} cars (13:30–22:00)`);
@@ -125,14 +135,17 @@ export function buildReport(d: ReportData): string {
     if (t.fullDayCleaned != null && t.branchOpHours > 0) {
       rateParts.push(`Branch rate: ${fmtRate(t.fullDayCleaned / t.branchOpHours)}`);
     }
-    if (t.shiftType !== 'opening' && t.closingCleaned != null) {
+    if (t.shiftType === 'closing' && t.closingCleaned != null) {
       rateParts.push(`Shift rate: ${fmtRate(t.closingCleaned / 8)}`);
     }
-    const shiftCleaned = t.shiftType === 'opening' ? t.openingCleaned : t.closingCleaned;
-    if (shiftCleaned != null) {
+    const windowCleaned = t.shiftType === 'opening' ? t.openingCleaned
+      : t.shiftType === 'mid' ? t.midCleaned
+      : t.closingCleaned;
+    const windowHours = t.shiftType === 'mid' ? (t.midShiftHours ?? null) : 8;
+    if (windowCleaned != null && windowHours != null) {
       if (totalOthMins > 0) {
-        const adjHours = Math.max(0.1, 8 - totalOthMins / 60);
-        rateParts.push(`Personal: ${fmtRate(shiftCleaned / adjHours)}`);
+        const adjHours = Math.max(0.1, windowHours - totalOthMins / 60);
+        rateParts.push(`Personal: ${fmtRate(windowCleaned / adjHours)}`);
       } else {
         rateParts.push('Personal: Log off-standard time to see your personal rate');
       }

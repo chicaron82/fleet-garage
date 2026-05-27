@@ -123,11 +123,12 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
 
   // Throughput rates
   const t = data.throughput;
-  const branchRate  = t?.fullDayCleaned != null && t.branchOpHours > 0 ? t.fullDayCleaned / t.branchOpHours : null;
-  const shiftRate   = t?.shiftType !== 'opening' && t?.closingCleaned != null ? t.closingCleaned / 8 : null;
-  const shiftCleaned = t ? (t.shiftType === 'opening' ? t.openingCleaned : t.closingCleaned) : null;
-  const personalRate = shiftCleaned != null && offTotal > 0
-    ? shiftCleaned / Math.max(0.1, 8 - offTotal / 60)
+  const branchRate   = t?.fullDayCleaned != null && t.branchOpHours > 0 ? t.fullDayCleaned / t.branchOpHours : null;
+  const shiftRate    = t?.shiftType === 'closing' && t.closingCleaned != null ? t.closingCleaned / 8 : null;
+  const windowCleaned = t ? (t.shiftType === 'opening' ? t.openingCleaned : t.shiftType === 'mid' ? t.midCleaned : t.closingCleaned) : null;
+  const windowHours   = t?.shiftType === 'mid' ? (t.midShiftHours ?? null) : 8;
+  const personalRate  = windowCleaned != null && windowHours != null && offTotal > 0
+    ? windowCleaned / Math.max(0.1, windowHours - offTotal / 60)
     : null;
 
   // Queue
@@ -186,22 +187,31 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
           <View style={s.section}>
             <SectionHead title="THROUGHPUT" />
             <View style={s.tpCols}>
-              {/* Opening */}
+              {/* Window card — shifts by shift type */}
               <View style={s.tpCard}>
-                <Text style={t.openingCleaned != null ? s.tpCount : s.tpNA}>
-                  {t.openingCleaned != null ? t.openingCleaned : '—'}
+                <Text style={windowCleaned != null ? s.tpCount : s.tpNA}>
+                  {windowCleaned != null ? windowCleaned : '—'}
                 </Text>
-                <Text style={s.tpLabel}>Opening crew</Text>
-                <Text style={s.tpSub}>06:45–15:15</Text>
-              </View>
-              {/* Closing */}
-              <View style={s.tpCard}>
-                <Text style={t.closingCleaned != null ? s.tpCount : s.tpNA}>
-                  {t.shiftType === 'opening' ? 'N/A' : (t.closingCleaned != null ? t.closingCleaned : '—')}
+                <Text style={s.tpLabel}>
+                  {t.shiftType === 'opening' ? 'Opening crew' : t.shiftType === 'mid' ? 'Mid shift' : 'Closing crew'}
                 </Text>
-                <Text style={s.tpLabel}>Closing crew</Text>
-                <Text style={s.tpSub}>13:30–22:00</Text>
+                <Text style={s.tpSub}>
+                  {t.shiftType === 'opening' ? '06:45–15:15'
+                    : t.shiftType === 'mid'
+                      ? (t.midShiftHours != null ? `${t.midShiftHours.toFixed(1)}h window` : 'variable window')
+                      : '13:30–22:00'}
+                </Text>
               </View>
+              {/* Opening context for mid */}
+              {t.shiftType === 'mid' && (
+                <View style={s.tpCard}>
+                  <Text style={t.openingCleaned != null ? s.tpCount : s.tpNA}>
+                    {t.openingCleaned != null ? t.openingCleaned : '—'}
+                  </Text>
+                  <Text style={s.tpLabel}>Opening crew</Text>
+                  <Text style={s.tpSub}>06:45–15:15</Text>
+                </View>
+              )}
               {/* Full day */}
               <View style={s.tpCard}>
                 <Text style={t.fullDayCleaned != null ? s.tpCount : s.tpNA}>
@@ -229,7 +239,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
             )}
             <View style={s.rateRow}>
               <Text style={s.rateLabel}>
-                Personal rate{offTotal > 0 ? `  (8hr − ${fmtMinutes(offTotal)} OTH)` : ''}
+                Personal rate{offTotal > 0 && windowHours != null ? `  (${windowHours.toFixed(0)}hr − ${fmtMinutes(offTotal)} OTH)` : ''}
               </Text>
               {personalRate != null
                 ? <Text style={s.rateValueGreen}>{fmtRate(personalRate)}</Text>

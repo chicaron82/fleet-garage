@@ -39,7 +39,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
     const [
       othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes,
-      fbRes, handoffRes, washbayRes, checkpointRes,
+      fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes,
     ] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip')
@@ -101,7 +101,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // Washbay log for the day
       supabase.from('washbay_logs')
-        .select('full_pages, last_page_entries, overtime_hours')
+        .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status')
         .eq('date', date)
         .limit(1),
 
@@ -110,6 +110,19 @@ export function ShiftReportExport({ date }: { date: string }) {
         .select('full_pages, last_page_entries')
         .eq('date', date)
         .eq('checkpoint_type', 'closing_arrival')
+        .limit(1),
+
+      // Mid shift checkpoints
+      supabase.from('shift_checkpoints')
+        .select('full_pages, last_page_entries, logged_at')
+        .eq('date', date)
+        .eq('checkpoint_type', 'mid_arrival')
+        .limit(1),
+
+      supabase.from('shift_checkpoints')
+        .select('full_pages, last_page_entries, logged_at')
+        .eq('date', date)
+        .eq('checkpoint_type', 'mid_departure')
         .limit(1),
     ]);
 
@@ -140,26 +153,45 @@ export function ShiftReportExport({ date }: { date: string }) {
     }
 
     // Throughput
-    const handoffRow    = (handoffRes.data ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string } | undefined;
-    const washbayRow    = (washbayRes.data ?? [])[0] as { full_pages: number; last_page_entries: number; overtime_hours: number } | undefined;
-    const checkpointRow = (checkpointRes.data ?? [])[0] as { full_pages: number; last_page_entries: number } | undefined;
+    type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string };
+    type CheckpointRow = { full_pages: number; last_page_entries: number; logged_at?: string };
+    const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string } | undefined;
+    const washbayRow    = (washbayRes.data    ?? [])[0] as WashbayRow    | undefined;
+    const checkpointRow = (checkpointRes.data ?? [])[0] as CheckpointRow | undefined;
+    const midArrRow     = (midArrivalRes.data ?? [])[0] as CheckpointRow | undefined;
+    const midDepRow     = (midDepartureRes.data ?? [])[0] as CheckpointRow | undefined;
 
     let throughput: ReportThroughput | null = null;
-    if (handoffRow || washbayRow) {
-      const openingCleaned  = handoffRow    ? handoffRow.full_pages * 19 + handoffRow.last_page_entries : null;
-      const fullDayCleaned  = washbayRow    ? washbayRow.full_pages * 19 + washbayRow.last_page_entries : null;
+    if (handoffRow || washbayRow || midArrRow) {
+      const openingCleaned  = handoffRow  ? handoffRow.full_pages * 19 + handoffRow.last_page_entries : null;
+      const carsIn          = washbayRow  ? washbayRow.full_pages * 19 + washbayRow.last_page_entries : null;
+      const fullDayCleaned  = carsIn != null && washbayRow ? Math.max(0, carsIn - washbayRow.cars_remaining) : null;
       const checkpointCount = checkpointRow ? checkpointRow.full_pages * 19 + checkpointRow.last_page_entries : null;
       const closingStart    = checkpointCount ?? openingCleaned;
       const closingCleaned  = closingStart != null && fullDayCleaned != null
         ? Math.max(0, fullDayCleaned - closingStart)
         : null;
+
+      const midArrCount = midArrRow ? midArrRow.full_pages * 19 + midArrRow.last_page_entries : null;
+      const midDepCount = midDepRow ? midDepRow.full_pages * 19 + midDepRow.last_page_entries : null;
+      const midCleaned  = midArrCount != null && midDepCount != null ? Math.max(0, midDepCount - midArrCount) : null;
+      const midShiftHours = midArrRow?.logged_at && midDepRow?.logged_at
+        ? Math.max(0.1, (new Date(midDepRow.logged_at).getTime() - new Date(midArrRow.logged_at).getTime()) / 3_600_000)
+        : null;
+
+      const lotStatus = shiftType === 'closing'
+        ? (washbayRow?.lot_status ?? null)
+        : (handoffRow?.lot_status ?? null);
+
       throughput = {
         shiftType,
         openingCleaned,
         closingCleaned,
+        midCleaned,
+        midShiftHours,
         fullDayCleaned,
         branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
-        lotStatus:     handoffRow?.lot_status ?? null,
+        lotStatus,
       };
     }
 

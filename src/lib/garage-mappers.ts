@@ -124,6 +124,7 @@ export function mapWashbayLog(row: Row): WashbayLog {
     teamSize:          reqNum(row, 'team_size',           'mapWashbayLog'),
     shiftHours:        Number(row['shift_hours']),
     overtimeHours:     (row['overtime_hours'] as number) ?? 0,
+    lotStatus:         (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
     loggedById:        reqStr(row, 'logged_by',           'mapWashbayLog'),
     loggedAt:          reqStr(row, 'logged_at',           'mapWashbayLog'),
   };

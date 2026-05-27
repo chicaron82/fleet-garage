@@ -4,6 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../lib/gas-sheet';
+import type { LotStatus } from '../types';
+
+const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; color: string }[] = [
+  { value: 'zeroed',     label: 'Zeroed',     color: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700' },
+  { value: 'manageable', label: 'Manageable', color: 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700' },
+  { value: 'backlog',    label: 'Backlog',    color: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700' },
+];
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -19,6 +26,7 @@ export function WashbayClosingLog() {
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(3);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
+  const [lotStatus,        setLotStatus]        = useState<LotStatus>('manageable');
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
   const [overtimeOpen,     setOvertimeOpen]     = useState(false);
@@ -49,6 +57,7 @@ export function WashbayClosingLog() {
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
+      setLotStatus(todayLog.lotStatus);
     }
     setEditing(true);
   };
@@ -71,7 +80,7 @@ export function WashbayClosingLog() {
     if (!canSubmit) return;
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS, overtimeHours });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus });
     setEditing(false);
     setSubmitting(false);
   };
@@ -141,6 +150,13 @@ export function WashbayClosingLog() {
               {opH}h operating window{isPeakSeason ? ' · peak season' : ''}
               {todayLog.overtimeHours > 0 && ` · Extended operations: +${todayLog.overtimeHours}h`}
             </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Lot status at close</span>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${LOT_STATUS_OPTIONS.find(o => o.value === todayLog.lotStatus)?.color ?? ''}`}>
+              {LOT_STATUS_OPTIONS.find(o => o.value === todayLog.lotStatus)?.label ?? todayLog.lotStatus}
+            </span>
           </div>
         </div>
       </div>
@@ -226,6 +242,25 @@ export function WashbayClosingLog() {
             >
               +
             </button>
+          </div>
+        </div>
+
+        {/* Lot status */}
+        <div>
+          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Lot status at close</label>
+          <div className="flex gap-2">
+            {LOT_STATUS_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { setLotStatus(opt.value); hapticLight(); }}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                  lotStatus === opt.value ? opt.color : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 

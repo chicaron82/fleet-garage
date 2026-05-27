@@ -368,6 +368,7 @@ export interface WashbayLog {
   teamSize: number;          // VSAs on shift
   shiftHours: number;        // Hours washbay ran (default 8)
   overtimeHours: number;     // Extended operating hours beyond base (0–3)
+  lotStatus: LotStatus;      // Lot state at end of closing shift
   loggedById: string;        // User.id
   loggedAt: string;          // ISO timestamp
 }
