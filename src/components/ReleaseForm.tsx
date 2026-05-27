@@ -36,6 +36,11 @@ const DETAIL_EXCEPTION_REASONS = [
   'Sent for professional detail',
 ];
 
+const SALE_CAR_RELEASE_REASONS = [
+  'Auction — short term circulation',
+  'Released — auction not yet scheduled',
+];
+
 const MECHANICAL_RELEASE_REASONS = [
   'PM due — releasing short term, service within 2 days',
   'PM due — releasing short term, service within 1 week',
@@ -51,7 +56,8 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
 
   const hold    = holds.find(h => h.id === holdId);
   const vehicle = vehicles.find(v => v.id === vehicleId);
-  const isDetailHold = hold?.holdType === 'detail';
+  const isDetailHold  = hold?.holdType === 'detail';
+  const isSaleCarHold = hold?.holdType === 'sale_car';
 
   const [releaseType, setReleaseType] = useState<ReleaseType>('EXCEPTION');
   const [reason, setReason] = useState('');
@@ -69,7 +75,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const reasons = isMechanical
     ? MECHANICAL_RELEASE_REASONS
     : isException
-      ? (isDetailHold ? DETAIL_EXCEPTION_REASONS : EXCEPTION_REASONS)
+      ? (isSaleCarHold ? SALE_CAR_RELEASE_REASONS : isDetailHold ? DETAIL_EXCEPTION_REASONS : EXCEPTION_REASONS)
       : PRE_EXISTING_REASONS;
 
   const finalReason = reason === '__custom__' ? customReason.trim() : reason;

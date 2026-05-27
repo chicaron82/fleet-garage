@@ -2,11 +2,13 @@ import type { UserRole, VehicleStatus } from '../types';
 import { hapticLight } from '../lib/haptics';
 
 const ACTIVE_CARD_STYLES: Record<VehicleStatus, string> = {
-  HELD:             'ring-2 ring-red-500 bg-red-50 dark:bg-red-950/30 border-transparent',
-  OUT_ON_EXCEPTION: 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/30 border-transparent',
-  PRE_EXISTING:     'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/30 border-transparent',
-  RETURNED:         'ring-2 ring-gray-400 bg-gray-100 dark:bg-gray-800/50 border-transparent',
-  CLEAR:            'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/30 border-transparent',
+  HELD:               'ring-2 ring-red-500 bg-red-50 dark:bg-red-950/30 border-transparent',
+  OUT_ON_EXCEPTION:   'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/30 border-transparent',
+  PRE_EXISTING:       'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/30 border-transparent',
+  RETURNED:           'ring-2 ring-gray-400 bg-gray-100 dark:bg-gray-800/50 border-transparent',
+  CLEAR:              'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/30 border-transparent',
+  SALE_CAR:           'ring-2 ring-teal-500 bg-teal-50 dark:bg-teal-950/30 border-transparent',
+  AUCTION_SHORT_TERM: 'ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-950/30 border-transparent',
 };
 
 interface CardProps {

@@ -276,14 +276,18 @@ export function useVehicleOperations({
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     if (!vehicle) return;
     const vehicleHolds = holds.filter(h => h.vehicleId === vehicleId && h.status !== 'REPAIRED');
+    const hasActiveNonSaleCar    = vehicleHolds.some(h => h.status === 'ACTIVE' && !h.holdTypes.includes('sale_car'));
+    const hasActiveSaleCar       = vehicleHolds.some(h => h.status === 'ACTIVE' && h.holdTypes.includes('sale_car'));
+    const hasPreExRelease        = vehicleHolds.some(h => h.release?.releaseType === 'PRE_EXISTING');
+    const hasReleasedSaleCar     = vehicleHolds.some(h => h.status === 'RELEASED' && h.holdTypes.includes('sale_car') && h.release);
+    const hasOtherRelease        = vehicleHolds.some(h => h.status === 'RELEASED' && h.release && !h.holdTypes.includes('sale_car'));
     const correctStatus: VehicleStatus =
-      vehicleHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : vehicleHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : vehicleHolds.some(h => h.release)
-            ? 'OUT_ON_EXCEPTION'
-            : 'CLEAR';
+      hasActiveNonSaleCar  ? 'HELD' :
+      hasActiveSaleCar     ? 'SALE_CAR' :
+      hasPreExRelease      ? 'PRE_EXISTING' :
+      hasReleasedSaleCar   ? 'AUCTION_SHORT_TERM' :
+      hasOtherRelease      ? 'OUT_ON_EXCEPTION' :
+                             'CLEAR';
     if (vehicle.status === correctStatus) return;
     await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId)

@@ -236,8 +236,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 What are you flagging?
               </h2>
 
-              {/* Hold Type Toggle — multi-select */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Hold Type Toggle — multi-select (sale_car is mutually exclusive) */}
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => { hapticLight(); h.toggleHoldType('damage'); }}
@@ -274,7 +274,26 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   <span className="block font-semibold">Mechanical</span>
                   <span className="block text-xs opacity-70 mt-0.5">PM, tires, repairs…</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { hapticLight(); h.toggleHoldType('sale_car'); }}
+                  className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
+                    h.holdTypes.includes('sale_car')
+                      ? 'border-purple-300 bg-purple-50 dark:bg-purple-900/20 text-gray-900 dark:text-gray-100'
+                      : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+                  }`}
+                >
+                  <span className="block font-semibold">🏷️ Sale Car</span>
+                  <span className="block text-xs opacity-70 mt-0.5">Auction — don't clean</span>
+                </button>
               </div>
+
+              {/* Sale Car info */}
+              {h.isSaleCarOnly && (
+                <div className="rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 px-4 py-3 text-xs text-purple-800 dark:text-purple-300">
+                  No photos required — this is a disposition flag, not a damage record. Add an auction date or reference in notes if known.
+                </div>
+              )}
 
               {/* Damage Type */}
               {h.holdTypes.includes('damage') && (
@@ -384,8 +403,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 />
               </div>
 
-              {/* Photos */}
-              <div>
+              {/* Photos — hidden for sale_car (no damage to document) */}
+              {!h.isSaleCarOnly && <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Photos {h.holdTypes.includes('damage') ? <span className="text-red-500">*</span> : <span className="normal-case font-normal text-gray-400 dark:text-gray-500">(optional)</span>} · max {h.MAX_PHOTOS}
                 </label>
@@ -448,7 +467,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   onChange={h.handlePhotoAdd}
                   className="hidden"
                 />
-              </div>
+              </div>}
 
               {/* Flagging as */}
               <div className="bg-gray-50 dark:bg-gray-950 transition-colors rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400">

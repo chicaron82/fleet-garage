@@ -13,12 +13,14 @@ interface Props {
 const COLLAPSED_BY_DEFAULT = new Set<FleetStatus>(['clear']);
 
 const STATUS_GROUPS: { status: FleetStatus; label: string; dot: string; badgeClass: string; headerClass: string }[] = [
-  { status: 'held',         label: 'Held',         dot: '🔴', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/40',       headerClass: 'text-red-700 dark:text-red-400' },
-  { status: 'pre-existing', label: 'Pre-existing',  dot: '🟡', badgeClass: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/40', headerClass: 'text-yellow-700 dark:text-yellow-400' },
-  { status: 'on-exception', label: 'On Exception',  dot: '🟠', badgeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800/40', headerClass: 'text-orange-700 dark:text-orange-400' },
-  { status: 'dirty',        label: 'Dirty',         dot: '🟤', badgeClass: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/40',   headerClass: 'text-amber-700 dark:text-amber-400' },
-  { status: 'available',    label: 'Available',     dot: '🟢', badgeClass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/40',  headerClass: 'text-green-700 dark:text-green-400' },
-  { status: 'clear',        label: 'Clear',         dot: '⚪', badgeClass: 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700',           headerClass: 'text-gray-600 dark:text-gray-400' },
+  { status: 'held',               label: 'Held',               dot: '🔴', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/40',           headerClass: 'text-red-700 dark:text-red-400' },
+  { status: 'pre-existing',       label: 'Pre-existing',       dot: '🟡', badgeClass: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/40', headerClass: 'text-yellow-700 dark:text-yellow-400' },
+  { status: 'on-exception',       label: 'On Exception',       dot: '🟠', badgeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800/40', headerClass: 'text-orange-700 dark:text-orange-400' },
+  { status: 'sale-car',           label: 'Sale Car',           dot: '🏷️', badgeClass: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800/40',         headerClass: 'text-teal-700 dark:text-teal-400' },
+  { status: 'auction-short-term', label: 'Auction — Short Term', dot: '🔖', badgeClass: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800/40', headerClass: 'text-purple-700 dark:text-purple-400' },
+  { status: 'dirty',              label: 'Dirty',              dot: '🟤', badgeClass: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/40',     headerClass: 'text-amber-700 dark:text-amber-400' },
+  { status: 'available',          label: 'Available',          dot: '🟢', badgeClass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/40',    headerClass: 'text-green-700 dark:text-green-400' },
+  { status: 'clear',              label: 'Clear',              dot: '⚪', badgeClass: 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700',             headerClass: 'text-gray-600 dark:text-gray-400' },
 ];
 
 function fmtRelative(iso: string): string {
@@ -182,7 +184,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                             {v.make} {v.model} {v.year} · {v.color}
                           </span>
                         </div>
-                        {(status === 'held' || status === 'pre-existing' || status === 'on-exception') && v.holdSummary.length > 0 && (
+                        {(status === 'held' || status === 'pre-existing' || status === 'on-exception' || status === 'sale-car' || status === 'auction-short-term') && v.holdSummary.length > 0 && (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <p className="text-[11px] text-gray-400 dark:text-gray-500">
                               Hold: {v.holdSummary.join(', ')}{v.holdFlaggedAt ? ` · Flagged ${fmtRelative(v.holdFlaggedAt)}` : ''}

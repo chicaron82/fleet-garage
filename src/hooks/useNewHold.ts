@@ -52,12 +52,16 @@ export function useNewHold(preselectedId?: string) {
     : mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ');
   const detailDesc = detailReason ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}` : '';
 
+  const isSaleCarOnly = holdTypes.length === 1 && holdTypes[0] === 'sale_car';
+
   const parts = [
     holdTypes.includes('damage')     ? damageDesc    : '',
     holdTypes.includes('detail')     ? detailDesc    : '',
     holdTypes.includes('mechanical') ? mechanicalDesc : '',
   ].filter(Boolean);
-  const finalDamage = parts.join('; ');
+  const finalDamage = isSaleCarOnly
+    ? (notes.trim() ? `Sale car — ${notes.trim()}` : 'Sale car')
+    : parts.join('; ');
 
   const damageOk     = !holdTypes.includes('damage')     || !!damageDesc;
   const detailOk     = !holdTypes.includes('detail')     || !!detailReason;
@@ -77,7 +81,9 @@ export function useNewHold(preselectedId?: string) {
         if (prev.length === 1) return prev; // can't deselect last
         return prev.filter(t => t !== type);
       }
-      return [...prev, type];
+      // sale_car is mutually exclusive with all other types
+      if (type === 'sale_car') return ['sale_car'];
+      return [...prev.filter(t => t !== 'sale_car'), type];
     });
   };
 
@@ -138,7 +144,7 @@ export function useNewHold(preselectedId?: string) {
     unitSearch, setUnitSearch,
     selectedVehicle, alreadyHeld, preselectedId,
     searchResults, noResults,
-    holdTypes, holdType, toggleHoldType,
+    holdTypes, holdType, toggleHoldType, isSaleCarOnly,
     damageTypes, toggleDamageType,
     customDamage, setCustomDamage,
     detailReason, setDetailReason,

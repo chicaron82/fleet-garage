@@ -79,7 +79,7 @@ export type Profile = User;
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-export type VehicleStatus    = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR';
+export type VehicleStatus    = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR' | 'SALE_CAR' | 'AUCTION_SHORT_TERM';
 export type EvAssetStatus    = 'present' | 'missing';
 export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
@@ -118,7 +118,7 @@ export function canManageVehicles(role: UserRole): boolean {
 // ── Holds ────────────────────────────────────────────────────────────────────
 
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
-export type HoldType = 'damage' | 'detail' | 'mechanical';
+export type HoldType = 'damage' | 'detail' | 'mechanical' | 'sale_car';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
 

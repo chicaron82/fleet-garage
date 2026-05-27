@@ -4,6 +4,8 @@ export type FleetStatus =
   | 'pre-existing'
   | 'on-exception'
   | 'held'
+  | 'sale-car'
+  | 'auction-short-term'
   | 'dirty'
   | 'available'
   | 'clear';
@@ -29,7 +31,7 @@ export interface FleetVehicle {
 }
 
 export const STATUS_ORDER: Record<FleetStatus, number> = {
-  held: 0, 'pre-existing': 1, 'on-exception': 2, dirty: 3, available: 4, clear: 5,
+  held: 0, 'pre-existing': 1, 'on-exception': 2, 'sale-car': 3, 'auction-short-term': 4, dirty: 5, available: 6, clear: 7,
 };
 
 type HoldRow = {
@@ -118,15 +120,32 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
     let holdCount = 0;
     let holdSummary: string[] = [];
 
-    if (nonPreExActive.length > 0) {
-      // ACTIVE non-pre-existing holds → held (earliest is primary for navigation)
-      const sorted = nonPreExActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const saleCarActive    = nonPreExActive.filter(h => (h.hold_types ?? []).includes('sale_car'));
+    const regularActive    = nonPreExActive.filter(h => !(h.hold_types ?? []).includes('sale_car'));
+    const saleCarReleased  = vehicleHolds.filter(h =>
+      h.status === 'RELEASED' &&
+      (h.hold_types ?? []).includes('sale_car') &&
+      (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
+    );
+
+    if (regularActive.length > 0) {
+      // ACTIVE non-pre-existing, non-sale-car holds → held
+      const sorted = regularActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'held';
       holdId = sorted[0].id;
       holdFlaggedAt = sorted[0].created_at;
       holdCount = activeHolds.length;
       holdSummary = allTypeLabels(activeHolds);
       holdType = holdSummary[0];
+    } else if (saleCarActive.length > 0) {
+      // ACTIVE sale_car hold
+      const sorted = saleCarActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      status = 'sale-car';
+      holdId = sorted[0].id;
+      holdFlaggedAt = sorted[0].created_at;
+      holdCount = saleCarActive.length;
+      holdSummary = ['Sale Car'];
+      holdType = 'Sale Car';
     } else if (preExActive.length > 0) {
       // Only pre-existing ACTIVE holds
       const sorted = preExActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -136,6 +155,15 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
       holdCount = preExActive.length;
       holdSummary = ['Pre-existing'];
       holdType = 'Pre-existing';
+    } else if (saleCarReleased.length > 0) {
+      // Released sale_car → out on auction short-term
+      const sorted = saleCarReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      status = 'auction-short-term';
+      holdId = sorted[0].id;
+      holdFlaggedAt = sorted[0].created_at;
+      holdCount = saleCarReleased.length;
+      holdSummary = ['Auction'];
+      holdType = 'Auction';
     } else if (exceptionReleased.length > 0) {
       const sorted = exceptionReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'on-exception';

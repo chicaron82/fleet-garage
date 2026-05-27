@@ -431,9 +431,11 @@ export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
 }
 
 const STATUS_LABELS: Record<VehicleStatus, string> = {
-  HELD:             'currently held',
-  OUT_ON_EXCEPTION: 'on exception',
-  PRE_EXISTING:     'pre-existing',
-  RETURNED:         'returned',
-  CLEAR:            'repaired',
+  HELD:               'currently held',
+  OUT_ON_EXCEPTION:   'on exception',
+  PRE_EXISTING:       'pre-existing',
+  RETURNED:           'returned',
+  CLEAR:              'repaired',
+  SALE_CAR:           'sale car',
+  AUCTION_SHORT_TERM: 'auction — short term',
 };

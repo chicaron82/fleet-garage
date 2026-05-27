@@ -13,11 +13,11 @@ export function ExceptionReturnSection() {
   const { getName } = useUserResolver();
 
   const items = vehicles
-    .filter(v => v.status === 'OUT_ON_EXCEPTION')
+    .filter(v => v.status === 'OUT_ON_EXCEPTION' || v.status === 'AUCTION_SHORT_TERM')
     .flatMap(v => {
       const hold = getHoldsForVehicle(v.id)
         .find(h => h.status === 'RELEASED' && h.release?.releaseType === 'EXCEPTION');
-      return hold ? [{ vehicle: v, hold }] : [];
+      return hold ? [{ vehicle: v, hold, isAuction: v.status === 'AUCTION_SHORT_TERM' }] : [];
     });
 
   if (items.length === 0) return null;
@@ -29,11 +29,11 @@ export function ExceptionReturnSection() {
           Returning on Exception — {items.length} vehicle{items.length > 1 ? 's' : ''}
         </p>
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-          Compare damage against hold record — re-hold if anything is new or worse
+          Compare damage against hold record — re-hold if anything is new or worse. Auction units: confirm re-hold as Sale Car.
         </p>
       </div>
 
-      {items.map(({ vehicle, hold }) => (
+      {items.map(({ vehicle, hold, isAuction }) => (
         <div key={vehicle.id} className="bg-white dark:bg-gray-900 rounded-xl border border-amber-200 dark:border-amber-800/50 overflow-hidden transition-colors">
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -58,10 +58,23 @@ export function ExceptionReturnSection() {
                   )}
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 transition-colors">
-                On Exception
-              </span>
+              {isAuction ? (
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 transition-colors">
+                  Auction
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 transition-colors">
+                  On Exception
+                </span>
+              )}
             </div>
+
+            {/* Auction re-hold prompt */}
+            {isAuction && (
+              <div className="mt-3 px-3 py-2.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 rounded-lg text-xs text-purple-800 dark:text-purple-300">
+                This unit is flagged for auction. Re-hold as Sale Car below.
+              </div>
+            )}
 
             {/* Hold detail panel — damage photos, history, and re-hold */}
             {user && (
