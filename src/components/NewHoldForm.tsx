@@ -329,10 +329,11 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {([
-                    { value: 'tire-swap',   label: `${getTireSwapSeason()} Tire Swap` },
-                    { value: 'tire-repair', label: '🛞 Tire Repair' },
-                    { value: 'pm-due',      label: '⚙️ PM Due' },
-                    { value: 'other',       label: 'Other' },
+                    { value: 'tire-swap',      label: `${getTireSwapSeason()} Tire Swap` },
+                    { value: 'tire-repair',    label: '🛞 Tire Repair' },
+                    { value: 'pm-due',         label: '⚙️ PM Due' },
+                    { value: 'safety-recall',  label: '⚠️ Safety / Recall' },
+                    { value: 'other',          label: 'Other' },
                   ] as { value: MechanicalSubType; label: string }[]).map(opt => (
                     <button
                       key={opt.value}
@@ -352,6 +353,21 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   ))}
                 </div>
               </div>
+              )}
+
+              {/* Safety / Recall bypass */}
+              {h.holdTypes.includes('mechanical') && h.mechanicalSubType === 'safety-recall' && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={h.safetyRecallBypassChecked}
+                    onChange={e => { hapticLight(); h.setSafetyRecallBypassChecked(e.target.checked); }}
+                    className="w-4 h-4 rounded accent-yellow-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Safety concern or recall notice — no visible defect to photograph
+                  </span>
+                </label>
               )}
 
               {/* Notes */}

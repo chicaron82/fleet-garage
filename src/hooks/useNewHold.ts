@@ -20,6 +20,7 @@ export function useNewHold(preselectedId?: string) {
   const [mechanicalTypes, setMechanicalTypes] = useState<string[]>([]);
   const [customMechanical, setCustomMechanical] = useState('');
   const [mechanicalSubType, setMechanicalSubType] = useState<MechanicalSubType | null>(null);
+  const [safetyRecallBypassChecked, setSafetyRecallBypassChecked] = useState(false);
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -42,9 +43,13 @@ export function useNewHold(preselectedId?: string) {
 
   const noResults = unitSearch.trim().length >= 2 && searchResults.length === 0;
 
+  const safetyRecallBypassActive = mechanicalSubType === 'safety-recall' && safetyRecallBypassChecked;
+
   // Per-type descriptions
   const damageDesc = damageTypes.map(t => t === 'Other' ? customDamage.trim() : t).filter(Boolean).join('; ');
-  const mechanicalDesc = mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ');
+  const mechanicalDesc = safetyRecallBypassActive
+    ? (notes.trim() ? `Safety / recall — ${notes.trim()}` : 'Safety / recall — no visible defect')
+    : mechanicalTypes.map(t => t === 'Other' ? customMechanical.trim() : t).filter(Boolean).join('; ');
   const detailDesc = detailReason ? `Detail required — ${DETAIL_REASON_LABELS[detailReason as DetailReason] ?? ''}` : '';
 
   const parts = [
@@ -56,7 +61,7 @@ export function useNewHold(preselectedId?: string) {
 
   const damageOk     = !holdTypes.includes('damage')     || !!damageDesc;
   const detailOk     = !holdTypes.includes('detail')     || !!detailReason;
-  const mechanicalOk = !holdTypes.includes('mechanical') ||
+  const mechanicalOk = !holdTypes.includes('mechanical') || safetyRecallBypassActive ||
     (mechanicalTypes.filter(t => t !== 'Other').length > 0 ||
      (mechanicalTypes.includes('Other') && !!customMechanical.trim()));
 
@@ -140,6 +145,7 @@ export function useNewHold(preselectedId?: string) {
     mechanicalTypes, toggleMechanicalType,
     customMechanical, setCustomMechanical,
     mechanicalSubType, setMechanicalSubType,
+    safetyRecallBypassChecked, setSafetyRecallBypassChecked, safetyRecallBypassActive,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
     submitting, submitError, canSubmit, photosOk,

@@ -34,6 +34,7 @@ export function NewIssueReHoldForm({
   const [newIssueDescription, setNewIssueDescription] = useState('');
   const [detailOdourChecked, setDetailOdourChecked] = useState(false);
   const [mechanicalPMChecked, setMechanicalPMChecked] = useState(false);
+  const [mechanicalSafetyRecallChecked, setMechanicalSafetyRecallChecked] = useState(false);
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -72,6 +73,10 @@ export function NewIssueReHoldForm({
       finalDescription = newIssueDescription.trim()
         ? `PM due — ${newIssueDescription.trim()}`
         : 'PM due';
+    } else if (newIssueHoldType === 'mechanical' && mechanicalSafetyRecallChecked) {
+      finalDescription = newIssueDescription.trim()
+        ? `Safety / recall — ${newIssueDescription.trim()}`
+        : 'Safety / recall — no visible defect';
     } else {
       finalDescription =
         newIssueDescription.trim() ||
@@ -83,7 +88,7 @@ export function NewIssueReHoldForm({
 
   const photoBypassActive =
     (newIssueHoldType === 'detail' && detailOdourChecked) ||
-    (newIssueHoldType === 'mechanical' && mechanicalPMChecked);
+    (newIssueHoldType === 'mechanical' && (mechanicalPMChecked || mechanicalSafetyRecallChecked));
 
   const canSubmitReHold =
     (newIssueHoldType === 'damage' ? damageTypes.length > 0 : true) &&
@@ -112,6 +117,7 @@ export function NewIssueReHoldForm({
                 setDamageTypes([]);
                 setDetailOdourChecked(false);
                 setMechanicalPMChecked(false);
+                setMechanicalSafetyRecallChecked(false);
               }}
               className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer capitalize ${
                 newIssueHoldType === ht
@@ -213,11 +219,29 @@ export function NewIssueReHoldForm({
                 onChange={(e) => {
                   hapticLight();
                   setMechanicalPMChecked(e.target.checked);
+                  if (e.target.checked) setMechanicalSafetyRecallChecked(false);
                 }}
                 className="w-4 h-4 rounded accent-yellow-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 PM due — no visible defect to photograph
+              </span>
+            </label>
+          )}
+          {newIssueHoldType === 'mechanical' && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={mechanicalSafetyRecallChecked}
+                onChange={(e) => {
+                  hapticLight();
+                  setMechanicalSafetyRecallChecked(e.target.checked);
+                  if (e.target.checked) setMechanicalPMChecked(false);
+                }}
+                className="w-4 h-4 rounded accent-yellow-500"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Safety concern or recall notice — no visible defect to photograph
               </span>
             </label>
           )}

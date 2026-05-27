@@ -120,7 +120,7 @@ export function canManageVehicles(role: UserRole): boolean {
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
 export type HoldType = 'damage' | 'detail' | 'mechanical';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
-export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'other';
+export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
 
 export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
   'too-dirty': 'Too dirty',
