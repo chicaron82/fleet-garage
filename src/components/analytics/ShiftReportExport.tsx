@@ -3,148 +3,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
-import type { ShiftWithUser, ShiftType } from '../../types';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-function fmtMinutes(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
-
-function formatDateStr(dateISO: string): string {
-  const [y, m, d] = dateISO.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-CA', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
-}
-
-const SHIFT_TYPE_LABEL: Record<ShiftType, string> = {
-  opening:  'Opening shift',
-  mid:      'Mid shift',
-  closing:  'Closing shift',
-  'day-off': 'Day Off',
-  pto:      'PTO',
-  sick:     'Sick Day',
-};
-
-function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date: string): string {
-  const todayShifts = shifts.filter(s => s.userId === userId && s.date === date);
-  if (todayShifts.length === 0) return '8-hour shift';
-  const withTimes = todayShifts.find(s => s.startTime && s.endTime);
-  const chosen = withTimes ?? todayShifts[0];
-  if (!chosen) return '8-hour shift';
-  const label = SHIFT_TYPE_LABEL[chosen.shiftType] ?? 'Shift';
-  return chosen.startTime && chosen.endTime
-    ? `${label} ${chosen.startTime}–${chosen.endTime}`
-    : label;
-}
-
-function formatLocation(loc: string): string {
-  return loc.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function formatHoldTypes(types: string[]): string {
-  if (types.length === 0) return 'Hold';
-  return types.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' & ') + ' hold';
-}
-
-// ── Report generator ──────────────────────────────────────────────────────────
-
-interface ReportData {
-  shiftLine: string;
-  dateLabel: string;
-  userName: string;
-  employeeId: string;
-  offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
-  trips:        { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null }[];
-  holds:        { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string }[];
-  checkIns:     { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
-  lostFound:    { foundAt: string; description: string; location: string; unitNumber: string | null }[];
-  audits:       { createdAt: string; vehicleNumber: string; status: string }[];
-  issues:       { reportedAt: string; title: string; severity: string }[];
-}
-
-function buildReport(d: ReportData): string {
-  const SEP = '─'.repeat(37);
-  const lines: string[] = [
-    'SHIFT REPORT',
-    SEP,
-    `Name:     ${d.userName}`,
-    `EEID:     ${d.employeeId}`,
-    `Date:     ${d.dateLabel}`,
-    `Shift:    ${d.shiftLine}`,
-  ];
-
-  const offTotal = d.offStandard.reduce((s, e) => s + e.minutes, 0);
-  if (d.offStandard.length > 0) {
-    lines.push('', 'OFF-STANDARD TIME', SEP);
-    for (const e of d.offStandard) {
-      const auto = e.autoFromTrip ? '  [auto]' : '';
-      const expl = e.explanation ? `  ${e.explanation}` : '';
-      lines.push(`${fmtTime(e.startTime)} – ${fmtTime(e.stopTime)}  ${e.reason}${expl}${auto}`);
-    }
-    lines.push(`Total: ${fmtMinutes(offTotal)}`);
-  }
-
-  if (d.trips.length > 0) {
-    lines.push('', 'AIRPORT TRIPS', SEP);
-    for (const t of d.trips) {
-      const mins = Math.round(
-        (new Date(t.arriveTime).getTime() - new Date(t.departTime).getTime()) / 60000
-      );
-      const label = t.isShuffle ? 'Shuttle Transfer' : (t.reason ?? 'Airport Run');
-      lines.push(`${fmtTime(t.departTime)} – ${fmtTime(t.arriveTime)}  ${label}  (${mins}m)`);
-    }
-  }
-
-  if (d.holds.length > 0) {
-    lines.push('', 'UNITS FLAGGED', SEP);
-    for (const h of d.holds) {
-      const desc = h.description ? `  — ${h.description}` : '';
-      lines.push(`${formatHoldTypes(h.holdTypes)} · Unit ${h.vehicleUnit}  ${h.vehiclePlate}${desc}  (${fmtTime(h.flaggedAt)})`);
-    }
-  }
-
-  if (d.checkIns.length > 0) {
-    lines.push('', 'VEHICLES CHECKED IN', SEP);
-    for (const c of d.checkIns) {
-      lines.push(`Unit ${c.vehicleUnit}  ${c.vehiclePlate}  ${fmtTime(c.checkedInAt)}`);
-    }
-  }
-
-  if (d.lostFound.length > 0) {
-    lines.push('', 'LOST & FOUND', SEP);
-    for (const item of d.lostFound) {
-      const unit = item.unitNumber ? `  Unit ${item.unitNumber}` : '';
-      lines.push(`${item.description} · ${formatLocation(item.location)}${unit}  (${fmtTime(item.foundAt)})`);
-    }
-  }
-
-  if (d.audits.length > 0) {
-    lines.push('', 'AUDITS', SEP);
-    for (const a of d.audits) {
-      lines.push(`Unit ${a.vehicleNumber} · ${a.status}  (${fmtTime(a.createdAt)})`);
-    }
-  }
-
-  if (d.issues.length > 0) {
-    lines.push('', 'ISSUES REPORTED', SEP);
-    for (const i of d.issues) {
-      const sev = i.severity.charAt(0).toUpperCase() + i.severity.slice(1);
-      lines.push(`[${sev}] ${i.title}  (${fmtTime(i.reportedAt)})`);
-    }
-  }
-
-  lines.push('', 'Manager approval: _________________', SEP, 'Generated by Fleet Garage');
-  return lines.join('\n');
-}
+import {
+  buildReport,
+  formatDateStr,
+  deriveShiftLine,
+  type ReportData,
+  type ReportThroughput,
+} from '../../lib/buildShiftReport';
+import type { ShiftType } from '../../types';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -160,13 +26,21 @@ export function ShiftReportExport({ date }: { date: string }) {
   const busy = loading || pdfLoading;
 
   const fetchReportData = async (): Promise<ReportData> => {
-    const dayStart = new Date(date + 'T00:00:00');
-    const dayEnd   = new Date(date + 'T00:00:00');
+    const dayStart    = new Date(date + 'T00:00:00');
+    const dayEnd      = new Date(date + 'T00:00:00');
     dayEnd.setDate(dayEnd.getDate() + 1);
     const dayStartISO = dayStart.toISOString();
     const dayEndISO   = dayEnd.toISOString();
 
-    const [othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes] = await Promise.all([
+    // 90-day lookback for fleet balance projection
+    const fbLookback = new Date(date + 'T00:00:00');
+    fbLookback.setDate(fbLookback.getDate() - 90);
+    const fbLookbackDate = fbLookback.toISOString().slice(0, 10);
+
+    const [
+      othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes,
+      fbRes, handoffRes, washbayRes, checkpointRes,
+    ] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip')
         .eq('user_id', user.id).eq('status', 'complete')
@@ -174,7 +48,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         .order('start_time', { ascending: true }),
 
       supabase.from('vsa_trips')
-        .select('depart_time, arrive_time, is_shuttle, reason')
+        .select('depart_time, arrive_time, is_shuttle, reason, is_vsa_interruption, queue_at_departure')
         .eq('driver_id', user.id)
         .gte('depart_time', dayStartISO).lt('depart_time', dayEndISO)
         .not('arrive_time', 'is', null)
@@ -209,13 +83,92 @@ export function ShiftReportExport({ date }: { date: string }) {
         .eq('reported_by', user.id)
         .gte('reported_at', dayStartISO).lt('reported_at', dayEndISO)
         .order('reported_at', { ascending: true }),
+
+      // Fleet balance — 90 days for projection fallback
+      supabase.from('fleet_balance')
+        .select('out_count, in_count, date')
+        .gte('date', fbLookbackDate)
+        .lte('date', date)
+        .order('date', { ascending: false }),
+
+      // Handoff note for the day
+      supabase.from('handoff_notes')
+        .select('full_pages, last_page_entries, lot_status')
+        .gte('logged_at', dayStartISO)
+        .lt('logged_at', dayEndISO)
+        .order('logged_at', { ascending: false })
+        .limit(1),
+
+      // Washbay log for the day
+      supabase.from('washbay_logs')
+        .select('full_pages, last_page_entries, overtime_hours')
+        .eq('date', date)
+        .limit(1),
+
+      // Closing arrival checkpoint
+      supabase.from('shift_checkpoints')
+        .select('full_pages, last_page_entries')
+        .eq('date', date)
+        .eq('checkpoint_type', 'closing_arrival')
+        .limit(1),
     ]);
+
+    // Shift type
+    const shiftType: ShiftType | null = (() => {
+      const dayShifts = shifts.filter(s => s.userId === user.id && s.date === date);
+      if (!dayShifts.length) return null;
+      const withTimes = dayShifts.find(s => s.startTime && s.endTime);
+      return (withTimes ?? dayShifts[0])?.shiftType ?? null;
+    })();
+
+    // Fleet balance — actual or same-day-of-week projection
+    const fbRows = (fbRes.data ?? []) as { date: string; out_count: number; in_count: number }[];
+    const todayFb = fbRows.find(r => r.date === date);
+    let fleetBalance: ReportData['fleetBalance'] = null;
+    if (todayFb) {
+      fleetBalance = { outCount: todayFb.out_count, inCount: todayFb.in_count, isProjected: false };
+    } else if (fbRows.length >= 2) {
+      const dow = new Date(date + 'T00:00:00').getDay();
+      const sameDow = fbRows.filter(r => new Date(r.date + 'T00:00:00').getDay() === dow);
+      if (sameDow.length >= 2) {
+        fleetBalance = {
+          outCount:    Math.round(sameDow.reduce((s, r) => s + r.out_count, 0) / sameDow.length),
+          inCount:     Math.round(sameDow.reduce((s, r) => s + r.in_count,  0) / sameDow.length),
+          isProjected: true,
+        };
+      }
+    }
+
+    // Throughput
+    const handoffRow    = (handoffRes.data ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string } | undefined;
+    const washbayRow    = (washbayRes.data ?? [])[0] as { full_pages: number; last_page_entries: number; overtime_hours: number } | undefined;
+    const checkpointRow = (checkpointRes.data ?? [])[0] as { full_pages: number; last_page_entries: number } | undefined;
+
+    let throughput: ReportThroughput | null = null;
+    if (handoffRow || washbayRow) {
+      const openingCleaned  = handoffRow    ? handoffRow.full_pages * 19 + handoffRow.last_page_entries : null;
+      const fullDayCleaned  = washbayRow    ? washbayRow.full_pages * 19 + washbayRow.last_page_entries : null;
+      const checkpointCount = checkpointRow ? checkpointRow.full_pages * 19 + checkpointRow.last_page_entries : null;
+      const closingStart    = checkpointCount ?? openingCleaned;
+      const closingCleaned  = closingStart != null && fullDayCleaned != null
+        ? Math.max(0, fullDayCleaned - closingStart)
+        : null;
+      throughput = {
+        shiftType,
+        openingCleaned,
+        closingCleaned,
+        fullDayCleaned,
+        branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
+        lotStatus:     handoffRow?.lot_status ?? null,
+      };
+    }
 
     return {
       shiftLine:  deriveShiftLine(shifts, user.id, date),
       dateLabel:  formatDateStr(date),
       userName:   user.name,
       employeeId: user.employeeId,
+      shiftType,
       offStandard: (othRes.data ?? []).map((r: Record<string, unknown>) => ({
         startTime:    r.start_time as string,
         stopTime:     r.stop_time as string,
@@ -225,19 +178,21 @@ export function ShiftReportExport({ date }: { date: string }) {
         autoFromTrip: r.auto_from_trip as boolean,
       })),
       trips: (tripRes.data ?? []).map((r: Record<string, unknown>) => ({
-        departTime: r.depart_time as string,
-        arriveTime: r.arrive_time as string,
-        isShuffle:  r.is_shuttle as boolean | null,
-        reason:     r.reason as string | null,
+        departTime:       r.depart_time as string,
+        arriveTime:       r.arrive_time as string,
+        isShuffle:        r.is_shuttle as boolean | null,
+        reason:           r.reason as string | null,
+        isVsaInterruption: r.is_vsa_interruption as boolean | null,
+        queueAtDeparture: r.queue_at_departure as string | null,
       })),
       holds: (holdRes.data ?? []).map((r: Record<string, unknown>) => {
         const v = r.vehicles as { unit_number: string; license_plate: string } | null;
         return {
-          flaggedAt:   r.flagged_at as string,
-          holdTypes:   (r.hold_types as string[] | null) ?? [],
-          vehicleUnit: v?.unit_number ?? '—',
+          flaggedAt:    r.flagged_at as string,
+          holdTypes:    (r.hold_types as string[] | null) ?? [],
+          vehicleUnit:  v?.unit_number ?? '—',
           vehiclePlate: v?.license_plate ?? '—',
-          description: (r.damage_description as string | null) ?? '',
+          description:  (r.damage_description as string | null) ?? '',
         };
       }),
       checkIns: (ciRes.data ?? []).map((r: Record<string, unknown>) => ({
@@ -261,6 +216,8 @@ export function ShiftReportExport({ date }: { date: string }) {
         title:      r.title as string,
         severity:   r.severity as string,
       })),
+      fleetBalance,
+      throughput,
     };
   };
 
