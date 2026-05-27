@@ -4,6 +4,9 @@
 
 ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
 
+-- Fix one legacy row with truncated status value
+UPDATE vehicles SET status = 'OUT_ON_EXCEPTION' WHERE status = 'ON_EXCEPTION';
+
 ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check
   CHECK (status IN (
     'CLEAR',

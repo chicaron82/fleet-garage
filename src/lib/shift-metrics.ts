@@ -7,7 +7,7 @@ export const MORNING_SHIFT_HOURS = 8;
 export const CLOSING_SHIFT_HOURS = 8;
 const MORNING_HANDOFF_LOCAL_TIME = '15:15:00';
 
-export type ShiftWindow = 'morning' | 'closing';
+export type ShiftWindow = 'morning' | 'closing' | 'mid';
 
 export interface ShiftSnapshot {
   cleaned: number | null;
@@ -18,6 +18,7 @@ export interface ShiftSnapshot {
 export interface ShiftPartition {
   morning: ShiftSnapshot;
   closing: ShiftSnapshot;
+  mid:     ShiftSnapshot;
 }
 
 export interface ShiftRates {
@@ -57,8 +58,10 @@ export function buildShiftPartition(args: {
   checkpoint: ShiftCheckpoint | null | undefined;
   fullDayCleaned: number | null;
   offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+  midArrival?: ShiftCheckpoint | null;
+  midDeparture?: ShiftCheckpoint | null;
 }): ShiftPartition {
-  const { handoff, checkpoint, fullDayCleaned, offStandardEntries } = args;
+  const { handoff, checkpoint, fullDayCleaned, offStandardEntries, midArrival, midDeparture } = args;
 
   const morningCleaned = handoff
     ? handoff.fullPages * 19 + handoff.lastPageEntries
@@ -76,9 +79,26 @@ export function buildShiftPartition(args: {
   const boundary = handoff ? morningHandoffBoundary(handoff) : null;
   const oth = splitOffStandard(offStandardEntries, boundary);
 
+  const midArrCount = midArrival  ? midArrival.fullPages  * 19 + midArrival.lastPageEntries  : null;
+  const midDepCount = midDeparture ? midDeparture.fullPages * 19 + midDeparture.lastPageEntries : null;
+  const midCleaned  = midArrCount != null && midDepCount != null ? Math.max(0, midDepCount - midArrCount) : null;
+  const midHours    = midArrival?.loggedAt && midDeparture?.loggedAt
+    ? Math.max(0.1, (new Date(midDeparture.loggedAt).getTime() - new Date(midArrival.loggedAt).getTime()) / 3_600_000)
+    : CLOSING_SHIFT_HOURS;
+  const midOth = midArrival?.loggedAt && midDeparture?.loggedAt
+    ? (() => {
+        const lo = new Date(midArrival.loggedAt).getTime();
+        const hi = new Date(midDeparture.loggedAt).getTime();
+        return offStandardEntries
+          .filter(e => { const t = new Date(e.startTime).getTime(); return t >= lo && t < hi; })
+          .reduce((s, e) => s + e.minutes, 0);
+      })()
+    : offStandardEntries.reduce((s, e) => s + e.minutes, 0);
+
   return {
     morning: { cleaned: morningCleaned, hours: morningHours,        oth: oth.morning },
     closing: { cleaned: closingCleaned, hours: CLOSING_SHIFT_HOURS, oth: oth.closing },
+    mid:     { cleaned: midCleaned,     hours: midHours,            oth: midOth      },
   };
 }
 
@@ -97,6 +117,7 @@ export function computeShiftRates(snapshot: ShiftSnapshot): ShiftRates {
 export function deriveShiftWindow(shiftType: ShiftType | null | undefined): ShiftWindow | null {
   if (shiftType === 'opening') return 'morning';
   if (shiftType === 'closing') return 'closing';
+  if (shiftType === 'mid')     return 'mid';
   return null;
 }
 
@@ -109,5 +130,7 @@ export function deriveUserShiftType(shifts: ShiftWithUser[], userId: string): Sh
 }
 
 export function pickShift(partition: ShiftPartition, window: ShiftWindow): ShiftSnapshot {
-  return window === 'morning' ? partition.morning : partition.closing;
+  if (window === 'morning') return partition.morning;
+  if (window === 'mid')     return partition.mid;
+  return partition.closing;
 }

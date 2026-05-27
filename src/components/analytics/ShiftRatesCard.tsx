@@ -12,7 +12,6 @@ import {
   pickShift,
 } from '../../lib/shift-metrics';
 
-const SHIFT_HOURS = 8;
 const STANDARD_RATE = 3.0;
 
 function fmtMinutes(total: number): string {
@@ -24,7 +23,7 @@ function fmtMinutes(total: number): string {
 
 export function ShiftRatesCard() {
   const { user } = useAuth();
-  const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint } = useGarage();
+  const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint, getMidArrival, getMidDeparture } = useGarage();
   const { shifts } = useSchedule();
   const [entries, setEntries] = useState<{ startTime: string; minutes: number }[]>([]);
 
@@ -60,16 +59,18 @@ export function ShiftRatesCard() {
   ) ?? null;
 
   const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
-  const activeMinutes = Math.max(0, SHIFT_HOURS * 60 - offTotal);
 
   const userShiftType = deriveUserShiftType(shifts, user.id);
   const window        = deriveShiftWindow(userShiftType) ?? 'morning';
   const checkpoint    = getTodayCheckpoint();
-  const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries });
+  const midArrival    = getMidArrival();
+  const midDeparture  = getMidDeparture();
+  const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries, midArrival, midDeparture });
   const mySnapshot    = pickShift(partition, window);
   const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
   const myCarsCleaned = mySnapshot.cleaned;
   const hasShiftData  = yourEffort != null;
+  const activeMinutes = Math.max(0, mySnapshot.hours * 60 - offTotal);
 
   const rateColor = !hasShiftData ? 'text-gray-400 dark:text-gray-500'
     : yourEffort! >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
@@ -86,7 +87,7 @@ export function ShiftRatesCard() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>Shift hours</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{SHIFT_HOURS}h</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">{mySnapshot.hours}h</span>
           </div>
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>Off-standard total</span>
@@ -104,7 +105,7 @@ export function ShiftRatesCard() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">{myCarsCleaned}</span>
           ) : (
             <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-              {window === 'morning' ? 'Submit handoff to see' : 'Submit closing duties to see'}
+              {window === 'morning' ? 'Submit handoff to see' : window === 'mid' ? 'Submit mid shift checkpoints to see' : 'Submit closing duties to see'}
             </span>
           )}
         </div>
