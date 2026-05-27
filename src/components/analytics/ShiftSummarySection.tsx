@@ -7,6 +7,7 @@ import { isManagement } from '../../lib/analytics';
 import {
   SummaryRow, ShiftSparkline, HistoryCard,
 } from './AnalyticsComponents';
+import { ShiftExportActionSheet } from '../ShiftExportActionSheet';
 import { type SavedSummary, mapSaved } from './shiftSummaryUtils';
 
 function fmtMinutes(mins: number): string {
@@ -30,7 +31,7 @@ interface LiveSummary {
   firstActivityAt: string | null;
 }
 
-export function ShiftSummarySection({ activeBranch, onViewDateChange }: { activeBranch: string; onViewDateChange?: (date: string) => void }) {
+export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) {
   const { user } = useAuth();
   const [live, setLive]           = useState<LiveSummary | null>(null);
   const [history, setHistory]     = useState<SavedSummary[]>([]);
@@ -39,25 +40,22 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
   const [saving, setSaving]       = useState(false);
   const [savedForDate, setSavedForDate] = useState(false);
 
-  const todayISO     = localDateStr(0);
-  const yesterdayISO = localDateStr(-1);
-  const [viewDate, setViewDate] = useState(todayISO);
-  const isViewingYesterday = viewDate === yesterdayISO;
+  const todayISO = localDateStr(0);
+  const [exportDate, setExportDate] = useState<string | null>(null);
 
   const branchId = activeBranch === 'ALL' ? (user?.branchId ?? 'YWG') : activeBranch;
 
   useEffect(() => {
     if (!user) return;
-    loadData(viewDate);
+    loadData(todayISO);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, branchId, viewDate]);
+  }, [user?.id, branchId]);
 
   async function loadData(date: string) {
     if (!user) return;
     setLoading(true);
-
-    const dayStart = new Date(date + 'T00:00:00');
-    const dayEnd   = new Date(date + 'T00:00:00');
+    const dayStart    = new Date(date + 'T00:00:00');
+    const dayEnd      = new Date(date + 'T00:00:00');
     dayEnd.setDate(dayEnd.getDate() + 1);
     const dayStartISO = dayStart.toISOString();
     const dayEndISO   = dayEnd.toISOString();
@@ -83,8 +81,9 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
       supabase.from('shift_summaries')
         .select('*')
         .eq('user_id', user.id)
-        .gte('date', localDateStr(-6))
-        .order('date', { ascending: false }),
+        .gte('date', localDateStr(-30))
+        .order('date', { ascending: false })
+        .limit(5),
     ]);
 
     const osEntries = osResult.data ?? [];
@@ -140,7 +139,7 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
         user_id:                user.id,
         user_name:              user.name,
         branch_id:              user.branchId,
-        date:                   viewDate,
+        date:                   todayISO,
         first_activity_at:      live.firstActivityAt,
         saved_at:               new Date().toISOString(),
         off_standard_minutes:   live.offStandardMinutes,
@@ -183,39 +182,11 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
   return (
     <div className="space-y-4">
 
-      {/* Day toggle */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => { setViewDate(todayISO); onViewDateChange?.(todayISO); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            !isViewingYesterday
-              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          onClick={() => { setViewDate(yesterdayISO); onViewDateChange?.(yesterdayISO); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            isViewingYesterday
-              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          Yesterday
-        </button>
-      </div>
-
       {/* Live card */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              {isViewingYesterday ? 'My Shift · Yesterday' : 'My Shift Today'}
-            </p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">My Shift Today</p>
             {live?.firstActivityAt && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Active since {fmtTime(live.firstActivityAt)}</p>
             )}
@@ -275,7 +246,7 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
             disabled={saving || !hasActivity}
             className="w-full py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-300"
           >
-            {saving ? 'Saving…' : savedForDate ? 'Update Summary' : isViewingYesterday ? 'Save Yesterday\'s Summary' : 'Save Summary'}
+            {saving ? 'Saving…' : savedForDate ? 'Update Summary' : 'Save Summary'}
           </button>
         </div>
       </div>
@@ -290,9 +261,15 @@ export function ShiftSummarySection({ activeBranch, onViewDateChange }: { active
             <ShiftSparkline history={history} />
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {history.map(s => <HistoryCard key={s.id} s={s} />)}
+            {history.map(s => (
+              <HistoryCard key={s.id} s={s} onExportClick={() => setExportDate(s.date)} />
+            ))}
           </div>
         </div>
+      )}
+
+      {exportDate && (
+        <ShiftExportActionSheet date={exportDate} onClose={() => setExportDate(null)} />
       )}
 
       {/* Team Today — management only */}

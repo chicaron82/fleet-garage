@@ -150,7 +150,6 @@ export function MyShiftView() {
   const handoffDoneToday  = !!latestHandoff && latestHandoff.loggedAt.startsWith(localDateStr(0));
   const [activeTab, setActiveTab]             = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
   const [showHandoffForm, setShowHandoffForm] = useState(false);
-  const [reportDate, setReportDate]           = useState(() => localDateStr(0));
   const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
   const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
 
@@ -208,8 +207,8 @@ export function MyShiftView() {
       {activeTab === 'summary' && (
         <>
           <ShiftRatesCard />
-          <ShiftSummarySection activeBranch={activeBranch} onViewDateChange={setReportDate} />
-          <ShiftReportExport date={reportDate} />
+          <ShiftSummarySection activeBranch={activeBranch} />
+          <ShiftReportExport date={localDateStr(0)} />
         </>
       )}
 

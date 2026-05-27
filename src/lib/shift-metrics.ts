@@ -82,9 +82,7 @@ export function buildShiftPartition(args: {
   const midArrCount = midArrival  ? midArrival.fullPages  * 19 + midArrival.lastPageEntries  : null;
   const midDepCount = midDeparture ? midDeparture.fullPages * 19 + midDeparture.lastPageEntries : null;
   const midCleaned  = midArrCount != null && midDepCount != null ? Math.max(0, midDepCount - midArrCount) : null;
-  const midHours    = midArrival?.loggedAt && midDeparture?.loggedAt
-    ? Math.max(0.1, (new Date(midDeparture.loggedAt).getTime() - new Date(midArrival.loggedAt).getTime()) / 3_600_000)
-    : CLOSING_SHIFT_HOURS;
+  const midHours    = CLOSING_SHIFT_HOURS; // fixed 8h window — start time varies, duration does not
   const midOth = midArrival?.loggedAt && midDeparture?.loggedAt
     ? (() => {
         const lo = new Date(midArrival.loggedAt).getTime();

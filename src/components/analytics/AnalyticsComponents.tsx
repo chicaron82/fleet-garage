@@ -86,18 +86,26 @@ export function ShiftSparkline({ history }: { history: SavedSummary[] }) {
   );
 }
 
-export function HistoryCard({ s }: { s: SavedSummary }) {
+export function HistoryCard({ s, onExportClick }: { s: SavedSummary; onExportClick?: () => void }) {
   return (
-    <div className="px-4 py-3">
+    <button
+      type="button"
+      onClick={onExportClick}
+      disabled={!onExportClick}
+      className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer disabled:cursor-default"
+    >
       <div className="flex items-center justify-between mb-1">
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{fmtDateShift(s.date)}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
+          {onExportClick && <span className="text-xs text-gray-400 dark:text-gray-500">↗</span>}
+        </div>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
         <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
         {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
         {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} unit{s.holdsFlagged !== 1 ? 's' : ''} flagged</span>}
       </div>
-    </div>
+    </button>
   );
 }

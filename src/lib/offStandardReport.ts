@@ -53,8 +53,8 @@ export function shiftTypeLabel(shiftType: ShiftType): string {
   return `${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} shift`;
 }
 
-export function deriveShiftLine(shifts: ShiftWithUser[], userId: string): string {
-  const today = localDateStr(0);
+export function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date?: string): string {
+  const today = date ?? localDateStr(0);
   const todaysShifts = shifts.filter(s => s.userId === userId && s.date === today);
   if (todaysShifts.length === 0) return '8-hour shift';
 
@@ -74,6 +74,7 @@ export function generateOffStandardReport(
   trips: TripRow[],
   user: User,
   shiftLine: string,
+  dateLabel?: string,
 ): string {
   const offTotal = entries.reduce((s, e) => s + e.minutes, 0);
 
@@ -82,7 +83,7 @@ export function generateOffStandardReport(
     '─'.repeat(37),
     `Name:     ${user.name}`,
     `EEID:     ${user.employeeId}`,
-    `Date:     ${todayDateStr()}`,
+    `Date:     ${dateLabel ?? todayDateStr()}`,
     `Shift:    ${shiftLine}`,
     '',
     'OFF-STANDARD ENTRIES',
