@@ -5,7 +5,7 @@ import { useSchedule } from '../context/ScheduleContext';
 import { toISO } from '../context/ScheduleContext';
 import { WashbayClosingLog } from './WashbayClosingLog';
 import { HandoffForm } from './HandoffForm';
-import { ClosingCheckIn } from './ClosingCheckIn';
+import { AfternoonCheckIn } from './AfternoonCheckIn';
 import { MidShiftCheckIn } from './MidShiftCheckIn';
 import { WhiteboardView } from './WhiteboardView';
 import { ShiftSummarySection } from './analytics/ShiftSummarySection';
@@ -192,7 +192,7 @@ export function MyShiftView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
-          {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <ClosingCheckIn />)}
+          {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <AfternoonCheckIn />)}
           <StepSection title="Shift Handoff" open={handoffOpen} onToggle={() => setHandoffOpen(o => !o)}>
             <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
           </StepSection>

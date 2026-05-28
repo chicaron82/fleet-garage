@@ -7,7 +7,7 @@ import { localDateStr } from '../hooks/useFleetBalance';
 const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
-export function ClosingCheckIn() {
+export function AfternoonCheckIn() {
   const { getTodayCheckpoint, submitCheckpoint, handoffNotes } = useGarage();
 
   const existing = getTodayCheckpoint();
@@ -89,7 +89,7 @@ export function ClosingCheckIn() {
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Closing Check-In</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Afternoon Check-In</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
           Log the current gas sheet count to start your shift numbers.
         </p>
