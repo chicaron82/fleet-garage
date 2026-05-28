@@ -1,7 +1,7 @@
 import { Document, Page } from '@react-pdf/renderer';
 import { type ReportData } from '../../lib/buildShiftReport';
+import { s, resolveQueueLabel } from './ShiftReportPDFUtils';
 import {
-  s, resolveQueueLabel,
   ShiftReportHeader, FleetDemandSection, ThroughputSection,
   OthSection, QueueSection, HoldsSection, CheckInsSection,
   LostFoundSection, AuditsSection, IssuesSection,

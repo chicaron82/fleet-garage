@@ -54,7 +54,8 @@ export function LostFoundCard({
     ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
 
-  const daysHeld = Math.floor((Date.now() - new Date(item.foundAt).getTime()) / 86_400_000);
+  const [today] = useState(() => Date.now());
+  const daysHeld = Math.floor((today - new Date(item.foundAt).getTime()) / 86_400_000);
   const ageTier = item.status === 'returned' ? null : daysHeld >= 30 ? 'expired' : daysHeld >= 15 ? 'aging' : 'fresh';
   const tierClass = ageTier === 'fresh' ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
     : ageTier === 'aging' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20'
