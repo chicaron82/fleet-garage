@@ -20,13 +20,28 @@ function fmtRelativeDate(iso: string) {
 
 export function LostAndFoundView() {
   const { user } = useAuth();
-  const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem } = useLostFoundContext();
+  const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem, loadError, reload } = useLostFoundContext();
 
   const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
   const [showSheet, setShowSheet]           = useState(false);
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
+
+  if (loadError) {
+    return (
+      <div className="w-full max-w-3xl mx-auto px-4 py-16 flex flex-col items-center gap-4 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load lost &amp; found. Check your connection.</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const canAction = user ? canActionLostFound(user.role) : false;
   const holding = lostFoundItems.filter(i => i.status !== 'returned');

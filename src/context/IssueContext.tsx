@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { mapIssue } from '../lib/garage-mappers';
 import { useIssues, type IssuesSlice } from './useIssues';
 
-export type IssueContextValue = IssuesSlice & { loadError: boolean };
+export type IssueContextValue = IssuesSlice & { loadError: boolean; reload: () => void };
 
 const IssueContext = createContext<IssueContextValue | null>(null);
 
@@ -12,6 +12,9 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const { setFacilityIssues, ...slice } = useIssues(user, activeBranch);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  function reload() { setLoadError(false); setLoadAttempt(a => a + 1); }
 
   useEffect(() => {
     supabase
@@ -25,10 +28,10 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
         }
         if (data) setFacilityIssues(data.map(mapIssue));
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <IssueContext.Provider value={{ ...slice, loadError }}>
+    <IssueContext.Provider value={{ ...slice, loadError, reload }}>
       {children}
     </IssueContext.Provider>
   );

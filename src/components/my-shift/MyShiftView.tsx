@@ -137,7 +137,7 @@ function StepSection({ title, open, onToggle, children }: {
 
 export function MyShiftView() {
   const { user, activeBranch } = useAuth();
-  const { latestHandoff, getTodayCheckpoint } = useWashbayContext();
+  const { latestHandoff, getTodayCheckpoint, loadError, reload } = useWashbayContext();
   const { shifts } = useSchedule();
 
   const todayISO          = toISO(new Date());
@@ -157,6 +157,21 @@ export function MyShiftView() {
   useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (handoffDoneToday)  setClosingLogOpen(true); }, [handoffDoneToday]);
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-64 gap-4 text-center px-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load shift data. Check your connection.</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',

@@ -14,7 +14,7 @@ const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
 
 export function IssueLogView() {
-  const { facilityIssues, addIssue, clearIssue, reopenIssue } = useIssueContext();
+  const { facilityIssues, addIssue, clearIssue, reopenIssue, loadError, reload } = useIssueContext();
   const { getName: getUserName } = useUserResolver();
 
   const [showCleared, setShowCleared]       = useState(false);
@@ -25,6 +25,21 @@ export function IssueLogView() {
   const [newDescription, setNewDescription] = useState('');
   const [newSeverity, setNewSeverity]       = useState<IssueSeverity>('medium');
   const [submitting, setSubmitting]         = useState(false);
+
+  if (loadError) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 flex flex-col items-center gap-4 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load issues. Check your connection.</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const q = searchQuery.trim().toLowerCase();
   const matchesSearch = (issue: FacilityIssue) =>

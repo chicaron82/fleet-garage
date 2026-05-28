@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
 import { useVehicleOperations } from './useVehicleOperations';
+import { isStaleHold } from '../lib/holdFilters';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -12,6 +13,7 @@ export interface VehicleHoldContextValue {
   staleHolds: Hold[];
   loading: boolean;
   loadError: boolean;
+  reload: () => void;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
@@ -44,7 +46,10 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
+
+  function reload() { setLoadError(false); setLoading(true); setLoadAttempt(a => a + 1); }
 
   const vehicles = useMemo(() => {
     if (activeBranch === 'ALL') return allVehicles.filter(v => !v.archivedAt);
@@ -78,7 +83,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
       setLoading(false);
     }
     load();
-  }, []);
+  }, [loadAttempt]);
 
   // ── Realtime holds subscription ──────────────────────────────────────────────
   const allHoldsRef = useRef(allHolds);
@@ -145,15 +150,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
     return count;
   };
 
-  const [staleHolds, setStaleHolds] = useState<Hold[]>([]);
-  useEffect(() => {
-    const now = Date.now();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- deriving state from external time; no cascading risk
-    setStaleHolds(holds.filter(h =>
-      h.status === 'ACTIVE' &&
-      (now - new Date(h.flaggedAt).getTime()) > 48 * 60 * 60 * 1000
-    ));
-  }, [holds]);
+  const staleHolds = useMemo(() => holds.filter(h => isStaleHold(h)), [holds]);
 
   // ── Vehicle & hold write operations (extracted hook) ─────────────────────────
   const ops = useVehicleOperations({
@@ -165,7 +162,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
 
   return (
     <VehicleHoldContext.Provider value={{
-      vehicles, allVehicles, holds, staleHolds, loading, loadError,
+      vehicles, allVehicles, holds, staleHolds, loading, loadError, reload,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       ...ops,

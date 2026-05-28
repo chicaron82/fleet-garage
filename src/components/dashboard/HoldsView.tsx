@@ -22,7 +22,7 @@ interface Props {
 
 export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useVehicleHoldContext();
+  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useVehicleHoldContext();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = sessionStorage.getItem('dashboard_page');
@@ -145,6 +145,21 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   };
 
   const { getName } = useUserResolver();
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-64 gap-4 text-center px-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load fleet data. Check your connection.</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const paginationControls = totalPages > 1 ? (
     <div className="flex items-center justify-between py-2 transition-colors">

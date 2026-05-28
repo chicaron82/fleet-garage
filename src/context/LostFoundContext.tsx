@@ -5,7 +5,7 @@ import { mapLostFoundItem } from '../lib/garage-mappers';
 import { useLostFound, type LostFoundSlice } from './useLostFound';
 import { useVehicleHoldContext } from './VehicleHoldContext';
 
-export type LostFoundContextValue = LostFoundSlice & { loadError: boolean };
+export type LostFoundContextValue = LostFoundSlice & { loadError: boolean; reload: () => void };
 
 const LostFoundContext = createContext<LostFoundContextValue | null>(null);
 
@@ -14,6 +14,9 @@ export function LostFoundProvider({ children }: { children: React.ReactNode }) {
   const { allVehicles } = useVehicleHoldContext();
   const { setAllLostFoundItems, ...slice } = useLostFound(user, activeBranch, allVehicles);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  function reload() { setLoadError(false); setLoadAttempt(a => a + 1); }
 
   useEffect(() => {
     supabase
@@ -28,10 +31,10 @@ export function LostFoundProvider({ children }: { children: React.ReactNode }) {
         }
         if (data) setAllLostFoundItems(data.map(mapLostFoundItem));
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <LostFoundContext.Provider value={{ ...slice, loadError }}>
+    <LostFoundContext.Provider value={{ ...slice, loadError, reload }}>
       {children}
     </LostFoundContext.Provider>
   );

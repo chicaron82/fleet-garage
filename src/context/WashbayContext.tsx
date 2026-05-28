@@ -5,7 +5,7 @@ import { mapWashbayLog, mapHandoffNote, mapCheckpoint } from '../lib/garage-mapp
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
 
-export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & { loadError: boolean };
+export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & { loadError: boolean; reload: () => void };
 
 const WashbayContext = createContext<WashbayContextValue | null>(null);
 
@@ -14,6 +14,9 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
   const { setWashbayLogs, setHandoffNotes, ...washbaySlice } = useWashbayHandoff(user, activeBranch);
   const { setShiftCheckpoints, ...checkpointsSlice } = useShiftCheckpoints(user, activeBranch);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  function reload() { setLoadError(false); setLoadAttempt(a => a + 1); }
 
   // ── Initial data load ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -30,7 +33,7 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
       if (nData) setHandoffNotes(nData.map(mapHandoffNote));
       if (cpData) setShiftCheckpoints(cpData.map(mapCheckpoint));
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Realtime checkpoint subscription ─────────────────────────────────────────
   useEffect(() => {
@@ -49,7 +52,7 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice, loadError }}>
+    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice, loadError, reload }}>
       {children}
     </WashbayContext.Provider>
   );
