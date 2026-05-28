@@ -94,7 +94,7 @@ export function VSAMovementLog({
       const rawQueue = row.queue_at_departure;
       setQueue(rawQueue
         ? (typeof rawQueue === 'string' ? JSON.parse(rawQueue) : rawQueue as QueueSnapshot)
-        : { count: 0, label: 'Resumed' });
+        : null);
       setPendingTripId(row.id as string);
       setTripState('in_transit');
       const plate = (row.vehicle_plate as string) ?? '';
