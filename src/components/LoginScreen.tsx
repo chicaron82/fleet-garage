@@ -27,7 +27,7 @@ export function LoginScreen() {
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
           <img
-            src="/fleet-garage-logo.png"
+            src="/fleet-garage-logo.webp"
             alt="Fleet Garage"
             className="w-64 select-none"
             draggable={false}
