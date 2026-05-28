@@ -54,6 +54,13 @@ export function LostFoundCard({
     ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
 
+  const daysHeld = Math.floor((Date.now() - new Date(item.foundAt).getTime()) / 86_400_000);
+  const ageTier = item.status === 'returned' ? null : daysHeld >= 30 ? 'expired' : daysHeld >= 15 ? 'aging' : 'fresh';
+  const tierClass = ageTier === 'fresh' ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+    : ageTier === 'aging' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20'
+    : ageTier === 'expired' ? 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30'
+    : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
+
   const [editOpen, setEditOpen] = useState(false);
   const [editDesc, setEditDesc] = useState('');
   const [editLocation, setEditLocation] = useState<LostFoundLocation | null>(null);
@@ -88,7 +95,7 @@ export function LostFoundCard({
     <>
       <div
         onClick={handleOpenEdit}
-        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 relative"
+        className={`rounded-xl border ${tierClass} p-4 space-y-3 transition-colors cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 relative`}
       >
         <span className="absolute top-3 right-3 text-gray-300 dark:text-gray-600 text-xs select-none">
           ✏️
@@ -150,6 +157,11 @@ export function LostFoundCard({
               </span>{' '}
               · {fmtRelativeDate(item.foundAt)}
             </p>
+            {ageTier && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
+                Day {daysHeld}
+              </p>
+            )}
             {item.editedByName && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
                 Edited by{' '}
