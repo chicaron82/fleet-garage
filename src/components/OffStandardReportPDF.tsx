@@ -1,7 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes } from '../lib/offStandardReport';
 
-const LOGO_SRC = `${window.location.origin}/fleet-garage-logo.png`;
+const LOGO_SRC = `${window.location.origin}/fleet-garage-logo.webp`;
 
 export interface OTHPDFData {
   userName:    string;
