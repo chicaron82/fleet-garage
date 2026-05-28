@@ -1,6 +1,6 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
-export const LOGO_SRC = `${window.location.origin}/fleet-garage-logo.webp`;
+export const LOGO_SRC = `${window.location.origin}/FG.jpg`;
 
 export const s = StyleSheet.create({
   page:          { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontFamily: 'Helvetica', fontSize: 9, color: '#111827', backgroundColor: '#ffffff' },
