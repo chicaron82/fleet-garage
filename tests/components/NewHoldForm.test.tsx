@@ -29,8 +29,8 @@ vi.mock('../../src/context/AuthContext', () => ({
 // getActiveHold returns null by default — overridden per-test where needed
 let getActiveHoldImpl: (id: string) => unknown = () => null;
 
-vi.mock('../../src/context/GarageContext', () => ({
-  useGarage: () => ({
+vi.mock('../../src/context/VehicleHoldContext', () => ({
+  useVehicleHoldContext: () => ({
     vehicles:         [VEHICLE],
     getVehicleByUnit: (u: string) => (u === VEHICLE.unitNumber ? VEHICLE : null),
     getActiveHold:    (id: string) => getActiveHoldImpl(id),

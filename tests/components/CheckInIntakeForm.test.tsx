@@ -60,13 +60,18 @@ vi.mock('../../src/context/AuthContext', () => ({
   }),
 }));
 
-vi.mock('../../src/context/GarageContext', () => ({
-  useGarage: () => ({
+vi.mock('../../src/context/VehicleHoldContext', () => ({
+  useVehicleHoldContext: () => ({
     vehicles:           TEST_VEHICLES,
     getVehicleByUnit:   (u: string) => TEST_VEHICLES.find(v => v.unitNumber === u) ?? null,
     getHoldsForVehicle: getHoldsSpy,
     addHold:            addHoldSpy,
-    addLostFoundItem:   addLostFoundSpy,
+  }),
+}));
+
+vi.mock('../../src/context/LostFoundContext', () => ({
+  useLostFoundContext: () => ({
+    addLostFoundItem: addLostFoundSpy,
   }),
 }));
 

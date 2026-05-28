@@ -39,12 +39,14 @@ vi.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({ user: VSA_USER }),
 }));
 
-vi.mock('../../src/context/GarageContext', () => ({
-  useGarage: () => ({
+vi.mock('../../src/context/VehicleHoldContext', () => ({
+  useVehicleHoldContext: () => ({
     vehicles:       ALL_VEHICLES,
     holds:          [TEST_HOLD],
     staleHolds:     [],
     loading:        false,
+    loadError:      false,
+    reload:         vi.fn(),
     getVehicleByUnit: (u: string) => ALL_VEHICLES.find(v => v.unitNumber === u) ?? null,
     releaseStreak:  () => 0,
     archivedVehicles: [],

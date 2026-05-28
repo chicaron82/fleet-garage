@@ -68,8 +68,8 @@ vi.mock('../../src/context/ProfilesContext', () => ({
   useProfiles: () => [],
 }));
 
-vi.mock('../../src/context/GarageContext', () => ({
-  useGarage: () => ({
+vi.mock('../../src/context/VehicleHoldContext', () => ({
+  useVehicleHoldContext: () => ({
     holds: [],
     vehicles: [],
   }),

@@ -32,8 +32,8 @@ vi.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({ user: MANAGER }),
 }));
 
-vi.mock('../../src/context/GarageContext', () => ({
-  useGarage: () => ({
+vi.mock('../../src/context/VehicleHoldContext', () => ({
+  useVehicleHoldContext: () => ({
     holds:      [HOLD],
     vehicles:   [VEHICLE],
     addRelease: addReleaseSpy,
