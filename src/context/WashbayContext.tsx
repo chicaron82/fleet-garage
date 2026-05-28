@@ -39,10 +39,6 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
             : [cp, ...prev]
         );
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shift_checkpoints' }, (payload) => {
-        const cp = mapCheckpoint(payload.new as Record<string, unknown>);
-        setShiftCheckpoints(prev => prev.map(c => c.id === cp.id ? cp : c));
-      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

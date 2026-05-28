@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { FacilityIssue, IssueSeverity, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
@@ -94,5 +94,10 @@ export function useIssues(
     );
   };
 
-  return { facilityIssues, addIssue, clearIssue, reopenIssue, setFacilityIssues };
+  const filteredIssues = useMemo(() => {
+    if (activeBranch === 'ALL') return facilityIssues;
+    return facilityIssues.filter(i => i.branchId === activeBranch);
+  }, [facilityIssues, activeBranch]);
+
+  return { facilityIssues: filteredIssues, addIssue, clearIssue, reopenIssue, setFacilityIssues };
 }

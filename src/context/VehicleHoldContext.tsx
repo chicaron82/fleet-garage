@@ -7,6 +7,7 @@ import { useVehicleOperations } from './useVehicleOperations';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
+  allVehicles: Vehicle[];
   holds: Hold[];
   staleHolds: Hold[];
   loading: boolean;
@@ -164,7 +165,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
 
   return (
     <VehicleHoldContext.Provider value={{
-      vehicles, holds, staleHolds, loading, loadError,
+      vehicles, allVehicles, holds, staleHolds, loading, loadError,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       ...ops,

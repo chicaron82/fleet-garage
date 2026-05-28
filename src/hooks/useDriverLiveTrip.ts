@@ -316,15 +316,13 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   const handleCancelTrip = async () => {
     if (inProgressId) {
       if (!navigator.onLine) {
-        enqueueOfflineAction({
-          table: 'vsa_trips',
-          action: 'delete',
-          payload: {},
-          eqField: 'id',
-          eqValue: inProgressId
-        });
+        enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: inProgressId });
       } else {
-        await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
+        const res = await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
+        if (res.error) {
+          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+          if (isNetworkErr) enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: inProgressId });
+        }
       }
     }
     handleReset();

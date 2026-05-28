@@ -9,8 +9,8 @@ const LostFoundContext = createContext<LostFoundSlice | null>(null);
 
 export function LostFoundProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
-  const { vehicles } = useVehicleHoldContext();
-  const { setAllLostFoundItems, ...slice } = useLostFound(user, activeBranch, vehicles);
+  const { allVehicles } = useVehicleHoldContext();
+  const { setAllLostFoundItems, ...slice } = useLostFound(user, activeBranch, allVehicles);
 
   useEffect(() => {
     supabase

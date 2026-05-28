@@ -7,6 +7,7 @@
 //
 // Once every consumer has been migrated, this file can be deleted.
 
+import { useMemo } from 'react';
 import { useVehicleHoldContext } from './VehicleHoldContext';
 import { useWashbayContext } from './WashbayContext';
 import { useIssueContext } from './IssueContext';
@@ -26,5 +27,5 @@ export function useGarage(): GarageContextValue {
   const iss  = useIssueContext();
   const lf   = useLostFoundContext();
 
-  return { ...vh, ...wash, ...iss, ...lf };
+  return useMemo(() => ({ ...vh, ...wash, ...iss, ...lf }), [vh, wash, iss, lf]);
 }
