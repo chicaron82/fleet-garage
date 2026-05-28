@@ -3,7 +3,7 @@ import { hapticMedium, hapticLight } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { pushNotification } from '../../lib/garage-uploads';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 
 interface Props {
@@ -24,7 +24,7 @@ interface VehicleRow {
 
 export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
   const { user } = useAuth();
-  const { applyVehicleIdentity } = useGarage();
+  const { applyVehicleIdentity } = useVehicleHoldContext();
   const { getProfile } = useUserResolver();
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
 import { localDateStr } from '../../hooks/useFleetBalance';
@@ -53,7 +53,7 @@ function PageCounter({
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function MidShiftCheckIn() {
-  const { getMidArrival, getMidDeparture, submitMidCheckpoint, handoffNotes } = useGarage();
+  const { getMidArrival, getMidDeparture, submitMidCheckpoint, handoffNotes } = useWashbayContext();
 
   const existingArrival   = getMidArrival();
   const existingDeparture = getMidDeparture();

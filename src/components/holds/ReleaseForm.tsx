@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight, hapticMedium, hapticHeavy } from '../../lib/haptics';
 import type { ReleaseType } from '../../types';
 
@@ -52,7 +52,7 @@ const MECHANICAL_RELEASE_REASONS = [
 
 export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const { user } = useAuth();
-  const { addRelease, holds, vehicles } = useGarage();
+  const { addRelease, holds, vehicles } = useVehicleHoldContext();
 
   const hold    = holds.find(h => h.id === holdId);
   const vehicle = vehicles.find(v => v.id === vehicleId);

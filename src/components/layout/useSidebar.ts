@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useWashbayContext } from '../../context/WashbayContext';
+import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
 import { getNavItemsForRole } from '../../lib/navigation';
@@ -15,7 +17,9 @@ import type { LiveNotification } from './SidebarNotificationPopover';
 
 export function useSidebar() {
   const { user, activeBranch } = useAuth();
-  const { facilityIssues, washbayLogs, holds, shiftCheckpoints } = useGarage();
+  const { holds } = useVehicleHoldContext();
+  const { washbayLogs, shiftCheckpoints } = useWashbayContext();
+  const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
   const { getTodayEntry } = useFleetBalance();
 

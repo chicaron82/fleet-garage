@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useGarage } from '../context/GarageContext';
+import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
 import { useUserResolver } from './useUserResolver';
 import { hapticMedium } from '../lib/haptics';
@@ -8,7 +8,7 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, syncVehicleStatus } = useGarage();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);

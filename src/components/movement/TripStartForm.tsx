@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { enqueueOfflineAction } from '../../lib/offlineQueue';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useInProgressRecovery } from '../../hooks/useInProgressRecovery';
 import type { TripRun } from '../../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
@@ -40,7 +40,7 @@ export function TripStartForm({
   onTripStarted?: (info: TripStartInfo) => void;
 }) {
   const { user } = useAuth();
-  const { shuttlePlate, setShuttlePlate } = useGarage();
+  const { shuttlePlate, setShuttlePlate } = useVehicleHoldContext();
 
   const [tripState, setTripState]           = useState<TripState>('form');
   const [reason, setReason]                 = useState<Reason | null>(null);

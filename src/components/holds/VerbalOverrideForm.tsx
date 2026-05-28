@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticMedium, hapticHeavy } from '../../lib/haptics';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 
 export function VerbalOverrideForm({ holdId, onClose }: Props) {
   const { user } = useAuth();
-  const { addRelease } = useGarage();
+  const { addRelease } = useVehicleHoldContext();
 
   const [managerName, setManagerName] = useState('');
   const [notes, setNotes] = useState('');

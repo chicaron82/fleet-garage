@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import type { OffStandardReason, OffStandardPresetReason, User } from '../../types';
 import { OFF_STANDARD_LABELS } from '../../types';
@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
-  const { holds, vehicles } = useGarage();
+  const { holds, vehicles } = useVehicleHoldContext();
   const { shifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
   const [showBackdate, setShowBackdate] = useState(false);

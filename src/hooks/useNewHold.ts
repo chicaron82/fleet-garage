@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useGarage } from '../context/GarageContext';
+import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
 import type { HoldType, DetailReason, MechanicalSubType } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
@@ -9,7 +9,7 @@ const MAX_PHOTOS = 4;
 
 export function useNewHold(preselectedId?: string) {
   const { user } = useAuth();
-  const { vehicles, getActiveHold, addHold } = useGarage();
+  const { vehicles, getActiveHold, addHold } = useVehicleHoldContext();
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);

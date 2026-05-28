@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useWashbayContext } from '../../context/WashbayContext';
+import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
 import {
@@ -30,7 +32,9 @@ interface TripRow { trip_type: string; driver_id: string; }
 
 export function AnalyticsView() {
   const { user, activeBranch } = useAuth();
-  const { holds, vehicles, washbayLogs, handoffNotes, getTodayWashbayLog, facilityIssues, shiftCheckpoints } = useGarage();
+  const { holds, vehicles } = useVehicleHoldContext();
+  const { washbayLogs, handoffNotes, getTodayWashbayLog, shiftCheckpoints } = useWashbayContext();
+  const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
   const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');

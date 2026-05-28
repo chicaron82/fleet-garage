@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { DEMO_DRIVER_COVERAGE } from '../../lib/analytics';
 import { SectionHeader } from './AnalyticsComponents';
@@ -140,7 +140,7 @@ interface Props { isDemo: boolean; activeBranch: string; }
 
 
 export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
-  const { washbayLogs } = useGarage();
+  const { washbayLogs } = useWashbayContext();
   const teamMembers = useTeamMembers();
   const driverUsers = useMemo(() => teamMembers.filter(u => u.role === 'Driver'), [teamMembers]);
   const [liveRows, setLiveRows]     = useState<LiveDriverRow[]>([]);

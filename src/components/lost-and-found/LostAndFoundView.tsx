@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useLostFoundContext } from '../../context/LostFoundContext';
 import { hapticLight } from '../../lib/haptics';
 import type { LostFoundStatus } from '../../types';
 import { canActionLostFound } from '../../types';
@@ -20,7 +20,7 @@ function fmtRelativeDate(iso: string) {
 
 export function LostAndFoundView() {
   const { user } = useAuth();
-  const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem } = useGarage();
+  const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem } = useLostFoundContext();
 
   const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);

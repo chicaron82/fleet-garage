@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { CheckInHoldPanel } from '../check-in/CheckInHoldPanel';
 import { useUserResolver } from '../../hooks/useUserResolver';
 
@@ -9,7 +9,7 @@ function fmtDate(iso: string) {
 
 export function ExceptionReturnSection() {
   const { user } = useAuth();
-  const { vehicles, getHoldsForVehicle, addHold } = useGarage();
+  const { vehicles, getHoldsForVehicle, addHold } = useVehicleHoldContext();
   const { getName } = useUserResolver();
 
   const items = vehicles

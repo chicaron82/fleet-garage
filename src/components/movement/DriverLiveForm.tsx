@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import { NotesField } from './VSATripComponents';
 import { EVAssetCheck } from './EVAssetCheck';
@@ -17,7 +17,7 @@ interface Props {
 
 export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const { user } = useAuth();
-  const { shuttlePlate } = useGarage();
+  const { shuttlePlate } = useVehicleHoldContext();
 
   const {
     liveState,

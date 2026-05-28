@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapWashbayLog, mapHandoffNote, mapCheckpoint } from '../lib/garage-mappers';
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
 
-export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice;
+export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & { loadError: boolean };
 
 const WashbayContext = createContext<WashbayContextValue | null>(null);
 
@@ -13,6 +13,7 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
   const { setWashbayLogs, setHandoffNotes, ...washbaySlice } = useWashbayHandoff(user, activeBranch);
   const { setShiftCheckpoints, ...checkpointsSlice } = useShiftCheckpoints(user, activeBranch);
+  const [loadError, setLoadError] = useState(false);
 
   // ── Initial data load ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -20,7 +21,11 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
       supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
       supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
       supabase.from('shift_checkpoints').select('*').order('logged_at', { ascending: false }).limit(30),
-    ]).then(([{ data: wData }, { data: nData }, { data: cpData }]) => {
+    ]).then(([{ data: wData, error: wErr }, { data: nData, error: nErr }, { data: cpData, error: cpErr }]) => {
+      if (wErr ?? nErr ?? cpErr) {
+        console.error('[WashbayContext] Initial load failed:', wErr ?? nErr ?? cpErr);
+        setLoadError(true);
+      }
       if (wData) setWashbayLogs(wData.map(mapWashbayLog));
       if (nData) setHandoffNotes(nData.map(mapHandoffNote));
       if (cpData) setShiftCheckpoints(cpData.map(mapCheckpoint));
@@ -44,7 +49,7 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice }}>
+    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice, loadError }}>
       {children}
     </WashbayContext.Provider>
   );

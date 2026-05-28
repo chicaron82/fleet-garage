@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, carsFromPageCounter } from '../../lib/gas-sheet';
 import type { LotStatus } from '../../types';
@@ -18,7 +18,7 @@ const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function HandoffForm({ onClose }: Props) {
-  const { submitHandoff } = useGarage();
+  const { submitHandoff } = useWashbayContext();
 
   const [totalPages,           setTotalPages]           = useState(0);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(0);

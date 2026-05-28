@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { toISO } from '../../context/ScheduleContext';
 import { WashbayClosingLog } from '../washbay/WashbayClosingLog';
@@ -137,7 +137,7 @@ function StepSection({ title, open, onToggle, children }: {
 
 export function MyShiftView() {
   const { user, activeBranch } = useAuth();
-  const { latestHandoff, getTodayCheckpoint } = useGarage();
+  const { latestHandoff, getTodayCheckpoint } = useWashbayContext();
   const { shifts } = useSchedule();
 
   const todayISO          = toISO(new Date());

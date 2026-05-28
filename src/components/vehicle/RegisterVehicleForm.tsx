@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { hapticMedium } from '../../lib/haptics';
 
@@ -49,7 +49,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 }
 
 export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle } = useGarage();
+  const { addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
   const seed = classifyPrefill(prefill);
 

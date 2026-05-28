@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canManageVehicles } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import type { Hold, Vehicle, VehicleStatus } from '../../types';
@@ -22,7 +22,7 @@ interface Props {
 
 export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useGarage();
+  const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useVehicleHoldContext();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = sessionStorage.getItem('dashboard_page');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canManageVehicles } from '../../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { hapticHeavy } from '../../lib/haptics';
@@ -29,7 +29,7 @@ function holdActionLabel(holdTypes: string[]): string {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
-  const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity } = useGarage();
+  const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity } = useVehicleHoldContext();
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showEditSuggestion, setShowEditSuggestion] = useState(false);
   const [showDirectEdit, setShowDirectEdit]   = useState(false);

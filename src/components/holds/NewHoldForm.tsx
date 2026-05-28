@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
 import { useNewHold } from '../../hooks/useNewHold';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
@@ -23,7 +23,7 @@ interface Props {
 
 export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
   const h = useNewHold(preselectedId);
-  const { getVehicleByUnit, vehicles, addVehicle } = useGarage();
+  const { getVehicleByUnit, vehicles, addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
 
   const selectVehicleAndLink = useCallback((vehicleId: string) => {

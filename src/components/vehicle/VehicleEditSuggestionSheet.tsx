@@ -3,7 +3,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { pushNotification } from '../../lib/garage-uploads';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { Vehicle } from '../../types';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 
 export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
   const { user } = useAuth();
-  const { markVehicleEditPending } = useGarage();
+  const { markVehicleEditPending } = useVehicleHoldContext();
 
   const [clearUnit, setClearUnit] = useState(false);
   const [newUnit, setNewUnit] = useState(vehicle.unitNumber ?? '');

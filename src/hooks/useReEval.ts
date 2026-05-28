@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useGarage } from '../context/GarageContext';
+import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { Hold, Vehicle, DetailReason } from '../types';
 import { getReEvalActions, type ReEvalAction } from '../lib/re-eval-actions';
 import { useUserResolver } from './useUserResolver';
@@ -14,7 +14,7 @@ export interface ReEvalItem {
 
 export function useReEval() {
   const { user } = useAuth();
-  const { vehicles, holds, markReturned, markRepaired, addHold } = useGarage();
+  const { vehicles, holds, markReturned, markRepaired, addHold } = useVehicleHoldContext();
   const { getName } = useUserResolver();
   const [activeHoldId, setActiveHoldId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ReEvalAction | 'confirm-return' | null>(null);

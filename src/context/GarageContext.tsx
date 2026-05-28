@@ -15,10 +15,10 @@ import { useLostFoundContext } from './LostFoundContext';
 
 import type { VehicleHoldContextValue } from './VehicleHoldContext';
 import type { WashbayContextValue } from './WashbayContext';
-import type { IssuesSlice } from './useIssues';
-import type { LostFoundSlice } from './useLostFound';
+import type { IssueContextValue } from './IssueContext';
+import type { LostFoundContextValue } from './LostFoundContext';
 
-export type GarageContextValue = VehicleHoldContextValue & WashbayContextValue & IssuesSlice & LostFoundSlice;
+export type GarageContextValue = VehicleHoldContextValue & WashbayContextValue & IssueContextValue & LostFoundContextValue;
 
 
 export function useGarage(): GarageContextValue {

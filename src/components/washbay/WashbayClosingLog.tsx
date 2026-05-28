@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -16,7 +17,8 @@ const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
 
 export function WashbayClosingLog() {
-  const { holds, submitWashbayLog, getTodayWashbayLog } = useGarage();
+  const { holds } = useVehicleHoldContext();
+  const { submitWashbayLog, getTodayWashbayLog } = useWashbayContext();
   const { user } = useAuth();
   const { isPeakSeason } = useSchedule();
 

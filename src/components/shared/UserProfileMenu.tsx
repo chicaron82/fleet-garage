@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease } from '../../types';
 import { AboutModal } from './AboutModal';
 import { ModuleGuideModal } from './ModuleGuideModal';
@@ -9,7 +9,7 @@ import { ModuleGuideModal } from './ModuleGuideModal';
 export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
   const { user, logout } = useAuth();
   const { prefs, updatePref, avatarBase64, setAvatarBase64 } = usePreferences();
-  const { shuttlePlate, setShuttlePlate } = useGarage();
+  const { shuttlePlate, setShuttlePlate } = useVehicleHoldContext();
   const isManagement = user ? canRelease(user.role) : false;
   
   const [isOpen, setIsOpen] = useState(false);

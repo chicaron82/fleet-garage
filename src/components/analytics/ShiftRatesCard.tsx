@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
@@ -23,7 +23,7 @@ function fmtMinutes(total: number): string {
 
 export function ShiftRatesCard() {
   const { user } = useAuth();
-  const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint, getMidArrival, getMidDeparture } = useGarage();
+  const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint, getMidArrival, getMidDeparture } = useWashbayContext();
   const { shifts } = useSchedule();
   const [entries, setEntries] = useState<{ startTime: string; minutes: number }[]>([]);
 

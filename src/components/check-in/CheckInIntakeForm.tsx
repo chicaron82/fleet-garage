@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useGarage } from '../../context/GarageContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useLostFoundContext } from '../../context/LostFoundContext';
 import { CheckInHoldPanel } from './CheckInHoldPanel';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import type { EvLastCheck } from '../movement/EVAssetCheck';
@@ -23,7 +24,8 @@ interface Props {
 
 export function CheckInIntakeForm({ onFlagIssue }: Props) {
   const { user } = useAuth();
-  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold, addLostFoundItem } = useGarage();
+  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold } = useVehicleHoldContext();
+  const { addLostFoundItem } = useLostFoundContext();
 
   const [scanned, setScanned]                   = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
   const [unitSearch, setUnitSearch]             = useState('');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGarage } from '../../context/GarageContext';
+import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
 import { localDateStr } from '../../hooks/useFleetBalance';
@@ -8,7 +8,7 @@ const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function AfternoonCheckIn() {
-  const { getTodayCheckpoint, submitCheckpoint, handoffNotes } = useGarage();
+  const { getTodayCheckpoint, submitCheckpoint, handoffNotes } = useWashbayContext();
 
   const existing = getTodayCheckpoint();
 
