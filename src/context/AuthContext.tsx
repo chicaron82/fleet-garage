@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         void supabase.auth.startAutoRefresh();
+        void supabase.auth.refreshSession(); // proactive refresh — token may have expired while idle
       } else {
         void supabase.auth.stopAutoRefresh();
       }
@@ -48,6 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') {
+        setLoading(false);
+        return;
+      }
       if (event === 'SIGNED_OUT' || !session) {
         setUser(null);
         setActiveBranch('YWG');
