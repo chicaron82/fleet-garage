@@ -75,6 +75,7 @@ function formatLocation(loc: string): string {
   return loc.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// keep in sync with HOLD_TYPE_LABELS in ShiftReportPDFSections.tsx
 const HOLD_TYPE_LABELS: Record<string, string> = {
   damage:     'Damage',
   detail:     'Detail',
