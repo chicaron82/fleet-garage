@@ -92,9 +92,16 @@ export function VSAMovementLog({
       setAuthorization((row.auth_type as Authorization) ?? null);
       setReason((row.reason as Reason) ?? null);
       const rawQueue = row.queue_at_departure;
-      setQueue(rawQueue
-        ? (typeof rawQueue === 'string' ? JSON.parse(rawQueue) : rawQueue as QueueSnapshot)
-        : null);
+      let queueValue: QueueSnapshot | null = null;
+      if (rawQueue != null) {
+        if (typeof rawQueue !== 'string') {
+          const label = (rawQueue as { label?: string }).label;
+          if (label && label !== 'Resumed') queueValue = (label === 'TOO_MUCH' ? '10+' : label) as QueueSnapshot;
+        } else {
+          queueValue = (rawQueue === 'TOO_MUCH' ? '10+' : rawQueue) as QueueSnapshot;
+        }
+      }
+      setQueue(queueValue);
       setPendingTripId(row.id as string);
       setTripState('in_transit');
       const plate = (row.vehicle_plate as string) ?? '';

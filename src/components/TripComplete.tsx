@@ -14,7 +14,7 @@ export function TripComplete({ isShuttle, authorization, reason, departureTime, 
   const dur = Math.round((new Date(arrivalTime).getTime() - new Date(departureTime).getTime()) / 60000);
   const metaLine = [
     `${fmtTime(departureTime)} → ${fmtTime(arrivalTime)} · ${dur}m`,
-    queue ? `Queue: ${queue === 'TOO_MUCH' ? '10+' : queue}` : null,
+    queue ? `Queue: ${queue}` : null,
   ].filter(Boolean).join(' · ');
 
   return (

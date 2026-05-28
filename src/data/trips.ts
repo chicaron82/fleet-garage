@@ -206,7 +206,7 @@ export const MOCK_TRIPS: TripRun[] = [
     isVsaInterruption: true,
     authorization: 'MANAGEMENT',
     reason: 'ROUTINE',
-    queueAtDeparture: 'TOO_MUCH',
+    queueAtDeparture: '10+',
     condition: 'CLEAN',
     branchId: 'YWG',
   },

@@ -125,9 +125,9 @@ export function resolveQueueLabel(raw: string | null): string | null {
   if (typeof (raw as unknown) !== 'string') {
     const obj = raw as unknown as { label?: string };
     if (!obj.label || obj.label === 'Resumed') return null;
-    return obj.label;
+    return obj.label === 'TOO_MUCH' ? '10+' : obj.label;
   }
-  return raw;
+  return raw === 'TOO_MUCH' ? '10+' : raw;
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────

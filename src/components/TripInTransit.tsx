@@ -47,7 +47,7 @@ export function TripInTransit({
         <div className="flex gap-2">
           <Pill label="0"   active={queue === '0'}        onClick={() => setQueue('0')} />
           <Pill label="~5"  active={queue === '~5'}       onClick={() => setQueue('~5')} />
-          <Pill label="10+" active={queue === 'TOO_MUCH'} danger onClick={() => setQueue('TOO_MUCH')} />
+          <Pill label="10+" active={queue === '10+'} danger onClick={() => setQueue('10+')} />
         </div>
       </div>
 

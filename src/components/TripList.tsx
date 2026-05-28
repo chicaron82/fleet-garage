@@ -76,7 +76,7 @@ export function TripList({ trips, isManagement }: TripListProps) {
                     {' '}· {duration}m
                   </span>
                   {'gasLevel' in trip && trip.gasLevel ? ` · Gas: ${trip.gasLevel}` : ''}
-                  {trip.queueAtDeparture ? ` · Queue: ${trip.queueAtDeparture === 'TOO_MUCH' ? '10+' : trip.queueAtDeparture}` : ''}
+                  {trip.queueAtDeparture ? ` · Queue: ${trip.queueAtDeparture}` : ''}
                   {trip.fuelOnArrival ? ` · Fuel: ${trip.fuelOnArrival}` : ''}
                 </p>
                 {trip.isVsaInterruption && (

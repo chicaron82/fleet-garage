@@ -2,7 +2,7 @@
 
 export type Reason         = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
 export type Authorization  = 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
-export type QueueSnapshot  = '0' | '~5' | 'TOO_MUCH';
+export type QueueSnapshot  = '0' | '~5' | '10+';
 export type FuelLevel      = number;
 export type TripState      = 'form' | 'in_transit' | 'complete';
 
