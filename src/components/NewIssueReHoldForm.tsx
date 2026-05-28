@@ -17,6 +17,7 @@ interface NewIssueReHoldFormProps {
     holdTypes: HoldType[]
   ) => Promise<void>;
   getName: (id: string) => string;
+  reHoldContext?: 'exception' | 'auction';
 }
 
 export function NewIssueReHoldForm({
@@ -25,6 +26,7 @@ export function NewIssueReHoldForm({
   onCancel,
   onSubmit,
   getName,
+  reHoldContext,
 }: NewIssueReHoldFormProps) {
   const [newIssueHoldType, setNewIssueHoldType] = useState<HoldType>('damage');
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
@@ -35,6 +37,8 @@ export function NewIssueReHoldForm({
   const [detailOdourChecked, setDetailOdourChecked] = useState(false);
   const [mechanicalPMChecked, setMechanicalPMChecked] = useState(false);
   const [mechanicalSafetyRecallChecked, setMechanicalSafetyRecallChecked] = useState(false);
+  const [noNewDamageChecked, setNoNewDamageChecked] = useState(false);
+  const [saleCarReturnChecked, setSaleCarReturnChecked] = useState(false);
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -56,6 +60,21 @@ export function NewIssueReHoldForm({
   };
 
   const handleLocalSubmit = async () => {
+    if (noNewDamageChecked) {
+      const desc = reHoldNotes.trim()
+        ? `No new damage — ${reHoldNotes.trim()}`
+        : 'No new damage — returned to hold';
+      await onSubmit(desc, '', photos, [newIssueHoldType]);
+      return;
+    }
+    if (saleCarReturnChecked) {
+      const desc = reHoldNotes.trim()
+        ? `Sale car — ${reHoldNotes.trim()}`
+        : 'Sale car — returned from short-term circulation';
+      await onSubmit(desc, '', photos, [newIssueHoldType]);
+      return;
+    }
+
     let finalDescription: string;
     if (newIssueHoldType === 'damage') {
       finalDescription =
@@ -88,10 +107,12 @@ export function NewIssueReHoldForm({
 
   const photoBypassActive =
     (newIssueHoldType === 'detail' && detailOdourChecked) ||
-    (newIssueHoldType === 'mechanical' && (mechanicalPMChecked || mechanicalSafetyRecallChecked));
+    (newIssueHoldType === 'mechanical' && (mechanicalPMChecked || mechanicalSafetyRecallChecked)) ||
+    noNewDamageChecked ||
+    saleCarReturnChecked;
 
   const canSubmitReHold =
-    (newIssueHoldType === 'damage' ? damageTypes.length > 0 : true) &&
+    (newIssueHoldType === 'damage' && !photoBypassActive ? damageTypes.length > 0 : true) &&
     (photos.length > 0 || photoBypassActive) &&
     !submitting;
 
@@ -261,6 +282,40 @@ export function NewIssueReHoldForm({
           className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
         />
       </div>
+
+      {/* Context-based photo bypass */}
+      {reHoldContext === 'exception' && (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={noNewDamageChecked}
+            onChange={(e) => {
+              hapticLight();
+              setNoNewDamageChecked(e.target.checked);
+            }}
+            className="w-4 h-4 rounded accent-yellow-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            No new damage found — returning to prior hold status
+          </span>
+        </label>
+      )}
+      {reHoldContext === 'auction' && (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={saleCarReturnChecked}
+            onChange={(e) => {
+              hapticLight();
+              setSaleCarReturnChecked(e.target.checked);
+            }}
+            className="w-4 h-4 rounded accent-yellow-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Sale car returning from short-term — no new damage to document
+          </span>
+        </label>
+      )}
 
       {/* Photos */}
       <div>

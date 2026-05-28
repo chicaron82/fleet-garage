@@ -85,6 +85,7 @@ export function ExceptionReturnSection() {
                 onReHold={async (vehicleId, description, notes, photos, linkedHoldId, holdTypes) => {
                   await addHold(vehicleId, description, notes, user.id, photos, holdTypes, undefined, undefined, linkedHoldId);
                 }}
+                reHoldContext={isAuction ? 'auction' : 'exception'}
               />
             )}
           </div>

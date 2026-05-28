@@ -21,9 +21,10 @@ interface Props {
   user: User;
   onReHold: (vehicleId: string, description: string, notes: string, photos: string[], linkedHoldId: string, holdTypes: HoldType[]) => Promise<void>;
   autoExpand?: boolean;
+  reHoldContext?: 'exception' | 'auction';
 }
 
-export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }: Props) {
+export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand, reHoldContext }: Props) {
   const { getName, getRole, getEmpId } = useUserResolver();
   const [expanded, setExpanded] = useState(autoExpand ?? false);
   const [showFullHistory, setShowFullHistory] = useState(false);
@@ -217,6 +218,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand }:
                 onCancel={resetReHoldForms}
                 onSubmit={handleNewIssueSubmit}
                 getName={getName}
+                reHoldContext={reHoldContext}
               />
             )}
           </div>
