@@ -3,7 +3,7 @@ import type { User, ShiftWithUser } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { fmtMinutes } from '../../lib/offStandardReport';
 import { formatDateStr } from '../../lib/buildShiftReport';
-import { OthExportActionSheet } from './OthExportActionSheet';
+import { OffStdExportActionSheet } from './OffStdExportActionSheet';
 
 interface OthDay {
   date: string;
@@ -16,7 +16,7 @@ interface Props {
   shifts: ShiftWithUser[];
 }
 
-export function OthRecentHistory({ user, shifts }: Props) {
+export function OffStdRecentHistory({ user, shifts }: Props) {
   const [history, setHistory] = useState<OthDay[]>([]);
   const [exportDate, setExportDate] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ export function OthRecentHistory({ user, shifts }: Props) {
       </div>
 
       {exportDate && exportDay && (
-        <OthExportActionSheet
+        <OffStdExportActionSheet
           date={exportDate}
           dateLabel={formatDateStr(exportDate)}
           user={user}

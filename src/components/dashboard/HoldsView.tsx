@@ -20,7 +20,7 @@ interface Props {
   onRegisterAndFlag: (prefill?: string) => void;
 }
 
-export function Dashboard({ onSelectVehicle, onRegisterAndFlag }: Props) {
+export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useGarage();
   const [search, setSearch] = useState('');

@@ -1,3 +1,3 @@
 // Barrel export for audit
-export * from './AuditDashboard';
+export * from './AuditView';
 export * from './AuditForm';

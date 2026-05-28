@@ -4,15 +4,15 @@ import { useGarage } from '../../context/GarageContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import type { OffStandardReason, OffStandardPresetReason, User } from '../../types';
 import { OFF_STANDARD_LABELS } from '../../types';
-import { OthEditSheet } from './OthEditSheet';
+import { OffStdEditSheet } from './OffStdEditSheet';
 import { BackdateEntrySheet } from './BackdateEntrySheet';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { fmtTime, fmtMinutes } from '../../lib/offStandardReport';
 import { ElapsedTicker } from '../shared/ElapsedTicker';
 import { OffStandardEntriesList } from './OffStandardEntriesList';
 import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
-import { OthQuickStart } from './OthQuickStart';
-import { OthRecentHistory } from './OthRecentHistory';
+import { OffStdQuickStart } from './OffStdQuickStart';
+import { OffStdRecentHistory } from './OffStdRecentHistory';
 
 const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
@@ -76,7 +76,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     <div className="space-y-5">
 
       {/* Quick Start */}
-      <OthQuickStart
+      <OffStdQuickStart
         timerState={timerState}
         isRecovering={isRecovering}
         handleQuickTap={handleQuickTap}
@@ -265,7 +265,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
       <OffStandardEntriesList entries={entries} onEditClick={setEditingEntry} />
 
       {/* Recent OTH history */}
-      <OthRecentHistory user={user} shifts={shifts} />
+      <OffStdRecentHistory user={user} shifts={shifts} />
 
       {/* Today's export */}
       <div className="flex gap-2">
@@ -290,7 +290,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     </div>
 
     {editingEntry && (
-      <OthEditSheet
+      <OffStdEditSheet
         entry={editingEntry}
         onSave={handleSaveEdit}
         onRequest={handleRequestEdit}

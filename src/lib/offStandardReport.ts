@@ -1,4 +1,4 @@
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OthEditStatus, ShiftType, ShiftWithUser, User } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OffStdEditStatus, ShiftType, ShiftWithUser, User } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
 
 export interface TripRow {
@@ -36,7 +36,7 @@ export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry
     editedEndTime:   (row.edited_end_time as string | null) ?? undefined,
     editRequestedAt: (row.edit_requested_at as string | null) ?? undefined,
     editRequestedBy: (row.edit_requested_by as string | null) ?? undefined,
-    editStatus:      (row.edit_status as OthEditStatus | null) ?? null,
+    editStatus:      (row.edit_status as OffStdEditStatus | null) ?? null,
     editReviewedBy:  (row.edit_reviewed_by as string | null) ?? undefined,
     editReviewedAt:  (row.edit_reviewed_at as string | null) ?? undefined,
     editStaffNote:       (row.edit_staff_note as string | null) ?? undefined,

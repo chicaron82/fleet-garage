@@ -20,7 +20,7 @@ function fmtMinutes(mins: number) {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-export function OthEditSheet({ entry, onSave, onRequest, onClose }: Props) {
+export function OffStdEditSheet({ entry, onSave, onRequest, onClose }: Props) {
   const [endTime, setEndTime] = useState(new Date(entry.stopTime));
   const [note, setNote] = useState(entry.explanation ?? '');
   const [editNote, setEditNote] = useState('');

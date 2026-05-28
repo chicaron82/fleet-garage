@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function OthExportActionSheet({ date, dateLabel, user, shifts, onClose }: Props) {
+export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose }: Props) {
   const [entries, setEntries]     = useState<OffStandardEntry[]>([]);
   const [trips, setTrips]         = useState<TripRow[]>([]);
   const [fetching, setFetching]   = useState(true);

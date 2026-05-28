@@ -5,8 +5,8 @@ import { MOCK_TRIPS } from '../../data/trips';
 import type { TripRun } from '../../data/trips';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
-import { VSAMovementLog } from './VSAMovementLog';
-import type { TripStartInfo } from './VSAMovementLog';
+import { TripStartForm } from './TripStartForm';
+import type { TripStartInfo } from './TripStartForm';
 import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { DriverLiveForm } from './DriverLiveForm';
 import { getTripDurationMinutes } from '../../lib/trip-utils';
@@ -253,7 +253,7 @@ export function MovementLogView() {
 
         {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
         <div className={activeTab === 'movement-log' ? undefined : 'hidden'}>
-          <VSAMovementLog onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
+          <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
           {myLiveTrips.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>

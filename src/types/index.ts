@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'fleet-garage' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
+export type Module = 'holds' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -488,7 +488,7 @@ export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string>
   customer_pickup: 'Customer Pickup/Drop',
 };
 
-export type OthEditStatus = 'pending' | 'approved' | 'denied';
+export type OffStdEditStatus = 'pending' | 'approved' | 'denied';
 
 export interface OffStandardEntry {
   id: string;
@@ -504,7 +504,7 @@ export interface OffStandardEntry {
   editedEndTime?:   string;
   editRequestedAt?: string;
   editRequestedBy?: string;
-  editStatus?:      OthEditStatus | null;
+  editStatus?:      OffStdEditStatus | null;
   editReviewedBy?:  string;
   editReviewedAt?:  string;
   editStaffNote?:   string;

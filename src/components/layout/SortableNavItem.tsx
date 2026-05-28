@@ -31,7 +31,7 @@ export function SortableNavItem({
       <button
         type="button"
         onClick={onToggleHidden}
-        disabled={item.module === 'fleet-garage'}
+        disabled={item.module === 'holds'}
         className="text-base leading-none shrink-0 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
         title={isHidden ? 'Show' : 'Hide'}
       >

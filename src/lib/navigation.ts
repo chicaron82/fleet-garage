@@ -11,7 +11,7 @@ export interface NavItem {
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
-  { module: 'fleet-garage',   label: 'Holds',         icon: '🔧', defaultScreen: { name: 'dashboard' } },
+  { module: 'holds',   label: 'Holds',         icon: '🔧', defaultScreen: { name: 'dashboard' } },
   { module: 'check-in',       label: 'Check-in',      icon: '📸', defaultScreen: { name: 'check-in' } },
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
   { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
@@ -26,15 +26,15 @@ const ALL_NAV_ITEMS: NavItem[] = [
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
-  'Lead VSA':            ['fleet-garage', 'check-in', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
-  'CSR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'HIR':                 ['fleet-garage', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'Branch Manager':      ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'Operations Manager':  ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'City Manager':        ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'AGM':                 ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'GM':                  ['fleet-garage', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'VSA':                 ['holds', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
+  'Lead VSA':            ['holds', 'check-in', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
+  'CSR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'HIR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'Branch Manager':      ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'Operations Manager':  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'City Manager':        ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'AGM':                 ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'GM':                  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
@@ -48,11 +48,11 @@ export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG
 
 // ── Screen → Module mapping ─────────────────────────────────────────────────
 
-const FLEET_GARAGE_SCREENS = new Set(['dashboard', 'vehicle', 'new-hold', 'register-vehicle']);
+const HOLDS_SCREENS = new Set(['dashboard', 'vehicle', 'new-hold', 'register-vehicle']);
 const AUDIT_SCREENS = new Set(['audits', 'audit-form']);
 
 export function getActiveModule(screen: Screen): Module {
-  if (FLEET_GARAGE_SCREENS.has(screen.name)) return 'fleet-garage';
+  if (HOLDS_SCREENS.has(screen.name)) return 'holds';
   if (AUDIT_SCREENS.has(screen.name)) return 'audits';
   return screen.name as Module;
 }

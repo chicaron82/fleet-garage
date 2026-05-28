@@ -13,14 +13,14 @@ describe('getNavItemsForRole', () => {
     const modules = getNavItemsForRole('Driver').map(n => n.module);
     expect(modules).toContain('movement-log');
     expect(modules).toContain('lost-and-found');
-    expect(modules).not.toContain('fleet-garage');
+    expect(modules).not.toContain('holds');
     expect(modules).not.toContain('fleet-master');
     expect(modules).not.toContain('check-in');
   });
 
-  it('VSA sees fleet-garage', () => {
+  it('VSA sees holds', () => {
     const modules = getNavItemsForRole('VSA').map(n => n.module);
-    expect(modules).toContain('fleet-garage');
+    expect(modules).toContain('holds');
   });
 
   it('CSR does not see fleet-master', () => {
@@ -33,9 +33,9 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('manifest');
   });
 
-  it('Branch Manager sees all modules', () => {
+  it('Branch Manager sees all modules including holds', () => {
     const modules = getNavItemsForRole('Branch Manager').map(n => n.module);
-    expect(modules).toContain('fleet-garage');
+    expect(modules).toContain('holds');
     expect(modules).toContain('check-in');
     expect(modules).toContain('analytics');
     expect(modules).toContain('fleet-master');
@@ -56,20 +56,20 @@ describe('getNavItemsForRole', () => {
 // ── getActiveModule ───────────────────────────────────────────────────────────
 
 describe('getActiveModule', () => {
-  it('dashboard screen → fleet-garage module', () => {
-    expect(getActiveModule({ name: 'dashboard' })).toBe('fleet-garage');
+  it('dashboard screen → holds module', () => {
+    expect(getActiveModule({ name: 'dashboard' })).toBe('holds');
   });
 
-  it('vehicle screen → fleet-garage module', () => {
-    expect(getActiveModule({ name: 'vehicle', vehicleId: 'v1' })).toBe('fleet-garage');
+  it('vehicle screen → holds module', () => {
+    expect(getActiveModule({ name: 'vehicle', vehicleId: 'v1' })).toBe('holds');
   });
 
-  it('new-hold screen → fleet-garage module', () => {
-    expect(getActiveModule({ name: 'new-hold' })).toBe('fleet-garage');
+  it('new-hold screen → holds module', () => {
+    expect(getActiveModule({ name: 'new-hold' })).toBe('holds');
   });
 
-  it('register-vehicle screen → fleet-garage module', () => {
-    expect(getActiveModule({ name: 'register-vehicle' })).toBe('fleet-garage');
+  it('register-vehicle screen → holds module', () => {
+    expect(getActiveModule({ name: 'register-vehicle' })).toBe('holds');
   });
 
   it('movement-log screen → movement-log module', () => {

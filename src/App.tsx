@@ -13,20 +13,20 @@ import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './
 import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
-const Dashboard          = lazy(() => import('./components/dashboard/Dashboard').then(m => ({ default: m.Dashboard })));
+const HoldsView          = lazy(() => import('./components/dashboard/HoldsView').then(m => ({ default: m.HoldsView })));
 const VehicleHistory     = lazy(() => import('./components/vehicle/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
 const NewHoldForm        = lazy(() => import('./components/holds/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
 const RegisterVehicleForm = lazy(() => import('./components/vehicle/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
 const MovementLogView    = lazy(() => import('./components/movement/MovementLogView').then(m => ({ default: m.MovementLogView })));
-const ScheduleView       = lazy(() => import('./components/schedule/ScheduleScreen').then(m => ({ default: m.ScheduleScreen })));
+const ScheduleScreen    = lazy(() => import('./components/schedule/ScheduleScreen').then(m => ({ default: m.ScheduleScreen })));
 const MyShiftView        = lazy(() => import('./components/my-shift/MyShiftView').then(m => ({ default: m.MyShiftView })));
 const LostAndFoundView   = lazy(() => import('./components/lost-and-found/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
 const CheckInView        = lazy(() => import('./components/check-in/CheckInView').then(m => ({ default: m.CheckInView })));
-const AuditDashboard     = lazy(() => import('./components/audit/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
+const AuditView          = lazy(() => import('./components/audit/AuditView').then(m => ({ default: m.AuditView })));
 const AuditForm          = lazy(() => import('./components/audit/AuditForm').then(m => ({ default: m.AuditForm })));
-const AnalyticsDashboard = lazy(() => import('./components/analytics/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const AnalyticsView      = lazy(() => import('./components/analytics/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
 const IssueLogView       = lazy(() => import('./components/issue-log/IssueLogView').then(m => ({ default: m.IssueLogView })));
-const ManifestView       = lazy(() => import('./components/shared/ManifestView').then(m => ({ default: m.ManifestView })));
+const ManifestView       = lazy(() => import('./components/manifest/ManifestView').then(m => ({ default: m.ManifestView })));
 const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
 
 // ── Chunk error boundary ─────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export default function App() {
     setPrevUserId(user?.id);
     if (user) {
       const navItems = getNavItemsForRole(user.role, user.branchId);
-      const savedModule = sessionStorage.getItem('fg_last_module');
+      const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
       const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
       const targetScreen = savedNavItem?.defaultScreen ?? getDefaultScreenForRole(user.role, user.branchId);
       window.history.replaceState({ appRoot: true }, '');
@@ -166,17 +166,17 @@ export default function App() {
       case 'movement-log':
         return <MovementLogView />;
       case 'schedule':
-        return <ScheduleView />;
+        return <ScheduleScreen />;
       case 'my-shift':
         return <MyShiftView />;
       case 'lost-and-found':
         return <LostAndFoundView />;
       case 'audits':
-        return <AuditDashboard onNewAudit={() => navigate({ name: 'audit-form' })} />;
+        return <AuditView onNewAudit={() => navigate({ name: 'audit-form' })} />;
       case 'audit-form':
         return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
       case 'analytics':
-        return <AnalyticsDashboard />;
+        return <AnalyticsView />;
       case 'issue-log':
         return <IssueLogView />;
       case 'manifest':
@@ -191,7 +191,7 @@ export default function App() {
         );
       default:
         return (
-          <Dashboard
+          <HoldsView
             onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
             onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
           />

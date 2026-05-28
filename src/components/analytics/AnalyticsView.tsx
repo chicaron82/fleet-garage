@@ -28,7 +28,7 @@ import { ShiftSummarySection } from './ShiftSummarySection';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
-export function AnalyticsDashboard() {
+export function AnalyticsView() {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles, washbayLogs, handoffNotes, getTodayWashbayLog, facilityIssues, shiftCheckpoints } = useGarage();
   const { isPeakSeason } = useSchedule();

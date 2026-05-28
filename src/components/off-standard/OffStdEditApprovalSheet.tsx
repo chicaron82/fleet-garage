@@ -41,7 +41,7 @@ function entryLabel(reason: OffStandardReason, preset: OffStandardPresetReason |
   return OFF_STANDARD_LABELS[reason].full;
 }
 
-export function OthEditApprovalSheet({ entryId, onClose }: Props) {
+export function OffStdEditApprovalSheet({ entryId, onClose }: Props) {
   const { user } = useAuth();
   const { getProfile } = useUserResolver();
   const [entry, setEntry] = useState<EntryRow | null>(null);

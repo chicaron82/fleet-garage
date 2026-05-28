@@ -23,7 +23,7 @@ export function useSidebar() {
   const openHighIssues  = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const activeHolds     = holds.filter(h => h.status === 'ACTIVE').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = {
-    'fleet-garage': activeHolds,
+    'holds': activeHolds,
     'issue-log':    openHighIssues,
   };
 
@@ -278,7 +278,7 @@ export function useSidebar() {
   };
 
   const toggleHidden = (module: Module) => {
-    if (module === 'fleet-garage') return;
+    if (module === 'holds') return;
     hapticLight();
     setHidden(h => h.includes(module) ? h.filter(m => m !== module) : [...h, module]);
   };

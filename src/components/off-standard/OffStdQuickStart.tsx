@@ -9,7 +9,7 @@ interface Props {
   startError: boolean;
 }
 
-export function OthQuickStart({ timerState, isRecovering, handleQuickTap, onBackdate, startError }: Props) {
+export function OffStdQuickStart({ timerState, isRecovering, handleQuickTap, onBackdate, startError }: Props) {
   if (timerState !== 'idle' || isRecovering) return null;
 
   return (

@@ -32,7 +32,7 @@ export type TripStartInfo = {
   evAdapterStatus?: 'present' | 'missing' | null;
 };
 
-export function VSAMovementLog({
+export function TripStartForm({
   onTripComplete,
   onTripStarted,
 }: {
@@ -237,7 +237,7 @@ export function VSAMovementLog({
     }
 
     if (error) {
-      console.error('[VSAMovementLog] trip start write failed:', error);
+      console.error('[TripStartForm] trip start write failed:', error);
       setStartError(true);
       setStarting(false);
       return;
@@ -343,7 +343,7 @@ export function VSAMovementLog({
     }
 
     if (error) {
-      console.error('[VSAMovementLog] trip arrive update failed:', error);
+      console.error('[TripStartForm] trip arrive update failed:', error);
     }
 
     setArrivalTime(arrived);

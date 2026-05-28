@@ -5,7 +5,7 @@
 // re-used by `useInProgressRecovery` (the React hook layer).
 //
 // Why this exists: every timed-session feature (OffStandardTimeLog,
-// VSAMovementLog, DriverLiveForm, ...) needs the exact same query on mount.
+// TripStartForm, DriverLiveForm, ...) needs the exact same query on mount.
 // Duplicating it three times has led to subtle drift; centralizing means the
 // regression suite only has to assert one thing.
 

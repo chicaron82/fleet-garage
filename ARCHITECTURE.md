@@ -14,7 +14,7 @@ MUST write to Supabase before updating React state.
 
 - `src/hooks/useOffStandardTimer.ts` → `handleStartWith` — canonical correct example
 - `src/hooks/useDriverLiveTrip.ts` → `handleStart` — uses `writeOrEnqueue` helper (see Payload Deduplication below)
-- `src/components/movement/VSAMovementLog.tsx` → `handleStartTripWith` — fixed May 2026
+- `src/components/movement/TripStartForm.tsx` → `handleStartTripWith` — fixed May 2026
 
 ### Recovery half of the contract
 
@@ -118,24 +118,32 @@ and React context plumbing.
 
 ```
 src/components/
-├── analytics/       Charts, fleet balance, shift summary
-├── audit/           Audit dashboard + form
-├── check-in/        Intake, hold panel, routing, selectors
-├── dashboard/       Main dashboard, summary cards, stale alerts
-├── holds/           New hold, release, repair, damage presets
-├── issue-log/       Issue view + card
+├── analytics/       AnalyticsView, fleet balance, shift summary
+├── audit/           AuditView, AuditForm
+├── check-in/        CheckInView, hold panel, routing, selectors
+├── dashboard/       HoldsView (main holds screen), summary cards, stale alerts
+├── holds/           NewHoldForm, release, repair, damage presets
+├── issue-log/       IssueLogView, card
 ├── layout/          Sidebar, AppShell
-├── lost-and-found/  View, card, list, modal
-├── movement/        Movement log, driver forms, trips
-├── my-shift/        Shift view, approvals, export
-├── off-standard/    Timer, entries, sheets
+├── lost-and-found/  LostAndFoundView, card, list, modal
+├── manifest/        ManifestView (outbound manifest)
+├── movement/        MovementLogView, TripStartForm, DriverLiveForm, trips
+├── my-shift/        MyShiftView, approvals, export
+├── off-standard/    OffStandardTimeLog, OffStd* sheets
 ├── shared/          Toast, scanner, photo, modals, whiteboard
-├── vehicle/         History, register, fleet master, merge
+├── vehicle/         VehicleHistory, RegisterVehicleForm, FleetMasterView
 └── washbay/         Closing log, live section, handoff
 ```
 
 Each subdirectory has a barrel `index.ts`. Lazy imports in `App.tsx` point
 directly to subdirectory files (e.g. `./components/holds/NewHoldForm`).
+
+### Naming conventions
+
+- **`*View`** — top-level screen component (rendered by App.tsx switch)
+- **`*Form`** — data-entry screen or modal
+- **`*Screen`** — external/standalone screen (e.g. ScheduleScreen, LoginScreen)
+- Module IDs match their sidebar label: `holds`, `check-in`, `analytics`, etc.
 
 ---
 

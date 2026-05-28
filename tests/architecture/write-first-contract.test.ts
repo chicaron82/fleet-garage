@@ -37,7 +37,7 @@ const REFERENCE_IMPLS: ReferenceImpl[] = [
     ],
   },
   {
-    file: 'src/components/movement/VSAMovementLog.tsx',
+    file: 'src/components/movement/TripStartForm.tsx',
     fn:   'handleStartTripWith',
     liveStateSetters: [
       'setPendingTripId(',

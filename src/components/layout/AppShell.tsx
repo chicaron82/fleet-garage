@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { NotificationBell } from '../shared/NotificationBell';
-import { OthEditApprovalSheet } from '../off-standard/OthEditApprovalSheet';
+import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
 import { VehicleEditApprovalSheet } from '../vehicle/VehicleEditApprovalSheet';
 import { useAuth } from '../../context/AuthContext';
@@ -97,7 +97,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell onNavigate={handleNavigate} onOthEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
+            <NotificationBell onNavigate={handleNavigate} onOffStdEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
             <UserProfileMenu />
           </div>
         </div>
@@ -115,7 +115,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
       )}
 
       {pendingApprovalEntryId && (
-        <OthEditApprovalSheet
+        <OffStdEditApprovalSheet
           entryId={pendingApprovalEntryId}
           onClose={() => setPendingApprovalEntryId(null)}
         />

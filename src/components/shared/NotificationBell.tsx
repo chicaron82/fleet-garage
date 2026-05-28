@@ -19,9 +19,9 @@ interface LiveNotification {
   metadata?: Record<string, unknown>;
 }
 
-export function NotificationBell({ onNavigate, onOthEditApproval, onBackdateApproval, onVehicleEditApproval }: {
+export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateApproval, onVehicleEditApproval }: {
   onNavigate?: (screen: Screen) => void;
-  onOthEditApproval?: (entryId: string) => void;
+  onOffStdEditApproval?: (entryId: string) => void;
   onBackdateApproval?: (entryId: string) => void;
   onVehicleEditApproval?: (vehicleId: string) => void;
 }) {
@@ -81,8 +81,8 @@ export function NotificationBell({ onNavigate, onOthEditApproval, onBackdateAppr
   const handleTap = async (n: LiveNotification) => {
     hapticLight();
     await handleMarkOneRead(n);
-    if (n.metadata?.type === 'oth_edit_request' && onOthEditApproval) {
-      onOthEditApproval(n.metadata.entryId as string);
+    if (n.metadata?.type === 'oth_edit_request' && onOffStdEditApproval) {
+      onOffStdEditApproval(n.metadata.entryId as string);
       setInboxOpen(false);
       return;
     }

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getNavItemsForRole } from '../../lib/navigation';
 
 const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: string }> = {
-  'fleet-garage': {
+  'holds': {
     what: 'The core of Fleet Garage. Log damage holds, mechanical issues, and detail flags. Every hold is timestamped and tied to the person who created it. Managers approve releases — their Employee ID is permanently attached to every decision. A release streak counter flags vehicles being sent out repeatedly without repair.',
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
     mockNote: 'Demo data includes the Tesla LJF684 — a real Winnipeg lot vehicle with 3 holds on the same rear bumper dent going back to September 2025. The streak counter and pre-existing suggestion are both live on this vehicle.',

@@ -1,4 +1,4 @@
 // Barrel export for dashboard
 export * from './DashboardSummaryCards';
-export * from './Dashboard';
+export * from './HoldsView';
 export * from './StaleHoldsAlert';

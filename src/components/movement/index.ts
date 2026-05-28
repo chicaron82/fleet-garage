@@ -10,5 +10,5 @@ export * from './TripComplete';
 export * from './TripForm';
 export * from './TripInTransit';
 export * from './TripList';
-export * from './VSAMovementLog';
+export * from './TripStartForm';
 export * from './VSATripComponents';

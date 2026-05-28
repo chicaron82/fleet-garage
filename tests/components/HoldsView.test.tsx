@@ -96,8 +96,8 @@ vi.mock('../../src/lib/barcode', () => ({
 }));
 
 const importComponent = async () => {
-  const mod = await import('../../src/components/dashboard/Dashboard');
-  return mod.Dashboard;
+  const mod = await import('../../src/components/dashboard/HoldsView');
+  return mod.HoldsView;
 };
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -106,28 +106,28 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
-describe('Dashboard — vehicle list', () => {
+describe('HoldsView — vehicle list', () => {
   it('renders HELD vehicles in the default list', async () => {
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     expect(screen.getByText('1234567')).toBeInTheDocument();
     expect(screen.getByText(/HLD111/)).toBeInTheDocument();
   });
 
   it('hides CLEAR vehicles when no search is active', async () => {
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     expect(screen.queryByText('7654321')).not.toBeInTheDocument();
   });
 });
 
-describe('Dashboard — search', () => {
+describe('HoldsView — search', () => {
   it('filters by unit number', async () => {
     const user = userEvent.setup();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '7654321');
     expect(await screen.findByText('7654321')).toBeInTheDocument();
@@ -135,8 +135,8 @@ describe('Dashboard — search', () => {
 
   it('filters by plate fragment', async () => {
     const user = userEvent.setup();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'CLR');
     expect(await screen.findByText(/CLR222/)).toBeInTheDocument();
@@ -144,8 +144,8 @@ describe('Dashboard — search', () => {
 
   it('shows "not in the system" + register CTA for unmatched search ≥2 chars', async () => {
     const user = userEvent.setup();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
     expect(await screen.findByText(/"ZZZZ" not in the system\./)).toBeInTheDocument();
@@ -155,8 +155,8 @@ describe('Dashboard — search', () => {
   it('calls onRegisterAndFlag with the search term when register CTA is clicked', async () => {
     const user = userEvent.setup();
     const onRegisterAndFlag = vi.fn();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={vi.fn()} onRegisterAndFlag={onRegisterAndFlag} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={onRegisterAndFlag} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
     await user.click(await screen.findByText(/Add to ledger/i));
@@ -165,12 +165,12 @@ describe('Dashboard — search', () => {
   });
 });
 
-describe('Dashboard — vehicle card interaction', () => {
+describe('HoldsView — vehicle card interaction', () => {
   it('calls onSelectVehicle directly when card is clicked with no search', async () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /Toyota Camry/i }));
     expect(onSelectVehicle).toHaveBeenCalledWith('v-1');
@@ -179,8 +179,8 @@ describe('Dashboard — vehicle card interaction', () => {
   it('shows confirmation sheet when card is clicked during active search', async () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '1234567');
     await user.click(await screen.findByRole('button', { name: /Toyota Camry/i }));
@@ -192,8 +192,8 @@ describe('Dashboard — vehicle card interaction', () => {
   it('calls onSelectVehicle after confirming in the confirmation sheet', async () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
-    const Dashboard = await importComponent();
-    render(<Dashboard onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '1234567');
     await user.click(await screen.findByRole('button', { name: /Toyota Camry/i }));
