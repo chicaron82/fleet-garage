@@ -1,0 +1,49 @@
+import type { UserRole, Hold, Vehicle } from '../../types';
+import { canRelease } from '../../types';
+import { hapticLight } from '../../lib/haptics';
+
+interface StaleHoldsAlertProps {
+  role: UserRole;
+  staleHolds: Hold[];
+  vehicles: Vehicle[];
+  onSelectVehicle: (vehicleId: string) => void;
+}
+
+export function StaleHoldsAlert({
+  role,
+  staleHolds,
+  vehicles,
+  onSelectVehicle,
+}: StaleHoldsAlertProps) {
+  // Management only — VSA/Lead VSA see ⚠️ on individual hold cards, not the fleet-level banner
+  if (!canRelease(role)) return null;
+  if (staleHolds.length === 0) return null;
+
+  const staleItems = staleHolds.map(h => {
+    const v = vehicles.find(v => v.id === h.vehicleId);
+    return { vehicleId: h.vehicleId, unitNumber: v?.unitNumber ?? 'Unknown' };
+  });
+
+  return (
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
+      <p className="font-semibold mb-1.5">
+        ⚠️ {staleHolds.length} hold{staleHolds.length > 1 ? 's have' : ' has'} been active for more than 48 hours
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {staleItems.map(({ vehicleId, unitNumber }) => (
+          <button
+            key={vehicleId}
+            type="button"
+            onClick={() => {
+              hapticLight();
+              onSelectVehicle(vehicleId);
+            }}
+            className="bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-md text-xs font-semibold hover:bg-amber-200 dark:hover:bg-amber-700/60 cursor-pointer transition-colors"
+          >
+            {unitNumber}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

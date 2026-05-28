@@ -37,7 +37,7 @@ const REFERENCE_IMPLS: ReferenceImpl[] = [
     ],
   },
   {
-    file: 'src/components/VSAMovementLog.tsx',
+    file: 'src/components/movement/VSAMovementLog.tsx',
     fn:   'handleStartTripWith',
     liveStateSetters: [
       'setPendingTripId(',
@@ -115,20 +115,26 @@ describe('Write-First Pattern — ordering contract', () => {
     const body    = extractFunctionBody(source, fn);
 
     it('awaits a Supabase insert', () => {
-      // The insert can be chained: .insert(...) or .insert(...).select().single()
-      const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
+      // Direct: await writeWithRefresh(() => supabase...insert(...))
+      // Or delegated: await writeOrEnqueue('insert', ...)
+      const directIdx    = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
+      const delegatedIdx = body.search(/await\s+writeOrEnqueue\s*\(\s*'insert'/);
+      const awaitInsertIdx = Math.max(directIdx, delegatedIdx);
       expect(
         awaitInsertIdx,
-        `${fn} must contain "await supabase...insert(...)" — write-first contract`,
+        `${fn} must contain "await supabase...insert(...)" or "await writeOrEnqueue('insert',...)" — write-first contract`,
       ).toBeGreaterThan(-1);
     });
 
     it('checks the error before any live-state setter fires', () => {
-      const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
-      // After the await, there must be an `if (error)` (or destructured-error check)
-      // BEFORE any live-state setter is reached.
+      const directIdx    = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
+      const delegatedIdx = body.search(/await\s+writeOrEnqueue\s*\(\s*'insert'/);
+      const awaitInsertIdx = Math.max(directIdx, delegatedIdx);
+      // After the await, there must be an error check:
+      //   - `if (error)` (direct pattern)
+      //   - `if (!ok)` (writeOrEnqueue returns { ok })
       const tail = body.slice(awaitInsertIdx);
-      const errorCheckIdx = tail.search(/if\s*\(\s*error\s*\)/);
+      const errorCheckIdx = tail.search(/if\s*\(\s*(?:error|!ok)\s*\)/);
       expect(
         errorCheckIdx,
         `${fn} must check the insert error before progressing — write-first contract`,
@@ -138,7 +144,9 @@ describe('Write-First Pattern — ordering contract', () => {
     it.each(liveStateSetters)(
       'live-state setter %s appears AFTER the awaited insert',
       setter => {
-        const awaitInsertIdx = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
+        const directIdx    = body.search(/await\s+(?:writeWithRefresh\s*\(\s*\(\s*\)\s*=>\s*)?supabase[\s\S]*?\.insert\s*\(/);
+        const delegatedIdx = body.search(/await\s+writeOrEnqueue\s*\(\s*'insert'/);
+        const awaitInsertIdx = Math.max(directIdx, delegatedIdx);
         const setterIdx      = body.indexOf(setter);
 
         expect(

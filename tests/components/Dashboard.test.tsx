@@ -60,23 +60,23 @@ vi.mock('../../src/hooks/useBarcodeInterceptor', () => ({
   useBarcodeInterceptor: vi.fn(),
 }));
 
-vi.mock('../../src/components/CameraBarcodeScanner', () => ({
+vi.mock('../../src/components/shared/CameraBarcodeScanner', () => ({
   CameraBarcodeScanner: () => <button data-testid="camera-scanner-stub">Scan</button>,
 }));
 
-vi.mock('../../src/components/DashboardSummaryCards', () => ({
+vi.mock('../../src/components/dashboard/DashboardSummaryCards', () => ({
   DashboardSummaryCards: () => <div data-testid="summary-cards" />,
 }));
 
-vi.mock('../../src/components/PendingApprovalsSection', () => ({
+vi.mock('../../src/components/my-shift/PendingApprovalsSection', () => ({
   PendingApprovalsSection: () => <div data-testid="pending-approvals" />,
 }));
 
-vi.mock('../../src/components/StaleHoldsAlert', () => ({
+vi.mock('../../src/components/dashboard/StaleHoldsAlert', () => ({
   StaleHoldsAlert: () => <div data-testid="stale-holds-alert" />,
 }));
 
-vi.mock('../../src/components/StatusBadge', () => ({
+vi.mock('../../src/components/holds/StatusBadge', () => ({
   StatusBadge: ({ status }: { status: string }) => (
     <span data-testid="status-badge">{status}</span>
   ),
@@ -84,6 +84,7 @@ vi.mock('../../src/components/StatusBadge', () => ({
 
 vi.mock('../../src/lib/holdBadge', () => ({
   holdContextEmojis: vi.fn().mockReturnValue([]),
+  holdBadgeConfig: vi.fn().mockReturnValue({ label: 'Damage', className: 'bg-red-50 text-red-700' }),
 }));
 
 vi.mock('../../src/lib/haptics', () => ({
@@ -95,7 +96,7 @@ vi.mock('../../src/lib/barcode', () => ({
 }));
 
 const importComponent = async () => {
-  const mod = await import('../../src/components/Dashboard');
+  const mod = await import('../../src/components/dashboard/Dashboard');
   return mod.Dashboard;
 };
 

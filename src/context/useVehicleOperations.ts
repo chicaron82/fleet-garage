@@ -26,7 +26,7 @@ export function useVehicleOperations({
 }: VehicleOperationsProps) {
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {
-    const id = `veh-${Date.now()}`;
+    const id = crypto.randomUUID();
     const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').insert({

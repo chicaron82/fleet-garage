@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
-import { UserProfileMenu } from '../UserProfileMenu';
-import { ModuleGuideModal } from '../ModuleGuideModal';
-import { NotificationBell } from '../NotificationBell';
-import { OthEditApprovalSheet } from '../OthEditApprovalSheet';
-import { BackdateApprovalSheet } from '../BackdateApprovalSheet';
-import { VehicleEditApprovalSheet } from '../VehicleEditApprovalSheet';
+import { UserProfileMenu } from '../shared/UserProfileMenu';
+import { ModuleGuideModal } from '../shared/ModuleGuideModal';
+import { NotificationBell } from '../shared/NotificationBell';
+import { OthEditApprovalSheet } from '../off-standard/OthEditApprovalSheet';
+import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
+import { VehicleEditApprovalSheet } from '../vehicle/VehicleEditApprovalSheet';
 import { useAuth } from '../../context/AuthContext';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';

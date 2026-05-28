@@ -109,24 +109,24 @@ vi.mock('../../src/lib/image', () => ({
 }));
 
 // Camera scanner uses getUserMedia which jsdom doesn't ship — stub it out.
-vi.mock('../../src/components/CameraBarcodeScanner', () => ({
+vi.mock('../../src/components/shared/CameraBarcodeScanner', () => ({
   CameraBarcodeScanner: ({ label }: { label: string }) => (
     <button data-testid="camera-scanner-stub">{label}</button>
   ),
 }));
 
-vi.mock('../../src/components/CheckInHoldPanel', () => ({
+vi.mock('../../src/components/check-in/CheckInHoldPanel', () => ({
   CheckInHoldPanel: () => <div data-testid="hold-panel" />,
 }));
 
-vi.mock('../../src/components/EVAssetCheck', () => ({
+vi.mock('../../src/components/movement/EVAssetCheck', () => ({
   EVAssetCheck: () => <div data-testid="ev-check" />,
 }));
 
 // Import AFTER mocks are registered (top-level vi.mock is hoisted, but the
 // import has to happen here so the component sees mocked modules).
 const importComponent = async () => {
-  const mod = await import('../../src/components/CheckInIntakeForm');
+  const mod = await import('../../src/components/check-in/CheckInIntakeForm');
   return mod.CheckInIntakeForm;
 };
 

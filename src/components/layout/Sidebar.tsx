@@ -4,7 +4,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useAuth } from '../../context/AuthContext';
-import { UserProfileMenu } from '../UserProfileMenu';
+import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { hapticLight } from '../../lib/haptics';
 import type { Module, BranchId } from '../../types';
 import type { MockNotification } from '../../data/notifications';

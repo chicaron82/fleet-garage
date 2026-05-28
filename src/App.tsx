@@ -4,27 +4,27 @@ import { useAuth } from './context/AuthContext';
 import { GarageProvider } from './context/GarageContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { AppShell } from './components/layout/AppShell';
-import { LoginScreen } from './components/LoginScreen';
-import { LogoutConfirm } from './components/LogoutConfirm';
+import { LoginScreen } from './components/shared/LoginScreen';
+import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
 import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
-const Dashboard          = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
-const VehicleHistory     = lazy(() => import('./components/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
-const NewHoldForm        = lazy(() => import('./components/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
-const RegisterVehicleForm = lazy(() => import('./components/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
-const MovementLogView    = lazy(() => import('./components/MovementLogView').then(m => ({ default: m.MovementLogView })));
-const ScheduleView       = lazy(() => import('./components/ScheduleView').then(m => ({ default: m.ScheduleView })));
-const MyShiftView        = lazy(() => import('./components/MyShiftView').then(m => ({ default: m.MyShiftView })));
-const LostAndFoundView   = lazy(() => import('./components/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
-const CheckInView        = lazy(() => import('./components/CheckInView').then(m => ({ default: m.CheckInView })));
-const AuditDashboard     = lazy(() => import('./components/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
-const AuditForm          = lazy(() => import('./components/AuditForm').then(m => ({ default: m.AuditForm })));
-const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
-const IssueLogView       = lazy(() => import('./components/IssueLogView').then(m => ({ default: m.IssueLogView })));
-const ManifestView       = lazy(() => import('./components/ManifestView').then(m => ({ default: m.ManifestView })));
-const FleetMasterView    = lazy(() => import('./components/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
+const Dashboard          = lazy(() => import('./components/dashboard/Dashboard').then(m => ({ default: m.Dashboard })));
+const VehicleHistory     = lazy(() => import('./components/vehicle/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
+const NewHoldForm        = lazy(() => import('./components/holds/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
+const RegisterVehicleForm = lazy(() => import('./components/vehicle/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
+const MovementLogView    = lazy(() => import('./components/movement/MovementLogView').then(m => ({ default: m.MovementLogView })));
+const ScheduleView       = lazy(() => import('./components/schedule/ScheduleScreen').then(m => ({ default: m.ScheduleScreen })));
+const MyShiftView        = lazy(() => import('./components/my-shift/MyShiftView').then(m => ({ default: m.MyShiftView })));
+const LostAndFoundView   = lazy(() => import('./components/lost-and-found/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
+const CheckInView        = lazy(() => import('./components/check-in/CheckInView').then(m => ({ default: m.CheckInView })));
+const AuditDashboard     = lazy(() => import('./components/audit/AuditDashboard').then(m => ({ default: m.AuditDashboard })));
+const AuditForm          = lazy(() => import('./components/audit/AuditForm').then(m => ({ default: m.AuditForm })));
+const AnalyticsDashboard = lazy(() => import('./components/analytics/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const IssueLogView       = lazy(() => import('./components/issue-log/IssueLogView').then(m => ({ default: m.IssueLogView })));
+const ManifestView       = lazy(() => import('./components/shared/ManifestView').then(m => ({ default: m.ManifestView })));
+const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
 
 // ── Chunk error boundary ─────────────────────────────────────────────────────
 // After a new deployment, stale browsers request chunk filenames that no longer

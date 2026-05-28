@@ -97,6 +97,53 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   const fromLabel = from === 'Other' ? (customFrom || 'Other') : (from ?? '');
   const toLabel   = to   === 'Other' ? (customTo   || 'Other') : (to   ?? '');
 
+  // ── Shared helpers — eliminate payload duplication ─────────────────────────
+
+  const buildTripPayload = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+    vehicle_plate:     plate.trim().toUpperCase(),
+    vehicle_unit:      '',
+    trip_type:         isShuttle ? 'transfer' : 'clean',
+    depart_location:   fromLabel,
+    arrive_location:   toLabel,
+    driver_id:         user?.id ?? '',
+    branch_id:         user?.branchId ?? 'YWG',
+    is_shuttle:        isShuttle,
+    notes:             notes.trim() || null,
+    ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
+    ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
+    ...overrides,
+  });
+
+  /**
+   * Attempts a Supabase write; falls back to offline queue on network errors.
+   * Returns { ok: true } on success (online or queued), or { ok: false, error } on real failure.
+   */
+  const writeOrEnqueue = async (
+    action: 'insert' | 'update',
+    payload: Record<string, unknown>,
+    eqField?: string,
+    eqValue?: string,
+  ): Promise<{ ok: boolean }> => {
+    if (!navigator.onLine) {
+      enqueueOfflineAction({ table: 'vsa_trips', action, payload, eqField, eqValue });
+      return { ok: true };
+    }
+    const res = action === 'insert'
+      ? await writeWithRefresh(() => supabase.from('vsa_trips').insert(payload))
+      : await writeWithRefresh(() => {
+          let q = supabase.from('vsa_trips').update(payload);
+          if (eqField && eqValue !== undefined) q = q.eq(eqField, eqValue);
+          return q;
+        });
+    if (!res.error) return { ok: true };
+    const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+    if (isNetworkErr) {
+      enqueueOfflineAction({ table: 'vsa_trips', action, payload, eqField, eqValue });
+      return { ok: true };
+    }
+    return { ok: false };
+  };
+
   const canStart = plate.trim().length > 0
     && routeStep === 'confirmed'
     && (from !== 'Other' || customFrom.trim().length > 0)
@@ -162,82 +209,17 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     if (!user) return;
     const now    = new Date().toISOString();
     const tripId = crypto.randomUUID();
-    let error = null;
 
-    if (!navigator.onLine) {
-      enqueueOfflineAction({
-        table: 'vsa_trips',
-        action: 'insert',
-        payload: {
-          id:                tripId,
-          vehicle_plate:     plate.trim().toUpperCase(),
-          vehicle_unit:      '',
-          trip_type:         isShuttle ? 'transfer' : 'clean',
-          depart_location:   fromLabel,
-          arrive_location:   toLabel,
-          depart_time:       now,
-          arrive_time:       null,
-          driver_id:         user.id,
-          branch_id:         user.branchId,
-          is_shuttle:        isShuttle,
-          notes:             notes.trim() || null,
-          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:            'in_progress',
-        }
-      });
-    } else {
-      const res = await writeWithRefresh(() =>
-        supabase.from('vsa_trips').insert({
-          id:                tripId,
-          vehicle_plate:     plate.trim().toUpperCase(),
-          vehicle_unit:      '',
-          trip_type:         isShuttle ? 'transfer' : 'clean',
-          depart_location:   fromLabel,
-          arrive_location:   toLabel,
-          depart_time:       now,
-          arrive_time:       null,
-          driver_id:         user.id,
-          branch_id:         user.branchId,
-          is_shuttle:        isShuttle,
-          notes:             notes.trim() || null,
-          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:            'in_progress',
-        })
-      );
-      if (res.error) {
-        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-        if (isNetworkErr) {
-          enqueueOfflineAction({
-            table: 'vsa_trips',
-            action: 'insert',
-            payload: {
-              id:                tripId,
-              vehicle_plate:     plate.trim().toUpperCase(),
-              vehicle_unit:      '',
-              trip_type:         isShuttle ? 'transfer' : 'clean',
-              depart_location:   fromLabel,
-              arrive_location:   toLabel,
-              depart_time:       now,
-              arrive_time:       null,
-              driver_id:         user.id,
-              branch_id:         user.branchId,
-              is_shuttle:        isShuttle,
-              notes:             notes.trim() || null,
-              ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-              ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-              status:            'in_progress',
-            }
-          });
-        } else {
-          error = res.error;
-        }
-      }
-    }
+    const payload = buildTripPayload({
+      id:           tripId,
+      depart_time:  now,
+      arrive_time:  null,
+      status:       'in_progress',
+    });
 
-    if (error) {
-      console.error('[DriverLiveForm] start write failed:', JSON.stringify(error));
+    const { ok } = await writeOrEnqueue('insert', payload);
+    if (!ok) {
+      console.error('[DriverLiveForm] start write failed');
       setSaveError(true);
       return;
     }
@@ -257,124 +239,18 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     const arrived = new Date().toISOString();
     setArrivalTime(arrived);
 
-    let error: { message: string } | null = null;
+    const arrivalOverrides = { arrive_time: arrived, status: 'complete' };
+    let ok: boolean;
 
     if (inProgressId) {
       // Happy path: complete the in_progress record
-      if (!navigator.onLine) {
-        enqueueOfflineAction({
-          table: 'vsa_trips',
-          action: 'update',
-          payload: {
-            arrive_time:       arrived,
-            notes:             notes.trim() || null,
-            ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-            ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-            status:            'complete',
-          },
-          eqField: 'id',
-          eqValue: inProgressId
-        });
-      } else {
-        const res = await writeWithRefresh(() => supabase.from('vsa_trips').update({
-          arrive_time:       arrived,
-          notes:             notes.trim() || null,
-          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:            'complete',
-        }).eq('id', inProgressId));
-        if (res.error) {
-          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-          if (isNetworkErr) {
-            enqueueOfflineAction({
-              table: 'vsa_trips',
-              action: 'update',
-              payload: {
-                arrive_time:       arrived,
-                notes:             notes.trim() || null,
-                ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-                ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-                status:            'complete',
-              },
-              eqField: 'id',
-              eqValue: inProgressId
-            });
-          } else {
-            error = res.error;
-          }
-        }
-      }
+      ({ ok } = await writeOrEnqueue('update', buildTripPayload(arrivalOverrides), 'id', inProgressId));
     } else {
-      // Fallback: start write failed, insert now
-      if (!navigator.onLine) {
-        enqueueOfflineAction({
-          table: 'vsa_trips',
-          action: 'insert',
-          payload: {
-            vehicle_plate:     plate.trim().toUpperCase(),
-            vehicle_unit:      '',
-            trip_type:         isShuttle ? 'transfer' : 'clean',
-            depart_location:   fromLabel,
-            arrive_location:   toLabel,
-            depart_time:       departureTime,
-            arrive_time:       arrived,
-            driver_id:         user.id,
-            branch_id:         user.branchId,
-            is_shuttle:        isShuttle,
-            notes:             notes.trim() || null,
-            ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-            ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-            status:            'complete',
-          }
-        });
-      } else {
-        const res = await writeWithRefresh(() => supabase.from('vsa_trips').insert({
-          vehicle_plate:     plate.trim().toUpperCase(),
-          vehicle_unit:      '',
-          trip_type:         isShuttle ? 'transfer' : 'clean',
-          depart_location:   fromLabel,
-          arrive_location:   toLabel,
-          depart_time:       departureTime,
-          arrive_time:       arrived,
-          driver_id:         user.id,
-          branch_id:         user.branchId,
-          is_shuttle:        isShuttle,
-          notes:             notes.trim() || null,
-          ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:            'complete',
-        }));
-        if (res.error) {
-          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-          if (isNetworkErr) {
-            enqueueOfflineAction({
-              table: 'vsa_trips',
-              action: 'insert',
-              payload: {
-                vehicle_plate:     plate.trim().toUpperCase(),
-                vehicle_unit:      '',
-                trip_type:         isShuttle ? 'transfer' : 'clean',
-                depart_location:   fromLabel,
-                arrive_location:   toLabel,
-                depart_time:       departureTime,
-                arrive_time:       arrived,
-                driver_id:         user.id,
-                branch_id:         user.branchId,
-                is_shuttle:        isShuttle,
-                notes:             notes.trim() || null,
-                ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-                ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-                status:            'complete',
-              }
-            });
-          } else {
-            error = res.error;
-          }
-        }
-      }
+      // Fallback: start write failed, insert the full trip now
+      ({ ok } = await writeOrEnqueue('insert', buildTripPayload({ depart_time: departureTime, ...arrivalOverrides })));
     }
 
-    if (error) {
+    if (!ok) {
       setSubmitting(false);
       setSaveError(true);
       return;

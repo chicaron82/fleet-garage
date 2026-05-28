@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { OffStandardTimeLog } from '../../src/components/OffStandardTimeLog';
+import { OffStandardTimeLog } from '../../src/components/off-standard/OffStandardTimeLog';
 import { enqueueOfflineAction } from '../../src/lib/offlineQueue';
 import type { User } from '../../src/types';
 

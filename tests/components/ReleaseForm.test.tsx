@@ -47,7 +47,7 @@ vi.mock('../../src/lib/haptics', () => ({
 }));
 
 const importComponent = async () => {
-  const mod = await import('../../src/components/ReleaseForm');
+  const mod = await import('../../src/components/holds/ReleaseForm');
   return mod.ReleaseForm;
 };
 

@@ -518,7 +518,7 @@ export function useOffStandardTimer({
     try {
       const [{ pdf }, { OffStandardReportPDF }] = await Promise.all([
         import('@react-pdf/renderer'),
-        import('../components/OffStandardReportPDF'),
+        import('../components/off-standard/OffStandardReportPDF'),
       ]);
 
       const data = {

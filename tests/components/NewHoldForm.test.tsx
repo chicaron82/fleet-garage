@@ -43,12 +43,12 @@ vi.mock('../../src/hooks/useBarcodeInterceptor', () => ({
   useBarcodeInterceptor: vi.fn(),
 }));
 
-vi.mock('../../src/components/CameraBarcodeScanner', () => ({
+vi.mock('../../src/components/shared/CameraBarcodeScanner', () => ({
   CameraBarcodeScanner: () => <button data-testid="camera-scanner-stub">Scan</button>,
 }));
 
 // Stub renders a button that injects one damage type so canSubmit can be reached
-vi.mock('../../src/components/DamagePresetsSelector', () => ({
+vi.mock('../../src/components/holds/DamagePresetsSelector', () => ({
   DamagePresetsSelector: ({ toggleDamageType }: { toggleDamageType: (t: string) => void }) => (
     <button
       data-testid="damage-preset-stub"
@@ -60,7 +60,7 @@ vi.mock('../../src/components/DamagePresetsSelector', () => ({
   ),
 }));
 
-vi.mock('../../src/components/MechanicalConcernSelector', () => ({
+vi.mock('../../src/components/holds/MechanicalConcernSelector', () => ({
   MechanicalConcernSelector: () => <div data-testid="mechanical-stub" />,
 }));
 
@@ -88,7 +88,7 @@ vi.mock('../../src/lib/holdBadge', () => ({
 }));
 
 const importComponent = async () => {
-  const mod = await import('../../src/components/NewHoldForm');
+  const mod = await import('../../src/components/holds/NewHoldForm');
   return mod.NewHoldForm;
 };
 

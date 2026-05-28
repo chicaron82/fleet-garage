@@ -7,7 +7,7 @@ import { isManagement } from '../../lib/analytics';
 import {
   SummaryRow, ShiftSparkline, HistoryCard,
 } from './AnalyticsComponents';
-import { ShiftExportActionSheet } from '../ShiftExportActionSheet';
+import { ShiftExportActionSheet } from '../my-shift/ShiftExportActionSheet';
 import { type SavedSummary, mapSaved } from './shiftSummaryUtils';
 
 function fmtMinutes(mins: number): string {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -15,6 +15,7 @@ interface GarageContextValue extends LostFoundSlice, IssuesSlice, WashbayHandoff
   holds: Hold[];
   staleHolds: Hold[];
   loading: boolean;
+  loadError: boolean;
   getVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
@@ -46,6 +47,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [shuttlePlate, setShuttlePlate] = useState('KUR 261');
 
   const { setFacilityIssues, ...issuesSlice }         = useIssues(user, activeBranch);
@@ -71,28 +73,36 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   // ── Initial data load ────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }, { data: cpData }] = await Promise.all([
-        supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
-        supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
-        supabase.from('facility_issues').select('*').order('reported_at', { ascending: false }),
-        supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
-        supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
-        supabase.from('lost_found').select('*').order('found_at', { ascending: false }).limit(100),
-        supabase.from('shift_checkpoints').select('*').order('logged_at', { ascending: false }).limit(30),
-      ]);
-      setAllVehicles((vData ?? []).map(mapVehicle));
-      setAllHolds((hData ?? []).map(mapHold));
-      setFacilityIssues((iData ?? []).map(mapIssue));
-      setWashbayLogs((wData ?? []).map(mapWashbayLog));
-      setHandoffNotes((nData ?? []).map(mapHandoffNote));
-      setAllLostFoundItems((lfData ?? []).map(mapLostFoundItem));
-      setShiftCheckpoints((cpData ?? []).map(mapCheckpoint));
+      try {
+        const [{ data: vData }, { data: hData }, { data: iData }, { data: wData }, { data: nData }, { data: lfData }, { data: cpData }] = await Promise.all([
+          supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
+          supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
+          supabase.from('facility_issues').select('*').order('reported_at', { ascending: false }),
+          supabase.from('washbay_logs').select('*').order('date', { ascending: false }).limit(30),
+          supabase.from('handoff_notes').select('*').order('logged_at', { ascending: false }).limit(20),
+          supabase.from('lost_found').select('*').order('found_at', { ascending: false }).limit(100),
+          supabase.from('shift_checkpoints').select('*').order('logged_at', { ascending: false }).limit(30),
+        ]);
+        setAllVehicles((vData ?? []).map(mapVehicle));
+        setAllHolds((hData ?? []).map(mapHold));
+        setFacilityIssues((iData ?? []).map(mapIssue));
+        setWashbayLogs((wData ?? []).map(mapWashbayLog));
+        setHandoffNotes((nData ?? []).map(mapHandoffNote));
+        setAllLostFoundItems((lfData ?? []).map(mapLostFoundItem));
+        setShiftCheckpoints((cpData ?? []).map(mapCheckpoint));
+      } catch (err) {
+        console.error('[GarageContext] Initial load failed:', err);
+        setLoadError(true);
+      }
       setLoading(false);
     }
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Realtime holds subscription ──────────────────────────────────────────────
+  const allHoldsRef = useRef(allHolds);
+  useEffect(() => { allHoldsRef.current = allHolds; });
+
   useEffect(() => {
     const refetch = async (id: string) => {
       const { data } = await supabase
@@ -107,13 +117,10 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
       .channel('garage-holds-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'holds' }, (payload) => {
         const id = (payload.new as { id: string }).id;
-        setAllHolds(prev => {
-          if (prev.some(h => h.id === id)) return prev;
-          void refetch(id).then(hold => {
-            if (!hold) return;
-            setAllHolds(p => p.some(h => h.id === hold.id) ? p : [hold, ...p]);
-          });
-          return prev;
+        if (allHoldsRef.current.some(h => h.id === id)) return;
+        void refetch(id).then(hold => {
+          if (!hold) return;
+          setAllHolds(prev => prev.some(h => h.id === hold.id) ? prev : [hold, ...prev]);
         });
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'holds' }, async (payload) => {
@@ -180,11 +187,11 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
   const [staleHolds, setStaleHolds] = useState<Hold[]>([]);
   useEffect(() => {
     const now = Date.now();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStaleHolds(holds.filter(h => {
-      if (h.status !== 'ACTIVE') return false;
-      return (now - new Date(h.flaggedAt).getTime()) > 48 * 60 * 60 * 1000;
-    }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deriving state from external time; no cascading risk
+    setStaleHolds(holds.filter(h =>
+      h.status === 'ACTIVE' &&
+      (now - new Date(h.flaggedAt).getTime()) > 48 * 60 * 60 * 1000
+    ));
   }, [holds]);
 
   // ── Vehicle & hold write operations (extracted hook) ─────────────────────────
@@ -197,7 +204,7 @@ export function GarageProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <GarageContext.Provider value={{
-      vehicles, holds, staleHolds, loading,
+      vehicles, holds, staleHolds, loading, loadError,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, releaseStreak,
       ...ops,
