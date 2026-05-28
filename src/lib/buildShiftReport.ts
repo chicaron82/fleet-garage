@@ -75,9 +75,26 @@ function formatLocation(loc: string): string {
   return loc.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+const HOLD_TYPE_LABELS: Record<string, string> = {
+  damage:     'Damage',
+  detail:     'Detail',
+  mechanical: 'Mechanical',
+  sale_car:   'Sale Car',
+};
+
 function formatHoldTypes(types: string[]): string {
   if (types.length === 0) return 'Hold';
-  return types.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' & ') + ' hold';
+  return types.map(t => HOLD_TYPE_LABELS[t] ?? (t.charAt(0).toUpperCase() + t.slice(1))).join(' & ') + ' hold';
+}
+
+function resolveQueueLabel(raw: string | null): string | null {
+  if (raw == null) return null;
+  if (typeof (raw as unknown) !== 'string') {
+    const obj = raw as unknown as { label?: string };
+    if (!obj.label || obj.label === 'Resumed') return null;
+    return obj.label;
+  }
+  return raw;
 }
 
 function fmtRate(n: number): string {
@@ -101,9 +118,14 @@ export function buildReport(d: ReportData): string {
   if (d.fleetBalance) {
     const { outCount, inCount, isProjected } = d.fleetBalance;
     const gap = inCount - outCount;
-    const gapLabel = gap >= 0 ? `+${gap}` : `${gap}`;
     lines.push('', isProjected ? 'FLEET DEMAND  (Est.)' : 'FLEET DEMAND', SEP);
-    lines.push(`Reservations: ${outCount}  |  Returns: ${inCount}  |  Gap: ${gapLabel}`);
+    const totalCleaned = d.throughput?.fullDayCleaned ?? null;
+    if (totalCleaned != null) lines.push(`${totalCleaned} sent to airport`);
+    const resDelta = totalCleaned != null && totalCleaned > outCount ? `  (+${totalCleaned - outCount} above demand)` : '';
+    const retDelta = gap > 0 ? `  (+${gap} more came back)` : '';
+    lines.push(`Reservations: ${outCount}${resDelta}`);
+    lines.push(`Returns:      ${inCount}${retDelta}`);
+    if (gap < 0) lines.push(`Supply gap: ${gap}  — demand exceeds returns before cleaning starts`);
   }
 
   // Throughput
@@ -179,13 +201,13 @@ export function buildReport(d: ReportData): string {
   }
 
   // Queue at departure
-  const tripsWithQueue = d.trips.filter(t => t.queueAtDeparture != null);
+  const tripsWithQueue = d.trips.filter(t => resolveQueueLabel(t.queueAtDeparture) !== null);
   if (tripsWithQueue.length > 0) {
     lines.push('', 'WASHBAY QUEUE AT DEPARTURE', SEP);
     for (const t of tripsWithQueue) {
-      lines.push(`${fmtTime(t.departTime)}  Queue: ${t.queueAtDeparture}`);
+      lines.push(`${fmtTime(t.departTime)}  Queue: ${resolveQueueLabel(t.queueAtDeparture)}`);
     }
-    const peakCount = tripsWithQueue.filter(t => t.queueAtDeparture === '10+').length;
+    const peakCount = tripsWithQueue.filter(t => resolveQueueLabel(t.queueAtDeparture) === '10+').length;
     if (peakCount > 0) {
       lines.push(`⚠ ${peakCount} trip(s) departed with washbay queue at 10+ — VSA coverage pulled during peak window`);
     }

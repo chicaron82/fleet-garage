@@ -35,11 +35,14 @@ const s = StyleSheet.create({
   badgeDot:      { fontSize: 7, color: '#b45309' },
 
   // Fleet demand
+  sentRow:       { flexDirection: 'row', alignItems: 'baseline', marginBottom: 8 },
+  sentCount:     { fontSize: 22, fontFamily: 'Helvetica-Bold', color: '#111827' },
+  sentLabel:     { fontSize: 10, color: '#6b7280', marginLeft: 4 },
   demandRow:     { flexDirection: 'row', gap: 8, marginBottom: 6 },
   demandCard:    { flex: 1, backgroundColor: '#f9fafb', borderRadius: 4, padding: 8, alignItems: 'center' },
   demandValue:   { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#111827', marginBottom: 2 },
   demandLabel:   { fontSize: 7, color: '#6b7280' },
-  gapRowPos:     { backgroundColor: '#dcfce7', borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10 },
+  demandDelta:   { fontSize: 7, color: '#16a34a', marginTop: 2 },
   gapRowNeg:     { backgroundColor: '#fee2e2', borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10 },
   gapText:       { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827' },
 
@@ -96,9 +99,16 @@ function SectionHead({ title }: { title: string }) {
   );
 }
 
+const HOLD_TYPE_LABELS: Record<string, string> = {
+  damage:     'Damage',
+  detail:     'Detail',
+  mechanical: 'Mechanical',
+  sale_car:   'Sale Car',
+};
+
 function formatHoldTypes(types: string[]): string {
   if (types.length === 0) return 'Hold';
-  return types.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' & ') + ' hold';
+  return types.map(t => HOLD_TYPE_LABELS[t] ?? (t.charAt(0).toUpperCase() + t.slice(1))).join(' & ') + ' hold';
 }
 
 function formatLocation(loc: string): string {
@@ -106,6 +116,16 @@ function formatLocation(loc: string): string {
 }
 
 function fmtRate(n: number): string { return n.toFixed(1) + '/hr'; }
+
+function resolveQueueLabel(raw: string | null): string | null {
+  if (raw == null) return null;
+  if (typeof (raw as unknown) !== 'string') {
+    const obj = raw as unknown as { label?: string };
+    if (!obj.label || obj.label === 'Resumed') return null;
+    return obj.label;
+  }
+  return raw;
+}
 
 // ── Document ──────────────────────────────────────────────────────────────────
 
@@ -132,8 +152,8 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
     : null;
 
   // Queue
-  const tripsWithQueue = data.trips.filter(tr => tr.queueAtDeparture != null);
-  const peakCount      = tripsWithQueue.filter(tr => tr.queueAtDeparture === '10+').length;
+  const tripsWithQueue = data.trips.filter(tr => resolveQueueLabel(tr.queueAtDeparture) !== null);
+  const peakCount      = tripsWithQueue.filter(tr => resolveQueueLabel(tr.queueAtDeparture) === '10+').length;
 
   return (
     <Document>
@@ -163,22 +183,33 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
         {fb && (
           <View style={s.section}>
             <SectionHead title={fb.isProjected ? 'FLEET DEMAND  (Est.)' : 'FLEET DEMAND'} />
+            {t?.fullDayCleaned != null && (
+              <View style={s.sentRow}>
+                <Text style={s.sentCount}>{t.fullDayCleaned}</Text>
+                <Text style={s.sentLabel}> sent to airport</Text>
+              </View>
+            )}
             <View style={s.demandRow}>
               <View style={s.demandCard}>
                 <Text style={s.demandValue}>{fb.outCount}</Text>
                 <Text style={s.demandLabel}>Reservations today</Text>
+                {t?.fullDayCleaned != null && t.fullDayCleaned > fb.outCount && (
+                  <Text style={s.demandDelta}>+{t.fullDayCleaned - fb.outCount} above demand</Text>
+                )}
               </View>
               <View style={s.demandCard}>
                 <Text style={s.demandValue}>{fb.inCount}</Text>
                 <Text style={s.demandLabel}>Expected returns</Text>
+                {gap > 0 && <Text style={s.demandDelta}>+{gap} more came back</Text>}
               </View>
             </View>
-            <View style={gap >= 0 ? s.gapRowPos : s.gapRowNeg}>
-              <Text style={s.gapText}>
-                Supply gap: {gap >= 0 ? `+${gap}` : `${gap}`}
-                {gap < 0 ? '  — demand exceeds returns before cleaning starts' : '  — returns cover demand'}
-              </Text>
-            </View>
+            {gap < 0 && (
+              <View style={s.gapRowNeg}>
+                <Text style={s.gapText}>
+                  Supply gap: {gap}  — demand exceeds returns before cleaning starts
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -282,19 +313,22 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
         {tripsWithQueue.length > 0 && (
           <View style={s.section}>
             <SectionHead title="WASHBAY QUEUE AT DEPARTURE" />
-            {tripsWithQueue.map((tr, i) => (
-              <View key={i} style={s.queueRow}>
-                <Text style={s.queueTime}>{fmtTime(tr.departTime)}</Text>
-                <View style={s.queueTrack}>
-                  <View style={
-                    tr.queueAtDeparture === '10+' ? s.queueBarFull :
-                    tr.queueAtDeparture === '~5'  ? s.queueBarMid  :
-                                                    s.queueBarEmpty
-                  } />
+            {tripsWithQueue.map((tr, i) => {
+              const qLabel = resolveQueueLabel(tr.queueAtDeparture)!;
+              return (
+                <View key={i} style={s.queueRow}>
+                  <Text style={s.queueTime}>{fmtTime(tr.departTime)}</Text>
+                  <View style={s.queueTrack}>
+                    <View style={
+                      qLabel === '10+' ? s.queueBarFull :
+                      qLabel === '~5'  ? s.queueBarMid  :
+                                         s.queueBarEmpty
+                    } />
+                  </View>
+                  <Text style={s.queueLbl}>{qLabel}</Text>
                 </View>
-                <Text style={s.queueLbl}>{tr.queueAtDeparture}</Text>
-              </View>
-            ))}
+              );
+            })}
             {peakCount > 0 && (
               <View style={s.queueCallout}>
                 <Text style={s.queueCallTxt}>
