@@ -12,9 +12,9 @@ MUST write to Supabase before updating React state.
 
 ### Reference implementations
 
-- `OffStandardTimeLog.handleStartWith` — canonical correct example
-- `DriverLiveForm.handleStart` — correct example (also implements a fallback path in `handleArrived` for the rare case where the start insert failed)
-- `VSAMovementLog.handleStartTripWith` — fixed May 2026 (was the wrong pattern)
+- `src/hooks/useOffStandardTimer.ts` → `handleStartWith` — canonical correct example
+- `src/hooks/useDriverLiveTrip.ts` → `handleStart` — uses `writeOrEnqueue` helper (see Payload Deduplication below)
+- `src/components/movement/VSAMovementLog.tsx` → `handleStartTripWith` — fixed May 2026
 
 ### Recovery half of the contract
 
@@ -28,6 +28,9 @@ the shared pure helper `recoverInProgress` in `src/lib/in-progress-recovery.ts`,
 which is unit-tested with a fake Supabase client. Both halves of the contract
 have regression coverage in `tests/architecture/write-first-contract.test.ts`
 and `tests/lib/in-progress-recovery.test.ts`.
+
+The architecture test recognizes both direct `await supabase...insert()` calls
+and delegated `await writeOrEnqueue('insert', ...)` calls as valid patterns.
 
 ### Why this matters
 
@@ -43,6 +46,96 @@ Adding a new quick-start, timer, or session feature?
 - [ ] Does the start handler await the Supabase insert before setting state?
 - [ ] Does the component have a mount recovery useEffect querying in_progress?
 - [ ] Does the reset handler clear the pendingId?
+
+---
+
+## Payload Deduplication (`useDriverLiveTrip`)
+
+`src/hooks/useDriverLiveTrip.ts` uses two extracted helpers to eliminate
+repetition across the online/offline write paths:
+
+- **`buildTripPayload(overrides)`** — single source of truth for the Supabase
+  payload shape. Adding a new column means changing one place.
+- **`writeOrEnqueue(action, payload, eqField?, eqValue?)`** — attempts a
+  Supabase write; falls back to `enqueueOfflineAction` on network errors.
+  Returns `{ ok: boolean }`.
+
+Both `handleStart` and `handleArrived` delegate to these helpers.
+
+---
+
+## Context Architecture
+
+State management is split into 4 domain-specific React contexts:
+
+| Provider | Hook | Owns |
+|----------|------|------|
+| `VehicleHoldProvider` | `useVehicleHoldContext()` | vehicles, holds, staleHolds, write ops, realtime holds |
+| `WashbayProvider` | `useWashbayContext()` | washbay logs, handoff notes, shift checkpoints, realtime |
+| `IssueProvider` | `useIssueContext()` | facility issues CRUD |
+| `LostFoundProvider` | `useLostFoundContext()` | lost & found items (plate matching via vehicles) |
+
+### Provider tree (in `App.tsx`)
+
+```
+ScheduleProvider
+  └─ VehicleHoldProvider
+       └─ WashbayProvider
+            └─ IssueProvider
+                 └─ LostFoundProvider
+                      └─ AppShell + Routes
+```
+
+`LostFoundProvider` depends on `VehicleHoldProvider` (for plate→vehicle
+matching), so it must be nested inside it.
+
+### `useGarage()` shim
+
+`src/context/GarageContext.tsx` is a backward-compatible shim that merges
+all 4 contexts into one object. Existing consumers import `useGarage()` and
+work unchanged. **New code should import the domain-specific hook** for
+narrower re-render scope.
+
+Once all consumers are migrated to domain hooks, `GarageContext.tsx` can be
+deleted.
+
+### Slice hooks
+
+Each domain provider wraps a "slice hook" that owns the state and mutations:
+
+- `useVehicleOperations` — vehicle/hold write operations
+- `useIssues` — facility issue CRUD
+- `useWashbayHandoff` — washbay + handoff writes
+- `useShiftCheckpoints` — shift checkpoint CRUD
+- `useLostFound` — lost & found items
+
+The slice hooks are pure state logic; the provider wrappers add data loading
+and React context plumbing.
+
+---
+
+## Component Directory Structure
+
+```
+src/components/
+├── analytics/       Charts, fleet balance, shift summary
+├── audit/           Audit dashboard + form
+├── check-in/        Intake, hold panel, routing, selectors
+├── dashboard/       Main dashboard, summary cards, stale alerts
+├── holds/           New hold, release, repair, damage presets
+├── issue-log/       Issue view + card
+├── layout/          Sidebar, AppShell
+├── lost-and-found/  View, card, list, modal
+├── movement/        Movement log, driver forms, trips
+├── my-shift/        Shift view, approvals, export
+├── off-standard/    Timer, entries, sheets
+├── shared/          Toast, scanner, photo, modals, whiteboard
+├── vehicle/         History, register, fleet master, merge
+└── washbay/         Closing log, live section, handoff
+```
+
+Each subdirectory has a barrel `index.ts`. Lazy imports in `App.tsx` point
+directly to subdirectory files (e.g. `./components/holds/NewHoldForm`).
 
 ---
 
