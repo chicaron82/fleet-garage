@@ -54,9 +54,7 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
 
   const isDemo = mode === 'demo';
   const visibleDemo = getVisibleNotifications(mockNotifications, user, activeBranch);
-  const unreadCount = isDemo
-    ? visibleDemo.filter(n => !n.isRead).length
-    : liveNotifications.filter(n => !n.read_by.includes(user.id)).length;
+  const unreadCount = liveNotifications.filter(n => !n.read_by.includes(user.id)).length;
 
   const handleMarkAllRead = async () => {
     if (isDemo) {
