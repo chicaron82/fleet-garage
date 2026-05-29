@@ -165,8 +165,8 @@ export function useLostFound(
           notes:          patch.notes        || undefined,
           editedByName:   patch.editedByName,
           editedAt,
-          ...(keyTagPhotoUrl !== undefined ? { keyTagPhotoUrl } : {}),
-          ...(itemPhotoUrl   !== undefined ? { itemPhotoUrl }   : {}),
+          ...(keyTagPhotoUrl != null ? { keyTagPhotoUrl } : {}),
+          ...(itemPhotoUrl   != null ? { itemPhotoUrl }   : {}),
         }
       ));
       return true;
