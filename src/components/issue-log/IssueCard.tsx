@@ -153,6 +153,14 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
         <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{issue.description}"</p>
       )}
 
+      {issue.photoUrl && (
+        <img
+          src={issue.photoUrl}
+          alt="Issue photo"
+          className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+        />
+      )}
+
       {cleared && issue.notes && (
         <p className="text-sm text-green-600 dark:text-green-400">✓ {issue.notes}</p>
       )}

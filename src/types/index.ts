@@ -351,6 +351,7 @@ export interface FacilityIssue {
   clearedById?: string;
   clearedAt?: string;
   notes?: string;
+  photoUrl?: string;
   status: 'open' | 'resolved' | 'reopened';
   reopenCount: number;
 }

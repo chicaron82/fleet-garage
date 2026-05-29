@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useIssueContext } from '../../context/IssueContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { compressImage } from '../../lib/image';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 import { IssueCard } from './IssueCard';
 
@@ -24,6 +25,7 @@ export function IssueLogView() {
   const [newTitle, setNewTitle]             = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newSeverity, setNewSeverity]       = useState<IssueSeverity>('medium');
+  const [newPhoto, setNewPhoto]             = useState<string | null>(null);
   const [submitting, setSubmitting]         = useState(false);
 
   if (loadError) {
@@ -53,14 +55,22 @@ export function IssueLogView() {
   const openHighIssues = facilityIssues.filter(i => i.status !== 'resolved'  && i.severity === 'high').length;
   const shouldShowCleared = showCleared || (!!q && clearedIssues.length > 0);
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNewPhoto(await compressImage(file));
+    e.target.value = '';
+  };
+
   const handleSubmitNew = async () => {
     if (!newTitle.trim()) return;
     setSubmitting(true);
     hapticMedium();
-    await addIssue({ title: newTitle.trim(), description: newDescription.trim() || undefined, severity: newSeverity });
+    await addIssue({ title: newTitle.trim(), description: newDescription.trim() || undefined, severity: newSeverity, photo: newPhoto ?? undefined });
     setNewTitle('');
     setNewDescription('');
     setNewSeverity('medium');
+    setNewPhoto(null);
     setShowNewForm(false);
     setSubmitting(false);
   };
@@ -159,6 +169,29 @@ export function IssueLogView() {
             className={`${inputCls} resize-none`}
           />
 
+          {/* Photo (optional) */}
+          <div className="flex items-center gap-3">
+            {newPhoto ? (
+              <>
+                <img src={newPhoto} alt="Issue" className="w-14 h-14 rounded-lg object-cover border border-gray-200 dark:border-gray-700 shrink-0" />
+                <button type="button" onClick={() => setNewPhoto(null)} className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer">
+                  Remove photo
+                </button>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                  📷 Take photo
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
+                </label>
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                  Gallery
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                </label>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2">
             {(['low', 'medium', 'high'] as IssueSeverity[]).map(s => {
               const cfg    = SEVERITY_CONFIG[s];
@@ -191,7 +224,7 @@ export function IssueLogView() {
             </button>
             <button
               type="button"
-              onClick={() => { hapticLight(); setShowNewForm(false); setNewTitle(''); setNewDescription(''); setNewSeverity('medium'); }}
+              onClick={() => { hapticLight(); setShowNewForm(false); setNewTitle(''); setNewDescription(''); setNewSeverity('medium'); setNewPhoto(null); }}
               className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-gray-300 transition cursor-pointer"
             >
               Cancel

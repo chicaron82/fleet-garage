@@ -32,6 +32,16 @@ export async function uploadPhoto(base64: string, holdId: string): Promise<strin
   return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
 }
 
+export async function uploadIssuePhoto(base64: string, issueId: string): Promise<string | null> {
+  const blob = base64ToBlob(base64);
+  const path = `${issueId}/photo.jpg`;
+  const { error } = await withUploadTimeout(
+    supabase.storage.from('issue-photos').upload(path, blob, { contentType: 'image/jpeg' })
+  );
+  if (error) return null;
+  return supabase.storage.from('issue-photos').getPublicUrl(path).data.publicUrl;
+}
+
 export async function uploadLostFoundPhoto(base64: string, itemId: string, slot: 'key-tag' | 'item'): Promise<string | null> {
   const blob = base64ToBlob(base64);
   const path = `${itemId}/${slot}.jpg`;

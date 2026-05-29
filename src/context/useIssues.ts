@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react';
 import type { FacilityIssue, IssueSeverity, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { mapIssue } from '../lib/garage-mappers';
+import { uploadIssuePhoto } from '../lib/garage-uploads';
 
 export interface IssuesSlice {
   facilityIssues: FacilityIssue[];
-  addIssue: (data: { title: string; description?: string; severity: IssueSeverity }) => Promise<void>;
+  addIssue: (data: { title: string; description?: string; severity: IssueSeverity; photo?: string }) => Promise<void>;
   clearIssue: (issueId: string, notes?: string) => Promise<void>;
   reopenIssue: (issueId: string, note?: string) => Promise<void>;
 }
@@ -17,22 +17,31 @@ export function useIssues(
 ): IssuesSlice & { setFacilityIssues: React.Dispatch<React.SetStateAction<FacilityIssue[]>> } {
   const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
 
-  const addIssue = async ({ title, description, severity }: { title: string; description?: string; severity: IssueSeverity }) => {
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const { data } = await writeWithRefresh(() =>
+  const addIssue = async ({ title, description, severity, photo }: { title: string; description?: string; severity: IssueSeverity; photo?: string }) => {
+    const issueId   = crypto.randomUUID();
+    const branchId  = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+    const reportedAt = new Date().toISOString();
+    const photoUrl  = photo ? await uploadIssuePhoto(photo, issueId) : null;
+    const { error } = await writeWithRefresh(() =>
       supabase.from('facility_issues').insert({
+        id:          issueId,
         branch_id:   branchId,
         title,
         description,
         severity,
         reported_by: user!.id,
-      }).select().single()
+        reported_at: reportedAt,
+        photo_url:   photoUrl ?? null,
+      })
     );
-    if (data) {
-      setFacilityIssues(prev => [mapIssue(data), ...prev]);
+    if (!error) {
+      setFacilityIssues(prev => [
+        { id: issueId, branchId, title, description, severity, reportedById: user!.id, reportedAt, photoUrl: photoUrl ?? undefined, status: 'open', reopenCount: 0 },
+        ...prev,
+      ]);
       await writeWithRefresh(() =>
         supabase.from('issue_events').insert({
-          issue_id:   (data as Record<string, unknown>).id as string,
+          issue_id:   issueId,
           event_type: 'opened',
           user_id:    user!.id,
           note:       null,
