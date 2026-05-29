@@ -90,8 +90,9 @@ export function useVehicleOperations({
         detail_reason: detailReason ?? null,
         mechanical_sub_type: mechanicalSubType ?? null,
         damage_description: damageDescription,
-        flagged_by_id: flaggedById,
-        flagged_at:    flaggedAt,
+        flagged_by_id:   flaggedById,
+        flagged_by_name: userName,
+        flagged_at:      flaggedAt,
         notes, photos: photoUrls, status: 'ACTIVE',
         linked_hold_id: linkedHoldId ?? null,
         branch_id: branchId,
@@ -110,7 +111,7 @@ export function useVehicleOperations({
     const newHold: Hold = {
       id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
       damageDescription, flaggedById,
-      flaggedByName: '', flaggedByEmployeeId: '',
+      flaggedByName: userName, flaggedByEmployeeId: '',
       flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
     setAllHolds(prev => [newHold, ...prev]);
