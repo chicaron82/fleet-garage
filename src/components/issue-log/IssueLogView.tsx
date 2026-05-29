@@ -15,7 +15,7 @@ const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
 
 export function IssueLogView() {
-  const { facilityIssues, addIssue, clearIssue, reopenIssue, loadError, reload } = useIssueContext();
+  const { facilityIssues, addIssue, attachPhoto, clearIssue, reopenIssue, loadError, reload } = useIssueContext();
   const { getName: getUserName } = useUserResolver();
 
   const [showCleared, setShowCleared]       = useState(false);
@@ -134,6 +134,7 @@ export function IssueLogView() {
             issue={issue}
             onClear={clearIssue}
             onReopen={reopenIssue}
+            onAttachPhoto={attachPhoto}
             getUserName={getUserName}
           />
         ))}

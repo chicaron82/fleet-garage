@@ -7,6 +7,7 @@ import { uploadIssuePhoto } from '../lib/garage-uploads';
 export interface IssuesSlice {
   facilityIssues: FacilityIssue[];
   addIssue: (data: { title: string; description?: string; severity: IssueSeverity; photo?: string }) => Promise<void>;
+  attachPhoto: (issueId: string, photo: string) => Promise<void>;
   clearIssue: (issueId: string, notes?: string) => Promise<void>;
   reopenIssue: (issueId: string, note?: string) => Promise<void>;
 }
@@ -48,6 +49,17 @@ export function useIssues(
         })
       );
     }
+  };
+
+  const attachPhoto = async (issueId: string, photo: string) => {
+    const photoUrl = await uploadIssuePhoto(photo, issueId);
+    if (!photoUrl) return;
+    await writeWithRefresh(() =>
+      supabase.from('facility_issues').update({ photo_url: photoUrl }).eq('id', issueId)
+    );
+    setFacilityIssues(prev =>
+      prev.map(i => i.id === issueId ? { ...i, photoUrl } : i)
+    );
   };
 
   const clearIssue = async (issueId: string, notes?: string) => {
@@ -108,5 +120,5 @@ export function useIssues(
     return facilityIssues.filter(i => i.branchId === activeBranch);
   }, [facilityIssues, activeBranch]);
 
-  return { facilityIssues: filteredIssues, addIssue, clearIssue, reopenIssue, setFacilityIssues };
+  return { facilityIssues: filteredIssues, addIssue, attachPhoto, clearIssue, reopenIssue, setFacilityIssues };
 }

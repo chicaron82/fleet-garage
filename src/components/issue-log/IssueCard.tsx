@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { compressImage } from '../../lib/image';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 
 interface IssueEvent {
@@ -43,16 +44,21 @@ interface IssueCardProps {
   cleared?: boolean;
   onClear: (issueId: string, note?: string) => Promise<void>;
   onReopen: (issueId: string, note?: string) => Promise<void>;
+  onAttachPhoto: (issueId: string, photo: string) => Promise<void>;
   getUserName: (id: string) => string;
 }
 
-export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserName }: IssueCardProps) {
-  const [isClearing, setIsClearing]     = useState(false);
-  const [clearNote, setClearNote]       = useState('');
-  const [isReopening, setIsReopening]   = useState(false);
-  const [reopenNote, setReopenNote]     = useState('');
+export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachPhoto, getUserName }: IssueCardProps) {
+  const [isClearing, setIsClearing]       = useState(false);
+  const [clearNote, setClearNote]         = useState('');
+  const [isReopening, setIsReopening]     = useState(false);
+  const [reopenNote, setReopenNote]       = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [events, setEvents]             = useState<IssueEvent[] | null>(null);
+  const [events, setEvents]               = useState<IssueEvent[] | null>(null);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const cfg = SEVERITY_CONFIG[issue.severity];
 
@@ -70,6 +76,18 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
     setIsReopening(false);
     setReopenNote('');
     setEvents(null);
+  };
+
+  const handlePhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    hapticMedium();
+    const compressed = await compressImage(file);
+    await onAttachPhoto(issue.id, compressed);
+    setIsAddingPhoto(false);
+    setUploadingPhoto(false);
+    e.target.value = '';
   };
 
   const handleToggleHistory = async () => {
@@ -159,6 +177,42 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
           alt="Issue photo"
           className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
         />
+      )}
+
+      {!issue.photoUrl && !cleared && (
+        isAddingPhoto ? (
+          <div className="flex items-center gap-2">
+            {uploadingPhoto ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500">Uploading…</p>
+            ) : (
+              <>
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                  📷 Take photo
+                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoFile} />
+                </label>
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                  Gallery
+                  <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => { hapticLight(); setIsAddingPhoto(false); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { hapticLight(); setIsAddingPhoto(true); setIsClearing(false); setIsReopening(false); }}
+            className="text-xs text-gray-400 dark:text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
+          >
+            + Add photo
+          </button>
+        )
       )}
 
       {cleared && issue.notes && (
