@@ -149,7 +149,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             </p>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{shift.user.name}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
 
         {/* Type buttons — 3×2 grid */}

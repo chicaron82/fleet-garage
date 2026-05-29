@@ -47,7 +47,7 @@ export function LogSickDaySheet({ onClose }: Props) {
             <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">Log Sick Day</h2>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Records a paid sick day on your schedule</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
 
         {/* Date */}

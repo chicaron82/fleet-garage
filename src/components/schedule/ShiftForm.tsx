@@ -113,7 +113,7 @@ export function ShiftForm(props: Props) {
           <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
             {isEdit ? 'Edit Shift' : 'Add Shift'}
           </h2>
-          <button onClick={props.onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
+          <button onClick={props.onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
 
         {/* Date */}

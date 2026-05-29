@@ -117,7 +117,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
       >
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10 transition-colors">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Edit Item</p>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg cursor-pointer transition">×</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg cursor-pointer transition">×</button>
         </div>
 
         <div className="p-4 space-y-5">

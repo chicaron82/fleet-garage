@@ -66,7 +66,7 @@ export function HandoffForm({ onClose }: Props) {
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Log Shift Handoff</p>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none">×</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none">×</button>
         </div>
 
         <div className="p-4 space-y-5 max-h-[75vh] overflow-y-auto">

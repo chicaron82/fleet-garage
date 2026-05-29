@@ -111,6 +111,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               <button
                 type="button"
                 onClick={handleRouteReset}
+                aria-label="Clear origin"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none"
               >×</button>
             </div>
@@ -125,6 +126,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               <button
                 type="button"
                 onClick={() => { hapticLight(); handleRouteReset(); }}
+                aria-label="Clear destination"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none"
               >×</button>
             </div>

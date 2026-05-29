@@ -113,7 +113,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Export OTH Report</p>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{dateLabel}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none cursor-pointer">✕</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none cursor-pointer">✕</button>
         </div>
 
         {fetching ? (
