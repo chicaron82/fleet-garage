@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { hapticLight } from '../../lib/haptics';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
+import { LostFoundEditSheet } from './LostFoundEditSheet';
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
@@ -14,14 +15,6 @@ function fmtRelativeDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
 }
 
-const LOCATION_ORDER: LostFoundLocation[] = [
-  'visor',
-  'front_seat',
-  'back_seat',
-  'trunk',
-  'under_seat',
-  'other',
-];
 
 interface CardProps {
   item: LostFoundItem;
@@ -37,6 +30,8 @@ interface CardProps {
     licensePlate: string;
     notes: string;
     editedByName: string;
+    keyTagPhoto?: string;
+    itemPhoto?: string;
   }) => Promise<boolean>;
 }
 
@@ -63,34 +58,8 @@ export function LostFoundCard({
     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editDesc, setEditDesc] = useState('');
-  const [editLocation, setEditLocation] = useState<LostFoundLocation | null>(null);
-  const [editPlate, setEditPlate] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const handleOpenEdit = () => {
-    setEditDesc(item.description ?? '');
-    setEditLocation(item.location ?? null);
-    setEditPlate(item.licensePlate ?? '');
-    setEditNotes(item.notes ?? '');
-    setEditOpen(true);
-    hapticLight();
-  };
-
-  const handleSave = async () => {
-    hapticMedium();
-    setSaving(true);
-    await onEditSave({
-      description: editDesc.trim(),
-      location: editLocation,
-      licensePlate: editPlate.trim().toUpperCase(),
-      notes: editNotes.trim(),
-      editedByName: currentUserName,
-    });
-    setSaving(false);
-    setEditOpen(false);
-  };
+  const handleOpenEdit = () => { hapticLight(); setEditOpen(true); };
 
   return (
     <>
@@ -212,115 +181,13 @@ export function LostFoundCard({
         )}
       </div>
 
-      {/* Edit sheet */}
       {editOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          onClick={() => setEditOpen(false)}
-        >
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl shadow-xl max-h-[85dvh] overflow-y-auto transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10 transition-colors">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors">
-                Edit Item
-              </p>
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg cursor-pointer transition"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="p-4 space-y-5">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Description
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Black garage door opener, visor…"
-                  value={editDesc}
-                  onChange={(e) => {
-                    hapticLight();
-                    setEditDesc(e.target.value);
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Location found
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {LOCATION_ORDER.map((loc) => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => {
-                        hapticLight();
-                        setEditLocation((l) => (l === loc ? null : loc));
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                        editLocation === loc
-                          ? 'bg-yellow-400 border-yellow-400 text-black'
-                          : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      {LOST_FOUND_LOCATION_LABELS[loc]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  License plate
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. LUR 224"
-                  value={editPlate}
-                  onChange={(e) => {
-                    hapticLight();
-                    setEditPlate(e.target.value.toUpperCase());
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-                  Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Any additional context…"
-                  value={editNotes}
-                  onChange={(e) => {
-                    hapticLight();
-                    setEditNotes(e.target.value);
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleSave}
-                className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
-              >
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LostFoundEditSheet
+          item={item}
+          currentUserName={currentUserName}
+          onSave={onEditSave}
+          onClose={() => setEditOpen(false)}
+        />
       )}
     </>
   );

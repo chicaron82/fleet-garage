@@ -22,6 +22,8 @@ export interface LostFoundSlice {
     licensePlate: string;
     notes: string;
     editedByName: string;
+    keyTagPhoto?: string;
+    itemPhoto?: string;
   }) => Promise<boolean>;
 }
 
@@ -133,10 +135,14 @@ export function useLostFound(
 
   const updateLostFoundItem = async (
     id: string,
-    patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string; editedByName: string },
+    patch: { description: string; location: LostFoundLocation | null; licensePlate: string; notes: string; editedByName: string; keyTagPhoto?: string; itemPhoto?: string },
   ): Promise<boolean> => {
     const editedAt = new Date().toISOString();
     try {
+      const [keyTagPhotoUrl, itemPhotoUrl] = await Promise.all([
+        patch.keyTagPhoto ? uploadLostFoundPhoto(patch.keyTagPhoto, id, 'key-tag') : Promise.resolve(undefined),
+        patch.itemPhoto   ? uploadLostFoundPhoto(patch.itemPhoto,   id, 'item')    : Promise.resolve(undefined),
+      ]);
       const { error } = await writeWithRefresh(() =>
         supabase.from('lost_found').update({
           description:    patch.description   || null,
@@ -145,18 +151,22 @@ export function useLostFound(
           notes:          patch.notes         || null,
           edited_by_name: patch.editedByName,
           edited_at:      editedAt,
+          ...(keyTagPhotoUrl !== undefined ? { key_tag_photo: keyTagPhotoUrl } : {}),
+          ...(itemPhotoUrl   !== undefined ? { item_photo:    itemPhotoUrl }   : {}),
         }).eq('id', id)
       );
       if (error) return false;
       setAllLostFoundItems(prev => prev.map(i =>
         i.id !== id ? i : {
           ...i,
-          description:  patch.description  || undefined,
-          location:     patch.location     ?? undefined,
-          licensePlate: patch.licensePlate || undefined,
-          notes:        patch.notes        || undefined,
-          editedByName: patch.editedByName,
+          description:    patch.description  || undefined,
+          location:       patch.location     ?? undefined,
+          licensePlate:   patch.licensePlate || undefined,
+          notes:          patch.notes        || undefined,
+          editedByName:   patch.editedByName,
           editedAt,
+          ...(keyTagPhotoUrl !== undefined ? { keyTagPhotoUrl } : {}),
+          ...(itemPhotoUrl   !== undefined ? { itemPhotoUrl }   : {}),
         }
       ));
       return true;
