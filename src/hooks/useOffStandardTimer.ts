@@ -36,7 +36,7 @@ export const QUICK_TAPS: QuickTap[] = [
   { label: 'Fleeting Cars',        reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
   { label: 'Lot Organization',     reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
   { label: 'EDV',                  reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
-  { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝', defaultNote: 'Pickup / drop-off' },
+  { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
   { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
   { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
 ];
