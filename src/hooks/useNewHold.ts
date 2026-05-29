@@ -76,6 +76,13 @@ export function useNewHold(preselectedId?: string) {
   // Primary holdType for backwards compat
   const holdType = holdTypes[0];
 
+  const isHoldTypeEmpty = (t: HoldType): boolean => {
+    if (t === 'damage')     return damageTypes.length === 0;
+    if (t === 'mechanical') return mechanicalTypes.length === 0;
+    if (t === 'detail')     return !detailReason;
+    return false;
+  };
+
   const toggleHoldType = (type: HoldType) => {
     setHoldTypes(prev => {
       if (prev.includes(type)) {
@@ -84,11 +91,8 @@ export function useNewHold(preselectedId?: string) {
       }
       if (type === 'sale_car') return ['sale_car'];
       const next = [...prev.filter(t => t !== 'sale_car'), type];
-      // Auto-deselect damage if the user hasn't picked any damage types yet
-      if (type !== 'damage' && next.includes('damage') && damageTypes.length === 0) {
-        return next.filter(t => t !== 'damage');
-      }
-      return next;
+      // Auto-deselect any other type that has no content filled in yet
+      return next.filter(t => t === type || !isHoldTypeEmpty(t));
     });
   };
 
