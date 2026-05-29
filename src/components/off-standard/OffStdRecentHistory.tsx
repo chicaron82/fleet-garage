@@ -55,7 +55,7 @@ export function OffStdRecentHistory({ user, shifts }: Props) {
     <>
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Recent OTH</p>
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Recent Off-Standard</p>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {history.map(day => (

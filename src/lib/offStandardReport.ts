@@ -135,6 +135,6 @@ export function deriveExplanation(
   if (preset === 'closing_duties')   return 'Closing duties';
   if (preset === 'opening_duties')   return 'Opening duties';
   if (preset === 'lot_organization') return 'Lot organization';
-  if (preset === 'customer_pickup')  return 'Customer pickup / drop-off';
+  if (preset === 'customer_pickup')  return 'Pickup / drop-off';
   return '';
 }
