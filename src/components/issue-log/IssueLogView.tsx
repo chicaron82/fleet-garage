@@ -253,6 +253,7 @@ export function IssueLogView() {
               cleared
               onClear={clearIssue}
               onReopen={reopenIssue}
+              onAttachPhoto={attachPhoto}
               getUserName={getUserName}
             />
           ))}
