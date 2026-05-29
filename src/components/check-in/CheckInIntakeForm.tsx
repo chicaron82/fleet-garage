@@ -80,15 +80,15 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
     const [{ data: trip }, { data: checkin }] = await Promise.all([
       supabase.from('vsa_trips')
         .select('ev_cable_status, ev_adapter_status, depart_time, driver_id')
-        .eq('vehicle_unit', unit)
+        .eq('vehicle_unit', unit ?? '')
         .not('ev_cable_status', 'is', null)
         .order('depart_time', { ascending: false })
         .limit(1).maybeSingle(),
       supabase.from('vehicle_checkins')
-        .select('ev_cable_status, ev_adapter_status, created_at, checked_in_by_name')
+        .select('ev_cable_status, ev_adapter_status, checked_in_at, checked_in_by_name')
         .eq('vehicle_id', vehicle.id)
         .not('ev_cable_status', 'is', null)
-        .order('created_at', { ascending: false })
+        .order('checked_in_at', { ascending: false })
         .limit(1).maybeSingle(),
     ]);
     const candidates: EvLastCheck[] = [];
@@ -106,7 +106,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
       candidates.push({
         cableStatus:   (r.ev_cable_status as EvAssetStatus) ?? null,
         adapterStatus: (r.ev_adapter_status as EvAssetStatus) ?? null,
-        when:          r.created_at as string,
+        when:          r.checked_in_at as string,
         byName:        (r.checked_in_by_name as string) ?? 'Unknown',
       });
     }
@@ -163,7 +163,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
       supabase.from('vehicle_checkins').insert({
         branch_id:          user.branchId,
         vehicle_id:         scanned.vehicle.id,
-        vehicle_unit:       scanned.vehicle.unitNumber,
+        vehicle_unit:       scanned.vehicle.unitNumber ?? '',
         vehicle_plate:      scanned.vehicle.licensePlate,
         checked_in_by_id:   user.id,
         checked_in_by_name: user.name,

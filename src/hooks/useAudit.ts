@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { AuditSection, AuditResult, AuditCrewMember, AuditPosition } from '../types';
+import type { Json } from '../types/database.types';
 
 // ── Initial checklist ─────────────────────────────────────────────────────────
 
@@ -140,8 +141,8 @@ export function useAudit() {
         vehicle_number: vehicleNumber,
         plate,
         owning_area:    owningArea,
-        crew:           crewMembers,
-        sections,
+        crew:           crewMembers as unknown as Json,
+        sections:       sections    as unknown as Json,
         status:         finalStatus,
       })).then(({ error }) => { if (error) console.error('[useAudit] insert failed:', error); });
     }

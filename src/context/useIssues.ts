@@ -27,11 +27,10 @@ export function useIssues(
         id:          issueId,
         branch_id:   branchId,
         title,
-        description,
+        description: description ?? null,
         severity,
         reported_by: user!.id,
         reported_at: reportedAt,
-        photo_url:   photoUrl ?? null,
       })
     );
     if (!error) {

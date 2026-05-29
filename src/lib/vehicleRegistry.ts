@@ -1,6 +1,9 @@
 import { supabase, writeWithRefresh } from './supabase';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
+import type { Database } from '../types/database.types';
+
+type RegistryUpdate = Database['public']['Tables']['vehicle_registry']['Update'];
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +146,7 @@ export async function createOrEnrichRegistry(params: {
 
     const { data } = await supabase
       .from('vehicle_registry')
-      .update(updates)
+      .update(updates as unknown as RegistryUpdate)
       .eq('id', existing.id)
       .select()
       .single();
@@ -226,7 +229,7 @@ export async function mergeRegistryRecords(
     needs_review:  false,
   };
 
-  await writeWithRefresh(() => supabase.from('vehicle_registry').update(updates).eq('id', keepId));
+  await writeWithRefresh(() => supabase.from('vehicle_registry').update(updates as unknown as RegistryUpdate).eq('id', keepId));
   await writeWithRefresh(() => supabase.from('vehicle_registry').delete().eq('id', mergeId));
 
   // Confirm the pairing now that we know both identifiers

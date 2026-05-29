@@ -9,6 +9,10 @@ import type { VehicleSearchResult } from '../lib/ev-detection';
 import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
 import type { TripRun } from '../data/trips';
 import type { EvAssetStatus, User } from '../types';
+import type { Database } from '../types/database.types';
+
+type VsaTripInsert = Database['public']['Tables']['vsa_trips']['Insert'];
+type VsaTripUpdate = Database['public']['Tables']['vsa_trips']['Update'];
 
 export const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
 export type Location = typeof LOCATIONS[number];
@@ -129,9 +133,9 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
       return { ok: true };
     }
     const res = action === 'insert'
-      ? await writeWithRefresh(() => supabase.from('vsa_trips').insert(payload))
+      ? await writeWithRefresh(() => supabase.from('vsa_trips').insert(payload as unknown as VsaTripInsert))
       : await writeWithRefresh(() => {
-          let q = supabase.from('vsa_trips').update(payload);
+          let q = supabase.from('vsa_trips').update(payload as unknown as VsaTripUpdate);
           if (eqField && eqValue !== undefined) q = q.eq(eqField, eqValue);
           return q;
         });

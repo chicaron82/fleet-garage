@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import type { Json } from '../types/database.types';
 
 interface Preferences {
   darkMode: boolean;
@@ -20,10 +21,15 @@ const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
-  const payload: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
-  if ('avatar' in patch) payload.avatar = patch.avatar ?? null;
-  if ('prefs' in patch) payload.prefs = patch.prefs;
-  void writeWithRefresh(() => supabase.from('user_preferences').upsert(payload, { onConflict: 'user_id' }));
+  void writeWithRefresh(() => supabase.from('user_preferences').upsert(
+    {
+      user_id:    userId,
+      updated_at: new Date().toISOString(),
+      ...('avatar' in patch ? { avatar: patch.avatar ?? null } : {}),
+      ...('prefs'  in patch ? { prefs:  patch.prefs as unknown as Json } : {}),
+    },
+    { onConflict: 'user_id' },
+  ));
 }
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
@@ -62,7 +68,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           localStorage.setItem(`fg_avatar_${user.id}`, av);
         }
         if (data.prefs) {
-          const p = data.prefs as Preferences;
+          const p = data.prefs as unknown as Preferences;
           setPrefs(p);
           localStorage.setItem(`fg_prefs_${user.id}`, JSON.stringify(p));
         }

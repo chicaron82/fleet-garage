@@ -39,7 +39,9 @@ export function enqueueOfflineAction(action: Omit<OfflineAction, 'id'>): string 
 
 export async function executeOfflineAction(action: OfflineAction): Promise<boolean> {
   try {
-    const query = supabase.from(action.table);
+    // The offline queue dispatches to arbitrary tables at runtime — bypass typed client here
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query = (supabase as any).from(action.table);
     if (action.action === 'insert') {
       const { error } = await query.insert(action.payload);
       if (error) throw error;

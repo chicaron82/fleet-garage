@@ -1,6 +1,7 @@
 import { supabase, writeWithRefresh } from './supabase';
 import type { UserRole } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
+import type { Json } from '../types/database.types';
 
 export function base64ToBlob(base64: string): Blob {
   const [header, data] = base64.split(',');
@@ -63,11 +64,11 @@ export async function pushNotification(
 ): Promise<void> {
   await writeWithRefresh(() => supabase.from('notifications').insert({
     branch_id:         branchId,
-    recipient_roles:   roles,
+    recipient_roles:   roles as string[],
     icon,
     text,
     severity,
-    metadata,
+    metadata:          (metadata ?? null) as unknown as Json,
     recipient_user_id: recipientUserId ?? null,
   }));
 }

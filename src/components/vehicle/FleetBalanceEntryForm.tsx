@@ -38,7 +38,7 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
 
   if (todayEntry && !editing) {
     // Show summary with edit button
-    const enteredTime = new Date(todayEntry.enteredAt).toLocaleTimeString('en-CA', {
+    const enteredTime = new Date(todayEntry.enteredAt ?? 0).toLocaleTimeString('en-CA', {
       hour: '2-digit',
       minute: '2-digit',
     });

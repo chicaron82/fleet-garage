@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:types": "supabase gen types typescript --project-id gugxedtqvuhlwllyqpec > src/types/database.types.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

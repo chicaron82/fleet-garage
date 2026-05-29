@@ -196,10 +196,10 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
       holdId,
       holdType,
       holdFlaggedAt,
-      branchId:       v.branch_id,
-      isTesla:        (v as Record<string, unknown>)['is_tesla']          as boolean        ?? false,
-      hasMobileCable: (v as Record<string, unknown>)['has_mobile_cable']  as boolean | null ?? null,
-      hasJ1772Adapter:(v as Record<string, unknown>)['has_j1772_adapter'] as boolean | null ?? null,
+      branchId:        v.branch_id ?? 'YWG',
+      isTesla:         v.is_tesla,
+      hasMobileCable:  v.has_mobile_cable,
+      hasJ1772Adapter: v.has_j1772_adapter,
     };
   });
 

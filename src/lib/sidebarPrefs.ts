@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Module } from '../types';
+import type { Json } from '../types/database.types';
 
 const storageKey = (userId: string) => `fg_sidebar_${userId}`;
 
@@ -36,7 +37,7 @@ export async function fetchSidebarPrefs(userId: string): Promise<SidebarPrefs | 
       .select('sidebar')
       .eq('user_id', userId)
       .maybeSingle();
-    return (data?.sidebar as SidebarPrefs) ?? null;
+    return (data?.sidebar as unknown as SidebarPrefs) ?? null;
   } catch {
     return null;
   }
@@ -47,7 +48,7 @@ export async function syncSidebarPrefs(userId: string, prefs: SidebarPrefs): Pro
     await supabase
       .from('user_preferences')
       .upsert(
-        { user_id: userId, sidebar: prefs, updated_at: new Date().toISOString() },
+        { user_id: userId, sidebar: prefs as unknown as Json, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' },
       );
   } catch {

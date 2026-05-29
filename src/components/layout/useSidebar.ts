@@ -115,8 +115,8 @@ export function useSidebar() {
       .eq('date', recentLogDate)
       .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
       .then(({ data }) => {
-        setOffStandardEntries((data ?? []).map((e: { minutes: number; start_time: string }) => ({
-          minutes: e.minutes,
+        setOffStandardEntries((data ?? []).map(e => ({
+          minutes: e.minutes ?? 0,
           startTime: e.start_time,
         })));
       });

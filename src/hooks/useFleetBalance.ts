@@ -17,7 +17,7 @@ export interface FleetBalanceEntry {
   outCount: number;
   inCount: number;
   enteredById: string;  // User.id (mock string, e.g. "u1")
-  enteredAt: string;    // ISO timestamp
+  enteredAt: string | null;  // ISO timestamp
 }
 
 export interface FleetBalanceProjection {

@@ -138,7 +138,7 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   Logged by {getName(todayEntry.enteredById)}
                   {' · '}
-                  {new Date(todayEntry.enteredAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(todayEntry.enteredAt ?? 0).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             )}
