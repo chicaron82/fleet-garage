@@ -46,7 +46,7 @@ export async function uploadLostFoundPhoto(base64: string, itemId: string, slot:
   const blob = base64ToBlob(base64);
   const path = `${itemId}/${slot}.jpg`;
   const { error } = await withUploadTimeout(
-    supabase.storage.from('lost-found-photos').upload(path, blob, { contentType: 'image/jpeg' })
+    supabase.storage.from('lost-found-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
   );
   if (error) return null;
   return supabase.storage.from('lost-found-photos').getPublicUrl(path).data.publicUrl;

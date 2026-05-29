@@ -57,9 +57,10 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       .then(({ data }) => {
         if (!data) return;
         const av = data.avatar as string | null;
-        setAvatarState(av);
-        if (av) localStorage.setItem(`fg_avatar_${user.id}`, av);
-        else localStorage.removeItem(`fg_avatar_${user.id}`);
+        if (av !== null) {
+          setAvatarState(av);
+          localStorage.setItem(`fg_avatar_${user.id}`, av);
+        }
         if (data.prefs) {
           const p = data.prefs as Preferences;
           setPrefs(p);
