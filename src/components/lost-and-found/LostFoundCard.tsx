@@ -103,7 +103,7 @@ export function LostFoundCard({
         </span>
         {/* Photos row */}
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          {item.keyTagPhotoUrl ? (
+          {item.keyTagPhotoUrl && (
             <img
               src={item.keyTagPhotoUrl}
               alt="Key tag"
@@ -113,10 +113,6 @@ export function LostFoundCard({
               }}
               className="w-16 h-16 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-gray-700 cursor-pointer active:opacity-80 transition"
             />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shrink-0 transition-colors">
-              <span className="text-lg">🏷️</span>
-            </div>
           )}
           {item.itemPhotoUrl ? (
             <img
