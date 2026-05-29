@@ -1,3 +1,4 @@
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { Hold, Vehicle } from '../../types';
 import { StatusBadge } from '../holds/StatusBadge';
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function PendingVehicleSheet({ vehicle, hold, onClose, onConfirm }: Props) {
+  useEscapeKey(onClose);
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />

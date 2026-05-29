@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
@@ -32,6 +33,7 @@ export function LogLostFoundItemModal({
   onClose,
   onSubmit,
 }: LogLostFoundItemModalProps) {
+  useEscapeKey(onClose);
   const [step, setStep] = useState<1 | 2>(1);
   const [keyTagPhoto, setKeyTagPhoto] = useState<string | null>(null);
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);

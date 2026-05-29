@@ -1,5 +1,6 @@
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { ShiftType } from '../../types';
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -28,6 +29,7 @@ interface Props {
 export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Props) {
   const { shifts } = useSchedule();
   const { user }   = useAuth();
+  useEscapeKey(onClose);
 
   const dayShifts = shifts.filter(s => s.date === date && visibleUserIds.has(s.userId)).sort((a, b) => {
     if (!a.startTime) return 1;

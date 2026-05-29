@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight } from '../../lib/haptics';
 import type { OffStandardReason } from '../../types';
 import { OFF_STANDARD_LABELS } from '../../types';
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
+  useEscapeKey(onClose);
   const [startHM, setStartHM] = useState(localHHMM(90));
   const [endHM, setEndHM]     = useState(localHHMM(60));
   const [reason, setReason]   = useState<OffStandardReason>('OTH');

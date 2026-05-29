@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticMedium, hapticLight } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { pushNotification } from '../../lib/garage-uploads';
@@ -26,6 +27,7 @@ export function VehicleEditApprovalSheet({ vehicleId, onClose }: Props) {
   const { user } = useAuth();
   const { applyVehicleIdentity } = useVehicleHoldContext();
   const { getProfile } = useUserResolver();
+  useEscapeKey(onClose);
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

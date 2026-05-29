@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
@@ -30,6 +31,8 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
   const [mockNotifications, setMockNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const closeInbox = useCallback(() => setInboxOpen(false), []);
+  useEscapeKey(closeInbox);
 
   useEffect(() => {
     if (mode !== 'live' || !user) return;

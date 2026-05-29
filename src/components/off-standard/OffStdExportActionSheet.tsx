@@ -1,4 +1,5 @@
 import { useState, useEffect, createElement } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { ReactElement } from 'react';
 import type { User, ShiftWithUser } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose }: Props) {
+  useEscapeKey(onClose);
   const [entries, setEntries]     = useState<OffStandardEntry[]>([]);
   const [trips, setTrips]         = useState<TripRow[]>([]);
   const [fetching, setFetching]   = useState(true);

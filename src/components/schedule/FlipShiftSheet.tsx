@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { isStatDay, getStatName } from '../../lib/stats';
 import { calcOT, calcHours, fmtHours } from '../../lib/ot';
@@ -41,6 +42,7 @@ interface Props {
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
   const { updateShift, deleteShift, logActualHours, isPeakSeason } = useSchedule();
+  useEscapeKey(onClose);
   const typeDefaults = getTypeDefaults(isPeakSeason);
 
   const [shiftType, setShiftType] = useState<ShiftType | null>(shift.shiftType);

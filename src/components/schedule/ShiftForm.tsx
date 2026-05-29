@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
@@ -32,6 +33,7 @@ export function ShiftForm(props: Props) {
   const { createShift, updateShift, deleteShift, isPeakSeason } = useSchedule();
   const { user } = useAuth();
 
+  useEscapeKey(props.onClose);
   const isEdit = props.mode === 'edit';
   const existing = isEdit ? props.initial : null;
 

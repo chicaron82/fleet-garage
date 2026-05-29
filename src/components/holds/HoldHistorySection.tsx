@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { RefObject, ChangeEvent } from 'react';
 import { holdTypePillClass, getTireSwapSeason } from '../../lib/holdBadge';
 import { StatusBadge } from './StatusBadge';
@@ -45,6 +46,7 @@ export function HoldHistorySection({
 }: Props) {
   const cameraInputRef  = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  useEscapeKey(closeHoldPicker);
 
   return (
     <>

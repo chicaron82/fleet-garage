@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticMedium, hapticLight } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { pushNotification } from '../../lib/garage-uploads';
@@ -43,6 +44,7 @@ function entryLabel(reason: OffStandardReason, preset: OffStandardPresetReason |
 export function BackdateApprovalSheet({ entryId, onClose }: Props) {
   const { user } = useAuth();
   const { getProfile } = useUserResolver();
+  useEscapeKey(onClose);
   const [entry, setEntry]       = useState<EntryRow | null>(null);
   const [loading, setLoading]   = useState(true);
   const [submitting, setSubmitting] = useState(false);

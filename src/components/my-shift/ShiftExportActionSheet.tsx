@@ -1,4 +1,5 @@
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { formatDateStr } from '../../lib/buildShiftReport';
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function ShiftExportActionSheet({ date, onClose }: Props) {
+  useEscapeKey(onClose);
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />

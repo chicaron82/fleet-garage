@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
@@ -31,6 +32,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
   const [keyTagPhoto,  setKeyTagPhoto]  = useState<string | null>(null);
   const [itemPhoto,    setItemPhoto]    = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  useEscapeKey(onClose);
 
   const handlePhotoChange = async (
     e: React.ChangeEvent<HTMLInputElement>,

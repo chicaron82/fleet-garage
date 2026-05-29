@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { pushNotification } from '../../lib/garage-uploads';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
+  useEscapeKey(onClose);
   const { user } = useAuth();
   const { markVehicleEditPending } = useVehicleHoldContext();
 

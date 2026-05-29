@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
@@ -40,6 +41,7 @@ interface Props {
 export function FillScheduleModal({ onClose }: Props) {
   const { shifts, bulkCreateShifts, refresh, isPeakSeason } = useSchedule();
   const { user } = useAuth();
+  useEscapeKey(onClose);
 
   const [shiftType, setShiftType] = useState<ShiftType>('closing');
   const [startTime, setStartTime] = useState(() => getTypeDefaults(isPeakSeason)['closing'].start);

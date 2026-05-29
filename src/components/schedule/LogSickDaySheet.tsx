@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 export function LogSickDaySheet({ onClose }: Props) {
   const { createShift } = useSchedule();
   const { user } = useAuth();
+  useEscapeKey(onClose);
   const [date,   setDate]   = useState(toISO(new Date()));
   const [notes,  setNotes]  = useState('');
   const [saving, setSaving] = useState(false);

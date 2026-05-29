@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight } from '../../lib/haptics';
 import type { OffStandardEntry } from '../../types';
 
@@ -21,6 +22,7 @@ function fmtMinutes(mins: number) {
 }
 
 export function OffStdEditSheet({ entry, onSave, onRequest, onClose }: Props) {
+  useEscapeKey(onClose);
   const [endTime, setEndTime] = useState(new Date(entry.stopTime));
   const [note, setNote] = useState(entry.explanation ?? '');
   const [editNote, setEditNote] = useState('');
