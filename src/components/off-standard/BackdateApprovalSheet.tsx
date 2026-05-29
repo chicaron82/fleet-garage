@@ -129,7 +129,7 @@ export function BackdateApprovalSheet({ entryId, onClose }: Props) {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
-      <div className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl p-6 space-y-5 animate-in slide-in-from-bottom duration-200">
+      <div className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl p-6 space-y-5 motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-200">
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

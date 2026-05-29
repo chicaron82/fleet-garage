@@ -31,7 +31,7 @@ export function FuelLevelSelector({ fuelLevel, setFuelLevel }: FuelLevelSelector
       <div className="space-y-2 px-1">
         <div className="flex items-center justify-between">
           <span
-            className="text-sm font-bold animate-pulse-slow"
+            className="text-sm font-bold motion-safe:animate-pulse-slow"
             style={{ color: fuelLevel !== null ? fuelColor(fuelLevel) : '#9ca3af' }}
           >
             ⛽ {fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '—'}

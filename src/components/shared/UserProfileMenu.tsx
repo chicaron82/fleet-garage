@@ -57,14 +57,14 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
           )}
         </div>
         <div className="text-left hidden sm:block">
-          <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight transition-colors">{user?.name}</p>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight transition-colors">{user?.role}</p>
+          <p className={`text-xs font-semibold leading-tight transition-colors ${dropUp ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{user?.name}</p>
+          <p className={`text-[10px] leading-tight transition-colors ${dropUp ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>{user?.role}</p>
         </div>
       </button>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className={`absolute w-56 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 animate-in fade-in duration-200 ${
+        <div className={`absolute w-56 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 ${
           dropUp ? 'bottom-full mb-2 right-0' : 'top-full mt-2 right-0'
         }`}>
           <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-1">
@@ -116,7 +116,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
 
       {/* Profile Modal */}
       {showProfile && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowProfile(false)}>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200" onClick={() => setShowProfile(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Profile</h2>
@@ -163,7 +163,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowSettings(false)}>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200" onClick={() => setShowSettings(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Settings</h2>

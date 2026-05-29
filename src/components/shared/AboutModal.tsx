@@ -44,7 +44,7 @@ const CAPABILITIES = [
 export function AboutModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
       onClick={onClose}
     >
       <div

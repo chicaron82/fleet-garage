@@ -78,11 +78,11 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-yellow-400 dark:bg-yellow-500 rounded flex items-center justify-center transition-colors relative">
-              <span className="text-black font-bold text-[10px]">FG</span>
+            <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center relative">
+              <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
               <span
-                className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 transition-colors ${
-                  isOnline ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
+                className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white transition-colors ${
+                  isOnline ? 'bg-green-500' : 'bg-amber-500 motion-safe:animate-pulse'
                 }`}
                 title={isOnline ? 'Online' : 'Offline'}
               />

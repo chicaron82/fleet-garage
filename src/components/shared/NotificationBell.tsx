@@ -117,7 +117,7 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-[10px] leading-4 text-white font-bold text-center animate-pulse">
+          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-[10px] leading-4 text-white font-bold text-center motion-safe:animate-pulse">
             {unreadCount}
           </span>
         )}
@@ -126,7 +126,7 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
       {inboxOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setInboxOpen(false)} />
-          <div className="absolute top-full right-0 z-50 w-80 max-w-[calc(100vw-1.5rem)] mt-1 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full right-0 z-50 w-80 max-w-[calc(100vw-1.5rem)] mt-1 rounded-2xl backdrop-blur-xl bg-white/97 dark:bg-gray-900/97 border border-gray-200/60 dark:border-gray-700/60 shadow-xl overflow-hidden motion-safe:animate-in motion-safe:slide-in-from-top-2 motion-safe:duration-200">
 
             {/* Header */}
             <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">

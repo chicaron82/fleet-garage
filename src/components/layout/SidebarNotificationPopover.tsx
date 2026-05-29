@@ -60,7 +60,7 @@ export function SidebarNotificationPopover({
           hapticLight();
           setDesktopInboxOpen(!desktopInboxOpen);
         }}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors cursor-pointer text-sm font-medium"
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-green-300 hover:bg-green-800 hover:text-white transition-colors cursor-pointer text-sm font-medium"
       >
         <div className="relative">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

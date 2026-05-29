@@ -56,7 +56,7 @@ export function MockBarcodeScanner({ onScan, label = 'Scan Vehicle', disabled = 
             <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-green-400 rounded-br-xl" />
 
             {/* Scanline */}
-            <div className="animate-scanline absolute left-0 right-0 h-0.5 bg-green-400 shadow-[0_0_12px_4px_rgba(74,222,128,0.8)]" />
+            <div className="motion-safe:animate-scanline absolute left-0 right-0 h-0.5 bg-green-400 shadow-[0_0_12px_4px_rgba(74,222,128,0.8)]" />
 
             {/* Inner dark bg */}
             <div className="absolute inset-0 bg-black/60" />

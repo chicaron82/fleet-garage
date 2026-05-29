@@ -107,7 +107,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
-      <div className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl p-6 space-y-4 animate-in slide-in-from-bottom duration-200">
+      <div className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl p-6 space-y-4 motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-200">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Export OTH Report</p>
