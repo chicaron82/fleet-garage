@@ -45,8 +45,8 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       {/* Header */}
       <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-yellow-400 dark:bg-yellow-500 rounded-lg flex items-center justify-center transition-colors relative">
-            <span className="text-black font-bold text-xs">FG</span>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center relative">
+            <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
             <span
               className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 transition-colors ${
                 isOnline ? 'bg-green-500' : 'bg-amber-500 animate-pulse'

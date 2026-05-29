@@ -28,7 +28,7 @@ export function PriorityHint({ flaggedClasses, topClasses, isDemoMode = false }:
         </div>
       )}
 
-      {topClasses.length > 0 && (
+      {topClasses.length > 0 && isDemoMode && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
           <button
             type="button"
