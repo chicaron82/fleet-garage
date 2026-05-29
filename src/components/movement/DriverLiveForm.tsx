@@ -105,6 +105,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
             <div className="relative">
               <input
                 type="text" autoFocus placeholder="Specify origin…" value={customFrom}
+                name="trip-origin" autoComplete="off" spellCheck={false}
                 onChange={e => setCustomFrom(e.target.value)}
                 className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
               />
@@ -120,6 +121,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
             <div className="relative">
               <input
                 type="text" autoFocus placeholder="Specify destination…" value={customTo}
+                name="trip-destination" autoComplete="off" spellCheck={false}
                 onChange={e => setCustomTo(e.target.value)}
                 className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
               />
@@ -138,6 +140,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
           <input
             type="text" placeholder="e.g. JFT 881" value={plate}
+            name="license-plate" autoComplete="off" spellCheck={false}
             onChange={e => {
               const val = e.target.value.toUpperCase();
               setPlate(val);

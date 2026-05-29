@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { LostFoundLocation } from '../../types';
 import { compressImage } from '../../lib/image';
 
@@ -32,6 +33,8 @@ interface Props {
  * the check-in row.
  */
 export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpdate }: Props) {
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+
   if (!show) {
     return (
       <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
@@ -115,13 +118,33 @@ export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpda
                 </label>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onRemove(item.id)}
-              className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
-            >
-              Remove
-            </button>
+            {pendingRemoveId === item.id ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Remove this item?</span>
+                <button
+                  type="button"
+                  onClick={() => setPendingRemoveId(null)}
+                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onRemove(item.id); setPendingRemoveId(null); }}
+                  className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 font-semibold transition cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPendingRemoveId(item.id)}
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer"
+              >
+                Remove
+              </button>
+            )}
           </div>
         ))}
         <button
