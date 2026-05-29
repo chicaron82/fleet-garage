@@ -85,6 +85,7 @@ export type Database = {
           description: string | null
           id: string
           notes: string | null
+          photo_url: string | null
           reopen_count: number
           reported_at: string
           reported_by: string
@@ -99,6 +100,7 @@ export type Database = {
           description?: string | null
           id?: string
           notes?: string | null
+          photo_url?: string | null
           reopen_count?: number
           reported_at?: string
           reported_by: string
@@ -113,6 +115,7 @@ export type Database = {
           description?: string | null
           id?: string
           notes?: string | null
+          photo_url?: string | null
           reopen_count?: number
           reported_at?: string
           reported_by?: string

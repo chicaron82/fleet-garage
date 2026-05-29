@@ -22,10 +22,8 @@ export function useIssues(
     const branchId  = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const reportedAt = new Date().toISOString();
     const photoUrl  = photo ? await uploadIssuePhoto(photo, issueId) : null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any;
     const { error } = await writeWithRefresh(() =>
-      db.from('facility_issues').insert({
+      supabase.from('facility_issues').insert({
         id:          issueId,
         branch_id:   branchId,
         title,
