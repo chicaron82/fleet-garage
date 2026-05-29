@@ -6,10 +6,9 @@ import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
 import { hapticLight, hapticMedium, hapticHeavy } from '../../lib/haptics';
 import { parseFleetBarcode } from '../../lib/barcode';
-import { getTireSwapSeason } from '../../lib/holdBadge';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { DETAIL_REASON_LABELS, canRelease } from '../../types';
-import type { DetailReason, MechanicalSubType } from '../../types';
+import type { DetailReason } from '../../types';
 import { DamagePresetsSelector } from './DamagePresetsSelector';
 import { MechanicalConcernSelector } from './MechanicalConcernSelector';
 
@@ -338,40 +337,6 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   customMechanical={h.customMechanical}
                   setCustomMechanical={h.setCustomMechanical}
                 />
-              )}
-
-              {/* Mechanical Sub-type */}
-              {h.holdTypes.includes('mechanical') && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Mechanical Type <span className="normal-case font-normal">(optional)</span>
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {([
-                    { value: 'tire-swap',      label: `${getTireSwapSeason()} Tire Swap` },
-                    { value: 'tire-repair',    label: '🛞 Tire Repair' },
-                    { value: 'pm-due',         label: '⚙️ PM Due' },
-                    { value: 'safety-recall',  label: '⚠️ Safety / Recall' },
-                    { value: 'other',          label: 'Other' },
-                  ] as { value: MechanicalSubType; label: string }[]).map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        hapticLight();
-                        h.setMechanicalSubType(prev => prev === opt.value ? null : opt.value);
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                        h.mechanicalSubType === opt.value
-                          ? 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700'
-                          : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
               )}
 
               {/* Safety / Recall bypass */}

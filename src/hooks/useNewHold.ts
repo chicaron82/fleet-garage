@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
+import { MECHANICAL_PRESET_META } from '../lib/hold-presets';
 import type { HoldType, DetailReason, MechanicalSubType } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
 
@@ -81,9 +82,13 @@ export function useNewHold(preselectedId?: string) {
         if (prev.length === 1) return prev; // can't deselect last
         return prev.filter(t => t !== type);
       }
-      // sale_car is mutually exclusive with all other types
       if (type === 'sale_car') return ['sale_car'];
-      return [...prev.filter(t => t !== 'sale_car'), type];
+      const next = [...prev.filter(t => t !== 'sale_car'), type];
+      // Auto-deselect damage if the user hasn't picked any damage types yet
+      if (type !== 'damage' && next.includes('damage') && damageTypes.length === 0) {
+        return next.filter(t => t !== 'damage');
+      }
+      return next;
     });
   };
 
@@ -94,8 +99,21 @@ export function useNewHold(preselectedId?: string) {
   };
 
   const toggleMechanicalType = (preset: string) => {
-    setMechanicalTypes(prev =>
-      prev.includes(preset) ? prev.filter(p => p !== preset) : [...prev, preset]
+    const next = mechanicalTypes.includes(preset)
+      ? mechanicalTypes.filter(p => p !== preset)
+      : [...mechanicalTypes, preset];
+    setMechanicalTypes(next);
+    // Derive mechanicalSubType from selected concerns
+    const safetySelected = next.some(p => MECHANICAL_PRESET_META[p]?.subType === 'safety-recall');
+    const firstSpecific = next.find(p => {
+      const st = MECHANICAL_PRESET_META[p]?.subType;
+      return st && st !== 'other' && st !== 'safety-recall';
+    });
+    setMechanicalSubType(
+      next.length === 0 ? null :
+      safetySelected ? 'safety-recall' :
+      firstSpecific ? MECHANICAL_PRESET_META[firstSpecific].subType as MechanicalSubType :
+      'other'
     );
   };
 

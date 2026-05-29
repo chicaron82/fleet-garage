@@ -18,14 +18,22 @@ export const DAMAGE_PRESETS = [
   'Other',
 ];
 
-export const MECHANICAL_PRESETS = [
-  'PM due',
-  'Tire repair needed',
-  'Low tread',
-  'Check engine light',
-  'Brake service needed',
-  'Battery concern',
-  'AC / heat issue',
-  'Wiper replacement',
-  'Other',
-];
+export interface MechanicalPresetMeta {
+  emoji?: string;
+  subType: 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
+}
+
+export const MECHANICAL_PRESET_META: Record<string, MechanicalPresetMeta> = {
+  'PM due':               { emoji: '⚙️',  subType: 'pm-due' },
+  'Tire repair needed':   { emoji: '🛞',  subType: 'tire-repair' },
+  'Low tread':            { emoji: '🔄',  subType: 'tire-swap' },
+  'Check engine light':   { emoji: '🔦',  subType: 'other' },
+  'Brake service needed': { emoji: '🔧',  subType: 'other' },
+  'Battery concern':      { emoji: '🔋',  subType: 'other' },
+  'AC / heat issue':      { emoji: '❄️',  subType: 'other' },
+  'Wiper replacement':    { emoji: '🌂',  subType: 'other' },
+  'Safety / Recall':      { emoji: '⚠️',  subType: 'safety-recall' },
+  'Other':                { subType: 'other' },
+};
+
+export const MECHANICAL_PRESETS = Object.keys(MECHANICAL_PRESET_META);

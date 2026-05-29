@@ -1,5 +1,5 @@
 import { hapticLight } from '../../lib/haptics';
-import { MECHANICAL_PRESETS } from '../../lib/hold-presets';
+import { MECHANICAL_PRESETS, MECHANICAL_PRESET_META } from '../../lib/hold-presets';
 
 interface MechanicalConcernSelectorProps {
   mechanicalTypes: string[];
@@ -27,23 +27,26 @@ export function MechanicalConcernSelector({
         )}
       </div>
       <div className="grid grid-cols-2 gap-1.5">
-        {MECHANICAL_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => {
-              hapticLight();
-              toggleMechanicalType(preset);
-            }}
-            className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
-              mechanicalTypes.includes(preset)
-                ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 font-medium'
-                : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
-            }`}
-          >
-            {preset}
-          </button>
-        ))}
+        {MECHANICAL_PRESETS.map((preset) => {
+          const emoji = MECHANICAL_PRESET_META[preset]?.emoji;
+          return (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => {
+                hapticLight();
+                toggleMechanicalType(preset);
+              }}
+              className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
+                mechanicalTypes.includes(preset)
+                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 font-medium'
+                  : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+              }`}
+            >
+              {emoji && <span className="mr-1.5">{emoji}</span>}{preset}
+            </button>
+          );
+        })}
       </div>
       {mechanicalTypes.includes('Other') && (
         <input
