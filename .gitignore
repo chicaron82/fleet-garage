@@ -13,6 +13,8 @@ dist-ssr
 docs
 *.local
 
+supabase/.temp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
