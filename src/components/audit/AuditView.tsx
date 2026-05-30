@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase } from '../../lib/supabase';
 import { MOCK_AUDITS } from '../../data/mock-audits';
 import { AUDIT_POSITION_LABELS } from '../../types';
@@ -43,6 +44,7 @@ function rowToAudit(row: Record<string, unknown>): AuditRecord {
 export function AuditView({ onNewAudit }: Props) {
   const { user } = useAuth();
   const [mode, setMode] = useState<'demo' | 'live'>('live');
+  const canDemo = useCanDemo();
   const [liveAudits, setLiveAudits] = useState<AuditRecord[]>([]);
 
   useEffect(() => {
@@ -76,22 +78,24 @@ export function AuditView({ onNewAudit }: Props) {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Audits</h1>
             {/* Demo / Live toggle */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-              {(['demo', 'live'] as const).map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                    mode === m
-                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
-                >
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
+            {canDemo && (
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                {(['demo', 'live'] as const).map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                      mode === m
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {total > 0 ? (

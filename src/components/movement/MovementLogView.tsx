@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCanDemo } from '../../hooks/useCanDemo';
 import { canRelease } from '../../types';
 import { MOCK_TRIPS } from '../../data/trips';
 import type { TripRun } from '../../data/trips';
@@ -55,6 +56,7 @@ export function MovementLogView() {
   // All hooks unconditional — declare before early returns
   const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
   const [driverMode, setDriverMode] = useState<'demo' | 'live'>('live');
+  const canDemo = useCanDemo();
 
   // Off-standard state lifted here so it survives tab switches
   const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
@@ -278,7 +280,7 @@ export function MovementLogView() {
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
         </div>
-        {!isVSA && !isManagement && (
+        {!isVSA && !isManagement && canDemo && (
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {(['live', 'demo'] as const).map(mode => (
               <button

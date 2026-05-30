@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import type { User, UserRole } from '../../types';
 import type { MockNotification } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
+import { useCanDemo } from '../../hooks/useCanDemo';
 
 export interface LiveNotification {
   id: string;
@@ -42,6 +43,7 @@ export function SidebarNotificationPopover({
   popoverRef,
 }: SidebarNotificationPopoverProps) {
   const isDemo = notifMode === 'demo';
+  const canDemo = useCanDemo();
   const liveUnread = liveNotifs.filter(n => !n.read_by.includes(user.id)).length;
   const activeUnread = isDemo ? unreadCount : liveUnread;
 
@@ -92,28 +94,30 @@ export function SidebarNotificationPopover({
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                 Notifications
               </p>
-              <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
-                <button
-                  onClick={() => setNotifMode('demo')}
-                  className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${
-                    isDemo
-                      ? 'bg-amber-400 text-black'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  Demo
-                </button>
-                <button
-                  onClick={() => setNotifMode('live')}
-                  className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${
-                    !isDemo
-                      ? 'bg-amber-400 text-black'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  Live
-                </button>
-              </div>
+              {canDemo && (
+                <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
+                  <button
+                    onClick={() => setNotifMode('demo')}
+                    className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${
+                      isDemo
+                        ? 'bg-amber-400 text-black'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    Demo
+                  </button>
+                  <button
+                    onClick={() => setNotifMode('live')}
+                    className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${
+                      !isDemo
+                        ? 'bg-amber-400 text-black'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    Live
+                  </button>
+                </div>
+              )}
             </div>
             {activeUnread > 0 && (
               <div className="flex justify-end mt-1.5">

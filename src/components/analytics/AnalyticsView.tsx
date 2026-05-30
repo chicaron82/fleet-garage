@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase } from '../../lib/supabase';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -38,6 +39,7 @@ export function AnalyticsView() {
   const { isPeakSeason } = useSchedule();
   const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
   const [mode, setMode]           = useState<'demo' | 'live'>('live');
+  const canDemo                   = useCanDemo();
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity' | 'my-shift'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 
@@ -161,22 +163,24 @@ export function AnalyticsView() {
             {isDemo ? 'Fleet hold summary · sample data' : 'Fleet hold summary · your data'}
           </p>
         </div>
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 transition-colors">
-          {(['demo', 'live'] as const).map(m => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors capitalize ${
-                mode === m
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+        {canDemo && (
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 transition-colors">
+            {(['demo', 'live'] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors capitalize ${
+                  mode === m
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* High-severity facility issue banner */}
