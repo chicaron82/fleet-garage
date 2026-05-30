@@ -28,7 +28,7 @@ interface ReferenceImpl {
 
 const REFERENCE_IMPLS: ReferenceImpl[] = [
   {
-    file: 'src/hooks/useOffStandardTimer.ts',
+    file: 'src/hooks/useOffStandardSession.ts',
     fn:   'handleStartWith',
     liveStateSetters: [
       'setInProgressId(',

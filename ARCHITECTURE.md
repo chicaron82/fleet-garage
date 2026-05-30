@@ -12,7 +12,7 @@ MUST write to Supabase before updating React state.
 
 ### Reference implementations
 
-- `src/hooks/useOffStandardTimer.ts` → `handleStartWith` — canonical correct example
+- `src/hooks/useOffStandardSession.ts` → `handleStartWith` — canonical correct example
 - `src/hooks/useDriverLiveTrip.ts` → `handleStart` — uses `writeOrEnqueue` helper (see Payload Deduplication below)
 - `src/components/movement/TripStartForm.tsx` → `handleStartTripWith` — fixed May 2026
 
