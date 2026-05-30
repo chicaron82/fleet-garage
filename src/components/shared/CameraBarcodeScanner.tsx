@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
 import { hapticMedium, hapticHeavy } from '../../lib/haptics';
 import type { IScannerControls } from '@zxing/browser';
 
@@ -11,6 +10,7 @@ interface Props {
 
 export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disabled = false }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -25,49 +25,72 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
   const closeModal = useCallback(() => {
     stopCamera();
     setIsOpen(false);
+    setStarting(false);
     setError(null);
   }, [stopCamera]);
 
   useEffect(() => {
     if (!isOpen || !videoRef.current) return;
 
-    const reader = new BrowserMultiFormatReader();
+    let cancelled = false;
+    setStarting(true);
 
-    reader.decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
-      if (controls && !controlsRef.current) {
-        controlsRef.current = controls;
-      }
-      if (result) {
-        const raw = result.getText();
-        const timestamp = new Date().toISOString();
-        stopCamera();
-        setIsOpen(false);
-        setError(null);
-        hapticMedium();
-        onDecode(raw, timestamp);
-      } else if (err && err.name !== 'NotFoundException') {
-        // NotFoundException fires constantly while scanning — not an error
-        if (err.name === 'NotAllowedError') {
+    // @zxing/browser is ~116 kB gzipped — load it only when the scanner is
+    // actually opened, not when the host screen mounts.
+    import('@zxing/browser').then(({ BrowserMultiFormatReader }) => {
+      if (cancelled || !videoRef.current) return;
+
+      const reader = new BrowserMultiFormatReader();
+
+      reader.decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
+        if (controls && !controlsRef.current) {
+          controlsRef.current = controls;
+        }
+        if (result) {
+          const raw = result.getText();
+          const timestamp = new Date().toISOString();
+          stopCamera();
+          setIsOpen(false);
+          setStarting(false);
+          setError(null);
+          hapticMedium();
+          onDecode(raw, timestamp);
+        } else if (err && err.name !== 'NotFoundException') {
+          // NotFoundException fires constantly while scanning — not an error
+          if (err.name === 'NotAllowedError') {
+            hapticHeavy();
+            setError('Camera access denied — check your browser settings');
+            stopCamera();
+          }
+        }
+      }).then(controls => {
+        if (cancelled) {
+          try { controls.stop(); } catch { /* already stopped */ }
+          return;
+        }
+        if (!controlsRef.current) {
+          controlsRef.current = controls;
+        }
+        setStarting(false);
+      }).catch(e => {
+        if (cancelled) return;
+        if (e?.name === 'NotAllowedError') {
           hapticHeavy();
           setError('Camera access denied — check your browser settings');
-          stopCamera();
+        } else {
+          setError('Camera unavailable — try again');
         }
+        setStarting(false);
+        stopCamera();
+      });
+    }).catch(() => {
+      if (!cancelled) {
+        setError('Scanner failed to load — try again');
+        setStarting(false);
       }
-    }).then(controls => {
-      if (!controlsRef.current) {
-        controlsRef.current = controls;
-      }
-    }).catch(e => {
-      if (e?.name === 'NotAllowedError') {
-        hapticHeavy();
-        setError('Camera access denied — check your browser settings');
-      } else {
-        setError('Camera unavailable — try again');
-      }
-      stopCamera();
     });
 
-    return () => stopCamera();
+    return () => { cancelled = true; stopCamera(); };
   }, [isOpen, onDecode, stopCamera]);
 
   return (
@@ -113,6 +136,10 @@ export function CameraBarcodeScanner({ onDecode, label = 'Scan Barcode', disable
 
           {error ? (
             <p className="mt-5 text-red-400 text-sm font-medium text-center px-6">{error}</p>
+          ) : starting ? (
+            <p className="mt-5 text-green-400 text-sm font-medium tracking-widest uppercase opacity-80">
+              Starting camera…
+            </p>
           ) : (
             <div className="mt-5 flex flex-col items-center gap-1">
               <p className="text-green-400 text-sm font-medium tracking-widest uppercase opacity-80">
