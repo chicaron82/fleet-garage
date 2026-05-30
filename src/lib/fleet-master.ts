@@ -34,73 +34,67 @@ export const STATUS_ORDER: Record<FleetStatus, number> = {
   held: 0, 'pre-existing': 1, 'on-exception': 2, 'sale-car': 3, 'auction-short-term': 4, dirty: 5, available: 6, clear: 7,
 };
 
-type HoldRow = {
+export interface HoldRow {
   id: string;
   vehicle_id: string;
   hold_types: string[] | null;
   status: string;
   created_at: string;
   releases: Array<{ release_type: string; actual_return: string | null }> | null;
-};
+}
 
-export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+export interface FleetVehicleRow {
+  id: string;
+  unit_number: string | null;
+  license_plate: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  branch_id: string | null;
+  is_tesla: boolean;
+  has_mobile_cable: boolean | null;
+  has_j1772_adapter: boolean | null;
+}
 
-  const [vehiclesRes, holdsRes] = await Promise.all([
-    supabase
-      .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter')
-      .eq('branch_id', branchId),
-    supabase
-      .from('holds')
-      .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return)')
-      .eq('branch_id', branchId)
-      .in('status', ['ACTIVE', 'RELEASED']),
-  ]);
+function fmtType(t: string): string {
+  return t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
-  const vehicles = vehiclesRes.data ?? [];
-  const holds = (holdsRes.data ?? []) as HoldRow[];
-
-  // Build inventory plate→status map from today's session
-  const inventoryMap = new Map<string, string>();
-  try {
-    const { data: sessionRow } = await supabase
-      .from('inventory_sessions')
-      .select('entry_data')
-      .eq('branch_id', branchId)
-      .eq('session_date', today)
-      .maybeSingle();
-    if (sessionRow?.entry_data) {
-      for (const entry of sessionRow.entry_data as Array<Record<string, unknown>>) {
-        if (entry.licensePlate && entry.status) {
-          inventoryMap.set(String(entry.licensePlate).toUpperCase(), String(entry.status));
-        }
-      }
+// Deduplicated type labels across a set of holds
+function allTypeLabels(hs: HoldRow[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const h of hs) {
+    for (const t of (h.hold_types ?? [])) {
+      const label = fmtType(t);
+      if (!seen.has(label)) { seen.add(label); out.push(label); }
     }
-  } catch { /* inventory_sessions not yet deployed — skip priorities 4–6 */ }
+  }
+  return out.length > 0 ? out : ['Hold'];
+}
 
+/**
+ * Pure status-resolution for the fleet master view. Given the raw vehicle and
+ * hold rows plus today's inventory plate→status map, resolves each vehicle's
+ * status by priority cascade and returns the list sorted by STATUS_ORDER then
+ * plate. No I/O — `loadFleet` fetches the inputs and delegates here.
+ *
+ * Priority: regular ACTIVE hold (held) > ACTIVE sale_car (sale-car) >
+ * pre-existing-only ACTIVE (pre-existing) > released sale_car on exception
+ * (auction-short-term) > released exception (on-exception) > inventory
+ * fallback (held / dirty / available) > clear.
+ */
+export function buildFleetView(
+  vehicles: FleetVehicleRow[],
+  holds: HoldRow[],
+  inventoryMap: Map<string, string>,
+): FleetVehicle[] {
   // All holds per vehicle
   const holdsByVehicle = new Map<string, HoldRow[]>();
   for (const hold of holds) {
     const existing = holdsByVehicle.get(hold.vehicle_id) ?? [];
     holdsByVehicle.set(hold.vehicle_id, [...existing, hold]);
-  }
-
-  function fmtType(t: string): string {
-    return t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  // Deduplicated type labels across a set of holds
-  function allTypeLabels(hs: HoldRow[]): string[] {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const h of hs) {
-      for (const t of (h.hold_types ?? [])) {
-        const label = fmtType(t);
-        if (!seen.has(label)) { seen.add(label); out.push(label); }
-      }
-    }
-    return out.length > 0 ? out : ['Hold'];
   }
 
   const result: FleetVehicle[] = vehicles.map(v => {
@@ -184,7 +178,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
 
     return {
       id: v.id,
-      unitNumber: v.unit_number as string | null,
+      unitNumber: v.unit_number,
       licensePlate: v.license_plate,
       make: v.make,
       model: v.model,
@@ -207,4 +201,43 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
     const sd = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     return sd !== 0 ? sd : a.licensePlate.localeCompare(b.licensePlate);
   });
+}
+
+export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  const [vehiclesRes, holdsRes] = await Promise.all([
+    supabase
+      .from('vehicles')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter')
+      .eq('branch_id', branchId),
+    supabase
+      .from('holds')
+      .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return)')
+      .eq('branch_id', branchId)
+      .in('status', ['ACTIVE', 'RELEASED']),
+  ]);
+
+  const vehicles = (vehiclesRes.data ?? []) as unknown as FleetVehicleRow[];
+  const holds = (holdsRes.data ?? []) as unknown as HoldRow[];
+
+  // Build inventory plate→status map from today's session
+  const inventoryMap = new Map<string, string>();
+  try {
+    const { data: sessionRow } = await supabase
+      .from('inventory_sessions')
+      .select('entry_data')
+      .eq('branch_id', branchId)
+      .eq('session_date', today)
+      .maybeSingle();
+    if (sessionRow?.entry_data) {
+      for (const entry of sessionRow.entry_data as Array<Record<string, unknown>>) {
+        if (entry.licensePlate && entry.status) {
+          inventoryMap.set(String(entry.licensePlate).toUpperCase(), String(entry.status));
+        }
+      }
+    }
+  } catch { /* inventory_sessions not yet deployed — skip priorities 4–6 */ }
+
+  return buildFleetView(vehicles, holds, inventoryMap);
 }

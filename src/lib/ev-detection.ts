@@ -13,6 +13,47 @@ export interface TeslaDetectionResult {
   };
 }
 
+export interface TeslaVehicleRow {
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+}
+
+export interface EvStatusRow {
+  ev_cable_status: string | null;
+  ev_adapter_status: string | null;
+}
+
+export function isTeslaMake(make: string | null | undefined): boolean {
+  return (make ?? '').toLowerCase() === 'tesla';
+}
+
+/**
+ * Pure resolution of a Tesla detection result from a vehicle row and (when the
+ * vehicle is a Tesla) the latest EV-status trip row. No I/O — `detectTeslaByPlate`
+ * fetches the rows and delegates here. `lastTrip` is ignored for non-Teslas.
+ */
+export function classifyTesla(
+  vehicle: TeslaVehicleRow | null,
+  lastTrip: EvStatusRow | null,
+): TeslaDetectionResult {
+  if (!vehicle) return { isTesla: false, lastCable: null, lastAdapter: null };
+
+  const info = { make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color };
+
+  if (!isTeslaMake(vehicle.make)) {
+    return { isTesla: false, lastCable: null, lastAdapter: null, vehicle: info };
+  }
+
+  return {
+    isTesla: true,
+    lastCable:   (lastTrip?.ev_cable_status   as EvAssetStatus) ?? null,
+    lastAdapter: (lastTrip?.ev_adapter_status as EvAssetStatus) ?? null,
+    vehicle: info,
+  };
+}
+
 export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionResult> {
   const trimmed = plate.trim();
   if (!trimmed) return { isTesla: false, lastCable: null, lastAdapter: null };
@@ -23,47 +64,23 @@ export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionR
     .ilike('license_plate', trimmed)
     .maybeSingle();
 
-  if (!vehicle) {
-    return { isTesla: false, lastCable: null, lastAdapter: null };
+  if (!vehicle) return classifyTesla(null, null);
+
+  // Only the EV-status query is gated on Tesla; fetch it lazily.
+  let lastTrip: EvStatusRow | null = null;
+  if (isTeslaMake(vehicle.make as string)) {
+    const { data } = await supabase
+      .from('vsa_trips')
+      .select('ev_cable_status, ev_adapter_status')
+      .ilike('vehicle_plate', trimmed)
+      .not('ev_cable_status', 'is', null)
+      .order('depart_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastTrip = data as EvStatusRow | null;
   }
 
-  const isTesla = (vehicle.make as string)?.toLowerCase() === 'tesla';
-
-  if (!isTesla) {
-    return {
-      isTesla: false,
-      lastCable: null,
-      lastAdapter: null,
-      vehicle: {
-        make: vehicle.make as string,
-        model: vehicle.model as string,
-        year: vehicle.year as number,
-        color: vehicle.color as string,
-      }
-    };
-  }
-
-  // Most recent trip with EV status recorded for this plate
-  const { data: lastTrip } = await supabase
-    .from('vsa_trips')
-    .select('ev_cable_status, ev_adapter_status')
-    .ilike('vehicle_plate', trimmed)
-    .not('ev_cable_status', 'is', null)
-    .order('depart_time', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return {
-    isTesla: true,
-    lastCable:   (lastTrip?.ev_cable_status   as EvAssetStatus) ?? null,
-    lastAdapter: (lastTrip?.ev_adapter_status as EvAssetStatus) ?? null,
-    vehicle: {
-      make: vehicle.make as string,
-      model: vehicle.model as string,
-      year: vehicle.year as number,
-      color: vehicle.color as string,
-    }
-  };
+  return classifyTesla(vehicle as TeslaVehicleRow, lastTrip);
 }
 
 export interface VehicleSearchResult {
