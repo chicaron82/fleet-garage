@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useProfiles } from '../context/ProfilesContext';
+import { createUserResolver } from '../lib/user-resolver';
 import type { UserResolver } from '../lib/user-resolver';
 
 /**
@@ -13,20 +14,6 @@ import type { UserResolver } from '../lib/user-resolver';
 export function useUserResolver(): UserResolver {
   const profiles = useProfiles();
 
-  return useMemo((): UserResolver => {
-    const lookup = (id: string) => profiles.get(id) ?? null;
-    const lookupByEmpId = (empId: string) => {
-      for (const p of profiles.values()) {
-        if (p.employeeId === empId) return p;
-      }
-      return null;
-    };
-    return {
-      getProfile:      lookup,
-      getByEmployeeId: lookupByEmpId,
-      getName:  (id, snapshot) => lookup(id)?.name       ?? (snapshot && snapshot.length > 0 ? snapshot : 'Unknown'),
-      getRole:  id             => lookup(id)?.role       ?? '',
-      getEmpId: (id, snapshot) => lookup(id)?.employeeId ?? (snapshot && snapshot.length > 0 ? snapshot : ''),
-    };
-  }, [profiles]); // reactive — re-creates when profiles load so display components update
+  // reactive — re-creates when profiles load so display components update
+  return useMemo((): UserResolver => createUserResolver(profiles), [profiles]);
 }

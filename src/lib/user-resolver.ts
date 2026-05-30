@@ -19,3 +19,29 @@ export interface UserResolver {
   /** Lookup by employee id (e.g. for audit forms keyed on EMP1234). */
   getByEmployeeId: (employeeId: string) => Profile | null;
 }
+
+/**
+ * Builds a resolver over a profiles map. Pure — no React, no I/O — so it can
+ * be unit-tested directly. `useUserResolver` wraps this in a `useMemo`.
+ *
+ * Resolution is single-tier: the `profiles` map (sourced from the `profiles`
+ * table) is the only lookup source. The optional `snapshot` argument is a
+ * denormalised fallback for historical rows whose author no longer has a
+ * profile (e.g. deleted from auth) — it is used only when the id misses.
+ */
+export function createUserResolver(profiles: Map<string, Profile>): UserResolver {
+  const lookup = (id: string) => profiles.get(id) ?? null;
+  const lookupByEmpId = (empId: string) => {
+    for (const p of profiles.values()) {
+      if (p.employeeId === empId) return p;
+    }
+    return null;
+  };
+  return {
+    getProfile:      lookup,
+    getByEmployeeId: lookupByEmpId,
+    getName:  (id, snapshot) => lookup(id)?.name       ?? (snapshot && snapshot.length > 0 ? snapshot : 'Unknown'),
+    getRole:  id             => lookup(id)?.role       ?? '',
+    getEmpId: (id, snapshot) => lookup(id)?.employeeId ?? (snapshot && snapshot.length > 0 ? snapshot : ''),
+  };
+}
