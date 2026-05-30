@@ -182,6 +182,13 @@ unit-tested directly in `tests/lib/user-resolver.test.ts` (name/role/empId
 resolution, snapshot fallback, empty-string snapshot, profile-wins-over-stale-
 snapshot, and the empty-map case).
 
+### Listing team members
+
+For point lookups, use `useUserResolver`. When a feature needs to **list**
+users (schedule grids, driver coverage, recipient pickers), use
+`useTeamMembers()` — it returns `Array.from(profiles.values())`, i.e. every
+live profile. Single source, no merge step.
+
 ### Historical note — the retired USERS dual-tier
 
 Earlier versions ran a two-source resolver: live `profiles` first, then a
@@ -189,6 +196,7 @@ Earlier versions ran a two-source resolver: live `profiles` first, then a
 tier. That existed because demo-theatre branches were seeded with fixture
 users who had no real auth accounts. Migration 057 gave every user a real
 Supabase account and migration 061 migrated the mock ids, after which the
-`USERS` fallback was removed entirely. There is no longer a mock tier, no
-`mergeTeamMembers`, and no `useTeamMembers` hook — if you're adding identity
-features, the `profiles` map is the single source of truth.
+`USERS` fallback was removed entirely. Both `useUserResolver` and
+`useTeamMembers` are now single-tier over `profiles`; the old
+`mergeTeamMembers` merge helper is gone. The `profiles` map is the single
+source of truth for identity.
