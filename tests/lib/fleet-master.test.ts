@@ -85,20 +85,42 @@ describe('buildFleetView — status cascade', () => {
     expect(v.status).toBe('held');
   });
 
-  it('only pre-existing ACTIVE holds → pre-existing', () => {
-    const [v] = buildFleetView([vehicle()], [hold({ hold_types: ['pre-existing'] })], noInventory);
+  it('a hold released as PRE_EXISTING → pre-existing (damage accepted as-is)', () => {
+    const h = hold({
+      hold_types: ['damage'],
+      status: 'RELEASED',
+      releases: [{ release_type: 'PRE_EXISTING', actual_return: null }],
+    });
+    const [v] = buildFleetView([vehicle()], [h], noInventory);
     expect(v.status).toBe('pre-existing');
     expect(v.holdSummary).toEqual(['Pre-existing']);
   });
 
-  it('released sale_car + active pre-existing → auction-short-term (auction beats pre-existing)', () => {
+  it('an ACTIVE hold beats a prior PRE_EXISTING release → held', () => {
+    const preExReleased = hold({
+      id: 'pre',
+      hold_types: ['damage'],
+      status: 'RELEASED',
+      releases: [{ release_type: 'PRE_EXISTING', actual_return: null }],
+    });
+    const active = hold({ id: 'act', hold_types: ['mechanical'], status: 'ACTIVE' });
+    const [v] = buildFleetView([vehicle()], [preExReleased, active], noInventory);
+    expect(v.status).toBe('held');
+  });
+
+  it('released sale_car + prior PRE_EXISTING release → auction-short-term (auction beats pre-existing)', () => {
     const releasedSaleCar = hold({
       id: 'sale',
       hold_types: ['sale_car'],
       status: 'RELEASED',
       releases: [{ release_type: 'EXCEPTION', actual_return: null }],
     });
-    const preEx = hold({ id: 'pre', hold_types: ['pre-existing'] });
+    const preEx = hold({
+      id: 'pre',
+      hold_types: ['damage'],
+      status: 'RELEASED',
+      releases: [{ release_type: 'PRE_EXISTING', actual_return: null }],
+    });
     const [v] = buildFleetView([vehicle()], [releasedSaleCar, preEx], noInventory);
     expect(v.status).toBe('auction-short-term');
     expect(v.holdSummary).toEqual(['Auction']);

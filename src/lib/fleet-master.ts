@@ -81,11 +81,13 @@ function allTypeLabels(hs: HoldRow[]): string[] {
  * plate. No I/O — `loadFleet` fetches the inputs and delegates here.
  *
  * Priority: regular ACTIVE hold (held) > ACTIVE sale_car (sale-car) >
- * released sale_car on exception (auction-short-term) > pre-existing-only
- * ACTIVE (pre-existing) > released exception (on-exception) > inventory
- * fallback (held / dirty / available) > clear.
+ * released sale_car on exception (auction-short-term) > hold released as
+ * PRE_EXISTING (pre-existing) > released exception (on-exception) >
+ * inventory fallback (held / dirty / available) > clear.
  * Auction beats pre-existing: a car going to auction as-is should show
  * its auction status regardless of any pre-existing damage flags.
+ * Pre-existing is a release decision (damage accepted as-is, vehicle stays
+ * in circulation), never a hold_type — detect it from the release record.
  */
 export function buildFleetView(
   vehicles: FleetVehicleRow[],
@@ -102,8 +104,6 @@ export function buildFleetView(
   const result: FleetVehicle[] = vehicles.map(v => {
     const vehicleHolds = holdsByVehicle.get(v.id) ?? [];
     const activeHolds = vehicleHolds.filter(h => h.status === 'ACTIVE');
-    const nonPreExActive = activeHolds.filter(h => !h.hold_types?.includes('pre-existing'));
-    const preExActive = activeHolds.filter(h => h.hold_types?.includes('pre-existing'));
     const exceptionReleased = vehicleHolds.filter(h =>
       h.status === 'RELEASED' &&
       (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
@@ -116,12 +116,19 @@ export function buildFleetView(
     let holdCount = 0;
     let holdSummary: string[] = [];
 
-    const saleCarActive    = nonPreExActive.filter(h => (h.hold_types ?? []).includes('sale_car'));
-    const regularActive    = nonPreExActive.filter(h => !(h.hold_types ?? []).includes('sale_car'));
+    const saleCarActive    = activeHolds.filter(h => (h.hold_types ?? []).includes('sale_car'));
+    const regularActive    = activeHolds.filter(h => !(h.hold_types ?? []).includes('sale_car'));
     const saleCarReleased  = vehicleHolds.filter(h =>
       h.status === 'RELEASED' &&
       (h.hold_types ?? []).includes('sale_car') &&
       (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
+    );
+    // Pre-existing is a release decision, not a hold type: a hold released as
+    // PRE_EXISTING means the damage is accepted as-is and the vehicle stays in
+    // circulation. Detect it from the release record, not from hold_types.
+    const preExReleased    = vehicleHolds.filter(h =>
+      h.status === 'RELEASED' &&
+      (h.releases ?? []).some(r => r.release_type === 'PRE_EXISTING')
     );
 
     if (regularActive.length > 0) {
@@ -151,13 +158,13 @@ export function buildFleetView(
       holdCount = saleCarReleased.length;
       holdSummary = ['Auction'];
       holdType = 'Auction';
-    } else if (preExActive.length > 0) {
-      // Only pre-existing ACTIVE holds
-      const sorted = preExActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    } else if (preExReleased.length > 0) {
+      // Hold released as PRE_EXISTING → damage accepted as-is, stays in circulation
+      const sorted = preExReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'pre-existing';
       holdId = sorted[0].id;
       holdFlaggedAt = sorted[0].created_at;
-      holdCount = preExActive.length;
+      holdCount = preExReleased.length;
       holdSummary = ['Pre-existing'];
       holdType = 'Pre-existing';
     } else if (exceptionReleased.length > 0) {
