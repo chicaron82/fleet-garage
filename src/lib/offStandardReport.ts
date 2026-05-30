@@ -106,7 +106,7 @@ export function generateOffStandardReport(
     lines.push('', 'AIRPORT TRIPS', '─'.repeat(37));
     for (const t of trips) {
       const mins = Math.round(
-        (new Date(t.depart_time).getTime() - new Date(t.depart_time).getTime()) / 60000
+        (new Date(t.arrive_time).getTime() - new Date(t.depart_time).getTime()) / 60000
       );
       const label = t.is_shuttle ? 'Shuttle Transfer' : (t.reason ?? 'Airport Run');
       lines.push(`${fmtTime(t.depart_time)} – ${fmtTime(t.arrive_time)}  ${label}  (${mins}m)`);
