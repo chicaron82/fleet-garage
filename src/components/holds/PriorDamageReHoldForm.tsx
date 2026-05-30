@@ -122,7 +122,7 @@ export function PriorDamageReHoldForm({
             <p className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
               {hasOriginalPhotos
                 ? 'Or add new photos'
-                : `Photos * (required · max ${MAX_PHOTOS})`}
+                : `Photos (optional · max ${MAX_PHOTOS})`}
             </p>
             <div className="flex flex-wrap gap-2">
               {photos.map((src, i) => (
@@ -178,11 +178,6 @@ export function PriorDamageReHoldForm({
               onChange={handlePhotoAdd}
               className="hidden"
             />
-            {photos.length === 0 && (
-              <p className="text-xs text-red-500 dark:text-red-400 mt-1">
-                At least one photo required to confirm damage.
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -202,11 +197,7 @@ export function PriorDamageReHoldForm({
         </button>
         <button
           type="button"
-          disabled={
-            (!(reattachPhotos && (mostRecent?.photos ?? []).length > 0) &&
-              photos.length === 0) ||
-            submitting
-          }
+          disabled={submitting}
           onClick={handleLocalSubmit}
           className="flex-1 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
         >
