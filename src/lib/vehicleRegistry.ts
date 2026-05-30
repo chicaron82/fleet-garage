@@ -9,7 +9,7 @@ type RegistryUpdate = Database['public']['Tables']['vehicle_registry']['Update']
 
 type Row = Record<string, unknown>;
 
-function mapEntry(row: Row): VehicleRegistryEntry {
+export function mapEntry(row: Row): VehicleRegistryEntry {
   return {
     id:           row['id']         as string,
     branchId:     row['branch_id']  as string,
@@ -26,6 +26,83 @@ function mapEntry(row: Row): VehicleRegistryEntry {
     needsReview:  (row['needs_review'] as boolean)        ?? false,
     createdAt:    row['created_at']  as string,
     date:         row['date']        as string,
+  };
+}
+
+// ── Pure cores (extracted for unit testing) ───────────────────────────────────
+
+/** Enrich = fill only the fields the existing record is currently missing. Pure. */
+export function computeEnrichUpdates(
+  existing: VehicleRegistryEntry,
+  fields: {
+    vehicleId?: string | null; plate?: string | null; unitNumber?: string | null;
+    make?: string | null; model?: string | null; year?: number | null; color?: string | null;
+    arrivedAt?: string | null; cleanedAt?: string | null; dispatchedAt?: string | null;
+    needsReview?: boolean;
+  },
+): Record<string, unknown> {
+  const updates: Record<string, unknown> = {};
+  if (fields.vehicleId   && !existing.vehicleId)   updates['vehicle_id']    = fields.vehicleId;
+  if (fields.plate       && !existing.plate)       updates['plate']         = fields.plate;
+  if (fields.unitNumber  && !existing.unitNumber)  updates['unit_number']   = fields.unitNumber;
+  if (fields.make        && !existing.make)        updates['make']          = fields.make;
+  if (fields.model       && !existing.model)       updates['model']         = fields.model;
+  if (fields.year        && !existing.year)        updates['year']          = fields.year;
+  if (fields.color       && !existing.color)       updates['color']         = fields.color;
+  if (fields.arrivedAt   && !existing.arrivedAt)   updates['arrived_at']    = fields.arrivedAt;
+  if (fields.cleanedAt   && !existing.cleanedAt)   updates['cleaned_at']    = fields.cleanedAt;
+  if (fields.dispatchedAt && !existing.dispatchedAt) updates['dispatched_at'] = fields.dispatchedAt;
+  if (fields.needsReview) updates['needs_review'] = true;
+  return updates;
+}
+
+/**
+ * Decide whether a found record is a clean match or a merge candidate — the
+ * caller supplied an identifier the record lacks, or one that conflicts.
+ * A confirmed pairing (`hasPair`) is trusted and suppresses the candidacy. Pure.
+ */
+export function classifyLookup(
+  entry: VehicleRegistryEntry,
+  plate: string | null | undefined,
+  unitNumber: string | null | undefined,
+  hasPair: boolean,
+): 'found' | 'merge_candidate' {
+  const missingPlate     = plate      && !entry.plate;
+  const missingUnit      = unitNumber && !entry.unitNumber;
+  const conflictingPlate = plate      && entry.plate      && entry.plate      !== plate;
+  const conflictingUnit  = unitNumber && entry.unitNumber && entry.unitNumber !== unitNumber;
+  if (!hasPair && (missingPlate || missingUnit || conflictingPlate || conflictingUnit)) {
+    return 'merge_candidate';
+  }
+  return 'found';
+}
+
+/**
+ * Resolve the surviving field values when merging two registry records:
+ * keep-wins for identity fields, earliest-wins for timestamps. Pure.
+ */
+export function mergeEntries(
+  keep: VehicleRegistryEntry,
+  merge: VehicleRegistryEntry,
+): Record<string, unknown> {
+  const earliest = (a: string | null | undefined, b: string | null | undefined): string | null => {
+    if (!a && !b) return null;
+    if (!a) return b!;
+    if (!b) return a;
+    return a < b ? a : b;
+  };
+  return {
+    plate:         keep.plate       ?? merge.plate,
+    unit_number:   keep.unitNumber  ?? merge.unitNumber,
+    vehicle_id:    keep.vehicleId   ?? merge.vehicleId,
+    make:          keep.make        ?? merge.make,
+    model:         keep.model       ?? merge.model,
+    year:          keep.year        ?? merge.year,
+    color:         keep.color       ?? merge.color,
+    arrived_at:    earliest(keep.arrivedAt,    merge.arrivedAt),
+    cleaned_at:    earliest(keep.cleanedAt,    merge.cleanedAt),
+    dispatched_at: earliest(keep.dispatchedAt, merge.dispatchedAt),
+    needs_review:  false,
   };
 }
 
@@ -85,17 +162,10 @@ export async function lookupRegistry(params: {
 
   const entry = mapEntry(data as Row);
 
-  // 2. If caller provided an identifier the record doesn't have → merge candidate
-  const missingPlate       = plate       && !entry.plate;
-  const missingUnit        = unitNumber  && !entry.unitNumber;
-  const conflictingPlate   = plate       && entry.plate       && entry.plate       !== plate;
-  const conflictingUnit    = unitNumber  && entry.unitNumber  && entry.unitNumber  !== unitNumber;
-
-  if (!pair && (missingPlate || missingUnit || conflictingPlate || conflictingUnit)) {
-    return { status: 'merge_candidate', existing: entry };
-  }
-
-  return { status: 'found', entry };
+  // 2. Clean match, or a merge candidate (caller knows something the record doesn't)?
+  return classifyLookup(entry, plate, unitNumber, !!pair) === 'merge_candidate'
+    ? { status: 'merge_candidate', existing: entry }
+    : { status: 'found', entry };
 }
 
 // ── Create or enrich ──────────────────────────────────────────────────────────
@@ -129,18 +199,7 @@ export async function createOrEnrichRegistry(params: {
   if (lookup.status === 'found') {
     // Enrich: only update fields that are currently null
     const existing = lookup.entry;
-    const updates: Record<string, unknown> = {};
-    if (fields.vehicleId   && !existing.vehicleId)   updates['vehicle_id']    = fields.vehicleId;
-    if (fields.plate       && !existing.plate)       updates['plate']         = fields.plate;
-    if (fields.unitNumber  && !existing.unitNumber)  updates['unit_number']   = fields.unitNumber;
-    if (fields.make        && !existing.make)        updates['make']          = fields.make;
-    if (fields.model       && !existing.model)       updates['model']         = fields.model;
-    if (fields.year        && !existing.year)        updates['year']          = fields.year;
-    if (fields.color       && !existing.color)       updates['color']         = fields.color;
-    if (fields.arrivedAt   && !existing.arrivedAt)   updates['arrived_at']    = fields.arrivedAt;
-    if (fields.cleanedAt   && !existing.cleanedAt)   updates['cleaned_at']    = fields.cleanedAt;
-    if (fields.dispatchedAt && !existing.dispatchedAt) updates['dispatched_at'] = fields.dispatchedAt;
-    if (fields.needsReview) updates['needs_review'] = true;
+    const updates = computeEnrichUpdates(existing, fields);
 
     if (Object.keys(updates).length === 0) return existing;
 
@@ -207,27 +266,7 @@ export async function mergeRegistryRecords(
   const keep  = mapEntry(rows.find((r: Row) => r['id'] === keepId)!  as Row);
   const merge = mapEntry(rows.find((r: Row) => r['id'] === mergeId)! as Row);
 
-  // Preserve earliest timestamps across both records
-  function earliest(a: string | null | undefined, b: string | null | undefined): string | null {
-    if (!a && !b) return null;
-    if (!a) return b!;
-    if (!b) return a;
-    return a < b ? a : b;
-  }
-
-  const updates: Record<string, unknown> = {
-    plate:         keep.plate       ?? merge.plate,
-    unit_number:   keep.unitNumber  ?? merge.unitNumber,
-    vehicle_id:    keep.vehicleId   ?? merge.vehicleId,
-    make:          keep.make        ?? merge.make,
-    model:         keep.model       ?? merge.model,
-    year:          keep.year        ?? merge.year,
-    color:         keep.color       ?? merge.color,
-    arrived_at:    earliest(keep.arrivedAt,    merge.arrivedAt),
-    cleaned_at:    earliest(keep.cleanedAt,    merge.cleanedAt),
-    dispatched_at: earliest(keep.dispatchedAt, merge.dispatchedAt),
-    needs_review:  false,
-  };
+  const updates = mergeEntries(keep, merge);
 
   await writeWithRefresh(() => supabase.from('vehicle_registry').update(updates as unknown as RegistryUpdate).eq('id', keepId));
   await writeWithRefresh(() => supabase.from('vehicle_registry').delete().eq('id', mergeId));
