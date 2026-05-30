@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { deriveHoldStatus, factsFromRow } from './vehicle-status';
 
 export type FleetStatus =
   | 'pre-existing'
@@ -106,7 +107,8 @@ export function buildFleetView(
     const activeHolds = vehicleHolds.filter(h => h.status === 'ACTIVE');
     const exceptionReleased = vehicleHolds.filter(h =>
       h.status === 'RELEASED' &&
-      (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
+      (h.releases ?? []).some(r =>
+        (r.release_type === 'EXCEPTION' || r.release_type === 'MECHANICAL_RELEASE') && !r.actual_return)
     );
 
     let status: FleetStatus = 'clear';
@@ -131,7 +133,9 @@ export function buildFleetView(
       (h.releases ?? []).some(r => r.release_type === 'PRE_EXISTING')
     );
 
-    if (regularActive.length > 0) {
+    const derived = deriveHoldStatus(vehicleHolds.map(factsFromRow));
+
+    if (derived === 'held') {
       // ACTIVE non-pre-existing, non-sale-car holds → held
       const sorted = regularActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'held';
@@ -140,7 +144,7 @@ export function buildFleetView(
       holdCount = activeHolds.length;
       holdSummary = allTypeLabels(activeHolds);
       holdType = holdSummary[0];
-    } else if (saleCarActive.length > 0) {
+    } else if (derived === 'sale-car') {
       // ACTIVE sale_car hold
       const sorted = saleCarActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'sale-car';
@@ -149,7 +153,7 @@ export function buildFleetView(
       holdCount = saleCarActive.length;
       holdSummary = ['Sale Car'];
       holdType = 'Sale Car';
-    } else if (saleCarReleased.length > 0) {
+    } else if (derived === 'auction-short-term') {
       // Released sale_car → out on auction short-term (beats pre-existing)
       const sorted = saleCarReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'auction-short-term';
@@ -158,7 +162,7 @@ export function buildFleetView(
       holdCount = saleCarReleased.length;
       holdSummary = ['Auction'];
       holdType = 'Auction';
-    } else if (preExReleased.length > 0) {
+    } else if (derived === 'pre-existing') {
       // Hold released as PRE_EXISTING → damage accepted as-is, stays in circulation
       const sorted = preExReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'pre-existing';
@@ -167,7 +171,7 @@ export function buildFleetView(
       holdCount = preExReleased.length;
       holdSummary = ['Pre-existing'];
       holdType = 'Pre-existing';
-    } else if (exceptionReleased.length > 0) {
+    } else if (derived === 'on-exception') {
       const sorted = exceptionReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
       status = 'on-exception';
       holdId = sorted[0].id;

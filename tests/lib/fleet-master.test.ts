@@ -147,6 +147,16 @@ describe('buildFleetView — status cascade', () => {
     expect(v.status).toBe('on-exception');
   });
 
+  it('open MECHANICAL_RELEASE → on-exception (out, expected back)', () => {
+    const h = hold({
+      hold_types: ['mechanical'],
+      status: 'RELEASED',
+      releases: [{ release_type: 'MECHANICAL_RELEASE', actual_return: null }],
+    });
+    const [v] = buildFleetView([vehicle()], [h], noInventory);
+    expect(v.status).toBe('on-exception');
+  });
+
   it('a returned exception (actual_return set) does not keep the vehicle on-exception', () => {
     const h = hold({
       status: 'RELEASED',

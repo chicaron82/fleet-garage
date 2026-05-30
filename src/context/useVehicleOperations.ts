@@ -1,7 +1,8 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
+import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import type {
-  Vehicle, Hold, Release, Repair, VehicleStatus,
+  Vehicle, Hold, Release, Repair,
   HoldType, DetailReason, MechanicalSubType, BranchId,
 } from '../types';
 
@@ -124,18 +125,12 @@ export function useVehicleOperations({
 
     const releaseId = crypto.randomUUID();
     const newRelease: Release = { ...release, id: releaseId };
-    const isSaleCar = hold.holdTypes.includes('sale_car');
-    const otherUnresolvedHolds = holds.filter(
-      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
-    );
-    const newVehicleStatus: VehicleStatus =
-      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : isSaleCar && release.releaseType === 'EXCEPTION'
-          ? 'AUCTION_SHORT_TERM'   // auction beats pre-existing
-          : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-            ? 'PRE_EXISTING'
-            : release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
+    // Project the post-release hold set and derive the vehicle status from the
+    // shared cascade (lib/vehicle-status) so the read and write paths agree.
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === hold.vehicleId)
+      .map(h => h.id === holdId ? { ...h, status: 'RELEASED' as const, release: newRelease } : h);
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
 
     const { error } = await writeWithRefresh(() =>
       supabase.from('releases').insert({
@@ -196,19 +191,11 @@ export function useVehicleOperations({
     await writeWithRefresh(() =>
       supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
     );
-    const otherUnresolvedHolds = holds.filter(
-      h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
-    );
-    const newVehicleStatus: VehicleStatus =
-      otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
-        ? 'HELD'
-        : otherUnresolvedHolds.some(h => h.status === 'RELEASED' && h.holdTypes.includes('sale_car'))
-          ? 'AUCTION_SHORT_TERM'   // auction beats pre-existing
-          : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-            ? 'PRE_EXISTING'
-            : otherUnresolvedHolds.some(h => h.release)
-              ? 'OUT_ON_EXCEPTION'
-              : 'CLEAR';
+    // Project the post-repair hold set and derive from the shared cascade.
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === hold.vehicleId)
+      .map(h => h.id === holdId ? { ...h, status: 'REPAIRED' as const } : h);
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
     await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
@@ -282,18 +269,7 @@ export function useVehicleOperations({
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     if (!vehicle) return;
     const vehicleHolds = holds.filter(h => h.vehicleId === vehicleId && h.status !== 'REPAIRED');
-    const hasActiveNonSaleCar    = vehicleHolds.some(h => h.status === 'ACTIVE' && !h.holdTypes.includes('sale_car'));
-    const hasActiveSaleCar       = vehicleHolds.some(h => h.status === 'ACTIVE' && h.holdTypes.includes('sale_car'));
-    const hasPreExRelease        = vehicleHolds.some(h => h.release?.releaseType === 'PRE_EXISTING');
-    const hasReleasedSaleCar     = vehicleHolds.some(h => h.status === 'RELEASED' && h.holdTypes.includes('sale_car') && h.release);
-    const hasOtherRelease        = vehicleHolds.some(h => h.status === 'RELEASED' && h.release && !h.holdTypes.includes('sale_car'));
-    const correctStatus: VehicleStatus =
-      hasActiveNonSaleCar  ? 'HELD' :
-      hasActiveSaleCar     ? 'SALE_CAR' :
-      hasReleasedSaleCar   ? 'AUCTION_SHORT_TERM' :   // auction beats pre-existing
-      hasPreExRelease      ? 'PRE_EXISTING' :
-      hasOtherRelease      ? 'OUT_ON_EXCEPTION' :
-                             'CLEAR';
+    const correctStatus = toVehicleStatus(deriveHoldStatus(vehicleHolds.map(factsFromHold)));
     if (vehicle.status === correctStatus) return;
     await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId)
