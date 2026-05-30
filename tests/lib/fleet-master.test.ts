@@ -91,6 +91,19 @@ describe('buildFleetView — status cascade', () => {
     expect(v.holdSummary).toEqual(['Pre-existing']);
   });
 
+  it('released sale_car + active pre-existing → auction-short-term (auction beats pre-existing)', () => {
+    const releasedSaleCar = hold({
+      id: 'sale',
+      hold_types: ['sale_car'],
+      status: 'RELEASED',
+      releases: [{ release_type: 'EXCEPTION', actual_return: null }],
+    });
+    const preEx = hold({ id: 'pre', hold_types: ['pre-existing'] });
+    const [v] = buildFleetView([vehicle()], [releasedSaleCar, preEx], noInventory);
+    expect(v.status).toBe('auction-short-term');
+    expect(v.holdSummary).toEqual(['Auction']);
+  });
+
   it('released sale_car on open exception → auction-short-term', () => {
     const h = hold({
       hold_types: ['sale_car'],
