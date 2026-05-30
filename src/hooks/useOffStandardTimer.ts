@@ -119,6 +119,44 @@ export function useOffStandardTimer({
       .eq('id', inProgressId);
   };
 
+  // Online twin of executeOfflineAction: attempt a live write (with session
+  // refresh), falling back to the offline queue on a network error. Mirrors
+  // the writeOrEnqueue pattern in useDriverLiveTrip, generalised to the two
+  // tables this hook writes — off_standard_entries and the EDV-linked hold.
+  const writeOrEnqueue = async (
+    action: 'insert' | 'update' | 'delete',
+    table: 'off_standard_entries' | 'holds',
+    payload: Record<string, unknown>,
+    eqField?: string,
+    eqValue?: string,
+  ): Promise<{ ok: boolean }> => {
+    const enqueue = () => enqueueOfflineAction({ table, action, payload, eqField, eqValue });
+    if (!navigator.onLine) { enqueue(); return { ok: true }; }
+    const res = await writeWithRefresh(() => {
+      // Runtime-dynamic table dispatch — bypass the typed client (see executeOfflineAction).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const query = (supabase as any).from(table);
+      if (action === 'insert') return query.insert(payload);
+      if (action === 'update') {
+        const q = query.update(payload);
+        return eqField && eqValue !== undefined ? q.eq(eqField, eqValue) : q;
+      }
+      const q = query.delete();
+      return eqField && eqValue !== undefined ? q.eq(eqField, eqValue) : q;
+    });
+    if (!res.error) return { ok: true };
+    const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
+    if (isNetworkErr) { enqueue(); return { ok: true }; }
+    return { ok: false };
+  };
+
+  // The EDV preset marks its linked hold as cleaned in-house. Same write on
+  // every success path, so it lives here once.
+  const linkEdvHold = (holdId: string) =>
+    writeOrEnqueue('update', 'holds',
+      { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
+      'id', holdId);
+
   const handleStartWith = async (
     reason: OffStandardReason,
     preset: OffStandardPresetReason | null,
@@ -130,80 +168,24 @@ export function useOffStandardTimer({
     if (preset) setExplanation(expl);
 
     const entryId = crypto.randomUUID();
-    let error = null;
+    const { ok } = await writeOrEnqueue('insert', 'off_standard_entries', {
+      id:             entryId,
+      user_id:        user.id,
+      branch_id:      user.branchId,
+      date:           localDateStr(0),
+      start_time:     now,
+      stop_time:      null,
+      minutes:        null,
+      reason,
+      explanation:    expl.trim() || null,
+      auto_from_trip: false,
+      status:         'in_progress',
+      ...(preset ? { preset_reason: preset } : {}),
+      ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
+    });
 
-    if (!navigator.onLine) {
-      enqueueOfflineAction({
-        table: 'off_standard_entries',
-        action: 'insert',
-        payload: {
-          id:             entryId,
-          user_id:        user.id,
-          branch_id:      user.branchId,
-          date:           localDateStr(0),
-          start_time:     now,
-          stop_time:      null,
-          minutes:        null,
-          reason,
-          explanation:    expl.trim() || null,
-          auto_from_trip: false,
-          status:         'in_progress',
-          ...(preset ? { preset_reason: preset } : {}),
-          ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
-        }
-      });
-    } else {
-      const res = await writeWithRefresh(() =>
-        supabase
-          .from('off_standard_entries')
-          .insert({
-            id:             entryId,
-            user_id:        user.id,
-            branch_id:      user.branchId,
-            date:           localDateStr(0),
-            start_time:     now,
-            stop_time:      null,
-            minutes:        null,
-            reason,
-            explanation:    expl.trim() || null,
-            auto_from_trip: false,
-            status:         'in_progress',
-            ...(preset ? { preset_reason: preset } : {}),
-            ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
-          })
-          .select('id')
-          .single()
-      );
-      if (res.error) {
-        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-        if (isNetworkErr) {
-          enqueueOfflineAction({
-            table: 'off_standard_entries',
-            action: 'insert',
-            payload: {
-              id:             entryId,
-              user_id:        user.id,
-              branch_id:      user.branchId,
-              date:           localDateStr(0),
-              start_time:     now,
-              stop_time:      null,
-              minutes:        null,
-              reason,
-              explanation:    expl.trim() || null,
-              auto_from_trip: false,
-              status:         'in_progress',
-              ...(preset ? { preset_reason: preset } : {}),
-              ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
-            }
-          });
-        } else {
-          error = res.error;
-        }
-      }
-    }
-
-    if (error) {
-      console.error('Off-standard start write failed:', error);
+    if (!ok) {
+      console.error('Off-standard start write failed');
       setStartError(true);
       return;
     }
@@ -235,113 +217,27 @@ export function useOffStandardTimer({
       (new Date(now).getTime() - new Date(startTimestamp).getTime()) / 60000
     );
 
+    // Discard sub-threshold entries entirely rather than logging them.
     if (mins < MIN_ENTRY_MINUTES) {
-      if (inProgressId) {
-        if (!navigator.onLine) {
-          enqueueOfflineAction({
-            table: 'off_standard_entries',
-            action: 'delete',
-            payload: {},
-            eqField: 'id',
-            eqValue: inProgressId
-          });
-        } else {
-          const res = await writeWithRefresh(() =>
-            supabase.from('off_standard_entries').delete().eq('id', inProgressId!)
-          );
-          if (res.error && (!navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code)) {
-            enqueueOfflineAction({
-              table: 'off_standard_entries',
-              action: 'delete',
-              payload: {},
-              eqField: 'id',
-              eqValue: inProgressId
-            });
-          }
-        }
-      }
+      if (inProgressId) await writeOrEnqueue('delete', 'off_standard_entries', {}, 'id', inProgressId);
       handleDiscard();
       return;
     }
 
-    let error = null;
+    const { ok } = await writeOrEnqueue('update', 'off_standard_entries', {
+      stop_time:   now,
+      minutes:     mins,
+      explanation: explanation.trim() || null,
+      status:      'complete',
+    }, 'id', inProgressId!);
 
-    if (!navigator.onLine) {
-      enqueueOfflineAction({
-        table: 'off_standard_entries',
-        action: 'update',
-        payload: {
-          stop_time:   now,
-          minutes:     mins,
-          explanation: explanation.trim() || null,
-          status:      'complete',
-        },
-        eqField: 'id',
-        eqValue: inProgressId
-      });
-      if (selectedPreset === 'edv' && edvLinkedHoldId) {
-        enqueueOfflineAction({
-          table: 'holds',
-          action: 'update',
-          payload: { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
-          eqField: 'id',
-          eqValue: edvLinkedHoldId
-        });
-      }
-    } else {
-      const res = await writeWithRefresh(() =>
-        supabase
-          .from('off_standard_entries')
-          .update({
-            stop_time:   now,
-            minutes:     mins,
-            explanation: explanation.trim() || null,
-            status:      'complete',
-          })
-          .eq('id', inProgressId!)
-      );
-      if (res.error) {
-        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-        if (isNetworkErr) {
-          enqueueOfflineAction({
-            table: 'off_standard_entries',
-            action: 'update',
-            payload: {
-              stop_time:   now,
-              minutes:     mins,
-              explanation: explanation.trim() || null,
-              status:      'complete',
-            },
-            eqField: 'id',
-            eqValue: inProgressId
-          });
-          if (selectedPreset === 'edv' && edvLinkedHoldId) {
-            enqueueOfflineAction({
-              table: 'holds',
-              action: 'update',
-              payload: { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
-              eqField: 'id',
-              eqValue: edvLinkedHoldId
-            });
-          }
-        } else {
-          error = res.error;
-        }
-      } else {
-        if (selectedPreset === 'edv' && edvLinkedHoldId) {
-          await supabase
-            .from('holds')
-            .update({ offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() })
-            .eq('id', edvLinkedHoldId);
-        }
-      }
-    }
-
-    if (error) {
-      console.error('[handleEnd] update failed:', error);
+    if (!ok) {
+      console.error('[handleEnd] update failed');
       setEndError(true);
       return;
     }
+
+    if (selectedPreset === 'edv' && edvLinkedHoldId) await linkEdvHold(edvLinkedHoldId);
 
     setStopTimestamp(now);
     setPendingMinutes(mins);

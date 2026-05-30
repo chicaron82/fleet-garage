@@ -151,11 +151,13 @@ describe('OffStandardTimeLog Component', () => {
     global.Date = RealDate;
     mockTime = null;
 
-    // Should call enqueueOfflineAction immediately
-    expect(enqueueOfflineAction).toHaveBeenCalled();
+    // Should enqueue the offline action (no network wait) ...
+    await waitFor(() => {
+      expect(enqueueOfflineAction).toHaveBeenCalled();
+    });
 
-    // Should transition UI optimistically to running timer
-    expect(screen.getByText('End')).toBeInTheDocument();
+    // ... and optimistically transition the UI to the running timer.
+    expect(await screen.findByText('End')).toBeInTheDocument();
   });
 
   it('ends a timer online and updates supabase if ran >= 5 mins', async () => {
