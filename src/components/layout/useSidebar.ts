@@ -59,7 +59,7 @@ export function useSidebar() {
 
   // ── Live notifications loader ────────────────────────────────────────────────
   useEffect(() => {
-    if (notifMode !== 'live' || !desktopInboxOpen || !user) return;
+    if (notifMode !== 'live' || !user) return;
     const role = user.role;
     const userId = user.id;
     async function load() {
@@ -74,7 +74,7 @@ export function useSidebar() {
       setLiveNotifs((data ?? []) as LiveNotification[]);
     }
     load();
-  }, [notifMode, desktopInboxOpen, user, activeBranch]);
+  }, [notifMode, user, activeBranch]);
 
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
   useEffect(() => {
