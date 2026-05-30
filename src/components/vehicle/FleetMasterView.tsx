@@ -75,12 +75,10 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Fleet</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 tabular-nums">
-            {vehicles.length} vehicles
-          </span>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Fleet</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} registered</p>
         </div>
         <button
           type="button"

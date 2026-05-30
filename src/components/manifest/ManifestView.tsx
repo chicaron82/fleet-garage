@@ -182,14 +182,14 @@ export function ManifestView() {
       {/* Header */}
       <div>
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
             📋 Outbound Manifest
           </h1>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
             {seasonCfg.label} {seasonCfg.badge}
           </span>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
           {formatDate(now)} · {today.length} reservations
           {canFlag && <span className="ml-2 text-gray-400 dark:text-gray-600">· tap 🚩 to flag priority</span>}
         </p>

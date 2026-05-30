@@ -81,8 +81,8 @@ export function IssueLogView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Issue Log</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Issue Log</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
             {openIssues.length === 0
               ? 'No open issues'
               : `${openIssues.length} open issue${openIssues.length === 1 ? '' : 's'}`}

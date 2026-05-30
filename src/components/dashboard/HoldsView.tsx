@@ -192,6 +192,12 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Holds</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Flagged vehicles · damage | mechanical | detail</p>
+        </div>
+
         {/* Stale Holds Alert — management only */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
