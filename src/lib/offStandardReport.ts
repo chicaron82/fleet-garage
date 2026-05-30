@@ -126,11 +126,10 @@ export function generateOffStandardReport(
 export function deriveExplanation(
   preset: OffStandardPresetReason | null,
   unit: string,
-  mgr: string,
   freeText: string,
 ): string {
   if (!preset) return freeText;
-  if (preset === 'edv')              return unit ? `EDV — ${unit} — Released by ${mgr}` : 'EDV';
+  if (preset === 'edv')              return unit ? `Extremely Dirty Vehicle — ${unit}` : 'Extremely Dirty Vehicle';
   if (preset === 'fleeting_cars')    return 'Fleeting cars';
   if (preset === 'closing_duties')   return 'Closing duties';
   if (preset === 'opening_duties')   return 'Opening duties';

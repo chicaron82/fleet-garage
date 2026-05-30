@@ -126,7 +126,7 @@ export function useOffStandardTimer({
   ) => {
     setStartError(false);
     const now  = new Date().toISOString();
-    const expl = deriveExplanation(preset, edvUnitNumber, edvManagerName, explanation);
+    const expl = deriveExplanation(preset, edvUnitNumber, explanation);
     if (preset) setExplanation(expl);
 
     const entryId = crypto.randomUUID();
