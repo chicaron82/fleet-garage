@@ -124,15 +124,18 @@ export function useVehicleOperations({
 
     const releaseId = crypto.randomUUID();
     const newRelease: Release = { ...release, id: releaseId };
+    const isSaleCar = hold.holdTypes.includes('sale_car');
     const otherUnresolvedHolds = holds.filter(
       h => h.id !== holdId && h.vehicleId === hold.vehicleId && h.status !== 'REPAIRED'
     );
     const newVehicleStatus: VehicleStatus =
       otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
         ? 'HELD'
-        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
+        : isSaleCar && release.releaseType === 'EXCEPTION'
+          ? 'AUCTION_SHORT_TERM'   // auction beats pre-existing
+          : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
+            ? 'PRE_EXISTING'
+            : release.releaseType === 'PRE_EXISTING' ? 'PRE_EXISTING' : 'OUT_ON_EXCEPTION';
 
     const { error } = await writeWithRefresh(() =>
       supabase.from('releases').insert({
@@ -199,11 +202,13 @@ export function useVehicleOperations({
     const newVehicleStatus: VehicleStatus =
       otherUnresolvedHolds.some(h => h.status === 'ACTIVE')
         ? 'HELD'
-        : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
-          ? 'PRE_EXISTING'
-          : otherUnresolvedHolds.some(h => h.release)
-            ? 'OUT_ON_EXCEPTION'
-            : 'CLEAR';
+        : otherUnresolvedHolds.some(h => h.status === 'RELEASED' && h.holdTypes.includes('sale_car'))
+          ? 'AUCTION_SHORT_TERM'   // auction beats pre-existing
+          : otherUnresolvedHolds.some(h => h.release?.releaseType === 'PRE_EXISTING')
+            ? 'PRE_EXISTING'
+            : otherUnresolvedHolds.some(h => h.release)
+              ? 'OUT_ON_EXCEPTION'
+              : 'CLEAR';
     await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
@@ -285,8 +290,8 @@ export function useVehicleOperations({
     const correctStatus: VehicleStatus =
       hasActiveNonSaleCar  ? 'HELD' :
       hasActiveSaleCar     ? 'SALE_CAR' :
+      hasReleasedSaleCar   ? 'AUCTION_SHORT_TERM' :   // auction beats pre-existing
       hasPreExRelease      ? 'PRE_EXISTING' :
-      hasReleasedSaleCar   ? 'AUCTION_SHORT_TERM' :
       hasOtherRelease      ? 'OUT_ON_EXCEPTION' :
                              'CLEAR';
     if (vehicle.status === correctStatus) return;
