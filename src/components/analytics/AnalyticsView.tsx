@@ -206,7 +206,7 @@ export function AnalyticsView() {
       )}
 
       {/* Tab toggle */}
-      <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
         {([
           { key: 'holds',        label: 'Holds' },
           { key: 'productivity', label: 'Productivity' },
@@ -216,10 +216,10 @@ export function AnalyticsView() {
             key={key}
             type="button"
             onClick={() => setActiveTab(key)}
-            className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
               activeTab === key
-                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             {label}

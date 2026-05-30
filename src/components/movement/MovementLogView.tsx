@@ -234,15 +234,15 @@ export function MovementLogView() {
         </div>
 
         {/* Tab strip */}
-        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
           {(['movement-log', 'off-standard'] as const).map(tab => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === tab
-                  ? 'text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-500 -mb-px'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
