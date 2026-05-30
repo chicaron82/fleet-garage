@@ -47,7 +47,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
       {/* Trigger */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 pr-3 rounded-full transition cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+        className={`flex items-center gap-2 p-1.5 pr-3 rounded-full transition cursor-pointer border border-transparent ${dropUp ? 'hover:bg-green-800 hover:border-green-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-700'}`}
       >
         <div className="w-8 h-8 rounded-full bg-yellow-400 dark:bg-yellow-500 overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-sm">
           {avatarBase64 ? (
