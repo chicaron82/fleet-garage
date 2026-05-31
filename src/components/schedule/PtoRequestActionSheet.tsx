@@ -36,7 +36,8 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
       .select('date')
       .eq('user_id', user.id)
       .eq('shift_type', 'pto')
-      .eq('pto_approved', false)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq('pto_approved' as any, false)
       .gte('date', today)
       .lte('date', `${year}-12-31`)
       .order('date', { ascending: true })

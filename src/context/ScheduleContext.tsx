@@ -219,7 +219,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await writeWithRefresh(() =>
       supabase
         .from('shifts')
-        .update({ pto_approved: approved, updated_at: new Date().toISOString() })
+        // pto_approved was added in migration 067; stale database.types.ts doesn't know it yet
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ pto_approved: approved, updated_at: new Date().toISOString() } as any)
         .eq('id', id)
         .select()
         .single()
