@@ -41,7 +41,7 @@ interface Props {
 }
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
-  const { updateShift, deleteShift, logActualHours, isPeakSeason } = useSchedule();
+  const { updateShift, deleteShift, logActualHours, setPtoApproved, isPeakSeason } = useSchedule();
   useEscapeKey(onClose);
   const typeDefaults = getTypeDefaults(isPeakSeason);
 
@@ -50,6 +50,14 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [endTime,   setEndTime]   = useState(shift.endTime   ?? '');
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
+  const [approved,  setApproved]  = useState(shift.ptoApproved ?? false);
+
+  const handleToggleApproved = async () => {
+    const next = !approved;
+    setApproved(next);
+    try { await setPtoApproved(shift.id, next); }
+    catch { setApproved(!next); }
+  };
 
   // Actual hours section
   const [showActual,   setShowActual]   = useState(false);
@@ -168,6 +176,23 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             </button>
           ))}
         </div>
+
+        {/* PTO approval — only for an already-saved PTO day */}
+        {shift.shiftType === 'pto' && (
+          <div className="flex items-center justify-between rounded-xl border border-violet-200 dark:border-violet-800/40 bg-violet-50 dark:bg-violet-900/20 px-3 py-2.5">
+            <div>
+              <p className="text-xs font-semibold text-violet-700 dark:text-violet-300">PTO {approved ? 'approved ✓' : 'pending'}</p>
+              <p className="text-[11px] text-violet-500 dark:text-violet-400">{approved ? 'On the books.' : 'Requested — awaiting approval.'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleApproved}
+              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition cursor-pointer"
+            >
+              {approved ? 'Mark pending' : 'Mark approved'}
+            </button>
+          </div>
+        )}
 
         {/* Times */}
         {!isDayOff && (

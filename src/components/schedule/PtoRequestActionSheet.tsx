@@ -26,7 +26,8 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
   const [copied, setCopied]     = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // Only days from today onward — a request is for time off that hasn't happened.
+  // Pending PTO from today onward — a request is for not-yet-approved time off
+  // that hasn't happened. Approved days are already on the books.
   useEffect(() => {
     const today = toISO(new Date());
     const year  = today.slice(0, 4);
@@ -35,6 +36,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
       .select('date')
       .eq('user_id', user.id)
       .eq('shift_type', 'pto')
+      .eq('pto_approved', false)
       .gte('date', today)
       .lte('date', `${year}-12-31`)
       .order('date', { ascending: true })
@@ -98,7 +100,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
         {fetching ? (
           <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2">Loading…</p>
         ) : days.length === 0 ? (
-          <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2 italic">No upcoming PTO days entered.</p>
+          <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2 italic">No pending PTO to request — upcoming days are all approved.</p>
         ) : (
           <>
             <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/40 px-3 py-2">

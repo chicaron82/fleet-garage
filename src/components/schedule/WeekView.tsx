@@ -134,11 +134,16 @@ export function WeekView({ today, visibleUserIds }: Props) {
                               if (isMe) setFlipShift(shift);
                               else if (canEdit) setEditShift(shift);
                             }}
-                            className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${SHIFT_COLORS[shift.shiftType]} ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                            className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${
+                              shift.shiftType === 'pto' && !shift.ptoApproved
+                                ? 'border border-dashed border-violet-400 text-violet-600 dark:text-violet-400'
+                                : SHIFT_COLORS[shift.shiftType]
+                            } ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                           >
                             {isFullDayShift(shift.shiftType) ? (
                               <>
                                 {FULL_DAY_LABEL[shift.shiftType]}
+                                {shift.shiftType === 'pto' && !shift.ptoApproved && <span className="block text-violet-400 text-[9px] leading-tight">pending</span>}
                                 {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight">★</span>}
                               </>
                             ) : (
@@ -184,6 +189,10 @@ export function WeekView({ today, visibleUserIds }: Props) {
             </span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm border border-dashed border-violet-400" />
+          <span className="text-gray-500 dark:text-gray-400">PTO pending</span>
+        </div>
       </div>
 
       {/* Modals */}

@@ -108,9 +108,12 @@ export function CalendarView({ today, visibleUserIds }: Props) {
                 {/* Crew dots */}
                 {types.length > 0 && (
                   <div className="flex gap-0.5 mt-auto flex-wrap">
-                    {types.map(t => (
-                      <div key={t} className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[t]}`} />
-                    ))}
+                    {types.map(t => {
+                      const pendingPto = t === 'pto' && dayShifts.some(s => s.shiftType === 'pto' && !s.ptoApproved);
+                      return (
+                        <div key={t} className={`w-1.5 h-1.5 rounded-full ${pendingPto ? 'border border-violet-400' : TYPE_DOT[t]}`} />
+                      );
+                    })}
                   </div>
                 )}
               </button>
@@ -129,6 +132,10 @@ export function CalendarView({ today, visibleUserIds }: Props) {
             </span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full border border-violet-400" />
+          <span className="text-gray-500 dark:text-gray-400">PTO pending</span>
+        </div>
       </div>
 
       {detailDate && (

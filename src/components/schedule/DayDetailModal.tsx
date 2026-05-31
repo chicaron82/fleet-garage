@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Props) {
-  const { shifts } = useSchedule();
+  const { shifts, setPtoApproved } = useSchedule();
   const { user }   = useAuth();
   useEscapeKey(onClose);
 
@@ -60,24 +60,45 @@ export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Pr
           <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No shifts entered for this day.</p>
         ) : (
           <div className="space-y-2">
-            {dayShifts.map(shift => (
-              <div
-                key={shift.id}
-                className={`flex items-center justify-between p-3 rounded-lg ${shift.userId === user?.id ? 'ring-1 ring-yellow-400 dark:ring-yellow-500' : 'bg-gray-50 dark:bg-gray-800/50'}`}
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{shift.user.name}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">{shift.user.role}</p>
+            {dayShifts.map(shift => {
+              const isPto    = shift.shiftType === 'pto';
+              const pending  = isPto && !shift.ptoApproved;
+              const mine     = shift.userId === user?.id;
+              return (
+                <div
+                  key={shift.id}
+                  className={`p-3 rounded-lg ${mine ? 'ring-1 ring-yellow-400 dark:ring-yellow-500' : 'bg-gray-50 dark:bg-gray-800/50'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{shift.user.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{shift.user.role}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      isPto
+                        ? (pending
+                            ? 'border border-dashed border-violet-400 text-violet-600 dark:text-violet-400'
+                            : SHIFT_COLORS['pto'])
+                        : SHIFT_COLORS[shift.shiftType]
+                    }`}>
+                      {shift.shiftType === 'day-off' ? 'Day Off'
+                        : isPto ? (pending ? 'PTO · pending' : 'PTO ✓')
+                        : shift.shiftType === 'sick' ? 'Sick Day'
+                        : `${fmtTime(shift.startTime)} – ${fmtTime(shift.endTime)}`
+                      }
+                    </span>
+                  </div>
+                  {isPto && mine && (
+                    <button
+                      onClick={() => setPtoApproved(shift.id, pending)}
+                      className="mt-2 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                    >
+                      {pending ? 'Mark approved ✓' : 'Undo approval'}
+                    </button>
+                  )}
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${SHIFT_COLORS[shift.shiftType]}`}>
-                  {shift.shiftType === 'day-off' ? 'Day Off'
-                    : shift.shiftType === 'pto'  ? 'PTO'
-                    : shift.shiftType === 'sick' ? 'Sick Day'
-                    : `${fmtTime(shift.startTime)} – ${fmtTime(shift.endTime)}`
-                  }
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

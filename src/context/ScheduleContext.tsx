@@ -59,6 +59,7 @@ function buildRowToShift(resolveUser: (id: string) => Profile | null) {
       notes:           (row.notes             as string | null) ?? undefined,
       actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
       isStat:          (row.is_stat as boolean | null) ?? false,
+      ptoApproved:     (row.pto_approved as boolean | null) ?? false,
       createdAt:       row.created_at as string,
       updatedAt:       row.updated_at as string,
       branchId:        (u?.branchId ?? 'YWG') as BranchId,
@@ -88,6 +89,7 @@ interface ScheduleContextValue {
   createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => Promise<void>;
   bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
+  setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
   logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
@@ -211,6 +213,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Targeted update of just the approval flag — avoids updateShift, which would
+  // null out start/end times when called with a partial payload.
+  const setPtoApproved = async (id: string, approved: boolean) => {
+    const { data, error } = await writeWithRefresh(() =>
+      supabase
+        .from('shifts')
+        .update({ pto_approved: approved, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+    );
+    if (error) throw error;
+    setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+  };
+
   const deleteShift = async (id: string) => {
     const deleted = shifts.find(s => s.id === id);
     const { error } = await writeWithRefresh(() => supabase.from('shifts').delete().eq('id', id));
@@ -309,7 +326,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       ptoEntitlement, ptoUsed, sickDaysUsed,
       setViewMode, setCurrentDate,
       goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
-      createShift, bulkCreateShifts, updateShift, deleteShift, logActualHours,
+      createShift, bulkCreateShifts, updateShift, setPtoApproved, deleteShift, logActualHours,
       canEditShift, refresh,
     }}>
       {children}

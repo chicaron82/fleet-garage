@@ -324,6 +324,7 @@ export interface Shift {
   actualStartTime?: string; // actual hours worked
   actualEndTime?: string;
   isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
+  ptoApproved?: boolean;    // for shiftType 'pto': false = requested, true = boss-approved
   createdAt: string;
   updatedAt: string;
   branchId: BranchId;
