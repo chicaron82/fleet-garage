@@ -144,9 +144,26 @@ export function AnalyticsFleetBalance({ fleetBalanceData, loading, todayEntry, c
             )}
 
             {!todayEntry && !canEnter && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 italic pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
-                No fleet numbers logged yet today.
-              </p>
+              <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
+                {projection ? (
+                  <>
+                    <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500 italic">
+                      <div>
+                        <span className="text-xl font-semibold">Est. {projection.avgOut}</span>
+                        <span className="text-xs ml-1.5">OUT</span>
+                      </div>
+                      <span className="text-slate-300 dark:text-slate-700">·</span>
+                      <div>
+                        <span className="text-xl font-semibold">Est. {projection.avgIn}</span>
+                        <span className="text-xs ml-1.5">IN</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 italic">{projection.label}</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">No fleet numbers logged yet today.</p>
+                )}
+              </div>
             )}
           </>
         )}

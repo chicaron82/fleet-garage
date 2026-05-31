@@ -144,7 +144,7 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           </Text>
           <Text style={s.tpLabel}>Full day</Text>
           {fb && t.fullDayCleaned != null && t.shiftType !== 'opening' && (
-            <Text style={s.tpSub}>of {fb.outCount} needed</Text>
+            <Text style={s.tpSub}>of {fb.isProjected ? '~' : ''}{fb.outCount} needed{fb.isProjected ? ' (est.)' : ''}</Text>
           )}
         </View>
       </View>

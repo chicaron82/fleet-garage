@@ -21,9 +21,10 @@ export function useSidebar() {
   const { washbayLogs, shiftCheckpoints } = useWashbayContext();
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
-  const { getTodayEntry } = useFleetBalance();
+  const { getTodayEntry, getProjection } = useFleetBalance();
 
-  const todayFleetEntry = getTodayEntry();
+  const todayFleetEntry  = getTodayEntry();
+  const fleetProjection  = getProjection();
   const openHighIssues  = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
   const activeHolds     = holds.filter(h => h.status === 'ACTIVE').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = {
@@ -308,7 +309,7 @@ export function useSidebar() {
 
   return {
     user, activeBranch,
-    todayFleetEntry, MODULE_BADGES,
+    todayFleetEntry, fleetProjection, MODULE_BADGES,
     desktopInboxOpen, setDesktopInboxOpen,
     notifMode, setNotifMode,
     liveNotifs,

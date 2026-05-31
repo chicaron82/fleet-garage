@@ -92,6 +92,21 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                 </div>
               </div>
             </div>
+          ) : s.fleetProjection ? (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-green-600 uppercase tracking-wider italic">Est. Today</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Out</span>
+                  <span className="text-sm font-bold text-green-300 italic">~{s.fleetProjection.avgOut}</span>
+                </div>
+                <span className="text-green-700">·</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">In</span>
+                  <span className="text-sm font-bold text-green-300 italic">~{s.fleetProjection.avgIn}</span>
+                </div>
+              </div>
+            </div>
           ) : (
             <p className="text-[10px] text-green-500">No fleet numbers today</p>
           )}
