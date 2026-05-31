@@ -8,9 +8,7 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
-import { buildPtoRequest } from '../../lib/ptoRequest';
-import { hapticMedium } from '../../lib/haptics';
-import { supabase } from '../../lib/supabase';
+import { PtoRequestActionSheet } from './PtoRequestActionSheet';
 
 function weekLabel(date: Date): string {
   const { start, end } = getWeekBounds(date);
@@ -33,37 +31,9 @@ export function ScheduleScreen() {
   const [editingPto,   setEditingPto]   = useState(false);
   const [ptoInput,     setPtoInput]     = useState('');
   const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(new Set());
-  const [ptoCopied, setPtoCopied] = useState(false);
+  const [showPtoSheet, setShowPtoSheet] = useState(false);
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const today = toISO(new Date());
-
-  // Compile the user's PTO into a shareable approval request for the boss (who
-  // isn't in FG/ADP — they take requests by paper/email). Queries the year's PTO
-  // days directly at click time (the shifts list is windowed to the current view,
-  // so it can't see them all); mirrors the off-standard export's share pattern.
-  const handleSharePto = async () => {
-    if (!user || ptoUsed === 0) return;
-    hapticMedium();
-    const year = new Date().getFullYear();
-    const { data } = await supabase
-      .from('shifts')
-      .select('date')
-      .eq('user_id', user.id)
-      .eq('shift_type', 'pto')
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
-      .order('date', { ascending: true });
-    const dates = (data ?? []).map(r => (r as { date: string }).date);
-    if (dates.length === 0) return;
-    const text = buildPtoRequest(user.name, dates, ptoEntitlement, ptoUsed);
-    if (navigator.share) {
-      try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
-      catch { /* fall through to clipboard */ }
-    }
-    await navigator.clipboard.writeText(text);
-    setPtoCopied(true);
-    setTimeout(() => setPtoCopied(false), 3000);
-  };
 
   const toggleGroup = (g: ScheduleGroup) => {
     setActiveGroups(prev => {
@@ -203,12 +173,12 @@ export function ScheduleScreen() {
 
         {/* Share PTO request */}
         <button
-          onClick={handleSharePto}
+          onClick={() => setShowPtoSheet(true)}
           disabled={ptoUsed === 0}
-          title={ptoUsed === 0 ? 'Add PTO days to your schedule first' : 'Share your PTO as a request for approval'}
+          title={ptoUsed === 0 ? 'Add PTO days to your schedule first' : 'Share your upcoming PTO as a request for approval'}
           className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline whitespace-nowrap"
         >
-          {ptoCopied ? 'Copied ✓' : `Share PTO request${ptoUsed ? ` (${ptoUsed})` : ''} →`}
+          Share PTO request →
         </button>
 
         {/* Sick chip */}
@@ -280,6 +250,9 @@ export function ScheduleScreen() {
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
       {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}
+      {showPtoSheet && user && (
+        <PtoRequestActionSheet user={user} entitlement={ptoEntitlement} used={ptoUsed} onClose={() => setShowPtoSheet(false)} />
+      )}
     </div>
   );
 }
