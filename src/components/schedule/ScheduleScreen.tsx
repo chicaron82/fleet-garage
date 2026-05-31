@@ -8,6 +8,8 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
+import { upcomingPtoDates, buildPtoRequest } from '../../lib/ptoRequest';
+import { hapticMedium } from '../../lib/haptics';
 
 function weekLabel(date: Date): string {
   const { start, end } = getWeekBounds(date);
@@ -21,7 +23,7 @@ function monthLabel(date: Date): string {
 }
 
 export function ScheduleScreen() {
-  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
+  const { shifts, viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
@@ -30,8 +32,26 @@ export function ScheduleScreen() {
   const [editingPto,   setEditingPto]   = useState(false);
   const [ptoInput,     setPtoInput]     = useState('');
   const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(new Set());
+  const [ptoCopied, setPtoCopied] = useState(false);
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const today = toISO(new Date());
+
+  // Compile the user's upcoming PTO into a shareable approval request for the boss
+  // (who isn't in FG/ADP — they take requests by paper/email). Mirrors the
+  // off-standard export's Web Share -> clipboard fallback.
+  const upcomingPto = upcomingPtoDates(shifts, user?.id ?? '', today);
+  const handleSharePto = async () => {
+    if (!user || upcomingPto.length === 0) return;
+    hapticMedium();
+    const text = buildPtoRequest(user.name, upcomingPto, ptoEntitlement, ptoUsed);
+    if (navigator.share) {
+      try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
+      catch { /* fall through to clipboard */ }
+    }
+    await navigator.clipboard.writeText(text);
+    setPtoCopied(true);
+    setTimeout(() => setPtoCopied(false), 3000);
+  };
 
   const toggleGroup = (g: ScheduleGroup) => {
     setActiveGroups(prev => {
@@ -168,6 +188,16 @@ export function ScheduleScreen() {
           )}
           <span className="text-violet-500 dark:text-violet-500">· {Math.max(0, ptoEntitlement - ptoUsed)} left</span>
         </div>
+
+        {/* Share PTO request */}
+        <button
+          onClick={handleSharePto}
+          disabled={upcomingPto.length === 0}
+          title={upcomingPto.length === 0 ? 'Add PTO days to your schedule first' : 'Share your upcoming PTO as a request for approval'}
+          className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline whitespace-nowrap"
+        >
+          {ptoCopied ? 'Copied ✓' : `Share PTO request${upcomingPto.length ? ` (${upcomingPto.length})` : ''} →`}
+        </button>
 
         {/* Sick chip */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 text-xs">
