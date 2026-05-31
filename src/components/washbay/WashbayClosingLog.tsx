@@ -18,12 +18,17 @@ const SHIFT_HOURS = 8;
 
 export function WashbayClosingLog() {
   const { holds } = useVehicleHoldContext();
-  const { submitWashbayLog, getTodayWashbayLog } = useWashbayContext();
+  const { submitWashbayLog, getTodayWashbayLog, getLatestGasSheetReading } = useWashbayContext();
   const { user } = useAuth();
   const { isPeakSeason } = useSchedule();
 
-  const [totalPages,           setTotalPages]           = useState(0);
-  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(0);
+  // A fresh closing log picks up from the furthest-along reading today (the
+  // handoff) rather than recounting the running gas sheet from zero.
+  const seed = getLatestGasSheetReading();
+  const seedInit = seed ? convertFromBackend(seed.fullPages, seed.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+
+  const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
+  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(3);

@@ -8,11 +8,14 @@ const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function AfternoonCheckIn() {
-  const { getTodayCheckpoint, submitCheckpoint, handoffNotes } = useWashbayContext();
+  const { getTodayCheckpoint, submitCheckpoint, handoffNotes, getLatestGasSheetReading } = useWashbayContext();
 
   const existing = getTodayCheckpoint();
 
-  const initPages = existing ? convertFromBackend(existing.fullPages, existing.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+  // Own check-in if it exists; otherwise seed from any earlier reading today
+  // (morning/mid) so the count picks up from where the sheet already stands.
+  const seed = existing ?? getLatestGasSheetReading();
+  const initPages = seed ? convertFromBackend(seed.fullPages, seed.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
   const [totalPages,           setTotalPages]           = useState(initPages.totalPages);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(initPages.entriesOnCurrentPage);
   const [submitting,           setSubmitting]           = useState(false);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { convertToBackendFormat, carsFromPageCounter } from '../../lib/gas-sheet';
+import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
 import type { LotStatus } from '../../types';
 
 interface Props {
@@ -18,10 +18,16 @@ const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function HandoffForm({ onClose }: Props) {
-  const { submitHandoff } = useWashbayContext();
+  const { submitHandoff, getLatestGasSheetReading } = useWashbayContext();
 
-  const [totalPages,           setTotalPages]           = useState(0);
-  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(0);
+  // Pick up from the furthest-along reading logged today (the check-in) rather
+  // than recounting the running gas sheet from zero.
+  const seed = getLatestGasSheetReading();
+  const seedInit = seed ? convertFromBackend(seed.fullPages, seed.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+
+  const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
+  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
+  const [baselineCount] = useState(seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0);
   const [teamSize,        setTeamSize]        = useState(3);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
@@ -29,8 +35,9 @@ export function HandoffForm({ onClose }: Props) {
   const [morningHours,    setMorningHours]    = useState(8.0);
   const [submitting,      setSubmitting]      = useState(false);
 
-  const carsIn    = carsFromPageCounter(totalPages, entriesOnCurrentPage);
-  const canSubmit = !submitting && carsIn > 0;
+  const carsIn        = carsFromPageCounter(totalPages, entriesOnCurrentPage);
+  const cleanedSince  = Math.max(0, carsIn - baselineCount);
+  const canSubmit     = !submitting && carsIn > 0;
 
   const handleEntryIncrement = () => {
     if (entriesOnCurrentPage === 19) { setTotalPages(p => p + 1); setEntriesOnCurrentPage(0); hapticMedium(); }
@@ -73,7 +80,9 @@ export function HandoffForm({ onClose }: Props) {
 
           {/* Gas sheet pages */}
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Gas Sheet Pages — This Shift</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              {baselineCount > 0 ? 'Gas Sheet Pages — Current Total' : 'Gas Sheet Pages — This Shift'}
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Pages</label>
@@ -95,7 +104,11 @@ export function HandoffForm({ onClose }: Props) {
               </div>
             </div>
             {carsIn > 0 && (
-              <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-2">= {carsIn} cars cleaned this shift ✓</p>
+              <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-2">
+                {baselineCount > 0
+                  ? `= ${carsIn} on sheet · ${cleanedSince} cleaned since check-in ✓`
+                  : `= ${carsIn} cars cleaned this shift ✓`}
+              </p>
             )}
           </div>
 

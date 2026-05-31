@@ -53,16 +53,22 @@ function PageCounter({
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function MidShiftCheckIn() {
-  const { getMidArrival, getMidDeparture, submitMidCheckpoint, handoffNotes } = useWashbayContext();
+  const { getMidArrival, getMidDeparture, submitMidCheckpoint, handoffNotes, getLatestGasSheetReading } = useWashbayContext();
 
   const existingArrival   = getMidArrival();
   const existingDeparture = getMidDeparture();
 
-  const initArrival = existingArrival
-    ? convertFromBackend(existingArrival.fullPages, existingArrival.lastPageEntries)
+  // Pick up from where the running gas sheet already stands: arrival seeds from
+  // any earlier reading today, departure seeds from the arrival count (it only
+  // unlocks once arrival is logged).
+  const arrivalSeed   = existingArrival ?? getLatestGasSheetReading();
+  const departureSeed = existingDeparture ?? existingArrival;
+
+  const initArrival = arrivalSeed
+    ? convertFromBackend(arrivalSeed.fullPages, arrivalSeed.lastPageEntries)
     : { totalPages: 0, entriesOnCurrentPage: 0 };
-  const initDeparture = existingDeparture
-    ? convertFromBackend(existingDeparture.fullPages, existingDeparture.lastPageEntries)
+  const initDeparture = departureSeed
+    ? convertFromBackend(departureSeed.fullPages, departureSeed.lastPageEntries)
     : { totalPages: 0, entriesOnCurrentPage: 0 };
 
   const [arrPages,    setArrPages]    = useState(initArrival.totalPages);

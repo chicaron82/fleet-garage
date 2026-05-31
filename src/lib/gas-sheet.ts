@@ -17,7 +17,39 @@ export function convertFromBackend(
   return { totalPages: fullPages + 1, entriesOnCurrentPage: lastPageEntries };
 }
 
+/** Entries per full gas-sheet page. */
+export const ENTRIES_PER_PAGE = 19;
+
+/** Cumulative car count from a backend-format reading (full pages + entries on the current page). */
+export function gasSheetCount(fullPages: number, lastPageEntries: number): number {
+  return fullPages * ENTRIES_PER_PAGE + lastPageEntries;
+}
+
 export function carsFromPageCounter(totalPages: number, entriesOnCurrentPage: number): number {
   const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-  return fullPages * 19 + lastPageEntries;
+  return gasSheetCount(fullPages, lastPageEntries);
+}
+
+export interface GasSheetReading {
+  fullPages: number;
+  lastPageEntries: number;
+}
+
+/**
+ * The furthest-along reading wins. The gas sheet is one continuous document
+ * that only grows through the day, so the highest cumulative count across the
+ * day's checkpoints is "where the sheet stands now" — the right place for the
+ * next checkpoint to pick up from instead of recounting from zero.
+ */
+export function latestGasSheetReading(candidates: GasSheetReading[]): GasSheetReading | null {
+  let best: GasSheetReading | null = null;
+  let bestCount = -1;
+  for (const c of candidates) {
+    const count = gasSheetCount(c.fullPages, c.lastPageEntries);
+    if (count > bestCount) {
+      bestCount = count;
+      best = { fullPages: c.fullPages, lastPageEntries: c.lastPageEntries };
+    }
+  }
+  return best;
 }

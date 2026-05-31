@@ -4,8 +4,14 @@ import { supabase } from '../lib/supabase';
 import { mapWashbayLog, mapHandoffNote, mapCheckpoint } from '../lib/garage-mappers';
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
+import { latestGasSheetReading, type GasSheetReading } from '../lib/gas-sheet';
 
-export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & { loadError: boolean; reload: () => void };
+export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & {
+  loadError: boolean;
+  reload: () => void;
+  /** The furthest-along gas-sheet reading logged today, across check-ins, handoffs, and the closing log. */
+  getLatestGasSheetReading: () => GasSheetReading | null;
+};
 
 const WashbayContext = createContext<WashbayContextValue | null>(null);
 
@@ -51,8 +57,22 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const getLatestGasSheetReading = (): GasSheetReading | null => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const candidates: GasSheetReading[] = [];
+    for (const c of checkpointsSlice.shiftCheckpoints) {
+      if (c.date === today) candidates.push(c);
+    }
+    for (const n of washbaySlice.handoffNotes) {
+      if (new Date(n.loggedAt).toLocaleDateString('en-CA') === today) candidates.push(n);
+    }
+    const todayLog = washbaySlice.getTodayWashbayLog();
+    if (todayLog) candidates.push(todayLog);
+    return latestGasSheetReading(candidates);
+  };
+
   return (
-    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice, loadError, reload }}>
+    <WashbayContext.Provider value={{ ...washbaySlice, ...checkpointsSlice, loadError, reload, getLatestGasSheetReading }}>
       {children}
     </WashbayContext.Provider>
   );
