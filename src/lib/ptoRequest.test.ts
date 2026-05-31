@@ -1,26 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { upcomingPtoDates, buildPtoRequest } from './ptoRequest';
-import type { ShiftWithUser } from '../types';
-
-const shift = (over: Partial<ShiftWithUser>): ShiftWithUser =>
-  ({ id: 'x', userId: 'u1', date: '2026-06-09', shiftType: 'pto', ...over } as ShiftWithUser);
-
-describe('upcomingPtoDates', () => {
-  it("returns this user's PTO days from the cutoff onward, sorted", () => {
-    const shifts = [
-      shift({ date: '2026-06-12' }),
-      shift({ date: '2026-06-09' }),
-      shift({ date: '2026-06-10', shiftType: 'sick' }),         // not pto
-      shift({ date: '2026-05-01' }),                            // past
-      shift({ date: '2026-06-15', userId: 'u2' }),              // other user
-    ];
-    expect(upcomingPtoDates(shifts, 'u1', '2026-06-01')).toEqual(['2026-06-09', '2026-06-12']);
-  });
-
-  it('is empty when there are no upcoming PTO days', () => {
-    expect(upcomingPtoDates([], 'u1', '2026-06-01')).toEqual([]);
-  });
-});
+import { buildPtoRequest } from './ptoRequest';
 
 describe('buildPtoRequest', () => {
   it('lists the requested days and the post-request balance', () => {

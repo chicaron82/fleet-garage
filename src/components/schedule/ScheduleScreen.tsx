@@ -8,8 +8,9 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
-import { upcomingPtoDates, buildPtoRequest } from '../../lib/ptoRequest';
+import { buildPtoRequest } from '../../lib/ptoRequest';
 import { hapticMedium } from '../../lib/haptics';
+import { supabase } from '../../lib/supabase';
 
 function weekLabel(date: Date): string {
   const { start, end } = getWeekBounds(date);
@@ -23,7 +24,7 @@ function monthLabel(date: Date): string {
 }
 
 export function ScheduleScreen() {
-  const { shifts, viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
+  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
@@ -36,14 +37,25 @@ export function ScheduleScreen() {
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const today = toISO(new Date());
 
-  // Compile the user's upcoming PTO into a shareable approval request for the boss
-  // (who isn't in FG/ADP — they take requests by paper/email). Mirrors the
-  // off-standard export's Web Share -> clipboard fallback.
-  const upcomingPto = upcomingPtoDates(shifts, user?.id ?? '', today);
+  // Compile the user's PTO into a shareable approval request for the boss (who
+  // isn't in FG/ADP — they take requests by paper/email). Queries the year's PTO
+  // days directly at click time (the shifts list is windowed to the current view,
+  // so it can't see them all); mirrors the off-standard export's share pattern.
   const handleSharePto = async () => {
-    if (!user || upcomingPto.length === 0) return;
+    if (!user || ptoUsed === 0) return;
     hapticMedium();
-    const text = buildPtoRequest(user.name, upcomingPto, ptoEntitlement, ptoUsed);
+    const year = new Date().getFullYear();
+    const { data } = await supabase
+      .from('shifts')
+      .select('date')
+      .eq('user_id', user.id)
+      .eq('shift_type', 'pto')
+      .gte('date', `${year}-01-01`)
+      .lte('date', `${year}-12-31`)
+      .order('date', { ascending: true });
+    const dates = (data ?? []).map(r => (r as { date: string }).date);
+    if (dates.length === 0) return;
+    const text = buildPtoRequest(user.name, dates, ptoEntitlement, ptoUsed);
     if (navigator.share) {
       try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
       catch { /* fall through to clipboard */ }
@@ -192,11 +204,11 @@ export function ScheduleScreen() {
         {/* Share PTO request */}
         <button
           onClick={handleSharePto}
-          disabled={upcomingPto.length === 0}
-          title={upcomingPto.length === 0 ? 'Add PTO days to your schedule first' : 'Share your upcoming PTO as a request for approval'}
+          disabled={ptoUsed === 0}
+          title={ptoUsed === 0 ? 'Add PTO days to your schedule first' : 'Share your PTO as a request for approval'}
           className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline whitespace-nowrap"
         >
-          {ptoCopied ? 'Copied ✓' : `Share PTO request${upcomingPto.length ? ` (${upcomingPto.length})` : ''} →`}
+          {ptoCopied ? 'Copied ✓' : `Share PTO request${ptoUsed ? ` (${ptoUsed})` : ''} →`}
         </button>
 
         {/* Sick chip */}

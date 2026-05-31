@@ -1,13 +1,3 @@
-import type { ShiftWithUser } from '../types';
-
-/** This user's PTO days from `fromISO` (inclusive) onward, as sorted ISO date strings. */
-export function upcomingPtoDates(shifts: ShiftWithUser[], userId: string, fromISO: string): string[] {
-  return shifts
-    .filter(s => s.shiftType === 'pto' && s.userId === userId && s.date >= fromISO)
-    .map(s => s.date)
-    .sort();
-}
-
 function formatPtoDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-CA', {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
