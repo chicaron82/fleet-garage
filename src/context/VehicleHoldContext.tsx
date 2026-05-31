@@ -157,6 +157,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
     allVehicles, holds, activeBranch,
     userId: user?.id ?? '',
     userName: user?.name ?? '',
+    userEmployeeId: user?.employeeId ?? '',
     setAllVehicles, setAllHolds,
   });
 
