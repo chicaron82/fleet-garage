@@ -224,7 +224,9 @@ export function useVehicleOperations({
   const markReturned = async (holdId: string) => {
     const returnedAt = new Date().toISOString();
     const hold = holds.find(h => h.id === holdId);
-    if (!hold) return;
+    // Throw like addRelease/markRepaired so confirmReturn's caller can tell a
+    // vanished hold from a successful return, instead of a silent no-op.
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
     // Primary write — throw on failure so the caller (useReEval.confirmReturn)
     // can surface it rather than flipping local state on a write that didn't land.
     const { error } = await writeWithRefresh(() =>
