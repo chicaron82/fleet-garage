@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight, hapticMedium, hapticHeavy } from '../../lib/haptics';
+import { reasonsFor } from './releaseReasons';
+import { releaseTypeTheme } from './releaseTheme';
+import { ReleaseConfirmPanel } from './ReleaseConfirmPanel';
 import type { ReleaseType } from '../../types';
 
 interface Props {
@@ -10,45 +13,6 @@ interface Props {
   onClose: () => void;
   streak?: number;
 }
-
-const EXCEPTION_REASONS = [
-  'Damage documented — vehicle serviceable for rental',
-  'Awaiting parts — vehicle cleared for limited use',
-  'Customer accepted known damage',
-  'Repair appointment scheduled',
-  'Insurance claim filed — vehicle cleared',
-  'Management decision — operational need',
-];
-
-const PRE_EXISTING_REASONS = [
-  'Known damage — vehicle cleared for regular rental',
-  'Age-related wear — below repair threshold',
-  'Minor cosmetic — no safety concern',
-  'Repair cost exceeds vehicle value',
-  'Management decision — accepted condition',
-  'Insurance write-off pending — vehicle in use',
-];
-
-const DETAIL_EXCEPTION_REASONS = [
-  'Vacuumed / cleaned in-house — cleared',
-  'Contract closed — detail not pursued',
-  'Acceptable for rental as-is',
-  'Sent for professional detail',
-];
-
-const SALE_CAR_RELEASE_REASONS = [
-  'Auction — short term circulation',
-  'Released — auction not yet scheduled',
-];
-
-const MECHANICAL_RELEASE_REASONS = [
-  'PM due — releasing short term, service within 2 days',
-  'PM due — releasing short term, service within 1 week',
-  'Low tread — short term, return before next rental cycle',
-  'Minor mechanical — acceptable for short term use',
-  'Fleet shortage — releasing pending next available service slot',
-  'Management decision — operational need',
-];
 
 export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const { user } = useAuth();
@@ -71,12 +35,9 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const isException  = releaseType === 'EXCEPTION';
   const isMechanical = releaseType === 'MECHANICAL_RELEASE';
   const isPre        = releaseType === 'PRE_EXISTING';
+  const theme        = releaseTypeTheme(releaseType);
 
-  const reasons = isMechanical
-    ? MECHANICAL_RELEASE_REASONS
-    : isException
-      ? (isSaleCarHold ? SALE_CAR_RELEASE_REASONS : isDetailHold ? DETAIL_EXCEPTION_REASONS : EXCEPTION_REASONS)
-      : PRE_EXISTING_REASONS;
+  const reasons = reasonsFor(releaseType, { isSaleCarHold, isDetailHold });
 
   const finalReason = reason === '__custom__' ? customReason.trim() : reason;
   const needsReturn = isException || isMechanical;
@@ -121,154 +82,40 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
     }
   };
 
-  const borderClass =
-    isException  ? 'border-amber-200 dark:border-amber-800/50' :
-    isMechanical ? 'border-orange-200 dark:border-orange-800/50' :
-                   'border-blue-200';
-
-  const headerClass =
-    isException  ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-100' :
-    isMechanical ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-100' :
-                   'bg-blue-50 border-blue-100';
-
-  const titleClass =
-    isException  ? 'text-amber-900' :
-    isMechanical ? 'text-orange-900 dark:text-orange-100' :
-                   'text-blue-900';
-
-  const subtitleClass =
-    isException  ? 'text-amber-700 dark:text-amber-400' :
-    isMechanical ? 'text-orange-700 dark:text-orange-400' :
-                   'text-blue-700';
-
-  const closeClass =
-    isException  ? 'text-amber-400 hover:text-amber-700 dark:text-amber-400' :
-    isMechanical ? 'text-orange-400 hover:text-orange-700 dark:text-orange-400' :
-                   'text-blue-400 hover:text-blue-700';
-
-  const focusRing =
-    isException  ? 'focus:ring-amber-400' :
-    isMechanical ? 'focus:ring-orange-400' :
-                   'focus:ring-blue-400';
-
-  const submitClass =
-    isException  ? 'bg-amber-500 hover:bg-amber-400 text-white' :
-    isMechanical ? 'bg-orange-500 hover:bg-orange-400 text-white' :
-                   'bg-blue-500 hover:bg-blue-400 text-white';
-
-  const headerDescription =
-    isException  ? 'Vehicle will move to Out on Exception status' :
-    isMechanical ? 'Mechanical hold — short term, must return for service' :
-                   'Vehicle will be marked Pre-existing — renting as-is';
-
-  const releaseTypeLabel =
-    isException  ? 'Exception' :
-    isMechanical ? 'Mechanical Release' :
-                   'Pre-existing';
-
   if (confirming) {
     return (
-      <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${borderClass}`}>
-        <div className={`px-5 py-4 border-b ${headerClass}`}>
-          <h3 className={`font-semibold text-sm ${titleClass}`}>Confirm Release</h3>
-          <p className={`text-xs mt-0.5 ${subtitleClass}`}>
-            This vehicle has documented damage and will go out on the lot.
-          </p>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {vehicle && (
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Vehicle</p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {vehicle.unitNumber} · {vehicle.licensePlate}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}
-              </p>
-            </div>
-          )}
-
-          {hold?.damageDescription && (
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Damage</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{hold.damageDescription}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Release Type</p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{releaseTypeLabel}</p>
-            </div>
-            {expectedReturn && (
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Expected Return</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{expectedReturn}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Reason</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{finalReason}</p>
-          </div>
-
-          {notes.trim() && (
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Notes</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{notes}</p>
-            </div>
-          )}
-
-          <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-            Approving as <span className="font-medium text-gray-700 dark:text-gray-300">{user!.name}</span> · {user!.role}
-          </div>
-
-          {submitError && (
-            <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-3 py-2">
-              {submitError}
-            </p>
-          )}
-
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={submitting}
-              className="flex-1 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Back
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={submitting}
-              className={`flex-1 py-2.5 font-semibold text-sm rounded-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${submitClass}`}
-            >
-              {submitting ? 'Releasing…' : 'Confirm — Release Vehicle'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ReleaseConfirmPanel
+        releaseType={releaseType}
+        vehicle={vehicle}
+        hold={hold}
+        expectedReturn={expectedReturn}
+        finalReason={finalReason}
+        notes={notes}
+        userName={user!.name}
+        userRole={user!.role}
+        submitting={submitting}
+        submitError={submitError}
+        onBack={() => setConfirming(false)}
+        onConfirm={handleConfirm}
+      />
     );
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${borderClass}`}>
-      <div className={`px-5 py-4 border-b ${headerClass}`}>
+    <div className={`bg-white dark:bg-gray-900 transition-colors rounded-xl border overflow-hidden ${theme.border}`}>
+      <div className={`px-5 py-4 border-b ${theme.header}`}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className={`font-semibold text-sm ${titleClass}`}>
+            <h3 className={`font-semibold text-sm ${theme.title}`}>
               Approve Release
             </h3>
-            <p className={`text-xs mt-0.5 ${subtitleClass}`}>
-              {headerDescription}
+            <p className={`text-xs mt-0.5 ${theme.subtitle}`}>
+              {theme.headerDescription}
             </p>
           </div>
           <button
             onClick={onClose}
-            className={`transition text-lg leading-none cursor-pointer ${closeClass}`}
+            className={`transition text-lg leading-none cursor-pointer ${theme.close}`}
           >
             ×
           </button>
@@ -371,7 +218,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
           <select
             value={reason}
             onChange={e => setReason(e.target.value)}
-            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white dark:bg-gray-900 ${focusRing}`}
+            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white dark:bg-gray-900 ${theme.focusRing}`}
           >
             <option value="">Select a reason…</option>
             {reasons.map(r => (
@@ -385,7 +232,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
               placeholder="Describe the release reason…"
               value={customReason}
               onChange={e => setCustomReason(e.target.value)}
-              className={`mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${focusRing}`}
+              className={`mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${theme.focusRing}`}
             />
           )}
         </div>
@@ -401,7 +248,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
               value={expectedReturn}
               onChange={e => setExpectedReturn(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:border-transparent transition ${focusRing}`}
+              className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:border-transparent transition ${theme.focusRing}`}
             />
           </div>
         )}
@@ -416,7 +263,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
             placeholder="Additional context for the record…"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition resize-none ${focusRing}`}
+            className={`w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition resize-none ${theme.focusRing}`}
           />
         </div>
 
@@ -444,7 +291,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`flex-1 py-2.5 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed ${submitClass}`}
+            className={`flex-1 py-2.5 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed ${theme.submit}`}
           >
             {submitting ? 'Approving…' : 'Approve Release'}
           </button>

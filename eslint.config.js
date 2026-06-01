@@ -51,7 +51,6 @@ export default defineConfig([
       'src/components/dashboard/HoldsView.tsx',              // 424
       'src/components/holds/NewHoldForm.tsx',                // 443
       'src/components/holds/NewIssueReHoldForm.tsx',         // 394
-      'src/components/holds/ReleaseForm.tsx',                // 412
       'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
       'src/components/shared/WhiteboardView.tsx',            // 356
