@@ -170,3 +170,36 @@ describe('factsFromHold', () => {
       .toMatchObject({ isSaleCar: true, isOpenException: true });
   });
 });
+
+// ── Read/write parity ───────────────────────────────────────────────────────────
+// The whole point of this module is that the read path (factsFromRow, over raw rows)
+// and the write path (factsFromHold, over domain Holds) feed the SAME cascade and so
+// can't drift. The adapters are tested separately above; this asserts they agree on
+// the same logical hold — the contract that keeps the fleet view and stored status in sync.
+
+describe('factsFromRow / factsFromHold parity', () => {
+  it('produce identical facts for the same logical hold', () => {
+    // Released sale-car on an open exception (the auction case).
+    expect(factsFromRow({ status: 'RELEASED', hold_types: ['sale_car'], releases: [{ release_type: 'EXCEPTION', actual_return: null }] }))
+      .toEqual(factsFromHold({ status: 'RELEASED', holdTypes: ['sale_car'], release: { releaseType: 'EXCEPTION', actualReturn: null } }));
+
+    // Active damage hold.
+    expect(factsFromRow({ status: 'ACTIVE', hold_types: ['damage'], releases: null }))
+      .toEqual(factsFromHold({ status: 'ACTIVE', holdTypes: ['damage'] }));
+
+    // Returned exception (no longer open).
+    expect(factsFromRow({ status: 'RELEASED', hold_types: ['mechanical'], releases: [{ release_type: 'EXCEPTION', actual_return: '2026-05-01T00:00:00Z' }] }))
+      .toEqual(factsFromHold({ status: 'RELEASED', holdTypes: ['mechanical'], release: { releaseType: 'EXCEPTION', actualReturn: '2026-05-01T00:00:00Z' } }));
+
+    // Pre-existing release.
+    expect(factsFromRow({ status: 'RELEASED', hold_types: ['damage'], releases: [{ release_type: 'PRE_EXISTING', actual_return: null }] }))
+      .toEqual(factsFromHold({ status: 'RELEASED', holdTypes: ['damage'], release: { releaseType: 'PRE_EXISTING', actualReturn: null } }));
+  });
+
+  it('resolve to the same derived status end-to-end', () => {
+    const row = factsFromRow({ status: 'RELEASED', hold_types: ['sale_car'], releases: [{ release_type: 'EXCEPTION', actual_return: null }] });
+    const hold = factsFromHold({ status: 'RELEASED', holdTypes: ['sale_car'], release: { releaseType: 'EXCEPTION', actualReturn: null } });
+    expect(deriveHoldStatus([row])).toBe(deriveHoldStatus([hold]));
+    expect(deriveHoldStatus([row])).toBe('auction-short-term');
+  });
+});

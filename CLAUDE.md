@@ -47,12 +47,18 @@ Worst offenders to tackle first: `CheckInIntakeForm.tsx` (455),
 `NewHoldForm.tsx` (443), `TripStartForm.tsx` (436), `HoldsView.tsx` (424),
 `ReleaseForm.tsx` (412) — all dense forms/views that split cleanly into sections.
 
-## New Pure Function → Test
+## Tests
 
-When a new pure function lands in `src/lib/`, a test file goes with it in the
-same commit. FG currently under-tests its libs — notably the `vehicle-status` /
-`fleet-master` status cascade, which statuses the entire fleet and has no test.
-Don't add to that gap.
+Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 34 of 38 `src/lib`
+modules are tested; the only gaps are IO/glue (`audit-export`, `demo-accounts`,
+`image`, `supabase`). When a new pure function lands in `src/lib/`, add its test
+under `tests/lib/` in the same commit.
+
+> Convention note: 6 libs also have a `*.test.ts` co-located in `src/lib/`
+> (`garage-mappers`, `gas-sheet`, `holdFilters`, `ot`, `ptoRequest`, `stats`) —
+> a pre-existing split with `tests/lib/`. New tests go in `tests/`; consolidating
+> the stragglers is a separate cleanup.
 
 ## Build & Test
 
