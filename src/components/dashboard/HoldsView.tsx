@@ -4,8 +4,6 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canManageVehicles } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import type { Hold, Vehicle, VehicleStatus } from '../../types';
-import { StatusBadge } from '../holds/StatusBadge';
-import { holdContextEmojis } from '../../lib/holdBadge';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
@@ -15,6 +13,9 @@ import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
 import { StaleHoldsAlert } from './StaleHoldsAlert';
 import { BarcodeToast } from '../shared/BarcodeToast';
 import { PendingVehicleSheet } from '../shared/PendingVehicleSheet';
+import { HoldsVehicleRow } from './HoldsVehicleRow';
+import { ArchivedVehiclesSection } from './ArchivedVehiclesSection';
+import { HoldsPagination } from './HoldsPagination';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -146,6 +147,16 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
 
   const { getName } = useUserResolver();
 
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenVehicle = (vehicle: Vehicle) => {
+    if (search.trim()) setPendingVehicle(vehicle);
+    else onSelectVehicle(vehicle.id);
+  };
+
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 gap-4 text-center px-4">
@@ -160,34 +171,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
       </div>
     );
   }
-
-  const paginationControls = totalPages > 1 ? (
-    <div className="flex items-center justify-between py-2 transition-colors">
-      <button
-        disabled={currentPage === 1}
-        onClick={() => {
-          setCurrentPage(p => p - 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        Previous
-      </button>
-      <span className="text-sm text-gray-500 dark:text-gray-400">
-        Page <span className="font-medium text-gray-900 dark:text-gray-100">{currentPage}</span> of {totalPages}
-      </span>
-      <button
-        disabled={currentPage === totalPages}
-        onClick={() => {
-          setCurrentPage(p => p + 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        Next
-      </button>
-    </div>
-  ) : null;
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -265,94 +248,25 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
             <p className="text-center text-gray-400 text-sm py-8 transition-colors">Loading…</p>
           )}
           
-          {paginationControls && (
+          {totalPages > 1 && (
             <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-800 transition-colors">
-              {paginationControls}
+              <HoldsPagination currentPage={currentPage} totalPages={totalPages} onChange={goToPage} />
             </div>
           )}
 
-          {paginatedVehicles.map(vehicle => {
-            const latestHold = getDisplayHold(vehicle.id, vehicle.status);
-            const streak = releaseStreak(vehicle.id);
-            const isPinned = pinnedVehicleIds.has(vehicle.id);
-            const isManagement = canRelease(user!.role);
-            return (
-              <div key={vehicle.id} className="flex items-stretch gap-1.5">
-                {isManagement && (
-                  <button
-                    type="button"
-                    onClick={() => togglePin(vehicle.id)}
-                    aria-label={isPinned ? 'Unpin' : 'Pin to top'}
-                    className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${
-                      isPinned
-                        ? 'text-red-500'
-                        : 'text-gray-200 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500'
-                    }`}
-                  >
-                    📌
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    hapticLight();
-                    if (search.trim()) setPendingVehicle(vehicle);
-                    else onSelectVehicle(vehicle.id);
-                  }}
-                  className={`flex-1 bg-white dark:bg-gray-900 rounded-xl border p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group ${
-                    isPinned
-                      ? 'border-red-300 dark:border-red-700/60'
-                      : 'border-gray-200 dark:border-gray-800'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 overflow-hidden">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-base group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
-                        <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
-                        <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
-                        {(() => {
-                          const emojis = holdContextEmojis(vehicle.status, latestHold?.holdTypes ?? [], latestHold?.detailReason, latestHold?.mechanicalSubType);
-                          return emojis.length > 0
-                            ? <span className="text-sm leading-none tracking-tight">{emojis.join(' ')}</span>
-                            : null;
-                        })()}
-                      </div>
-                      <p className="text-base font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
-                      {latestHold && (
-                        <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
-                          {latestHold.damageDescription.slice(0, 40)}{latestHold.damageDescription.length > 40 ? '…' : ''}
-                        </p>
-                      )}
-                      {latestHold && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                          Flagged by {getName(latestHold.flaggedById, latestHold.flaggedByName)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} mechanicalSubType={latestHold?.mechanicalSubType} />
-                      {streak >= 2 && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          streak >= 3
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                        }`}>
-                          {streak}× unrepaired
-                        </span>
-                      )}
-                      {vehicle.coverPhotoUrl && (
-                        <img
-                          src={vehicle.coverPhotoUrl}
-                          alt="Vehicle"
-                          className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-700 mt-0.5"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </button>
-              </div>
-            );
-          })}
+          {paginatedVehicles.map(vehicle => (
+            <HoldsVehicleRow
+              key={vehicle.id}
+              vehicle={vehicle}
+              latestHold={getDisplayHold(vehicle.id, vehicle.status)}
+              streak={releaseStreak(vehicle.id)}
+              isPinned={pinnedVehicleIds.has(vehicle.id)}
+              isManagement={canRelease(user!.role)}
+              onTogglePin={togglePin}
+              onOpen={handleOpenVehicle}
+              getName={getName}
+            />
+          ))}
           {filtered.length === 0 && search.trim().length >= 2 && (
             <div className="text-center py-8 space-y-3">
               <p className="text-gray-400 text-sm">"{search}" not in the system.</p>
@@ -381,58 +295,21 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
             </div>
           )}
           
-          {paginationControls && (
+          {totalPages > 1 && (
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
-              {paginationControls}
+              <HoldsPagination currentPage={currentPage} totalPages={totalPages} onChange={goToPage} />
             </div>
           )}
         </div>
 
         {/* Archived Vehicles */}
         {canManageVehicles(user!.role) && archivedVehicles.length > 0 && (
-          <section className="mt-6 px-4 pb-2">
-            <button
-              type="button"
-              onClick={() => setArchivedOpen(o => !o)}
-              className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest cursor-pointer"
-            >
-              <span>{archivedOpen ? '▾' : '▸'}</span>
-              <span>Archived · {archivedVehicles.length}</span>
-            </button>
-            {archivedOpen && (
-              <div className="mt-3 space-y-2">
-                {archivedVehicles.map(v => (
-                  <div
-                    key={v.id}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        {v.unitNumber}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {v.year} {v.make} {v.model} · {v.licensePlate}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                        Archived {v.archivedAt
-                          ? new Date(v.archivedAt).toLocaleDateString('en-CA', {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                            })
-                          : ''}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => { hapticLight(); await restoreVehicle(v.id); }}
-                      className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer shrink-0 ml-3"
-                    >
-                      Restore
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <ArchivedVehiclesSection
+            archivedVehicles={archivedVehicles}
+            open={archivedOpen}
+            onToggle={() => setArchivedOpen(o => !o)}
+            onRestore={restoreVehicle}
+          />
         )}
 
         {/* Barcode toast */}

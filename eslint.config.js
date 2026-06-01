@@ -48,7 +48,6 @@ export default defineConfig([
       'src/components/analytics/ShiftReportPDFSections.tsx', // 332
       'src/components/audit/AuditForm.tsx',                  // 338
       'src/components/check-in/CheckInIntakeForm.tsx',       // 455
-      'src/components/dashboard/HoldsView.tsx',              // 424
       'src/components/holds/NewIssueReHoldForm.tsx',         // 394
       'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
