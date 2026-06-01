@@ -56,12 +56,16 @@ export function useVehicleOperations({
   };
 
   const updateVehicleEVAssets = async (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => {
-    await writeWithRefresh(() =>
+    const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({
         has_mobile_cable:  hasMobileCable,
         has_j1772_adapter: hasJ1772Adapter,
       }).eq('id', vehicleId)
     );
+    // Gate the optimistic update on success. `vehicles` has no realtime channel
+    // (only `holds` does), so a silently-failed write here would not self-heal —
+    // local state would diverge from the DB until a full reload.
+    if (error) return;
     setAllVehicles(prev => prev.map(v =>
       v.id === vehicleId ? { ...v, hasMobileCable, hasJ1772Adapter } : v
     ));
