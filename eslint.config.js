@@ -53,7 +53,6 @@ export default defineConfig([
     // comment = code-line count at adoption (2026-05-31); it should only go down.
     files: [
       'src/components/movement/TripStartForm.tsx',           // 436
-      'src/hooks/useDriverLiveTrip.ts',                      // 336
     ],
     rules: {
       'max-lines': ['warn', { max: 330, skipBlankLines: true, skipComments: true }],

@@ -3,16 +3,13 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
 import { elapsedSince, TRIP_DURATION_THRESHOLDS } from '../lib/vsa-trip';
+import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import { pushNotification } from '../lib/garage-uploads';
 import { detectTeslaByPlate, searchVehicles } from '../lib/ev-detection';
 import type { VehicleSearchResult } from '../lib/ev-detection';
 import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
 import type { TripRun } from '../data/trips';
 import type { EvAssetStatus, User } from '../types';
-import type { Database } from '../types/database.types';
-
-type VsaTripInsert = Database['public']['Tables']['vsa_trips']['Insert'];
-type VsaTripUpdate = Database['public']['Tables']['vsa_trips']['Update'];
 
 export const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
 export type Location = typeof LOCATIONS[number];
@@ -117,36 +114,6 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
     ...overrides,
   });
-
-  /**
-   * Attempts a Supabase write; falls back to offline queue on network errors.
-   * Returns { ok: true } on success (online or queued), or { ok: false, error } on real failure.
-   */
-  const writeOrEnqueue = async (
-    action: 'insert' | 'update',
-    payload: Record<string, unknown>,
-    eqField?: string,
-    eqValue?: string,
-  ): Promise<{ ok: boolean }> => {
-    if (!navigator.onLine) {
-      enqueueOfflineAction({ table: 'vsa_trips', action, payload, eqField, eqValue });
-      return { ok: true };
-    }
-    const res = action === 'insert'
-      ? await writeWithRefresh(() => supabase.from('vsa_trips').insert(payload as unknown as VsaTripInsert))
-      : await writeWithRefresh(() => {
-          let q = supabase.from('vsa_trips').update(payload as unknown as VsaTripUpdate);
-          if (eqField && eqValue !== undefined) q = q.eq(eqField, eqValue);
-          return q;
-        });
-    if (!res.error) return { ok: true };
-    const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-    if (isNetworkErr) {
-      enqueueOfflineAction({ table: 'vsa_trips', action, payload, eqField, eqValue });
-      return { ok: true };
-    }
-    return { ok: false };
-  };
 
   const canStart = plate.trim().length > 0
     && routeStep === 'confirmed'
