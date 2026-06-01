@@ -1,7 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { DAMAGE_PRESETS } from '../../lib/hold-presets';
+import { buildReHoldSubmission, reHoldPhotoBypassActive, canSubmitReHold, type ReHoldDraft } from '../../lib/reHoldDescription';
+import { ReHoldPhotosField } from './ReHoldPhotosField';
 import type { HoldType, User } from '../../types';
 
 const MAX_PHOTOS = 4;
@@ -40,9 +42,6 @@ export function NewIssueReHoldForm({
   const [noNewDamageChecked, setNoNewDamageChecked] = useState(false);
   const [saleCarReturnChecked, setSaleCarReturnChecked] = useState(false);
 
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
-
   const toggleDamageType = (preset: string) => {
     setDamageTypes((prev) =>
       prev.includes(preset) ? prev.filter((d) => d !== preset) : [...prev, preset]
@@ -59,62 +58,26 @@ export function NewIssueReHoldForm({
     e.target.value = '';
   };
 
-  const handleLocalSubmit = async () => {
-    if (noNewDamageChecked) {
-      const desc = reHoldNotes.trim()
-        ? `No new damage — ${reHoldNotes.trim()}`
-        : 'No new damage — returned to hold';
-      await onSubmit(desc, '', photos, [newIssueHoldType]);
-      return;
-    }
-    if (saleCarReturnChecked) {
-      const desc = reHoldNotes.trim()
-        ? `Sale car — ${reHoldNotes.trim()}`
-        : 'Sale car — returned from short-term circulation';
-      await onSubmit(desc, '', photos, [newIssueHoldType]);
-      return;
-    }
-
-    let finalDescription: string;
-    if (newIssueHoldType === 'damage') {
-      finalDescription =
-        damageTypes.includes('Other') && customDamage.trim()
-          ? [
-              ...damageTypes.filter((d) => d !== 'Other'),
-              customDamage.trim(),
-            ].join(', ')
-          : damageTypes.join(', ');
-    } else if (newIssueHoldType === 'detail' && detailOdourChecked) {
-      finalDescription = newIssueDescription.trim()
-        ? `Odour/smoke/vape — ${newIssueDescription.trim()}`
-        : 'Odour/smoke/vape';
-    } else if (newIssueHoldType === 'mechanical' && mechanicalPMChecked) {
-      finalDescription = newIssueDescription.trim()
-        ? `PM due — ${newIssueDescription.trim()}`
-        : 'PM due';
-    } else if (newIssueHoldType === 'mechanical' && mechanicalSafetyRecallChecked) {
-      finalDescription = newIssueDescription.trim()
-        ? `Safety / recall — ${newIssueDescription.trim()}`
-        : 'Safety / recall — no visible defect';
-    } else {
-      finalDescription =
-        newIssueDescription.trim() ||
-        (newIssueHoldType === 'detail' ? 'Detail required' : 'Mechanical concern');
-    }
-
-    await onSubmit(finalDescription, reHoldNotes, photos, [newIssueHoldType]);
+  const draft: ReHoldDraft = {
+    holdType: newIssueHoldType,
+    damageTypes,
+    customDamage,
+    description: newIssueDescription,
+    notes: reHoldNotes,
+    detailOdour: detailOdourChecked,
+    mechanicalPM: mechanicalPMChecked,
+    mechanicalSafetyRecall: mechanicalSafetyRecallChecked,
+    noNewDamage: noNewDamageChecked,
+    saleCarReturn: saleCarReturnChecked,
   };
 
-  const photoBypassActive =
-    (newIssueHoldType === 'detail' && detailOdourChecked) ||
-    (newIssueHoldType === 'mechanical' && (mechanicalPMChecked || mechanicalSafetyRecallChecked)) ||
-    noNewDamageChecked ||
-    saleCarReturnChecked;
+  const handleLocalSubmit = async () => {
+    const { description, notes } = buildReHoldSubmission(draft);
+    await onSubmit(description, notes, photos, [newIssueHoldType]);
+  };
 
-  const canSubmitReHold =
-    (newIssueHoldType === 'damage' && !photoBypassActive ? damageTypes.length > 0 : true) &&
-    (photos.length > 0 || photoBypassActive) &&
-    !submitting;
+  const photoBypassActive = reHoldPhotoBypassActive(draft);
+  const canSubmit = canSubmitReHold(draft, { photoCount: photos.length, submitting });
 
   return (
     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-4">
@@ -318,72 +281,13 @@ export function NewIssueReHoldForm({
       )}
 
       {/* Photos */}
-      <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-          {photoBypassActive
-            ? `Photos (optional · max ${MAX_PHOTOS})`
-            : `Photos * (required · max ${MAX_PHOTOS})`}
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {photos.map((src, i) => (
-            <div key={i} className="relative">
-              <img
-                src={src}
-                alt={`New damage photo ${i + 1}`}
-                className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-              />
-              <button
-                type="button"
-                onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {photos.length < MAX_PHOTOS && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
-              >
-                <span className="text-lg leading-none">📷</span>
-                <span className="text-xs font-medium">Take Photo</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => galleryRef.current?.click()}
-                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
-              >
-                <span className="text-lg leading-none">🖼</span>
-                <span className="text-xs font-medium">Gallery</span>
-              </button>
-            </div>
-          )}
-        </div>
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handlePhotoAdd}
-          className="hidden"
-        />
-        <input
-          ref={galleryRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handlePhotoAdd}
-          className="hidden"
-        />
-        {photos.length === 0 && !photoBypassActive && (
-          <p className="text-xs text-red-500 dark:text-red-400 mt-1">
-            At least one photo required.
-          </p>
-        )}
-      </div>
+      <ReHoldPhotosField
+        photos={photos}
+        maxPhotos={MAX_PHOTOS}
+        bypassActive={photoBypassActive}
+        onAdd={handlePhotoAdd}
+        onRemove={(i) => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
+      />
 
       {/* Entering as */}
       <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -402,7 +306,7 @@ export function NewIssueReHoldForm({
         </button>
         <button
           type="button"
-          disabled={!canSubmitReHold}
+          disabled={!canSubmit}
           onClick={handleLocalSubmit}
           className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
         >
