@@ -37,6 +37,15 @@ export default defineConfig([
     },
   },
   {
+    // Pure renderer with many cases — the CLAUDE.md cap carve-out. A flat list of
+    // ~12 dumb @react-pdf section components + tiny format helpers; no state, no
+    // hooks, no logic to hide. Exempt (justified), don't split for the number's sake.
+    files: ['src/components/analytics/ShiftReportPDFSections.tsx'],
+    rules: {
+      'max-lines': 'off',
+    },
+  },
+  {
     // Grandfathered debt — files that predate the cap. WARN (not error) so the build
     // stays green while keeping each one visible at the 330 line. This list is the
     // burn-down backlog: refactor toward 330 and DELETE each path as it drops under.
@@ -45,7 +54,6 @@ export default defineConfig([
     files: [
       'src/components/analytics/AnalyticsView.tsx',          // 342
       'src/components/analytics/DriverCoverageSection.tsx',  // 339
-      'src/components/analytics/ShiftReportPDFSections.tsx', // 332
       'src/components/audit/AuditForm.tsx',                  // 338
       'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
