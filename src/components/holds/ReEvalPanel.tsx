@@ -159,6 +159,7 @@ function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
           color="teal"
           confirmLabel={re.processing ? 'Saving...' : 'Confirm Return'}
           processing={re.processing}
+          error={re.actionError}
           onConfirm={() => re.confirmReturn(hold.id)}
           onCancel={() => { re.setActiveHoldId(null); re.setActiveAction(null); }}
         />
@@ -171,6 +172,7 @@ function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
           color="green"
           confirmLabel={re.processing ? 'Saving...' : 'Confirm Clear'}
           processing={re.processing}
+          error={re.actionError}
           notes={re.notes}
           onNotesChange={re.setNotes}
           onConfirm={() => re.clearHold(hold.id)}
@@ -189,6 +191,7 @@ function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
           color={re.activeAction === 'escalate' ? 'red' : 'amber'}
           confirmLabel={re.processing ? 'Saving...' : re.activeAction === 'escalate' ? 'Confirm Escalation' : 'Confirm Re-hold'}
           processing={re.processing}
+          error={re.actionError}
           notes={re.notes}
           onNotesChange={re.setNotes}
           onConfirm={() => re.reHoldVehicle(hold.id)}
@@ -226,6 +229,7 @@ interface ConfirmPanelProps {
   color: keyof typeof COLOR_MAP;
   confirmLabel: string;
   processing: boolean;
+  error?: boolean;
   notes?: string;
   onNotesChange?: (v: string) => void;
   onConfirm: () => void;
@@ -269,12 +273,17 @@ function EscalationToast({ visible }: { visible: boolean }) {
 
 // ── Confirmation panel ───────────────────────────────────────────────────────
 
-function ConfirmPanel({ title, description, color, confirmLabel, processing, notes, onNotesChange, onConfirm, onCancel, extraAction }: ConfirmPanelProps) {
+function ConfirmPanel({ title, description, color, confirmLabel, processing, error, notes, onNotesChange, onConfirm, onCancel, extraAction }: ConfirmPanelProps) {
   const c = COLOR_MAP[color];
   return (
     <div className={`${c.bg} border-t ${c.border} px-4 py-4 space-y-3 transition-colors`}>
       <h3 className={`text-xs font-semibold ${c.heading} uppercase tracking-widest`}>{title}</h3>
       <p className={`text-sm ${c.text}`}>{description}</p>
+      {error && (
+        <p className="text-xs font-medium text-red-600 dark:text-red-400">
+          Something went wrong saving that — please try again.
+        </p>
+      )}
       {onNotesChange && (
         <textarea
           rows={2}

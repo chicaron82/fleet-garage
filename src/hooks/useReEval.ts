@@ -20,6 +20,7 @@ export function useReEval() {
   const [activeAction, setActiveAction] = useState<ReEvalAction | 'confirm-return' | null>(null);
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [actionError, setActionError] = useState(false);
 
   // Vehicles returned or still out from exception-released detail holds
   const items = useMemo<ReEvalItem[]>(() => {
@@ -40,36 +41,43 @@ export function useReEval() {
       );
   }, [holds, vehicles]);
 
-  const confirmReturn = async (holdId: string) => {
+  // One guard for every re-eval write: spinner on, clear prior error, reset the
+  // active card on success, surface an error (and always drop the spinner) on
+  // failure. The vehicle-write ops throw on a failed primary write, so without
+  // this the spinner would hang and the rejection would go unhandled.
+  const runAction = async (fn: () => Promise<void>) => {
     setProcessing(true);
-    await markReturned(holdId);
-    setActiveHoldId(null);
-    setActiveAction(null);
-    setProcessing(false);
+    setActionError(false);
+    try {
+      await fn();
+      setActiveHoldId(null);
+      setActiveAction(null);
+      setNotes('');
+    } catch {
+      setActionError(true);
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const clearHold = async (holdId: string) => {
+  const confirmReturn = (holdId: string) => runAction(() => markReturned(holdId));
+
+  const clearHold = (holdId: string) => {
     if (!user) return;
-    setProcessing(true);
-    await markRepaired(holdId, {
+    return runAction(() => markRepaired(holdId, {
       holdId,
       repairedById: user.id,
       repairedAt: new Date().toISOString(),
       notes: notes.trim() || 'Cleared during re-evaluation — issue resolved',
       outcome: 'clean',
-    });
-    setActiveHoldId(null);
-    setActiveAction(null);
-    setNotes('');
-    setProcessing(false);
+    }));
   };
 
-  const reHoldVehicle = async (holdId: string) => {
+  const reHoldVehicle = (holdId: string) => {
     if (!user) return;
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
-    setProcessing(true);
-    await addHold(
+    return runAction(() => addHold(
       hold.vehicleId,
       hold.damageDescription,
       notes.trim() || 'Re-hold from re-evaluation — issue persists',
@@ -79,11 +87,7 @@ export function useReEval() {
       hold.detailReason,
       undefined,
       holdId,
-    );
-    setActiveHoldId(null);
-    setActiveAction(null);
-    setNotes('');
-    setProcessing(false);
+    ));
   };
 
   return {
@@ -94,6 +98,7 @@ export function useReEval() {
     activeAction, setActiveAction,
     notes, setNotes,
     processing,
+    actionError,
     confirmReturn,
     clearHold,
     reHoldVehicle,

@@ -34,6 +34,7 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand, r
 
   const [submitting, setSubmitting] = useState(false);
   const [reHolded, setReHolded] = useState(false);
+  const [reHoldError, setReHoldError] = useState(false);
   const [showPriorDamageForm, setShowPriorDamageForm] = useState(false);
 
   if (holds.length === 0) return null;
@@ -48,18 +49,30 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand, r
 
   const handlePriorDamageSubmit = async (notes: string, photosToSubmit: string[]) => {
     setSubmitting(true);
-    await onReHold(vehicle.id, mostRecent.damageDescription, notes, photosToSubmit, mostRecent.id, mostRecent.holdTypes ?? ['damage']);
-    setReHolded(true);
-    setShowPriorDamageForm(false);
-    setSubmitting(false);
+    setReHoldError(false);
+    try {
+      await onReHold(vehicle.id, mostRecent.damageDescription, notes, photosToSubmit, mostRecent.id, mostRecent.holdTypes ?? ['damage']);
+      setReHolded(true);
+      setShowPriorDamageForm(false);
+    } catch {
+      setReHoldError(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleNewIssueSubmit = async (description: string, notes: string, photosToSubmit: string[], holdTypes: HoldType[]) => {
     setSubmitting(true);
-    await onReHold(vehicle.id, description, notes, photosToSubmit, mostRecent.id, holdTypes);
-    setReHolded(true);
-    setShowReHoldForm(false);
-    setSubmitting(false);
+    setReHoldError(false);
+    try {
+      await onReHold(vehicle.id, description, notes, photosToSubmit, mostRecent.id, holdTypes);
+      setReHolded(true);
+      setShowReHoldForm(false);
+    } catch {
+      setReHoldError(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetReHoldForms = () => {
@@ -196,6 +209,12 @@ export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand, r
             {reHolded && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
                 <p className="text-sm font-semibold text-red-700 dark:text-red-400">Vehicle re-held. Issue logged.</p>
+              </div>
+            )}
+
+            {reHoldError && (showPriorDamageForm || showReHoldForm) && (
+              <div className="mt-3 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg text-xs text-red-700 dark:text-red-300">
+                Couldn't save the re-hold — check your connection and try again.
               </div>
             )}
 

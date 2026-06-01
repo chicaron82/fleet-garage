@@ -181,14 +181,21 @@ export function useCheckInIntake() {
       const missingAssets: string[] = [];
       if (evCableStatus === 'missing')   missingAssets.push('Mobile Charge Cable');
       if (evAdapterStatus === 'missing') missingAssets.push('J1772 Adapter');
-      await addHold(
-        scanned.vehicle.id,
-        `Missing EV asset on return: ${missingAssets.join(', ')}`,
-        `Flagged during check-in by ${user.name} at ${new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}`,
-        user.id,
-        [],
-        ['damage'],
-      );
+      try {
+        await addHold(
+          scanned.vehicle.id,
+          `Missing EV asset on return: ${missingAssets.join(', ')}`,
+          `Flagged during check-in by ${user.name} at ${new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}`,
+          user.id,
+          [],
+          ['damage'],
+        );
+      } catch {
+        // The check-in row already saved above; the EV-asset hold is a best-effort
+        // follow-up. A failed addHold throws — don't let it abort the success flow
+        // (setSubmitted below), just flag it so staff can hold manually.
+        showToast('Check-in saved, but flagging the missing EV asset failed — add a hold manually.');
+      }
     }
 
     const validItems = foundItems.filter(i => i.description.trim());
