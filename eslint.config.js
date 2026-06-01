@@ -53,7 +53,6 @@ export default defineConfig([
     // comment = code-line count at adoption (2026-05-31); it should only go down.
     files: [
       'src/components/analytics/AnalyticsView.tsx',          // 342
-      'src/components/audit/AuditForm.tsx',                  // 338
       'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
       'src/components/shared/WhiteboardView.tsx',            // 356
