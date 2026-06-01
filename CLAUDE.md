@@ -36,16 +36,14 @@ Don't cram. Extract, following patterns already in the codebase:
 The component that survives is a thin composition: it calls hooks, renders
 sections, and wires them together — it doesn't implement them.
 
-## Grandfathered Debt
+## Grandfathered Debt — burned down (2026-05-31)
 
-13 files predate the cap. They're listed in `eslint.config.js` as **warnings**
-(not errors), so the build stays green while keeping each one visible. That list
-is the burn-down backlog — refactor toward 330 and **delete each path from the
-list as it drops under**. Do not add new entries; new files take the error cap.
-
-Worst offenders to tackle first: `CheckInIntakeForm.tsx` (455),
-`NewHoldForm.tsx` (443), `TripStartForm.tsx` (436), `HoldsView.tsx` (424),
-`ReleaseForm.tsx` (412) — all dense forms/views that split cleanly into sections.
+The 13-file grandfather list is **gone**. Every logic file in `src/` is now under
+the 330-line cap, so the cap is a hard **error** across all of `src/` — there is
+no longer a warning tier. The only carve-outs in `eslint.config.js` are the
+`src/types/**` + `src/data/**` exemptions and one justified pure-renderer
+(`src/components/analytics/ShiftReportPDFSections.tsx`, a flat list of dumb
+@react-pdf sections). Do not add new exemptions; new files take the error cap.
 
 ## Tests
 
@@ -63,8 +61,10 @@ under `tests/lib/` in the same commit.
 ## Build & Test
 
 ```bash
-npx tsc --noEmit     # type check
-npx eslint src/      # lint — enforces the line cap (0 errors expected; 13 grandfathered warnings)
+npx tsc -b           # type check — use -b, NOT --noEmit. The root tsconfig is a
+                     # solution file (`files: []`); --noEmit checks zero files and
+                     # exits clean, missing real errors. -b follows the references.
+npx eslint .         # lint — enforces the line cap (0 errors, 0 warnings expected)
 npx vitest run       # tests
 npm run dev          # dev server
 ```
