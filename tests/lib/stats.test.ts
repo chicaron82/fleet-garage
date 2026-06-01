@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStatDay, getStatName } from './stats';
+import { isStatDay, getStatName } from '../../src/lib/stats';
 
 describe('isStatDay', () => {
   it('recognises New Year\'s Day', () => {

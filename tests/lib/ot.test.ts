@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, calcOT, fmtHours } from './ot';
-import type { Shift } from '../types';
+import { calcHours, calcOT, fmtHours } from '../../src/lib/ot';
+import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
   return {

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../src/lib/gas-sheet';
+import {
+  convertToBackendFormat,
+  convertFromBackend,
+  carsFromPageCounter,
+  gasSheetCount,
+  latestGasSheetReading,
+  ENTRIES_PER_PAGE,
+} from '../../src/lib/gas-sheet';
 
 // Page counter: 19 entries per full page. The UI counts "total pages" + "entries
 // on the current page"; the backend stores "full pages" + "last page entries".
@@ -68,5 +75,47 @@ describe('carsFromPageCounter', () => {
 
   it('counts whole pages exactly', () => {
     expect(carsFromPageCounter(2, 0)).toBe(38); // → {2,0} → 2*19
+  });
+
+  it('matches gasSheetCount on the converted backend reading', () => {
+    // carsFromPageCounter converts UI→backend first, so (3,10) → (2,10).
+    expect(carsFromPageCounter(3, 10)).toBe(gasSheetCount(2, 10));
+    expect(carsFromPageCounter(0, 0)).toBe(0);
+  });
+});
+
+describe('gasSheetCount', () => {
+  it('combines full pages and last-page entries', () => {
+    expect(gasSheetCount(0, 0)).toBe(0);
+    expect(gasSheetCount(2, 18)).toBe(2 * ENTRIES_PER_PAGE + 18);
+    expect(gasSheetCount(3, 10)).toBe(67);
+  });
+});
+
+describe('latestGasSheetReading', () => {
+  it('returns null when there are no candidates', () => {
+    expect(latestGasSheetReading([])).toBeNull();
+  });
+
+  it('picks the furthest-along reading, not the last in the list', () => {
+    const result = latestGasSheetReading([
+      { fullPages: 3, lastPageEntries: 10 }, // 67 — the check-in
+      { fullPages: 2, lastPageEntries: 18 }, // 56 — an earlier reading
+      { fullPages: 1, lastPageEntries: 0 },  // 19
+    ]);
+    expect(result).toEqual({ fullPages: 3, lastPageEntries: 10 });
+  });
+
+  it('ignores lower readings even when they appear last (sheet only grows)', () => {
+    const result = latestGasSheetReading([
+      { fullPages: 4, lastPageEntries: 2 },  // 78
+      { fullPages: 2, lastPageEntries: 0 },  // 38 — a stale/corrected entry
+    ]);
+    expect(result).toEqual({ fullPages: 4, lastPageEntries: 2 });
+  });
+
+  it('handles a single candidate', () => {
+    expect(latestGasSheetReading([{ fullPages: 2, lastPageEntries: 18 }]))
+      .toEqual({ fullPages: 2, lastPageEntries: 18 });
   });
 });

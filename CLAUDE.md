@@ -53,10 +53,11 @@ modules are tested; the only gaps are IO/glue (`audit-export`, `demo-accounts`,
 `image`, `supabase`). When a new pure function lands in `src/lib/`, add its test
 under `tests/lib/` in the same commit.
 
-> Convention note: 6 libs also have a `*.test.ts` co-located in `src/lib/`
-> (`garage-mappers`, `gas-sheet`, `holdFilters`, `ot`, `ptoRequest`, `stats`) —
-> a pre-existing split with `tests/lib/`. New tests go in `tests/`; consolidating
-> the stragglers is a separate cleanup.
+> Convention note: lib tests now live **only** under `tests/lib/` — the 6
+> stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
+> (`gas-sheet` + `garage-mappers` were merges — each `src/lib` copy covered cases
+> the `tests/lib` copy didn't, so they were unioned, not moved). Keep all new
+> tests in `tests/`.
 
 ## Build & Test
 

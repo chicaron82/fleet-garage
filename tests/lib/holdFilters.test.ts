@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isStaleHold, STALE_HOLD_MS } from './holdFilters';
-import type { Hold } from '../types';
+import { isStaleHold, STALE_HOLD_MS } from '../../src/lib/holdFilters';
+import type { Hold } from '../../src/types';
 
 function makeHold(overrides: Partial<Hold> = {}): Hold {
   return {

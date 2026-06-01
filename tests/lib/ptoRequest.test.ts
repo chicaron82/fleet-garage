@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPtoRequest } from './ptoRequest';
+import { buildPtoRequest } from '../../src/lib/ptoRequest';
 
 describe('buildPtoRequest', () => {
   it('lists the requested days and the post-request balance', () => {

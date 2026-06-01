@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { mapHold, mapRelease, mapRepair, mapVehicle } from '../../src/lib/garage-mappers';
+import {
+  mapHold, mapRelease, mapRepair, mapVehicle,
+  mapIssue, mapWashbayLog, mapHandoffNote, mapLostFoundItem,
+} from '../../src/lib/garage-mappers';
 
 const vehicleRow = {
   id: 'v1',
@@ -52,6 +55,29 @@ const holdRow = {
   repairs: [repairRow],
 };
 
+const issueRow = {
+  id: 'i1', branch_id: 'YWG', title: 'Broken door',
+  severity: 'high', reported_by: 'u1', reported_at: '2026-04-14T09:00:00',
+};
+
+const washbayRow = {
+  id: 'w1', branch_id: 'YWG', date: '2026-04-14',
+  full_pages: 3, last_page_entries: 7, cars_remaining: 2,
+  clean_not_picked_up: 5, team_size: 4, shift_hours: 8,
+  logged_by: 'u1', logged_at: '2026-04-14T17:00:00',
+};
+
+const handoffRow = {
+  id: 'n1', branch_id: 'YWG', logged_by: 'u1', logged_by_name: 'Belle',
+  logged_at: '2026-04-14T17:00:00', full_pages: 2, last_page_entries: 5,
+  team_size: 3, lot_status: 'manageable',
+};
+
+const lostFoundRow = {
+  id: 'lf1', branch_id: 'YWG', found_by: 'u1', found_by_name: 'Tori',
+  found_at: '2026-04-14T11:00:00', status: 'holding',
+};
+
 describe('mapVehicle', () => {
   it('maps Supabase vehicle rows into app vehicles', () => {
     expect(mapVehicle(vehicleRow)).toMatchObject({
@@ -77,6 +103,12 @@ describe('mapVehicle', () => {
 
   it('tolerates a missing unit_number (legacy / not-yet-assigned rows)', () => {
     expect(mapVehicle({ ...vehicleRow, unit_number: undefined }).unitNumber).toBeNull();
+  });
+
+  it('throws when a required number is the wrong type', () => {
+    expect(() => mapVehicle({ ...vehicleRow, year: 'bad' })).toThrow(
+      "mapVehicle: expected number at 'year'",
+    );
   });
 });
 
@@ -104,6 +136,12 @@ describe('mapRelease and mapRepair', () => {
     const release = mapRelease(legacyRow);
     expect(release.releaseType).toBe('EXCEPTION');
     expect(release.releaseMethod).toBe('standard');
+  });
+
+  it('maps repair required fields', () => {
+    const r = mapRepair(repairRow);
+    expect(r.id).toBe('rep1');
+    expect(r.repairedById).toBe('u6');
   });
 
   it('maps null repair notes to an empty string', () => {
@@ -137,5 +175,74 @@ describe('mapHold', () => {
     const legacyRow = { ...holdRow };
     delete (legacyRow as Record<string, unknown>).hold_type;
     expect(mapHold(legacyRow).holdType).toBe('damage');
+  });
+
+  it('falls back hold_types to hold_type when the array is empty', () => {
+    expect(mapHold({ ...holdRow, hold_types: [] }).holdTypes).toEqual(['damage']);
+  });
+
+  it('leaves release undefined when the releases array is empty', () => {
+    expect(mapHold({ ...holdRow, releases: [] }).release).toBeUndefined();
+  });
+});
+
+describe('mapIssue', () => {
+  it('maps required fields', () => {
+    const i = mapIssue(issueRow);
+    expect(i.id).toBe('i1');
+    expect(i.severity).toBe('high');
+    expect(i.reportedById).toBe('u1');
+  });
+  it('maps optional cleared fields as undefined when absent', () => {
+    const i = mapIssue(issueRow);
+    expect(i.clearedById).toBeUndefined();
+    expect(i.clearedAt).toBeUndefined();
+  });
+});
+
+describe('mapWashbayLog', () => {
+  it('maps all numeric fields', () => {
+    const w = mapWashbayLog(washbayRow);
+    expect(w.fullPages).toBe(3);
+    expect(w.lastPageEntries).toBe(7);
+    expect(w.carsRemaining).toBe(2);
+    expect(w.cleanNotPickedUp).toBe(5);
+    expect(w.teamSize).toBe(4);
+    expect(w.shiftHours).toBe(8);
+  });
+});
+
+describe('mapHandoffNote', () => {
+  it('maps required fields', () => {
+    const n = mapHandoffNote(handoffRow);
+    expect(n.loggedByName).toBe('Belle');
+    expect(n.lotStatus).toBe('manageable');
+    expect(n.teamSize).toBe(3);
+  });
+  it('falls back lotStatus to manageable when missing', () => {
+    const n = mapHandoffNote({ ...handoffRow, lot_status: undefined });
+    expect(n.lotStatus).toBe('manageable');
+  });
+});
+
+describe('mapLostFoundItem', () => {
+  it('maps required fields', () => {
+    const lf = mapLostFoundItem(lostFoundRow);
+    expect(lf.id).toBe('lf1');
+    expect(lf.foundByName).toBe('Tori');
+    expect(lf.status).toBe('holding');
+  });
+  it('maps optional photo URLs as undefined when absent', () => {
+    const lf = mapLostFoundItem(lostFoundRow);
+    expect(lf.keyTagPhotoUrl).toBeUndefined();
+    expect(lf.itemPhotoUrl).toBeUndefined();
+  });
+  it('maps optional photo URLs when present', () => {
+    const lf = mapLostFoundItem({ ...lostFoundRow, key_tag_photo: 'https://cdn/kt.jpg', item_photo: 'https://cdn/item.jpg' });
+    expect(lf.keyTagPhotoUrl).toBe('https://cdn/kt.jpg');
+    expect(lf.itemPhotoUrl).toBe('https://cdn/item.jpg');
+  });
+  it('throws on missing required field', () => {
+    expect(() => mapLostFoundItem({ ...lostFoundRow, status: undefined })).toThrow("mapLostFoundItem: expected string at 'status'");
   });
 });
