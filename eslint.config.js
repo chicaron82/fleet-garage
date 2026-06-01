@@ -55,7 +55,6 @@ export default defineConfig([
       'src/components/analytics/AnalyticsView.tsx',          // 342
       'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
-      'src/components/shared/WhiteboardView.tsx',            // 356
       'src/hooks/useDriverLiveTrip.ts',                      // 336
     ],
     rules: {
