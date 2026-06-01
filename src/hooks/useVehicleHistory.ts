@@ -15,6 +15,7 @@ export function useVehicleHistory(vehicleId: string) {
   const [repairNotes, setRepairNotes] = useState('');
   const [repairOutcome, setRepairOutcome] = useState<RepairOutcome>('clean');
   const [repairing, setRepairing] = useState(false);
+  const [repairError, setRepairError] = useState(false);
   const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
@@ -95,24 +96,33 @@ export function useVehicleHistory(vehicleId: string) {
   const handleRepair = async () => {
     if (!showRepairConfirm) return;
     setRepairing(true);
-    await markRepaired(showRepairConfirm, {
-      holdId: showRepairConfirm,
-      repairedById: user!.id,
-      repairedAt: new Date().toISOString(),
-      notes: repairNotes.trim(),
-      outcome: repairOutcome,
-    });
-    hapticMedium();
-    setShowRepairConfirm(null);
-    setRepairNotes('');
-    setRepairOutcome('clean');
-    setRepairing(false);
+    setRepairError(false);
+    try {
+      // markRepaired throws if the repair insert fails — don't clear the form or
+      // claim success on a write that didn't land.
+      await markRepaired(showRepairConfirm, {
+        holdId: showRepairConfirm,
+        repairedById: user!.id,
+        repairedAt: new Date().toISOString(),
+        notes: repairNotes.trim(),
+        outcome: repairOutcome,
+      });
+      hapticMedium();
+      setShowRepairConfirm(null);
+      setRepairNotes('');
+      setRepairOutcome('clean');
+    } catch {
+      setRepairError(true);
+    } finally {
+      setRepairing(false);
+    }
   };
 
   const cancelRepair = () => {
     setShowRepairConfirm(null);
     setRepairNotes('');
     setRepairOutcome('clean');
+    setRepairError(false);
   };
 
   const { getName, getRole, getEmpId } = useUserResolver();
@@ -124,7 +134,7 @@ export function useVehicleHistory(vehicleId: string) {
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
     showHoldPicker, openRepairAction, pickHoldForRepair, closeHoldPicker,
-    repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing,
+    repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing, repairError,
     lightboxPhotos, lightboxIndex,
     openLightbox: (photos: string[], index: number) => { setLightboxPhotos(photos); setLightboxIndex(index); },
     closeLightbox: () => setLightboxPhotos([]),

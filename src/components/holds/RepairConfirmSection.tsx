@@ -9,6 +9,7 @@ interface RepairConfirmSectionProps {
   repairOutcome: RepairOutcome;
   setRepairOutcome: (outcome: RepairOutcome) => void;
   repairing: boolean;
+  error?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -33,6 +34,7 @@ export function RepairConfirmSection({
   repairOutcome,
   setRepairOutcome,
   repairing,
+  error,
   onCancel,
   onConfirm,
 }: RepairConfirmSectionProps) {
@@ -85,6 +87,11 @@ export function RepairConfirmSection({
           ))}
         </div>
       </div>
+      {error && (
+        <p className="text-xs font-medium text-red-600 dark:text-red-400">
+          Couldn't save — please try again.
+        </p>
+      )}
       <div className="flex gap-2">
         <button
           type="button"

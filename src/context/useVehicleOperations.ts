@@ -195,13 +195,17 @@ export function useVehicleOperations({
     if (!hold) throw new Error(`Hold not found: ${holdId}`);
     const repairId = crypto.randomUUID();
     const newRepair: Repair = { ...repair, id: repairId };
-    await writeWithRefresh(() =>
+    // Primary write — throw on failure like addHold/addRelease so callers can
+    // surface it, instead of silently flipping the hold + local state to REPAIRED
+    // while the repairs table got nothing.
+    const { error } = await writeWithRefresh(() =>
       supabase.from('repairs').insert({
         id: repairId, hold_id: holdId,
         repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
         outcome: repair.outcome,
       })
     );
+    if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
     await writeWithRefresh(() =>
       supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
     );
@@ -221,9 +225,12 @@ export function useVehicleOperations({
     const returnedAt = new Date().toISOString();
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
-    await writeWithRefresh(() =>
+    // Primary write — throw on failure so the caller (useReEval.confirmReturn)
+    // can surface it rather than flipping local state on a write that didn't land.
+    const { error } = await writeWithRefresh(() =>
       supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId)
     );
+    if (error) throw new Error(`Failed to mark returned: ${(error as { message?: string }).message}`);
     if (hold.release) await writeWithRefresh(() =>
       supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release!.id)
     );

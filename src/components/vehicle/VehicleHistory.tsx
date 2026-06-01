@@ -218,6 +218,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               repairOutcome={h.repairOutcome}
               setRepairOutcome={h.setRepairOutcome}
               repairing={h.repairing}
+              error={h.repairError}
               onCancel={h.cancelRepair}
               onConfirm={h.handleRepair}
             />
