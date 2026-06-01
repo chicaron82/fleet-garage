@@ -52,7 +52,6 @@ export default defineConfig([
     // Do NOT add new entries — new files must pass the 330 error cap above. Trailing
     // comment = code-line count at adoption (2026-05-31); it should only go down.
     files: [
-      'src/components/movement/MovementLogView.tsx',         // 348
       'src/components/movement/TripStartForm.tsx',           // 436
       'src/hooks/useDriverLiveTrip.ts',                      // 336
     ],
