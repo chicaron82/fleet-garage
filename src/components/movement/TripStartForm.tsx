@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase, writeWithRefresh } from '../../lib/supabase';
-import { enqueueOfflineAction } from '../../lib/offlineQueue';
+import { writeOrEnqueue } from '../../lib/vsaTripWrite';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useInProgressRecovery } from '../../hooks/useInProgressRecovery';
@@ -148,96 +147,31 @@ export function TripStartForm({
     hapticMedium();
     const now = new Date().toISOString();
     const tripId = `trip-${Date.now()}`;
-    let error = null;
 
-    if (!navigator.onLine) {
-      enqueueOfflineAction({
-        table: 'vsa_trips',
-        action: 'insert',
-        payload: {
-          id:                  tripId,
-          vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
-          vehicle_unit:        '',
-          trip_type:           isShuttle ? 'transfer' : 'clean',
-          depart_location:     'Airport Run',
-          arrive_location:     null,
-          depart_time:         now,
-          arrive_time:         null,
-          driver_id:           user.id,
-          branch_id:           user.branchId,
-          is_vsa_interruption: true,
-          is_shuttle:          isShuttle,
-          auth_type:           auth,
-          reason:              r,
-          queue_at_departure:  queue,
-          notes:               tripNotes.trim() || null,
-          ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
-          ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
-          status:              'in_progress',
-        }
-      });
-    } else {
-      const res = await writeWithRefresh(() =>
-        supabase
-          .from('vsa_trips')
-          .insert({
-            id:                  tripId,
-            vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
-            vehicle_unit:        '',
-            trip_type:           isShuttle ? 'transfer' : 'clean',
-            depart_location:     'Airport Run',
-            arrive_location:     null,
-            depart_time:         now,
-            arrive_time:         null,
-            driver_id:           user.id,
-            branch_id:           user.branchId,
-            is_vsa_interruption: true,
-            is_shuttle:          isShuttle,
-            auth_type:           auth,
-            reason:              r,
-            queue_at_departure:  queue,
-            notes:               tripNotes.trim() || null,
-            ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
-            ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
-            status:              'in_progress',
-          })
-      );
-      if (res.error) {
-        const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-        if (isNetworkErr) {
-          enqueueOfflineAction({
-            table: 'vsa_trips',
-            action: 'insert',
-            payload: {
-              id:                  tripId,
-              vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
-              vehicle_unit:        '',
-              trip_type:           isShuttle ? 'transfer' : 'clean',
-              depart_location:     'Airport Run',
-              arrive_location:     null,
-              depart_time:         now,
-              arrive_time:         null,
-              driver_id:           user.id,
-              branch_id:           user.branchId,
-              is_vsa_interruption: true,
-              is_shuttle:          isShuttle,
-              auth_type:           auth,
-              reason:              r,
-              queue_at_departure:  queue,
-              notes:               tripNotes.trim() || null,
-              ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
-              ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
-              status:              'in_progress',
-            }
-          });
-        } else {
-          error = res.error;
-        }
-      }
-    }
+    const { ok } = await writeOrEnqueue('insert', {
+      id:                  tripId,
+      vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
+      vehicle_unit:        '',
+      trip_type:           isShuttle ? 'transfer' : 'clean',
+      depart_location:     'Airport Run',
+      arrive_location:     null,
+      depart_time:         now,
+      arrive_time:         null,
+      driver_id:           user.id,
+      branch_id:           user.branchId,
+      is_vsa_interruption: true,
+      is_shuttle:          isShuttle,
+      auth_type:           auth,
+      reason:              r,
+      queue_at_departure:  queue,
+      notes:               tripNotes.trim() || null,
+      ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
+      ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
+      status:              'in_progress',
+    });
 
-    if (error) {
-      console.error('[TripStartForm] trip start write failed:', error);
+    if (!ok) {
+      console.error('[TripStartForm] trip start write failed');
       setStartError(true);
       setStarting(false);
       return;
@@ -280,70 +214,19 @@ export function TripStartForm({
   const handleArrived = async () => {
     hapticMedium();
     const arrived = new Date().toISOString();
-    let error = null;
 
     if (user && pendingTripId) {
-      if (!navigator.onLine) {
-        enqueueOfflineAction({
-          table: 'vsa_trips',
-          action: 'update',
-          payload: {
-            arrive_location:    'Airport Run',
-            arrive_time:        arrived,
-            auth_type:          authorization ?? null,
-            queue_at_departure: queue ?? null,
-            notes:              notes.trim() || null,
-            ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
-            ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
-            status:             'complete',
-          },
-          eqField: 'id',
-          eqValue: pendingTripId
-        });
-      } else {
-        const res = await writeWithRefresh(() =>
-          supabase
-            .from('vsa_trips')
-            .update({
-              arrive_location:    'Airport Run',
-              arrive_time:        arrived,
-              auth_type:          authorization ?? null,
-              queue_at_departure: queue ?? null,
-              notes:              notes.trim() || null,
-              ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
-              ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
-              status:             'complete',
-            })
-            .eq('id', pendingTripId)
-        );
-        if (res.error) {
-          const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-          if (isNetworkErr) {
-            enqueueOfflineAction({
-              table: 'vsa_trips',
-              action: 'update',
-              payload: {
-                arrive_location:    'Airport Run',
-                arrive_time:        arrived,
-                auth_type:          authorization ?? null,
-                queue_at_departure: queue ?? null,
-                notes:              notes.trim() || null,
-                ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
-                ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
-                status:             'complete',
-              },
-              eqField: 'id',
-              eqValue: pendingTripId
-            });
-          } else {
-            error = res.error;
-          }
-        }
-      }
-    }
-
-    if (error) {
-      console.error('[TripStartForm] trip arrive update failed:', error);
+      const { ok } = await writeOrEnqueue('update', {
+        arrive_location:    'Airport Run',
+        arrive_time:        arrived,
+        auth_type:          authorization ?? null,
+        queue_at_departure: queue ?? null,
+        notes:              notes.trim() || null,
+        ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
+        ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
+        status:             'complete',
+      }, 'id', pendingTripId);
+      if (!ok) console.error('[TripStartForm] trip arrive update failed');
     }
 
     setArrivalTime(arrived);

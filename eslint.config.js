@@ -45,17 +45,6 @@ export default defineConfig([
       'max-lines': 'off',
     },
   },
-  {
-    // Grandfathered debt — files that predate the cap. WARN (not error) so the build
-    // stays green while keeping each one visible at the 330 line. This list is the
-    // burn-down backlog: refactor toward 330 and DELETE each path as it drops under.
-    // Do NOT add new entries — new files must pass the 330 error cap above. Trailing
-    // comment = code-line count at adoption (2026-05-31); it should only go down.
-    files: [
-      'src/components/movement/TripStartForm.tsx',           // 436
-    ],
-    rules: {
-      'max-lines': ['warn', { max: 330, skipBlankLines: true, skipComments: true }],
-    },
-  },
+  // Grandfather list fully burned down (2026-05-31): every logic file is now under
+  // the 330 cap. The cap is a hard error for all of src/ except the exemptions above.
 ])
