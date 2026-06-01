@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import { useUserResolver } from '../hooks/useUserResolver';
 import { usePeakSeason } from '../hooks/usePeakSeason';
 import { usePTOStats } from '../hooks/usePTOStats';
-import { shiftTallyDelta, type TallyShift } from '../lib/ptoTally';
+import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
 import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -117,9 +117,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // Keep the live PTO/sick tally in sync after any shift write. Every path —
   // create (null → after), delete (before → null), edit/flip (before → after) —
-  // routes through here so none can silently drift out of sync again.
-  const applyTally = (before: TallyShift | null, after: TallyShift | null) => {
-    const { pto, sick } = shiftTallyDelta(before, after, new Date().getFullYear());
+  // routes through here so none can silently drift out of sync again. The tally
+  // is the logged-in user's *personal* counter (seeded by a query scoped to
+  // user.id), so `ownerId` gates the delta: a manager editing a teammate's shift
+  // must not move the manager's own tally.
+  const applyTally = (ownerId: string, before: TallyShift | null, after: TallyShift | null) => {
+    const { pto, sick } = ownedTallyDelta(ownerId, user?.id, before, after, new Date().getFullYear());
     if (pto)  adjustPTO(pto);
     if (sick) adjustSick(sick);
   };
@@ -156,7 +159,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     );
     if (error) throw error;
     setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
-    applyTally(null, { shiftType: shift.shiftType, date: shift.date });
+    applyTally(shift.userId, null, { shiftType: shift.shiftType, date: shift.date });
     if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
       const target = getProfile(shift.userId);
       if (target) {
@@ -181,7 +184,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await writeWithRefresh(() => supabase.from('shifts').insert(rows).select());
     if (error) throw error;
     setShifts(prev => [...prev, ...(data as Record<string, unknown>[]).map(rowToShift)]);
-    for (const s of newShifts) applyTally(null, { shiftType: s.shiftType, date: s.date });
+    for (const s of newShifts) applyTally(s.userId, null, { shiftType: s.shiftType, date: s.date });
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {
@@ -205,6 +208,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
     if (existing) {
       applyTally(
+        existing.userId,
         { shiftType: existing.shiftType, date: existing.date },
         { shiftType: updates.shiftType ?? existing.shiftType, date: updates.date ?? existing.date },
       );
@@ -248,7 +252,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const { error } = await writeWithRefresh(() => supabase.from('shifts').delete().eq('id', id));
     if (error) throw error;
     setShifts(prev => prev.filter(s => s.id !== id));
-    if (deleted) applyTally({ shiftType: deleted.shiftType, date: deleted.date }, null);
+    if (deleted) applyTally(deleted.userId, { shiftType: deleted.shiftType, date: deleted.date }, null);
     if (user && deleted && isManagerEditingOtherUser(user.role, user.id, deleted.userId)) {
       const target = getProfile(deleted.userId);
       if (target) {
