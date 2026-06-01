@@ -3,12 +3,13 @@ import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/render
 const LOGO_SRC = `${window.location.origin}/FG.jpg`;
 
 export interface PtoPDFData {
-  userName:    string;
-  employeeId:  string;
-  dateLabel:   string;   // when the request was generated
-  days:        string[]; // ISO dates being requested
-  entitlement: number;
-  used:        number;
+  userName:     string;
+  employeeId:   string;
+  dateLabel:    string;   // when the request was generated
+  days:         string[]; // ISO dates being requested (pending approval)
+  approvedDays: string[]; // upcoming ISO dates already approved — shown for the full picture
+  entitlement:  number;
+  used:         number;
 }
 
 function fmtDay(iso: string): string {
@@ -29,6 +30,7 @@ const s = StyleSheet.create({
   section:       { marginBottom: 18 },
   sectionHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 7 },
   accentBar:     { width: 3, height: 12, backgroundColor: '#7c3aed', borderRadius: 1, marginRight: 7 },
+  accentApproved:{ backgroundColor: '#059669' },
   sectionTitle:  { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#374151' },
   noData:        { fontSize: 8, color: '#9ca3af', fontStyle: 'italic', paddingLeft: 10, paddingBottom: 4 },
   row:           { paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
@@ -87,6 +89,20 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
           }
         </View>
 
+        {data.approvedDays.length > 0 && (
+          <View style={s.section}>
+            <SectionHead title={`ALREADY APPROVED (${data.approvedDays.length})`} accent={s.accentApproved} />
+            {data.approvedDays.map((d, i) => (
+              <View key={i} style={s.row}>
+                <Text style={s.rowText}>{fmtDay(d)}</Text>
+              </View>
+            ))}
+            <View style={s.totalRow}>
+              <Text style={s.totalText}>{data.approvedDays.length} day{data.approvedDays.length !== 1 ? 's' : ''} already approved</Text>
+            </View>
+          </View>
+        )}
+
         <View style={s.approval}>
           <Text style={s.approvalLabel}>Manager approval</Text>
           <View style={s.sigRow}>
@@ -108,10 +124,10 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
   );
 }
 
-function SectionHead({ title }: { title: string }) {
+function SectionHead({ title, accent }: { title: string; accent?: (typeof s)[keyof typeof s] }) {
   return (
     <View style={s.sectionHead}>
-      <View style={s.accentBar} />
+      <View style={accent ? [s.accentBar, accent] : s.accentBar} />
       <Text style={s.sectionTitle}>{title}</Text>
     </View>
   );

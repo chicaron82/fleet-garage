@@ -21,28 +21,33 @@ function fmtDay(iso: string): string {
 
 export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Props) {
   useEscapeKey(onClose);
-  const [days, setDays]         = useState<string[]>([]);
+  const [pendingDays, setPendingDays]   = useState<string[]>([]);
+  const [approvedDays, setApprovedDays] = useState<string[]>([]);
   const [fetching, setFetching] = useState(true);
   const [copied, setCopied]     = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // Pending PTO from today onward — a request is for not-yet-approved time off
-  // that hasn't happened. Approved days are already on the books.
+  // Upcoming PTO from today onward, split by approval. Pending days are the
+  // actual ask; already-approved days are shown for the full picture so the
+  // sheet reconciles with the balance (which counts every PTO day, approved
+  // or not). Past days live only in the balance — a request is forward-looking.
   useEffect(() => {
     const today = toISO(new Date());
     const year  = today.slice(0, 4);
     supabase
       .from('shifts')
-      .select('date')
+      // pto_approved landed in migration 067; stale database.types.ts doesn't know the column yet
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select('date, pto_approved' as any)
       .eq('user_id', user.id)
       .eq('shift_type', 'pto')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .eq('pto_approved' as any, false)
       .gte('date', today)
       .lte('date', `${year}-12-31`)
       .order('date', { ascending: true })
       .then(({ data }) => {
-        setDays((data ?? []).map(r => (r as { date: string }).date));
+        const rows = (data ?? []) as unknown as { date: string; pto_approved: boolean | null }[];
+        setPendingDays(rows.filter(r => !r.pto_approved).map(r => r.date));
+        setApprovedDays(rows.filter(r => r.pto_approved).map(r => r.date));
         setFetching(false);
       });
   }, [user.id]);
@@ -53,7 +58,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
 
   const handleShare = async () => {
     hapticMedium();
-    const text = buildPtoRequest(user.name, days, entitlement, used);
+    const text = buildPtoRequest(user.name, pendingDays, entitlement, used, approvedDays);
     if (navigator.share) {
       try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
       catch { /* fall through to clipboard */ }
@@ -71,7 +76,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
         import('@react-pdf/renderer'),
         import('./PtoRequestPDF'),
       ]);
-      const data = { userName: user.name, employeeId: user.employeeId, dateLabel, days, entitlement, used };
+      const data = { userName: user.name, employeeId: user.employeeId, dateLabel, days: pendingDays, approvedDays, entitlement, used };
       const blob = await pdf(createElement(PtoRequestPDF, { data }) as ReactElement<never>).toBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -100,15 +105,16 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
 
         {fetching ? (
           <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2">Loading…</p>
-        ) : days.length === 0 ? (
-          <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2 italic">No pending PTO to request — upcoming days are all approved.</p>
+        ) : pendingDays.length === 0 && approvedDays.length === 0 ? (
+          <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2 italic">No upcoming PTO this year.</p>
         ) : (
           <>
-            <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/40 px-3 py-2">
-              {days.map(d => (
-                <p key={d} className="text-sm text-violet-800 dark:text-violet-300">• {fmtDay(d)}</p>
-              ))}
-            </div>
+            {pendingDays.length > 0 && (
+              <DayList label={`Requesting approval (${pendingDays.length})`} days={pendingDays} accent="violet" />
+            )}
+            {approvedDays.length > 0 && (
+              <DayList label={`Already approved (${approvedDays.length})`} days={approvedDays} accent="emerald" />
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -131,5 +137,24 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
         )}
       </div>
     </>
+  );
+}
+
+const LIST_ACCENTS = {
+  violet:  { heading: 'text-violet-500 dark:text-violet-400',   box: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-900/40',   text: 'text-violet-800 dark:text-violet-300' },
+  emerald: { heading: 'text-emerald-600 dark:text-emerald-400', box: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300' },
+} as const;
+
+function DayList({ label, days, accent }: { label: string; days: string[]; accent: keyof typeof LIST_ACCENTS }) {
+  const c = LIST_ACCENTS[accent];
+  return (
+    <div className="space-y-1">
+      <p className={`text-[11px] font-semibold uppercase tracking-wider ${c.heading}`}>{label}</p>
+      <div className={`max-h-40 overflow-y-auto space-y-1 rounded-lg border px-3 py-2 ${c.box}`}>
+        {days.map(d => (
+          <p key={d} className={`text-sm ${c.text}`}>• {fmtDay(d)}</p>
+        ))}
+      </div>
+    </div>
   );
 }

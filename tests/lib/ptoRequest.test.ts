@@ -23,4 +23,27 @@ describe('buildPtoRequest', () => {
   it('handles the empty case', () => {
     expect(buildPtoRequest('A', [], 13, 0)).toContain('No upcoming PTO days entered.');
   });
+
+  it('omits the approved section when there are no approved days', () => {
+    const msg = buildPtoRequest('A', ['2026-06-09'], 13, 1);
+    expect(msg).not.toContain('Already approved');
+  });
+
+  it('lists already-approved days in their own section so the balance reconciles', () => {
+    const msg = buildPtoRequest('Aaron', ['2026-06-09', '2026-06-10'], 15, 15, ['2026-07-01']);
+    expect(msg).toContain('2 days requested.');
+    expect(msg).toContain('Already approved this year:');
+    expect(msg).toContain('1 day already approved.');
+    expect(msg).toContain('Balance: 15 of 15 used · 0 remaining.');
+    // pending bullets + approved bullets = 3 total
+    expect(msg.split('\n').filter(l => l.trim().startsWith('•')).length).toBe(3);
+  });
+
+  it('renders an approved-only summary (no pending) without asking for approval', () => {
+    const msg = buildPtoRequest('A', [], 15, 15, ['2026-07-01', '2026-07-02']);
+    expect(msg).not.toContain('No upcoming PTO days entered.');
+    expect(msg).toContain('2 days already approved.');
+    expect(msg).not.toContain('requested.');
+    expect(msg).not.toContain('Please confirm approval');
+  });
 });
