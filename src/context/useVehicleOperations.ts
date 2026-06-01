@@ -112,7 +112,11 @@ export function useVehicleOperations({
     await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
       `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
 
-    await writeWithRefresh(() =>
+    // The hold insert is the source of truth for "the hold exists", so the hold
+    // is added locally unconditionally below. The vehicle status flip is a derived
+    // follow-up: gate its optimistic update on the write so a failed `vehicles`
+    // update (no realtime channel — won't self-heal) can't diverge from the DB.
+    const { error: vehErr } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId)
     );
 
@@ -123,7 +127,7 @@ export function useVehicleOperations({
       flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
     };
     setAllHolds(prev => [newHold, ...prev]);
-    setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
@@ -162,12 +166,15 @@ export function useVehicleOperations({
     await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
       `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
 
-    await writeWithRefresh(() =>
+    const { error: vehErr } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
 
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+    // Gate the derived vehicle-status flip on its write (vehicles has no realtime
+    // self-heal). The fleet view derives status from holds regardless; this keeps
+    // the stored status from diverging when the follow-up update fails.
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
   };
 
   const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {
@@ -203,10 +210,10 @@ export function useVehicleOperations({
       .filter(h => h.vehicleId === hold.vehicleId)
       .map(h => h.id === holdId ? { ...h, status: 'REPAIRED' as const } : h);
     const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
-    await writeWithRefresh(() =>
+    const { error: vehErr } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
   };
 
@@ -220,7 +227,7 @@ export function useVehicleOperations({
     if (hold.release) await writeWithRefresh(() =>
       supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release!.id)
     );
-    await writeWithRefresh(() =>
+    const { error: vehErr } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId)
     );
     const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
@@ -230,7 +237,7 @@ export function useVehicleOperations({
       ...h, status: 'RETURNED',
       release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
     }));
-    setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
   };
 
   const archiveVehicle = async (vehicleId: string) => {
