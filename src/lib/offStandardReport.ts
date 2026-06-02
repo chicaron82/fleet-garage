@@ -20,8 +20,10 @@ export function fmtTime(iso: string): string {
 }
 
 export function todayDateStr(): string {
-  const d = new Date();
-  return d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Build from the shift-date (04:00 cutover) so a post-midnight export header
+  // matches the business day its entries are stamped with, not the wall date.
+  return new Date(localDateStr(0) + 'T00:00:00')
+    .toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry {

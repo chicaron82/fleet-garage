@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayWindow } from '../../lib/shiftDay';
 import { isManagement } from '../../lib/analytics';
 import {
   SummaryRow, ShiftSparkline, HistoryCard,
@@ -54,11 +55,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
   async function loadData(date: string) {
     if (!user) return;
     setLoading(true);
-    const dayStart    = new Date(date + 'T00:00:00');
-    const dayEnd      = new Date(date + 'T00:00:00');
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const dayStartISO = dayStart.toISOString();
-    const dayEndISO   = dayEnd.toISOString();
+    const { startISO: dayStartISO, endISO: dayEndISO } = shiftDayWindow(date);
 
     const [osResult, tripsResult, holdsResult, histResult] = await Promise.all([
       supabase.from('off_standard_entries')

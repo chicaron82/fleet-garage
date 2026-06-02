@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus } from '../../types';
 
 const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; color: string }[] = [
@@ -77,7 +79,7 @@ export function WashbayClosingLog() {
   const throughput  = operatingHours > 0 ? carsCleaned / operatingHours : 0;
   const delta       = throughput - COMPANY_STANDARD;
 
-  const heldToday          = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(new Date().toLocaleDateString('en-CA'))).length;
+  const heldToday          = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === localDateStr(0)).length;
   const rentablesProcessed = Math.max(0, carsIn - heldToday);
   const deliveredToAirport = Math.max(0, rentablesProcessed - cnpu);
 
@@ -100,7 +102,7 @@ export function WashbayClosingLog() {
     const opH = baseHours + todayLog.overtimeHours;
     const tp  = opH > 0 ? cc / opH : 0;
     const d   = tp - COMPANY_STANDARD;
-    const ht  = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(new Date().toLocaleDateString('en-CA'))).length;
+    const ht  = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === localDateStr(0)).length;
     const rp  = Math.max(0, ci - ht);
     const da  = Math.max(0, rp - todayLog.cleanNotPickedUp);
 

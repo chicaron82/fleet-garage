@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
+import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   buildReport,
   formatDateStr,
@@ -26,11 +27,7 @@ export function ShiftReportExport({ date }: { date: string }) {
   const busy = loading || pdfLoading;
 
   const fetchReportData = async (): Promise<ReportData> => {
-    const dayStart    = new Date(date + 'T00:00:00');
-    const dayEnd      = new Date(date + 'T00:00:00');
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const dayStartISO = dayStart.toISOString();
-    const dayEndISO   = dayEnd.toISOString();
+    const { startISO: dayStartISO, endISO: dayEndISO } = shiftDayWindow(date);
 
     // 90-day lookback for fleet balance projection
     const fbLookback = new Date(date + 'T00:00:00');

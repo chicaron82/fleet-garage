@@ -7,6 +7,7 @@ import { useWashbayContext } from '../../context/WashbayContext';
 import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO, businessDateOf } from '../../lib/shiftDay';
 import {
   canEnterFleetBalance,
   isManagement,
@@ -45,12 +46,10 @@ export function AnalyticsView() {
 
   useEffect(() => {
     if (mode !== 'live') return;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
     let query = supabase
       .from('vsa_trips')
       .select('trip_type, driver_id')
-      .gte('depart_time', todayStart.toISOString());
+      .gte('depart_time', shiftDayStartISO(localDateStr(0)));
     if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
     query.then(({ data }) => setTodayTrips((data ?? []) as TripRow[]));
   }, [mode, activeBranch]);
@@ -63,7 +62,7 @@ export function AnalyticsView() {
   // ── Live data derivations ──────────────────────────────────────────────────
 
   const todayISO    = localDateStr(0);
-  const activeHolds  = holds.filter(h => h.status === 'ACTIVE' && h.flaggedAt.startsWith(todayISO));
+  const activeHolds  = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === todayISO);
   const onException  = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
   const oneWeekAgo   = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const returnedThisWeek = holds.filter(h =>
@@ -105,8 +104,8 @@ export function AnalyticsView() {
       const dayName = days[date.getDay()];
       return {
         day:      dayName,
-        holds:    holds.filter(h => h.flaggedAt.startsWith(dateStr)).length,
-        releases: holds.filter(h => h.release && h.flaggedAt.startsWith(dateStr)).length,
+        holds:    holds.filter(h => businessDateOf(h.flaggedAt) === dateStr).length,
+        releases: holds.filter(h => h.release && businessDateOf(h.flaggedAt) === dateStr).length,
       };
     });
   })();

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { OffStandardEntry, User, Hold, Vehicle, ShiftWithUser } from '../types';
 import { rowToOffStandard } from '../lib/offStandardReport';
+import { localDateStr } from './useFleetBalance';
+import { shiftDayStartISO } from '../lib/shiftDay';
 import { useOffStandardSession } from './useOffStandardSession';
 import { useOffStandardEntryEdits } from './useOffStandardEntryEdits';
 import { useOffStandardExport } from './useOffStandardExport';
@@ -41,14 +43,12 @@ export function useOffStandardTimer({
 
   // Load completed entries for today
   useEffect(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
     supabase
       .from('off_standard_entries')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'complete')
-      .gte('start_time', todayStart.toISOString())
+      .gte('start_time', shiftDayStartISO(localDateStr(0)))
       .order('start_time', { ascending: true })
       .then(({ data }) => {
         if (data) setEntries((data as Record<string, unknown>[]).map(rowToOffStandard));

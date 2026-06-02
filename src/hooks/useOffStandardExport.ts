@@ -7,6 +7,8 @@ import {
   todayDateStr,
 } from '../lib/offStandardReport';
 import type { TripRow } from '../lib/offStandardReport';
+import { localDateStr } from './useFleetBalance';
+import { shiftDayStartISO } from '../lib/shiftDay';
 import type { OffStandardEntry, User, ShiftWithUser } from '../types';
 
 interface UseOffStandardExportProps {
@@ -26,13 +28,11 @@ export function useOffStandardExport({ user, shifts, entries }: UseOffStandardEx
 
   const handleExport = async () => {
     hapticMedium();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
     const { data: tripRows } = await supabase
       .from('vsa_trips')
       .select('depart_time, arrive_time, is_shuttle, reason')
       .eq('driver_id', user.id)
-      .gte('depart_time', todayStart.toISOString())
+      .gte('depart_time', shiftDayStartISO(localDateStr(0)))
       .not('arrive_time', 'is', null)
       .order('depart_time', { ascending: true });
     const shiftLine  = deriveShiftLine(shifts, user.id);

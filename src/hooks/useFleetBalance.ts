@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { shiftDateStr } from '../lib/shiftDay';
 
-/** Returns today's date as YYYY-MM-DD in the browser's local timezone. */
+/** Today's *shift-date* as YYYY-MM-DD in local time. Rolls over at the 04:00
+ *  cutover, not midnight — see src/lib/shiftDay.ts. Kept here as the historical
+ *  import path the app already uses everywhere. */
 export function localDateStr(offsetDays = 0): string {
-  const d = new Date();
-  if (offsetDays) d.setDate(d.getDate() + offsetDays);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return shiftDateStr(offsetDays);
 }
 
 export interface FleetBalanceEntry {

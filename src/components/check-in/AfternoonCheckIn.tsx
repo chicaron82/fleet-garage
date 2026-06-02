@@ -3,6 +3,7 @@ import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { businessDateOf } from '../../lib/shiftDay';
 
 const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
@@ -25,7 +26,7 @@ export function AfternoonCheckIn() {
   const canSubmit = !submitting && carsIn > 0;
 
   const todayHandoff = handoffNotes.find(n =>
-    new Date(n.loggedAt).toLocaleDateString('en-CA') === localDateStr(0)
+    businessDateOf(n.loggedAt) === localDateStr(0)
   ) ?? null;
 
   const checkpointCount = existing ? existing.fullPages * 19 + existing.lastPageEntries : null;

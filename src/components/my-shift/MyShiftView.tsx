@@ -12,6 +12,7 @@ import { ShiftSummarySection } from '../analytics/ShiftSummarySection';
 import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus, HandoffNote } from '../../types';
 import { canLogHandoff } from '../../types';
 
@@ -30,7 +31,7 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
   canLog: boolean;
   onLogHandoff: () => void;
 }) {
-  const isToday = latestHandoff?.loggedAt.startsWith(localDateStr(0)) ?? false;
+  const isToday = latestHandoff ? businessDateOf(latestHandoff.loggedAt) === localDateStr(0) : false;
 
   if (!latestHandoff || !isToday) {
     return (
@@ -147,7 +148,7 @@ export function MyShiftView() {
   const canSeeCheckIn     = isScheduledToday || isManagementRole;
 
   const checkInDoneToday  = !!getTodayCheckpoint();
-  const handoffDoneToday  = !!latestHandoff && latestHandoff.loggedAt.startsWith(localDateStr(0));
+  const handoffDoneToday  = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
   const [activeTab, setActiveTab]             = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
   const [showHandoffForm, setShowHandoffForm] = useState(false);
   const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);

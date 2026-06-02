@@ -6,6 +6,8 @@ import { MOCK_TRIPS } from '../../data/trips';
 import type { TripRun } from '../../data/trips';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO } from '../../lib/shiftDay';
 import { DriverLiveForm } from './DriverLiveForm';
 import { getTripDurationMinutes } from '../../lib/trip-utils';
 import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
@@ -71,12 +73,10 @@ export function MovementLogView() {
 
   useEffect(() => {
     async function loadTrips() {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
       const { data } = await supabase
         .from('vsa_trips')
         .select('*')
-        .gte('depart_time', todayStart.toISOString())
+        .gte('depart_time', shiftDayStartISO(localDateStr(0)))
         .not('arrive_time', 'is', null)
         .order('depart_time', { ascending: false });
 

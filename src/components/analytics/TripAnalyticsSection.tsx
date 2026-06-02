@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO } from '../../lib/shiftDay';
 import { DEMO_DRIVER_TRIP_STATS } from '../../lib/analytics';
 import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import { TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
@@ -34,8 +35,8 @@ export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
     if (isDemo) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    const today   = localDateStr(0)  + 'T00:00:00';
-    const weekAgo = localDateStr(-6) + 'T00:00:00';
+    const today   = shiftDayStartISO(localDateStr(0));
+    const weekAgo = shiftDayStartISO(localDateStr(-6));
 
     const buildQuery = (from: string) => {
       let q = supabase

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getClassByPlate } from '../../data/ywgVehicleClasses';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO } from '../../lib/shiftDay';
 import type { BranchId } from '../../types';
 
 interface ClassCount {
@@ -14,9 +16,7 @@ interface Props {
 }
 
 function dayStart(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return shiftDayStartISO(localDateStr(0));
 }
 
 function monthStart(): string {

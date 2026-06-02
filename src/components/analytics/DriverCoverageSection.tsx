@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO } from '../../lib/shiftDay';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { DEMO_DRIVER_COVERAGE } from '../../lib/analytics';
@@ -84,7 +85,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
-    const todayStart = localDateStr(0) + 'T00:00:00';
+    const todayStart = shiftDayStartISO(localDateStr(0));
     const driverIds  = driverUsers.map(u => u.id);
 
     const shiftsQ = supabase

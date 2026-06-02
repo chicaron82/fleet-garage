@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { hapticLight } from '../lib/haptics';
 import { localDateStr } from './useFleetBalance';
+import { businessDateOf } from '../lib/shiftDay';
 import type { Hold, Vehicle, OffStandardPresetReason } from '../types';
 
 interface Props {
@@ -43,7 +44,7 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     const edvHold = holds.find(h =>
       h.holdTypes.includes('detail') &&
       h.status === 'RELEASED' &&
-      h.release?.approvedAt.startsWith(today) &&
+      (h.release ? businessDateOf(h.release.approvedAt) === today : false) &&
       !h.offstandardLinked
     );
 

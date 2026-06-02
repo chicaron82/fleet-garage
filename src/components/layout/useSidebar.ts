@@ -5,6 +5,7 @@ import { useWashbayContext } from '../../context/WashbayContext';
 import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
@@ -101,7 +102,7 @@ export function useSidebar() {
       .from('vsa_trips')
       .select('depart_time')
       .eq('driver_id', user.id)
-      .gte('depart_time', localDateStr(-6) + 'T00:00:00');
+      .gte('depart_time', shiftDayStartISO(localDateStr(-6)));
     if (activeBranch !== 'ALL') q = q.eq('branch_id', activeBranch);
     q.then(({ data }) => setDriverWeekTrips((data ?? []) as { depart_time: string }[]));
   }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,8 +132,8 @@ export function useSidebar() {
       .from('handoff_notes')
       .select('*')
       .eq('branch_id', branchId)
-      .gte('logged_at', recentLogDate + 'T00:00:00')
-      .lte('logged_at', recentLogDate + 'T23:59:59')
+      .gte('logged_at', shiftDayWindow(recentLogDate).startISO)
+      .lt('logged_at', shiftDayWindow(recentLogDate).endISO)
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -240,9 +241,9 @@ export function useSidebar() {
   const deltaColor = delta != null ? (delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : '';
 
   // ── Driver productivity derivations ──────────────────────────────────────────
-  const tripsToday   = driverWeekTrips.filter(t => t.depart_time.startsWith(localDateStr(0))).length;
+  const tripsToday   = driverWeekTrips.filter(t => businessDateOf(t.depart_time) === localDateStr(0)).length;
   const byDay        = driverWeekTrips.reduce((acc, t) => {
-    const date = t.depart_time.split('T')[0];
+    const date = businessDateOf(t.depart_time);
     acc[date] = (acc[date] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);

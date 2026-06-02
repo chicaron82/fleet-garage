@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDayStartISO } from '../../lib/shiftDay';
 import { isNoteActiveForMonth, seasonalStarterBody } from '../../lib/whiteboard-schedule';
 import type { WhiteboardNote, WhiteboardSection } from '../../types';
 import { canWriteWhiteboard } from '../../types';
@@ -48,9 +50,8 @@ export function WhiteboardView() {
   const currentMonth = new Date().getMonth() + 1;
 
   async function loadNotes() {
-    // Auto-archive shift_board notes from previous days
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Auto-archive shift_board notes from previous shift-days (04:00 cutover, so
+    // a note written after midnight stays live for the shift still in progress).
     const { error: archiveErr } = await writeWithRefresh(() =>
       supabase
         .from('whiteboard_notes')
@@ -58,7 +59,7 @@ export function WhiteboardView() {
         .eq('branch_id', branchId)
         .eq('section', 'shift_board')
         .eq('status', 'active')
-        .lt('created_at', todayStart.toISOString())
+        .lt('created_at', shiftDayStartISO(localDateStr(0)))
     );
     if (archiveErr) console.error('[WhiteboardView] shift_board auto-archive failed:', archiveErr);
 

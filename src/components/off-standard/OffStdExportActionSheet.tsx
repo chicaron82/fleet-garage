@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import type { User, ShiftWithUser } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
+import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   rowToOffStandard, deriveShiftLine, generateOffStandardReport,
   type TripRow,
@@ -27,8 +28,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
   const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
-    const dayStart = new Date(date + 'T00:00:00').toISOString();
-    const dayEnd   = new Date(new Date(date + 'T00:00:00').setDate(new Date(date + 'T00:00:00').getDate() + 1)).toISOString();
+    const { startISO: dayStart, endISO: dayEnd } = shiftDayWindow(date);
 
     Promise.all([
       supabase.from('off_standard_entries')

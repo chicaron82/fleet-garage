@@ -4,6 +4,7 @@ import { useWashbayContext } from '../../context/WashbayContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { businessDateOf, shiftDayStartISO } from '../../lib/shiftDay';
 import {
   buildShiftPartition,
   computeShiftRates,
@@ -29,14 +30,12 @@ export function ShiftRatesCard() {
 
   useEffect(() => {
     if (!user) return;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
     supabase
       .from('off_standard_entries')
       .select('start_time, minutes')
       .eq('user_id', user.id)
       .eq('status', 'complete')
-      .gte('start_time', todayStart.toISOString())
+      .gte('start_time', shiftDayStartISO(localDateStr(0)))
       .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
       .then(({ data }) => {
         if (data) setEntries(
@@ -55,7 +54,7 @@ export function ShiftRatesCard() {
     ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
     : null;
   const todayHandoff  = handoffNotes.find(n =>
-    new Date(n.loggedAt).toLocaleDateString('en-CA') === localDateStr(0)
+    businessDateOf(n.loggedAt) === localDateStr(0)
   ) ?? null;
 
   const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
