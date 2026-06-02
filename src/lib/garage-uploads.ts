@@ -37,10 +37,10 @@ export async function uploadIssuePhoto(base64: string, issueId: string): Promise
   const blob = base64ToBlob(base64);
   const path = `${issueId}/photo.jpg`;
   const { error } = await withUploadTimeout(
-    supabase.storage.from('issue-photos').upload(path, blob, { contentType: 'image/jpeg' })
+    supabase.storage.from('issue-bucket').upload(path, blob, { contentType: 'image/jpeg' })
   );
   if (error) return null;
-  return supabase.storage.from('issue-photos').getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from('issue-bucket').getPublicUrl(path).data.publicUrl;
 }
 
 export async function uploadLostFoundPhoto(base64: string, itemId: string, slot: 'key-tag' | 'item'): Promise<string | null> {
