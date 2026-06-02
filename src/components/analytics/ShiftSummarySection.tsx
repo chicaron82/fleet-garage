@@ -129,27 +129,24 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     setLoading(false);
   }
 
-  async function handleSave() {
-    if (!user || !live) return;
-    hapticMedium();
+  async function doSave(liveData: LiveSummary) {
+    if (!user) return;
     setSaving(true);
-
     const { error } = await writeWithRefresh(() =>
       supabase.from('shift_summaries').upsert({
         user_id:                user.id,
         user_name:              user.name,
         branch_id:              user.branchId,
         date:                   todayISO,
-        first_activity_at:      live.firstActivityAt,
+        first_activity_at:      liveData.firstActivityAt,
         saved_at:               new Date().toISOString(),
-        off_standard_minutes:   live.offStandardMinutes,
-        off_standard_breakdown: Object.keys(live.offStandardBreakdown).length > 0 ? live.offStandardBreakdown : null,
-        trip_count:             live.tripCount,
-        trip_minutes:           live.tripMinutes,
-        holds_flagged:          live.holdsFlagged,
+        off_standard_minutes:   liveData.offStandardMinutes,
+        off_standard_breakdown: Object.keys(liveData.offStandardBreakdown).length > 0 ? liveData.offStandardBreakdown : null,
+        trip_count:             liveData.tripCount,
+        trip_minutes:           liveData.tripMinutes,
+        holds_flagged:          liveData.holdsFlagged,
       }, { onConflict: 'user_id,date' })
     );
-
     if (!error) {
       setSavedForDate(true);
       const { data } = await supabase.from('shift_summaries')
@@ -159,9 +156,24 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         .order('date', { ascending: false });
       setHistory((data ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>)));
     }
-
     setSaving(false);
   }
+
+  function handleSave() {
+    if (!live) return;
+    hapticMedium();
+    doSave(live);
+  }
+
+  // Auto-save once when today's activity loads for the first time. Fires on
+  // mount if there's unsaved activity — covers the "forgot to tap Save" case.
+  useEffect(() => {
+    if (!live || savedForDate) return;
+    const hasAct = live.offStandardMinutes > 0 || live.tripCount > 0 || live.holdsFlagged > 0;
+    if (!hasAct) return;
+    doSave(live);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
 
   if (!user) return null;
 
