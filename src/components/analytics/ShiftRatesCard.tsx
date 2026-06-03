@@ -7,11 +7,10 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { businessDateOf, shiftDayStartISO } from '../../lib/shiftDay';
 import {
   buildShiftPartition,
-  computeShiftRates,
   deriveShiftWindow,
   deriveUserShift,
-  applyActualWindow,
-  pickShift,
+  resolveShiftRates,
+  shiftRateWarning,
 } from '../../lib/shift-metrics';
 
 const STANDARD_RATE = 3.0;
@@ -66,17 +65,14 @@ export function ShiftRatesCard() {
   const midArrival    = getMidArrival();
   const midDeparture  = getMidDeparture();
   const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries, midArrival, midDeparture });
-  // When actual hours are logged, the window + OTH come from the real start/end.
-  const mySnapshot    = applyActualWindow(pickShift(partition, window), {
-    date: localDateStr(0),
-    actualStart: myShift?.actualStartTime,
-    actualEnd: myShift?.actualEndTime,
-    offStandardEntries: entries,
+  // Shared seam: window from actual→planned→default, OTH scoped to it, then rated.
+  const { snapshot: mySnapshot, baseline: shiftBaseline, yourEffort } = resolveShiftRates({
+    partition, shift: myShift, date: localDateStr(0), offStandardEntries: entries,
   });
-  const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
   const myCarsCleaned = mySnapshot.cleaned;
   const hasShiftData  = yourEffort != null;
   const activeMinutes = Math.max(0, mySnapshot.hours * 60 - offTotal);
+  const rateWarning   = shiftRateWarning(mySnapshot);
 
   const rateColor = !hasShiftData ? 'text-gray-400 dark:text-gray-500'
     : yourEffort! >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
@@ -141,6 +137,13 @@ export function ShiftRatesCard() {
                 Adjusted for {fmtMinutes(offTotal)} off-standard
               </p>
             )}
+          </div>
+        )}
+
+        {rateWarning && (
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
+            <span aria-hidden="true" className="text-amber-500 text-sm leading-tight">⚠</span>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">{rateWarning}</p>
           </div>
         )}
 

@@ -4,7 +4,9 @@ import {
   splitOffStandard,
   buildShiftPartition,
   computeShiftRates,
-  applyActualWindow,
+  applyShiftWindow,
+  resolveShiftRates,
+  shiftRateWarning,
   deriveShiftWindow,
   deriveUserShift,
   deriveUserShiftType,
@@ -296,7 +298,7 @@ describe('pickShift', () => {
 
 // ── applyActualWindow ─────────────────────────────────────────────────────────
 
-describe('applyActualWindow', () => {
+describe('applyShiftWindow', () => {
   const date = '2026-06-02';
   const baseSnap: ShiftSnapshot = { cleaned: 54, hours: 8, oth: 80 };
   const entries = [
@@ -305,26 +307,27 @@ describe('applyActualWindow', () => {
     { startTime: '2026-06-02T09:00:00', minutes: 30 }, // before 10:30 start → excluded
   ];
 
-  it('returns the snapshot unchanged when actual hours are absent or partial', () => {
-    expect(applyActualWindow(baseSnap, { date, offStandardEntries: entries })).toEqual(baseSnap);
-    expect(applyActualWindow(baseSnap, { date, actualStart: '10:30', offStandardEntries: entries })).toEqual(baseSnap);
+  it('returns the snapshot unchanged when no window is available (no actual, no planned)', () => {
+    expect(applyShiftWindow(baseSnap, { date, offStandardEntries: entries })).toEqual(baseSnap);
+    // partial actual + no planned → still nothing to apply
+    expect(applyShiftWindow(baseSnap, { date, actualStart: '10:30', offStandardEntries: entries })).toEqual(baseSnap);
   });
 
   it('derives productive hours from the actual span minus the unpaid break', () => {
     // 10:30 → 20:00 = 9.5h clock − 0.5 lunch = 9.0h
-    const out = applyActualWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [] });
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [] });
     expect(out.hours).toBeCloseTo(9.0);
   });
 
-  it('scopes off-standard to the actual window and leaves cars untouched', () => {
-    const out = applyActualWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: entries });
+  it('scopes off-standard to the window and leaves cars untouched', () => {
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: entries });
     expect(out.oth).toBe(150); // 90 + 60; the 09:00 entry is before the window
     expect(out.cleaned).toBe(54);
   });
 
   it('produces the honest effort rate for a heavy-trip shift (Aaron 2026-06-02)', () => {
     // 54 cars, 10:30–20:00 (9.0h productive), 4h24m OTH all inside the window
-    const out = applyActualWindow(
+    const out = applyShiftWindow(
       { cleaned: 54, hours: 8, oth: 80 },
       { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [{ startTime: '2026-06-02T12:00:00', minutes: 264 }] },
     );
@@ -335,8 +338,34 @@ describe('applyActualWindow', () => {
 
   it('handles a window that crosses midnight', () => {
     // 16:00 → 00:30 = 8.5h clock − 0.5 = 8.0h
-    const out = applyActualWindow(baseSnap, { date, actualStart: '16:00', actualEnd: '00:30', offStandardEntries: [] });
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '16:00', actualEnd: '00:30', offStandardEntries: [] });
     expect(out.hours).toBeCloseTo(8.0);
+  });
+
+  it('falls back to planned start/end when actual hours are not logged (#2)', () => {
+    // planned 06:45 → 15:15 = 8.5h − 0.5 = 8.0h
+    const out = applyShiftWindow(baseSnap, { date, plannedStart: '06:45', plannedEnd: '15:15', offStandardEntries: [] });
+    expect(out.hours).toBeCloseTo(8.0);
+  });
+
+  it('prefers actual over planned, taken as pairs (never mixed)', () => {
+    // actual 10:30→20:00 (9.0h) wins over planned 06:45→15:15
+    const out = applyShiftWindow(baseSnap, {
+      date, actualStart: '10:30', actualEnd: '20:00', plannedStart: '06:45', plannedEnd: '15:15', offStandardEntries: [],
+    });
+    expect(out.hours).toBeCloseTo(9.0);
+  });
+
+  it('does NOT subtract a lunch break on a short call-in (#4)', () => {
+    // 11:00 → 14:00 = 3.0h span, under the 5h threshold → no break deducted
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '11:00', actualEnd: '14:00', offStandardEntries: [] });
+    expect(out.hours).toBeCloseTo(3.0);
+  });
+
+  it('still subtracts the break once the span exceeds 5h', () => {
+    // 09:00 → 15:00 = 6.0h − 0.5 = 5.5h
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '09:00', actualEnd: '15:00', offStandardEntries: [] });
+    expect(out.hours).toBeCloseTo(5.5);
   });
 });
 
@@ -350,5 +379,76 @@ describe('deriveUserShift', () => {
   });
   it('returns null when the user has no shift that date', () => {
     expect(deriveUserShift([makeShift({ userId: 'u2', date: '2026-06-02' })], 'u1', '2026-06-02')).toBeNull();
+  });
+});
+
+// ── resolveShiftRates — the one seam the card AND the report compute through ────
+
+describe('resolveShiftRates', () => {
+  const date = '2026-06-02';
+  const partition: ShiftPartition = {
+    morning: { cleaned: 40, hours: 8, oth: 0 },
+    closing: { cleaned: 20, hours: 8, oth: 0 },
+    mid:     { cleaned: 54, hours: 8, oth: 0 },
+  };
+
+  it('picks the user’s window and rates it over their actual hours', () => {
+    const r = resolveShiftRates({
+      partition, date,
+      shift: { shiftType: 'mid', actualStartTime: '10:30', actualEndTime: '20:00' },
+      offStandardEntries: [{ startTime: '2026-06-02T12:00:00', minutes: 264 }],
+    });
+    expect(r.snapshot.hours).toBeCloseTo(9.0);
+    expect(r.baseline).toBeCloseTo(6.0);
+    expect(r.yourEffort).toBeCloseTo(11.7, 1);
+  });
+
+  it('falls back to planned times when actual hours are absent', () => {
+    const r = resolveShiftRates({
+      partition, date,
+      shift: { shiftType: 'mid', startTime: '06:45', endTime: '15:15' }, // 8.0h window
+      offStandardEntries: [],
+    });
+    expect(r.snapshot.hours).toBeCloseTo(8.0);
+    expect(r.baseline).toBeCloseTo(54 / 8);
+  });
+
+  it('uses the snapshot default when there is no shift at all', () => {
+    const r = resolveShiftRates({ partition, date, shift: null, offStandardEntries: [] });
+    expect(r.snapshot.hours).toBe(8);          // morning default window
+    expect(r.baseline).toBeCloseTo(40 / 8);    // defaults to the morning snapshot
+  });
+
+  it('is deterministic — identical inputs give identical rates (card ↔ report parity)', () => {
+    const args = {
+      partition, date,
+      shift: { shiftType: 'closing' as const, actualStartTime: '11:00', actualEndTime: '22:00' },
+      offStandardEntries: [{ startTime: '2026-06-02T13:00:00', minutes: 120 }],
+    };
+    // Both surfaces call this same function with the same data, so their rates
+    // cannot diverge. Lock that property.
+    expect(resolveShiftRates(args)).toEqual(resolveShiftRates(args));
+  });
+});
+
+// ── shiftRateWarning — catch a mis-logged count before it becomes the next 540 ──
+
+describe('shiftRateWarning', () => {
+  it('flags off-standard meeting or exceeding the whole window (the 540 condition)', () => {
+    const w = shiftRateWarning({ cleaned: 50, hours: 2, oth: 150 }); // 2.5h OTH ≥ 2h window
+    expect(w).toMatch(/off-standard/i);
+  });
+
+  it('flags an implausibly high effort rate (> 20/hr)', () => {
+    const w = shiftRateWarning({ cleaned: 50, hours: 2, oth: 0 }); // 25/hr
+    expect(w).toMatch(/25\.0\/hr/);
+  });
+
+  it('stays quiet for a legit heavy-trip rate (11.7/hr)', () => {
+    expect(shiftRateWarning({ cleaned: 54, hours: 9, oth: 264 })).toBeNull();
+  });
+
+  it('stays quiet when there is no count yet', () => {
+    expect(shiftRateWarning({ cleaned: null, hours: 8, oth: 0 })).toBeNull();
   });
 });

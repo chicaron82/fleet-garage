@@ -6,11 +6,8 @@ import { hapticMedium } from '../../lib/haptics';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   buildShiftPartition,
-  computeShiftRates,
-  deriveShiftWindow,
   deriveUserShift,
-  applyActualWindow,
-  pickShift,
+  resolveShiftRates,
 } from '../../lib/shift-metrics';
 import {
   buildReport,
@@ -206,13 +203,10 @@ export function ShiftReportExport({ date }: { date: string }) {
         midArrival:   midArrRow ? { fullPages: midArrRow.full_pages, lastPageEntries: midArrRow.last_page_entries, loggedAt: midArrRow.logged_at } : null,
         midDeparture: midDepRow ? { fullPages: midDepRow.full_pages, lastPageEntries: midDepRow.last_page_entries, loggedAt: midDepRow.logged_at } : null,
       });
-      const mySnap = applyActualWindow(pickShift(partition, deriveShiftWindow(shiftType) ?? 'morning'), {
-        date,
-        actualStart: myShift?.actualStartTime,
-        actualEnd: myShift?.actualEndTime,
-        offStandardEntries: offEntries,
+      // Same shared seam as the live card — window from actual→planned→default.
+      const { baseline, yourEffort } = resolveShiftRates({
+        partition, shift: myShift, date, offStandardEntries: offEntries,
       });
-      const { baseline, yourEffort } = computeShiftRates(mySnap);
 
       // When actual hours are logged, show the real clock window on the report
       // instead of the standard per-type range (or the unreliable checkpoint span).

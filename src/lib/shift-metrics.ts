@@ -1,4 +1,4 @@
-import type { ShiftType, ShiftWithUser } from '../types';
+import type { Shift, ShiftType, ShiftWithUser } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
 
 // Structural minimal inputs — the live card passes full HandoffNote/ShiftCheckpoint
@@ -132,31 +132,42 @@ export function computeShiftRates(snapshot: ShiftSnapshot): ShiftRates {
 // hours — consistent with how morningHours is defined (06:45–15:15 = 8.5h clock,
 // 8.0h productive). Aaron treats a rare second break as a manual one-off.
 export const UNPAID_BREAK_HOURS = 0.5;
+// No unpaid lunch is taken on a short call-in; the break is only deducted once
+// the shift runs long enough to include one (MB: a break is owed after 5h).
+const BREAK_MIN_SPAN_HOURS = 5;
 
-// When a shift logs actual hours worked (called in early / stayed late), the
-// throughput window AND the off-standard scope both derive from those real
-// start/end times — keeping cars, hours, and OTH on the same window. Falls back
-// to the snapshot's default (fixed 8h / morningHours) when actual hours aren't
-// logged. The car COUNTS are pinned to the timestamped gas sheet by the user,
-// so all we take from the schedule is the clock window; the app's checkpoint
-// loggedAt is deliberately not trusted here (it's data-entry time, not shift time).
-export function applyActualWindow(
+// The throughput window AND the off-standard scope derive from the best clock
+// window we have for the shift: actual hours worked when logged (called in
+// early / stayed late), else the planned start/end, else the snapshot's per-type
+// default (fixed 8h / morningHours). Actual and planned are taken as pairs,
+// never mixed. Hours = clock span minus the unpaid lunch, but only when the span
+// is long enough to include one. The car COUNTS are pinned to the timestamped
+// gas sheet by the user, so all we take from the schedule is the window; the
+// app's checkpoint loggedAt is deliberately not trusted (it's data-entry time).
+export function applyShiftWindow(
   snapshot: ShiftSnapshot,
   args: {
     date: string;                       // shift business-date YYYY-MM-DD
     actualStart?: string | null;        // 'HH:MM' or 'HH:MM:SS', local
     actualEnd?: string | null;
+    plannedStart?: string | null;       // scheduled times — fallback when no actual
+    plannedEnd?: string | null;
     offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
     breakHours?: number;
   },
 ): ShiftSnapshot {
-  const { date, actualStart, actualEnd, offStandardEntries, breakHours = UNPAID_BREAK_HOURS } = args;
-  if (!actualStart || !actualEnd) return snapshot;
-  const startMs = new Date(`${date}T${actualStart}`).getTime();
-  let endMs = new Date(`${date}T${actualEnd}`).getTime();
+  const { date, actualStart, actualEnd, plannedStart, plannedEnd, offStandardEntries, breakHours = UNPAID_BREAK_HOURS } = args;
+  const [start, end] =
+    actualStart && actualEnd     ? [actualStart, actualEnd]
+    : plannedStart && plannedEnd ? [plannedStart, plannedEnd]
+    : [null, null];
+  if (!start || !end) return snapshot;
+  const startMs = new Date(`${date}T${start}`).getTime();
+  let endMs = new Date(`${date}T${end}`).getTime();
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return snapshot;
   if (endMs <= startMs) endMs += 86_400_000; // crossed midnight (e.g. 16:00 → 00:30)
-  const hours = Math.max(0.1, (endMs - startMs) / 3_600_000 - breakHours);
+  const span = (endMs - startMs) / 3_600_000;
+  const hours = Math.max(0.1, span - (span > BREAK_MIN_SPAN_HOURS ? breakHours : 0));
   const oth = offStandardEntries
     .filter(e => { const t = new Date(e.startTime).getTime(); return t >= startMs && t < endMs; })
     .reduce((s, e) => s + e.minutes, 0);
@@ -189,4 +200,55 @@ export function pickShift(partition: ShiftPartition, window: ShiftWindow): Shift
   if (window === 'morning') return partition.morning;
   if (window === 'mid')     return partition.mid;
   return partition.closing;
+}
+
+export interface UserShiftRates {
+  snapshot: ShiftSnapshot;
+  baseline: number | null;
+  yourEffort: number | null;
+}
+
+// The single seam the live card and the exported report both compute the
+// personal rate through: pick the user's window, resolve its hours
+// (actual → planned → per-type default) and OTH scope, then rate it. One
+// function so the two surfaces cannot drift apart — the 540/hr lesson, locked.
+export function resolveShiftRates(args: {
+  partition: ShiftPartition;
+  shift: Pick<Shift, 'shiftType' | 'startTime' | 'endTime' | 'actualStartTime' | 'actualEndTime'> | null;
+  date: string;
+  offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+}): UserShiftRates {
+  const { partition, shift, date, offStandardEntries } = args;
+  const window = deriveShiftWindow(shift?.shiftType) ?? 'morning';
+  const snapshot = applyShiftWindow(pickShift(partition, window), {
+    date,
+    actualStart: shift?.actualStartTime,
+    actualEnd:   shift?.actualEndTime,
+    plannedStart: shift?.startTime,
+    plannedEnd:   shift?.endTime,
+    offStandardEntries,
+  });
+  const { baseline, yourEffort } = computeShiftRates(snapshot);
+  return { snapshot, baseline, yourEffort };
+}
+
+// Above this effort a personal rate almost certainly means a mis-logged count
+// (arrival/departure read off the wrong gas-sheet row), not a real shift —
+// well clear of a legit heavy-trip ~11.7/hr. Company standard is 3.0/hr.
+export const IMPLAUSIBLE_EFFORT_RATE = 20;
+
+// A heads-up when the personal rate looks like a data-entry error, so a
+// mis-logged count can't quietly become the next 540/hr. null when it looks
+// sane. Surfaced on the live card only — fix it before it reaches the report.
+export function shiftRateWarning(snapshot: ShiftSnapshot): string | null {
+  if (snapshot.cleaned == null) return null;
+  // Off-standard meeting/exceeding the whole window is impossible (the 540 case).
+  if (snapshot.oth / 60 >= snapshot.hours) {
+    return 'Off-standard meets or exceeds your shift window — check your times and counts.';
+  }
+  const { yourEffort } = computeShiftRates(snapshot);
+  if (yourEffort != null && yourEffort > IMPLAUSIBLE_EFFORT_RATE) {
+    return `Rate looks high (${yourEffort.toFixed(1)}/hr) — double-check your arrival/departure counts.`;
+  }
+  return null;
 }
