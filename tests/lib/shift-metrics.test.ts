@@ -4,12 +4,15 @@ import {
   splitOffStandard,
   buildShiftPartition,
   computeShiftRates,
+  applyActualWindow,
   deriveShiftWindow,
+  deriveUserShift,
   deriveUserShiftType,
   pickShift,
   MORNING_SHIFT_HOURS,
   CLOSING_SHIFT_HOURS,
   type ShiftPartition,
+  type ShiftSnapshot,
 } from '../../src/lib/shift-metrics';
 import { localDateStr } from '../../src/hooks/useFleetBalance';
 import type { HandoffNote, ShiftCheckpoint, ShiftWithUser } from '../../src/types';
@@ -288,5 +291,64 @@ describe('pickShift', () => {
     expect(pickShift(partition, 'morning')).toBe(partition.morning);
     expect(pickShift(partition, 'mid')).toBe(partition.mid);
     expect(pickShift(partition, 'closing')).toBe(partition.closing);
+  });
+});
+
+// ── applyActualWindow ─────────────────────────────────────────────────────────
+
+describe('applyActualWindow', () => {
+  const date = '2026-06-02';
+  const baseSnap: ShiftSnapshot = { cleaned: 54, hours: 8, oth: 80 };
+  const entries = [
+    { startTime: '2026-06-02T11:00:00', minutes: 90 }, // in window
+    { startTime: '2026-06-02T18:00:00', minutes: 60 }, // in window
+    { startTime: '2026-06-02T09:00:00', minutes: 30 }, // before 10:30 start → excluded
+  ];
+
+  it('returns the snapshot unchanged when actual hours are absent or partial', () => {
+    expect(applyActualWindow(baseSnap, { date, offStandardEntries: entries })).toEqual(baseSnap);
+    expect(applyActualWindow(baseSnap, { date, actualStart: '10:30', offStandardEntries: entries })).toEqual(baseSnap);
+  });
+
+  it('derives productive hours from the actual span minus the unpaid break', () => {
+    // 10:30 → 20:00 = 9.5h clock − 0.5 lunch = 9.0h
+    const out = applyActualWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [] });
+    expect(out.hours).toBeCloseTo(9.0);
+  });
+
+  it('scopes off-standard to the actual window and leaves cars untouched', () => {
+    const out = applyActualWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: entries });
+    expect(out.oth).toBe(150); // 90 + 60; the 09:00 entry is before the window
+    expect(out.cleaned).toBe(54);
+  });
+
+  it('produces the honest effort rate for a heavy-trip shift (Aaron 2026-06-02)', () => {
+    // 54 cars, 10:30–20:00 (9.0h productive), 4h24m OTH all inside the window
+    const out = applyActualWindow(
+      { cleaned: 54, hours: 8, oth: 80 },
+      { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [{ startTime: '2026-06-02T12:00:00', minutes: 264 }] },
+    );
+    const { baseline, yourEffort } = computeShiftRates(out);
+    expect(baseline).toBeCloseTo(6.0);       // 54 / 9
+    expect(yourEffort).toBeCloseTo(11.7, 1); // 54 / (9 − 4.4)
+  });
+
+  it('handles a window that crosses midnight', () => {
+    // 16:00 → 00:30 = 8.5h clock − 0.5 = 8.0h
+    const out = applyActualWindow(baseSnap, { date, actualStart: '16:00', actualEnd: '00:30', offStandardEntries: [] });
+    expect(out.hours).toBeCloseTo(8.0);
+  });
+});
+
+describe('deriveUserShift', () => {
+  it('returns the user’s shift for the date, preferring one with start/end times', () => {
+    const shifts = [
+      makeShift({ id: 'a', userId: 'u1', date: '2026-06-02', shiftType: 'day-off' }),
+      makeShift({ id: 'b', userId: 'u1', date: '2026-06-02', shiftType: 'mid', startTime: '10:30', endTime: '19:00' }),
+    ];
+    expect(deriveUserShift(shifts, 'u1', '2026-06-02')?.id).toBe('b');
+  });
+  it('returns null when the user has no shift that date', () => {
+    expect(deriveUserShift([makeShift({ userId: 'u2', date: '2026-06-02' })], 'u1', '2026-06-02')).toBeNull();
   });
 });

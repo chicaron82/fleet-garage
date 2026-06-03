@@ -8,6 +8,8 @@ import {
   buildShiftPartition,
   computeShiftRates,
   deriveShiftWindow,
+  deriveUserShift,
+  applyActualWindow,
   pickShift,
 } from '../../lib/shift-metrics';
 import {
@@ -132,13 +134,9 @@ export function ShiftReportExport({ date }: { date: string }) {
         .limit(1),
     ]);
 
-    // Shift type
-    const shiftType: ShiftType | null = (() => {
-      const dayShifts = shifts.filter(s => s.userId === user.id && s.date === date);
-      if (!dayShifts.length) return null;
-      const withTimes = dayShifts.find(s => s.startTime && s.endTime);
-      return (withTimes ?? dayShifts[0])?.shiftType ?? null;
-    })();
+    // Shift type + actual hours worked (drives the window when logged)
+    const myShift = deriveUserShift(shifts, user.id, date);
+    const shiftType: ShiftType | null = myShift?.shiftType ?? null;
 
     // Fleet balance — actual or same-day-of-week projection
     const fbRows = (fbRes.data ?? []) as { date: string; out_count: number; in_count: number }[];
@@ -208,14 +206,24 @@ export function ShiftReportExport({ date }: { date: string }) {
         midArrival:   midArrRow ? { fullPages: midArrRow.full_pages, lastPageEntries: midArrRow.last_page_entries, loggedAt: midArrRow.logged_at } : null,
         midDeparture: midDepRow ? { fullPages: midDepRow.full_pages, lastPageEntries: midDepRow.last_page_entries, loggedAt: midDepRow.logged_at } : null,
       });
-      const { baseline, yourEffort } = computeShiftRates(pickShift(partition, deriveShiftWindow(shiftType) ?? 'morning'));
+      const mySnap = applyActualWindow(pickShift(partition, deriveShiftWindow(shiftType) ?? 'morning'), {
+        date,
+        actualStart: myShift?.actualStartTime,
+        actualEnd: myShift?.actualEndTime,
+        offStandardEntries: offEntries,
+      });
+      const { baseline, yourEffort } = computeShiftRates(mySnap);
+
+      // When actual hours are logged, show that real window on the mid card
+      // instead of the unreliable checkpoint-timestamp span.
+      const actualLogged = !!(myShift?.actualStartTime && myShift?.actualEndTime);
 
       throughput = {
         shiftType,
         openingCleaned,
         closingCleaned,
         midCleaned,
-        midShiftHours,
+        midShiftHours: actualLogged && shiftType === 'mid' ? mySnap.hours : midShiftHours,
         fullDayCleaned,
         branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
         lotStatus,

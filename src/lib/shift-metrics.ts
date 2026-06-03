@@ -128,6 +128,41 @@ export function computeShiftRates(snapshot: ShiftSnapshot): ShiftRates {
   return { baseline, yourEffort };
 }
 
+// The standard unpaid lunch, subtracted from a clock window to get productive
+// hours — consistent with how morningHours is defined (06:45–15:15 = 8.5h clock,
+// 8.0h productive). Aaron treats a rare second break as a manual one-off.
+export const UNPAID_BREAK_HOURS = 0.5;
+
+// When a shift logs actual hours worked (called in early / stayed late), the
+// throughput window AND the off-standard scope both derive from those real
+// start/end times — keeping cars, hours, and OTH on the same window. Falls back
+// to the snapshot's default (fixed 8h / morningHours) when actual hours aren't
+// logged. The car COUNTS are pinned to the timestamped gas sheet by the user,
+// so all we take from the schedule is the clock window; the app's checkpoint
+// loggedAt is deliberately not trusted here (it's data-entry time, not shift time).
+export function applyActualWindow(
+  snapshot: ShiftSnapshot,
+  args: {
+    date: string;                       // shift business-date YYYY-MM-DD
+    actualStart?: string | null;        // 'HH:MM' or 'HH:MM:SS', local
+    actualEnd?: string | null;
+    offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+    breakHours?: number;
+  },
+): ShiftSnapshot {
+  const { date, actualStart, actualEnd, offStandardEntries, breakHours = UNPAID_BREAK_HOURS } = args;
+  if (!actualStart || !actualEnd) return snapshot;
+  const startMs = new Date(`${date}T${actualStart}`).getTime();
+  let endMs = new Date(`${date}T${actualEnd}`).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return snapshot;
+  if (endMs <= startMs) endMs += 86_400_000; // crossed midnight (e.g. 16:00 → 00:30)
+  const hours = Math.max(0.1, (endMs - startMs) / 3_600_000 - breakHours);
+  const oth = offStandardEntries
+    .filter(e => { const t = new Date(e.startTime).getTime(); return t >= startMs && t < endMs; })
+    .reduce((s, e) => s + e.minutes, 0);
+  return { ...snapshot, hours, oth };
+}
+
 export function deriveShiftWindow(shiftType: ShiftType | null | undefined): ShiftWindow | null {
   if (shiftType === 'opening') return 'morning';
   if (shiftType === 'closing') return 'closing';
@@ -135,12 +170,19 @@ export function deriveShiftWindow(shiftType: ShiftType | null | undefined): Shif
   return null;
 }
 
-export function deriveUserShiftType(shifts: ShiftWithUser[], userId: string): ShiftType | null {
-  const today = localDateStr(0);
-  const todaysShifts = shifts.filter(s => s.userId === userId && s.date === today);
+// The user's shift row for a date (defaults to today) — prefers one with
+// start/end times. Source of shiftType and actual hours worked.
+export function deriveUserShift(
+  shifts: ShiftWithUser[], userId: string, date: string = localDateStr(0),
+): ShiftWithUser | null {
+  const todaysShifts = shifts.filter(s => s.userId === userId && s.date === date);
   if (todaysShifts.length === 0) return null;
   const withTimes = todaysShifts.find(s => s.startTime && s.endTime);
-  return (withTimes ?? todaysShifts[0])?.shiftType ?? null;
+  return withTimes ?? todaysShifts[0] ?? null;
+}
+
+export function deriveUserShiftType(shifts: ShiftWithUser[], userId: string): ShiftType | null {
+  return deriveUserShift(shifts, userId)?.shiftType ?? null;
 }
 
 export function pickShift(partition: ShiftPartition, window: ShiftWindow): ShiftSnapshot {

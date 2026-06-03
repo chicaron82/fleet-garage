@@ -9,7 +9,8 @@ import {
   buildShiftPartition,
   computeShiftRates,
   deriveShiftWindow,
-  deriveUserShiftType,
+  deriveUserShift,
+  applyActualWindow,
   pickShift,
 } from '../../lib/shift-metrics';
 
@@ -59,13 +60,19 @@ export function ShiftRatesCard() {
 
   const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
 
-  const userShiftType = deriveUserShiftType(shifts, user.id);
-  const window        = deriveShiftWindow(userShiftType) ?? 'morning';
+  const myShift       = deriveUserShift(shifts, user.id);
+  const window        = deriveShiftWindow(myShift?.shiftType) ?? 'morning';
   const checkpoint    = getTodayCheckpoint();
   const midArrival    = getMidArrival();
   const midDeparture  = getMidDeparture();
   const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries, midArrival, midDeparture });
-  const mySnapshot    = pickShift(partition, window);
+  // When actual hours are logged, the window + OTH come from the real start/end.
+  const mySnapshot    = applyActualWindow(pickShift(partition, window), {
+    date: localDateStr(0),
+    actualStart: myShift?.actualStartTime,
+    actualEnd: myShift?.actualEndTime,
+    offStandardEntries: entries,
+  });
   const { baseline: shiftBaseline, yourEffort } = computeShiftRates(mySnapshot);
   const myCarsCleaned = mySnapshot.cleaned;
   const hasShiftData  = yourEffort != null;
