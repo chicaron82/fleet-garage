@@ -83,6 +83,7 @@ export function TripStartForm({
       userField: 'driver_id',
       userId: user?.id,
       columns: 'id, vehicle_plate, depart_location, depart_time, trip_type, is_shuttle, auth_type, reason, queue_at_departure, ev_cable_status, ev_adapter_status',
+      orderBy: 'depart_time',
     },
     row => {
       setDepartureTime(row.depart_time as string);
@@ -274,6 +275,12 @@ export function TripStartForm({
   };
 
   const handleReset = () => {
+    // Abandoning a started-but-not-arrived trip: delete its in_progress row so
+    // it doesn't orphan in the DB (orphaned in_progress rows break recovery).
+    // A completed trip is left alone — Reset there just clears the form.
+    if (tripState === 'in_transit' && pendingTripId) {
+      void writeOrEnqueue('delete', {}, 'id', pendingTripId);
+    }
     setTripState('form');
     setPendingTripId(null);
     setReason(null);

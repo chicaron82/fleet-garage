@@ -51,6 +51,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
       userField: 'driver_id',
       userId: user?.id,
       columns: 'id, vehicle_plate, depart_location, arrive_location, depart_time, is_shuttle, notes, trip_type',
+      orderBy: 'depart_time',
     },
     row => {
       const depLoc = (row.depart_location as string) ?? '';
@@ -264,6 +265,11 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   };
 
   const handleReset = () => {
+    // Abandoning a started-but-not-arrived trip: delete its in_progress row so
+    // it doesn't orphan in the DB. A completed trip is left alone.
+    if (liveState === 'in_transit' && inProgressId) {
+      void writeOrEnqueue('delete', {}, 'id', inProgressId);
+    }
     setLiveState('form');
     setRouteStep('origin');
     setFrom(null);

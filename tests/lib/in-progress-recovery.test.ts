@@ -31,19 +31,38 @@ function makeFakeClient(opts: {
       return {
         select(columns: string) {
           current.columns = columns;
-          return {
+          let orderCol: string | null = null;
+          let orderAsc = true;
+          const builder = {
             eq(column: string, value: string) {
               current.filters.push([column, value]);
-              return this;
+              return builder;
+            },
+            order(column: string, opts: { ascending: boolean }) {
+              orderCol = column;
+              orderAsc = opts.ascending;
+              return builder;
+            },
+            limit() {
+              return builder;
             },
             async maybeSingle() {
               if (error) return { data: null, error };
-              const match = rows.find(r =>
+              let matches = rows.filter(r =>
                 current.filters.every(([col, val]) => r[col] === val),
               );
-              return { data: match ?? null, error: null };
+              if (orderCol) {
+                const col = orderCol;
+                matches = [...matches].sort((a, b) =>
+                  orderAsc
+                    ? String(a[col]).localeCompare(String(b[col]))
+                    : String(b[col]).localeCompare(String(a[col])),
+                );
+              }
+              return { data: matches[0] ?? null, error: null };
             },
           };
+          return builder;
         },
       };
     },
@@ -116,6 +135,23 @@ describe('recoverInProgress — query shape', () => {
       ['driver_id', 'u1'],
       ['status', 'pending_review'],
     ]);
+  });
+});
+
+describe('recoverInProgress — resilient to orphaned rows', () => {
+  it('recovers the most recent in_progress row when more than one exists', async () => {
+    const { client } = makeFakeClient({
+      rows: [
+        { id: 'trip-old', driver_id: 'u1', status: 'in_progress', depart_time: '2026-06-03T10:00:00Z' },
+        { id: 'trip-new', driver_id: 'u1', status: 'in_progress', depart_time: '2026-06-03T14:00:00Z' },
+      ],
+    });
+    const row = await recoverInProgress({
+      client, table: 'vsa_trips', userField: 'driver_id', userId: 'u1', orderBy: 'depart_time',
+    });
+    // Without orderBy this is the PGRST116 "multiple rows" case; with it we take
+    // the latest instead of erroring.
+    expect(row?.id).toBe('trip-new');
   });
 });
 

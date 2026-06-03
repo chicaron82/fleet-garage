@@ -23,6 +23,8 @@ export interface RecoveryFromBuilder {
 
 export interface RecoveryFilterBuilder {
   eq(column: string, value: string): RecoveryFilterBuilder;
+  order(column: string, opts: { ascending: boolean }): RecoveryFilterBuilder;
+  limit(count: number): RecoveryFilterBuilder;
   maybeSingle(): PromiseLike<{ data: Record<string, unknown> | null; error: unknown }>;
 }
 
@@ -37,6 +39,10 @@ export interface RecoverInProgressOptions {
   columns?: string;
   /** Status filter. Defaults to `in_progress` — the contract value. */
   status?: string;
+  /** Timestamp column to recover the *most recent* row by, when more than one
+   *  in_progress row exists (e.g. an orphan was left behind). Without it,
+   *  `maybeSingle()` errors on 2+ rows. */
+  orderBy?: string;
 }
 
 export type RecoveryRow = Record<string, unknown>;
@@ -47,12 +53,16 @@ export async function recoverInProgress(
   const columns = opts.columns ?? '*';
   const status  = opts.status  ?? 'in_progress';
 
-  const { data, error } = await opts.client
+  let q = opts.client
     .from(opts.table)
     .select(columns)
     .eq(opts.userField, opts.userId)
-    .eq('status', status)
-    .maybeSingle();
+    .eq('status', status);
+  // Recover the most recent in_progress row. limit(1) also keeps maybeSingle()
+  // from erroring if an orphan was ever left behind (PGRST116 on 2+ rows).
+  if (opts.orderBy) q = q.order(opts.orderBy, { ascending: false }).limit(1);
+
+  const { data, error } = await q.maybeSingle();
 
   if (error) {
     console.error(`[recoverInProgress] ${opts.table} query failed:`, error);

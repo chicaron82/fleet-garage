@@ -16,17 +16,28 @@ type VsaTripUpdate = Database['public']['Tables']['vsa_trips']['Update'];
  * write-first call, so keep this awaited before any live-state setter.
  */
 export async function writeOrEnqueue(
-  action: 'insert' | 'update',
+  action: 'insert' | 'update' | 'delete',
   payload: Record<string, unknown>,
   eqField?: string,
   eqValue?: string,
 ): Promise<{ ok: boolean }> {
+  // A delete without a filter would wipe the whole table — refuse it outright.
+  if (action === 'delete' && (!eqField || eqValue === undefined)) {
+    console.error('[writeOrEnqueue] refusing an unscoped delete');
+    return { ok: false };
+  }
   if (!navigator.onLine) {
     enqueueOfflineAction({ table: 'vsa_trips', action, payload, eqField, eqValue });
     return { ok: true };
   }
   const res = action === 'insert'
     ? await writeWithRefresh(() => supabase.from('vsa_trips').insert(payload as unknown as VsaTripInsert))
+    : action === 'delete'
+    ? await writeWithRefresh(() => {
+        let q = supabase.from('vsa_trips').delete();
+        if (eqField && eqValue !== undefined) q = q.eq(eqField, eqValue);
+        return q;
+      })
     : await writeWithRefresh(() => {
         let q = supabase.from('vsa_trips').update(payload as unknown as VsaTripUpdate);
         if (eqField && eqValue !== undefined) q = q.eq(eqField, eqValue);

@@ -20,6 +20,9 @@ interface UseInProgressRecoveryOptions {
   userId: string | null | undefined;
   /** Columns to project. Defaults to `'*'`. */
   columns?: string;
+  /** Timestamp column to recover the most recent in_progress row by — makes
+   *  recovery resilient to a stray orphan instead of erroring on 2+ rows. */
+  orderBy?: string;
   /** Called after the recovery query resolves, whether or not a record was found. */
   onSettled?: () => void;
 }
@@ -48,7 +51,7 @@ export function useInProgressRecovery(
     onSettledRef.current = opts.onSettled;
   });
 
-  const { table, userField, userId, columns } = opts;
+  const { table, userField, userId, columns, orderBy } = opts;
 
   useEffect(() => {
     if (!userId) return;
@@ -58,9 +61,10 @@ export function useInProgressRecovery(
       userField,
       userId,
       columns,
+      orderBy,
     }).then(row => {
       if (row) onRecoverRef.current(row);
       onSettledRef.current?.();
     });
-  }, [table, userField, userId, columns]);
+  }, [table, userField, userId, columns, orderBy]);
 }
