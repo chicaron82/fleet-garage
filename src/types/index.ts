@@ -20,6 +20,15 @@ export function canRelease(role: UserRole): boolean {
   return CAN_RELEASE.includes(role);
 }
 
+// Who can clear a sale/auction flag logged in error — the staff who can flag a
+// vehicle in the first place (floor VSAs + management), so a mistake can be
+// self-corrected. Every clear is audited and pings management for awareness.
+const CAN_CLEAR_SALE_FLAG: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+
+export function canClearSaleFlag(role: UserRole): boolean {
+  return CAN_CLEAR_SALE_FLAG.includes(role);
+}
+
 const CAN_LOG_HANDOFF: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
 export function canLogHandoff(role: UserRole): boolean {

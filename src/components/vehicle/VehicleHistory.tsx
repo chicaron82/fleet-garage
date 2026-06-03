@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { canRelease, canManageVehicles } from '../../types';
+import { canRelease, canManageVehicles, canClearSaleFlag } from '../../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { hapticHeavy } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
@@ -163,6 +163,49 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </>
             )}
           </div>
+
+          {canClearSaleFlag(h.user.role) && h.saleHold && (
+            <div className="mt-2">
+              {!h.confirmClearSale ? (
+                <button
+                  type="button"
+                  onClick={() => h.setConfirmClearSale(true)}
+                  className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition cursor-pointer"
+                >
+                  Clear sale flag — logged in error
+                </button>
+              ) : (
+                <div className="rounded-lg border border-orange-200 dark:border-orange-800/50 bg-orange-50 dark:bg-orange-900/20 px-4 py-3">
+                  <p className="text-sm font-semibold text-orange-900 dark:text-orange-300">Clear the sale / auction flag?</p>
+                  <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                    Returns this unit to rentable — use only if it was never a sale car. Management is notified.
+                  </p>
+                  {h.clearSaleError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">Couldn't clear it — try again.</p>
+                  )}
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button
+                      type="button"
+                      onClick={() => h.setConfirmClearSale(false)}
+                      disabled={h.clearingSale}
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition cursor-pointer disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={h.handleClearSale}
+                      disabled={h.clearingSale}
+                      className="px-4 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-400 text-white rounded-lg transition cursor-pointer disabled:opacity-50"
+                    >
+                      {h.clearingSale ? 'Clearing…' : 'Clear flag'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {canManageVehicles(h.user.role) && !vehicle.archivedAt && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-end">
               <button

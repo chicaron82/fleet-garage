@@ -203,3 +203,28 @@ describe('factsFromRow / factsFromHold parity', () => {
     expect(deriveHoldStatus([row])).toBe('auction-short-term');
   });
 });
+
+// ── clearSaleHold's contract — a voided (RETURNED) sale_car hold reads as clear ──
+
+describe('clearing a sale flag returns the vehicle to rentable', () => {
+  it('a once-active sale_car hold, now RETURNED, is no longer sale-car', () => {
+    const facts = factsFromHold({ status: 'RETURNED', holdTypes: ['sale_car'], release: null });
+    expect(deriveHoldStatus([facts])).toBe('clear');
+  });
+
+  it('an auction-short-term hold cleared (RETURNED + release closed) is no longer auction', () => {
+    // clearSaleHold sets the hold RETURNED and stamps actual_return on the release.
+    const facts = factsFromHold({
+      status: 'RETURNED', holdTypes: ['sale_car'],
+      release: { releaseType: 'EXCEPTION', actualReturn: '2026-06-03T12:00:00Z' },
+    });
+    expect(facts.isOpenException).toBe(false);
+    expect(deriveHoldStatus([facts])).toBe('clear');
+  });
+
+  it('does NOT clear a vehicle that still has a separate genuine active hold', () => {
+    const clearedSale = factsFromHold({ status: 'RETURNED', holdTypes: ['sale_car'], release: null });
+    const realDamage  = factsFromHold({ status: 'ACTIVE', holdTypes: ['damage'] });
+    expect(deriveHoldStatus([clearedSale, realDamage])).toBe('held');
+  });
+});

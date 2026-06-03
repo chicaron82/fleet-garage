@@ -8,7 +8,7 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, syncVehicleStatus } = useVehicleHoldContext();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
@@ -31,6 +31,19 @@ export function useVehicleHistory(vehicleId: string) {
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
+
+  // The sale_car hold currently flagging this vehicle — whether still active
+  // (sale-car) or already released short-term (auction-short-term). Target of
+  // the "clear logged in error" action.
+  const saleHold = holds.find(
+    h => h.vehicleId === vehicle?.id &&
+      h.holdTypes.includes('sale_car') &&
+      (h.status === 'ACTIVE' ||
+        (h.status === 'RELEASED' && h.release?.releaseType === 'EXCEPTION' && !h.release?.actualReturn))
+  ) ?? null;
+  const [confirmClearSale, setConfirmClearSale] = useState(false);
+  const [clearingSale, setClearingSale] = useState(false);
+  const [clearSaleError, setClearSaleError] = useState(false);
 
   // All holds currently eligible for the repair action:
   // ACTIVE holds always eligible; RELEASED holds eligible if not yet repaired.
@@ -93,6 +106,21 @@ export function useVehicleHistory(vehicleId: string) {
   const closeReleaseForm = () => setShowReleaseForm(null);
   const closeVerbalOverride = () => setShowVerbalOverride(null);
 
+  const handleClearSale = async () => {
+    if (!saleHold || !user) return;
+    setClearingSale(true);
+    setClearSaleError(false);
+    try {
+      await clearSaleHold(saleHold.id, user.name);
+      hapticMedium();
+      setConfirmClearSale(false);
+    } catch {
+      setClearSaleError(true);
+    } finally {
+      setClearingSale(false);
+    }
+  };
+
   const handleRepair = async () => {
     if (!showRepairConfirm) return;
     setRepairing(true);
@@ -129,7 +157,8 @@ export function useVehicleHistory(vehicleId: string) {
 
   return {
     user: user!,
-    vehicle, holds, activeHold, repairableHolds,
+    vehicle, holds, activeHold, repairableHolds, saleHold,
+    confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,

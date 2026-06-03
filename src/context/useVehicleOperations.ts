@@ -1,6 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
+import { makeClearSaleHold, makeMarkReturned } from './holdResolution';
 import type {
   Vehicle, Hold, Release, Repair,
   HoldType, DetailReason, MechanicalSubType, BranchId,
@@ -221,33 +222,9 @@ export function useVehicleOperations({
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
   };
 
-  const markReturned = async (holdId: string) => {
-    const returnedAt = new Date().toISOString();
-    const hold = holds.find(h => h.id === holdId);
-    // Throw like addRelease/markRepaired so confirmReturn's caller can tell a
-    // vanished hold from a successful return, instead of a silent no-op.
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
-    // Primary write — throw on failure so the caller (useReEval.confirmReturn)
-    // can surface it rather than flipping local state on a write that didn't land.
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId)
-    );
-    if (error) throw new Error(`Failed to mark returned: ${(error as { message?: string }).message}`);
-    if (hold.release) await writeWithRefresh(() =>
-      supabase.from('releases').update({ actual_return: returnedAt }).eq('id', hold.release!.id)
-    );
-    const { error: vehErr } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId)
-    );
-    const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], '🔁',
-      `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent', { vehicleId: hold.vehicleId });
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
-      ...h, status: 'RETURNED',
-      release: h.release ? { ...h.release, actualReturn: returnedAt } : undefined,
-    }));
-    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: 'RETURNED' }));
-  };
+  // Hold-resolution ops live in ./holdResolution to keep this file under the cap.
+  const markReturned  = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const clearSaleHold = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
 
   const archiveVehicle = async (vehicleId: string) => {
     const now = new Date().toISOString();
@@ -366,6 +343,7 @@ export function useVehicleOperations({
     addPhotosToHold,
     markRepaired,
     markReturned,
+    clearSaleHold,
     archiveVehicle,
     restoreVehicle,
     syncVehicleStatus,
