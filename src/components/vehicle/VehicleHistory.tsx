@@ -170,9 +170,9 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 <button
                   type="button"
                   onClick={() => h.setConfirmClearSale(true)}
-                  className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-300 dark:border-orange-700 text-xs font-semibold text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition cursor-pointer"
                 >
-                  Clear sale flag — logged in error
+                  ↺ Clear sale flag — logged in error
                 </button>
               ) : (
                 <div className="rounded-lg border border-orange-200 dark:border-orange-800/50 bg-orange-50 dark:bg-orange-900/20 px-4 py-3">
