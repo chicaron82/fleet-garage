@@ -96,7 +96,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `oth-report-${user.name.replace(/\s+/g, '-').toLowerCase()}-${date}.pdf`;
+      a.download = `off-std-${user.name.replace(/\s+/g, '-').toLowerCase()}-${date}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
