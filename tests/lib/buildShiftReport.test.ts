@@ -84,6 +84,8 @@ function throughput(over: Partial<ReportThroughput> = {}): ReportThroughput {
     fullDayCleaned: null,
     branchOpHours: 15,
     lotStatus: null,
+    baseline: null,
+    yourEffort: null,
     ...over,
   };
 }
@@ -140,17 +142,19 @@ describe('buildReport — throughput', () => {
     expect(r).not.toContain('Closing crew');
   });
 
-  it('prompts to log OTH when there is none, and computes a personal rate when there is', () => {
+  it('prompts to log OTH when there is none, and renders the precomputed personal rate when there is', () => {
     const noOth = buildReport(baseData({
-      throughput: throughput({ shiftType: 'closing', closingCleaned: 16 }),
+      throughput: throughput({ shiftType: 'closing', closingCleaned: 16, yourEffort: 2.0 }),
     }));
+    // No off-standard logged → encouragement message, not the rate.
     expect(noOth).toContain('Log off-standard time to see your personal rate');
 
+    // yourEffort is computed upstream via computeShiftRates (16 / (8h − 2h) = 2.7);
+    // buildReport just renders it once off-standard exists.
     const withOth = buildReport(baseData({
       offStandard: [{ startTime: '', stopTime: '', minutes: 120, reason: 'OTH', explanation: null, autoFromTrip: false }],
-      throughput: throughput({ shiftType: 'closing', closingCleaned: 16 }),
+      throughput: throughput({ shiftType: 'closing', closingCleaned: 16, yourEffort: 16 / 6 }),
     }));
-    // 16 cleaned / (8h - 2h OTH = 6h) = 2.7/hr
     expect(withOth).toContain('Personal: 2.7/hr');
   });
 });

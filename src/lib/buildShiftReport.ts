@@ -11,6 +11,11 @@ export interface ReportThroughput {
   fullDayCleaned: number | null;
   branchOpHours:  number;
   lotStatus:      string | null;
+  // Personal rates — computed once via computeShiftRates so the report matches
+  // the live ShiftRatesCard exactly (cars / fixed shift-hours, effort-adjusted
+  // for off-standard within the shift window). null when the window has no count.
+  baseline:       number | null;
+  yourEffort:     number | null;
 }
 
 export interface ReportData {
@@ -161,14 +166,9 @@ export function buildReport(d: ReportData): string {
     if (t.shiftType === 'closing' && t.closingCleaned != null) {
       rateParts.push(`Shift rate: ${fmtRate(t.closingCleaned / 8)}`);
     }
-    const windowCleaned = t.shiftType === 'opening' ? t.openingCleaned
-      : t.shiftType === 'mid' ? t.midCleaned
-      : t.closingCleaned;
-    const windowHours = t.shiftType === 'mid' ? (t.midShiftHours ?? null) : 8;
-    if (windowCleaned != null && windowHours != null) {
+    if (t.yourEffort != null) {
       if (totalOthMins > 0) {
-        const adjHours = Math.max(0.1, windowHours - totalOthMins / 60);
-        rateParts.push(`Personal: ${fmtRate(windowCleaned / adjHours)}`);
+        rateParts.push(`Personal: ${fmtRate(t.yourEffort)}`);
       } else {
         rateParts.push('Personal: Log off-standard time to see your personal rate');
       }

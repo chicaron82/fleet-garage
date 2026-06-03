@@ -22,10 +22,9 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
   const branchRate    = t?.fullDayCleaned != null && t.branchOpHours > 0 ? t.fullDayCleaned / t.branchOpHours : null;
   const shiftRate     = t?.shiftType === 'closing' && t.closingCleaned != null ? t.closingCleaned / 8 : null;
   const windowCleaned = t ? (t.shiftType === 'opening' ? t.openingCleaned : t.shiftType === 'mid' ? t.midCleaned : t.closingCleaned) : null;
-  const windowHours   = t?.shiftType === 'mid' ? (t.midShiftHours ?? null) : 8;
-  const personalRate  = windowCleaned != null && windowHours != null && offTotal > 0
-    ? windowCleaned / Math.max(0.1, windowHours - offTotal / 60)
-    : null;
+  // Personal rate is precomputed in the report fetcher via computeShiftRates —
+  // the same path the live ShiftRatesCard uses. Only shown once off-standard is logged.
+  const personalRate  = t?.yourEffort != null && offTotal > 0 ? t.yourEffort : null;
 
   const tripsWithQueue = data.trips.filter(tr => resolveQueueLabel(tr.queueAtDeparture) !== null);
   const peakCount      = tripsWithQueue.filter(tr => resolveQueueLabel(tr.queueAtDeparture) === '10+').length;
@@ -44,7 +43,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
           <ThroughputSection
             t={t} fb={fb} offTotal={offTotal}
             branchRate={branchRate} shiftRate={shiftRate}
-            windowCleaned={windowCleaned} windowHours={windowHours} personalRate={personalRate}
+            windowCleaned={windowCleaned} personalRate={personalRate}
           />
         )}
         <OthSection

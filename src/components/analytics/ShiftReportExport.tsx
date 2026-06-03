@@ -5,6 +5,12 @@ import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import {
+  buildShiftPartition,
+  computeShiftRates,
+  deriveShiftWindow,
+  pickShift,
+} from '../../lib/shift-metrics';
+import {
   buildReport,
   formatDateStr,
   deriveShiftLine,
@@ -90,7 +96,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // Handoff note for the day
       supabase.from('handoff_notes')
-        .select('full_pages, last_page_entries, lot_status')
+        .select('full_pages, last_page_entries, lot_status, logged_at, morning_hours')
         .gte('logged_at', dayStartISO)
         .lt('logged_at', dayEndISO)
         .order('logged_at', { ascending: false })
@@ -152,7 +158,7 @@ export function ShiftReportExport({ date }: { date: string }) {
     // Throughput
     type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string };
     type CheckpointRow = { full_pages: number; last_page_entries: number; logged_at?: string };
-    const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string } | undefined;
+    const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string; logged_at: string; morning_hours: number | null } | undefined;
     const washbayRow    = (washbayRes.data    ?? [])[0] as WashbayRow    | undefined;
     const checkpointRow = (checkpointRes.data ?? [])[0] as CheckpointRow | undefined;
     const midArrRow     = (midArrivalRes.data ?? [])[0] as CheckpointRow | undefined;
@@ -180,6 +186,27 @@ export function ShiftReportExport({ date }: { date: string }) {
         ? (washbayRow?.lot_status ?? null)
         : (handoffRow?.lot_status ?? null);
 
+      // Personal rate — same path as the live ShiftRatesCard so the PDF/text
+      // report and the in-app card never disagree. Off-standard is scoped to the
+      // shift window inside buildShiftPartition; do not subtract the full-day total.
+      const offEntries = (othRes.data ?? []).map((r: Record<string, unknown>) => ({
+        startTime: r.start_time as string,
+        minutes:   r.minutes as number,
+      }));
+      const partition = buildShiftPartition({
+        handoff: handoffRow
+          ? { fullPages: handoffRow.full_pages, lastPageEntries: handoffRow.last_page_entries, loggedAt: handoffRow.logged_at, morningHours: handoffRow.morning_hours ?? undefined }
+          : null,
+        checkpoint: checkpointRow
+          ? { fullPages: checkpointRow.full_pages, lastPageEntries: checkpointRow.last_page_entries }
+          : null,
+        fullDayCleaned,
+        offStandardEntries: offEntries,
+        midArrival:   midArrRow ? { fullPages: midArrRow.full_pages, lastPageEntries: midArrRow.last_page_entries, loggedAt: midArrRow.logged_at } : null,
+        midDeparture: midDepRow ? { fullPages: midDepRow.full_pages, lastPageEntries: midDepRow.last_page_entries, loggedAt: midDepRow.logged_at } : null,
+      });
+      const { baseline, yourEffort } = computeShiftRates(pickShift(partition, deriveShiftWindow(shiftType) ?? 'morning'));
+
       throughput = {
         shiftType,
         openingCleaned,
@@ -189,6 +216,8 @@ export function ShiftReportExport({ date }: { date: string }) {
         fullDayCleaned,
         branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
         lotStatus,
+        baseline,
+        yourEffort,
       };
     }
 

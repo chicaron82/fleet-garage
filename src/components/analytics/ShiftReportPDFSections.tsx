@@ -101,14 +101,13 @@ export function FleetDemandSection({ fb, gap, fullDayCleaned }: {
   );
 }
 
-export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, windowHours, personalRate }: {
+export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, personalRate }: {
   t: ReportThroughput;
   fb: ReportData['fleetBalance'];
   offTotal: number;
   branchRate: number | null;
   shiftRate: number | null;
   windowCleaned: number | null;
-  windowHours: number | null;
   personalRate: number | null;
 }) {
   return (
@@ -162,7 +161,7 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
       )}
       <View style={s.rateRow}>
         <Text style={s.rateLabel}>
-          Personal rate{offTotal > 0 && windowHours != null ? `  (${windowHours.toFixed(0)}hr − ${fmtMinutes(offTotal)} OTH)` : ''}
+          Personal rate{offTotal > 0 ? `  (effort-adjusted for ${fmtMinutes(offTotal)} off-standard)` : ''}
         </Text>
         {personalRate != null
           ? <Text style={s.rateValueGreen}>{fmtRate(personalRate)}</Text>

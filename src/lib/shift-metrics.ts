@@ -1,5 +1,21 @@
-import type { HandoffNote, ShiftCheckpoint, ShiftType, ShiftWithUser } from '../types';
+import type { ShiftType, ShiftWithUser } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
+
+// Structural minimal inputs — the live card passes full HandoffNote/ShiftCheckpoint
+// objects (which satisfy these), and the report fetcher passes mapped DB rows.
+// Keeping the partition logic in one place is what keeps the live card and the
+// PDF/text report from drifting apart on the personal-rate math.
+export interface HandoffSnapshotInput {
+  fullPages: number;
+  lastPageEntries: number;
+  loggedAt: string;
+  morningHours?: number;
+}
+export interface CheckpointSnapshotInput {
+  fullPages: number;
+  lastPageEntries: number;
+  loggedAt?: string;
+}
 
 // Morning shift runs 06:45–15:15 year-round; closing always 8h.
 // Peak season only shifts the closing crew one hour later, never the morning.
@@ -27,7 +43,7 @@ export interface ShiftRates {
 }
 
 // The local moment that separates morning from closing on the given handoff's date.
-export function morningHandoffBoundary(handoff: HandoffNote): Date {
+export function morningHandoffBoundary(handoff: { loggedAt: string }): Date {
   const dateStr = new Date(handoff.loggedAt).toLocaleDateString('en-CA');
   return new Date(`${dateStr}T${MORNING_HANDOFF_LOCAL_TIME}`);
 }
@@ -54,12 +70,12 @@ export function splitOffStandard(
 // Build a full shift partition from today's handoff, closing log, and OTH entries.
 // checkpoint, when present, sets closing's car count start at arrival (not at handoff).
 export function buildShiftPartition(args: {
-  handoff: HandoffNote | null | undefined;
-  checkpoint: ShiftCheckpoint | null | undefined;
+  handoff: HandoffSnapshotInput | null | undefined;
+  checkpoint: CheckpointSnapshotInput | null | undefined;
   fullDayCleaned: number | null;
   offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
-  midArrival?: ShiftCheckpoint | null;
-  midDeparture?: ShiftCheckpoint | null;
+  midArrival?: CheckpointSnapshotInput | null;
+  midDeparture?: CheckpointSnapshotInput | null;
 }): ShiftPartition {
   const { handoff, checkpoint, fullDayCleaned, offStandardEntries, midArrival, midDeparture } = args;
 
