@@ -86,6 +86,7 @@ function throughput(over: Partial<ReportThroughput> = {}): ReportThroughput {
     lotStatus: null,
     baseline: null,
     yourEffort: null,
+    actualWindowLabel: null,
     ...over,
   };
 }
@@ -140,6 +141,30 @@ describe('buildReport — throughput', () => {
     }));
     expect(r).toContain('Opening crew: 30 cars');
     expect(r).not.toContain('Closing crew');
+  });
+
+  it('shows the standard window range when no actual hours are logged', () => {
+    const r = buildReport(baseData({
+      shiftType: 'opening',
+      throughput: throughput({ shiftType: 'opening', openingCleaned: 30 }),
+    }));
+    expect(r).toContain('Opening crew: 30 cars (06:45–15:15)');
+  });
+
+  it('shows the actual worked window on the viewer line when logged, keeping reference crews standard', () => {
+    const r = buildReport(baseData({
+      shiftType: 'opening',
+      throughput: throughput({ shiftType: 'opening', openingCleaned: 30, actualWindowLabel: '06:45–17:00' }),
+    }));
+    expect(r).toContain('Opening crew: 30 cars (06:45–17:00)');
+
+    // Closing viewer's own line uses the actual window; the opening-crew reference line stays standard.
+    const closing = buildReport(baseData({
+      shiftType: 'closing',
+      throughput: throughput({ shiftType: 'closing', openingCleaned: 30, closingCleaned: 24, actualWindowLabel: '11:00–22:00' }),
+    }));
+    expect(closing).toContain('Closing crew: 24 cars (11:00–22:00)');
+    expect(closing).toContain('Opening crew: 30 cars (06:45–15:15)');
   });
 
   it('prompts to log OTH when there is none, and renders the precomputed personal rate when there is', () => {

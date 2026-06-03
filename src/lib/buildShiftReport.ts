@@ -16,6 +16,9 @@ export interface ReportThroughput {
   // for off-standard within the shift window). null when the window has no count.
   baseline:       number | null;
   yourEffort:     number | null;
+  // Actual worked clock window 'HH:MM–HH:MM' when the shift logged actual hours,
+  // else null → renderers fall back to the standard per-type range label.
+  actualWindowLabel: string | null;
 }
 
 export interface ReportData {
@@ -141,18 +144,18 @@ export function buildReport(d: ReportData): string {
     lines.push('', 'THROUGHPUT', SEP);
 
     if (t.shiftType === 'opening') {
-      if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
+      if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (${t.actualWindowLabel ?? '06:45–15:15'})`);
     } else if (t.shiftType === 'mid') {
       if (t.midCleaned != null) {
-        const hrs = t.midShiftHours != null ? ` (${t.midShiftHours.toFixed(1)}h window)` : '';
-        lines.push(`Mid shift: ${t.midCleaned} cars${hrs}`);
+        const win = t.actualWindowLabel ?? (t.midShiftHours != null ? `${t.midShiftHours.toFixed(1)}h window` : null);
+        lines.push(`Mid shift: ${t.midCleaned} cars${win ? ` (${win})` : ''}`);
       }
       if (t.openingCleaned != null && t.midCleaned != null) {
         lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
       }
     } else {
       if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
-      if (t.closingCleaned != null) lines.push(`Closing crew: ${t.closingCleaned} cars (13:30–22:00)`);
+      if (t.closingCleaned != null) lines.push(`Closing crew: ${t.closingCleaned} cars (${t.actualWindowLabel ?? '13:30–22:00'})`);
       if (t.fullDayCleaned != null) {
         const target = d.fleetBalance ? ` of ${d.fleetBalance.outCount} needed` : '';
         lines.push(`Full day: ${t.fullDayCleaned}${target}`);

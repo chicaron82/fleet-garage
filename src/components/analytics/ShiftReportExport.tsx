@@ -214,21 +214,25 @@ export function ShiftReportExport({ date }: { date: string }) {
       });
       const { baseline, yourEffort } = computeShiftRates(mySnap);
 
-      // When actual hours are logged, show that real window on the mid card
-      // instead of the unreliable checkpoint-timestamp span.
-      const actualLogged = !!(myShift?.actualStartTime && myShift?.actualEndTime);
+      // When actual hours are logged, show the real clock window on the report
+      // instead of the standard per-type range (or the unreliable checkpoint span).
+      const hhmm = (t: string) => t.slice(0, 5);
+      const actualWindowLabel = myShift?.actualStartTime && myShift?.actualEndTime
+        ? `${hhmm(myShift.actualStartTime)}–${hhmm(myShift.actualEndTime)}`
+        : null;
 
       throughput = {
         shiftType,
         openingCleaned,
         closingCleaned,
         midCleaned,
-        midShiftHours: actualLogged && shiftType === 'mid' ? mySnap.hours : midShiftHours,
+        midShiftHours,
         fullDayCleaned,
         branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
         lotStatus,
         baseline,
         yourEffort,
+        actualWindowLabel,
       };
     }
 

@@ -122,10 +122,10 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
             {t.shiftType === 'opening' ? 'Opening crew' : t.shiftType === 'mid' ? 'Mid shift' : 'Closing crew'}
           </Text>
           <Text style={s.tpSub}>
-            {t.shiftType === 'opening' ? '06:45–15:15'
+            {t.actualWindowLabel ?? (t.shiftType === 'opening' ? '06:45–15:15'
               : t.shiftType === 'mid'
                 ? (t.midShiftHours != null ? `${t.midShiftHours.toFixed(1)}h window` : 'variable window')
-                : '13:30–22:00'}
+                : '13:30–22:00')}
           </Text>
         </View>
         {t.shiftType === 'mid' && (
