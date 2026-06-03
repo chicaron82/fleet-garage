@@ -51,21 +51,16 @@ export function TripInTransit({
         </div>
       </div>
 
-      {/* Authorization — required before ending */}
+      {/* Authorization — pre-selected from the trip type, tap to change */}
       <div>
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
           Authorization *
         </label>
-        <select
-          value={authorization ?? ''}
-          onChange={e => { if (e.target.value) setAuthorization(e.target.value as Authorization); }}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
-        >
-          <option value="">Select authorization…</option>
-          <option value="MANAGEMENT">Management Decision</option>
-          <option value="LEAD_VSA">Lead VSA / Senior VSA</option>
-          <option value="PERSONAL">Personal — Proactive</option>
-        </select>
+        <div className="flex gap-2">
+          <Pill label="Management"    active={authorization === 'MANAGEMENT'} onClick={() => setAuthorization('MANAGEMENT')} />
+          <Pill label="Lead / Sr VSA" active={authorization === 'LEAD_VSA'}   onClick={() => setAuthorization('LEAD_VSA')} />
+          <Pill label="Personal"      active={authorization === 'PERSONAL'}   onClick={() => setAuthorization('PERSONAL')} />
+        </div>
       </div>
 
       <NotesField value={notes} onChange={setNotes} tripState="in_transit" />

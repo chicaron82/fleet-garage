@@ -161,7 +161,7 @@ export function TripForm({
       {/* Quick-start cards — tap and go, fill context on return */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Start Trip</p>
-        {(['ROUTINE', 'COVERAGE_ASSIST', 'OTHER'] as const).map(r => (
+        {(['ROUTINE', 'COVERAGE_ASSIST'] as const).map(r => (
           <button
             key={r}
             type="button"

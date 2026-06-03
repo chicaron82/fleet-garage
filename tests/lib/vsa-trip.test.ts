@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fuelColor, elapsedSince, fmtTime } from '../../src/lib/vsa-trip';
+import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH } from '../../src/lib/vsa-trip';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -53,5 +53,22 @@ describe('fmtTime', () => {
   it('renders an HH:MM time string', () => {
     const local = new Date(2026, 4, 22, 14, 30);
     expect(fmtTime(local.toISOString())).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+
+// ── DEFAULT_AUTH — trip type pre-selects the authorization ──────────────────────
+
+describe('DEFAULT_AUTH', () => {
+  it('routine transport defaults to a personal/proactive call', () => {
+    expect(DEFAULT_AUTH.ROUTINE).toBe('PERSONAL');
+  });
+  it('coverage assist defaults to a management decision', () => {
+    expect(DEFAULT_AUTH.COVERAGE_ASSIST).toBe('MANAGEMENT');
+  });
+  it('code red is dispatched as a management decision', () => {
+    expect(DEFAULT_AUTH.CODE_RED).toBe('MANAGEMENT');
+  });
+  it('leaves no default for OTHER (no longer a quick-start option)', () => {
+    expect(DEFAULT_AUTH.OTHER).toBeUndefined();
   });
 });

@@ -8,7 +8,7 @@ import type { TripRun } from '../../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
 import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
-import { elapsedSince, TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
+import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH } from '../../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../../lib/vsa-trip';
 import { pushNotification } from '../../lib/garage-uploads';
 import { detectTeslaByPlate } from '../../lib/ev-detection';
@@ -208,7 +208,9 @@ export function TripStartForm({
   };
 
   const handleQuickStart = (r: Reason) => {
-    void handleStartTripWith(r, null, '');
+    // Seed the authorization from the trip type (routine = personal, coverage =
+    // management); the VSA can still change it on the in-transit screen.
+    void handleStartTripWith(r, DEFAULT_AUTH[r] ?? null, '');
   };
 
   const handleArrived = async () => {

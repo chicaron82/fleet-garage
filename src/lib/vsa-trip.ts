@@ -25,6 +25,16 @@ export const REASON_LABELS: Record<Reason, string> = {
   OTHER:            'Other',
 };
 
+// A quick-start trip type pre-selects the authorization that almost always
+// applies: a routine run is the VSA's own call (personal/proactive), coverage
+// is management asking. Still overridable on the in-transit screen before the
+// trip ends. Code Red is dispatched as a management decision.
+export const DEFAULT_AUTH: Partial<Record<Reason, Authorization>> = {
+  ROUTINE:         'PERSONAL',
+  COVERAGE_ASSIST: 'MANAGEMENT',
+  CODE_RED:        'MANAGEMENT',
+};
+
 // ── Pure helpers ───────────────────────────────────────────────────────────────
 
 export function fuelColor(v: number): string {
