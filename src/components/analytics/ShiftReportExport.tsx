@@ -47,6 +47,9 @@ export function ShiftReportExport({ date }: { date: string }) {
       supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip')
         .eq('user_id', user.id).eq('status', 'complete')
+        // Match the live ShiftRatesCard: exclude backdated entries that aren't yet
+        // approved, so the report's OTH total and personal rate agree with the card.
+        .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
         .gte('start_time', dayStartISO).lt('start_time', dayEndISO)
         .order('start_time', { ascending: true }),
 
