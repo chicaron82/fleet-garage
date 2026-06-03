@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH } from '../../src/lib/vsa-trip';
+import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH, queueWorsened } from '../../src/lib/vsa-trip';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -70,5 +70,23 @@ describe('DEFAULT_AUTH', () => {
   });
   it('leaves no default for OTHER (no longer a quick-start option)', () => {
     expect(DEFAULT_AUTH.OTHER).toBeUndefined();
+  });
+});
+
+describe('queueWorsened — did the washbay back up while away', () => {
+  it('is true when the queue grew (~5 → 10+, the backlog case)', () => {
+    expect(queueWorsened('~5', '10+')).toBe(true);
+    expect(queueWorsened('0', '~5')).toBe(true);
+    expect(queueWorsened('0', '10+')).toBe(true);
+  });
+  it('is false when the queue held steady or cleared', () => {
+    expect(queueWorsened('~5', '~5')).toBe(false);
+    expect(queueWorsened('10+', '~5')).toBe(false); // caught up while away
+    expect(queueWorsened('10+', '0')).toBe(false);
+  });
+  it('is false when either snapshot is missing (return queue is optional)', () => {
+    expect(queueWorsened('~5', null)).toBe(false);
+    expect(queueWorsened(null, '10+')).toBe(false);
+    expect(queueWorsened(null, null)).toBe(false);
   });
 });

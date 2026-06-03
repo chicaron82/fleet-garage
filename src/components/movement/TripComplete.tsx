@@ -1,21 +1,22 @@
-import { REASON_LABELS, fmtTime } from '../../lib/vsa-trip';
+import { REASON_LABELS, fmtTime, queueWorsened } from '../../lib/vsa-trip';
 import type { Authorization, Reason, QueueSnapshot } from '../../lib/vsa-trip';
 import { NotesField } from './VSATripComponents';
 
-export function TripComplete({ isShuttle, authorization, reason, departureTime, arrivalTime, queue, notes, setNotes, onReset }: {
+export function TripComplete({ isShuttle, authorization, reason, departureTime, arrivalTime, queue, queueArrival, notes, setNotes, onReset }: {
   isShuttle: boolean;
   authorization: Authorization | null;
   reason: Reason | null;
   departureTime: string; arrivalTime: string;
   queue: QueueSnapshot | null;
+  queueArrival: QueueSnapshot | null;
   notes: string; setNotes: (v: string) => void;
   onReset: () => void;
 }) {
   const dur = Math.round((new Date(arrivalTime).getTime() - new Date(departureTime).getTime()) / 60000);
-  const metaLine = [
-    `${fmtTime(departureTime)} → ${fmtTime(arrivalTime)} · ${dur}m`,
-    queue ? `Queue: ${queue}` : null,
-  ].filter(Boolean).join(' · ');
+  const worsened = queueWorsened(queue, queueArrival);
+  const queueText = queue
+    ? (queueArrival && queueArrival !== queue ? `${queue} → ${queueArrival}` : queue)
+    : null;
 
   return (
     <div className="space-y-3">
@@ -24,7 +25,12 @@ export function TripComplete({ isShuttle, authorization, reason, departureTime, 
           <div className="min-w-0">
             <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-widest mb-1.5">Trip Complete</p>
             <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">Airport Run</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{metaLine}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{fmtTime(departureTime)} → {fmtTime(arrivalTime)} · {dur}m</p>
+            {queueText && (
+              <p className={`text-xs mt-0.5 font-medium ${worsened ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                Queue: {queueText}{worsened ? ' ⚠ worse on return' : ''}
+              </p>
+            )}
           </div>
           <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
             isShuttle

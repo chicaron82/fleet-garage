@@ -35,6 +35,17 @@ export const DEFAULT_AUTH: Partial<Record<Reason, Authorization>> = {
   CODE_RED:        'MANAGEMENT',
 };
 
+// Queue severity order, for comparing the departure snapshot against the return
+// one. A run that left a manageable queue and came back to a backlog is the
+// signal worth surfacing — the operational cost of pulling cleaning coverage.
+export const QUEUE_RANK: Record<QueueSnapshot, number> = { '0': 0, '~5': 1, '10+': 2 };
+
+/** True when the washbay queue got worse while the VSA was away on the run. */
+export function queueWorsened(departure: QueueSnapshot | null, arrival: QueueSnapshot | null): boolean {
+  if (!departure || !arrival) return false;
+  return QUEUE_RANK[arrival] > QUEUE_RANK[departure];
+}
+
 // ── Pure helpers ───────────────────────────────────────────────────────────────
 
 export function fuelColor(v: number): string {

@@ -44,6 +44,7 @@ export function TripStartForm({
   const [tripState, setTripState]           = useState<TripState>('form');
   const [reason, setReason]                 = useState<Reason | null>(null);
   const [queue, setQueue]                   = useState<QueueSnapshot | null>(null);
+  const [queueArrival, setQueueArrival]     = useState<QueueSnapshot | null>(null);
   const [authorization, setAuthorization]   = useState<Authorization | null>(null);
   const [notes, setNotes]                   = useState('');
   const [isShuttle, setIsShuttle]           = useState(false);
@@ -224,6 +225,7 @@ export function TripStartForm({
         arrive_time:        arrived,
         auth_type:          authorization ?? null,
         queue_at_departure: queue ?? null,
+        queue_at_arrival:   queueArrival ?? null,
         notes:              notes.trim() || null,
         ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
         ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
@@ -285,6 +287,7 @@ export function TripStartForm({
     setPendingTripId(null);
     setReason(null);
     setQueue(null);
+    setQueueArrival(null);
     setAuthorization(null);
     setNotes('');
     setIsShuttle(false);
@@ -343,6 +346,7 @@ export function TripStartForm({
           <TripInTransit
             authorization={authorization} setAuthorization={setAuthorization}
             queue={queue}                 setQueue={setQueue}
+            queueArrival={queueArrival}   setQueueArrival={setQueueArrival}
             departureTime={departureTime} elapsed={elapsed}
             notes={notes}                 setNotes={setNotes}
             onArrived={handleArrived}
@@ -354,7 +358,7 @@ export function TripStartForm({
             isShuttle={isShuttle}
             authorization={authorization} reason={reason}
             departureTime={departureTime} arrivalTime={arrivalTime}
-            queue={queue}
+            queue={queue}                 queueArrival={queueArrival}
             notes={notes}           setNotes={setNotes}
             onReset={handleReset}
           />

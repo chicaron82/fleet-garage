@@ -5,12 +5,14 @@ import { NotesField, Pill } from './VSATripComponents';
 export function TripInTransit({
   authorization, setAuthorization,
   queue, setQueue,
+  queueArrival, setQueueArrival,
   departureTime, elapsed,
   notes, setNotes,
   onArrived,
 }: {
   authorization: Authorization | null; setAuthorization: (a: Authorization) => void;
   queue: QueueSnapshot | null;         setQueue: (q: QueueSnapshot) => void;
+  queueArrival: QueueSnapshot | null;  setQueueArrival: (q: QueueSnapshot) => void;
   departureTime: string; elapsed: string;
   notes: string; setNotes: (v: string) => void;
   onArrived: () => void;
@@ -48,6 +50,18 @@ export function TripInTransit({
           <Pill label="0"   active={queue === '0'}        onClick={() => setQueue('0')} />
           <Pill label="~5"  active={queue === '~5'}       onClick={() => setQueue('~5')} />
           <Pill label="10+" active={queue === '10+'} danger onClick={() => setQueue('10+')} />
+        </div>
+      </div>
+
+      {/* Queue on return — optional; captures how it changed while away */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+          Washbay Queue on Return <span className="text-gray-400 dark:text-gray-600 normal-case font-normal">optional</span>
+        </label>
+        <div className="flex gap-2">
+          <Pill label="0"   active={queueArrival === '0'}        onClick={() => setQueueArrival('0')} />
+          <Pill label="~5"  active={queueArrival === '~5'}       onClick={() => setQueueArrival('~5')} />
+          <Pill label="10+" active={queueArrival === '10+'} danger onClick={() => setQueueArrival('10+')} />
         </div>
       </div>
 
