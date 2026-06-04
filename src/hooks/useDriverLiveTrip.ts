@@ -34,10 +34,12 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   } = state;
   const { updateVehicleEVAssets } = useVehicleHoldContext();
 
-  // Thin field setters over the reducer — keep the public API and the write-first
-  // contract's literal setter names (setInProgressId/setDepartureTime/setLiveState).
+  // Thin field setters over the reducer — same shape as a useState setter (value
+  // OR an (prev) => next updater), so the public API and the write-first contract's
+  // literal setter names (setInProgressId/setDepartureTime/setLiveState) are kept.
   const set = <K extends keyof DriverTripState>(key: K) =>
-    (value: DriverTripState[K]) => dispatch({ type: 'patch', patch: { [key]: value } as Partial<DriverTripState> });
+    (value: DriverTripState[K] | ((prev: DriverTripState[K]) => DriverTripState[K])) =>
+      dispatch({ type: 'setField', key, value });
   const setPlate            = set('plate');
   const setCustomFrom       = set('customFrom');
   const setCustomTo         = set('customTo');

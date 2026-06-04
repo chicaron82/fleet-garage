@@ -14,6 +14,25 @@ describe('driverTripReducer — patch', () => {
   });
 });
 
+describe('driverTripReducer — setField (useState-setter parity)', () => {
+  it('sets a plain value', () => {
+    const next = driverTripReducer(INITIAL_DRIVER_TRIP_STATE, { type: 'setField', key: 'isTeslaRun', value: true });
+    expect(next.isTeslaRun).toBe(true);
+  });
+
+  it('resolves an updater against live state (the setIsTeslaRun(v => !v) toggle)', () => {
+    const once = driverTripReducer(INITIAL_DRIVER_TRIP_STATE, { type: 'setField', key: 'isTeslaRun', value: (v: boolean) => !v });
+    expect(once.isTeslaRun).toBe(true);
+    const twice = driverTripReducer(once, { type: 'setField', key: 'isTeslaRun', value: (v: boolean) => !v });
+    expect(twice.isTeslaRun).toBe(false);
+  });
+
+  it('leaves other fields untouched', () => {
+    const next = driverTripReducer(at({ plate: 'ABC123' }), { type: 'setField', key: 'notes', value: 'hi' });
+    expect(next).toMatchObject({ plate: 'ABC123', notes: 'hi' });
+  });
+});
+
 describe('driverTripReducer — locationTap state machine', () => {
   it('origin tap sets the start and advances to destination', () => {
     const next = driverTripReducer(INITIAL_DRIVER_TRIP_STATE, { type: 'locationTap', loc: 'Airport' });

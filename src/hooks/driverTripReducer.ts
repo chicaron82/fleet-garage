@@ -65,6 +65,7 @@ export const INITIAL_DRIVER_TRIP_STATE: DriverTripState = {
 
 export type DriverTripAction =
   | { type: 'patch'; patch: Partial<DriverTripState> }
+  | { type: 'setField'; key: keyof DriverTripState; value: unknown }
   | { type: 'locationTap'; loc: Location }
   | { type: 'routeReset' }
   | { type: 'reset' };
@@ -73,6 +74,16 @@ export function driverTripReducer(state: DriverTripState, action: DriverTripActi
   switch (action.type) {
     case 'patch':
       return { ...state, ...action.patch };
+
+    case 'setField': {
+      // Mirrors a useState setter: value form, or an updater (prev) => next
+      // resolved against the live state so functional updates aren't stale.
+      const prev = state[action.key];
+      const next = typeof action.value === 'function'
+        ? (action.value as (p: unknown) => unknown)(prev)
+        : action.value;
+      return { ...state, [action.key]: next } as DriverTripState;
+    }
 
     case 'locationTap': {
       // origin → pick start; destination → re-tapping the origin backs out,
