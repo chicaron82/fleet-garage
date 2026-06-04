@@ -16,6 +16,8 @@ import { PendingVehicleSheet } from '../shared/PendingVehicleSheet';
 import { HoldsVehicleRow } from './HoldsVehicleRow';
 import { ArchivedVehiclesSection } from './ArchivedVehiclesSection';
 import { HoldsPagination } from './HoldsPagination';
+import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
+import { EVAssetsTab } from '../holds/EVAssetsTab';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -25,6 +27,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useVehicleHoldContext();
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<HoldsTab>('holds');
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = sessionStorage.getItem('dashboard_page');
     return saved ? parseInt(saved, 10) : 1;
@@ -181,6 +184,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Flagged vehicles · damage | mechanical | detail</p>
         </div>
 
+        <HoldsTabStrip activeTab={activeTab} onTab={setActiveTab} />
+
+        {activeTab === 'ev-assets' ? <EVAssetsTab /> : (
+          <>
         {/* Stale Holds Alert — management only */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
@@ -323,6 +330,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
             onClose={() => setPendingVehicle(null)}
             onConfirm={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id); }}
           />
+        )}
+          </>
         )}
       </div>
   );
