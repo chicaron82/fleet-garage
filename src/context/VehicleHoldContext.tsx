@@ -120,6 +120,41 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
     return () => { void supabase.removeChannel(channel); };
   }, []);
 
+  // ── Realtime vehicles subscription ───────────────────────────────────────────
+  // Holds realtime alone leaves the roster stale across clients: a register, an
+  // archive, an identity edit/suggestion, or an EV-asset update writes to `vehicles`
+  // and another user wouldn't see it until reload. Refetch-and-map is safe — the
+  // pending edit-suggestion is persisted (VehicleEditSuggestionSheet), so reading
+  // committed DB state preserves it rather than clobbering the optimistic echo.
+  const allVehiclesRef = useRef(allVehicles);
+  useEffect(() => { allVehiclesRef.current = allVehicles; });
+
+  useEffect(() => {
+    const refetch = async (id: string) => {
+      const { data } = await supabase.from('vehicles').select('*').eq('id', id).single();
+      return data ? mapVehicle(data) : null;
+    };
+
+    const channel = supabase
+      .channel('vehicles-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vehicles' }, (payload) => {
+        const id = (payload.new as { id: string }).id;
+        if (allVehiclesRef.current.some(v => v.id === id)) return;
+        void refetch(id).then(vehicle => {
+          if (!vehicle) return;
+          setAllVehicles(prev => prev.some(v => v.id === vehicle.id) ? prev : [vehicle, ...prev]);
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vehicles' }, async (payload) => {
+        const vehicle = await refetch((payload.new as { id: string }).id);
+        if (!vehicle) return;
+        setAllVehicles(prev => prev.map(v => v.id === vehicle.id ? vehicle : v));
+      })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, []);
+
   // ── Computed values ──────────────────────────────────────────────────────────
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
