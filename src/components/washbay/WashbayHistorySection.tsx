@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
+import { convertToBackendFormat, convertFromBackend } from '../../lib/gas-sheet';
+import { BackfillEntryForm, type BackfillFormState } from './BackfillEntryForm';
 import type { WashbayLog, HandoffNote } from '../../types';
 
 interface BackfillEntry {
@@ -18,8 +20,8 @@ interface BackfillEntry {
 }
 
 interface DayRow {
-  date: string;           // ISO "2026-05-07"
-  label: string;          // "Wed May 7"
+  date: string;
+  label: string;
   primary: WashbayLog | null;
   backfill: BackfillEntry | null;
   handoff: HandoffNote | null;
@@ -31,6 +33,11 @@ interface Props {
 }
 
 const COMPANY_STANDARD = 3.0;
+
+// Last backfill entry that has actual data — used to pre-fill the next one.
+function findLatestBackfill(entries: BackfillEntry[]): BackfillEntry | null {
+  return [...entries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
 
 function buildRollingDates(): string[] {
   const dates: string[] = [];
@@ -47,7 +54,10 @@ function fmtDateLabel(iso: string): string {
   return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function deriveStats(entry: { fullPages: number; lastPageEntries: number; carsRemaining: number; overtimeHours: number }, isPeakSeason: boolean) {
+function deriveStats(
+  entry: { fullPages: number; lastPageEntries: number; carsRemaining: number; overtimeHours: number },
+  isPeakSeason: boolean,
+) {
   const carsIn      = entry.fullPages * 19 + entry.lastPageEntries;
   const carsCleaned = Math.max(0, carsIn - entry.carsRemaining);
   const baseHours   = isPeakSeason ? 16 : 15;
@@ -57,25 +67,37 @@ function deriveStats(entry: { fullPages: number; lastPageEntries: number; carsRe
 }
 
 function deriveHandoffStats(note: HandoffNote) {
-  const carsIn = note.fullPages * 19 + note.lastPageEntries;
-  const dateStr = new Date(note.loggedAt).toLocaleDateString('en-CA');
-  const shiftStart = new Date(`${dateStr}T06:45:00`);
+  const carsIn      = note.fullPages * 19 + note.lastPageEntries;
+  const dateStr     = new Date(note.loggedAt).toLocaleDateString('en-CA');
+  const shiftStart  = new Date(`${dateStr}T06:45:00`);
   const handoffHours = Math.max(0, (new Date(note.loggedAt).getTime() - shiftStart.getTime()) / 3_600_000);
-  const partialRate = handoffHours > 0 ? carsIn / handoffHours : 0;
+  const partialRate  = handoffHours > 0 ? carsIn / handoffHours : 0;
   return { carsIn, handoffHours, partialRate };
 }
 
-const BLANK_FORM = { fullPages: 0, lastPageEntries: 0, carsRemaining: '', cleanNotPickedUp: '', teamSize: 3, overtimeHours: 0 };
+// Blank form — pre-filled from the most recent backfill entry when available,
+// so team size and OT don't need to be re-entered every time.
+function blankForm(seed?: BackfillEntry | null): BackfillFormState {
+  return {
+    totalPages:           0,
+    entriesOnCurrentPage: 0,
+    carsRemaining:        '',
+    cleanNotPickedUp:     '',
+    teamSize:             seed?.teamSize ?? 3,
+    overtimeHours:        seed?.overtimeHours ?? 0,
+  };
+}
 
 export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
   const { user } = useAuth();
   const { isPeakSeason } = useSchedule();
 
   const [backfillEntries, setBackfillEntries] = useState<BackfillEntry[]>([]);
-  const [openDate, setOpenDate]               = useState<string | null>(null);
-  const [form, setForm]                       = useState(BLANK_FORM);
-  const [saving, setSaving]                   = useState(false);
-  const [collapsed, setCollapsed]             = useState(true);
+  const [openDate,  setOpenDate]  = useState<string | null>(null);
+  const [form,      setForm]      = useState<BackfillFormState>(blankForm());
+  const [saving,    setSaving]    = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -106,12 +128,11 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
   const dates = buildRollingDates();
   const rows: DayRow[] = dates.map(date => ({
     date,
-    label:    fmtDateLabel(date),
-    primary:  washbayLogs.find(l => l.date.startsWith(date)) ?? null,
+    label:   fmtDateLabel(date),
+    primary: washbayLogs.find(l => l.date.startsWith(date)) ?? null,
     backfill: backfillEntries.find(b => b.date.startsWith(date)) ?? null,
-    // Latest handoff for this date — first match since handoffNotes are DESC by loggedAt
-    handoff:  handoffNotes.find(n =>
-      new Date(n.loggedAt).toLocaleDateString('en-CA') === date
+    handoff: handoffNotes.find(n =>
+      new Date(n.loggedAt).toLocaleDateString('en-CA') === date,
     ) ?? null,
   }));
 
@@ -119,61 +140,88 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
 
   const handleOpen = (date: string, existing: BackfillEntry | null) => {
     setOpenDate(date);
-    setForm(existing ? {
-      fullPages:        existing.fullPages,
-      lastPageEntries:  existing.lastPageEntries,
-      carsRemaining:    String(existing.carsRemaining),
-      cleanNotPickedUp: String(existing.cleanNotPickedUp),
-      teamSize:         existing.teamSize,
-      overtimeHours:    existing.overtimeHours,
-    } : BLANK_FORM);
+    setSaveError('');
+    if (existing) {
+      // Edit mode — pre-fill from the existing record.
+      const { totalPages, entriesOnCurrentPage } = convertFromBackend(
+        existing.fullPages, existing.lastPageEntries,
+      );
+      setForm({
+        totalPages,
+        entriesOnCurrentPage,
+        carsRemaining:    String(existing.carsRemaining),
+        cleanNotPickedUp: String(existing.cleanNotPickedUp),
+        teamSize:         existing.teamSize,
+        overtimeHours:    existing.overtimeHours,
+      });
+    } else {
+      // New entry — pre-fill team size + OT from the most recent backfill so
+      // the VSA only has to change what's different from yesterday.
+      setForm(blankForm(findLatestBackfill(backfillEntries)));
+    }
   };
 
   const handleSave = async () => {
     if (!openDate || !user) return;
     setSaving(true);
+    setSaveError('');
+
+    const { fullPages, lastPageEntries } = convertToBackendFormat(
+      form.totalPages, form.entriesOnCurrentPage,
+    );
 
     const payload = {
-      branch_id:            user.branchId,
-      date:                 openDate,
-      full_pages:           form.fullPages,
-      last_page_entries:    form.lastPageEntries,
-      cars_remaining:       parseInt(String(form.carsRemaining)) || 0,
-      clean_not_picked_up:  parseInt(String(form.cleanNotPickedUp)) || 0,
-      team_size:            form.teamSize,
-      overtime_hours:       form.overtimeHours,
-      entered_by:           user.id,
-      entered_at:           new Date().toISOString(),
+      branch_id:           user.branchId,
+      date:                openDate,
+      full_pages:          fullPages,
+      last_page_entries:   lastPageEntries,
+      cars_remaining:      parseInt(String(form.carsRemaining)) || 0,
+      clean_not_picked_up: parseInt(String(form.cleanNotPickedUp)) || 0,
+      team_size:           form.teamSize,
+      overtime_hours:      form.overtimeHours,
+      entered_by:          user.id,
+      entered_at:          new Date().toISOString(),
     };
 
-    const existing = backfillEntries.find(b => b.date.startsWith(openDate));
-    if (existing) {
-      await writeWithRefresh(() => supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id));
-      setBackfillEntries(prev => prev.map(b => b.id === existing.id ? { ...b, ...{
-        fullPages: form.fullPages, lastPageEntries: form.lastPageEntries,
-        carsRemaining: parseInt(String(form.carsRemaining)) || 0,
-        cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
-        teamSize: form.teamSize, overtimeHours: form.overtimeHours,
-      }} : b));
-    } else {
-      const { data } = await writeWithRefresh(() => supabase.from('washbay_backfill_logs').insert(payload).select('id').single());
-      if (data) {
-        setBackfillEntries(prev => [...prev, {
-          id: (data as { id: string }).id, date: openDate,
-          fullPages: form.fullPages, lastPageEntries: form.lastPageEntries,
-          carsRemaining: parseInt(String(form.carsRemaining)) || 0,
+    try {
+      const existing = backfillEntries.find(b => b.date.startsWith(openDate));
+      if (existing) {
+        const { error } = await writeWithRefresh(() =>
+          supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id),
+        );
+        if (error) throw error;
+        setBackfillEntries(prev => prev.map(b => b.id === existing.id ? {
+          ...b,
+          fullPages, lastPageEntries,
+          carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
           cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
-          teamSize: form.teamSize, overtimeHours: form.overtimeHours,
-          enteredBy: user.id, enteredAt: new Date().toISOString(),
+          teamSize:         form.teamSize,
+          overtimeHours:    form.overtimeHours,
+        } : b));
+      } else {
+        const { data, error } = await writeWithRefresh(() =>
+          supabase.from('washbay_backfill_logs').insert(payload).select('id').single(),
+        );
+        if (error) throw error;
+        setBackfillEntries(prev => [...prev, {
+          id:               (data as { id: string }).id,
+          date:             openDate,
+          fullPages, lastPageEntries,
+          carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
+          cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
+          teamSize:         form.teamSize,
+          overtimeHours:    form.overtimeHours,
+          enteredBy:        user.id,
+          enteredAt:        new Date().toISOString(),
         }]);
       }
+      setOpenDate(null);
+    } catch {
+      setSaveError('Save failed — please try again.');
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setOpenDate(null);
   };
-
-  const INPUT = 'w-full px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -202,7 +250,6 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
               const entry  = row.primary ?? row.backfill ?? null;
               const isOpen = openDate === row.date;
               const today  = new Date().toLocaleDateString('en-CA');
-
               if (row.date === today) return null;
 
               return (
@@ -256,93 +303,14 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
                   </div>
 
                   {isOpen && (
-                    <div className="px-5 pb-4 space-y-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
-                      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest pt-3">
-                        {row.label} — Backfill Entry
-                      </p>
-
-                      {/* Gas sheet pages */}
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Gas Sheet Pages</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 block">Full pages</label>
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => setForm(f => ({ ...f, fullPages: Math.max(0, f.fullPages - 1) }))}
-                                className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">−</button>
-                              <span className="text-lg font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{form.fullPages}</span>
-                              <button type="button" onClick={() => setForm(f => ({ ...f, fullPages: f.fullPages + 1 }))}
-                                className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">+</button>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 block">Last page entries</label>
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => setForm(f => ({ ...f, lastPageEntries: Math.max(0, f.lastPageEntries - 1) }))}
-                                className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">−</button>
-                              <span className="text-lg font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{form.lastPageEntries}</span>
-                              <button type="button" onClick={() => setForm(f => ({ ...f, lastPageEntries: Math.min(19, f.lastPageEntries + 1) }))}
-                                className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">+</button>
-                            </div>
-                          </div>
-                        </div>
-                        {(form.fullPages > 0 || form.lastPageEntries > 0) && (
-                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-1.5">
-                            = {form.fullPages * 19 + form.lastPageEntries} cars in ✓
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Numeric fields */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
-                          <input type="number" min="0" value={form.carsRemaining} onChange={e => setForm(f => ({ ...f, carsRemaining: e.target.value }))} placeholder="0" className={INPUT} />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Clean, not picked up</label>
-                          <input type="number" min="0" value={form.cleanNotPickedUp} onChange={e => setForm(f => ({ ...f, cleanNotPickedUp: e.target.value }))} placeholder="0" className={INPUT} />
-                        </div>
-                      </div>
-
-                      {/* Team size */}
-                      <div>
-                        <label className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 block">Team size</label>
-                        <div className="flex items-center gap-3">
-                          <button type="button" onClick={() => setForm(f => ({ ...f, teamSize: Math.max(1, f.teamSize - 1) }))}
-                            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-lg font-semibold">−</button>
-                          <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{form.teamSize}</span>
-                          <button type="button" onClick={() => setForm(f => ({ ...f, teamSize: f.teamSize + 1 }))}
-                            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-lg font-semibold">+</button>
-                        </div>
-                      </div>
-
-                      {/* Overtime */}
-                      <div>
-                        <label className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 block">Overtime hours (if applicable)</label>
-                        <div className="flex gap-2">
-                          {[0, 1, 2, 3].map(h => (
-                            <button key={h} type="button" onClick={() => setForm(f => ({ ...f, overtimeHours: h }))}
-                              className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                                form.overtimeHours === h
-                                  ? 'bg-yellow-400 border-yellow-400 text-gray-900'
-                                  : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                              }`}>
-                              {h === 0 ? '0' : `+${h}h`}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-40 text-gray-900 text-sm font-semibold transition cursor-pointer"
-                      >
-                        {saving ? 'Saving…' : 'Save Entry'}
-                      </button>
-                    </div>
+                    <BackfillEntryForm
+                      label={row.label}
+                      form={form}
+                      setForm={setForm}
+                      saving={saving}
+                      saveError={saveError}
+                      onSave={handleSave}
+                    />
                   )}
                 </div>
               );
