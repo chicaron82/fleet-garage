@@ -1,4 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
+import { ptoTaken } from '../../lib/ptoRequest';
 
 const LOGO_SRC = `${window.location.origin}/FG.jpg`;
 
@@ -47,7 +48,8 @@ const s = StyleSheet.create({
 });
 
 export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
-  const remaining = Math.max(0, data.entitlement - data.used);
+  const taken = ptoTaken(data.used, data.days.length, data.approvedDays.length);
+  const remaining = Math.max(0, data.entitlement - taken);
 
   return (
     <Document>
@@ -67,7 +69,7 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
               <Text style={s.headerLabel}>SUBMITTED</Text>
               <Text style={s.headerValue}>{data.dateLabel}</Text>
               <Text style={s.headerLabel}>BALANCE</Text>
-              <Text style={s.headerValue}>{data.used} / {data.entitlement} used · {remaining} left</Text>
+              <Text style={s.headerValue}>{taken} / {data.entitlement} used · {remaining} left</Text>
             </View>
           </View>
         </View>

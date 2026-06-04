@@ -9,11 +9,23 @@ function plural(n: number): string {
 }
 
 /**
+ * PTO days actually *taken* (consumed in the past): the total entered minus the
+ * upcoming requested + approved days, which are allocated but not yet taken. Lets
+ * the balance read "taken / entitlement used · remaining left" — a fully-booked
+ * year shows "2 / 15 used · 13 left" (the 13 itemized as requested + approved
+ * below) instead of the misleading "15 / 15 used · 0 left". Shared by all three
+ * surfaces (text / sheet / PDF) so the figure can't drift between them.
+ */
+export function ptoTaken(used: number, requestedCount: number, approvedCount: number): number {
+  return Math.max(0, used - requestedCount - approvedCount);
+}
+
+/**
  * A boss-ready PTO approval request: the days being requested, any upcoming days
  * already approved (shown for the full picture so the balance reconciles), and
- * the running balance. `used` already includes every entered PTO day, so
- * `remaining` is the post-request figure. Shareable as plain text (Web Share /
- * clipboard / email).
+ * the running balance. The balance shows days *taken* (consumed) over entitlement;
+ * `remaining` (entitlement − taken) is what's left to take, itemized below as the
+ * requested + approved days. Shareable as plain text (Web Share / clipboard / email).
  */
 export function buildPtoRequest(
   userName: string,
@@ -27,7 +39,8 @@ export function buildPtoRequest(
     lines.push('No upcoming PTO days entered.');
     return lines.join('\n');
   }
-  const remaining = Math.max(0, entitlement - used);
+  const taken = ptoTaken(used, ptoDates.length, approvedDates.length);
+  const remaining = Math.max(0, entitlement - taken);
 
   if (ptoDates.length > 0) {
     lines.push('Requesting the following day(s) off:');
@@ -44,7 +57,7 @@ export function buildPtoRequest(
     lines.push(`${approvedDates.length} day${plural(approvedDates.length)} already approved.`);
   }
 
-  lines.push(`Balance: ${used} of ${entitlement} used · ${remaining} remaining.`);
+  lines.push(`Balance: ${taken} of ${entitlement} used · ${remaining} remaining.`);
   if (ptoDates.length > 0) {
     lines.push('');
     lines.push('Please confirm approval — thanks!');

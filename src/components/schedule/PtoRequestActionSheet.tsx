@@ -3,7 +3,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { toISO } from '../../context/ScheduleContext';
-import { buildPtoRequest } from '../../lib/ptoRequest';
+import { buildPtoRequest, ptoTaken } from '../../lib/ptoRequest';
 import type { User } from '../../types';
 
 interface Props {
@@ -52,7 +52,8 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
       });
   }, [user.id]);
 
-  const remaining = Math.max(0, entitlement - used);
+  const taken = ptoTaken(used, pendingDays.length, approvedDays.length);
+  const remaining = Math.max(0, entitlement - taken);
   const busy = fetching || pdfLoading;
   const dateLabel = new Date().toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -98,7 +99,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">PTO Request</p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{used} / {entitlement} used · {remaining} left</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{taken} / {entitlement} used · {remaining} left</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none cursor-pointer">✕</button>
         </div>
