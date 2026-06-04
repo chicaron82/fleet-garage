@@ -90,6 +90,9 @@ export type Profile = User;
 
 export type VehicleStatus    = 'HELD' | 'OUT_ON_EXCEPTION' | 'RETURNED' | 'PRE_EXISTING' | 'CLEAR' | 'SALE_CAR' | 'AUCTION_SHORT_TERM';
 export type EvAssetStatus    = 'present' | 'missing';
+// Where an EV-accessory observation came from — tags each ev_asset_updates row
+// so the unified timeline shows which touchpoint last saw the cable/adapter.
+export type EvSource         = 'check_in' | 'driver_trip' | 'vsa_washbay' | 'management';
 export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
 export interface Vehicle {
@@ -109,6 +112,8 @@ export interface Vehicle {
   isTesla: boolean;
   hasMobileCable: boolean | null;
   hasJ1772Adapter: boolean | null;
+  evLastUpdatedBy?: string | null;
+  evLastUpdatedAt?: string | null;
   // Edit suggestion fields
   editSuggestedUnit?: string | null;
   editSuggestedPlate?: string;
@@ -127,7 +132,7 @@ export function canManageVehicles(role: UserRole): boolean {
 // ── Holds ────────────────────────────────────────────────────────────────────
 
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED';
-export type HoldType = 'damage' | 'detail' | 'mechanical' | 'sale_car';
+export type HoldType = 'damage' | 'detail' | 'mechanical' | 'sale_car' | 'missing_accessories';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
 

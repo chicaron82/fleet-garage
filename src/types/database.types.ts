@@ -975,6 +975,39 @@ export type Database = {
           },
         ]
       }
+      ev_asset_updates: {
+        Row: {
+          adapter_status: string | null
+          cable_status: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          updated_by: string
+          vehicle_id: string
+        }
+        Insert: {
+          adapter_status?: string | null
+          cable_status?: string | null
+          created_at?: string
+          id: string
+          notes?: string | null
+          source: string
+          updated_by: string
+          vehicle_id: string
+        }
+        Update: {
+          adapter_status?: string | null
+          cable_status?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          updated_by?: string
+          vehicle_id?: string
+        }
+        Relationships: []
+      }
       vehicles: {
         Row: {
           archived_at: string | null
@@ -991,6 +1024,8 @@ export type Database = {
           edit_suggested_plate: string | null
           edit_suggested_unit: string | null
           edit_suggestion_note: string | null
+          ev_last_updated_at: string | null
+          ev_last_updated_by: string | null
           has_j1772_adapter: boolean | null
           has_mobile_cable: boolean | null
           id: string
@@ -1017,6 +1052,8 @@ export type Database = {
           edit_suggested_plate?: string | null
           edit_suggested_unit?: string | null
           edit_suggestion_note?: string | null
+          ev_last_updated_at?: string | null
+          ev_last_updated_by?: string | null
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id: string
@@ -1043,6 +1080,8 @@ export type Database = {
           edit_suggested_plate?: string | null
           edit_suggested_unit?: string | null
           edit_suggestion_note?: string | null
+          ev_last_updated_at?: string | null
+          ev_last_updated_by?: string | null
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id?: string

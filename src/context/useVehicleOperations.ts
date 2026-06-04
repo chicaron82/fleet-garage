@@ -2,6 +2,7 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { makeClearSaleHold, makeMarkReturned } from './holdResolution';
+import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import type {
   Vehicle, Hold, Release, Repair,
   HoldType, DetailReason, MechanicalSubType, BranchId,
@@ -56,21 +57,9 @@ export function useVehicleOperations({
     return id;
   };
 
-  const updateVehicleEVAssets = async (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => {
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({
-        has_mobile_cable:  hasMobileCable,
-        has_j1772_adapter: hasJ1772Adapter,
-      }).eq('id', vehicleId)
-    );
-    // Gate the optimistic update on success. `vehicles` has no realtime channel
-    // (only `holds` does), so a silently-failed write here would not self-heal —
-    // local state would diverge from the DB until a full reload.
-    if (error) return;
-    setAllVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, hasMobileCable, hasJ1772Adapter } : v
-    ));
-  };
+  // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite
+  // to keep this file under the line cap.
+  const updateVehicleEVAssets = makeUpdateVehicleEVAssets({ userId, setAllVehicles });
 
   const addHold = async (
     vehicleId: string,

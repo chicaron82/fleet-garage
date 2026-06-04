@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
-import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType } from '../types';
+import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
@@ -20,7 +20,7 @@ export interface VehicleHoldContextValue {
   getActiveHold: (vehicleId: string) => Hold | undefined;
   releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }) => Promise<string>;
-  updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean) => Promise<void>;
+  updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string) => Promise<void>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;

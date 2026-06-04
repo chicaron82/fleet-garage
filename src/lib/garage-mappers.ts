@@ -54,6 +54,8 @@ export function mapVehicle(row: Row): Vehicle {
     isTesla:        (row['is_tesla'] as boolean)          ?? false,
     hasMobileCable: (row['has_mobile_cable'] as boolean | null) ?? null,
     hasJ1772Adapter:(row['has_j1772_adapter'] as boolean | null) ?? null,
+    evLastUpdatedBy: (row['ev_last_updated_by'] as string | null) ?? null,
+    evLastUpdatedAt: (row['ev_last_updated_at'] as string | null) ?? null,
     coverPhotoUrl: optStr(row, 'cover_photo_url'),
     archivedAt:   optStr(row, 'archived_at')    ?? undefined,
     archivedById: optStr(row, 'archived_by_id') ?? undefined,

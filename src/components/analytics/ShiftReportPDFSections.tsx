@@ -21,6 +21,7 @@ const HOLD_TYPE_LABELS: Record<string, string> = {
   detail:     'Detail',
   mechanical: 'Mechanical',
   sale_car:   'Sale Car',
+  missing_accessories: 'Missing Accessories',
 };
 
 function formatHoldTypes(types: string[]): string {

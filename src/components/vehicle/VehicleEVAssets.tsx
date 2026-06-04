@@ -1,5 +1,5 @@
 import { canManageVehicles } from '../../types';
-import type { Vehicle, UserRole } from '../../types';
+import type { Vehicle, UserRole, EvSource } from '../../types';
 
 interface VehicleEVAssetsProps {
   vehicle: Vehicle;
@@ -7,7 +7,9 @@ interface VehicleEVAssetsProps {
   updateVehicleEVAssets: (
     vehicleId: string,
     hasMobileCable: boolean,
-    hasJ1772Adapter: boolean
+    hasJ1772Adapter: boolean,
+    source: EvSource,
+    notes?: string
   ) => Promise<void>;
 }
 
@@ -64,7 +66,8 @@ export function VehicleEVAssets({
                   await updateVehicleEVAssets(
                     vehicle.id,
                     isAdapter ? (vehicle.hasMobileCable ?? true) : next,
-                    isAdapter ? next : (vehicle.hasJ1772Adapter ?? true)
+                    isAdapter ? next : (vehicle.hasJ1772Adapter ?? true),
+                    'management'
                   );
                 }}
                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
