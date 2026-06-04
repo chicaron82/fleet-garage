@@ -19,7 +19,7 @@ import { deriveRouting } from '../types';
  */
 export function useCheckInIntake() {
   const { user } = useAuth();
-  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold } = useVehicleHoldContext();
+  const { vehicles, getVehicleByUnit, getHoldsForVehicle, addHold, updateVehicleEVAssets } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
 
   const [scanned, setScanned]                   = useState<{ vehicle: Vehicle; timestamp: string } | null>(null);
@@ -176,6 +176,12 @@ export function useCheckInIntake() {
 
     setSubmitting(false);
     if (error) { setSaveError(true); return; }
+
+    // Propagate the observed EV status to the canonical profile + unified timeline
+    // (so the profile stops silently staying wrong, from the check-in angle too).
+    if (isTeslaVehicle && evCableStatus != null && evAdapterStatus != null) {
+      await updateVehicleEVAssets(scanned.vehicle.id, evCableStatus === 'present', evAdapterStatus === 'present', 'check_in');
+    }
 
     if (isTeslaVehicle && (evCableStatus === 'missing' || evAdapterStatus === 'missing')) {
       const missingAssets: string[] = [];

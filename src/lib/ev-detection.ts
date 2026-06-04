@@ -6,6 +6,7 @@ export interface TeslaDetectionResult {
   lastCable: EvAssetStatus | null;
   lastAdapter: EvAssetStatus | null;
   vehicle?: {
+    id: string;
     make: string;
     model: string;
     year: number;
@@ -14,6 +15,7 @@ export interface TeslaDetectionResult {
 }
 
 export interface TeslaVehicleRow {
+  id: string;
   make: string;
   model: string;
   year: number;
@@ -40,7 +42,7 @@ export function classifyTesla(
 ): TeslaDetectionResult {
   if (!vehicle) return { isTesla: false, lastCable: null, lastAdapter: null };
 
-  const info = { make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color };
+  const info = { id: vehicle.id, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color };
 
   if (!isTeslaMake(vehicle.make)) {
     return { isTesla: false, lastCable: null, lastAdapter: null, vehicle: info };
@@ -60,7 +62,7 @@ export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionR
 
   const { data: vehicle } = await supabase
     .from('vehicles')
-    .select('make, model, year, color')
+    .select('id, make, model, year, color')
     .ilike('license_plate', trimmed)
     .maybeSingle();
 

@@ -8,6 +8,7 @@ import { pushNotification } from '../lib/garage-uploads';
 import { detectTeslaByPlate, searchVehicles } from '../lib/ev-detection';
 import type { VehicleSearchResult } from '../lib/ev-detection';
 import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
+import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { TripRun } from '../data/trips';
 import type { EvAssetStatus, User } from '../types';
 
@@ -39,7 +40,9 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   const [evCableStatus, setEvCableStatus] = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
   const [vehicleDetails, setVehicleDetails] = useState<{ make: string, model: string, year: number, color: string } | null>(null);
+  const [evVehicleId, setEvVehicleId]     = useState<string | null>(null);
   const [inProgressId, setInProgressId]   = useState<string | null>(null);
+  const { updateVehicleEVAssets } = useVehicleHoldContext();
 
   const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -61,6 +64,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
       setPlate(loadedPlate);
       detectTeslaByPlate(loadedPlate).then(res => {
         setVehicleDetails(res.vehicle ?? null);
+        setEvVehicleId(res.vehicle?.id ?? null);
       });
       if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
       else { setFrom('Other'); setCustomFrom(depLoc); }
@@ -124,6 +128,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   const handlePlateBlur = async () => {
     const result = await detectTeslaByPlate(plate);
     setVehicleDetails(result.vehicle ?? null);
+    setEvVehicleId(result.vehicle?.id ?? null);
     if (result.isTesla) {
       setIsTeslaRun(true);
       setEvCableStatus(result.lastCable);
@@ -137,6 +142,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     setShowSuggestions(false);
     setVehicleDetails({ make: v.make, model: v.model, year: v.year, color: v.color });
     detectTeslaByPlate(v.license_plate).then(res => {
+      setEvVehicleId(res.vehicle?.id ?? null);
       if (res.isTesla) {
         setIsTeslaRun(true);
         setEvCableStatus(res.lastCable);
@@ -201,6 +207,13 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     setDepartureTime(now);
     setElapsed('0m 00s');
     setLiveState('in_transit');
+
+    // Propagate the Tesla's observed EV status to the canonical profile + unified
+    // timeline (source: driver_trip). Only when both are known and the vehicle is
+    // a registered unit (evVehicleId resolved by the plate detection).
+    if (isTeslaRun && evVehicleId && evCableStatus != null && evAdapterStatus != null) {
+      void updateVehicleEVAssets(evVehicleId, evCableStatus === 'present', evAdapterStatus === 'present', 'driver_trip');
+    }
   };
 
   const handleArrived = async () => {
@@ -287,6 +300,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     setEvCableStatus(null);
     setEvAdapterStatus(null);
     setVehicleDetails(null);
+    setEvVehicleId(null);
     setInProgressId(null);
   };
 
