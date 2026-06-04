@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense, Component } from 'react';
-import type { ReactNode } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from './context/AuthContext';
 import { VehicleHoldProvider } from './context/VehicleHoldContext';
 import { WashbayProvider } from './context/WashbayContext';
@@ -10,6 +9,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
+import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
@@ -28,34 +28,6 @@ const AnalyticsView      = lazy(() => import('./components/analytics/AnalyticsVi
 const IssueLogView       = lazy(() => import('./components/issue-log/IssueLogView').then(m => ({ default: m.IssueLogView })));
 const ManifestView       = lazy(() => import('./components/manifest/ManifestView').then(m => ({ default: m.ManifestView })));
 const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
-
-// ── Chunk error boundary ─────────────────────────────────────────────────────
-// After a new deployment, stale browsers request chunk filenames that no longer
-// exist (content hashes change). This boundary catches the resulting load error
-// and reloads the page once — pulling the fresh bundle silently.
-
-class ChunkErrorBoundary extends Component<{ children: ReactNode }, { errored: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { errored: false };
-  }
-  static getDerivedStateFromError() {
-    return { errored: true };
-  }
-  componentDidCatch(error: Error) {
-    const isChunkError =
-      error.message.includes('Failed to fetch dynamically imported module') ||
-      error.message.includes('Importing a module script failed') ||
-      error.name === 'ChunkLoadError';
-    if (isChunkError) {
-      window.location.reload();
-    }
-  }
-  render() {
-    if (this.state.errored) return null; // reload is already in flight
-    return this.props.children;
-  }
-}
 
 export default function App() {
   const { user, loading, logout } = useAuth();
@@ -206,11 +178,11 @@ export default function App() {
           <IssueProvider>
             <LostFoundProvider>
               <AppShell activeModule={activeModule} onNavigate={navigate}>
-                <ChunkErrorBoundary>
+                <AppErrorBoundary>
                   <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
                     {renderScreen()}
                   </Suspense>
-                </ChunkErrorBoundary>
+                </AppErrorBoundary>
               </AppShell>
               {showLogoutConfirm && (
                 <LogoutConfirm

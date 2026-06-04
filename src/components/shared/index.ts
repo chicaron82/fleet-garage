@@ -1,5 +1,6 @@
 // Barrel export for shared
 export * from './AboutModal';
+export * from './AppErrorBoundary';
 export * from './BarcodeToast';
 export * from './CameraBarcodeScanner';
 export * from './ElapsedTicker';
