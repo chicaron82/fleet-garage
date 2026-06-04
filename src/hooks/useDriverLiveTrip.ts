@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
@@ -9,12 +9,15 @@ import { detectTeslaByPlate, searchVehicles } from '../lib/ev-detection';
 import type { VehicleSearchResult } from '../lib/ev-detection';
 import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
+import {
+  driverTripReducer, INITIAL_DRIVER_TRIP_STATE, LOCATIONS,
+  type DriverTripState, type Location,
+} from './driverTripReducer';
 import type { TripRun } from '../data/trips';
-import type { EvAssetStatus, User } from '../types';
+import type { User } from '../types';
 
-export const LOCATIONS = ['Airport', 'Washbay', 'Other'] as const;
-export type Location = typeof LOCATIONS[number];
-export type RouteStep = 'origin' | 'destination' | 'confirmed';
+export { LOCATIONS } from './driverTripReducer';
+export type { Location, RouteStep } from './driverTripReducer';
 
 interface UseDriverLiveTripProps {
   user: User | null;
@@ -22,30 +25,38 @@ interface UseDriverLiveTripProps {
 }
 
 export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripProps) {
-  const [liveState, setLiveState]         = useState<'form' | 'in_transit' | 'complete'>('form');
-  const [routeStep, setRouteStep]         = useState<RouteStep>('origin');
-  const [from, setFrom]                   = useState<Location | null>(null);
-  const [to, setTo]                       = useState<Location | null>(null);
-  const [customFrom, setCustomFrom]       = useState('');
-  const [customTo, setCustomTo]           = useState('');
-  const [plate, setPlate]                 = useState('');
-  const [isShuttle, setIsShuttle]         = useState(false);
-  const [notes, setNotes]                 = useState('');
-  const [departureTime, setDepartureTime] = useState('');
-  const [arrivalTime, setArrivalTime]     = useState('');
-  const [elapsed, setElapsed]             = useState('');
-  const [submitting, setSubmitting]       = useState(false);
-  const [saveError, setSaveError]         = useState(false);
-  const [isTeslaRun, setIsTeslaRun]       = useState(false);
-  const [evCableStatus, setEvCableStatus] = useState<EvAssetStatus | null>(null);
-  const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
-  const [vehicleDetails, setVehicleDetails] = useState<{ make: string, model: string, year: number, color: string } | null>(null);
-  const [evVehicleId, setEvVehicleId]     = useState<string | null>(null);
-  const [inProgressId, setInProgressId]   = useState<string | null>(null);
+  const [state, dispatch] = useReducer(driverTripReducer, INITIAL_DRIVER_TRIP_STATE);
+  const {
+    liveState, routeStep, from, to, customFrom, customTo, plate, isShuttle, notes,
+    departureTime, arrivalTime, elapsed, submitting, saveError, isTeslaRun,
+    evCableStatus, evAdapterStatus, vehicleDetails, evVehicleId, inProgressId,
+    plateSuggestions, showSuggestions,
+  } = state;
   const { updateVehicleEVAssets } = useVehicleHoldContext();
 
-  const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  // Thin field setters over the reducer — keep the public API and the write-first
+  // contract's literal setter names (setInProgressId/setDepartureTime/setLiveState).
+  const set = <K extends keyof DriverTripState>(key: K) =>
+    (value: DriverTripState[K]) => dispatch({ type: 'patch', patch: { [key]: value } as Partial<DriverTripState> });
+  const setPlate            = set('plate');
+  const setCustomFrom       = set('customFrom');
+  const setCustomTo         = set('customTo');
+  const setIsShuttle        = set('isShuttle');
+  const setNotes            = set('notes');
+  const setShowSuggestions  = set('showSuggestions');
+  const setPlateSuggestions = set('plateSuggestions');
+  const setVehicleDetails   = set('vehicleDetails');
+  const setEvVehicleId      = set('evVehicleId');
+  const setIsTeslaRun       = set('isTeslaRun');
+  const setEvCableStatus    = set('evCableStatus');
+  const setEvAdapterStatus  = set('evAdapterStatus');
+  const setInProgressId     = set('inProgressId');
+  const setDepartureTime    = set('departureTime');
+  const setElapsed          = set('elapsed');
+  const setLiveState        = set('liveState');
+  const setSaveError        = set('saveError');
+  const setSubmitting       = set('submitting');
+  const setArrivalTime      = set('arrivalTime');
 
   // Recovery: restore any in_progress trip for this driver on mount
   useInProgressRecovery(
@@ -59,22 +70,25 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     row => {
       const depLoc = (row.depart_location as string) ?? '';
       const arrLoc = (row.arrive_location as string) ?? '';
-      setInProgressId(row.id as string);
       const loadedPlate = (row.vehicle_plate as string) ?? '';
-      setPlate(loadedPlate);
       detectTeslaByPlate(loadedPlate).then(res => {
-        setVehicleDetails(res.vehicle ?? null);
-        setEvVehicleId(res.vehicle?.id ?? null);
+        dispatch({ type: 'patch', patch: { vehicleDetails: res.vehicle ?? null, evVehicleId: res.vehicle?.id ?? null } });
       });
-      if (LOCATIONS.includes(depLoc as Location)) setFrom(depLoc as Location);
-      else { setFrom('Other'); setCustomFrom(depLoc); }
-      if (LOCATIONS.includes(arrLoc as Location)) setTo(arrLoc as Location);
-      else { setTo('Other'); setCustomTo(arrLoc); }
-      setRouteStep('confirmed');
-      setIsShuttle((row.is_shuttle as boolean) ?? false);
-      setNotes((row.notes as string | null) ?? '');
-      setDepartureTime(row.depart_time as string);
-      setLiveState('in_transit');
+      const knownDep = LOCATIONS.includes(depLoc as Location);
+      const knownArr = LOCATIONS.includes(arrLoc as Location);
+      dispatch({ type: 'patch', patch: {
+        inProgressId:  row.id as string,
+        plate:         loadedPlate,
+        from:          knownDep ? (depLoc as Location) : 'Other',
+        customFrom:    knownDep ? '' : depLoc,
+        to:            knownArr ? (arrLoc as Location) : 'Other',
+        customTo:      knownArr ? '' : arrLoc,
+        routeStep:     'confirmed',
+        isShuttle:     (row.is_shuttle as boolean) ?? false,
+        notes:         (row.notes as string | null) ?? '',
+        departureTime: row.depart_time as string,
+        liveState:     'in_transit',
+      } });
     },
   );
 
@@ -82,7 +96,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     if (liveState !== 'in_transit' || !departureTime) return;
     const id = setInterval(() => setElapsed(elapsedSince(departureTime)), 1000);
     return () => clearInterval(id);
-  }, [liveState, departureTime]);
+  }, [liveState, departureTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -156,30 +170,15 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   };
 
   const handleLocationTap = (loc: Location) => {
-    if (routeStep === 'origin') {
-      hapticLight();
-      setFrom(loc);
-      setRouteStep('destination');
-    } else if (routeStep === 'destination') {
-      if (loc === from) {
-        hapticLight();
-        setFrom(null);
-        setRouteStep('origin');
-      } else {
-        hapticMedium();
-        setTo(loc);
-        setRouteStep('confirmed');
-      }
-    }
+    if (routeStep === 'confirmed') return;
+    if (routeStep === 'destination' && loc !== from) hapticMedium();
+    else hapticLight();
+    dispatch({ type: 'locationTap', loc });
   };
 
   const handleRouteReset = () => {
     hapticLight();
-    setFrom(null);
-    setTo(null);
-    setCustomFrom('');
-    setCustomTo('');
-    setRouteStep('origin');
+    dispatch({ type: 'routeReset' });
   };
 
   const handleStart = async () => {
@@ -279,29 +278,12 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
 
   const handleReset = () => {
     // Abandoning a started-but-not-arrived trip: delete its in_progress row so
-    // it doesn't orphan in the DB. A completed trip is left alone.
+    // it doesn't orphan in the DB. A completed trip is left alone. One dispatch
+    // resets the rest — no field-by-field clearing to keep in sync.
     if (liveState === 'in_transit' && inProgressId) {
       void writeOrEnqueue('delete', {}, 'id', inProgressId);
     }
-    setLiveState('form');
-    setRouteStep('origin');
-    setFrom(null);
-    setTo(null);
-    setCustomFrom('');
-    setCustomTo('');
-    setPlate('');
-    setIsShuttle(false);
-    setNotes('');
-    setDepartureTime('');
-    setArrivalTime('');
-    setElapsed('');
-    setSaveError(false);
-    setIsTeslaRun(false);
-    setEvCableStatus(null);
-    setEvAdapterStatus(null);
-    setVehicleDetails(null);
-    setEvVehicleId(null);
-    setInProgressId(null);
+    dispatch({ type: 'reset' });
   };
 
   const handleCancelTrip = async () => {
