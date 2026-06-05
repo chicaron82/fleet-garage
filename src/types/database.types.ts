@@ -1221,12 +1221,15 @@ export type Database = {
           cars_remaining: number
           clean_not_picked_up: number
           date: string
+          deferred_completions: number
           full_pages: number
           id: string
           last_page_entries: number
           logged_at: string
           logged_by: string
           lot_status: string
+          non_rentables_fuelled: number
+          non_rentables_note: string | null
           overtime_hours: number
           shift_hours: number
           team_size: number
@@ -1236,12 +1239,15 @@ export type Database = {
           cars_remaining?: number
           clean_not_picked_up?: number
           date: string
+          deferred_completions?: number
           full_pages?: number
           id?: string
           last_page_entries?: number
           logged_at?: string
           logged_by: string
           lot_status?: string
+          non_rentables_fuelled?: number
+          non_rentables_note?: string | null
           overtime_hours?: number
           shift_hours?: number
           team_size: number
@@ -1251,12 +1257,15 @@ export type Database = {
           cars_remaining?: number
           clean_not_picked_up?: number
           date?: string
+          deferred_completions?: number
           full_pages?: number
           id?: string
           last_page_entries?: number
           logged_at?: string
           logged_by?: string
           lot_status?: string
+          non_rentables_fuelled?: number
+          non_rentables_note?: string | null
           overtime_hours?: number
           shift_hours?: number
           team_size?: number

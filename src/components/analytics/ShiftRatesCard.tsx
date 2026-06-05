@@ -12,6 +12,7 @@ import {
   resolveShiftRates,
   shiftRateWarning,
 } from '../../lib/shift-metrics';
+import { sentToFleet } from '../../lib/washbay-throughput';
 
 const STANDARD_RATE = 3.0;
 
@@ -50,9 +51,7 @@ export function ShiftRatesCard() {
   if (!user) return null;
 
   const washbayLog    = getTodayWashbayLog();
-  const fullDayCleaned = washbayLog
-    ? Math.max(0, (washbayLog.fullPages * 19 + washbayLog.lastPageEntries) - washbayLog.carsRemaining)
-    : null;
+  const fullDayCleaned = washbayLog ? sentToFleet(washbayLog) : null;
   const todayHandoff  = handoffNotes.find(n =>
     businessDateOf(n.loggedAt) === localDateStr(0)
   ) ?? null;

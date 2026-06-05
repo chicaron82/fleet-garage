@@ -1,5 +1,6 @@
 import type { WashbayLog, HandoffNote, ShiftCheckpoint } from '../../types';
 import { CLOSING_SHIFT_HOURS } from '../../lib/shift-metrics';
+import { sentToFleet } from '../../lib/washbay-throughput';
 
 const COMPANY_STANDARD = 3.0;
 
@@ -70,7 +71,7 @@ function buildLiveDays(
 
     let closingRate: number | null = null;
     if (log && morningCleaned != null) {
-      const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
+      const fullDayCleaned = sentToFleet(log);
       const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
       const closingStartCount = checkpointCount ?? morningCleaned;
       const closingCleaned = fullDayCleaned - closingStartCount;
@@ -111,7 +112,7 @@ function buildTodaySnapshot(
   let closingRate: number | null = null;
 
   if (log && morningCleaned != null) {
-    const fullDayCleaned = Math.max(0, log.fullPages * 19 + log.lastPageEntries - log.carsRemaining);
+    const fullDayCleaned = sentToFleet(log);
     const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
     const closingStartCount = checkpointCount ?? morningCleaned;
     closingCleaned = fullDayCleaned - closingStartCount;

@@ -382,6 +382,9 @@ export interface WashbayLog {
   lastPageEntries: number;   // Entries on the current/last page (0–19)
   carsRemaining: number;     // Left in queue at close
   cleanNotPickedUp: number;  // Clean cars on lot, not yet sent to airport
+  nonRentablesFuelled: number; // Fuelled today (on gas sheet) but parked, not sent — subtracted from sent-to-fleet
+  deferredCompletions: number; // Sent today but fuelled a prior day (plate install) — added to sent-to-fleet
+  nonRentablesNote?: string | null; // Optional reason for the parked units (damage vs awaiting plates)
   teamSize: number;          // VSAs on shift
   shiftHours: number;        // Hours washbay ran (default 8)
   overtimeHours: number;     // Extended operating hours beyond base (0–3)
