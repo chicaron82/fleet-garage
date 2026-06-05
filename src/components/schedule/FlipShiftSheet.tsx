@@ -40,6 +40,13 @@ interface Props {
   onClose: () => void;
 }
 
+// Day after an ISO date — the default backup offered for a stat-day PTO request.
+function nextDay(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export function FlipShiftSheet({ shift, onClose }: Props) {
   const { updateShift, deleteShift, logActualHours, setPtoApproved, isPeakSeason } = useSchedule();
   useEscapeKey(onClose);
@@ -51,6 +58,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
   const [approved,  setApproved]  = useState(shift.ptoApproved ?? false);
+  const [alternateDate, setAlternateDate] = useState(shift.ptoAlternateDate ?? nextDay(shift.date));
 
   const handleToggleApproved = async () => {
     const next = !approved;
@@ -110,10 +118,12 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     setSaving(true);
     setError('');
     try {
+      const isStatPto = shiftType === 'pto' && isStatDay(shift.date);
       await updateShift(shift.id, {
         shiftType,
         startTime: isDayOff ? undefined : startTime,
         endTime:   isDayOff ? undefined : endTime,
+        ptoAlternateDate: isStatPto ? (alternateDate || undefined) : undefined,
       });
       onClose();
     } catch {
@@ -176,6 +186,27 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             </button>
           ))}
         </div>
+
+        {/* Stat-day PTO — warn + offer an optional backup date */}
+        {shiftType === 'pto' && isStatDay(shift.date) && (
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+              ⚠️ {displayDate} is {statName ?? 'a stat holiday'} (stat).
+            </p>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              You can still request it, but consider picking an alternate date as a backup.
+            </p>
+            <div>
+              <label className="block text-[11px] font-medium text-amber-700 dark:text-amber-300 mb-1">Alternate date (optional)</label>
+              <input
+                type="date"
+                value={alternateDate}
+                onChange={e => setAlternateDate(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+              />
+            </div>
+          </div>
+        )}
 
         {/* PTO approval — only for an already-saved PTO day */}
         {shift.shiftType === 'pto' && (

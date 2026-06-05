@@ -8,6 +8,18 @@ function plural(n: number): string {
   return n !== 1 ? 's' : '';
 }
 
+/** Stat-day annotation per requested date: the stat name + an optional backup date.
+ *  Kept as data the caller supplies (it owns the holiday calendar) so this stays a
+ *  pure formatter. */
+export type StatInfo = Record<string, { name: string; alternate?: string }>;
+
+function statSuffix(iso: string, statInfo: StatInfo): string {
+  const info = statInfo[iso];
+  if (!info) return '';
+  const alt = info.alternate ? ` — alternate: ${formatPtoDate(info.alternate)}` : '';
+  return ` (${info.name} — stat)${alt}`;
+}
+
 /**
  * PTO days actually *taken* (consumed in the past): the total entered minus the
  * upcoming requested + approved days, which are allocated but not yet taken. Lets
@@ -33,6 +45,7 @@ export function buildPtoRequest(
   entitlement: number,
   used: number,
   approvedDates: string[] = [],
+  statInfo: StatInfo = {},
 ): string {
   const lines = [`PTO Request — ${userName}`, ''];
   if (ptoDates.length === 0 && approvedDates.length === 0) {
@@ -44,7 +57,7 @@ export function buildPtoRequest(
 
   if (ptoDates.length > 0) {
     lines.push('Requesting the following day(s) off:');
-    for (const d of ptoDates) lines.push(` • ${formatPtoDate(d)}`);
+    for (const d of ptoDates) lines.push(` • ${formatPtoDate(d)}${statSuffix(d, statInfo)}`);
     lines.push('');
     lines.push(`${ptoDates.length} day${plural(ptoDates.length)} requested.`);
   }
@@ -52,7 +65,7 @@ export function buildPtoRequest(
   if (approvedDates.length > 0) {
     if (ptoDates.length > 0) lines.push('');
     lines.push('Already approved this year:');
-    for (const d of approvedDates) lines.push(` • ${formatPtoDate(d)}`);
+    for (const d of approvedDates) lines.push(` • ${formatPtoDate(d)}${statSuffix(d, statInfo)}`);
     lines.push('');
     lines.push(`${approvedDates.length} day${plural(approvedDates.length)} already approved.`);
   }

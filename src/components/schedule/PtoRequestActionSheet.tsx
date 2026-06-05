@@ -3,7 +3,8 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { toISO } from '../../context/ScheduleContext';
-import { buildPtoRequest, ptoTaken } from '../../lib/ptoRequest';
+import { buildPtoRequest, ptoTaken, type StatInfo } from '../../lib/ptoRequest';
+import { isStatDay, getStatName } from '../../lib/stats';
 import type { User } from '../../types';
 
 interface Props {
@@ -23,6 +24,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
   useEscapeKey(onClose);
   const [pendingDays, setPendingDays]   = useState<string[]>([]);
   const [approvedDays, setApprovedDays] = useState<string[]>([]);
+  const [altByDate, setAltByDate]       = useState<Record<string, string>>({});
   const [fetching, setFetching] = useState(true);
   const [copied, setCopied]     = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -36,18 +38,21 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
     const year  = today.slice(0, 4);
     supabase
       .from('shifts')
-      // pto_approved landed in migration 067; stale database.types.ts doesn't know the column yet
+      // pto_approved landed in 067; stale database.types.ts doesn't know that column yet
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .select('date, pto_approved' as any)
+      .select('date, pto_approved, pto_alternate_date' as any)
       .eq('user_id', user.id)
       .eq('shift_type', 'pto')
       .gte('date', today)
       .lte('date', `${year}-12-31`)
       .order('date', { ascending: true })
       .then(({ data }) => {
-        const rows = (data ?? []) as unknown as { date: string; pto_approved: boolean | null }[];
+        const rows = (data ?? []) as unknown as { date: string; pto_approved: boolean | null; pto_alternate_date: string | null }[];
         setPendingDays(rows.filter(r => !r.pto_approved).map(r => r.date));
         setApprovedDays(rows.filter(r => r.pto_approved).map(r => r.date));
+        const alts: Record<string, string> = {};
+        for (const r of rows) if (r.pto_alternate_date) alts[r.date] = r.pto_alternate_date;
+        setAltByDate(alts);
         setFetching(false);
       });
   }, [user.id]);
@@ -57,9 +62,15 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
   const busy = fetching || pdfLoading;
   const dateLabel = new Date().toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' });
 
+  // Stat-day annotations (name + optional alternate) for every requested/approved day.
+  const statInfo: StatInfo = {};
+  for (const d of [...pendingDays, ...approvedDays]) {
+    if (isStatDay(d)) statInfo[d] = { name: getStatName(d) ?? 'Stat holiday', alternate: altByDate[d] };
+  }
+
   const handleShare = async () => {
     hapticMedium();
-    const text = buildPtoRequest(user.name, pendingDays, entitlement, used, approvedDays);
+    const text = buildPtoRequest(user.name, pendingDays, entitlement, used, approvedDays, statInfo);
     if (navigator.share) {
       try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
       catch { /* fall through to clipboard */ }
@@ -77,7 +88,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
         import('@react-pdf/renderer'),
         import('./PtoRequestPDF'),
       ]);
-      const data = { userName: user.name, employeeId: user.employeeId, dateLabel, days: pendingDays, approvedDays, entitlement, used };
+      const data = { userName: user.name, employeeId: user.employeeId, dateLabel, days: pendingDays, approvedDays, entitlement, used, statInfo };
       const blob = await pdf(createElement(PtoRequestPDF, { data }) as ReactElement<never>).toBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');

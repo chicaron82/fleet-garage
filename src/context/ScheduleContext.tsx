@@ -61,6 +61,7 @@ function buildRowToShift(resolveUser: (id: string) => Profile | null) {
       actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
       isStat:          (row.is_stat as boolean | null) ?? false,
       ptoApproved:     (row.pto_approved as boolean | null) ?? false,
+      ptoAlternateDate: (row.pto_alternate_date as string | null) ?? undefined,
       createdAt:       row.created_at as string,
       updatedAt:       row.updated_at as string,
       branchId:        (u?.branchId ?? 'YWG') as BranchId,
@@ -198,6 +199,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           end_time:   updates.endTime   ?? null,
           shift_type: updates.shiftType,
           notes:      updates.notes     ?? null,
+          pto_alternate_date: updates.ptoAlternateDate ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)

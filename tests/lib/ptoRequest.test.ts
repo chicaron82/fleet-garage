@@ -41,6 +41,24 @@ describe('buildPtoRequest', () => {
     expect(msg.split('\n').filter(l => l.trim().startsWith('•')).length).toBe(3);
   });
 
+  it('annotates stat requested days with name + optional alternate, leaves others untouched', () => {
+    const statInfo = {
+      '2026-07-01': { name: 'Canada Day', alternate: '2026-07-02' },
+      '2026-08-03': { name: 'Civic Holiday' }, // no alternate picked
+    };
+    const msg = buildPtoRequest('A', ['2026-07-01', '2026-08-03', '2026-09-04'], 15, 5, [], statInfo);
+    const line = (needle: string) => msg.split('\n').find(l => l.includes(needle))!;
+    // stat with alternate
+    expect(line('Jul 1')).toContain('(Canada Day — stat)');
+    expect(line('Jul 1')).toContain('alternate:');
+    expect(line('Jul 1')).toContain('Jul 2, 2026');
+    // stat without alternate — name only, no alternate clause
+    expect(line('Aug 3')).toContain('(Civic Holiday — stat)');
+    expect(line('Aug 3')).not.toContain('alternate:');
+    // non-stat day is untouched
+    expect(line('Sep 4')).not.toContain('stat');
+  });
+
   it('reconciles the real PDF case: 2 taken, 13 left = 10 requested + 3 approved', () => {
     const requested = ['2026-07-31', '2026-08-06', '2026-08-07', '2026-08-10', '2026-09-04',
                        '2026-09-07', '2026-09-08', '2026-10-16', '2026-10-19', '2026-11-13'];

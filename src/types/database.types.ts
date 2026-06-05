@@ -744,6 +744,7 @@ export type Database = {
           id: string
           is_stat: boolean
           notes: string | null
+          pto_alternate_date: string | null
           shift_type: string
           start_time: string | null
           updated_at: string
@@ -759,6 +760,7 @@ export type Database = {
           id?: string
           is_stat?: boolean
           notes?: string | null
+          pto_alternate_date?: string | null
           shift_type: string
           start_time?: string | null
           updated_at?: string
@@ -774,6 +776,7 @@ export type Database = {
           id?: string
           is_stat?: boolean
           notes?: string | null
+          pto_alternate_date?: string | null
           shift_type?: string
           start_time?: string | null
           updated_at?: string

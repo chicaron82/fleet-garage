@@ -1,5 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
-import { ptoTaken } from '../../lib/ptoRequest';
+import { ptoTaken, type StatInfo } from '../../lib/ptoRequest';
 
 const LOGO_SRC = `${window.location.origin}/FG.jpg`;
 
@@ -11,6 +11,7 @@ export interface PtoPDFData {
   approvedDays: string[]; // upcoming ISO dates already approved — shown for the full picture
   entitlement:  number;
   used:         number;
+  statInfo?:    StatInfo; // stat-day annotations keyed by ISO date
 }
 
 function fmtDay(iso: string): string {
@@ -36,6 +37,7 @@ const s = StyleSheet.create({
   noData:        { fontSize: 8, color: '#9ca3af', fontStyle: 'italic', paddingLeft: 10, paddingBottom: 4 },
   row:           { paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
   rowText:       { fontSize: 9, color: '#111827' },
+  statNote:      { fontSize: 7, color: '#b45309', marginTop: 1 },
   totalRow:      { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 5 },
   totalText:     { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151' },
   approval:      { marginTop: 28, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
@@ -82,6 +84,7 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
                 {data.days.map((d, i) => (
                   <View key={i} style={s.row}>
                     <Text style={s.rowText}>{fmtDay(d)}</Text>
+                    <StatNote info={data.statInfo?.[d]} />
                   </View>
                 ))}
                 <View style={s.totalRow}>
@@ -97,6 +100,7 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
             {data.approvedDays.map((d, i) => (
               <View key={i} style={s.row}>
                 <Text style={s.rowText}>{fmtDay(d)}</Text>
+                <StatNote info={data.statInfo?.[d]} />
               </View>
             ))}
             <View style={s.totalRow}>
@@ -123,6 +127,15 @@ export function PtoRequestPDF({ data }: { data: PtoPDFData }) {
 
       </Page>
     </Document>
+  );
+}
+
+function StatNote({ info }: { info?: { name: string; alternate?: string } }) {
+  if (!info) return null;
+  return (
+    <Text style={s.statNote}>
+      {info.name} — stat{info.alternate ? ` · alternate: ${fmtDay(info.alternate)}` : ''}
+    </Text>
   );
 }
 
