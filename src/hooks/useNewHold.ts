@@ -71,7 +71,7 @@ export function useNewHold(preselectedId?: string) {
      (mechanicalTypes.includes('Other') && !!customMechanical.trim()));
 
   const photosOk  = !holdTypes.includes('damage') || photos.length > 0;
-  const canSubmit = !!(selectedVehicle && !alreadyHeld && !submitting && damageOk && detailOk && mechanicalOk && photosOk);
+  const canSubmit = !!(selectedVehicle && !submitting && damageOk && detailOk && mechanicalOk && photosOk);
 
   // Primary holdType for backwards compat
   const holdType = holdTypes[0];

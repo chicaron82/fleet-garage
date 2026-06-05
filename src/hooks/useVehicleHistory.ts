@@ -8,7 +8,7 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, addPhotosToHold, markRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
@@ -31,6 +31,7 @@ export function useVehicleHistory(vehicleId: string) {
   const vehicle = getVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
+  const activeHolds = getActiveHolds(vehicleId);
 
   // The sale_car hold currently flagging this vehicle — whether still active
   // (sale-car) or already released short-term (auction-short-term). Target of
@@ -52,7 +53,8 @@ export function useVehicleHistory(vehicleId: string) {
       (h.status === 'ACTIVE' || (h.status === 'RELEASED' && !h.repair))
   );
 
-  const [showHoldPicker, setShowHoldPicker] = useState(false);
+  const [showHoldPicker,    setShowHoldPicker]    = useState(false);
+  const [showReleasePicker, setShowReleasePicker] = useState(false);
 
   const addPhotoClick = (holdId: string, ref: React.RefObject<HTMLInputElement | null>) => {
     pendingHoldId.current = holdId;
@@ -99,6 +101,20 @@ export function useVehicleHistory(vehicleId: string) {
       setShowRepairConfirm(null);
     }
   };
+
+  const openReleaseAction = () => {
+    if (activeHolds.length === 1) {
+      openReleaseForm(activeHolds[0].id);
+    } else if (activeHolds.length > 1) {
+      setShowReleasePicker(true);
+      setShowReleaseForm(null);
+      setShowVerbalOverride(null);
+      setShowRepairConfirm(null);
+    }
+  };
+
+  const closeReleasePicker  = () => setShowReleasePicker(false);
+  const pickHoldForRelease  = (holdId: string) => { setShowReleasePicker(false); openReleaseForm(holdId); };
 
   const pickHoldForRepair = (holdId: string) => openRepairConfirm(holdId);
   const closeHoldPicker   = () => setShowHoldPicker(false);
@@ -157,12 +173,13 @@ export function useVehicleHistory(vehicleId: string) {
 
   return {
     user: user!,
-    vehicle, holds, activeHold, repairableHolds, saleHold,
+    vehicle, holds, activeHold, activeHolds, repairableHolds, saleHold,
     confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
     showHoldPicker, openRepairAction, pickHoldForRepair, closeHoldPicker,
+    showReleasePicker, openReleaseAction, pickHoldForRelease, closeReleasePicker,
     repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing, repairError,
     lightboxPhotos, lightboxIndex,
     openLightbox: (photos: string[], index: number) => { setLightboxPhotos(photos); setLightboxIndex(index); },

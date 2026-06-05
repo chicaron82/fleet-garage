@@ -18,6 +18,7 @@ export interface VehicleHoldContextValue {
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
+  getActiveHolds: (vehicleId: string) => Hold[];
   releaseStreak: (vehicleId: string) => number;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
@@ -173,6 +174,9 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
 
+  const getActiveHolds = (vehicleId: string) =>
+    holds.filter(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
+
   const releaseStreak = (vehicleId: string): number => {
     const completed = holds
       .filter(h => h.vehicleId === vehicleId && h.status !== 'ACTIVE')
@@ -201,7 +205,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
     <VehicleHoldContext.Provider value={{
       vehicles, allVehicles, holds, staleHolds, loading, loadError, reload,
       getVehicle, getVehicleByUnit,
-      getHoldsForVehicle, getActiveHold, releaseStreak,
+      getHoldsForVehicle, getActiveHold, getActiveHolds, releaseStreak,
       ...ops,
       archivedVehicles,
       shuttlePlate, setShuttlePlate,

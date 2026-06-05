@@ -149,8 +149,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                   )}
                 </div>
                 {h.alreadyHeld && (
-                  <div className="mt-3 px-3 py-2.5 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg text-xs text-red-700 dark:text-red-400">
-                    This vehicle already has an active hold. Only one active hold per vehicle is allowed.
+                  <div className="mt-3 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+                    This vehicle already has an active hold. You are adding a second hold — both must be resolved before it returns to fleet.
                   </div>
                 )}
               </div>
@@ -227,7 +227,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
           </div>
 
           {/* Hold Details */}
-          {h.selectedVehicle && !h.alreadyHeld && (
+          {h.selectedVehicle && (
             <NewHoldDetailsSection h={h} cameraInputRef={cameraInputRef} galleryInputRef={galleryInputRef} />
           )}
 

@@ -129,12 +129,12 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             )}
             {canRelease(h.user.role) && (
               <>
-                {h.activeHold && (
+                {h.activeHolds.length > 0 && (
                   <button
-                    onClick={() => { hapticHeavy(); h.openReleaseForm(h.activeHold!.id); }}
+                    onClick={() => { hapticHeavy(); h.openReleaseAction(); }}
                     className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
                   >
-                    Approve Release
+                    Approve Release{h.activeHolds.length > 1 ? ` (${h.activeHolds.length})` : ''}
                   </button>
                 )}
                 {h.repairableHolds.length > 0 && (
@@ -149,10 +149,10 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 )}
               </>
             )}
-            {h.activeHold && !canRelease(h.user.role) && (
+            {h.activeHolds.length > 0 && !canRelease(h.user.role) && (
               <>
                 <button
-                  onClick={() => h.openVerbalOverride(h.activeHold!.id)}
+                  onClick={() => h.openVerbalOverride(h.activeHolds[0].id)}
                   className="px-4 py-2 border-2 border-orange-400 dark:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold text-sm rounded-lg transition cursor-pointer"
                 >
                   Log Verbal Override
@@ -248,6 +248,45 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             holdId={h.showVerbalOverride}
             onClose={h.closeVerbalOverride}
           />
+        )}
+
+        {h.showReleasePicker && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-40" onClick={h.closeReleasePicker} />
+            <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    Which hold are you releasing?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={h.closeReleasePicker}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {h.activeHolds.map(hold => (
+                    <button
+                      key={hold.id}
+                      type="button"
+                      onClick={() => { hapticHeavy(); h.pickHoldForRelease(hold.id); }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
+                    >
+                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">
+                        {hold.damageDescription}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        {hold.holdTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {new Date(hold.flaggedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {h.showRepairConfirm && (() => {
