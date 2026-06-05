@@ -48,7 +48,7 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
             { label: 'Cars fuelled (gas sheet)', value: ci,                       indent: false, sign: '' },
             { label: 'In queue at close',        value: log.carsRemaining,         indent: true,  sign: '−' },
             { label: 'Parked, not sent',         value: log.nonRentablesFuelled,   indent: true,  sign: '−' },
-            { label: 'Plated & sent (prepped earlier)', value: log.deferredCompletions, indent: true, sign: '+' },
+            { label: 'Carry-over cleared', value: log.deferredCompletions, indent: true, sign: '+' },
             { label: 'Sent to fleet',            value: sent,                      indent: false, sign: '' },
           ].map(({ label, value, indent, sign }) => (
             <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>

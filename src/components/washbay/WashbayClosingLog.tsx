@@ -184,13 +184,13 @@ export function WashbayClosingLog() {
             <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled, parked — damage-held or no plates yet</p>
           </div>
           <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Plated &amp; sent (prepped earlier)</label>
+            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Carry-over cleared</label>
             <input
               type="number" min="0" value={deferred} onChange={e => setDeferred(e.target.value)}
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
             />
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled a prior day, plates installed today</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled earlier, finished &amp; sent today</p>
           </div>
         </div>
 
