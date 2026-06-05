@@ -5,7 +5,7 @@ import { makeClearSaleHold, makeMarkReturned } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import type {
   Vehicle, Hold, Release, Repair,
-  HoldType, DetailReason, MechanicalSubType, BranchId,
+  HoldType, DetailReason, MechanicalSubType, BranchId, VehicleStatus,
 } from '../types';
 
 interface VehicleOperationsProps {
@@ -30,9 +30,14 @@ export function useVehicleOperations({
   setAllHolds,
 }: VehicleOperationsProps) {
 
-  const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string }): Promise<string> => {
+  const addVehicle = async (
+    vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus },
+  ): Promise<string> => {
     const id = crypto.randomUUID();
     const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
+    // Registration defaults to HELD (register-to-flag flow); a caller can pass a
+    // status explicitly — e.g. the EV quick-add lands a transfer Tesla as CLEAR.
+    const status = vehicle.status ?? 'HELD';
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').insert({
         id,
@@ -43,7 +48,7 @@ export function useVehicleOperations({
         year:              vehicle.year,
         color:             vehicle.color,
         branch_id:         branchId,
-        status:            'HELD',
+        status,
         is_tesla:          vehicle.isTesla ?? false,
         has_mobile_cable:  vehicle.hasMobileCable ?? null,
         has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
@@ -52,7 +57,7 @@ export function useVehicleOperations({
     if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
     await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
       `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
-    const newVehicle: Vehicle = { ...vehicle, id, status: 'HELD', branchId };
+    const newVehicle: Vehicle = { ...vehicle, id, status, branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
     return id;
   };

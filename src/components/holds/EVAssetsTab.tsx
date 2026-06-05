@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
+import { QuickAddTeslaForm } from './QuickAddTeslaForm';
 import { isTeslaMake } from '../../lib/ev-detection';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
@@ -28,6 +29,7 @@ export function EVAssetsTab() {
   const { getName } = useUserResolver();
 
   const [query, setQuery]           = useState('');
+  const [adding, setAdding]         = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cable, setCable]           = useState<EvAssetStatus | null>(null);
   const [adapter, setAdapter]       = useState<EvAssetStatus | null>(null);
@@ -132,9 +134,17 @@ export function EVAssetsTab() {
     );
   }
 
+  // ── Quick-add view ───────────────────────────────────────────────────────────
+  if (adding) return <QuickAddTeslaForm onDone={() => setAdding(false)} />;
+
   // ── Roster view ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
+      <button type="button" onClick={() => setAdding(true)}
+        className="w-full py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-200 transition cursor-pointer">
+        + Register Tesla
+      </button>
+
       {vehicles.filter(isTeslaVehicle).length > 4 && (
         <input type="text" value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Filter Teslas…"
