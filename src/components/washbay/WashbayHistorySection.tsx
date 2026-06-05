@@ -138,7 +138,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
 
   const missingCount = rows.filter(r => !r.primary && !r.backfill).length;
 
-  const handleOpen = (date: string, existing: BackfillEntry | null) => {
+  const handleOpen = (date: string, existing: BackfillEntry | null, handoff?: HandoffNote | null) => {
     setOpenDate(date);
     setSaveError('');
     if (existing) {
@@ -154,9 +154,22 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
         teamSize:         existing.teamSize,
         overtimeHours:    existing.overtimeHours,
       });
+    } else if (handoff) {
+      // New entry with a handoff note — seed page counts + team size from the
+      // handoff so the VSA only has to fill in cars remaining / not picked up.
+      const { totalPages, entriesOnCurrentPage } = convertFromBackend(
+        handoff.fullPages, handoff.lastPageEntries,
+      );
+      setForm({
+        totalPages,
+        entriesOnCurrentPage,
+        carsRemaining:    '',
+        cleanNotPickedUp: '',
+        teamSize:         handoff.teamSize,
+        overtimeHours:    findLatestBackfill(backfillEntries)?.overtimeHours ?? 0,
+      });
     } else {
-      // New entry — pre-fill team size + OT from the most recent backfill so
-      // the VSA only has to change what's different from yesterday.
+      // New entry, no handoff — seed team size + OT from most recent backfill.
       setForm(blankForm(findLatestBackfill(backfillEntries)));
     }
   };
@@ -294,7 +307,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
                     {!row.primary && (
                       <button
                         type="button"
-                        onClick={() => isOpen ? setOpenDate(null) : handleOpen(row.date, row.backfill)}
+                        onClick={() => isOpen ? setOpenDate(null) : handleOpen(row.date, row.backfill, row.handoff)}
                         className="shrink-0 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition cursor-pointer"
                       >
                         {isOpen ? 'Cancel' : row.backfill ? 'Edit' : 'Fill in'}
