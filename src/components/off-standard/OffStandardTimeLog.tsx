@@ -13,6 +13,7 @@ import { OffStandardEntriesList } from './OffStandardEntriesList';
 import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
 import { OffStdQuickStart } from './OffStdQuickStart';
 import { OffStdRecentHistory } from './OffStdRecentHistory';
+import { EDVNoMatchFields } from './EDVNoMatchFields';
 
 const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
@@ -48,6 +49,12 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     edvUnitNumber,
     edvManagerName,
     edvNoMatch,
+    edvPlate,
+    setEdvPlate,
+    edvExterior,
+    setEdvExterior,
+    edvInterior,
+    setEdvInterior,
     selectPreset,
     saveNotes,
     handleStart,
@@ -161,11 +168,16 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 </div>
               )}
 
-              {/* EDV no-match warning */}
+              {/* EDV no-match: plate + condition pills */}
               {selectedPreset === 'edv' && edvNoMatch && (
-                <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-700 dark:text-amber-400">
-                  No released detail hold found for today. Log manually or check Holds for the unit.
-                </div>
+                <EDVNoMatchFields
+                  plate={edvPlate}
+                  onPlateChange={setEdvPlate}
+                  exterior={edvExterior}
+                  onExteriorChange={setEdvExterior}
+                  interior={edvInterior}
+                  onInteriorChange={setEdvInterior}
+                />
               )}
             </div>
           )}

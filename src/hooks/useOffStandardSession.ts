@@ -64,7 +64,8 @@ export function useOffStandardSession({
   const [endError, setEndError]             = useState(false);
 
   const edv = useOffStandardEDV({ holds, vehicles, resolveName });
-  const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch, selectPreset } = edv;
+  const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch, selectPreset,
+          edvPlate, edvExterior, edvInterior } = edv;
 
   // Recovery: restore any in_progress entry on mount
   useInProgressRecovery(
@@ -155,6 +156,11 @@ export function useOffStandardSession({
       status:         'in_progress',
       ...(preset ? { preset_reason: preset } : {}),
       ...(preset === 'edv' && linkedHoldId ? { linked_hold_id: linkedHoldId } : {}),
+      ...(preset === 'edv' && edvNoMatch ? {
+        edv_plate:    edvPlate.trim() || null,
+        edv_exterior: edvExterior,
+        edv_interior: edvInterior,
+      } : {}),
     });
 
     if (!ok) {
@@ -224,6 +230,11 @@ export function useOffStandardSession({
       autoFromTrip: false,
       presetReason: selectedPreset,
       linkedHoldId: selectedPreset === 'edv' ? edvLinkedHoldId : null,
+      ...(selectedPreset === 'edv' && edvNoMatch ? {
+        edvPlate:    edvPlate.trim() || undefined,
+        edvExterior,
+        edvInterior,
+      } : {}),
     }]);
     setTimerState('complete');
   };
@@ -258,6 +269,12 @@ export function useOffStandardSession({
     edvUnitNumber,
     edvManagerName,
     edvNoMatch,
+    edvPlate,
+    setEdvPlate: edv.setEdvPlate,
+    edvExterior,
+    setEdvExterior: edv.setEdvExterior,
+    edvInterior,
+    setEdvInterior: edv.setEdvInterior,
     selectPreset,
     saveNotes,
     handleStart,

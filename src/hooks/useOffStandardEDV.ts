@@ -18,6 +18,12 @@ export interface OffStandardEDVSlice {
   edvUnitNumber: string;
   edvManagerName: string;
   edvNoMatch: boolean;
+  edvPlate: string;
+  setEdvPlate: Dispatch<SetStateAction<string>>;
+  edvExterior: boolean;
+  setEdvExterior: Dispatch<SetStateAction<boolean>>;
+  edvInterior: boolean;
+  setEdvInterior: Dispatch<SetStateAction<boolean>>;
   selectPreset: (preset: OffStandardPresetReason) => void;
   resetEDV: () => void;
 }
@@ -28,6 +34,9 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
   const [edvUnitNumber, setEdvUnitNumber]     = useState<string>('');
   const [edvManagerName, setEdvManagerName]   = useState<string>('');
   const [edvNoMatch, setEdvNoMatch]           = useState(false);
+  const [edvPlate,    setEdvPlate]    = useState('');
+  const [edvExterior, setEdvExterior] = useState(false);
+  const [edvInterior, setEdvInterior] = useState(false);
 
   function selectPreset(preset: OffStandardPresetReason) {
     hapticLight();
@@ -64,6 +73,9 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvUnitNumber('');
     setEdvManagerName('');
     setEdvNoMatch(false);
+    setEdvPlate('');
+    setEdvExterior(false);
+    setEdvInterior(false);
   }
 
   return {
@@ -73,6 +85,12 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     edvUnitNumber,
     edvManagerName,
     edvNoMatch,
+    edvPlate,
+    setEdvPlate,
+    edvExterior,
+    setEdvExterior,
+    edvInterior,
+    setEdvInterior,
     selectPreset,
     resetEDV,
   };

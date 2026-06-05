@@ -463,6 +463,9 @@ export type Database = {
           edit_staff_note: string | null
           edit_status: string | null
           edited_end_time: string | null
+          edv_exterior: boolean
+          edv_interior: boolean
+          edv_plate: string | null
           explanation: string | null
           id: string
           is_backdated: boolean | null
@@ -489,6 +492,9 @@ export type Database = {
           edit_staff_note?: string | null
           edit_status?: string | null
           edited_end_time?: string | null
+          edv_exterior?: boolean
+          edv_interior?: boolean
+          edv_plate?: string | null
           explanation?: string | null
           id?: string
           is_backdated?: boolean | null
@@ -515,6 +521,9 @@ export type Database = {
           edit_staff_note?: string | null
           edit_status?: string | null
           edited_end_time?: string | null
+          edv_exterior?: boolean
+          edv_interior?: boolean
+          edv_plate?: string | null
           explanation?: string | null
           id?: string
           is_backdated?: boolean | null

@@ -35,6 +35,7 @@ export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry
     reason:          row.reason as OffStandardReason,
     explanation:     (row.explanation as string | null) ?? undefined,
     autoFromTrip:    (row.auto_from_trip as boolean) ?? false,
+    presetReason:    (row.preset_reason as OffStandardPresetReason | null) ?? undefined,
     editedEndTime:   (row.edited_end_time as string | null) ?? undefined,
     editRequestedAt: (row.edit_requested_at as string | null) ?? undefined,
     editRequestedBy: (row.edit_requested_by as string | null) ?? undefined,
@@ -45,6 +46,9 @@ export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry
     isBackdated:         (row.is_backdated as boolean | null) ?? false,
     backdateApprovedBy:  (row.backdate_approved_by as string | null) ?? undefined,
     backdateApprovedAt:  (row.backdate_approved_at as string | null) ?? undefined,
+    edvPlate:     (row.edv_plate as string | null) ?? undefined,
+    edvExterior:  (row.edv_exterior as boolean) ?? false,
+    edvInterior:  (row.edv_interior as boolean) ?? false,
   };
 }
 

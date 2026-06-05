@@ -34,6 +34,20 @@ export function OffStandardEntriesList({ entries, onEditClick }: OffStandardEntr
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   {fmtMinutes(entry.minutes)}
                 </span>
+                {entry.presetReason === 'edv' && (entry.edvPlate || entry.edvExterior || entry.edvInterior) && (
+                  <>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">EDV</span>
+                    {entry.edvPlate && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">{entry.edvPlate}</span>
+                    )}
+                    {entry.edvExterior && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Exterior</span>
+                    )}
+                    {entry.edvInterior && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Interior</span>
+                    )}
+                  </>
+                )}
                 {entry.autoFromTrip && (
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">🔗 From movement log</span>
                 )}

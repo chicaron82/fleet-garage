@@ -541,4 +541,8 @@ export interface OffStandardEntry {
   isBackdated?:          boolean;
   backdateApprovedBy?:   string;
   backdateApprovedAt?:   string;
+  // EDV no-match structured fields (only populated when no hold was auto-linked)
+  edvPlate?:     string | null;
+  edvExterior?:  boolean;
+  edvInterior?:  boolean;
 }
