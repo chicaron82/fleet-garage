@@ -48,19 +48,35 @@ export function morningHandoffBoundary(handoff: { loggedAt: string }): Date {
   return new Date(`${dateStr}T${MORNING_HANDOFF_LOCAL_TIME}`);
 }
 
+// Off-standard entry, minimally shaped for the rate math. presetReason carries
+// the 'fleeting_sent' tag that exempts an entry from reducing the denominator.
+export interface OffStandardMinutes {
+  startTime: string;
+  minutes: number;
+  presetReason?: string | null;
+}
+
+// 'fleeting_sent' is fleeting time whose cars went up to fleet — logged, but it
+// must NOT reduce the rate denominator (the cars already count in sent-to-fleet,
+// so crediting the time too would double-count). Everything else reduces it.
+export function reducesDenominator(e: { presetReason?: string | null }): boolean {
+  return e.presetReason !== 'fleeting_sent';
+}
+
 // Partition off-standard minutes by the morning/closing boundary.
 // When no handoff exists, everything counts as morning (the day hasn't crossed over yet).
 export function splitOffStandard(
-  entries: ReadonlyArray<{ startTime: string; minutes: number }>,
+  entries: ReadonlyArray<OffStandardMinutes>,
   boundary: Date | null,
 ): { morning: number; closing: number } {
+  const reducible = entries.filter(reducesDenominator);
   if (!boundary) {
-    const total = entries.reduce((s, e) => s + e.minutes, 0);
+    const total = reducible.reduce((s, e) => s + e.minutes, 0);
     return { morning: total, closing: 0 };
   }
   let m = 0;
   let c = 0;
-  for (const e of entries) {
+  for (const e of reducible) {
     if (new Date(e.startTime) < boundary) m += e.minutes;
     else c += e.minutes;
   }
@@ -73,7 +89,7 @@ export function buildShiftPartition(args: {
   handoff: HandoffSnapshotInput | null | undefined;
   checkpoint: CheckpointSnapshotInput | null | undefined;
   fullDayCleaned: number | null;
-  offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+  offStandardEntries: ReadonlyArray<OffStandardMinutes>;
   midArrival?: CheckpointSnapshotInput | null;
   midDeparture?: CheckpointSnapshotInput | null;
 }): ShiftPartition {
@@ -99,15 +115,16 @@ export function buildShiftPartition(args: {
   const midDepCount = midDeparture ? midDeparture.fullPages * 19 + midDeparture.lastPageEntries : null;
   const midCleaned  = midArrCount != null && midDepCount != null ? Math.max(0, midDepCount - midArrCount) : null;
   const midHours    = CLOSING_SHIFT_HOURS; // fixed 8h window — start time varies, duration does not
+  const reducible = offStandardEntries.filter(reducesDenominator);
   const midOth = midArrival?.loggedAt && midDeparture?.loggedAt
     ? (() => {
         const lo = new Date(midArrival.loggedAt).getTime();
         const hi = new Date(midDeparture.loggedAt).getTime();
-        return offStandardEntries
+        return reducible
           .filter(e => { const t = new Date(e.startTime).getTime(); return t >= lo && t < hi; })
           .reduce((s, e) => s + e.minutes, 0);
       })()
-    : offStandardEntries.reduce((s, e) => s + e.minutes, 0);
+    : reducible.reduce((s, e) => s + e.minutes, 0);
 
   return {
     morning: { cleaned: morningCleaned, hours: morningHours,        oth: oth.morning },
@@ -152,7 +169,7 @@ export function applyShiftWindow(
     actualEnd?: string | null;
     plannedStart?: string | null;       // scheduled times — fallback when no actual
     plannedEnd?: string | null;
-    offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+    offStandardEntries: ReadonlyArray<OffStandardMinutes>;
     breakHours?: number;
   },
 ): ShiftSnapshot {
@@ -169,6 +186,7 @@ export function applyShiftWindow(
   const span = (endMs - startMs) / 3_600_000;
   const hours = Math.max(0.1, span - (span > BREAK_MIN_SPAN_HOURS ? breakHours : 0));
   const oth = offStandardEntries
+    .filter(reducesDenominator)
     .filter(e => { const t = new Date(e.startTime).getTime(); return t >= startMs && t < endMs; })
     .reduce((s, e) => s + e.minutes, 0);
   return { ...snapshot, hours, oth };
@@ -216,7 +234,7 @@ export function resolveShiftRates(args: {
   partition: ShiftPartition;
   shift: Pick<Shift, 'shiftType' | 'startTime' | 'endTime' | 'actualStartTime' | 'actualEndTime'> | null;
   date: string;
-  offStandardEntries: ReadonlyArray<{ startTime: string; minutes: number }>;
+  offStandardEntries: ReadonlyArray<OffStandardMinutes>;
 }): UserShiftRates {
   const { partition, shift, date, offStandardEntries } = args;
   const window = deriveShiftWindow(shift?.shiftType) ?? 'morning';

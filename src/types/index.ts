@@ -497,16 +497,24 @@ export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; ful
   OTH:   { short: 'OTH',   full: 'Other' },
 };
 
-export type OffStandardPresetReason = 'fleeting_cars' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv' | 'customer_pickup';
+export type OffStandardPresetReason = 'fleeting_cars' | 'fleeting_sent' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv' | 'customer_pickup';
 
 export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string> = {
   opening_duties:  'Opening Duties',
   closing_duties:  'Closing Duties',
   fleeting_cars:   'Fleeting Cars',
+  fleeting_sent:   'Fleeting — Sent Up',
   lot_organization:'Lot Organization',
   edv:             'EDV',
   customer_pickup: 'Customer Pickup/Drop',
 };
+
+// Fleeting time that resulted in cars going up to fleet. Logged like any other
+// off-standard entry, but excluded from the rate denominator — the shipped cars
+// already count in sent-to-fleet, so relieving the time too would double-credit.
+// Every other preset reduces the denominator normally (including plain
+// `fleeting_cars`, which is prep that stayed on the lot).
+export const SENT_UP_PRESET: OffStandardPresetReason = 'fleeting_sent';
 
 export type OffStdEditStatus = 'pending' | 'approved' | 'denied';
 

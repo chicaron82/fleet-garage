@@ -120,6 +120,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               <div className="flex flex-wrap gap-2">
                 {([
                   { value: 'fleeting_cars',   label: 'Fleeting Cars' },
+                  { value: 'fleeting_sent',   label: 'Fleeting — Sent Up' },
                   { value: 'closing_duties',  label: 'Closing Duties' },
                   { value: 'opening_duties',  label: 'Opening Duties' },
                   { value: 'lot_organization', label: 'Lot Organization' },
@@ -140,6 +141,15 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   </button>
                 ))}
               </div>
+
+              {/* Fleeting: which preset to pick — affects the rate denominator */}
+              {(selectedPreset === 'fleeting_cars' || selectedPreset === 'fleeting_sent') && (
+                <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 text-xs text-blue-700 dark:text-blue-400">
+                  {selectedPreset === 'fleeting_sent'
+                    ? 'Cars went up to fleet — counted as sent, so this time won\'t reduce your rate.'
+                    : 'Prepped but stayed on the lot (no plates yet) — this time is credited back to your rate.'}
+                </div>
+              )}
 
               {/* EDV auto-populate result */}
               {selectedPreset === 'edv' && !edvNoMatch && edvLinkedHoldId && (

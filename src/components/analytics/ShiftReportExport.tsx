@@ -44,7 +44,7 @@ export function ShiftReportExport({ date }: { date: string }) {
       fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes,
     ] = await Promise.all([
       supabase.from('off_standard_entries')
-        .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip')
+        .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip, preset_reason')
         .eq('user_id', user.id).eq('status', 'complete')
         // Match the live ShiftRatesCard: exclude backdated entries that aren't yet
         // approved, so the report's OTH total and personal rate agree with the card.
@@ -188,8 +188,9 @@ export function ShiftReportExport({ date }: { date: string }) {
       // report and the in-app card never disagree. Off-standard is scoped to the
       // shift window inside buildShiftPartition; do not subtract the full-day total.
       const offEntries = (othRes.data ?? []).map((r: Record<string, unknown>) => ({
-        startTime: r.start_time as string,
-        minutes:   r.minutes as number,
+        startTime:    r.start_time as string,
+        minutes:      r.minutes as number,
+        presetReason: r.preset_reason as string | null,
       }));
       const partition = buildShiftPartition({
         handoff: handoffRow

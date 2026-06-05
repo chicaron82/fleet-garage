@@ -11,6 +11,7 @@ import {
   deriveUserShift,
   resolveShiftRates,
   shiftRateWarning,
+  reducesDenominator,
 } from '../../lib/shift-metrics';
 import { sentToFleet } from '../../lib/washbay-throughput';
 
@@ -27,22 +28,23 @@ export function ShiftRatesCard() {
   const { user } = useAuth();
   const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint, getMidArrival, getMidDeparture } = useWashbayContext();
   const { shifts } = useSchedule();
-  const [entries, setEntries] = useState<{ startTime: string; minutes: number }[]>([]);
+  const [entries, setEntries] = useState<{ startTime: string; minutes: number; presetReason?: string | null }[]>([]);
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from('off_standard_entries')
-      .select('start_time, minutes')
+      .select('start_time, minutes, preset_reason')
       .eq('user_id', user.id)
       .eq('status', 'complete')
       .gte('start_time', shiftDayStartISO(localDateStr(0)))
       .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
       .then(({ data }) => {
         if (data) setEntries(
-          (data as { start_time: string; minutes: number }[]).map(r => ({
-            startTime: r.start_time,
-            minutes:   r.minutes,
+          (data as { start_time: string; minutes: number; preset_reason: string | null }[]).map(r => ({
+            startTime:    r.start_time,
+            minutes:      r.minutes,
+            presetReason: r.preset_reason,
           }))
         );
       });
@@ -56,7 +58,7 @@ export function ShiftRatesCard() {
     businessDateOf(n.loggedAt) === localDateStr(0)
   ) ?? null;
 
-  const offTotal      = entries.reduce((s, e) => s + e.minutes, 0);
+  const offTotal      = entries.filter(reducesDenominator).reduce((s, e) => s + e.minutes, 0);
 
   const myShift       = deriveUserShift(shifts, user.id);
   const window        = deriveShiftWindow(myShift?.shiftType) ?? 'morning';
