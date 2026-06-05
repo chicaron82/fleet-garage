@@ -27,6 +27,7 @@ export const MECHANICAL_PRESET_META: Record<string, MechanicalPresetMeta> = {
   'PM due':               { emoji: '⚙️',  subType: 'pm-due' },
   'Tire repair needed':   { emoji: '🛞',  subType: 'tire-repair' },
   'Seasonal tire swap':   { emoji: '🔄',  subType: 'tire-swap' },
+  'Low tread':            { emoji: '🛞',  subType: 'tire-repair' },
   'Check engine light':   { emoji: '🔦',  subType: 'other' },
   'Brake service needed': { emoji: '🔧',  subType: 'other' },
   'Battery concern':      { emoji: '🔋',  subType: 'other' },
