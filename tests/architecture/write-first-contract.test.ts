@@ -49,9 +49,10 @@ const REFERENCE_IMPLS: ReferenceImpl[] = [
     file: 'src/hooks/useDriverLiveTrip.ts',
     fn:   'handleStart',
     liveStateSetters: [
-      'setInProgressId(',
-      'setDepartureTime(',
-      "setLiveState('in_transit')",
+      // Single atomic transition replaces the three old flat setters.
+      // dispatchStartTrip fires the 'startTrip' reducer action which atomically
+      // sets phase:'in_transit', inProgressId, and departureTime in one shot.
+      'dispatchStartTrip(',
     ],
   },
 ];

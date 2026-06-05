@@ -11,13 +11,13 @@ import { useInProgressRecovery } from '../hooks/useInProgressRecovery';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import {
   driverTripReducer, INITIAL_DRIVER_TRIP_STATE, LOCATIONS,
-  type DriverTripState, type Location,
+  type FormDraft,
 } from './driverTripReducer';
 import type { TripRun } from '../data/trips';
 import type { User } from '../types';
 
 export { LOCATIONS } from './driverTripReducer';
-export type { Location, RouteStep } from './driverTripReducer';
+export type { Location, RouteStep, VehicleDetails } from './driverTripReducer';
 
 interface UseDriverLiveTripProps {
   user: User | null;
@@ -26,41 +26,10 @@ interface UseDriverLiveTripProps {
 
 export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripProps) {
   const [state, dispatch] = useReducer(driverTripReducer, INITIAL_DRIVER_TRIP_STATE);
-  const {
-    liveState, routeStep, from, to, customFrom, customTo, plate, isShuttle, notes,
-    departureTime, arrivalTime, elapsed, submitting, saveError, isTeslaRun,
-    evCableStatus, evAdapterStatus, vehicleDetails, evVehicleId, inProgressId,
-    plateSuggestions, showSuggestions,
-  } = state;
   const { updateVehicleEVAssets } = useVehicleHoldContext();
 
-  // Thin field setters over the reducer — same shape as a useState setter (value
-  // OR an (prev) => next updater), so the public API and the write-first contract's
-  // literal setter names (setInProgressId/setDepartureTime/setLiveState) are kept.
-  const set = <K extends keyof DriverTripState>(key: K) =>
-    (value: DriverTripState[K] | ((prev: DriverTripState[K]) => DriverTripState[K])) =>
-      dispatch({ type: 'setField', key, value });
-  const setPlate            = set('plate');
-  const setCustomFrom       = set('customFrom');
-  const setCustomTo         = set('customTo');
-  const setIsShuttle        = set('isShuttle');
-  const setNotes            = set('notes');
-  const setShowSuggestions  = set('showSuggestions');
-  const setPlateSuggestions = set('plateSuggestions');
-  const setVehicleDetails   = set('vehicleDetails');
-  const setEvVehicleId      = set('evVehicleId');
-  const setIsTeslaRun       = set('isTeslaRun');
-  const setEvCableStatus    = set('evCableStatus');
-  const setEvAdapterStatus  = set('evAdapterStatus');
-  const setInProgressId     = set('inProgressId');
-  const setDepartureTime    = set('departureTime');
-  const setElapsed          = set('elapsed');
-  const setLiveState        = set('liveState');
-  const setSaveError        = set('saveError');
-  const setSubmitting       = set('submitting');
-  const setArrivalTime      = set('arrivalTime');
+  // ── Recovery: restore any in_progress trip for this driver on mount ────────
 
-  // Recovery: restore any in_progress trip for this driver on mount
   useInProgressRecovery(
     {
       table: 'vsa_trips',
@@ -70,109 +39,118 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
       orderBy: 'depart_time',
     },
     row => {
+      const plate  = (row.vehicle_plate as string) ?? '';
       const depLoc = (row.depart_location as string) ?? '';
       const arrLoc = (row.arrive_location as string) ?? '';
-      const loadedPlate = (row.vehicle_plate as string) ?? '';
-      detectTeslaByPlate(loadedPlate).then(res => {
-        dispatch({ type: 'patch', patch: { vehicleDetails: res.vehicle ?? null, evVehicleId: res.vehicle?.id ?? null } });
-      });
-      const knownDep = LOCATIONS.includes(depLoc as Location);
-      const knownArr = LOCATIONS.includes(arrLoc as Location);
-      dispatch({ type: 'patch', patch: {
-        inProgressId:  row.id as string,
-        plate:         loadedPlate,
-        from:          knownDep ? (depLoc as Location) : 'Other',
-        customFrom:    knownDep ? '' : depLoc,
-        to:            knownArr ? (arrLoc as Location) : 'Other',
-        customTo:      knownArr ? '' : arrLoc,
-        routeStep:     'confirmed',
+      const knownDep = LOCATIONS.includes(depLoc as import('./driverTripReducer').Location);
+      const knownArr = LOCATIONS.includes(arrLoc as import('./driverTripReducer').Location);
+      dispatch({
+        type: 'recoverInTransit',
+        tripId:        row.id as string,
+        plate,
+        fromLabel:     knownDep ? depLoc : (depLoc || 'Other'),
+        toLabel:       knownArr ? arrLoc : (arrLoc || 'Other'),
+        departureTime: row.depart_time as string,
         isShuttle:     (row.is_shuttle as boolean) ?? false,
         notes:         (row.notes as string | null) ?? '',
-        departureTime: row.depart_time as string,
-        liveState:     'in_transit',
-      } });
+      });
+      // Async vehicle lookup — updates vehicleDetails in the transit state
+      detectTeslaByPlate(plate).then(res => {
+        dispatch({ type: 'patchVehicleDetails', vehicleDetails: res.vehicle ?? null, evVehicleId: res.vehicle?.id ?? null });
+      });
     },
   );
 
-  useEffect(() => {
-    if (liveState !== 'in_transit' || !departureTime) return;
-    const id = setInterval(() => setElapsed(elapsedSince(departureTime)), 1000);
-    return () => clearInterval(id);
-  }, [liveState, departureTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Elapsed timer ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (state.phase !== 'in_transit') return;
+    const id = setInterval(
+      () => dispatch({ type: 'setElapsed', elapsed: elapsedSince(state.trip.departureTime) }),
+      1000,
+    );
+    return () => clearInterval(id);
+  }, [state.phase, state.phase === 'in_transit' ? state.trip.departureTime : null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Plate autocomplete (form only) ────────────────────────────────────────
+
+  const plate = state.phase === 'form' ? state.draft.plate : '';
+  const plateSuggestions = state.phase === 'form' ? state.draft.plateSuggestions : [];
+  const showSuggestions  = state.phase === 'form' ? state.draft.showSuggestions  : false;
+
+  useEffect(() => {
+    if (state.phase !== 'form') return;
     const timer = setTimeout(async () => {
       if (plate.trim().length < 2) {
-        setPlateSuggestions([]);
-        setShowSuggestions(false);
+        dispatch({ type: 'setFormField', key: 'plateSuggestions', value: [] });
+        dispatch({ type: 'setFormField', key: 'showSuggestions',  value: false });
         return;
       }
-      // Don't search if we already selected a full match
       if (plateSuggestions.some(p => p.license_plate === plate.trim().toUpperCase()) && !showSuggestions) return;
       const results = await searchVehicles(plate);
-      setPlateSuggestions(results);
-      setShowSuggestions(results.length > 0);
+      dispatch({ type: 'setFormField', key: 'plateSuggestions', value: results });
+      dispatch({ type: 'setFormField', key: 'showSuggestions',  value: results.length > 0 });
     }, 300);
     return () => clearTimeout(timer);
   }, [plate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fromLabel = from === 'Other' ? (customFrom || 'Other') : (from ?? '');
-  const toLabel   = to   === 'Other' ? (customTo   || 'Other') : (to   ?? '');
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-  // ── Shared helpers — eliminate payload duplication ─────────────────────────
+  const setFormField = <K extends keyof FormDraft>(key: K) =>
+    (value: FormDraft[K] | ((prev: FormDraft[K]) => FormDraft[K])) =>
+      dispatch({ type: 'setFormField', key, value });
 
-  const buildTripPayload = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
-    vehicle_plate:     plate.trim().toUpperCase(),
-    vehicle_unit:      '',
-    trip_type:         isShuttle ? 'transfer' : 'clean',
-    depart_location:   fromLabel,
-    arrive_location:   toLabel,
-    driver_id:         user?.id ?? '',
-    branch_id:         user?.branchId ?? 'YWG',
-    is_shuttle:        isShuttle,
-    notes:             notes.trim() || null,
-    ev_cable_status:   isTeslaRun ? (evCableStatus ?? null) : null,
-    ev_adapter_status: isTeslaRun ? (evAdapterStatus ?? null) : null,
-    ...overrides,
-  });
+  const buildTransitPayload = (overrides: Record<string, unknown> = {}): Record<string, unknown> => {
+    const trip = state.phase !== 'form' ? state.trip : null;
+    if (!trip) return overrides;
+    return {
+      vehicle_plate:     trip.plate,
+      vehicle_unit:      '',
+      trip_type:         trip.isShuttle ? 'transfer' : 'clean',
+      depart_location:   trip.fromLabel,
+      arrive_location:   trip.toLabel,
+      driver_id:         user?.id ?? '',
+      branch_id:         user?.branchId ?? 'YWG',
+      is_shuttle:        trip.isShuttle,
+      notes:             trip.notes.trim() || null,
+      ev_cable_status:   trip.isTeslaRun ? (trip.evCableStatus  ?? null) : null,
+      ev_adapter_status: trip.isTeslaRun ? (trip.evAdapterStatus ?? null) : null,
+      ...overrides,
+    };
+  };
 
-  const canStart = plate.trim().length > 0
-    && routeStep === 'confirmed'
-    && (from !== 'Other' || customFrom.trim().length > 0)
-    && (to   !== 'Other' || customTo.trim().length > 0);
+  const dispatchStartTrip = (tripId: string, departureTime: string) =>
+    dispatch({ type: 'startTrip', tripId, departureTime });
+
+  // ── Event handlers ─────────────────────────────────────────────────────────
 
   const handlePlateBlur = async () => {
-    const result = await detectTeslaByPlate(plate);
-    setVehicleDetails(result.vehicle ?? null);
-    setEvVehicleId(result.vehicle?.id ?? null);
+    if (state.phase !== 'form') return;
+    const result = await detectTeslaByPlate(state.draft.plate);
+    dispatch({ type: 'patchVehicleDetails', vehicleDetails: result.vehicle ?? null, evVehicleId: result.vehicle?.id ?? null });
     if (result.isTesla) {
-      setIsTeslaRun(true);
-      setEvCableStatus(result.lastCable);
-      setEvAdapterStatus(result.lastAdapter);
+      dispatch({ type: 'setFormField', key: 'isTeslaRun',      value: true });
+      dispatch({ type: 'setFormField', key: 'evCableStatus',   value: result.lastCable });
+      dispatch({ type: 'setFormField', key: 'evAdapterStatus', value: result.lastAdapter });
     }
   };
 
   const handleSuggestionSelect = (v: VehicleSearchResult) => {
     hapticLight();
-    setPlate(v.license_plate);
-    setShowSuggestions(false);
-    setVehicleDetails({ make: v.make, model: v.model, year: v.year, color: v.color });
+    dispatch({ type: 'setFormField', key: 'plate',          value: v.license_plate });
+    dispatch({ type: 'setFormField', key: 'showSuggestions', value: false });
+    dispatch({ type: 'setFormField', key: 'vehicleDetails', value: { make: v.make, model: v.model, year: v.year, color: v.color } });
     detectTeslaByPlate(v.license_plate).then(res => {
-      setEvVehicleId(res.vehicle?.id ?? null);
-      if (res.isTesla) {
-        setIsTeslaRun(true);
-        setEvCableStatus(res.lastCable);
-        setEvAdapterStatus(res.lastAdapter);
-      } else {
-        setIsTeslaRun(false);
-        setEvCableStatus(null);
-        setEvAdapterStatus(null);
-      }
+      dispatch({ type: 'patchVehicleDetails', vehicleDetails: res.vehicle ?? null, evVehicleId: res.vehicle?.id ?? null });
+      dispatch({ type: 'setFormField', key: 'isTeslaRun',      value: res.isTesla });
+      dispatch({ type: 'setFormField', key: 'evCableStatus',   value: res.isTesla ? res.lastCable   : null });
+      dispatch({ type: 'setFormField', key: 'evAdapterStatus', value: res.isTesla ? res.lastAdapter : null });
     });
   };
 
-  const handleLocationTap = (loc: Location) => {
-    if (routeStep === 'confirmed') return;
+  const handleLocationTap = (loc: import('./driverTripReducer').Location) => {
+    if (state.phase !== 'form') return;
+    const { routeStep, from } = state.draft;
     if (routeStep === 'destination' && loc !== from) hapticMedium();
     else hapticLight();
     dispatch({ type: 'locationTap', loc });
@@ -185,164 +163,164 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
 
   const handleStart = async () => {
     hapticMedium();
-    if (!user) return;
+    if (!user || state.phase !== 'form') return;
+    const { draft } = state;
     const now    = new Date().toISOString();
     const tripId = crypto.randomUUID();
+    const fromLabel = draft.from === 'Other' ? (draft.customFrom || 'Other') : (draft.from ?? '');
+    const toLabel   = draft.to   === 'Other' ? (draft.customTo   || 'Other') : (draft.to   ?? '');
 
-    const payload = buildTripPayload({
-      id:           tripId,
-      depart_time:  now,
-      arrive_time:  null,
-      status:       'in_progress',
-    });
+    const payload = {
+      id:            tripId,
+      vehicle_plate: draft.plate.trim().toUpperCase(),
+      vehicle_unit:  '',
+      trip_type:     draft.isShuttle ? 'transfer' : 'clean',
+      depart_location:   fromLabel,
+      arrive_location:   toLabel,
+      driver_id:         user.id,
+      branch_id:         user.branchId ?? 'YWG',
+      is_shuttle:        draft.isShuttle,
+      notes:             draft.notes.trim() || null,
+      ev_cable_status:   draft.isTeslaRun ? (draft.evCableStatus  ?? null) : null,
+      ev_adapter_status: draft.isTeslaRun ? (draft.evAdapterStatus ?? null) : null,
+      depart_time:   now,
+      arrive_time:   null,
+      status:        'in_progress',
+    };
 
     const { ok } = await writeOrEnqueue('insert', payload);
     if (!ok) {
       console.error('[DriverLiveForm] start write failed');
-      setSaveError(true);
+      dispatch({ type: 'setSaveError', value: true });
       return;
     }
 
-    setSaveError(false);
-    setInProgressId(tripId);
-    setDepartureTime(now);
-    setElapsed('0m 00s');
-    setLiveState('in_transit');
+    dispatch({ type: 'setSaveError', value: false });
+    dispatchStartTrip(tripId, now);
 
-    // Propagate the Tesla's observed EV status to the canonical profile + unified
-    // timeline (source: driver_trip). Only when both are known and the vehicle is
-    // a registered unit (evVehicleId resolved by the plate detection).
-    if (isTeslaRun && evVehicleId && evCableStatus != null && evAdapterStatus != null) {
-      void updateVehicleEVAssets(evVehicleId, evCableStatus === 'present', evAdapterStatus === 'present', 'driver_trip');
+    if (draft.isTeslaRun && draft.evVehicleId && draft.evCableStatus != null && draft.evAdapterStatus != null) {
+      void updateVehicleEVAssets(draft.evVehicleId, draft.evCableStatus === 'present', draft.evAdapterStatus === 'present', 'driver_trip');
     }
   };
 
   const handleArrived = async () => {
     hapticMedium();
-    if (!user) { setSaveError(true); return; }
-    setSaveError(false);
-    setSubmitting(true);
+    if (!user || state.phase !== 'in_transit') { dispatch({ type: 'setSaveError', value: true }); return; }
+    dispatch({ type: 'setSaveError', value: false });
+    dispatch({ type: 'setSubmitting', value: true });
     const arrived = new Date().toISOString();
-    setArrivalTime(arrived);
+    const { trip } = state;
 
     const arrivalOverrides = { arrive_time: arrived, status: 'complete' };
     let ok: boolean;
 
-    if (inProgressId) {
-      // Happy path: complete the in_progress record
-      ({ ok } = await writeOrEnqueue('update', buildTripPayload(arrivalOverrides), 'id', inProgressId));
+    if (trip.inProgressId) {
+      ({ ok } = await writeOrEnqueue('update', buildTransitPayload(arrivalOverrides), 'id', trip.inProgressId));
     } else {
-      // Fallback: start write failed, insert the full trip now
-      ({ ok } = await writeOrEnqueue('insert', buildTripPayload({ depart_time: departureTime, ...arrivalOverrides })));
+      ({ ok } = await writeOrEnqueue('insert', buildTransitPayload({ depart_time: trip.departureTime, ...arrivalOverrides })));
     }
 
     if (!ok) {
-      setSubmitting(false);
-      setSaveError(true);
+      dispatch({ type: 'setSubmitting', value: false });
+      dispatch({ type: 'setSaveError',  value: true });
       return;
     }
 
-    const trip: TripRun = {
-      id:             inProgressId ?? `live-${Date.now()}`,
-      vehiclePlate:   plate.trim().toUpperCase(),
+    const tripRun: TripRun = {
+      id:             trip.inProgressId ?? `live-${Date.now()}`,
+      vehiclePlate:   trip.plate,
       vehicleUnit:    '',
-      tripType:       isShuttle ? 'transfer' : 'clean',
-      departLocation: fromLabel,
-      arriveLocation: toLabel,
-      departTime:     departureTime,
+      tripType:       trip.isShuttle ? 'transfer' : 'clean',
+      departLocation: trip.fromLabel,
+      arriveLocation: trip.toLabel,
+      departTime:     trip.departureTime,
       arriveTime:     arrived,
       gasLevel:       '',
       odometer:       0,
       driverId:       user.id,
       branchId:       user.branchId,
-      notes:          notes.trim() || undefined,
+      notes:          trip.notes.trim() || undefined,
     };
 
-    onTripComplete(trip);
+    onTripComplete(tripRun);
 
     const elapsedMinutes = Math.round(
-      (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
+      (new Date(arrived).getTime() - new Date(trip.departureTime).getTime()) / 60000,
     );
     if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
       await pushNotification(
         user.branchId,
         ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
         '🐢',
-        `Long trip flagged — ${user.name} · ${plate.trim().toUpperCase()} · ${fromLabel} → ${toLabel} · ${elapsedMinutes} minutes`,
+        `Long trip flagged — ${user.name} · ${trip.plate} · ${trip.fromLabel} → ${trip.toLabel} · ${elapsedMinutes} minutes`,
         'warning',
-        { driverId: user.id, plate: plate.trim().toUpperCase(), from: fromLabel, to: toLabel, elapsedMinutes, tripDate: arrived.split('T')[0] },
+        { driverId: user.id, plate: trip.plate, from: trip.fromLabel, to: trip.toLabel, elapsedMinutes, tripDate: arrived.split('T')[0] },
       );
     }
 
-    setSubmitting(false);
-    setLiveState('complete');
+    dispatch({ type: 'setSubmitting', value: false });
+    dispatch({ type: 'arriveTrip',    arrivalTime: arrived });
   };
 
   const handleReset = () => {
-    // Abandoning a started-but-not-arrived trip: delete its in_progress row so
-    // it doesn't orphan in the DB. A completed trip is left alone. One dispatch
-    // resets the rest — no field-by-field clearing to keep in sync.
-    if (liveState === 'in_transit' && inProgressId) {
-      void writeOrEnqueue('delete', {}, 'id', inProgressId);
+    if (state.phase === 'in_transit' && state.trip.inProgressId) {
+      void writeOrEnqueue('delete', {}, 'id', state.trip.inProgressId);
     }
     dispatch({ type: 'reset' });
   };
 
   const handleCancelTrip = async () => {
-    if (inProgressId) {
+    if (state.phase === 'in_transit' && state.trip.inProgressId) {
+      const id = state.trip.inProgressId;
       if (!navigator.onLine) {
-        enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: inProgressId });
+        enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: id });
       } else {
-        const res = await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', inProgressId));
+        const res = await writeWithRefresh(() => supabase.from('vsa_trips').delete().eq('id', id));
         if (res.error) {
           const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-          if (isNetworkErr) enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: inProgressId });
+          if (isNetworkErr) enqueueOfflineAction({ table: 'vsa_trips', action: 'delete', payload: {}, eqField: 'id', eqValue: id });
         }
       }
     }
     handleReset();
   };
 
+  // ── Phase-conditional return (discriminated union) ─────────────────────────
+
+  if (state.phase === 'form') {
+    const { draft, submitting, saveError } = state;
+    const fromLabel = draft.from === 'Other' ? (draft.customFrom || 'Other') : (draft.from ?? '');
+    const toLabel   = draft.to   === 'Other' ? (draft.customTo   || 'Other') : (draft.to   ?? '');
+    const canStart  = draft.plate.trim().length > 0
+      && draft.routeStep === 'confirmed'
+      && (draft.from !== 'Other' || draft.customFrom.trim().length > 0)
+      && (draft.to   !== 'Other' || draft.customTo.trim().length   > 0);
+    return {
+      phase: 'form' as const,
+      ...draft,
+      fromLabel, toLabel, canStart, submitting, saveError,
+      setFormField,
+      handleStart, handleLocationTap, handleRouteReset,
+      handlePlateBlur, handleSuggestionSelect, handleReset,
+    };
+  }
+
+  if (state.phase === 'in_transit') {
+    const { trip, elapsed, submitting, saveError } = state;
+    const setNotes = (notes: string) => dispatch({ type: 'setTransitNotes', notes });
+    return {
+      phase: 'in_transit' as const,
+      ...trip,
+      elapsed, submitting, saveError,
+      setNotes,
+      handleArrived, handleCancelTrip, handleReset,
+    };
+  }
+
+  // complete
   return {
-    liveState,
-    routeStep,
-    from,
-    to,
-    customFrom,
-    setCustomFrom,
-    customTo,
-    setCustomTo,
-    plate,
-    setPlate,
-    isShuttle,
-    setIsShuttle,
-    notes,
-    setNotes,
-    departureTime,
-    arrivalTime,
-    elapsed,
-    submitting,
-    saveError,
-    isTeslaRun,
-    setIsTeslaRun,
-    evCableStatus,
-    setEvCableStatus,
-    evAdapterStatus,
-    setEvAdapterStatus,
-    vehicleDetails,
-    plateSuggestions,
-    showSuggestions,
-    setShowSuggestions,
-    fromLabel,
-    toLabel,
-    canStart,
-    handlePlateBlur,
-    handleSuggestionSelect,
-    handleLocationTap,
-    handleRouteReset,
-    handleStart,
-    handleArrived,
+    phase: 'complete' as const,
+    ...state.trip,
     handleReset,
-    handleCancelTrip,
   };
 }

@@ -19,53 +19,30 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const { user } = useAuth();
   const { shuttlePlate } = useVehicleHoldContext();
 
-  const {
-    liveState,
-    routeStep,
-    customFrom,
-    setCustomFrom,
-    customTo,
-    setCustomTo,
-    plate,
-    setPlate,
-    isShuttle,
-    setIsShuttle,
-    notes,
-    setNotes,
-    departureTime,
-    arrivalTime,
-    elapsed,
-    submitting,
-    saveError,
-    isTeslaRun,
-    setIsTeslaRun,
-    evCableStatus,
-    setEvCableStatus,
-    evAdapterStatus,
-    setEvAdapterStatus,
-    vehicleDetails,
-    plateSuggestions,
-    showSuggestions,
-    setShowSuggestions,
-    fromLabel,
-    toLabel,
-    canStart,
-    handlePlateBlur,
-    handleSuggestionSelect,
-    handleLocationTap,
-    handleRouteReset,
-    handleStart,
-    handleArrived,
-    handleReset,
-    handleCancelTrip,
-    from,
-    to,
-  } = useDriverLiveTrip({
-    user,
-    onTripComplete,
-  });
+  const trip = useDriverLiveTrip({ user, onTripComplete });
 
-  if (liveState === 'form') {
+  if (trip.phase === 'form') {
+    const {
+      routeStep, from, to, customFrom, customTo,
+      plate, isShuttle, notes, isTeslaRun,
+      evCableStatus, evAdapterStatus,
+      plateSuggestions, showSuggestions,
+      fromLabel, toLabel, canStart, submitting, saveError,
+      setFormField,
+      handleStart, handleLocationTap, handleRouteReset,
+      handlePlateBlur, handleSuggestionSelect, handleReset,
+    } = trip;
+
+    const setPlate           = setFormField('plate');
+    const setCustomFrom      = setFormField('customFrom');
+    const setCustomTo        = setFormField('customTo');
+    const setIsShuttle       = setFormField('isShuttle');
+    const setNotes           = setFormField('notes');
+    const setShowSuggestions = setFormField('showSuggestions');
+    const setIsTeslaRun      = setFormField('isTeslaRun');
+    const setEvCableStatus   = setFormField('evCableStatus');
+    const setEvAdapterStatus = setFormField('evAdapterStatus');
+
     return (
       <div className="space-y-4">
         <PriorityHint flaggedClasses={flaggedClasses} topClasses={[]} />
@@ -110,9 +87,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                 className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
               />
               <button
-                type="button"
-                onClick={handleRouteReset}
-                aria-label="Clear origin"
+                type="button" onClick={handleRouteReset} aria-label="Clear origin"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none"
               >×</button>
             </div>
@@ -148,21 +123,17 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               if (!val) setShowSuggestions(false);
             }}
             onBlur={() => {
-              // Delay hiding to allow click event on suggestion
               setTimeout(() => setShowSuggestions(false), 200);
               handlePlateBlur();
             }}
-            onFocus={() => {
-              if (plateSuggestions.length > 0) setShowSuggestions(true);
-            }}
+            onFocus={() => { if (plateSuggestions.length > 0) setShowSuggestions(true); }}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
           />
           {showSuggestions && plateSuggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-[68px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
               {plateSuggestions.map(v => (
                 <button
-                  key={v.license_plate}
-                  type="button"
+                  key={v.license_plate} type="button"
                   onClick={() => handleSuggestionSelect(v)}
                   className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
                 >
@@ -186,7 +157,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               }} />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">Lot Shuttle</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer group" onClick={() => { hapticLight(); setIsTeslaRun(v => !v); }}>
+            <label className="flex items-center gap-2 cursor-pointer group" onClick={() => { hapticLight(); setIsTeslaRun((v: boolean) => !v); }}>
               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isTeslaRun ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
                 {isTeslaRun && <span className="text-xs font-bold leading-none">✓</span>}
               </div>
@@ -212,45 +183,58 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
           </p>
         )}
 
+        {saveError && (
+          <p className="text-xs text-red-500 dark:text-red-400 text-center">Couldn't save — check connection and try again.</p>
+        )}
+
         <button
-          type="button" disabled={!canStart} onClick={handleStart}
+          type="button" disabled={!canStart || submitting} onClick={handleStart}
           className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition cursor-pointer"
         >
           Start Trip →
         </button>
+
+        {!canStart && (
+          <button
+            type="button" onClick={handleReset}
+            className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer py-1"
+          >
+            Clear form
+          </button>
+        )}
       </div>
     );
   }
 
-  if (liveState === 'in_transit') {
+  if (trip.phase === 'in_transit') {
     return (
       <DriverLiveTransitView
-        vehicleDetails={vehicleDetails}
-        plate={plate}
-        fromLabel={fromLabel}
-        toLabel={toLabel}
-        departureTime={departureTime}
-        elapsed={elapsed}
-        notes={notes}
-        setNotes={setNotes}
-        saveError={saveError}
-        submitting={submitting}
-        handleArrived={handleArrived}
-        handleCancelTrip={handleCancelTrip}
+        vehicleDetails={trip.vehicleDetails}
+        plate={trip.plate}
+        fromLabel={trip.fromLabel}
+        toLabel={trip.toLabel}
+        departureTime={trip.departureTime}
+        elapsed={trip.elapsed}
+        notes={trip.notes}
+        setNotes={trip.setNotes}
+        saveError={trip.saveError}
+        submitting={trip.submitting}
+        handleArrived={trip.handleArrived}
+        handleCancelTrip={trip.handleCancelTrip}
       />
     );
   }
 
   return (
     <DriverLiveCompleteView
-      vehicleDetails={vehicleDetails}
-      plate={plate}
-      fromLabel={fromLabel}
-      toLabel={toLabel}
-      departureTime={departureTime}
-      arrivalTime={arrivalTime}
-      notes={notes}
-      handleReset={handleReset}
+      vehicleDetails={trip.vehicleDetails}
+      plate={trip.plate}
+      fromLabel={trip.fromLabel}
+      toLabel={trip.toLabel}
+      departureTime={trip.departureTime}
+      arrivalTime={trip.arrivalTime}
+      notes={trip.notes}
+      handleReset={trip.handleReset}
     />
   );
 }
