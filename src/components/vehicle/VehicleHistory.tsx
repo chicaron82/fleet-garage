@@ -119,12 +119,12 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
 
           {/* Actions */}
           <div className="mt-4 flex gap-2 flex-wrap">
-            {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING' || vehicle.status === 'CLEAR') && (
+            {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING' || vehicle.status === 'CLEAR' || vehicle.status === 'HELD') && (
               <button
                 onClick={() => onNewHold(vehicleId)}
                 className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
               >
-                + Flag Issue
+                {vehicle.status === 'HELD' ? '+ Add hold' : '+ Flag Issue'}
               </button>
             )}
             {canRelease(h.user.role) && (
