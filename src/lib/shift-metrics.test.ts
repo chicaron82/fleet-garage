@@ -3,6 +3,7 @@ import {
   reducesDenominator,
   splitOffStandard,
   applyShiftWindow,
+  buildShiftPartition,
   computeShiftRates,
   type OffStandardMinutes,
   type ShiftSnapshot,
@@ -36,6 +37,60 @@ describe('splitOffStandard excludes fleeting_sent', () => {
 
   it('with no boundary, sums only reducible minutes into morning', () => {
     expect(splitOffStandard(entries, null)).toEqual({ morning: 45, closing: 0 });
+  });
+});
+
+// handoff: 2 full pages + 2 entries = 2*19+2 = 40 cars on the gas sheet
+const HANDOFF_40 = {
+  fullPages: 2, lastPageEntries: 2,
+  loggedAt: '2026-06-05T15:15:00',
+  morningHours: 8,
+};
+
+describe('buildShiftPartition — carryOverCleared credits morning, keeps closing boundary on morningGas', () => {
+  it('with carryOverCleared=5: morning.cleaned=45, closing.cleaned=20 (boundary = 40, not 45)', () => {
+    const result = buildShiftPartition({
+      handoff: { ...HANDOFF_40, carryOverCleared: 5 },
+      checkpoint: null,
+      fullDayCleaned: 60,
+      offStandardEntries: [],
+    });
+    expect(result.morning.cleaned).toBe(45);  // 40 gas + 5 carry-over credited to morning
+    expect(result.closing.cleaned).toBe(20);  // 60 − 40 (morningGas boundary, not 45)
+  });
+
+  it('daily total = fullDayCleaned + carryOverCleared (carry-over not double-subtracted)', () => {
+    const result = buildShiftPartition({
+      handoff: { ...HANDOFF_40, carryOverCleared: 5 },
+      checkpoint: null,
+      fullDayCleaned: 60,
+      offStandardEntries: [],
+    });
+    expect(result.morning.cleaned! + result.closing.cleaned!).toBe(65); // 60 + 5
+  });
+
+  it('with no carryOverCleared (omitted): partition unchanged from Phase 1 behaviour', () => {
+    const result = buildShiftPartition({
+      handoff: HANDOFF_40,
+      checkpoint: null,
+      fullDayCleaned: 60,
+      offStandardEntries: [],
+    });
+    expect(result.morning.cleaned).toBe(40);
+    expect(result.closing.cleaned).toBe(20);
+    expect(result.morning.cleaned! + result.closing.cleaned!).toBe(60);
+  });
+
+  it('checkpoint overrides morningGas as closing boundary even with carryOverCleared', () => {
+    // checkpoint at 45 cars; carryOverCleared=5 → morningCleaned=45, but boundary=45 from checkpoint
+    const result = buildShiftPartition({
+      handoff: { ...HANDOFF_40, carryOverCleared: 5 },
+      checkpoint: { fullPages: 2, lastPageEntries: 7, loggedAt: '2026-06-05T16:00:00' }, // 2*19+7=45
+      fullDayCleaned: 60,
+      offStandardEntries: [],
+    });
+    expect(result.morning.cleaned).toBe(45);  // 40 + 5 carry-over
+    expect(result.closing.cleaned).toBe(15);  // 60 − 45 (checkpoint boundary wins)
   });
 });
 

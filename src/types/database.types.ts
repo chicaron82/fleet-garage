@@ -155,6 +155,7 @@ export type Database = {
       handoff_notes: {
         Row: {
           branch_id: string
+          carry_over_cleared: number
           full_pages: number
           id: string
           last_page_entries: number
@@ -168,6 +169,7 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          carry_over_cleared?: number
           full_pages?: number
           id?: string
           last_page_entries?: number
@@ -181,6 +183,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          carry_over_cleared?: number
           full_pages?: number
           id?: string
           last_page_entries?: number

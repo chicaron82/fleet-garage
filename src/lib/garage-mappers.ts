@@ -180,6 +180,7 @@ export function mapHandoffNote(row: Row): HandoffNote {
     notes:            optStr(row, 'notes'),
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
     morningHours:     (row['morning_hours'] as number) ?? 8.5,
+    carryOverCleared: (row['carry_over_cleared'] as number) ?? 0,
   };
 }
 

@@ -119,7 +119,11 @@ export function AnalyticsView() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([reason, count]) => ({ reason, count }));
   })();
 
-  const todayWashbayLog   = getTodayWashbayLog();
+  const todayWashbayLog    = getTodayWashbayLog();
+  const yesterdayWashbayLog = washbayLogs.find(l => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    return l.date === d.toLocaleDateString('en-CA');
+  });
   const todayBalanceEntry  = getTodayEntry();
   const projection         = getProjection();
   const liveWashbay30DayAvg = washbayLogs.length >= 3
@@ -283,6 +287,7 @@ export function AnalyticsView() {
             ) : (
               <WashbayLiveSection
                 todayWashbayLog={todayWashbayLog}
+                yesterdayWashbayLog={yesterdayWashbayLog}
                 todayBalanceEntry={todayBalanceEntry}
                 activeHolds={activeHolds}
                 liveWashbay30DayAvg={liveWashbay30DayAvg}

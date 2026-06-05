@@ -224,6 +224,7 @@ export interface HandoffNote {
   notes?: string;
   lotStatus: LotStatus;
   morningHours: number; // default 8.0 — productive hours (excludes 30min unpaid lunch)
+  carryOverCleared: number; // prior-day-fuelled cars cleaned & sent today (no fresh gas line)
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────

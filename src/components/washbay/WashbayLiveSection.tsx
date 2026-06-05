@@ -3,16 +3,30 @@ import { EmptyState } from '../analytics/AnalyticsComponents';
 import type { Hold, WashbayLog } from '../../types';
 import type { FleetBalanceEntry } from '../../hooks/useFleetBalance';
 
-export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg, isPeakSeason, weekdayAvgBalance }: {
+export function WashbayLiveSection({ todayWashbayLog, yesterdayWashbayLog, todayBalanceEntry, activeHolds, liveWashbay30DayAvg, isPeakSeason, weekdayAvgBalance }: {
   todayWashbayLog: WashbayLog | undefined;
+  yesterdayWashbayLog: WashbayLog | undefined;
   todayBalanceEntry: FleetBalanceEntry | undefined;
   activeHolds: Hold[];
   liveWashbay30DayAvg: number | null;
   isPeakSeason: boolean;
   weekdayAvgBalance?: { avgOut: number; avgIn: number } | null;
 }) {
+  const hasInheritance = yesterdayWashbayLog != null && (
+    yesterdayWashbayLog.carsRemaining > 0 ||
+    yesterdayWashbayLog.nonRentablesFuelled > 0 ||
+    yesterdayWashbayLog.cleanNotPickedUp > 0
+  );
+
   if (!todayWashbayLog) {
-    return <EmptyState message="No closing log submitted today. Log it in Lot Inventory → Closing Duties." />;
+    return (
+      <div className="space-y-3">
+        {hasInheritance && yesterdayWashbayLog && (
+          <InheritanceBanner log={yesterdayWashbayLog} />
+        )}
+        <EmptyState message="No closing log submitted today. Log it in Lot Inventory → Closing Duties." />
+      </div>
+    );
   }
 
   const baseHours = isPeakSeason ? 16 : 15;
@@ -30,6 +44,9 @@ export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeH
 
   return (
     <div className="space-y-4">
+      {hasInheritance && yesterdayWashbayLog && (
+        <InheritanceBanner log={yesterdayWashbayLog} />
+      )}
       <div className="grid grid-cols-3 gap-3 text-center">
         {[
           { label: 'Cars In',    value: ci },
@@ -119,6 +136,22 @@ export function WashbayLiveSection({ todayWashbayLog, todayBalanceEntry, activeH
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function InheritanceBanner({ log }: { log: WashbayLog }) {
+  const parts: string[] = [];
+  if (log.carsRemaining > 0) parts.push(`${log.carsRemaining} to clean`);
+  if (log.cleanNotPickedUp > 0) parts.push(`${log.cleanNotPickedUp} clean (not picked up)`);
+  if (log.nonRentablesFuelled > 0) parts.push(`${log.nonRentablesFuelled} parked`);
+
+  return (
+    <div className="rounded-lg px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
+      <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">
+        From last night
+      </p>
+      <p className="text-sm text-amber-700 dark:text-amber-300">{parts.join(' · ')}</p>
     </div>
   );
 }

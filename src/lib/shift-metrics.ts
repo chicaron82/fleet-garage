@@ -10,6 +10,7 @@ export interface HandoffSnapshotInput {
   lastPageEntries: number;
   loggedAt: string;
   morningHours?: number;
+  carryOverCleared?: number; // prior-day-fuelled cars cleared today; credited to morning rate
 }
 export interface CheckpointSnapshotInput {
   fullPages: number;
@@ -95,15 +96,23 @@ export function buildShiftPartition(args: {
 }): ShiftPartition {
   const { handoff, checkpoint, fullDayCleaned, offStandardEntries, midArrival, midDeparture } = args;
 
-  const morningCleaned = handoff
+  // morningGas = pure gas-sheet count at handoff (used as the closing boundary).
+  // morningCleaned = morningGas + carryOverCleared (what morning actually sent to fleet,
+  // including prior-day-fuelled cars that had no fresh gas line today).
+  const morningGas = handoff
     ? handoff.fullPages * 19 + handoff.lastPageEntries
+    : null;
+  const morningCleaned = morningGas != null
+    ? morningGas + (handoff?.carryOverCleared ?? 0)
     : null;
   const morningHours = handoff?.morningHours ?? MORNING_SHIFT_HOURS;
 
   const checkpointCount = checkpoint
     ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries
     : null;
-  const closingStartCount = checkpointCount ?? morningCleaned;
+  // Boundary stays on morningGas (pure gas), not morningCleaned — carry-over
+  // doesn't move the physical gas-sheet boundary between morning and closing.
+  const closingStartCount = checkpointCount ?? morningGas;
   const closingCleaned = closingStartCount != null && fullDayCleaned != null
     ? Math.max(0, fullDayCleaned - closingStartCount)
     : null;

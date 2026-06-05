@@ -62,18 +62,20 @@ function buildLiveDays(
     let morningRate: number | null = null;
     let morningCleaned: number | null = null;
     let morningHours: number | null = null;
+    let morningGas: number | null = null; // pure gas-sheet boundary (not inflated by carry-over)
 
     if (handoff && handoff.morningHours > 0) {
-      morningCleaned = handoff.fullPages * 19 + handoff.lastPageEntries;
+      morningGas = handoff.fullPages * 19 + handoff.lastPageEntries;
+      morningCleaned = morningGas + (handoff.carryOverCleared ?? 0);
       morningHours = handoff.morningHours;
       morningRate = morningCleaned / morningHours;
     }
 
     let closingRate: number | null = null;
-    if (log && morningCleaned != null) {
+    if (log && morningGas != null) {
       const fullDayCleaned = sentToFleet(log);
       const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
-      const closingStartCount = checkpointCount ?? morningCleaned;
+      const closingStartCount = checkpointCount ?? morningGas; // boundary = pure gas, not morningCleaned
       const closingCleaned = fullDayCleaned - closingStartCount;
       if (closingCleaned >= 0) {
         closingRate = closingCleaned / CLOSING_SHIFT_HOURS;
@@ -97,12 +99,14 @@ function buildTodaySnapshot(
   const log = washbayLogs.find(l => l.date === todayStr);
   const checkpoint = checkpoints.find(c => c.date === todayStr && c.checkpointType === 'closing_arrival') ?? null;
 
+  let morningGas: number | null = null; // pure gas-sheet boundary
   let morningCleaned: number | null = null;
   let morningHours: number | null = null;
   let morningRate: number | null = null;
 
   if (handoff && handoff.morningHours > 0) {
-    morningCleaned = handoff.fullPages * 19 + handoff.lastPageEntries;
+    morningGas = handoff.fullPages * 19 + handoff.lastPageEntries;
+    morningCleaned = morningGas + (handoff.carryOverCleared ?? 0);
     morningHours = handoff.morningHours;
     morningRate = morningCleaned / morningHours;
   }
@@ -111,10 +115,10 @@ function buildTodaySnapshot(
   let closingHours: number | null = null;
   let closingRate: number | null = null;
 
-  if (log && morningCleaned != null) {
+  if (log && morningGas != null) {
     const fullDayCleaned = sentToFleet(log);
     const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
-    const closingStartCount = checkpointCount ?? morningCleaned;
+    const closingStartCount = checkpointCount ?? morningGas; // boundary = pure gas
     closingCleaned = fullDayCleaned - closingStartCount;
     closingHours = CLOSING_SHIFT_HOURS;
     if (closingCleaned >= 0) {
