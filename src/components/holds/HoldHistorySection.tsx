@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { hapticHeavy } from '../../lib/haptics';
 import type { RefObject, ChangeEvent } from 'react';
 import { holdTypePillClass, getTireSwapSeason } from '../../lib/holdBadge';
 import { StatusBadge } from './StatusBadge';
@@ -28,6 +29,10 @@ interface Props {
   repairableHolds: Hold[];
   closeHoldPicker: () => void;
   pickHoldForRepair: (holdId: string) => void;
+  showReleasePicker: boolean;
+  activeHolds: Hold[];
+  closeReleasePicker: () => void;
+  pickHoldForRelease: (holdId: string) => void;
   uploadingFor: string | null;
   addPhotoClick: (holdId: string, ref: RefObject<HTMLInputElement | null>) => void;
   handlePhotoSelected: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -41,12 +46,14 @@ interface Props {
 export function HoldHistorySection({
   vehicle, holds, showHoldPicker, repairableHolds,
   closeHoldPicker, pickHoldForRepair,
+  showReleasePicker, activeHolds, closeReleasePicker, pickHoldForRelease,
   uploadingFor, addPhotoClick, handlePhotoSelected, openLightbox, setCoverPhoto,
   getName, getEmpId, getRole,
 }: Props) {
   const cameraInputRef  = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   useEscapeKey(closeHoldPicker);
+  useEscapeKey(closeReleasePicker);
 
   return (
     <>
@@ -88,6 +95,36 @@ export function HoldHistorySection({
                         {hold.status === 'ACTIVE' ? 'ACTIVE' : 'RELEASED'}
                       </span>
                     </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Release Picker — shown when multiple active holds need individual release */}
+      {showReleasePicker && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={closeReleasePicker} />
+          <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Which hold are you releasing?</p>
+                <button type="button" onClick={closeReleasePicker} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none cursor-pointer">×</button>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {activeHolds.map(hold => (
+                  <button
+                    key={hold.id}
+                    type="button"
+                    onClick={() => { hapticHeavy(); pickHoldForRelease(hold.id); }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
+                  >
+                    <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                       {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
                     </p>

@@ -250,45 +250,6 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           />
         )}
 
-        {h.showReleasePicker && (
-          <>
-            <div className="fixed inset-0 bg-black/50 z-40" onClick={h.closeReleasePicker} />
-            <div className="fixed inset-x-0 bottom-0 z-50 p-4">
-              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                    Which hold are you releasing?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={h.closeReleasePicker}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none cursor-pointer"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {h.activeHolds.map(hold => (
-                    <button
-                      key={hold.id}
-                      type="button"
-                      onClick={() => { hapticHeavy(); h.pickHoldForRelease(hold.id); }}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
-                    >
-                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-                        {hold.damageDescription}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                        {hold.holdTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {new Date(hold.flaggedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
         {h.showRepairConfirm && (() => {
           const confirmHold = h.holds.find(hold => hold.id === h.showRepairConfirm);
           if (!confirmHold) return null;
@@ -314,6 +275,10 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           repairableHolds={h.repairableHolds}
           closeHoldPicker={h.closeHoldPicker}
           pickHoldForRepair={h.pickHoldForRepair}
+          showReleasePicker={h.showReleasePicker}
+          activeHolds={h.activeHolds}
+          closeReleasePicker={h.closeReleasePicker}
+          pickHoldForRelease={h.pickHoldForRelease}
           uploadingFor={h.uploadingFor}
           addPhotoClick={h.addPhotoClick}
           handlePhotoSelected={h.handlePhotoSelected}
