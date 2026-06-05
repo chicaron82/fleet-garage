@@ -21,7 +21,7 @@ const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-ce
 export function HandoffForm({ onClose }: Props) {
   const { submitHandoff, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
 
-  const yesterdayLog = washbayLogs.find(l => l.date === localDateStr(1));
+  const yesterdayLog = washbayLogs.find(l => l.date === localDateStr(-1));
 
   // Pick up from the furthest-along reading logged today (the check-in) rather
   // than recounting the running gas sheet from zero.
@@ -31,7 +31,7 @@ export function HandoffForm({ onClose }: Props) {
   const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [baselineCount] = useState(seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0);
-  const [teamSize,        setTeamSize]        = useState(3);
+  const [teamSize,        setTeamSize]        = useState(2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
   const [carryOverCleared, setCarryOverCleared] = useState(0);

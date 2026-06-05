@@ -33,12 +33,13 @@ export function WashbayClosingLog() {
   const [nonRentables,     setNonRentables]     = useState('');
   const [deferred,         setDeferred]         = useState('');
   const [nonRentablesNote, setNonRentablesNote] = useState('');
-  const [teamSize,         setTeamSize]         = useState(3);
+  const [teamSize,         setTeamSize]         = useState(2);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
   const [lotStatus,        setLotStatus]        = useState<LotStatus>('manageable');
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
   const [overtimeOpen,     setOvertimeOpen]     = useState(false);
+  const [contextOpen,      setContextOpen]      = useState(false);
 
   const todayLog    = getTodayWashbayLog();
   const showSummary = !!todayLog && !editing;
@@ -172,35 +173,53 @@ export function WashbayClosingLog() {
           </div>
         </div>
 
-        {/* Sent-to-fleet adjustments: parked non-rentables (subtract) + deferred plate-installs (add) */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Prepped, not sent</label>
-            <input
-              type="number" min="0" value={nonRentables} onChange={e => setNonRentables(e.target.value)}
-              placeholder="0"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-            />
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled, parked — damage-held or no plates yet</p>
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Carry-over cleared</label>
-            <input
-              type="number" min="0" value={deferred} onChange={e => setDeferred(e.target.value)}
-              placeholder="0"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-            />
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled earlier, finished &amp; sent today</p>
-          </div>
+        {/* Additional context — collapsed by default; only needed for non-standard days */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setContextOpen(o => !o)}
+            className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+          >
+            <span>{contextOpen ? '▴' : '▾'}</span>
+            <span>Additional context</span>
+            {(nrf > 0 || dc > 0) && (
+              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                {[nrf > 0 && `−${nrf} parked`, dc > 0 && `+${dc} carry-over`].filter(Boolean).join(', ')}
+              </span>
+            )}
+          </button>
+          {contextOpen && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Prepped, not sent</label>
+                  <input
+                    type="number" min="0" value={nonRentables} onChange={e => setNonRentables(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  />
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled, parked — damage-held or no plates yet</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Carry-over cleared</label>
+                  <input
+                    type="number" min="0" value={deferred} onChange={e => setDeferred(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  />
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Fuelled earlier, finished &amp; sent today</p>
+                </div>
+              </div>
+              {nrf > 0 && (
+                <input
+                  type="text" value={nonRentablesNote} onChange={e => setNonRentablesNote(e.target.value)}
+                  placeholder="Why parked? (e.g. awaiting plates, hubcap damage)"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                />
+              )}
+            </div>
+          )}
         </div>
-
-        {nrf > 0 && (
-          <input
-            type="text" value={nonRentablesNote} onChange={e => setNonRentablesNote(e.target.value)}
-            placeholder="Why parked? (e.g. awaiting plates, hubcap damage)"
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-          />
-        )}
 
         <div>
           <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
