@@ -32,6 +32,7 @@ export const MECHANICAL_PRESET_META: Record<string, MechanicalPresetMeta> = {
   'Battery concern':      { emoji: '🔋',  subType: 'other' },
   'AC / heat issue':      { emoji: '❄️',  subType: 'other' },
   'Wiper replacement':    { emoji: '🌂',  subType: 'other' },
+  'Geotab not installed': { emoji: '📡',  subType: 'other' },
   'Safety / Recall':      { emoji: '⚠️',  subType: 'safety-recall' },
   'Other':                { subType: 'other' },
 };
