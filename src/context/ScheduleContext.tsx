@@ -58,6 +58,7 @@ function buildRowToShift(resolveUser: (id: string) => Profile | null) {
       endTime:         (row.end_time          as string | null) ?? undefined,
       shiftType:       row.shift_type as ShiftType,
       notes:           (row.notes             as string | null) ?? undefined,
+      actualStartTime: (row.actual_start_time as string | null) ?? undefined,
       actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
       isStat:          (row.is_stat as boolean | null) ?? false,
       ptoApproved:     (row.pto_approved as boolean | null) ?? false,
