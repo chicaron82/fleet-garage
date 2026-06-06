@@ -11,6 +11,7 @@ import { WhiteboardView } from '../shared/WhiteboardView';
 import { ShiftSummarySection } from '../analytics/ShiftSummarySection';
 import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
+import { PayEstimateCard } from './PayEstimateCard';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus, HandoffNote } from '../../types';
@@ -225,6 +226,7 @@ export function MyShiftView() {
           <ShiftRatesCard />
           <ShiftSummarySection activeBranch={activeBranch} />
           <ShiftReportExport date={localDateStr(0)} />
+          <PayEstimateCard />
         </>
       )}
 
