@@ -104,13 +104,18 @@ export function LostFoundCard({
                 <span className="text-gray-400 dark:text-gray-500 italic">No description</span>
               )}
             </p>
-            {(item.location || vehicleLabel) && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">
-                {item.location && LOST_FOUND_LOCATION_LABELS[item.location]}
-                {item.location && vehicleLabel && ' · '}
-                {vehicleLabel}
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {item.location && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-[11px] font-semibold border border-yellow-200 dark:border-yellow-800/40">
+                  📍 {LOST_FOUND_LOCATION_LABELS[item.location]}
+                </span>
+              )}
+              {vehicleLabel && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
+                  {vehicleLabel}
+                </span>
+              )}
+            </div>
             {item.vehicleMake && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
                 {item.vehicleMake}
