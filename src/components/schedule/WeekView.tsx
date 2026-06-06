@@ -142,7 +142,11 @@ export function WeekView({ today, visibleUserIds }: Props) {
                           >
                             {isFullDayShift(shift.shiftType) ? (
                               <>
-                                {FULL_DAY_LABEL[shift.shiftType]}
+                                {calcOT(shift) > 0 ? (
+                                  <>{fmtTime(shift.actualStartTime)}<br />{fmtTime(shift.actualEndTime)}</>
+                                ) : (
+                                  FULL_DAY_LABEL[shift.shiftType]
+                                )}
                                 {shift.shiftType === 'pto' && !shift.ptoApproved && <span className="block text-violet-400 text-[9px] leading-tight">pending</span>}
                                 {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight">★</span>}
                                 {calcOT(shift) > 0 && (
