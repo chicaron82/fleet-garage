@@ -183,6 +183,13 @@ export function useOffStandardSession({
     if (timerState !== 'idle') return;
     hapticMedium();
     setSelectedReason(tap.reason);
+    if (tap.preset === 'edv') {
+      // EDV needs a hold lookup — run selectPreset (which sets edvNoMatch / linked hold),
+      // then let the user review the result (auto-link card or no-match form) before starting.
+      edv.selectPreset('edv');
+      if (tap.defaultNote) setExplanation(tap.defaultNote);
+      return;
+    }
     edv.setSelectedPreset(tap.preset);
     if (tap.defaultNote) setExplanation(tap.defaultNote);
     await handleStartWith(tap.reason, tap.preset);
