@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useUserResolver } from '../../hooks/useUserResolver';
-import { HoldRecordFooter } from '../holds/HoldRecordFooter';
-import { StatusBadge } from '../holds/StatusBadge';
+import { HoldRecordFooter } from './HoldRecordFooter';
+import { StatusBadge } from './StatusBadge';
 import { PhotoLightbox } from '../shared/PhotoLightbox';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
-import { PriorDamageReHoldForm } from '../holds/PriorDamageReHoldForm';
-import { NewIssueReHoldForm } from '../holds/NewIssueReHoldForm';
+import { PriorDamageReHoldForm } from './PriorDamageReHoldForm';
+import { NewIssueReHoldForm } from './NewIssueReHoldForm';
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }) +
@@ -24,7 +24,7 @@ interface Props {
   reHoldContext?: 'exception' | 'auction';
 }
 
-export function CheckInHoldPanel({ vehicle, holds, user, onReHold, autoExpand, reHoldContext }: Props) {
+export function HoldContextPanel({ vehicle, holds, user, onReHold, autoExpand, reHoldContext }: Props) {
   const { getName, getRole, getEmpId } = useUserResolver();
   const [expanded, setExpanded] = useState(autoExpand ?? false);
   const [showFullHistory, setShowFullHistory] = useState(false);

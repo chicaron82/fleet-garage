@@ -1,6 +1,5 @@
 // Barrel export for check-in
 export * from './AfternoonCheckIn';
-export * from './CheckInHoldPanel';
 export * from './CheckInIntakeForm';
 export * from './CheckInRoutingPreview';
 export * from './CheckInView';

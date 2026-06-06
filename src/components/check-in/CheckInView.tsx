@@ -4,7 +4,6 @@ import { canRelease, deriveRouting } from '../../types';
 import { MOCK_CHECK_INS } from '../../data/checkIns';
 import type { VehicleCheckIn } from '../../data/checkIns';
 import { ReEvalPanel } from '../holds/ReEvalPanel';
-import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
 import { CheckInIntakeForm } from './CheckInIntakeForm';
 import {
   generateDayManifest, generateExpectedReturns,
@@ -147,7 +146,6 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
           </div>
 
           <CheckInIntakeForm onFlagIssue={onFlagIssue} />
-          <ExceptionReturnSection />
           <ReEvalPanel />
 
           {pendingCount > 0 && (user.role === 'VSA' || user.role === 'Lead VSA' || isManagement) && (

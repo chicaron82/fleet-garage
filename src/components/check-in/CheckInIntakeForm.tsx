@@ -1,4 +1,4 @@
-import { CheckInHoldPanel } from './CheckInHoldPanel';
+import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { VehicleScanAndMatch } from '../vehicle/VehicleScanAndMatch';
 import { LostFoundItemList } from '../lost-and-found/LostFoundItemList';
@@ -90,7 +90,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 </span>
               </div>
               {user && (
-                <CheckInHoldPanel
+                <HoldContextPanel
                   vehicle={scanned.vehicle}
                   holds={getHoldsForVehicle(scanned.vehicle.id)}
                   user={user}

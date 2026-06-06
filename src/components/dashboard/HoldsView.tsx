@@ -18,6 +18,7 @@ import { ArchivedVehiclesSection } from './ArchivedVehiclesSection';
 import { HoldsPagination } from './HoldsPagination';
 import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
 import { EVAssetsTab } from '../holds/EVAssetsTab';
+import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -190,6 +191,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           <>
         {/* Stale Holds Alert — management only */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
+
+        {/* Exception returns — re-hold on return (self-hides when none pending) */}
+        <ExceptionReturnSection />
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <DashboardSummaryCards

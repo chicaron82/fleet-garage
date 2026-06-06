@@ -1,6 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { CheckInHoldPanel } from '../check-in/CheckInHoldPanel';
+import { HoldContextPanel } from './HoldContextPanel';
 import { useUserResolver } from '../../hooks/useUserResolver';
 
 function fmtDate(iso: string) {
@@ -78,7 +78,7 @@ export function ExceptionReturnSection() {
 
             {/* Hold detail panel — damage photos, history, and re-hold */}
             {user && (
-              <CheckInHoldPanel
+              <HoldContextPanel
                 vehicle={vehicle}
                 holds={getHoldsForVehicle(vehicle.id)}
                 user={user}

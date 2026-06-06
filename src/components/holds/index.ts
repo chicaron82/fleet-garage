@@ -1,6 +1,7 @@
 // Barrel export for holds
 export * from './DamagePresetsSelector';
 export * from './ExceptionReturnSection';
+export * from './HoldContextPanel';
 export * from './HoldHistorySection';
 export * from './HoldRecordFooter';
 export * from './MechanicalConcernSelector';
