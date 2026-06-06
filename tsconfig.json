@@ -1,4 +1,9 @@
 {
+  // Solution-style root config: it owns no sources itself (`files: []`) and only
+  // points at the real projects below. Consequence: `tsc --noEmit` here checks
+  // ZERO files and exits clean even when app code is broken. The real check is
+  // `tsc -b` (a.k.a. `npm run typecheck`), which follows the references graph.
+  // Pre-push + CI both run `tsc -b`. Don't trust a bare `--noEmit` green.
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
