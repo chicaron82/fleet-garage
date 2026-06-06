@@ -1,5 +1,5 @@
 import type { WashbayLog, HandoffNote, ShiftCheckpoint } from '../../types';
-import { CLOSING_SHIFT_HOURS } from '../../lib/shift-metrics';
+import { CLOSING_SHIFT_HOURS, buildShiftPartition } from '../../lib/shift-metrics';
 import { sentToFleet } from '../../lib/washbay-throughput';
 
 const COMPANY_STANDARD = 3.0;
@@ -60,25 +60,20 @@ function buildLiveDays(
     const checkpoint = checkpoints.find(c => c.date === dateStr && c.checkpointType === 'closing_arrival') ?? null;
 
     let morningRate: number | null = null;
-    let morningCleaned: number | null = null;
-    let morningHours: number | null = null;
-    let morningGas: number | null = null; // pure gas-sheet boundary (not inflated by carry-over)
+    let closingRate: number | null = null;
 
     if (handoff && handoff.morningHours > 0) {
-      morningGas = handoff.fullPages * 19 + handoff.lastPageEntries;
-      morningCleaned = morningGas + (handoff.carryOverCleared ?? 0);
-      morningHours = handoff.morningHours;
-      morningRate = morningCleaned / morningHours;
-    }
-
-    let closingRate: number | null = null;
-    if (log && morningGas != null) {
-      const fullDayCleaned = sentToFleet(log);
-      const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
-      const closingStartCount = checkpointCount ?? morningGas; // boundary = pure gas, not morningCleaned
-      const closingCleaned = fullDayCleaned - closingStartCount;
-      if (closingCleaned >= 0) {
-        closingRate = closingCleaned / CLOSING_SHIFT_HOURS;
+      const partition = buildShiftPartition({
+        handoff,
+        checkpoint: checkpoint ?? null,
+        fullDayCleaned: log ? sentToFleet(log) : null,
+        offStandardEntries: [],
+      });
+      if (partition.morning.cleaned != null) {
+        morningRate = partition.morning.cleaned / partition.morning.hours;
+      }
+      if (partition.closing.cleaned != null && partition.closing.cleaned >= 0) {
+        closingRate = partition.closing.cleaned / CLOSING_SHIFT_HOURS;
       }
     }
 
@@ -99,29 +94,26 @@ function buildTodaySnapshot(
   const log = washbayLogs.find(l => l.date === todayStr);
   const checkpoint = checkpoints.find(c => c.date === todayStr && c.checkpointType === 'closing_arrival') ?? null;
 
-  let morningGas: number | null = null; // pure gas-sheet boundary
   let morningCleaned: number | null = null;
   let morningHours: number | null = null;
   let morningRate: number | null = null;
-
-  if (handoff && handoff.morningHours > 0) {
-    morningGas = handoff.fullPages * 19 + handoff.lastPageEntries;
-    morningCleaned = morningGas + (handoff.carryOverCleared ?? 0);
-    morningHours = handoff.morningHours;
-    morningRate = morningCleaned / morningHours;
-  }
-
   let closingCleaned: number | null = null;
   let closingHours: number | null = null;
   let closingRate: number | null = null;
 
-  if (log && morningGas != null) {
-    const fullDayCleaned = sentToFleet(log);
-    const checkpointCount = checkpoint ? checkpoint.fullPages * 19 + checkpoint.lastPageEntries : null;
-    const closingStartCount = checkpointCount ?? morningGas; // boundary = pure gas
-    closingCleaned = fullDayCleaned - closingStartCount;
-    closingHours = CLOSING_SHIFT_HOURS;
-    if (closingCleaned >= 0) {
+  if (handoff && handoff.morningHours > 0) {
+    const partition = buildShiftPartition({
+      handoff,
+      checkpoint: checkpoint ?? null,
+      fullDayCleaned: log ? sentToFleet(log) : null,
+      offStandardEntries: [],
+    });
+    morningCleaned = partition.morning.cleaned;
+    morningHours = partition.morning.hours;
+    if (morningCleaned != null) morningRate = morningCleaned / morningHours;
+    if (partition.closing.cleaned != null && partition.closing.cleaned >= 0) {
+      closingCleaned = partition.closing.cleaned;
+      closingHours = CLOSING_SHIFT_HOURS;
       closingRate = closingCleaned / closingHours;
     }
   }
