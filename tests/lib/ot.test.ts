@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, calcOT, fmtHours } from '../../src/lib/ot';
+import { calcHours, netActualHours, calcOT, fmtHours, BREAK_THRESHOLD_HRS, UNPAID_BREAK_HRS } from '../../src/lib/ot';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -36,38 +36,73 @@ describe('calcHours', () => {
   });
 });
 
+describe('netActualHours', () => {
+  it('does not deduct below the threshold', () => {
+    expect(netActualHours(4)).toBe(4);
+    expect(netActualHours(4.9)).toBe(4.9);
+  });
+  it('deducts the break at the threshold', () => {
+    expect(netActualHours(BREAK_THRESHOLD_HRS)).toBe(BREAK_THRESHOLD_HRS - UNPAID_BREAK_HRS);
+  });
+  it('deducts the break above the threshold', () => {
+    // 5.5h driver shift: 5.5 − 0.5 = 5h net
+    expect(netActualHours(5.5)).toBe(5);
+    // 9.5h actual: 9.5 − 0.5 = 9h net
+    expect(netActualHours(9.5)).toBe(9);
+  });
+});
+
 describe('calcOT', () => {
   it('returns 0 when no actual hours logged', () => {
     const shift = makeShift();
     expect(calcOT(shift)).toBe(0);
   });
-  it('returns 0 for exactly 8 actual hours on a regular shift', () => {
+
+  it('returns 0 for exactly 8 actual hours on a regular shift (break already in)', () => {
+    // 8h gross < break threshold? No — 8 ≥ 5, so net = 7.5h → 0 OT
     const shift = makeShift({ actualStartTime: '09:00', actualEndTime: '17:00' });
     expect(calcOT(shift)).toBe(0);
   });
-  it('returns OT hours beyond 8 on a regular shift', () => {
+
+  it('returns OT hours beyond 8 net on a regular shift', () => {
+    // 9.5h gross − 0.5h break = 9h net → 1h OT
     const shift = makeShift({ actualStartTime: '09:00', actualEndTime: '18:30' });
-    expect(calcOT(shift)).toBe(1.5);
+    expect(calcOT(shift)).toBe(1);
   });
-  it('all actual hours are OT on a day-off shift', () => {
-    const shift = makeShift({ shiftType: 'day-off', actualStartTime: '10:00', actualEndTime: '14:00' });
-    expect(calcOT(shift)).toBe(4);
-  });
-  it('all actual hours are OT on a stat day', () => {
-    const shift = makeShift({ isStat: true, actualStartTime: '09:00', actualEndTime: '17:00' });
-    expect(calcOT(shift)).toBe(8);
-  });
-  it('all actual hours are OT on PTO shift', () => {
-    const shift = makeShift({ shiftType: 'pto', actualStartTime: '08:00', actualEndTime: '12:00' });
-    expect(calcOT(shift)).toBe(4);
-  });
-  it('returns 0 when actual hours under 8 on regular shift', () => {
+
+  it('returns 0 when actual hours under threshold on regular shift (no break deducted)', () => {
+    // 4h gross, < 5h → 4h net → 4 − 8 < 0 → 0 OT
     const shift = makeShift({ actualStartTime: '09:00', actualEndTime: '13:00' });
     expect(calcOT(shift)).toBe(0);
   });
-  it('handles midnight crossover OT', () => {
+
+  it('all net hours are OT on a day-off shift (short call-in, no break)', () => {
+    // 4h gross, < 5h → 4h net → 4h OT
+    const shift = makeShift({ shiftType: 'day-off', actualStartTime: '10:00', actualEndTime: '14:00' });
+    expect(calcOT(shift)).toBe(4);
+  });
+
+  it('deducts break for day-off shifts ≥ 5h', () => {
+    // 8h gross − 0.5h break = 7.5h net → 7.5h OT
+    const shift = makeShift({ shiftType: 'day-off', actualStartTime: '09:00', actualEndTime: '17:00' });
+    expect(calcOT(shift)).toBe(7.5);
+  });
+
+  it('all net hours are OT on a stat day', () => {
+    // 8h gross − 0.5h break = 7.5h net → 7.5h OT
+    const shift = makeShift({ isStat: true, actualStartTime: '09:00', actualEndTime: '17:00' });
+    expect(calcOT(shift)).toBe(7.5);
+  });
+
+  it('all net hours are OT on PTO shift', () => {
+    // 4h gross, < 5h → 4h net → 4h OT
+    const shift = makeShift({ shiftType: 'pto', actualStartTime: '08:00', actualEndTime: '12:00' });
+    expect(calcOT(shift)).toBe(4);
+  });
+
+  it('handles 9h actual: 9 − 0.5 break = 8.5h net → 0.5h OT', () => {
     const shift = makeShift({ actualStartTime: '09:00', actualEndTime: '18:00' });
-    expect(calcOT(shift)).toBe(1);
+    expect(calcOT(shift)).toBe(0.5);
   });
 });
 

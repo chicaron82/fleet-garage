@@ -1,6 +1,11 @@
 import type { Shift } from '../types';
 import { isFullDayShift } from '../types';
 
+// Manitoba labour standard: one unpaid 30-min break owed on shifts ≥ 5h.
+// Mirrors BREAK_MIN_SPAN_HOURS / UNPAID_BREAK_HOURS in shift-metrics.ts.
+export const BREAK_THRESHOLD_HRS = 5;
+export const UNPAID_BREAK_HRS    = 0.5;
+
 function timeToDec(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h + m / 60;
@@ -14,15 +19,21 @@ export function calcHours(start?: string, end?: string): number {
   return Math.max(0, e - s);
 }
 
+// Deducts the unpaid break from gross clock hours when the span qualifies.
+export function netActualHours(grossHrs: number): number {
+  return grossHrs >= BREAK_THRESHOLD_HRS ? grossHrs - UNPAID_BREAK_HRS : grossHrs;
+}
+
 // Returns OT hours for a shift. Rules:
-//   day-off + actual hours logged  → all actual hours are OT
-//   isStat                         → all actual hours are OT
-//   regular shift                  → max(0, actualHours - 8)
+//   day-off + actual hours logged  → all net hours are OT
+//   isStat                         → all net hours are OT
+//   regular shift                  → max(0, netHours - 8)
 export function calcOT(shift: Shift): number {
-  const actual = calcHours(shift.actualStartTime, shift.actualEndTime);
-  if (actual <= 0) return 0;
-  if (isFullDayShift(shift.shiftType) || shift.isStat) return actual;
-  return Math.max(0, actual - 8);
+  const gross = calcHours(shift.actualStartTime, shift.actualEndTime);
+  if (gross <= 0) return 0;
+  const net = netActualHours(gross);
+  if (isFullDayShift(shift.shiftType) || shift.isStat) return net;
+  return Math.max(0, net - 8);
 }
 
 export function fmtHours(h: number): string {

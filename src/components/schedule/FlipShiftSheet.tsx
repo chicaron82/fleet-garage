@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { isStatDay, getStatName } from '../../lib/stats';
-import { calcOT, calcHours, fmtHours } from '../../lib/ot';
+import { calcOT, calcHours, netActualHours, fmtHours } from '../../lib/ot';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { ClockPicker } from './ClockPicker';
 import { isFullDayShift } from '../../types';
@@ -85,7 +85,9 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     actualEndTime:   actualEnd   || undefined,
     isStat,
   });
-  const actualHrs = calcHours(actualStart, actualEnd);
+  const grossHrs  = calcHours(actualStart, actualEnd);
+  const netHrs    = netActualHours(grossHrs);
+  const breakDeducted = grossHrs > 0 && netHrs < grossHrs;
 
   const handleTypeChange = (t: ShiftType) => {
     if (t === shiftType) {
@@ -308,7 +310,8 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             {/* Live OT calculation */}
             {actualStart && actualEnd && (
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
-                {fmtHours(actualHrs)} actual
+                {fmtHours(netHrs)} actual
+                {breakDeducted && <span className="ml-1 text-gray-400 dark:text-gray-500">· −30m break</span>}
                 {previewOT > 0
                   ? <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">· {fmtHours(previewOT)} OT</span>
                   : <span className="ml-2 text-green-600 dark:text-green-400">· No OT</span>
