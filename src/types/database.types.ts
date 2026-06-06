@@ -77,6 +77,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ev_asset_updates: {
+        Row: {
+          adapter_status: string | null
+          cable_status: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          updated_by: string
+          vehicle_id: string
+        }
+        Insert: {
+          adapter_status?: string | null
+          cable_status?: string | null
+          created_at?: string
+          id: string
+          notes?: string | null
+          source: string
+          updated_by: string
+          vehicle_id: string
+        }
+        Update: {
+          adapter_status?: string | null
+          cable_status?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          updated_by?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ev_asset_updates_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facility_issues: {
         Row: {
           branch_id: string
@@ -757,6 +798,7 @@ export type Database = {
           is_stat: boolean
           notes: string | null
           pto_alternate_date: string | null
+          pto_approved: boolean
           shift_type: string
           start_time: string | null
           updated_at: string
@@ -773,6 +815,7 @@ export type Database = {
           is_stat?: boolean
           notes?: string | null
           pto_alternate_date?: string | null
+          pto_approved?: boolean
           shift_type: string
           start_time?: string | null
           updated_at?: string
@@ -789,6 +832,7 @@ export type Database = {
           is_stat?: boolean
           notes?: string | null
           pto_alternate_date?: string | null
+          pto_approved?: boolean
           shift_type?: string
           start_time?: string | null
           updated_at?: string
@@ -990,39 +1034,6 @@ export type Database = {
           },
         ]
       }
-      ev_asset_updates: {
-        Row: {
-          adapter_status: string | null
-          cable_status: string | null
-          created_at: string
-          id: string
-          notes: string | null
-          source: string
-          updated_by: string
-          vehicle_id: string
-        }
-        Insert: {
-          adapter_status?: string | null
-          cable_status?: string | null
-          created_at?: string
-          id: string
-          notes?: string | null
-          source: string
-          updated_by: string
-          vehicle_id: string
-        }
-        Update: {
-          adapter_status?: string | null
-          cable_status?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          source?: string
-          updated_by?: string
-          vehicle_id?: string
-        }
-        Relationships: []
-      }
       vehicles: {
         Row: {
           archived_at: string | null
@@ -1128,6 +1139,7 @@ export type Database = {
           is_shuttle: boolean | null
           is_vsa_interruption: boolean | null
           notes: string | null
+          queue_at_arrival: string | null
           queue_at_departure: string | null
           reason: string | null
           status: string
@@ -1152,6 +1164,7 @@ export type Database = {
           is_shuttle?: boolean | null
           is_vsa_interruption?: boolean | null
           notes?: string | null
+          queue_at_arrival?: string | null
           queue_at_departure?: string | null
           reason?: string | null
           status?: string
@@ -1176,6 +1189,7 @@ export type Database = {
           is_shuttle?: boolean | null
           is_vsa_interruption?: boolean | null
           notes?: string | null
+          queue_at_arrival?: string | null
           queue_at_departure?: string | null
           reason?: string | null
           status?: string
