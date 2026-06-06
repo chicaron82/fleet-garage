@@ -145,6 +145,11 @@ export function WeekView({ today, visibleUserIds }: Props) {
                                 {FULL_DAY_LABEL[shift.shiftType]}
                                 {shift.shiftType === 'pto' && !shift.ptoApproved && <span className="block text-violet-400 text-[9px] leading-tight">pending</span>}
                                 {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight">★</span>}
+                                {calcOT(shift) > 0 && (
+                                  <span className="block text-amber-600 dark:text-amber-400 font-semibold text-[10px] leading-tight">
+                                    +{fmtHours(calcOT(shift))} OT
+                                  </span>
+                                )}
                               </>
                             ) : (
                               <>

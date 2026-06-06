@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { DayDetailModal } from './DayDetailModal';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
+import { calcOT, fmtHours } from '../../lib/ot';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const TYPE_DOT: Record<ShiftType, string> = {
@@ -97,13 +98,20 @@ export function CalendarView({ today, visibleUserIds }: Props) {
                 </span>
                 {/* My shift indicator */}
                 {myShift && (
-                  <span className={`mt-0.5 text-xs font-medium leading-none px-1 py-0.5 rounded ${
-                    myShift.shiftType === 'day-off'
-                      ? 'text-gray-400 dark:text-gray-600'
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {myShift.shiftType === 'day-off' ? 'Off' : myShift.startTime?.slice(0, 5)}
-                  </span>
+                  <>
+                    <span className={`mt-0.5 text-xs font-medium leading-none px-1 py-0.5 rounded ${
+                      myShift.shiftType === 'day-off'
+                        ? 'text-gray-400 dark:text-gray-600'
+                        : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {myShift.shiftType === 'day-off' ? 'Off' : myShift.startTime?.slice(0, 5)}
+                    </span>
+                    {calcOT(myShift) > 0 && (
+                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 px-1 leading-none">
+                        +{fmtHours(calcOT(myShift))}
+                      </span>
+                    )}
+                  </>
                 )}
                 {/* Crew dots */}
                 {types.length > 0 && (
