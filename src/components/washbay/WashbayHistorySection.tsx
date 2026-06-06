@@ -57,6 +57,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
           lastPageEntries:  r.last_page_entries as number,
           carsRemaining:    r.cars_remaining as number,
           cleanNotPickedUp: r.clean_not_picked_up as number,
+          carryOver:        (r.carry_over as number) ?? 0,
           teamSize:         r.team_size as number,
           overtimeHours:    (r.overtime_hours as number) ?? 0,
           enteredBy:        r.entered_by as string,
@@ -93,6 +94,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
         entriesOnCurrentPage,
         carsRemaining:    String(existing.carsRemaining),
         cleanNotPickedUp: String(existing.cleanNotPickedUp),
+        carryOver:        existing.carryOver,
         teamSize:         existing.teamSize,
         overtimeHours:    existing.overtimeHours,
       });
@@ -107,6 +109,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
         entriesOnCurrentPage,
         carsRemaining:    '',
         cleanNotPickedUp: '',
+        carryOver:        0,
         teamSize:         handoff.teamSize,
         overtimeHours:    findLatestBackfill(backfillEntries)?.overtimeHours ?? 0,
       });
@@ -132,6 +135,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
       last_page_entries:   lastPageEntries,
       cars_remaining:      parseInt(String(form.carsRemaining)) || 0,
       clean_not_picked_up: parseInt(String(form.cleanNotPickedUp)) || 0,
+      carry_over:          form.carryOver,
       team_size:           form.teamSize,
       overtime_hours:      form.overtimeHours,
       entered_by:          user.id,
@@ -150,6 +154,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
           fullPages, lastPageEntries,
           carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
           cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
+          carryOver:        form.carryOver,
           teamSize:         form.teamSize,
           overtimeHours:    form.overtimeHours,
         } : b));
@@ -164,6 +169,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
           fullPages, lastPageEntries,
           carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
           cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
+          carryOver:        form.carryOver,
           teamSize:         form.teamSize,
           overtimeHours:    form.overtimeHours,
           enteredBy:        user.id,
@@ -220,6 +226,9 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
                         return (
                           <div className="flex items-center gap-3 text-xs">
                             <span className="text-gray-700 dark:text-gray-300 font-medium">{carsCleaned} cleaned</span>
+                            {entry.carryOver > 0 && (
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500">· {entry.carryOver} carry-over</span>
+                            )}
                             <span className={`font-semibold ${color}`}>{throughput.toFixed(1)}/hr</span>
                             <span className="text-gray-400 dark:text-gray-500">{opHours}h window</span>
                             {row.backfill && !row.primary && (

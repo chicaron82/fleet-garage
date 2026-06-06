@@ -19,6 +19,7 @@ export interface ReportThroughput {
   // Actual worked clock window 'HH:MM–HH:MM' when the shift logged actual hours,
   // else null → renderers fall back to the standard per-type range label.
   actualWindowLabel: string | null;
+  carryOver: number; // Vehicles inherited from previous shift's queue (0 = none / not recorded)
 }
 
 export interface ReportData {
@@ -182,6 +183,9 @@ export function buildReport(d: ReportData): string {
     if (t.lotStatus) {
       const label = t.lotStatus.charAt(0).toUpperCase() + t.lotStatus.slice(1);
       lines.push(`Lot status at handoff: ${label}`);
+    }
+    if (t.carryOver > 0) {
+      lines.push(`Carry-over from previous shift: ${t.carryOver} vehicle${t.carryOver !== 1 ? 's' : ''}`);
     }
   }
 

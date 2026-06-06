@@ -127,6 +127,7 @@ export function mapWashbayLog(row: Row): WashbayLog {
     nonRentablesFuelled: (row['non_rentables_fuelled'] as number) ?? 0,
     deferredCompletions: (row['deferred_completions']  as number) ?? 0,
     nonRentablesNote:    optStr(row, 'non_rentables_note'),
+    carryOver:           (row['carry_over']            as number) ?? 0,
     teamSize:          reqNum(row, 'team_size',           'mapWashbayLog'),
     shiftHours:        Number(row['shift_hours']),
     overtimeHours:     (row['overtime_hours'] as number) ?? 0,

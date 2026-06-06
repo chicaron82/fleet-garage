@@ -31,6 +31,7 @@ export function WashbayClosingLog() {
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
+  const [carryOver,        setCarryOver]        = useState(0);
   const [nonRentables,     setNonRentables]     = useState('');
   const [deferred,         setDeferred]         = useState('');
   const [nonRentablesNote, setNonRentablesNote] = useState('');
@@ -55,6 +56,7 @@ export function WashbayClosingLog() {
       setEntriesOnCurrentPage(ep);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
+      setCarryOver(todayLog.carryOver);
       setNonRentables(todayLog.nonRentablesFuelled ? String(todayLog.nonRentablesFuelled) : '');
       setDeferred(todayLog.deferredCompletions ? String(todayLog.deferredCompletions) : '');
       setNonRentablesNote(todayLog.nonRentablesNote ?? '');
@@ -85,7 +87,7 @@ export function WashbayClosingLog() {
     if (!canSubmit) return;
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: nrf, deferredCompletions: dc, nonRentablesNote: nonRentablesNote.trim() || null, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: nrf, deferredCompletions: dc, nonRentablesNote: nonRentablesNote.trim() || null, carryOver, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus });
     setEditing(false);
     setSubmitting(false);
   };
@@ -135,6 +137,18 @@ export function WashbayClosingLog() {
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
             />
+          </div>
+        </div>
+
+        {/* Carry-over — vehicles in queue at start of shift, inherited from previous close */}
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-gray-400 dark:text-gray-500">Carry-over from last night</label>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setCarryOver(n => Math.max(0, n - 1))}
+              className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">−</button>
+            <span className="text-sm font-bold text-gray-900 dark:text-gray-100 w-5 text-center tabular-nums">{carryOver}</span>
+            <button type="button" onClick={() => setCarryOver(n => n + 1)}
+              className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">+</button>
           </div>
         </div>
 

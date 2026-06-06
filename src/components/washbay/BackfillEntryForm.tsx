@@ -7,6 +7,7 @@ export interface BackfillFormState {
   entriesOnCurrentPage: number;
   carsRemaining: string;
   cleanNotPickedUp: string;
+  carryOver: number;
   teamSize: number;
   overtimeHours: number;
 }
@@ -105,6 +106,16 @@ export function BackfillEntryForm({ label, form, setForm, saving, saveError, onS
           <input type="number" min="0" value={form.cleanNotPickedUp}
             onChange={e => setForm(f => ({ ...f, cleanNotPickedUp: e.target.value }))}
             placeholder="0" className={INPUT} />
+        </div>
+      </div>
+
+      {/* Carry-over */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-gray-400 dark:text-gray-500">Carry-over from last night</label>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setForm(f => ({ ...f, carryOver: Math.max(0, f.carryOver - 1) }))} className={STEPPER_BTN}>−</button>
+          <span className="text-sm font-bold text-gray-900 dark:text-gray-100 w-5 text-center tabular-nums">{form.carryOver}</span>
+          <button type="button" onClick={() => setForm(f => ({ ...f, carryOver: f.carryOver + 1 }))} className={STEPPER_BTN}>+</button>
         </div>
       </div>
 

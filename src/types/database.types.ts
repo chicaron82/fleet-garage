@@ -1188,6 +1188,7 @@ export type Database = {
       washbay_backfill_logs: {
         Row: {
           branch_id: string
+          carry_over: number
           cars_remaining: number
           clean_not_picked_up: number
           date: string
@@ -1201,6 +1202,7 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          carry_over?: number
           cars_remaining?: number
           clean_not_picked_up?: number
           date: string
@@ -1214,6 +1216,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          carry_over?: number
           cars_remaining?: number
           clean_not_picked_up?: number
           date?: string
@@ -1230,6 +1233,7 @@ export type Database = {
       washbay_logs: {
         Row: {
           branch_id: string
+          carry_over: number
           cars_remaining: number
           clean_not_picked_up: number
           date: string
@@ -1248,6 +1252,7 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          carry_over?: number
           cars_remaining?: number
           clean_not_picked_up?: number
           date: string
@@ -1266,6 +1271,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          carry_over?: number
           cars_remaining?: number
           clean_not_picked_up?: number
           date?: string

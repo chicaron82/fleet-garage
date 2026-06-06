@@ -386,6 +386,7 @@ export interface WashbayLog {
   nonRentablesFuelled: number; // Fuelled today (on gas sheet) but parked, not sent — subtracted from sent-to-fleet
   deferredCompletions: number; // Sent today but fuelled a prior day (plate install) — added to sent-to-fleet
   nonRentablesNote?: string | null; // Optional reason for the parked units (damage vs awaiting plates)
+  carryOver: number;           // Vehicles inherited from previous shift's queue at shift start (informational)
   teamSize: number;          // VSAs on shift
   shiftHours: number;        // Hours washbay ran (default 8)
   overtimeHours: number;     // Extended operating hours beyond base (0–3)

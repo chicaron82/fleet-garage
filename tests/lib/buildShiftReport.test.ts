@@ -87,6 +87,7 @@ function throughput(over: Partial<ReportThroughput> = {}): ReportThroughput {
     baseline: null,
     yourEffort: null,
     actualWindowLabel: null,
+    carryOver: 0,
     ...over,
   };
 }

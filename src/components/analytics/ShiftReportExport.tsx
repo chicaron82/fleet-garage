@@ -154,7 +154,7 @@ export function ShiftReportExport({ date }: { date: string }) {
     }
 
     // Throughput
-    type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string };
+    type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string; carry_over: number };
     type CheckpointRow = { full_pages: number; last_page_entries: number; logged_at?: string };
     const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string; logged_at: string; morning_hours: number | null } | undefined;
     const washbayRow    = (washbayRes.data    ?? [])[0] as WashbayRow    | undefined;
@@ -228,6 +228,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         baseline,
         yourEffort,
         actualWindowLabel,
+        carryOver: washbayRow?.carry_over ?? 0,
       };
     }
 

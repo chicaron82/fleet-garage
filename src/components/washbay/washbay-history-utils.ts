@@ -8,6 +8,7 @@ export interface BackfillEntry {
   lastPageEntries: number;
   carsRemaining: number;
   cleanNotPickedUp: number;
+  carryOver: number;
   teamSize: number;
   overtimeHours: number;
   enteredBy: string;
@@ -60,6 +61,7 @@ export function blankForm(seed?: BackfillEntry | null): BackfillFormState {
     entriesOnCurrentPage: 0,
     carsRemaining:        '',
     cleanNotPickedUp:     '',
+    carryOver:            0,
     teamSize:             seed?.teamSize ?? 3,
     overtimeHours:        seed?.overtimeHours ?? 0,
   };
