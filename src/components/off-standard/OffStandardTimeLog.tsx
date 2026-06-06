@@ -224,6 +224,13 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   Started {fmtTime(startTimestamp)}
                 </p>
               </div>
+              {selectedPreset === 'edv' && edvNoMatch && (
+                <EDVNoMatchFields
+                  plate={edvPlate} onPlateChange={setEdvPlate}
+                  exterior={edvExterior} onExteriorChange={setEdvExterior}
+                  interior={edvInterior} onInteriorChange={setEdvInterior}
+                />
+              )}
               <div>
                 <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Notes (optional)</label>
                 <input

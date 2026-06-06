@@ -184,10 +184,12 @@ export function useOffStandardSession({
     hapticMedium();
     setSelectedReason(tap.reason);
     if (tap.preset === 'edv') {
-      // EDV needs a hold lookup — run selectPreset (which sets edvNoMatch / linked hold),
-      // then let the user review the result (auto-link card or no-match form) before starting.
+      // Run the hold lookup (sets edvNoMatch / edvLinkedHoldId via state) then start
+      // immediately. edvNoMatch state is batched — INSERT won't carry EDV cols, but
+      // handleEnd's UPDATE will persist whatever the user fills in while running.
       edv.selectPreset('edv');
       if (tap.defaultNote) setExplanation(tap.defaultNote);
+      await handleStartWith(tap.reason, tap.preset);
       return;
     }
     edv.setSelectedPreset(tap.preset);
@@ -215,6 +217,11 @@ export function useOffStandardSession({
       minutes:     mins,
       explanation: explanation.trim() || null,
       status:      'complete',
+      ...(selectedPreset === 'edv' && edvNoMatch ? {
+        edv_plate:    edvPlate.trim() || null,
+        edv_exterior: edvExterior,
+        edv_interior: edvInterior,
+      } : {}),
     }, 'id', inProgressId!);
 
     if (!ok) {
