@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { toISO } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
-import { rowToShiftMinimal } from '../../lib/rowToShift';
+import { rowToShiftBase } from '../../lib/rowToShift';
 import { calcPayEstimate, getPayPeriod, PAY_CONFIG } from '../../lib/payEstimate';
 import { fmtHours } from '../../lib/ot';
 import type { Shift } from '../../types';
@@ -34,7 +34,7 @@ export function PayEstimateCard() {
       .gte('date', period.start)
       .lte('date', period.end)
       .then(({ data }) => {
-        if (data) setShifts(data.map(rowToShiftMinimal));
+        if (data) setShifts(data.map(rowToShiftBase));
       });
   }, [user, period.start, period.end]);
 

@@ -1,9 +1,12 @@
 import type { Shift, ShiftType } from '../types';
 
-// Lightweight DB row → Shift mapper for contexts outside ScheduleContext
-// (e.g. PayEstimateCard's dedicated pay-period fetch).
-// Does not require user resolution — branchId defaults to 'YWG'.
-export function rowToShiftMinimal(row: Record<string, unknown>): Shift {
+// Canonical DB row → Shift column mapping. Single source of truth for the
+// shifts table's column shape. ScheduleContext layers user-resolution
+// (branchId from profile + the `user` field) on top via spread; consumers
+// that don't need identity (e.g. PayEstimateCard's own pay-period fetch)
+// use this directly. branchId defaults to 'YWG' — ScheduleContext overrides
+// it from the resolved profile.
+export function rowToShiftBase(row: Record<string, unknown>): Shift {
   return {
     id:              row.id as string,
     userId:          row.user_id as string,

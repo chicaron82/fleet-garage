@@ -6,6 +6,7 @@ import { useUserResolver } from '../hooks/useUserResolver';
 import { usePeakSeason } from '../hooks/usePeakSeason';
 import { usePTOStats } from '../hooks/usePTOStats';
 import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
+import { rowToShiftBase } from '../lib/rowToShift';
 import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -48,24 +49,10 @@ function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserI
 
 function buildRowToShift(resolveUser: (id: string) => Profile | null) {
   return function rowToShift(row: Record<string, unknown>): ShiftWithUser {
-    const userId = row.user_id as string;
-    const u = resolveUser(userId);
+    const u = resolveUser(row.user_id as string);
     return {
-      id:              row.id as string,
-      userId,
-      date:            row.date as string,
-      startTime:       (row.start_time        as string | null) ?? undefined,
-      endTime:         (row.end_time          as string | null) ?? undefined,
-      shiftType:       row.shift_type as ShiftType,
-      notes:           (row.notes             as string | null) ?? undefined,
-      actualStartTime: (row.actual_start_time as string | null) ?? undefined,
-      actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
-      isStat:          (row.is_stat as boolean | null) ?? false,
-      ptoApproved:     (row.pto_approved as boolean | null) ?? false,
-      ptoAlternateDate: (row.pto_alternate_date as string | null) ?? undefined,
-      createdAt:       row.created_at as string,
-      updatedAt:       row.updated_at as string,
-      branchId:        (u?.branchId ?? 'YWG') as BranchId,
+      ...rowToShiftBase(row),
+      branchId: (u?.branchId ?? 'YWG') as BranchId,
       user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
     };
   };
@@ -74,6 +61,11 @@ function buildRowToShift(resolveUser: (id: string) => Profile | null) {
 // ── Context ───────────────────────────────────────────────────────────────────
 
 interface ScheduleContextValue {
+  // ⚠️ VIEW-WINDOWED: only the currently displayed week/month is loaded (see the
+  // auto-load effect). Safe for the schedule view and today-scoped reads (today is
+  // always in-window). Do NOT aggregate an arbitrary date range from this — it will
+  // be silently partial. For period spans (e.g. a pay period), fetch your own range
+  // with rowToShiftBase, as PayEstimateCard does.
   shifts: ShiftWithUser[];
   loading: boolean;
   viewMode: 'week' | 'calendar';
