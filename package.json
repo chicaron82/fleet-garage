@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "gen:types": "supabase gen types typescript --project-id gugxedtqvuhlwllyqpec > /tmp/fg-dbtypes.ts && mv /tmp/fg-dbtypes.ts src/types/database.types.ts",
-    "gen:schema": "supabase db dump --db-url \"postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.gugxedtqvuhlwllyqpec.supabase.co:5432/postgres\" -f migrations/schema.sql"
+    "gen:schema": "pg_dump --schema-only --no-owner --no-acl -f migrations/schema.sql \"postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.gugxedtqvuhlwllyqpec.supabase.co:5432/postgres\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
