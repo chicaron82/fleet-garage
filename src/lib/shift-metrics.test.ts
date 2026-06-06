@@ -8,6 +8,7 @@ import {
   type OffStandardMinutes,
   type ShiftSnapshot,
 } from './shift-metrics';
+import { sentToFleet, type SentToFleetInput } from './washbay-throughput';
 
 describe('reducesDenominator', () => {
   it('excludes fleeting_sent (cars shipped — already counted in sent-to-fleet)', () => {
@@ -91,6 +92,47 @@ describe('buildShiftPartition — carryOverCleared credits morning, keeps closin
     });
     expect(result.morning.cleaned).toBe(45);  // 40 + 5 carry-over
     expect(result.closing.cleaned).toBe(15);  // 60 − 45 (checkpoint boundary wins)
+  });
+});
+
+// The seam ShiftRatesCard wires: sentToFleet(log) → fullDayCleaned → partition.
+// buildShiftPartition's own tests pass fullDayCleaned as a literal; nothing pins
+// that the literal is the *corrected* sent-to-fleet number. These tests compose
+// the two pure functions so a change to either side (a dropped sentToFleet term,
+// or the partition recomputing instead of consuming) breaks here, not in prod.
+describe('sentToFleet → buildShiftPartition seam', () => {
+  // 3 pages + 0 = 57 fuelled; − 8 queue − 3 parked + 4 deferred = 50 sent.
+  const LOG: SentToFleetInput = {
+    fullPages: 3, lastPageEntries: 0,
+    carsRemaining: 8, nonRentablesFuelled: 3, deferredCompletions: 4,
+  };
+  const closingClean = (over: Partial<SentToFleetInput> = {}) =>
+    buildShiftPartition({
+      handoff: HANDOFF_40,                 // morningGas boundary = 40
+      checkpoint: null,
+      fullDayCleaned: sentToFleet({ ...LOG, ...over }),
+      offStandardEntries: [],
+    }).closing.cleaned;
+
+  it('closing.cleaned tracks the net-shipped number, not the raw gas count', () => {
+    expect(sentToFleet(LOG)).toBe(50);
+    expect(closingClean()).toBe(10);            // 50 sent − 40 boundary
+    expect(closingClean()).not.toBe(57 - 40);   // the corrections flow through, not raw 57
+  });
+
+  it('every sentToFleet correction moves closing.cleaned one-for-one', () => {
+    expect(closingClean({ deferredCompletions: 5 })).toBe(11); // +1 deferred → +1 shipped
+    expect(closingClean({ carsRemaining: 9 })).toBe(9);        // +1 left in queue → −1 shipped
+    expect(closingClean({ nonRentablesFuelled: 4 })).toBe(9);  // +1 parked → −1 shipped
+  });
+
+  it('the corrected number reaches the rate (chain end to end)', () => {
+    const closing = buildShiftPartition({
+      handoff: HANDOFF_40, checkpoint: null,
+      fullDayCleaned: sentToFleet(LOG), offStandardEntries: [],
+    }).closing;
+    // 10 sent in the closing window / 8h — not 17/8 had raw gas leaked through.
+    expect(computeShiftRates(closing).baseline).toBeCloseTo(10 / 8, 5);
   });
 });
 
