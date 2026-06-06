@@ -9,6 +9,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
+import { isRealAccount } from './lib/demo-accounts';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import type { Screen } from './types';
 
@@ -32,7 +33,7 @@ const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterVi
 export default function App() {
   const { user, loading, logout } = useAuth();
   const [screen, setScreen] = useState<Screen>(() =>
-    user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' }
+    user ? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId)) : { name: 'dashboard' }
   );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [prevUserId, setPrevUserId] = useState(user?.id);
@@ -47,10 +48,10 @@ export default function App() {
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (user) {
-      const navItems = getNavItemsForRole(user.role, user.branchId);
+      const navItems = getNavItemsForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
       const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
       const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
-      const targetScreen = savedNavItem?.defaultScreen ?? getDefaultScreenForRole(user.role, user.branchId);
+      const targetScreen = savedNavItem?.defaultScreen ?? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
       window.history.replaceState({ appRoot: true }, '');
       window.history.pushState(targetScreen, '');
       setScreen(targetScreen);
@@ -67,7 +68,7 @@ export default function App() {
     const handlePop = (e: PopStateEvent) => {
       const state = e.state as (Screen & { appRoot?: boolean }) | null;
       if (!state || state.appRoot) {
-        const def = user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' as const };
+        const def = user ? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId)) : { name: 'dashboard' as const };
         window.history.pushState(def, '');
         setScreen(def);
         setShowLogoutConfirm(true);

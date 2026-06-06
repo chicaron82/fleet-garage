@@ -33,10 +33,10 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('manifest');
   });
 
-  it('Branch Manager sees all modules including holds', () => {
+  it('Branch Manager sees all modules including holds (check-in is demo-gated)', () => {
     const modules = getNavItemsForRole('Branch Manager').map(n => n.module);
     expect(modules).toContain('holds');
-    expect(modules).toContain('check-in');
+    expect(modules).not.toContain('check-in'); // demo-only — hidden from real accounts
     expect(modules).toContain('analytics');
     expect(modules).toContain('fleet-master');
     expect(modules).toContain('lost-and-found');
@@ -50,6 +50,24 @@ describe('getNavItemsForRole', () => {
       expect(item).toHaveProperty('icon');
       expect(item).toHaveProperty('defaultScreen');
     }
+  });
+});
+
+// ── check-in demo gating ──────────────────────────────────────────────────────
+
+describe('check-in demo gating', () => {
+  it('hides check-in from real accounts by default', () => {
+    expect(getNavItemsForRole('VSA').map(n => n.module)).not.toContain('check-in');
+    expect(getNavItemsForRole('Branch Manager').map(n => n.module)).not.toContain('check-in');
+  });
+
+  it('shows check-in to demo personas', () => {
+    expect(getNavItemsForRole('VSA', 'YWG', true).map(n => n.module)).toContain('check-in');
+    expect(getNavItemsForRole('Branch Manager', 'YWG', true).map(n => n.module)).toContain('check-in');
+  });
+
+  it('does not grant check-in to roles that never had it, even in demo', () => {
+    expect(getNavItemsForRole('Driver', 'YWG', true).map(n => n.module)).not.toContain('check-in');
   });
 });
 
@@ -99,8 +117,12 @@ describe('getDefaultScreenForRole', () => {
     expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'movement-log' });
   });
 
-  it('HIR lands on check-in', () => {
-    expect(getDefaultScreenForRole('HIR')).toEqual({ name: 'check-in' });
+  it('HIR (real account) falls back to holds dashboard — check-in is demo-gated', () => {
+    expect(getDefaultScreenForRole('HIR')).toEqual({ name: 'dashboard' });
+  });
+
+  it('HIR (demo persona) lands on check-in', () => {
+    expect(getDefaultScreenForRole('HIR', 'YWG', true)).toEqual({ name: 'check-in' });
   });
 
   it('CSR lands on manifest', () => {

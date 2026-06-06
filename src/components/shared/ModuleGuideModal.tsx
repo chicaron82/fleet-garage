@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { type Module } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { getNavItemsForRole } from '../../lib/navigation';
+import { isRealAccount } from '../../lib/demo-accounts';
 
 const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: string }> = {
   'holds': {
@@ -72,7 +73,7 @@ export function ModuleGuideModal({ onClose, initialModule }: Props) {
 
   if (!user) return null;
 
-  const navItems = getNavItemsForRole(user.role, activeBranch);
+  const navItems = getNavItemsForRole(user.role, activeBranch, !isRealAccount(user.employeeId));
 
   return (
     <div

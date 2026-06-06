@@ -37,12 +37,19 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'GM':                  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
 };
 
-export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
+// Modules kept only for demo personas — present as a showcase, hidden from real
+// production accounts. Check-in was built for an HIR role nobody fills today; its
+// one live workflow (exception re-hold) now lives in the holds module.
+const DEMO_ONLY_MODULES = new Set<Module>(['check-in']);
+
+export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): NavItem[] {
   const roleModules = ROLE_MODULES[role] || [];
   const branchModules = BRANCH_CONFIGS[activeBranch]?.enabledModules || [];
-  
-  return ALL_NAV_ITEMS.filter(item => 
-    roleModules.includes(item.module) && branchModules.includes(item.module)
+
+  return ALL_NAV_ITEMS.filter(item =>
+    roleModules.includes(item.module) &&
+    branchModules.includes(item.module) &&
+    (canDemo || !DEMO_ONLY_MODULES.has(item.module))
   );
 }
 
@@ -59,8 +66,8 @@ export function getActiveModule(screen: Screen): Module {
 
 // ── Default screen per role ─────────────────────────────────────────────────
 
-export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId = 'YWG'): Screen {
-  const navItems = getNavItemsForRole(role, activeBranch);
+export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): Screen {
+  const navItems = getNavItemsForRole(role, activeBranch, canDemo);
   
   // Preferred default based on role
   let preferred: Screen = { name: 'dashboard' };
