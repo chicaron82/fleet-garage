@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useSchedule } from '../../context/ScheduleContext';
 import { toISO } from '../../context/ScheduleContext';
-import { calcPayEstimate, PAY_CONFIG } from '../../lib/payEstimate';
+import { supabase } from '../../lib/supabase';
+import { rowToShiftMinimal } from '../../lib/rowToShift';
+import { calcPayEstimate, getPayPeriod, PAY_CONFIG } from '../../lib/payEstimate';
 import { fmtHours } from '../../lib/ot';
+import type { Shift } from '../../types';
 
 function fmt(n: number): string {
   return n.toLocaleString('en-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: 2 });
@@ -15,16 +17,28 @@ function fmtDate(iso: string): string {
 }
 
 export function PayEstimateCard() {
-  const { user }  = useAuth();
-  const { shifts } = useSchedule();
-  const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const [open, setOpen]       = useState(false);
+  const [shifts, setShifts]   = useState<Shift[]>([]);
 
-  const today    = toISO(new Date());
-  const myShifts = useMemo(
-    () => shifts.filter(s => s.userId === user?.id),
-    [shifts, user]
-  );
-  const est = useMemo(() => calcPayEstimate(myShifts, today), [myShifts, today]);
+  const today  = toISO(new Date());
+  const period = useMemo(() => getPayPeriod(today), [today]);
+
+  useEffect(() => {
+    if (user?.employeeId !== PAY_CONFIG.employeeId) return;
+
+    supabase
+      .from('shifts')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', period.start)
+      .lte('date', period.end)
+      .then(({ data }) => {
+        if (data) setShifts(data.map(rowToShiftMinimal));
+      });
+  }, [user, period.start, period.end]);
+
+  const est = useMemo(() => calcPayEstimate(shifts, today), [shifts, today]);
 
   if (user?.employeeId !== PAY_CONFIG.employeeId) return null;
 
