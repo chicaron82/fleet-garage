@@ -20,8 +20,9 @@ export function calcHours(start?: string, end?: string): number {
 }
 
 // Deducts the unpaid break from gross clock hours when the span qualifies.
+// MB standard: break owed *after* 5h (strictly >), matching shift-metrics.ts.
 export function netActualHours(grossHrs: number): number {
-  return grossHrs >= BREAK_THRESHOLD_HRS ? grossHrs - UNPAID_BREAK_HRS : grossHrs;
+  return grossHrs > BREAK_THRESHOLD_HRS ? grossHrs - UNPAID_BREAK_HRS : grossHrs;
 }
 
 // Returns OT hours for a shift. Rules:

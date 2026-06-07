@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, netActualHours, calcOT, fmtHours, BREAK_THRESHOLD_HRS, UNPAID_BREAK_HRS } from '../../src/lib/ot';
+import { calcHours, netActualHours, calcOT, fmtHours, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -41,8 +41,8 @@ describe('netActualHours', () => {
     expect(netActualHours(4)).toBe(4);
     expect(netActualHours(4.9)).toBe(4.9);
   });
-  it('deducts the break at the threshold', () => {
-    expect(netActualHours(BREAK_THRESHOLD_HRS)).toBe(BREAK_THRESHOLD_HRS - UNPAID_BREAK_HRS);
+  it('does not deduct at exactly the threshold (break owed after 5h, not at 5h)', () => {
+    expect(netActualHours(BREAK_THRESHOLD_HRS)).toBe(BREAK_THRESHOLD_HRS);
   });
   it('deducts the break above the threshold', () => {
     // 5.5h driver shift: 5.5 − 0.5 = 5h net
@@ -59,7 +59,7 @@ describe('calcOT', () => {
   });
 
   it('returns 0 for exactly 8 actual hours on a regular shift (break already in)', () => {
-    // 8h gross < break threshold? No — 8 ≥ 5, so net = 7.5h → 0 OT
+    // 8h gross < break threshold? No — 8 > 5, so net = 7.5h → 0 OT
     const shift = makeShift({ actualStartTime: '09:00', actualEndTime: '17:00' });
     expect(calcOT(shift)).toBe(0);
   });
