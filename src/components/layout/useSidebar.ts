@@ -79,6 +79,21 @@ export function useSidebar() {
     load();
   }, [notifMode, user, activeBranch]);
 
+  // ── Live notifications realtime subscription ─────────────────────────────────
+  useEffect(() => {
+    if (notifMode !== 'live' || !user) return;
+    const channel = supabase
+      .channel('notifications-sidebar-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const n = payload.new as LiveNotification;
+        if (activeBranch !== 'ALL' && n.branch_id !== activeBranch) return;
+        if (!n.recipient_roles.includes(user.role) && n.recipient_user_id !== user.id) return;
+        setLiveNotifs(prev => [n, ...prev]);
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [notifMode, user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
   useEffect(() => {
     if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA')) return;

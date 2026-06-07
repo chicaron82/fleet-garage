@@ -12,6 +12,7 @@ interface LiveNotification {
   id: string;
   branch_id: string;
   recipient_roles: UserRole[];
+  recipient_user_id?: string | null;
   icon: string;
   text: string;
   severity: NotificationSeverity;
@@ -50,6 +51,16 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
       setLiveNotifications((data ?? []) as LiveNotification[]);
     }
     load();
+    const channel = supabase
+      .channel('notifications-bell-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const n = payload.new as LiveNotification;
+        if (activeBranch !== 'ALL' && n.branch_id !== activeBranch) return;
+        if (!n.recipient_roles.includes(user!.role) && n.recipient_user_id !== user!.id) return;
+        setLiveNotifications(prev => [n, ...prev]);
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, [mode, user, activeBranch]);
 
   if (!user) return null;

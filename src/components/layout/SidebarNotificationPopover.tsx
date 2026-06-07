@@ -8,11 +8,13 @@ export interface LiveNotification {
   id: string;
   branch_id: string;
   recipient_roles: UserRole[];
+  recipient_user_id?: string | null;
   icon: string;
   text: string;
   is_read: boolean;
   read_by: string[];
   created_at: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface SidebarNotificationPopoverProps {
