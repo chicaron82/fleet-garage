@@ -30,7 +30,7 @@ export interface ReportData {
   shiftType:    ShiftType | null;
   offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
   trips:        { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null; isVsaInterruption: boolean | null; queueAtDeparture: string | null }[];
-  holds:        { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string }[];
+  holds:        { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string; photos?: string[] }[];
   checkIns:     { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
   lostFound:    { foundAt: string; description: string; location: string; unitNumber: string | null }[];
   audits:       { createdAt: string; vehicleNumber: string; status: string }[];

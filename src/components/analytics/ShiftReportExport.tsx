@@ -60,7 +60,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         .order('depart_time', { ascending: true }),
 
       supabase.from('holds')
-        .select('flagged_at, hold_types, damage_description, vehicles(unit_number, license_plate)')
+        .select('flagged_at, hold_types, damage_description, photos, vehicles(unit_number, license_plate)')
         .eq('flagged_by_id', user.id)
         .gte('flagged_at', dayStartISO).lt('flagged_at', dayEndISO)
         .order('flagged_at', { ascending: true }),
@@ -262,6 +262,7 @@ export function ShiftReportExport({ date }: { date: string }) {
           vehicleUnit:  v?.unit_number ?? '—',
           vehiclePlate: v?.license_plate ?? '—',
           description:  (r.damage_description as string | null) ?? '',
+          photos:       (r.photos as string[] | null) ?? undefined,
         };
       }),
       checkIns: (ciRes.data ?? []).map((r: Record<string, unknown>) => ({

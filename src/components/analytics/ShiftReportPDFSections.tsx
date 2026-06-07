@@ -1,6 +1,6 @@
 // Pure PDF section renderers for ShiftReportPDF.
 // Exception to the 330-line cap: pure renderer with many cases (see CLAUDE.md).
-import { View, Text, Image } from '@react-pdf/renderer';
+import { View, Text, Image, Link } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes, type ReportData, type ReportThroughput } from '../../lib/buildShiftReport';
 import { LOGO_SRC, s, resolveQueueLabel } from './ShiftReportPDFUtils';
 
@@ -264,6 +264,17 @@ export function HoldsSection({ holds }: { holds: ReportData['holds'] }) {
           <View style={s.mainCol}>
             <Text style={s.mainText}>{formatHoldTypes(h.holdTypes)}  ·  Unit {h.vehicleUnit}  {h.vehiclePlate}</Text>
             {h.description ? <Text style={s.subText}>{h.description}</Text> : null}
+            {(h.photos ?? []).length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
+                {(h.photos ?? []).map((url, pi) => (
+                  <Link key={pi} src={url} style={{ textDecoration: 'none' }}>
+                    <Text style={{ fontSize: 9, color: '#92400e', backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 }}>
+                      📷 Photo {pi + 1}
+                    </Text>
+                  </Link>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       ))}
