@@ -26,6 +26,6 @@ pg_dump \
   --no-owner \
   --no-acl \
   -f "$OUT" \
-  "postgresql://postgres:${ENCODED}@db.gugxedtqvuhlwllyqpec.supabase.co:5432/postgres"
+  "postgresql://postgres.gugxedtqvuhlwllyqpec:${ENCODED}@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
 
 echo "schema written to migrations/schema.sql"
