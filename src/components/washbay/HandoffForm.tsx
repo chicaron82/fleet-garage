@@ -31,10 +31,11 @@ export function HandoffForm({ onClose }: Props) {
   const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [baselineCount] = useState(seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0);
+  const inheritedBacklog = yesterdayLog?.carsRemaining ?? 0;
+
   const [teamSize,        setTeamSize]        = useState(2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
-  const [carryOverCleared, setCarryOverCleared] = useState(0);
   const [adjustMorning,    setAdjustMorning]   = useState(false);
   const [morningHours,     setMorningHours]    = useState(8.0);
   const [submitting,       setSubmitting]      = useState(false);
@@ -65,7 +66,7 @@ export function HandoffForm({ onClose }: Props) {
       lotStatus,
       notes: notes.trim() || undefined,
       morningHours: adjustMorning ? morningHours : undefined,
-      carryOverCleared: carryOverCleared > 0 ? carryOverCleared : undefined,
+      carryOverCleared: inheritedBacklog > 0 ? inheritedBacklog : undefined,
     });
     if (ok) onClose();
     else setSubmitting(false);
@@ -117,25 +118,20 @@ export function HandoffForm({ onClose }: Props) {
             )}
           </div>
 
-          {/* Carry-over cleared */}
-          <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Carry-over cleared</label>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-2">
-              Prior-day-fuelled cars sent to fleet today (no fresh gas line). Credited to your morning rate.
-            </p>
-            {yesterdayLog && (yesterdayLog.carsRemaining > 0 || yesterdayLog.nonRentablesFuelled > 0) && (
-              <p className="text-[11px] text-blue-500 dark:text-blue-400 mb-2">
-                Last night: {yesterdayLog.carsRemaining} dirty{yesterdayLog.nonRentablesFuelled > 0 ? ` · ${yesterdayLog.nonRentablesFuelled} parked` : ''}
+          {/* Carry-over inherited from closing */}
+          {inheritedBacklog > 0 && (
+            <div>
+              <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Carry-over inherited</label>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+                Dirties left by last night's closing crew — credited to your morning rate.
               </p>
-            )}
-            <div className="flex items-center gap-4">
-              <button type="button" onClick={() => setCarryOverCleared(v => Math.max(0, v - 1))}
-                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
-              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{carryOverCleared}</span>
-              <button type="button" onClick={() => setCarryOverCleared(v => v + 1)}
-                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{inheritedBacklog}</span>
+                <span className="text-sm text-gray-400 dark:text-gray-500">vehicle{inheritedBacklog !== 1 ? 's' : ''}</span>
+              </div>
+              <p className="text-[11px] text-blue-500 dark:text-blue-400 mt-1">Ported from last night's closing log</p>
             </div>
-          </div>
+          )}
 
           {/* Team size */}
           <div>
