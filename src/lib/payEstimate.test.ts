@@ -138,17 +138,17 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
   });
 
-  it('worked stat: Holiday = hours worked (regularRate); HolPrem = hours worked (otRate); no OT pool', () => {
+  it('worked stat: Holiday = hours worked (regularRate); HolPrem = flat 8h entitlement (no OT for hours > 8)', () => {
     // 09:00–17:30 = 8.5h gross, net = 8h after break deduction
     const shift = makeShift({ date: '2026-06-06', isStat: true, actualStartTime: '09:00', actualEndTime: '17:30' });
     const est = calcPayEstimate([shift], today);
     expect(est.holidayHours).toBe(8);
-    expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.otRate, 3);
-    expect(est.otHours).toBe(0);          // worked-stat premium not pooled with real OT
+    expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 3);  // flat entitlement, not OT-scaled
+    expect(est.otHours).toBe(0);
     expect(est.regularHours).toBe(0);
     expect(est.daysLogged).toBe(1);
-    // gross = 8 × 17.75 (Holiday) + 8 × 26.625 (HolPrem) = 142 + 213 = 355
-    expect(est.gross).toBeCloseTo(355, 1);
+    // gross = 8 × 17.75 (Holiday) + 8 × 17.75 (HolPrem) = 142 + 142 = 284
+    expect(est.gross).toBeCloseTo(284, 1);
   });
 
   it('unworked stat: HolPrem = 8h at regularRate; Holiday = $0', () => {

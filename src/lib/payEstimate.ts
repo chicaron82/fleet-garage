@@ -77,9 +77,9 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
       const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
       const net      = netActualHours(grossHrs);
       if (shift.isStat) {
-        // Worked stat: Holiday = hours at regular rate; HolPrem = hours at OT rate (not pooled with real OT)
+        // Worked stat: Holiday = hours at regular rate (no OT for hours > 8); HolPrem = flat entitlement
         holidayHours += net;
-        holPremGross += net * PAY_CONFIG.otRate;
+        holPremGross += 8 * PAY_CONFIG.regularRate;
       } else {
         const ot = calcOT(shift);
         otHours      += ot;
