@@ -12,7 +12,8 @@ import { ShiftSummarySection } from '../analytics/ShiftSummarySection';
 import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
-import { localDateStr } from '../../hooks/useFleetBalance';
+import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { FleetBalanceEntryForm } from '../vehicle';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus, HandoffNote } from '../../types';
 import { canLogHandoff } from '../../types';
@@ -148,6 +149,8 @@ export function MyShiftView() {
   const isManagementRole  = ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role);
   const canSeeCheckIn     = isScheduledToday || isManagementRole;
 
+  const { upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
+
   const checkInDoneToday  = !!getTodayCheckpoint();
   const handoffDoneToday  = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
   const [activeTab, setActiveTab]             = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
@@ -210,6 +213,11 @@ export function MyShiftView() {
       {activeTab === 'closing-duties' && (
         <>
           {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <AfternoonCheckIn />)}
+          <FleetBalanceEntryForm
+            onSubmit={(out, inc) => upsertEntry(localDateStr(), out, inc, user!.id)}
+            todayEntry={getTodayEntry()}
+            projection={getProjection()}
+          />
           <StepSection title="Shift Handoff" open={handoffOpen} onToggle={() => setHandoffOpen(o => !o)}>
             <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
           </StepSection>
