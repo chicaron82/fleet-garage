@@ -122,7 +122,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
         (v.unitNumber?.toUpperCase() ?? '').includes(search) ||
         v.licensePlate.toUpperCase().includes(search) ||
         v.make.toUpperCase().includes(search) ||
-        v.model.toUpperCase().includes(search);
+        v.model.toUpperCase().includes(search) ||
+        holds.some(h => h.vehicleId === v.id && h.status === 'ACTIVE' && h.damageDescription.toUpperCase().includes(search));
       if (!matchesSearch) return false;
       if (activeStatusFilter !== null) return v.status === activeStatusFilter;
       // CLEAR vehicles drop off the default list — searchable, accessible via "Repaired" card
