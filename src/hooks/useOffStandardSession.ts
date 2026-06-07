@@ -73,6 +73,7 @@ export function useOffStandardSession({
       table: 'off_standard_entries',
       userField: 'user_id',
       userId: user.id,
+      orderBy: 'start_time',
       onSettled: () => setIsRecovering(false),
     },
     row => {

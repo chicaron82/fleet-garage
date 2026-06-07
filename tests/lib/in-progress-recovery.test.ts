@@ -139,6 +139,22 @@ describe('recoverInProgress — query shape', () => {
 });
 
 describe('recoverInProgress — resilient to orphaned rows', () => {
+  it('returns a row (not null/error) when 2+ in_progress rows exist and no orderBy is given', async () => {
+    // Without limit(1), maybeSingle() would PGRST116-error on 2+ rows.
+    // The hardened helper always applies limit(1) so any surviving row is returned.
+    const { client } = makeFakeClient({
+      rows: [
+        { id: 'oth-old', user_id: 'u1', status: 'in_progress', start_time: '2026-06-07T10:00:00Z' },
+        { id: 'oth-new', user_id: 'u1', status: 'in_progress', start_time: '2026-06-07T14:00:00Z' },
+      ],
+    });
+    const row = await recoverInProgress({
+      client, table: 'off_standard_entries', userField: 'user_id', userId: 'u1',
+      // No orderBy — the caller gap that previously exposed PGRST116
+    });
+    expect(row).not.toBeNull();
+  });
+
   it('recovers the most recent in_progress row when more than one exists', async () => {
     const { client } = makeFakeClient({
       rows: [

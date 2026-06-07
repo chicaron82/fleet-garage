@@ -9,7 +9,7 @@ import {
 } from '../../src/lib/offlineQueue';
 
 // Mock Supabase
-const mockInsert = vi.fn();
+const mockUpsert = vi.fn();
 const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 const mockEq = vi.fn();
@@ -17,7 +17,7 @@ const mockEq = vi.fn();
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: vi.fn(() => ({
-      insert: mockInsert,
+      upsert: mockUpsert,
       update: mockUpdate,
       delete: mockDelete,
     })),
@@ -77,13 +77,13 @@ describe('offlineQueue', () => {
   });
 
   describe('executeOfflineAction', () => {
-    it('performs insert correctly and returns true on success', async () => {
-      mockInsert.mockResolvedValue({ error: null });
+    it('performs insert via upsert with ignoreDuplicates — lost-ack retry is a no-op', async () => {
+      mockUpsert.mockResolvedValue({ error: null });
       const action: OfflineAction = { id: '1', table: 'test_table', action: 'insert', payload: { name: 'foo' } };
-      
+
       const success = await executeOfflineAction(action);
       expect(success).toBe(true);
-      expect(mockInsert).toHaveBeenCalledWith({ name: 'foo' });
+      expect(mockUpsert).toHaveBeenCalledWith({ name: 'foo' }, { onConflict: 'id', ignoreDuplicates: true });
     });
 
     it('performs update with filters correctly', async () => {
@@ -127,9 +127,9 @@ describe('offlineQueue', () => {
     });
 
     it('returns false when database operation returns an error', async () => {
-      mockInsert.mockResolvedValue({ error: new Error('DB Error') });
+      mockUpsert.mockResolvedValue({ error: new Error('DB Error') });
       const action: OfflineAction = { id: '4', table: 'test_table', action: 'insert', payload: {} };
-      
+
       const success = await executeOfflineAction(action);
       expect(success).toBe(false);
     });
@@ -154,11 +154,11 @@ describe('offlineQueue', () => {
       ];
       saveOfflineQueue(actions);
 
-      mockInsert.mockResolvedValue({ error: null });
+      mockUpsert.mockResolvedValue({ error: null });
 
       await flushOfflineQueue();
       expect(getOfflineQueue()).toHaveLength(0);
-      expect(mockInsert).toHaveBeenCalledTimes(2);
+      expect(mockUpsert).toHaveBeenCalledTimes(2);
     });
 
     it('stops flushing and retains remaining actions on first failure', async () => {
@@ -169,17 +169,38 @@ describe('offlineQueue', () => {
       ];
       saveOfflineQueue(actions);
 
-      // First succeeds, second fails
-      mockInsert.mockResolvedValueOnce({ error: null });
-      mockInsert.mockResolvedValueOnce({ error: new Error('DB Error') });
+      // First succeeds, second fails (below MAX_ATTEMPTS — stops queue)
+      mockUpsert.mockResolvedValueOnce({ error: null });
+      mockUpsert.mockResolvedValueOnce({ error: new Error('DB Error') });
 
       await flushOfflineQueue();
 
       const queue = getOfflineQueue();
-      expect(queue).toHaveLength(2); // Second and third remain
+      expect(queue).toHaveLength(2); // Second (attempts: 1) and third remain
       expect(queue[0].id).toBe('2');
+      expect(queue[0].attempts).toBe(1);
       expect(queue[1].id).toBe('3');
-      expect(mockInsert).toHaveBeenCalledTimes(2); // First, second. Third never run.
+      expect(mockUpsert).toHaveBeenCalledTimes(2); // First, second. Third never run.
+    });
+
+    it('drops a poison action at MAX_ATTEMPTS and continues draining the rest', async () => {
+      const actions: OfflineAction[] = [
+        { id: '1', table: 'table1', action: 'insert', payload: { val: 1 }, attempts: 2 }, // one more fail = drop
+        { id: '2', table: 'table2', action: 'insert', payload: { val: 2 } },
+      ];
+      saveOfflineQueue(actions);
+
+      // First action fails (reaching MAX_ATTEMPTS — dropped), second succeeds
+      mockUpsert.mockResolvedValueOnce({ error: new Error('DB Error') });
+      mockUpsert.mockResolvedValueOnce({ error: null });
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await flushOfflineQueue();
+      consoleSpy.mockRestore();
+
+      // Both gone: action 1 dropped (not re-queued), action 2 succeeded
+      expect(getOfflineQueue()).toHaveLength(0);
+      expect(mockUpsert).toHaveBeenCalledTimes(2);
     });
   });
 });

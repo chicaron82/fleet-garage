@@ -58,9 +58,11 @@ export async function recoverInProgress(
     .select(columns)
     .eq(opts.userField, opts.userId)
     .eq('status', status);
-  // Recover the most recent in_progress row. limit(1) also keeps maybeSingle()
-  // from erroring if an orphan was ever left behind (PGRST116 on 2+ rows).
-  if (opts.orderBy) q = q.order(opts.orderBy, { ascending: false }).limit(1);
+  // Always limit(1) — maybeSingle() errors on 2+ rows (PGRST116) regardless of
+  // whether orderBy is provided. When orderBy is given we recover the most recent;
+  // without it, any surviving in_progress row is better than an error.
+  if (opts.orderBy) q = q.order(opts.orderBy, { ascending: false });
+  q = q.limit(1);
 
   const { data, error } = await q.maybeSingle();
 

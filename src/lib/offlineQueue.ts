@@ -7,7 +7,10 @@ export interface OfflineAction {
   payload: Record<string, unknown>;
   eqField?: string;
   eqValue?: string | number | boolean | null;
+  attempts?: number;
 }
+
+const MAX_ATTEMPTS = 3;
 
 const STORAGE_KEY = 'fg_offline_actions';
 
@@ -43,7 +46,9 @@ export async function executeOfflineAction(action: OfflineAction): Promise<boole
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query = (supabase as any).from(action.table);
     if (action.action === 'insert') {
-      const { error } = await query.insert(action.payload);
+      // Upsert with ignoreDuplicates: a lost-ack retry (row already committed)
+      // resolves as a no-op instead of a PK conflict that wedges the queue.
+      const { error } = await query.upsert(action.payload, { onConflict: 'id', ignoreDuplicates: true });
       if (error) throw error;
     } else if (action.action === 'update') {
       let q = query.update(action.payload);
@@ -90,9 +95,14 @@ export async function flushOfflineQueue(): Promise<void> {
     if (success) {
       console.log(`Successfully synced offline action ${action.id} on table ${action.table}`);
     } else {
-      console.log(`Failed to sync offline action ${action.id}, postponing rest of queue`);
-      remaining.push(action);
-      stopFlushing = true;
+      const attempts = (action.attempts ?? 0) + 1;
+      if (attempts >= MAX_ATTEMPTS) {
+        console.error(`Offline action ${action.id} on table ${action.table} failed ${attempts} times — dropping to unblock queue`);
+      } else {
+        console.log(`Failed to sync offline action ${action.id}, postponing rest of queue`);
+        remaining.push({ ...action, attempts });
+        stopFlushing = true;
+      }
     }
   }
 
