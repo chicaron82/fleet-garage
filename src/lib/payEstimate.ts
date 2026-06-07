@@ -39,19 +39,20 @@ export function getPayPeriod(today: string): { start: string; end: string } {
 // ── Estimate ───────────────────────────────────────────────────────────────────
 
 export interface PayEstimate {
-  periodStart:       string;
-  periodEnd:         string;
-  regularHours:      number;
-  otHours:           number;
-  statHolidayHours:  number;  // base holiday entitlement, paid at regularRate
-  gross:             number;
-  cpp:               number;
-  ei:                number;
-  tax:               number;
-  net:               number;
-  daysLogged:        number;
-  daysProjected:     number;
-  ptoDays:           number;
+  periodStart:    string;
+  periodEnd:      string;
+  regularHours:   number;
+  otHours:        number;   // real OT on non-stat days
+  holidayHours:   number;   // hours worked on a stat (Holiday line, at regularRate)
+  holPremGross:   number;   // stat entitlement dollars — worked stat: net×otRate; unworked: 8h×regularRate
+  gross:          number;
+  cpp:            number;
+  ei:             number;
+  tax:            number;
+  net:            number;
+  daysLogged:     number;
+  daysProjected:  number;
+  ptoDays:        number;
 }
 
 // myShifts should already be filtered to the current user.
@@ -60,12 +61,13 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
 
   const periodShifts = myShifts.filter(s => s.date >= start && s.date <= end);
 
-  let regularHours     = 0;
-  let otHours          = 0;
-  let statHolidayHours = 0;
-  let daysLogged       = 0;
-  let daysProjected    = 0;
-  let ptoDays          = 0;
+  let regularHours  = 0;
+  let otHours       = 0;
+  let holidayHours  = 0;
+  let holPremGross  = 0;
+  let daysLogged    = 0;
+  let daysProjected = 0;
+  let ptoDays       = 0;
 
   for (const shift of periodShifts) {
     const hasActual = !!(shift.actualStartTime && shift.actualEndTime);
@@ -74,11 +76,15 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
       daysLogged++;
       const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
       const net      = netActualHours(grossHrs);
-      const ot       = calcOT(shift);
-      otHours        += ot;
-      regularHours   += Math.max(0, net - ot);
-      // Worked stat: base holiday entitlement (Holiday line) on top of OT premium
-      if (shift.isStat) statHolidayHours += net;
+      if (shift.isStat) {
+        // Worked stat: Holiday = hours at regular rate; HolPrem = hours at OT rate (not pooled with real OT)
+        holidayHours += net;
+        holPremGross += net * PAY_CONFIG.otRate;
+      } else {
+        const ot = calcOT(shift);
+        otHours      += ot;
+        regularHours += Math.max(0, net - ot);
+      }
     } else if (shift.shiftType === 'pto') {
       ptoDays++;
       daysProjected++;
@@ -90,19 +96,20 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
       const net       = netActualHours(scheduled);
       regularHours   += Math.min(net, 8);
     } else if (shift.isStat) {
-      // Stat not worked: flat 8h holiday base pay still owed
-      statHolidayHours += 8;
+      // Unworked stat: HolPrem entitlement still paid (Holiday = $0)
+      holPremGross += 8 * PAY_CONFIG.regularRate;
     }
     // day-off, sick (non-PTO, non-stat): $0
   }
 
-  const gross = regularHours     * PAY_CONFIG.regularRate
-              + otHours          * PAY_CONFIG.otRate
-              + statHolidayHours * PAY_CONFIG.regularRate;
+  const gross = regularHours  * PAY_CONFIG.regularRate
+              + otHours        * PAY_CONFIG.otRate
+              + holidayHours   * PAY_CONFIG.regularRate
+              + holPremGross;
   const cpp   = Math.max(0, gross - PAY_CONFIG.cppBiweeklyExemption) * PAY_CONFIG.cppRate;
   const ei    = gross * PAY_CONFIG.eiRate;
   const tax   = gross * PAY_CONFIG.taxRate;
   const net   = gross - cpp - ei - tax;
 
-  return { periodStart: start, periodEnd: end, regularHours, otHours, statHolidayHours, gross, cpp, ei, tax, net, daysLogged, daysProjected, ptoDays };
+  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, gross, cpp, ei, tax, net, daysLogged, daysProjected, ptoDays };
 }
