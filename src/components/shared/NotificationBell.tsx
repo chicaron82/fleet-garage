@@ -59,6 +59,10 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
         if (!n.recipient_roles.includes(user!.role) && n.recipient_user_id !== user!.id) return;
         setLiveNotifications(prev => [n, ...prev]);
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const updated = payload.new as LiveNotification;
+        setLiveNotifications(prev => prev.map(l => l.id === updated.id ? updated : l));
+      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [mode, user, activeBranch]);
@@ -75,7 +79,9 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
     } else {
       const unread = liveNotifications.filter(n => !n.read_by.includes(user.id));
       await Promise.all(unread.map(n =>
-        writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id))
+        writeWithRefresh(() =>
+          supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id })
+        )
       ));
       setLiveNotifications(prev => prev.map(n => ({
         ...n,
@@ -86,9 +92,11 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
 
   const handleMarkOneRead = async (n: LiveNotification) => {
     if (n.read_by.includes(user.id)) return;
-    await writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id));
+    await writeWithRefresh(() =>
+      supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id })
+    );
     setLiveNotifications(prev => prev.map(l =>
-      l.id === n.id ? { ...l, read_by: [...l.read_by, user.id] } : l
+      l.id === n.id ? { ...l, read_by: l.read_by.includes(user.id) ? l.read_by : [...l.read_by, user.id] } : l
     ));
   };
 

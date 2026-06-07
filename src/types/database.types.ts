@@ -1359,6 +1359,7 @@ export type Database = {
     Functions: {
       get_my_branch_id: { Args: never; Returns: string }
       is_manager: { Args: never; Returns: boolean }
+      mark_notification_read: { Args: { p_notification_id: string; p_user_id: string }; Returns: void }
     }
     Enums: {
       [_ in never]: never
