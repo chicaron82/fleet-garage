@@ -8,6 +8,7 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
+import { SICK_DAYS_ENTITLEMENT } from '../../hooks/usePTOStats';
 import { PtoRequestActionSheet } from './PtoRequestActionSheet';
 
 function weekLabel(date: Date): string {
@@ -184,7 +185,7 @@ export function ScheduleScreen() {
         {/* Sick chip */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 text-xs">
           <span className="text-rose-700 dark:text-rose-300 font-semibold">Sick</span>
-          <span className="text-rose-600 dark:text-rose-400">{sickDaysUsed} {sickDaysUsed === 1 ? 'day' : 'days'}</span>
+          <span className="text-rose-600 dark:text-rose-400">{sickDaysUsed}/{SICK_DAYS_ENTITLEMENT}</span>
         </div>
 
         {/* Log sick day */}

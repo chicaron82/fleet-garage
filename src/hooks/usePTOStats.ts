@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { User } from '../types';
 
+export const SICK_DAYS_ENTITLEMENT = 6; // 48h ÷ 8h, paid out first December payday if unused
+
 export interface PTOStats {
   ptoEntitlement: number;
   ptoUsed: number;
