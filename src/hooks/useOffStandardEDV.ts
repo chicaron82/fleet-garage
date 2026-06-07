@@ -46,6 +46,9 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvUnitNumber('');
     setEdvManagerName('');
     setEdvNoMatch(false);
+    setEdvPlate('');
+    setEdvExterior(false);
+    setEdvInterior(false);
 
     if (next !== 'edv') return;
 

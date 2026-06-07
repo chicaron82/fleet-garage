@@ -15,7 +15,7 @@ export function calcHours(start?: string, end?: string): number {
   if (!start || !end) return 0;
   const s = timeToDec(start);
   let e = timeToDec(end);
-  if (e <= s) e += 24; // midnight crossover e.g. 22:00–00:30
+  if (e < s) e += 24; // midnight crossover e.g. 22:00–00:30; equal = data-entry slip, not 24h
   return Math.max(0, e - s);
 }
 

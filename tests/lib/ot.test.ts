@@ -31,8 +31,8 @@ describe('calcHours', () => {
   it('handles exact midnight end', () => {
     expect(calcHours('20:00', '00:00')).toBe(4);
   });
-  it('treats same start and end as 24h (crossover assumption in the function)', () => {
-    expect(calcHours('09:00', '09:00')).toBe(24);
+  it('treats same start and end as 0 — data-entry slip, not a 24h crossover', () => {
+    expect(calcHours('09:00', '09:00')).toBe(0);
   });
 });
 
