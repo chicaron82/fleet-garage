@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useReEval } from '../../hooks/useReEval';
@@ -21,10 +21,13 @@ type ExceptionItem =
   | { kind: 'detail'; vehicle: Vehicle; hold: Hold }
   | { kind: 'damage'; vehicle: Vehicle; hold: Hold; isAuction: boolean };
 
-export function ExceptionReturnSection() {
+interface Props { search?: string; }
+
+export function ExceptionReturnSection({ search = '' }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, getHoldsForVehicle, addHold } = useVehicleHoldContext();
   const re = useReEval();
+  const [open, setOpen] = useState(false);
 
   const items = useMemo<ExceptionItem[]>(() => {
     // Detail-hold exception returns (mirrors useReEval's filter)
@@ -58,20 +61,63 @@ export function ExceptionReturnSection() {
     return [...detail, ...damage];
   }, [holds, vehicles, getHoldsForVehicle]);
 
+  const matchesSearch = (v: Vehicle) => {
+    const q = search.toUpperCase();
+    return (v.unitNumber?.toUpperCase() ?? '').includes(q) ||
+      v.licensePlate.toUpperCase().includes(q) ||
+      v.make.toUpperCase().includes(q) ||
+      v.model.toUpperCase().includes(q);
+  };
+
+  const visibleItems = search.trim() ? items.filter(item => matchesSearch(item.vehicle)) : items;
+
+  // Auto-expand when search matches an exception vehicle
+  useEffect(() => {
+    if (!search.trim()) return;
+    const q = search.toUpperCase();
+    const hasMatch = items.some(item => {
+      const v = item.vehicle;
+      return (v.unitNumber?.toUpperCase() ?? '').includes(q) ||
+        v.licensePlate.toUpperCase().includes(q) ||
+        v.make.toUpperCase().includes(q) ||
+        v.model.toUpperCase().includes(q);
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (hasMatch) setOpen(true);
+  }, [search, items]);
+
   if (items.length === 0) return null;
+  // Search is active but no exceptions match — don't distract from the vehicle list
+  if (search.trim() && visibleItems.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 transition-colors">
-        <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">
-          Exception Returns — {items.length} vehicle{items.length > 1 ? 's' : ''}
-        </p>
-        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-          Compare against the hold record — re-hold if anything is new or worse. Detail holds re-evaluate; auction units re-hold as Sale Car.
-        </p>
-      </div>
+      {/* Collapsible header / count chip */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 transition-colors text-left cursor-pointer"
+      >
+        <div>
+          <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">Exception Returns</p>
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+            Compare against the hold record — re-hold if anything is new or worse.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <span className="bg-amber-200 dark:bg-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums">
+            {items.length}
+          </span>
+          <svg
+            className={`w-4 h-4 text-amber-600 dark:text-amber-400 transition-transform ${open ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
 
-      {items.map(item =>
+      {open && visibleItems.map(item =>
         item.kind === 'detail' ? (
           <DetailReEvalCard key={item.hold.id} item={{ hold: item.hold, vehicle: item.vehicle }} re={re} />
         ) : (

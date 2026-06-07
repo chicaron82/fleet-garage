@@ -192,9 +192,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
         {/* Stale Holds Alert — management only */}
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
-        {/* Exception returns — re-hold on return (self-hides when none pending) */}
-        <ExceptionReturnSection />
-
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <DashboardSummaryCards
           role={user!.role}
@@ -246,12 +243,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           <CameraBarcodeScanner onDecode={handleCameraDecode} />
         </div>
 
-        {/* Management banner */}
-        {canRelease(user!.role) && onException > 0 && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
-            ⚠️ <strong>{onException}</strong> vehicle{onException > 1 ? 's are' : ' is'} currently out on exception and may need a return follow-up.
-          </div>
-        )}
+        {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
+        <ExceptionReturnSection search={search} />
 
         {/* Vehicle List */}
         <div className="space-y-2">
