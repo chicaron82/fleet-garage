@@ -10,9 +10,9 @@ export type ReEvalAction = 'clear' | 're-hold' | 'escalate';
  * VSAs cannot clear it. Smoke/vape and too-dirty are VSA-clearable.
  *
  * Role-gating at this function is *not* a defense-in-depth check against
- * Drivers / external roles — the ReEvalPanel is already navigation-gated
- * upstream. This function assumes the caller has passed a role that can
- * reach the panel; its job is the within-panel action matrix.
+ * Drivers / external roles — the holds Exception Returns section is already
+ * navigation-gated upstream. This function assumes the caller has passed a role
+ * that can reach holds; its job is the within-card action matrix.
  */
 export function getReEvalActions(detailReason: DetailReason, role: UserRole): ReEvalAction[] {
   if (detailReason === 'pet-hair') {

@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { canRelease, deriveRouting } from '../../types';
 import { MOCK_CHECK_INS } from '../../data/checkIns';
 import type { VehicleCheckIn } from '../../data/checkIns';
-import { ReEvalPanel } from '../holds/ReEvalPanel';
 import { CheckInIntakeForm } from './CheckInIntakeForm';
 import {
   generateDayManifest, generateExpectedReturns,
@@ -146,7 +145,6 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
           </div>
 
           <CheckInIntakeForm onFlagIssue={onFlagIssue} />
-          <ReEvalPanel />
 
           {pendingCount > 0 && (user.role === 'VSA' || user.role === 'Lead VSA' || isManagement) && (
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">

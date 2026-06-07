@@ -11,40 +11,13 @@ function fmtDate(iso: string) {
   });
 }
 
-export function ReEvalPanel() {
-  const re = useReEval();
-  if (re.count === 0) return null;
-
-  const outCount = re.items.filter(i => i.vehicle.status === 'OUT_ON_EXCEPTION').length;
-  const returnedCount = re.items.filter(i => i.vehicle.status === 'RETURNED').length;
-
-  return (
-    <div className="space-y-3">
-      {/* Section header */}
-      <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-300 dark:border-teal-700/50 rounded-xl px-4 py-3 transition-colors">
-        <p className="font-semibold text-sm text-teal-800 dark:text-teal-300">
-          Exception Returns — {re.count} vehicle{re.count > 1 ? 's' : ''} for re-evaluation
-        </p>
-        <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">
-          {outCount > 0 && `${outCount} still out`}
-          {outCount > 0 && returnedCount > 0 && ' · '}
-          {returnedCount > 0 && `${returnedCount} returned`}
-        </p>
-      </div>
-
-      {/* Cards */}
-      {re.items.map(item => (
-        <ReEvalCard key={item.hold.id} item={item} re={re} />
-      ))}
-    </div>
-  );
-}
-
-// ── Card ─────────────────────────────────────────────────────────────────────
-
+// Detail-hold re-evaluation card. Rendered by ExceptionReturnSection for
+// exception returns whose driving hold is a detail (cleaning) hold. The parent
+// owns the single useReEval() instance and passes it in, so only one card is
+// active at a time across the section.
 type ReHook = ReturnType<typeof useReEval>;
 
-function ReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
+export function DetailReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook }) {
   const { hold, vehicle } = item;
   const isActive = re.activeHoldId === hold.id;
   const [dispatchStatus, setDispatchStatus] = useState<DispatchStatus>('idle');
