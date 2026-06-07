@@ -46,10 +46,12 @@ describe('calcPayEstimate', () => {
     const est = calcPayEstimate([], today);
     expect(est.regularHours).toBe(0);
     expect(est.otHours).toBe(0);
+    expect(est.statHolidayHours).toBe(0);
     expect(est.gross).toBe(0);
     expect(est.net).toBe(0);
     expect(est.daysLogged).toBe(0);
     expect(est.daysProjected).toBe(0);
+    expect(est.ptoDays).toBe(0);
   });
 
   it('projects scheduled hours for unlogged working days', () => {
@@ -121,5 +123,39 @@ describe('calcPayEstimate', () => {
     expect(PAY_CONFIG.regularRate).toBe(17.75);
     expect(PAY_CONFIG.otRate).toBe(26.625);
     expect(PAY_CONFIG.employeeId).toBe('331965');
+  });
+
+  it('credits regular hours for a PTO shift with no actual hours', () => {
+    // 13:30–23:00 = 9.5h gross, net = 9h, capped at 8h regular
+    const shift = makeShift({ date: '2026-06-06', shiftType: 'pto' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.regularHours).toBe(8);
+    expect(est.otHours).toBe(0);
+    expect(est.statHolidayHours).toBe(0);
+    expect(est.ptoDays).toBe(1);
+    expect(est.daysProjected).toBe(1);
+    expect(est.daysLogged).toBe(0);
+  });
+
+  it('worked stat: credits statHolidayHours (base) + all net hours as OT (HolPrem)', () => {
+    // 09:00–17:30 = 8.5h gross, net = 8h after break deduction
+    const shift = makeShift({ date: '2026-06-06', isStat: true, actualStartTime: '09:00', actualEndTime: '17:30' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.statHolidayHours).toBe(8);   // base holiday pay
+    expect(est.otHours).toBe(8);            // HolPrem (all net hours on a stat are OT)
+    expect(est.regularHours).toBe(0);
+    expect(est.daysLogged).toBe(1);
+    // gross = 8 × 17.75 (Holiday) + 8 × 26.625 (HolPrem) = 142 + 213 = 355
+    expect(est.gross).toBeCloseTo(355, 1);
+  });
+
+  it('unworked stat: credits 8h holiday base pay with no actuals', () => {
+    const shift = makeShift({ date: '2026-06-06', isStat: true });
+    const est = calcPayEstimate([shift], today);
+    expect(est.statHolidayHours).toBe(8);
+    expect(est.otHours).toBe(0);
+    expect(est.regularHours).toBe(0);
+    expect(est.daysLogged).toBe(0);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
   });
 });

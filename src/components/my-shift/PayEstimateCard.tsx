@@ -58,6 +58,12 @@ function PeriodBlock({ est, label, nearFinal, scheduleFloor }: PeriodBlockProps)
           <span>Regular <span className="text-gray-400 dark:text-gray-500 text-xs">{fmtHours(est.regularHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
           <span className="tabular-nums">{fmt(est.regularHours * PAY_CONFIG.regularRate)}</span>
         </div>
+        {est.statHolidayHours > 0 && (
+          <div className="flex justify-between text-sm text-violet-600 dark:text-violet-400">
+            <span>Holiday <span className="text-xs">{fmtHours(est.statHolidayHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
+            <span className="tabular-nums">{fmt(est.statHolidayHours * PAY_CONFIG.regularRate)}</span>
+          </div>
+        )}
         {est.otHours > 0 && (
           <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400">
             <span>OT <span className="text-xs">{fmtHours(est.otHours)} × ${PAY_CONFIG.otRate.toFixed(2)}</span></span>
