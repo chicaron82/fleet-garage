@@ -97,7 +97,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   });
 
   const held        = vehicles.filter(v => v.status === 'HELD').length;
-  const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
   const returned    = vehicles.filter(v => v.status === 'RETURNED').length;
   const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
   const cleared     = vehicles.filter(v => v.status === 'CLEAR').length;
@@ -125,6 +124,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
         v.model.toUpperCase().includes(search) ||
         holds.some(h => h.vehicleId === v.id && h.status === 'ACTIVE' && h.damageDescription.toUpperCase().includes(search));
       if (!matchesSearch) return false;
+      // Exception vehicles live exclusively in ExceptionReturnSection — never in the main list
+      if (v.status === 'OUT_ON_EXCEPTION') return false;
       if (activeStatusFilter !== null) return v.status === activeStatusFilter;
       // CLEAR vehicles drop off the default list — searchable, accessible via "Repaired" card
       if (v.status === 'CLEAR' && search === '') return false;
@@ -197,7 +198,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
         <DashboardSummaryCards
           role={user!.role}
           held={held}
-          onException={onException}
           preExisting={preExisting}
           returned={returned}
           cleared={cleared}

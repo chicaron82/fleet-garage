@@ -54,7 +54,6 @@ function Card({ value, label, color, status, activeFilter, onFilterChange }: Car
 interface DashboardSummaryCardsProps {
   role: UserRole;
   held: number;
-  onException: number;
   preExisting: number;
   returned: number;
   cleared: number;
@@ -65,15 +64,22 @@ interface DashboardSummaryCardsProps {
 export function DashboardSummaryCards({
   role,
   held,
-  onException,
   preExisting,
   returned,
   cleared,
   activeFilter,
   onFilterChange,
 }: DashboardSummaryCardsProps) {
-  // VSA & Lead VSA — no cards, just search and flag
-  if (role === 'VSA' || role === 'Lead VSA') return null;
+  // VSA & Lead VSA — core counts with tap-to-filter (exceptions live in ExceptionReturnSection)
+  if (role === 'VSA' || role === 'Lead VSA') {
+    return (
+      <div className="grid grid-cols-3 gap-3">
+        <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"     status="HELD"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
+        <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"   status="PRE_EXISTING" activeFilter={activeFilter} onFilterChange={onFilterChange} />
+        <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"   status="RETURNED"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      </div>
+    );
+  }
 
   // CSR & HIR — returned count only (display, no filter — single card has no drill-down value)
   if (role === 'CSR' || role === 'HIR') {
@@ -84,14 +90,13 @@ export function DashboardSummaryCards({
     );
   }
 
-  // Management — full dashboard, tap any card to filter the list below
+  // Management — tap any card to filter the list below (exceptions live in ExceptionReturnSection)
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-      <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"       status="HELD"             activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={onException} label="On Exception"   color="text-amber-500"                       status="OUT_ON_EXCEPTION" activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"     status="PRE_EXISTING"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"     status="RETURNED"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
-      <Card value={cleared}     label="Repaired"       color="text-green-600 dark:text-green-500"   status="CLEAR"            activeFilter={activeFilter} onFilterChange={onFilterChange} />
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"       status="HELD"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"     status="PRE_EXISTING" activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"     status="RETURNED"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <Card value={cleared}     label="Repaired"       color="text-green-600 dark:text-green-500"   status="CLEAR"        activeFilter={activeFilter} onFilterChange={onFilterChange} />
     </div>
   );
 }
