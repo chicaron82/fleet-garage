@@ -176,6 +176,13 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           </Text>
         </View>
       )}
+      {t.carryOver > 0 && (
+        <View style={s.lotPill}>
+          <Text style={s.lotPillText}>
+            Carry-over from previous shift: {t.carryOver} vehicle{t.carryOver !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
