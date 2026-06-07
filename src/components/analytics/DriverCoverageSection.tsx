@@ -4,7 +4,6 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO } from '../../lib/shiftDay';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
-import { DEMO_DRIVER_COVERAGE } from '../../lib/analytics';
 import { SectionHeader } from './AnalyticsComponents';
 import { HistoryPanel, type HistoryData, type HistoryRow } from './DriverCoverageHistoryPanel';
 
@@ -66,22 +65,21 @@ function gapCls(gap?: number | null, cleans?: number | null): string {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-interface Props { isDemo: boolean; activeBranch: string; }
+interface Props { activeBranch: string; }
 
 
 
-export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
+export function DriverCoverageSection({ activeBranch }: Props) {
   const { washbayLogs } = useWashbayContext();
   const teamMembers = useTeamMembers();
   const driverUsers = useMemo(() => teamMembers.filter(u => u.role === 'Driver'), [teamMembers]);
   const [liveRows, setLiveRows]     = useState<LiveDriverRow[]>([]);
-  const [loading, setLoading]       = useState(!isDemo);
+  const [loading, setLoading]       = useState(true);
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<Record<string, HistoryData | null>>({});
   const [historyLoading, setHistoryLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isDemo) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
@@ -129,7 +127,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
       setLiveRows(rows);
       setLoading(false);
     });
-  }, [isDemo, activeBranch, driverUsers]);
+  }, [activeBranch, driverUsers]);
 
   async function loadHistory(driverName: string, userId: string) {
     if (driverName in historyData) return;
@@ -203,18 +201,11 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
   function toggleExpand(name: string, userId?: string) {
     if (expanded === name) { setExpanded(null); return; }
     setExpanded(name);
-    if (!isDemo && userId) loadHistory(name, userId);
+    if (userId) loadHistory(name, userId);
   }
 
-  // Demo data
-  const demoDrivers  = DEMO_DRIVER_COVERAGE.drivers;
-  const demoCleansAtClose = DEMO_DRIVER_COVERAGE.cleansAtClose;
-
-  // Live data
-  const todayLog       = washbayLogs.find(l => l.date === localDateStr(0));
-  const liveCleansAtClose = todayLog?.carsRemaining ?? null;
-
-  const cleansAtClose = isDemo ? demoCleansAtClose : liveCleansAtClose;
+  const todayLog = washbayLogs.find(l => l.date === localDateStr(0));
+  const cleansAtClose = todayLog?.carsRemaining ?? null;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
@@ -236,35 +227,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
           </div>
 
           {/* Driver rows */}
-          {isDemo ? demoDrivers.map(d => {
-            const isExpanded = expanded === d.name;
-            const bg = rowBg(d.gapMinutes, d.cleans);
-            return (
-              <div key={d.name}>
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(d.name)}
-                  className={`w-full grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 items-center py-2 border-b border-gray-50 dark:border-gray-800/50 last:border-0 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30 ${bg}`}
-                >
-                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{d.name}</span>
-                  <span className="w-20 text-center text-xs text-gray-500 dark:text-gray-400">{d.shift}</span>
-                  <span className="w-16 text-center text-xs text-gray-600 dark:text-gray-400">{d.lastRun}</span>
-                  <span className={`w-10 text-center text-xs tabular-nums ${gapCls(d.gapMinutes, d.cleans)}`}>
-                    {d.gapMinutes}m
-                  </span>
-                  <span className="w-12 text-center text-xs tabular-nums text-gray-700 dark:text-gray-300">
-                    {d.cleans != null ? d.cleans : '—'}
-                  </span>
-                </button>
-                {isExpanded && (
-                  <HistoryPanel
-                    name={d.name}
-                    data={DEMO_DRIVER_COVERAGE.history[d.name] ?? null}
-                  />
-                )}
-              </div>
-            );
-          }) : liveRows.map(d => {
+          {liveRows.map(d => {
             const gap = calcGap(d.shiftEnd, d.lastArrive);
             const bg  = rowBg(gap, null);
             const isExpanded = expanded === d.name;
@@ -297,7 +260,7 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
             );
           })}
 
-          {!isDemo && liveRows.length === 0 && (
+          {liveRows.length === 0 && (
             <p className="text-sm text-gray-400 dark:text-gray-500 italic text-center py-4">
               No drivers on shift today.
             </p>
@@ -323,5 +286,3 @@ export function DriverCoverageSection({ isDemo, activeBranch }: Props) {
     </div>
   );
 }
-
-

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase } from '../../lib/supabase';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -8,14 +7,8 @@ import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO, businessDateOf } from '../../lib/shiftDay';
-import {
-  canEnterFleetBalance,
-  isManagement,
-  DEMO_HOLD_TYPES, DEMO_DAMAGE_TYPES, DEMO_WEEK_ACTIVITY,
-  DEMO_GLANCE, DEMO_EXCEPTION_SUMMARY, DEMO_TRIPS_TODAY,
-} from '../../lib/analytics';
+import { canEnterFleetBalance, isManagement } from '../../lib/analytics';
 import { StatCard } from './AnalyticsComponents';
-import { DemoWashbaySection } from './DemoWashbaySection';
 import { AnalyticsTripsSummary } from './AnalyticsTripsSummary';
 import { WashbayLiveSection } from '../washbay/WashbayLiveSection';
 import { AnalyticsHoldsSummary } from './AnalyticsHoldsSummary';
@@ -39,37 +32,33 @@ export function AnalyticsView() {
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
   const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
-  const [mode, setMode]           = useState<'demo' | 'live'>('live');
-  const canDemo                   = useCanDemo();
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity' | 'my-shift'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 
   useEffect(() => {
-    if (mode !== 'live') return;
     let query = supabase
       .from('vsa_trips')
       .select('trip_type, driver_id')
       .gte('depart_time', shiftDayStartISO(localDateStr(0)));
     if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
     query.then(({ data }) => setTodayTrips((data ?? []) as TripRow[]));
-  }, [mode, activeBranch]);
+  }, [activeBranch]);
 
   if (!user) return null;
 
-  const isDemo   = mode === 'demo';
   const canEnter = canEnterFleetBalance(user.role);
 
-  // ── Live data derivations ──────────────────────────────────────────────────
+  // ── Data derivations ───────────────────────────────────────────────────────
 
   const todayISO    = localDateStr(0);
-  const activeHolds  = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === todayISO);
-  const onException  = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
-  const oneWeekAgo   = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const activeHolds = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === todayISO);
+  const onException = vehicles.filter(v => v.status === 'OUT_ON_EXCEPTION').length;
+  const oneWeekAgo  = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const returnedThisWeek = holds.filter(h =>
     h.status === 'RETURNED' && new Date(h.flaggedAt) >= oneWeekAgo
   ).length;
 
-  const liveHoldTypes = (() => {
+  const holdTypes = (() => {
     const damage     = activeHolds.filter(h => h.holdTypes.includes('damage')).length;
     const detail     = activeHolds.filter(h => h.holdTypes.includes('detail')).length;
     const mechanical = activeHolds.filter(h => h.holdTypes.includes('mechanical')).length;
@@ -81,7 +70,7 @@ export function AnalyticsView() {
     ];
   })();
 
-  const liveDamageTypes = (() => {
+  const damageTypes = (() => {
     const counts: Record<string, number> = {};
     activeHolds
       .filter(h => h.holdTypes.includes('damage'))
@@ -95,22 +84,23 @@ export function AnalyticsView() {
       .map(([label, count]) => ({ label, count }));
   })();
 
-  const liveWeekActivity = (() => {
+  const weekActivity = (() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return Array.from({ length: 7 }, (_, i) => {
       const offsetDays = i - 6;
       const dateStr = localDateStr(offsetDays);
       const date = new Date(); date.setDate(date.getDate() + offsetDays);
-      const dayName = days[date.getDay()];
       return {
-        day:      dayName,
+        day:      days[date.getDay()],
         holds:    holds.filter(h => businessDateOf(h.flaggedAt) === dateStr).length,
         releases: holds.filter(h => h.release && businessDateOf(h.flaggedAt) === dateStr).length,
       };
     });
   })();
 
-  const liveExceptionSummary = (() => {
+  const glance           = { activeHolds: activeHolds.length, onException, returnedThisWeek };
+  const totalHolds       = holdTypes.reduce((s, t) => s + t.count, 0) || 1;
+  const exceptionSummary = (() => {
     const counts: Record<string, number> = {};
     holds.filter(h => h.release?.releaseType === 'EXCEPTION').forEach(h => {
       const reason = h.release?.reason ?? 'Unknown';
@@ -119,13 +109,13 @@ export function AnalyticsView() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([reason, count]) => ({ reason, count }));
   })();
 
-  const todayWashbayLog    = getTodayWashbayLog();
+  const todayWashbayLog     = getTodayWashbayLog();
   const yesterdayWashbayLog = washbayLogs.find(l => {
     const d = new Date(); d.setDate(d.getDate() - 1);
     return l.date === d.toLocaleDateString('en-CA');
   });
-  const todayBalanceEntry  = getTodayEntry();
-  const projection         = getProjection();
+  const todayBalanceEntry   = getTodayEntry();
+  const projection          = getProjection();
   const liveWashbay30DayAvg = washbayLogs.length >= 3
     ? Math.round((washbayLogs.reduce((s, l) => {
         const ci = l.fullPages * 19 + l.lastPageEntries;
@@ -134,16 +124,6 @@ export function AnalyticsView() {
       }, 0) / washbayLogs.length) * 10) / 10
     : null;
 
-  // ── Mode-selected data ─────────────────────────────────────────────────────
-
-  const glance           = isDemo ? DEMO_GLANCE : { activeHolds: activeHolds.length, onException, returnedThisWeek };
-  const holdTypes        = isDemo ? DEMO_HOLD_TYPES : liveHoldTypes;
-  const totalHolds       = holdTypes.reduce((s, t) => s + t.count, 0) || 1;
-  const damageTypes      = isDemo ? DEMO_DAMAGE_TYPES : liveDamageTypes;
-  const weekActivity     = isDemo ? DEMO_WEEK_ACTIVITY : liveWeekActivity;
-  const exceptionSummary = isDemo ? DEMO_EXCEPTION_SUMMARY : liveExceptionSummary;
-
-  // Fleet balance — always real
   const fleetBalanceData = Array.from({ length: 7 }, (_, i) => {
     const offsetDays = i - 6;
     const dateStr = localDateStr(offsetDays);
@@ -158,32 +138,10 @@ export function AnalyticsView() {
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-      {/* Header + mode toggle */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Analytics</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-            {isDemo ? 'Fleet hold summary · sample data' : 'Fleet hold summary · your data'}
-          </p>
-        </div>
-        {canDemo && (
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 transition-colors">
-            {(['demo', 'live'] as const).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors capitalize ${
-                  mode === m
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Analytics</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Fleet hold summary · your data</p>
       </div>
 
       {/* High-severity facility issue banner */}
@@ -199,18 +157,6 @@ export function AnalyticsView() {
           </div>
         );
       })()}
-
-      {/* Live mode banner */}
-      {!isDemo && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-xl px-4 py-3 transition-colors">
-          <p className="text-xs font-semibold text-green-800 dark:text-green-300">
-            📡 Live Data — showing what's been collected so far
-          </p>
-          <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
-            Fleet balance always reflects real entries regardless of mode.
-          </p>
-        </div>
-      )}
 
       {/* Tab toggle */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">
@@ -247,14 +193,12 @@ export function AnalyticsView() {
             holdTypes={holdTypes}
             totalHolds={totalHolds}
             damageTypes={damageTypes}
-            isDemo={isDemo}
             hasLiveHolds={activeHolds.length > 0}
           />
 
           <AnalyticsActivityChart
             weekActivity={weekActivity}
             exceptionSummary={exceptionSummary}
-            isDemo={isDemo}
           />
         </>
       )}
@@ -271,30 +215,22 @@ export function AnalyticsView() {
             projection={projection}
           />
 
-          <AnalyticsTripsSummary
-            isDemo={isDemo}
-            liveTrips={todayTrips}
-            demoData={DEMO_TRIPS_TODAY}
-          />
+          <AnalyticsTripsSummary liveTrips={todayTrips} />
 
           {/* Washbay Operations */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
             <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
               {`Washbay Operations · ${new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }).toUpperCase()}`}
             </h2>
-            {isDemo ? (
-              <DemoWashbaySection />
-            ) : (
-              <WashbayLiveSection
-                todayWashbayLog={todayWashbayLog}
-                yesterdayWashbayLog={yesterdayWashbayLog}
-                todayBalanceEntry={todayBalanceEntry}
-                activeHolds={activeHolds}
-                liveWashbay30DayAvg={liveWashbay30DayAvg}
-                isPeakSeason={isPeakSeason}
-                weekdayAvgBalance={projection}
-              />
-            )}
+            <WashbayLiveSection
+              todayWashbayLog={todayWashbayLog}
+              yesterdayWashbayLog={yesterdayWashbayLog}
+              todayBalanceEntry={todayBalanceEntry}
+              activeHolds={activeHolds}
+              liveWashbay30DayAvg={liveWashbay30DayAvg}
+              isPeakSeason={isPeakSeason}
+              weekdayAvgBalance={projection}
+            />
           </div>
 
           {isManagement(user.role) && (
@@ -314,18 +250,17 @@ export function AnalyticsView() {
               washbayLogs={washbayLogs}
               handoffNotes={handoffNotes}
               checkpoints={shiftCheckpoints}
-              isDemo={isDemo}
             />
           )}
 
-          <TripAnalyticsSection isDemo={isDemo} activeBranch={activeBranch} />
+          <TripAnalyticsSection activeBranch={activeBranch} />
 
-          {isManagement(user.role) && !isDemo && (
+          {isManagement(user.role) && (
             <TurnaroundSection activeBranch={activeBranch} />
           )}
 
           {isManagement(user.role) && (
-            <DriverCoverageSection isDemo={isDemo} activeBranch={activeBranch} />
+            <DriverCoverageSection activeBranch={activeBranch} />
           )}
         </>
       )}

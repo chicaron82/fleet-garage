@@ -3,10 +3,9 @@ import { SectionHeader, EmptyState } from './AnalyticsComponents';
 interface DayActivity { day: string; holds: number; releases: number; }
 interface ExceptionEntry { reason: string; count: number; }
 
-export function AnalyticsActivityChart({ weekActivity, exceptionSummary, isDemo }: {
+export function AnalyticsActivityChart({ weekActivity, exceptionSummary }: {
   weekActivity: DayActivity[];
   exceptionSummary: ExceptionEntry[];
-  isDemo: boolean;
 }) {
   const maxActivity = Math.max(...weekActivity.map(d => d.holds + d.releases), 1);
 
@@ -30,7 +29,7 @@ export function AnalyticsActivityChart({ weekActivity, exceptionSummary, isDemo 
             );
           })}
         </div>
-        {!isDemo && weekActivity.every(d => d.holds === 0 && d.releases === 0) && (
+        {weekActivity.every(d => d.holds === 0 && d.releases === 0) && (
           <EmptyState message="No hold activity recorded this week yet." />
         )}
         <div className="flex items-center gap-4">

@@ -3,11 +3,10 @@ import { SectionHeader, EmptyState } from './AnalyticsComponents';
 interface HoldType { label: string; count: number; color: string; text: string; }
 interface DamageType { label: string; count: number; }
 
-export function AnalyticsHoldsSummary({ holdTypes, totalHolds, damageTypes, isDemo, hasLiveHolds }: {
+export function AnalyticsHoldsSummary({ holdTypes, totalHolds, damageTypes, hasLiveHolds }: {
   holdTypes: HoldType[];
   totalHolds: number;
   damageTypes: DamageType[];
-  isDemo: boolean;
   hasLiveHolds: boolean;
 }) {
   return (
@@ -15,7 +14,7 @@ export function AnalyticsHoldsSummary({ holdTypes, totalHolds, damageTypes, isDe
       {/* Holds by type */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
         <SectionHeader title="Active Holds by Type" />
-        {totalHolds === 0 || (!isDemo && !hasLiveHolds) ? (
+        {totalHolds === 0 || !hasLiveHolds ? (
           <EmptyState message="No active holds recorded yet." />
         ) : (
           <div className="space-y-3">
@@ -39,7 +38,7 @@ export function AnalyticsHoldsSummary({ holdTypes, totalHolds, damageTypes, isDe
 
       {/* Top damage types */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
-        <SectionHeader title={isDemo ? 'Top Damage Types (30 days)' : 'Top Damage Types — Active Holds'} />
+        <SectionHeader title="Top Damage Types — Active Holds" />
         {damageTypes.length === 0 ? (
           <EmptyState message="No damage holds recorded yet." />
         ) : (

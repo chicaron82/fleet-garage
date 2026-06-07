@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO } from '../../lib/shiftDay';
-import { DEMO_DRIVER_TRIP_STATS } from '../../lib/analytics';
 import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import { TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
 import { useProfiles } from '../../context/ProfilesContext';
@@ -16,7 +15,7 @@ interface DriverStatRow {
   weekAvgMinutes: number;
 }
 
-interface Props { isDemo: boolean; activeBranch: string; }
+interface Props { activeBranch: string; }
 
 function avgMin(trips: TripRow[]): number {
   if (trips.length === 0) return 0;
@@ -26,13 +25,12 @@ function avgMin(trips: TripRow[]): number {
   return Math.round(total / trips.length);
 }
 
-export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
+export function TripAnalyticsSection({ activeBranch }: Props) {
   const profiles              = useProfiles();
   const [rows, setRows]       = useState<DriverStatRow[]>([]);
-  const [loading, setLoading] = useState(!isDemo);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isDemo) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const today   = shiftDayStartISO(localDateStr(0));
@@ -75,22 +73,16 @@ export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
       setRows(result);
       setLoading(false);
     });
-  }, [isDemo, activeBranch]);
+  }, [activeBranch]);
 
-  const displayRows     = isDemo ? DEMO_DRIVER_TRIP_STATS.drivers : rows;
-  const totalTrips      = isDemo
-    ? DEMO_DRIVER_TRIP_STATS.totalTrips
-    : rows.reduce((s, r) => s + r.tripsToday, 0);
-  const fleetAvgTrips   = isDemo
-    ? DEMO_DRIVER_TRIP_STATS.fleetAvgTrips
-    : displayRows.length > 0
-      ? Math.round((totalTrips / displayRows.length) * 10) / 10
-      : 0;
-  const fleetAvgMinutes = isDemo
-    ? DEMO_DRIVER_TRIP_STATS.fleetAvgMinutes
-    : displayRows.length > 0
-      ? Math.round(displayRows.reduce((s, r) => s + r.avgMinutes, 0) / displayRows.length)
-      : 0;
+  const displayRows     = rows;
+  const totalTrips      = rows.reduce((s, r) => s + r.tripsToday, 0);
+  const fleetAvgTrips   = displayRows.length > 0
+    ? Math.round((totalTrips / displayRows.length) * 10) / 10
+    : 0;
+  const fleetAvgMinutes = displayRows.length > 0
+    ? Math.round(displayRows.reduce((s, r) => s + r.avgMinutes, 0) / displayRows.length)
+    : 0;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 transition-colors">
@@ -100,11 +92,11 @@ export function TripAnalyticsSection({ isDemo, activeBranch }: Props) {
         <p className="text-sm text-gray-400 dark:text-gray-500 italic">Loading…</p>
       )}
 
-      {!loading && !isDemo && rows.length === 0 && (
+      {!loading && rows.length === 0 && (
         <EmptyState message="No trips logged today yet. Live data appears as drivers complete runs." />
       )}
 
-      {!loading && (isDemo || rows.length > 0) && (
+      {!loading && rows.length > 0 && (
         <>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
             Total trips today:{' '}

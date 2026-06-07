@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canEnterFleetBalance, isManagement, DEMO_WASHBAY_30DAY_AVG } from '../../src/lib/analytics';
+import { canEnterFleetBalance, isManagement } from '../../src/lib/analytics';
 
 describe('canEnterFleetBalance', () => {
   it('allows managers and Lead VSA', () => {
@@ -24,13 +24,5 @@ describe('isManagement', () => {
   it('is false for Lead VSA (a lead is not management here)', () => {
     expect(isManagement('Lead VSA')).toBe(false);
     expect(isManagement('VSA')).toBe(false);
-  });
-});
-
-describe('DEMO_WASHBAY_30DAY_AVG', () => {
-  it('is the rounded mean of the demo history (one decimal)', () => {
-    expect(DEMO_WASHBAY_30DAY_AVG).toBeCloseTo(8.3, 1);
-    // rounded to a single decimal place
-    expect(Math.round(DEMO_WASHBAY_30DAY_AVG * 10) / 10).toBe(DEMO_WASHBAY_30DAY_AVG);
   });
 });

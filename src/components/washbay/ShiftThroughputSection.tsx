@@ -23,23 +23,7 @@ interface Props {
   washbayLogs: WashbayLog[];
   handoffNotes: HandoffNote[];
   checkpoints: ShiftCheckpoint[];
-  isDemo: boolean;
 }
-
-const DEMO_DAYS: DayData[] = [
-  { label: 'Mon', morningRate: 5.2, closingRate: 4.1 },
-  { label: 'Tue', morningRate: 4.8, closingRate: 4.6 },
-  { label: 'Wed', morningRate: 5.5, closingRate: 3.9 },
-  { label: 'Thu', morningRate: 4.3, closingRate: 4.8 },
-  { label: 'Fri', morningRate: 5.1, closingRate: 4.4 },
-  { label: 'Sat', morningRate: 4.9, closingRate: null },
-  { label: 'Sun', morningRate: null, closingRate: 4.2 },
-];
-
-const DEMO_TODAY: TodaySnapshot = {
-  morningCleaned: 42, morningHours: 8.2, morningRate: 5.1,
-  closingCleaned: null, closingHours: null, closingRate: null,
-};
 
 function buildLiveDays(
   washbayLogs: WashbayLog[],
@@ -127,9 +111,9 @@ function rateColor(rate: number): string {
   return 'text-red-500 dark:text-red-400';
 }
 
-export function ShiftThroughputSection({ washbayLogs, handoffNotes, checkpoints, isDemo }: Props) {
-  const days = isDemo ? DEMO_DAYS : buildLiveDays(washbayLogs, handoffNotes, checkpoints);
-  const today = isDemo ? DEMO_TODAY : buildTodaySnapshot(washbayLogs, handoffNotes, checkpoints);
+export function ShiftThroughputSection({ washbayLogs, handoffNotes, checkpoints }: Props) {
+  const days = buildLiveDays(washbayLogs, handoffNotes, checkpoints);
+  const today = buildTodaySnapshot(washbayLogs, handoffNotes, checkpoints);
 
   const morningRates = days.map(d => d.morningRate).filter((r): r is number => r != null);
   const closingRates = days.map(d => d.closingRate).filter((r): r is number => r != null);
