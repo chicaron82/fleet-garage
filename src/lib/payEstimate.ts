@@ -4,20 +4,23 @@ import { calcHours, calcOT, netActualHours } from './ot';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 // Rates and deduction parameters sourced from paystub (PP ending 2026-05-07).
-// Tax rate is the observed effective rate for this income level (~$1,420 gross).
-// CPP and EI are 2026 statutory rates.
+// ⚠️  Update annually each January: CPP/EI rates change on Jan 1 (statutory);
+//     tax rate = observed effective rate from most recent paystub.
 
 export const PAY_CONFIG = {
   employeeId:            '331965',
   regularRate:            17.75,
   otRate:                 26.625,   // exactly 1.5×
-  cppRate:                0.0595,
-  cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods
-  eiRate:                 0.0163,
-  taxRate:                0.117,    // observed effective rate
+  cppRate:                0.0595,   // 2026 statutory — update Jan 1
+  cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods — update Jan 1
+  eiRate:                 0.0163,   // 2026 statutory — update Jan 1
+  taxRate:                0.117,    // observed effective rate — update from first paystub of the year
   anchorPeriodEnd:        '2026-05-07',
   sickDaysEntitlement:    6,        // 48h ÷ 8h; unused days paid out first December payday
 } as const;
+
+// Single source of truth for sick entitlement — imported by usePTOStats for the schedule chip.
+export const SICK_DAYS_ENTITLEMENT = PAY_CONFIG.sickDaysEntitlement;
 
 // ── Period ─────────────────────────────────────────────────────────────────────
 

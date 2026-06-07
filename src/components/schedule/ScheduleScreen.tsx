@@ -8,7 +8,7 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
-import { SICK_DAYS_ENTITLEMENT } from '../../hooks/usePTOStats';
+import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
 import { PtoRequestActionSheet } from './PtoRequestActionSheet';
 
 function weekLabel(date: Date): string {
