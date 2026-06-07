@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { toISO } from '../../context/ScheduleContext';
+import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { rowToShiftBase } from '../../lib/rowToShift';
 import { calcPayEstimate, getPayPeriod, PAY_CONFIG, type PayEstimate } from '../../lib/payEstimate';
@@ -76,6 +76,12 @@ function PeriodBlock({ est, label, nearFinal, scheduleFloor }: PeriodBlockProps)
             <span className="tabular-nums">{fmt(est.otHours * PAY_CONFIG.otRate)}</span>
           </div>
         )}
+        {est.sickPayoutGross > 0 && (
+          <div className="flex justify-between text-sm text-teal-600 dark:text-teal-400">
+            <span>Sick payout <span className="text-xs">{est.sickDaysUnused} day{est.sickDaysUnused !== 1 ? 's' : ''} unused</span></span>
+            <span className="tabular-nums">{fmt(est.sickPayoutGross)}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between items-center border-t border-gray-100 dark:border-gray-800 pt-2">
@@ -117,6 +123,7 @@ function PeriodBlock({ est, label, nearFinal, scheduleFloor }: PeriodBlockProps)
 
 export function PayEstimateCard() {
   const { user } = useAuth();
+  const { sickDaysUsed } = useSchedule();
   const [open, setOpen]     = useState(false);
   const [shifts, setShifts] = useState<Shift[]>([]);
 
@@ -146,10 +153,10 @@ export function PayEstimateCard() {
   }, [user, prevPeriod.start, nextPeriod.end]);
 
   const [prevEst, currEst, nextEst] = useMemo(() => [
-    calcPayEstimate(shifts, prevPeriod.start),
-    calcPayEstimate(shifts, today),
-    calcPayEstimate(shifts, nextPeriod.start),
-  ], [shifts, today, prevPeriod.start, nextPeriod.start]);
+    calcPayEstimate(shifts, prevPeriod.start, sickDaysUsed),
+    calcPayEstimate(shifts, today,            sickDaysUsed),
+    calcPayEstimate(shifts, nextPeriod.start, sickDaysUsed),
+  ], [shifts, today, prevPeriod.start, nextPeriod.start, sickDaysUsed]);
 
   if (user?.employeeId !== PAY_CONFIG.employeeId) return null;
 

@@ -48,6 +48,8 @@ describe('calcPayEstimate', () => {
     expect(est.otHours).toBe(0);
     expect(est.holidayHours).toBe(0);
     expect(est.holPremGross).toBe(0);
+    expect(est.sickPayoutGross).toBe(0);
+    expect(est.sickDaysUnused).toBe(0);
     expect(est.gross).toBe(0);
     expect(est.net).toBe(0);
     expect(est.daysLogged).toBe(0);
@@ -160,5 +162,25 @@ describe('calcPayEstimate', () => {
     expect(est.regularHours).toBe(0);
     expect(est.daysLogged).toBe(0);
     expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
+  });
+
+  it('sick payout: unused days paid out in the period containing Dec 1', () => {
+    // Nov 20–Dec 3 period contains Dec 1; 2 sick days used → 4 days unused
+    const est = calcPayEstimate([], '2026-12-01', 2);
+    expect(est.sickDaysUnused).toBe(4);
+    expect(est.sickPayoutGross).toBeCloseTo(4 * 8 * PAY_CONFIG.regularRate, 5);
+    expect(est.gross).toBeCloseTo(4 * 8 * PAY_CONFIG.regularRate, 5);
+  });
+
+  it('sick payout: zero outside the December payout period', () => {
+    const est = calcPayEstimate([], '2026-06-06', 0);
+    expect(est.sickPayoutGross).toBe(0);
+    expect(est.sickDaysUnused).toBe(0);
+  });
+
+  it('sick payout: full entitlement when no sick days used', () => {
+    const est = calcPayEstimate([], '2026-12-01', 0);
+    expect(est.sickDaysUnused).toBe(PAY_CONFIG.sickDaysEntitlement);
+    expect(est.sickPayoutGross).toBeCloseTo(PAY_CONFIG.sickDaysEntitlement * 8 * PAY_CONFIG.regularRate, 5);
   });
 });

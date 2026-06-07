@@ -16,6 +16,7 @@ export const PAY_CONFIG = {
   eiRate:                 0.0163,
   taxRate:                0.117,    // observed effective rate
   anchorPeriodEnd:        '2026-05-07',
+  sickDaysEntitlement:    6,        // 48h ÷ 8h; unused days paid out first December payday
 } as const;
 
 // ── Period ─────────────────────────────────────────────────────────────────────
@@ -39,24 +40,26 @@ export function getPayPeriod(today: string): { start: string; end: string } {
 // ── Estimate ───────────────────────────────────────────────────────────────────
 
 export interface PayEstimate {
-  periodStart:    string;
-  periodEnd:      string;
-  regularHours:   number;
-  otHours:        number;   // real OT on non-stat days
-  holidayHours:   number;   // hours worked on a stat (Holiday line, at regularRate)
-  holPremGross:   number;   // stat entitlement dollars — worked stat: net×otRate; unworked: 8h×regularRate
-  gross:          number;
-  cpp:            number;
-  ei:             number;
-  tax:            number;
-  net:            number;
-  daysLogged:     number;
-  daysProjected:  number;
-  ptoDays:        number;
+  periodStart:     string;
+  periodEnd:       string;
+  regularHours:    number;
+  otHours:         number;   // real OT on non-stat days
+  holidayHours:    number;   // hours worked on a stat (Holiday line, at regularRate)
+  holPremGross:    number;   // stat entitlement dollars — worked stat: net×otRate; unworked: 8h×regularRate
+  sickPayoutGross: number;   // unused sick days × 8h × regularRate; non-zero only in the Dec payout period
+  sickDaysUnused:  number;   // how many of the entitlement days were unused (drives the payout)
+  gross:           number;
+  cpp:             number;
+  ei:              number;
+  tax:             number;
+  net:             number;
+  daysLogged:      number;
+  daysProjected:   number;
+  ptoDays:         number;
 }
 
 // myShifts should already be filtered to the current user.
-export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
+export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed = 0): PayEstimate {
   const { start, end } = getPayPeriod(today);
 
   const periodShifts = myShifts.filter(s => s.date >= start && s.date <= end);
@@ -102,14 +105,23 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
     // day-off, sick (non-PTO, non-stat): $0
   }
 
+  // Sick day payout: unused entitlement paid out on the first December payday.
+  // Trigger: this period contains Dec 1 (year-agnostic).
+  const decFirst = `${start.slice(0, 4)}-12-01`;
+  const sickDaysUnused    = decFirst >= start && decFirst <= end
+    ? Math.max(0, PAY_CONFIG.sickDaysEntitlement - sickDaysUsed)
+    : 0;
+  const sickPayoutGross   = sickDaysUnused * 8 * PAY_CONFIG.regularRate;
+
   const gross = regularHours  * PAY_CONFIG.regularRate
               + otHours        * PAY_CONFIG.otRate
               + holidayHours   * PAY_CONFIG.regularRate
-              + holPremGross;
+              + holPremGross
+              + sickPayoutGross;
   const cpp   = Math.max(0, gross - PAY_CONFIG.cppBiweeklyExemption) * PAY_CONFIG.cppRate;
   const ei    = gross * PAY_CONFIG.eiRate;
   const tax   = gross * PAY_CONFIG.taxRate;
   const net   = gross - cpp - ei - tax;
 
-  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, gross, cpp, ei, tax, net, daysLogged, daysProjected, ptoDays };
+  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, sickPayoutGross, sickDaysUnused, gross, cpp, ei, tax, net, daysLogged, daysProjected, ptoDays };
 }
