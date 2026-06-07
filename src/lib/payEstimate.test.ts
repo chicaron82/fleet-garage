@@ -125,8 +125,7 @@ describe('calcPayEstimate', () => {
     expect(PAY_CONFIG.employeeId).toBe('331965');
   });
 
-  it('credits regular hours for a PTO shift with no actual hours', () => {
-    // 13:30–23:00 = 9.5h gross, net = 9h, capped at 8h regular
+  it('credits 8 regular hours for a PTO shift (always a full day)', () => {
     const shift = makeShift({ date: '2026-06-06', shiftType: 'pto' });
     const est = calcPayEstimate([shift], today);
     expect(est.regularHours).toBe(8);

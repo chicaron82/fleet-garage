@@ -80,12 +80,9 @@ export function calcPayEstimate(myShifts: Shift[], today: string): PayEstimate {
       // Worked stat: base holiday entitlement (Holiday line) on top of OT premium
       if (shift.isStat) statHolidayHours += net;
     } else if (shift.shiftType === 'pto') {
-      // PTO is paid at regular rate whether or not actual hours are logged
       ptoDays++;
       daysProjected++;
-      const scheduled = calcHours(shift.startTime, shift.endTime);
-      const net       = netActualHours(scheduled);
-      regularHours   += net > 0 ? Math.min(net, 8) : 8;
+      regularHours += 8;
     } else if (!isFullDayShift(shift.shiftType) && !shift.isStat) {
       // Unlogged working day — project from scheduled hours (no OT assumed)
       daysProjected++;
