@@ -60,7 +60,7 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
     // Primary write — throw on failure like the sibling ops so the caller can
     // surface it instead of flipping local state on a write that didn't land.
     const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId)
+      supabase.from('holds').update({ status: 'VOIDED' }).eq('id', holdId)
     );
     if (error) throw new Error(`Failed to clear sale flag: ${(error as { message?: string }).message}`);
     if (hold.release) await writeWithRefresh(() =>
@@ -71,7 +71,7 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
     const projectedHolds = holds
       .filter(h => h.vehicleId === hold.vehicleId)
       .map(h => h.id === holdId
-        ? { ...h, status: 'RETURNED' as const, release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined }
+        ? { ...h, status: 'VOIDED' as const, release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined }
         : h);
     const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
     const { error: vehErr } = await writeWithRefresh(() =>
@@ -81,7 +81,7 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
     await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], 'ℹ️',
       `Sale/auction flag cleared on unit ${unit} (logged in error) by ${clearedByName}.`, 'info', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
-      ...h, status: 'RETURNED',
+      ...h, status: 'VOIDED',
       release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined,
     }));
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));

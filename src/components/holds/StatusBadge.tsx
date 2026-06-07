@@ -16,6 +16,7 @@ const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {
   RELEASED: { label: 'Released',   className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' },
   RETURNED: { label: 'Returned',   className: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' },
   REPAIRED: { label: 'Repaired',   className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50' },
+  VOIDED:   { label: 'Voided',     className: 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700/50' },
 };
 
 export function StatusBadge({ status, holdTypes, mechanicalSubType }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null }) {
