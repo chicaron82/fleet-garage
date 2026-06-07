@@ -94,6 +94,9 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         isTesla,
         hasMobileCable:  isTesla ? hasMobileCable  : null,
         hasJ1772Adapter: isTesla ? hasJ1772Adapter : null,
+        // Fleet-add path has no hold — vehicle enters clean. Hold path lets
+        // addVehicle default to HELD, then addHold overwrites it immediately.
+        status: returnTo === 'fleet' ? 'CLEAR' : undefined,
       });
       hapticMedium();
       if (returnTo === 'fleet') {
