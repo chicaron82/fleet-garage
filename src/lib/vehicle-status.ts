@@ -96,3 +96,31 @@ export function factsFromHold(hold: {
     isPreExisting:    released && rt === 'PRE_EXISTING',
   };
 }
+
+/**
+ * Derives the status AND returns the holds in the winning bucket, in the same
+ * cascade priority as `deriveHoldStatus`. Callers get status + group from one
+ * derivation — no need to re-implement the bucket predicates locally.
+ *
+ * `group` is empty when status is 'clear'. `winner` selection (earliest by
+ * created_at or equivalent) is left to the caller since this module is
+ * agnostic about the T shape.
+ */
+export function deriveWithWinner<T>(
+  pairs: Array<{ facts: HoldFacts; hold: T }>
+): { status: HoldDerivedStatus; group: T[] } {
+  const status = deriveHoldStatus(pairs.map(p => p.facts));
+  if (status === 'clear') return { status, group: [] };
+  const group = pairs
+    .filter(({ facts: f }) => {
+      switch (status) {
+        case 'held':               return f.isActive && !f.isSaleCar;
+        case 'sale-car':           return f.isActive && f.isSaleCar;
+        case 'auction-short-term': return f.isOpenException && f.isSaleCar;
+        case 'pre-existing':       return f.isPreExisting;
+        case 'on-exception':       return f.isOpenException || f.isOpenMechanical;
+      }
+    })
+    .map(p => p.hold);
+  return { status, group };
+}

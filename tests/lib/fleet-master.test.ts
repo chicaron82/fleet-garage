@@ -193,6 +193,37 @@ describe('buildFleetView — inventory fallback', () => {
   });
 });
 
+// ── Degenerate-data guard ─────────────────────────────────────────────────────
+// Before deriveWithWinner, buildFleetView re-implemented each cascade predicate
+// locally. If vehicle-status.ts changed a rule without updating fleet-master.ts
+// the local bucket could end up empty while derived said non-clear → sorted[0]
+// threw and blanked the entire fleet list. The guard below confirms that edge-case
+// holds degrade gracefully (status → clear, no throw) instead of crashing the map.
+
+describe('buildFleetView — degenerate data guard', () => {
+  it('does not throw when a hold has null releases (degenerates to clear)', () => {
+    const h = hold({ status: 'RELEASED', releases: null });
+    expect(() => buildFleetView([vehicle()], [h], noInventory)).not.toThrow();
+    const [v] = buildFleetView([vehicle()], [h], noInventory);
+    expect(v.status).toBe('clear');
+    expect(v.holdId).toBeUndefined();
+  });
+
+  it('does not throw or blank the list when one vehicle has no recognisable holds', () => {
+    // Mix of normal + edge-case vehicles — the bad one must not take down the rest.
+    const v1 = vehicle({ id: 'v1', license_plate: 'GOOD01' });
+    const v2 = vehicle({ id: 'v2', license_plate: 'EDGE02' });
+    const goodHold = hold({ id: 'h1', vehicle_id: 'v1', hold_types: ['mechanical'], status: 'ACTIVE' });
+    const edgeHold = hold({ id: 'h2', vehicle_id: 'v2', status: 'RELEASED', releases: null });
+    const out = buildFleetView([v1, v2], [goodHold, edgeHold], noInventory);
+    expect(out).toHaveLength(2);
+    const good = out.find(v => v.licensePlate === 'GOOD01')!;
+    const edge = out.find(v => v.licensePlate === 'EDGE02')!;
+    expect(good.status).toBe('held');
+    expect(edge.status).toBe('clear');
+  });
+});
+
 // ── Sorting ───────────────────────────────────────────────────────────────────
 
 describe('buildFleetView — sort order', () => {

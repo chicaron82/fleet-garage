@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { deriveHoldStatus, factsFromRow } from './vehicle-status';
+import { deriveWithWinner, factsFromRow, type HoldDerivedStatus } from './vehicle-status';
 
 export type FleetStatus =
   | 'pre-existing'
@@ -75,6 +75,14 @@ function allTypeLabels(hs: HoldRow[]): string[] {
   return out.length > 0 ? out : ['Hold'];
 }
 
+// Fixed display labels for non-'held' statuses (held uses allTypeLabels over active holds)
+const FIXED_LABELS: Partial<Record<HoldDerivedStatus, string[]>> = {
+  'sale-car':           ['Sale Car'],
+  'auction-short-term': ['Auction'],
+  'pre-existing':       ['Pre-existing'],
+  'on-exception':       ['Exception'],
+};
+
 /**
  * Pure status-resolution for the fleet master view. Given the raw vehicle and
  * hold rows plus today's inventory plate→status map, resolves each vehicle's
@@ -104,12 +112,6 @@ export function buildFleetView(
 
   const result: FleetVehicle[] = vehicles.map(v => {
     const vehicleHolds = holdsByVehicle.get(v.id) ?? [];
-    const activeHolds = vehicleHolds.filter(h => h.status === 'ACTIVE');
-    const exceptionReleased = vehicleHolds.filter(h =>
-      h.status === 'RELEASED' &&
-      (h.releases ?? []).some(r =>
-        (r.release_type === 'EXCEPTION' || r.release_type === 'MECHANICAL_RELEASE') && !r.actual_return)
-    );
 
     let status: FleetStatus = 'clear';
     let holdId: string | undefined;
@@ -118,69 +120,27 @@ export function buildFleetView(
     let holdCount = 0;
     let holdSummary: string[] = [];
 
-    const saleCarActive    = activeHolds.filter(h => (h.hold_types ?? []).includes('sale_car'));
-    const regularActive    = activeHolds.filter(h => !(h.hold_types ?? []).includes('sale_car'));
-    const saleCarReleased  = vehicleHolds.filter(h =>
-      h.status === 'RELEASED' &&
-      (h.hold_types ?? []).includes('sale_car') &&
-      (h.releases ?? []).some(r => r.release_type === 'EXCEPTION' && !r.actual_return)
+    const { status: derived, group: winGroup } = deriveWithWinner(
+      vehicleHolds.map(h => ({ facts: factsFromRow(h), hold: h }))
     );
-    // Pre-existing is a release decision, not a hold type: a hold released as
-    // PRE_EXISTING means the damage is accepted as-is and the vehicle stays in
-    // circulation. Detect it from the release record, not from hold_types.
-    const preExReleased    = vehicleHolds.filter(h =>
-      h.status === 'RELEASED' &&
-      (h.releases ?? []).some(r => r.release_type === 'PRE_EXISTING')
-    );
+    const winner = [...winGroup].sort((a, b) => a.created_at.localeCompare(b.created_at))[0] ?? null;
 
-    const derived = deriveHoldStatus(vehicleHolds.map(factsFromRow));
-
-    if (derived === 'held') {
-      // ACTIVE non-pre-existing, non-sale-car holds → held
-      const sorted = regularActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
-      status = 'held';
-      holdId = sorted[0].id;
-      holdFlaggedAt = sorted[0].created_at;
-      holdCount = activeHolds.length;
-      holdSummary = allTypeLabels(activeHolds);
+    if (winner !== null) {
+      status = derived as FleetStatus;
+      holdId = winner.id;
+      holdFlaggedAt = winner.created_at;
+      if (derived === 'held') {
+        // holdCount/holdSummary aggregate all active holds (sale-car included)
+        const allActive = vehicleHolds.filter(h => h.status === 'ACTIVE');
+        holdCount = allActive.length;
+        holdSummary = allTypeLabels(allActive);
+      } else {
+        holdCount = winGroup.length;
+        holdSummary = FIXED_LABELS[derived] ?? ['Hold'];
+      }
       holdType = holdSummary[0];
-    } else if (derived === 'sale-car') {
-      // ACTIVE sale_car hold
-      const sorted = saleCarActive.sort((a, b) => a.created_at.localeCompare(b.created_at));
-      status = 'sale-car';
-      holdId = sorted[0].id;
-      holdFlaggedAt = sorted[0].created_at;
-      holdCount = saleCarActive.length;
-      holdSummary = ['Sale Car'];
-      holdType = 'Sale Car';
-    } else if (derived === 'auction-short-term') {
-      // Released sale_car → out on auction short-term (beats pre-existing)
-      const sorted = saleCarReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
-      status = 'auction-short-term';
-      holdId = sorted[0].id;
-      holdFlaggedAt = sorted[0].created_at;
-      holdCount = saleCarReleased.length;
-      holdSummary = ['Auction'];
-      holdType = 'Auction';
-    } else if (derived === 'pre-existing') {
-      // Hold released as PRE_EXISTING → damage accepted as-is, stays in circulation
-      const sorted = preExReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
-      status = 'pre-existing';
-      holdId = sorted[0].id;
-      holdFlaggedAt = sorted[0].created_at;
-      holdCount = preExReleased.length;
-      holdSummary = ['Pre-existing'];
-      holdType = 'Pre-existing';
-    } else if (derived === 'on-exception') {
-      const sorted = exceptionReleased.sort((a, b) => a.created_at.localeCompare(b.created_at));
-      status = 'on-exception';
-      holdId = sorted[0].id;
-      holdFlaggedAt = sorted[0].created_at;
-      holdCount = exceptionReleased.length;
-      holdSummary = ['Exception'];
-      holdType = 'Exception';
     }
-    // RELEASED hold with no active exception — fall through to inventory
+    // winner === null → derived is 'clear' → fall through to inventory
 
     if (status === 'clear') {
       const inv = inventoryMap.get(v.license_plate.toUpperCase());
