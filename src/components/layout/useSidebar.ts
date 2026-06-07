@@ -19,7 +19,7 @@ import type { LiveNotification } from './SidebarNotificationPopover';
 
 export function useSidebar() {
   const { user, activeBranch } = useAuth();
-  const { holds } = useVehicleHoldContext();
+  const { vehicles } = useVehicleHoldContext();
   const { washbayLogs, shiftCheckpoints } = useWashbayContext();
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
@@ -28,9 +28,9 @@ export function useSidebar() {
   const todayFleetEntry  = getTodayEntry();
   const fleetProjection  = getProjection();
   const openHighIssues  = facilityIssues.filter(i => !i.clearedAt && i.severity === 'high').length;
-  const activeHolds     = holds.filter(h => h.status === 'ACTIVE').length;
+  const heldVehicles    = vehicles.filter(v => v.status === 'HELD').length;
   const MODULE_BADGES: Partial<Record<Module, number>> = {
-    'holds': activeHolds,
+    'holds': heldVehicles,
     'issue-log':    openHighIssues,
   };
 

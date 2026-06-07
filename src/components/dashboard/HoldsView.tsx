@@ -33,7 +33,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
     const saved = sessionStorage.getItem('dashboard_page');
     return saved ? parseInt(saved, 10) : 1;
   });
-  const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<VehicleStatus | null>(() => {
+    const saved = sessionStorage.getItem('dashboard_status_filter');
+    return saved ? saved as VehicleStatus : null;
+  });
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
@@ -52,6 +55,11 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   useEffect(() => {
     sessionStorage.setItem('dashboard_page', String(currentPage));
   }, [currentPage]);
+
+  useEffect(() => {
+    if (activeStatusFilter) sessionStorage.setItem('dashboard_status_filter', activeStatusFilter);
+    else sessionStorage.removeItem('dashboard_status_filter');
+  }, [activeStatusFilter]);
 
   const ITEMS_PER_PAGE = 15;
 

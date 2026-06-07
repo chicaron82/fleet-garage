@@ -73,10 +73,9 @@ export function DashboardSummaryCards({
   // VSA & Lead VSA — core counts with tap-to-filter (exceptions live in ExceptionReturnSection)
   if (role === 'VSA' || role === 'Lead VSA') {
     return (
-      <div className="grid grid-cols-3 gap-3">
-        <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"     status="HELD"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
-        <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500"   status="PRE_EXISTING" activeFilter={activeFilter} onFilterChange={onFilterChange} />
-        <Card value={returned}    label="Returned"       color="text-gray-500 dark:text-gray-400"   status="RETURNED"     activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <div className="grid grid-cols-2 gap-3">
+        <Card value={held}        label="Currently Held" color="text-red-600 dark:text-red-500"   status="HELD"         activeFilter={activeFilter} onFilterChange={onFilterChange} />
+        <Card value={preExisting} label="Pre-existing"   color="text-blue-600 dark:text-blue-500" status="PRE_EXISTING" activeFilter={activeFilter} onFilterChange={onFilterChange} />
       </div>
     );
   }
