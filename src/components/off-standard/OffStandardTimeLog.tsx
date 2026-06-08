@@ -55,6 +55,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     setEdvExterior,
     edvInterior,
     setEdvInterior,
+    edvPlateMatch,
     selectPreset,
     saveNotes,
     handleStart,
@@ -173,6 +174,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                 <EDVNoMatchFields
                   plate={edvPlate}
                   onPlateChange={setEdvPlate}
+                  match={edvPlateMatch}
                   exterior={edvExterior}
                   onExteriorChange={setEdvExterior}
                   interior={edvInterior}
@@ -226,7 +228,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               </div>
               {selectedPreset === 'edv' && edvNoMatch && (
                 <EDVNoMatchFields
-                  plate={edvPlate} onPlateChange={setEdvPlate}
+                  plate={edvPlate} onPlateChange={setEdvPlate} match={edvPlateMatch}
                   exterior={edvExterior} onExteriorChange={setEdvExterior}
                   interior={edvInterior} onInteriorChange={setEdvInterior}
                 />

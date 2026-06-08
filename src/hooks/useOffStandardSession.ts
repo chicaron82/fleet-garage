@@ -232,6 +232,8 @@ export function useOffStandardSession({
     }
 
     if (selectedPreset === 'edv' && edvLinkedHoldId) await linkEdvHold(edvLinkedHoldId);
+    // Stage a manually-entered EDV plate so it's recognized next time (best-effort).
+    if (selectedPreset === 'edv' && edvNoMatch && edvPlate.trim()) edv.rememberEdvPlate();
 
     setStopTimestamp(now);
     setPendingMinutes(mins);
@@ -290,6 +292,7 @@ export function useOffStandardSession({
     setEdvExterior: edv.setEdvExterior,
     edvInterior,
     setEdvInterior: edv.setEdvInterior,
+    edvPlateMatch: edv.edvPlateMatch,
     selectPreset,
     saveNotes,
     handleStart,

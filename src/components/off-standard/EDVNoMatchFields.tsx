@@ -1,18 +1,25 @@
 import type { Dispatch, SetStateAction } from 'react';
+import type { KnownPlate } from '../../lib/vehicleByPlate';
 
 interface Props {
   plate: string;
   onPlateChange: Dispatch<SetStateAction<string>>;
+  match?: KnownPlate | null;
   exterior: boolean;
   onExteriorChange: Dispatch<SetStateAction<boolean>>;
   interior: boolean;
   onInteriorChange: Dispatch<SetStateAction<boolean>>;
 }
 
+function describeMatch(m: KnownPlate): string {
+  const veh = [m.year, m.make, m.model].filter(Boolean).join(' ');
+  return [m.unitNumber ? `Unit ${m.unitNumber}` : '', veh].filter(Boolean).join(' · ');
+}
+
 const PILL_ACTIVE   = 'bg-amber-500 border-amber-500 text-white';
 const PILL_INACTIVE = 'border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:border-amber-400';
 
-export function EDVNoMatchFields({ plate, onPlateChange, exterior, onExteriorChange, interior, onInteriorChange }: Props) {
+export function EDVNoMatchFields({ plate, onPlateChange, match, exterior, onExteriorChange, interior, onInteriorChange }: Props) {
   return (
     <div className="mt-2 px-3 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 space-y-3">
       <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -30,6 +37,17 @@ export function EDVNoMatchFields({ plate, onPlateChange, exterior, onExteriorCha
           placeholder="e.g. LUR249"
           className="w-full px-2 py-1.5 rounded-md border border-amber-300 dark:border-amber-700 text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
         />
+        {plate.trim().length >= 4 && (
+          match ? (
+            <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1.5">
+              ✓ Recognized{describeMatch(match) ? ` — ${describeMatch(match)}` : ' from a previous log'}
+            </p>
+          ) : (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 italic">
+              New plate — we'll remember it for next time.
+            </p>
+          )
+        )}
       </div>
 
       <div>

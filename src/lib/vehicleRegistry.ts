@@ -168,6 +168,29 @@ export async function lookupRegistry(params: {
     : { status: 'found', entry };
 }
 
+/**
+ * Cross-date "have we ever seen this plate" recall. lookupRegistry is scoped to a
+ * single day (the arrival/throughput flow); this scans every date for the most
+ * recent sighting — the permanent memory that lets a plate entered once be
+ * recognized on later days. Returns null when the plate was never seen. The
+ * caller passes a normalized plate (see normalizePlate in lib/vehicleByPlate).
+ */
+export async function lookupRegistryAnyDate(
+  plate: string,
+  branchId: string,
+): Promise<VehicleRegistryEntry | null> {
+  if (!plate) return null;
+  const { data } = await supabase
+    .from('vehicle_registry')
+    .select('*')
+    .eq('branch_id', branchId)
+    .eq('plate', plate)
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? mapEntry(data as Row) : null;
+}
+
 // ── Create or enrich ──────────────────────────────────────────────────────────
 
 export async function createOrEnrichRegistry(params: {

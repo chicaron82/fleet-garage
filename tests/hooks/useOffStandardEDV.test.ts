@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+
+// useOffStandardEDV now composes useVehicleByPlate (which reads Auth + VehicleHold
+// context) for plate recognition. Stub it so the hook can render without providers.
+vi.mock('../../src/hooks/useVehicleByPlate', () => ({
+  useVehicleByPlate: () => ({ resolve: async () => null, remember: async () => null }),
+}));
+
 import { useOffStandardEDV } from '../../src/hooks/useOffStandardEDV';
 
 const DEFAULT_PROPS = {

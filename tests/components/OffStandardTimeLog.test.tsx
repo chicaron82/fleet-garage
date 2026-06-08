@@ -81,6 +81,12 @@ vi.mock('../../src/context/ScheduleContext', () => ({
   }),
 }));
 
+// EDV plate recognition composes useVehicleByPlate (Auth + VehicleHold context);
+// stub it so the timer test stays focused on the off-standard write path.
+vi.mock('../../src/hooks/useVehicleByPlate', () => ({
+  useVehicleByPlate: () => ({ resolve: async () => null, remember: async () => null }),
+}));
+
 // Date Proxy Setup
 const RealDate = global.Date;
 let mockTime: number | null = null;
