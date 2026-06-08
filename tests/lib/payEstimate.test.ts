@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getPayPeriod, calcPayEstimate, PAY_CONFIG } from '../../src/lib/payEstimate';
-import type { Shift } from '../types';
+import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
   return {
