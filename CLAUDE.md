@@ -48,16 +48,20 @@ no longer a warning tier. The only carve-outs in `eslint.config.js` are the
 ## Tests
 
 Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
-`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 34 of 38 `src/lib`
-modules are tested; the only gaps are IO/glue (`audit-export`, `demo-accounts`,
-`image`, `supabase`). When a new pure function lands in `src/lib/`, add its test
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 41 of 47 `src/lib`
+modules are tested; the remaining gaps are IO/glue and pure renderers
+(`audit-export`, `demo-accounts`, `hold-export`, `image`, `supabase`,
+`vsaTripWrite`). When a new pure function lands in `src/lib/`, add its test
 under `tests/lib/` in the same commit.
 
-> Convention note: lib tests now live **only** under `tests/lib/` — the 6
-> stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
+> Convention note: lib tests now live **only** under `tests/`, mirroring `src/` —
+> the 6 stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
 > (`gas-sheet` + `garage-mappers` were merges — each `src/lib` copy covered cases
-> the `tests/lib` copy didn't, so they were unioned, not moved). Keep all new
-> tests in `tests/`.
+> the `tests/lib` copy didn't, so they were unioned, not moved). Three more drifted
+> back in and were re-consolidated 2026-06-08: `shift-metrics` (unioned — its
+> `fleeting_sent`/carry-over/`sentToFleet`-seam cases were unique), `washbay-throughput`
+> and `types/index` (clean moves). Keep all new tests in `tests/` — this rule has
+> needed re-enforcing twice now, so don't co-locate "just this one."
 
 ## Build & Test
 

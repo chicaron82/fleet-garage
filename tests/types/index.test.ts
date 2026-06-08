@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveRouting, canRelease, canLogHandoff, canVsaClear, isFullDayShift } from './index';
-import type { ConditionRating } from './index';
+import { deriveRouting, canRelease, canLogHandoff, canVsaClear, isFullDayShift } from '../../src/types/index';
+import type { ConditionRating } from '../../src/types/index';
 
 describe('deriveRouting', () => {
   it('escalated interior → escalated', () => {

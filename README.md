@@ -71,7 +71,7 @@ VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ### Build & Lint
 
 ```bash
-npm run build    # tsc --noEmit && vite build
+npm run build    # tsc -b && vite build
 npm run lint     # eslint
 ```
 

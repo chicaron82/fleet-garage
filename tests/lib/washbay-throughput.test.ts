@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sentToFleet } from './washbay-throughput';
+import { sentToFleet } from '../../src/lib/washbay-throughput';
 
 // gasSheetCount = fullPages * 19 + lastPageEntries. 2 pages + 5 = 43 cars fuelled.
 const base = { fullPages: 2, lastPageEntries: 5, carsRemaining: 0, nonRentablesFuelled: 0, deferredCompletions: 0 };
