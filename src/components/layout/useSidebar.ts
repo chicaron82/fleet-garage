@@ -4,7 +4,8 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { isRealAccount } from '../../lib/demo-accounts';
@@ -23,7 +24,7 @@ export function useSidebar() {
   const { washbayLogs, shiftCheckpoints } = useWashbayContext();
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
-  const { getTodayEntry, getProjection } = useFleetBalance();
+  const { getTodayEntry, getProjection } = useFleetBalanceContext();
 
   const todayFleetEntry  = getTodayEntry();
   const fleetProjection  = getProjection();

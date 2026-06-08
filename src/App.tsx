@@ -4,6 +4,7 @@ import { VehicleHoldProvider } from './context/VehicleHoldContext';
 import { WashbayProvider } from './context/WashbayContext';
 import { IssueProvider } from './context/IssueContext';
 import { LostFoundProvider } from './context/LostFoundContext';
+import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
@@ -178,13 +179,15 @@ export default function App() {
         <WashbayProvider>
           <IssueProvider>
             <LostFoundProvider>
-              <AppShell activeModule={activeModule} onNavigate={navigate}>
-                <AppErrorBoundary>
-                  <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
-                    {renderScreen()}
-                  </Suspense>
-                </AppErrorBoundary>
-              </AppShell>
+              <FleetBalanceProvider>
+                <AppShell activeModule={activeModule} onNavigate={navigate}>
+                  <AppErrorBoundary>
+                    <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
+                      {renderScreen()}
+                    </Suspense>
+                  </AppErrorBoundary>
+                </AppShell>
+              </FleetBalanceProvider>
               {showLogoutConfirm && (
                 <LogoutConfirm
                   onConfirm={() => { setShowLogoutConfirm(false); logout(); }}

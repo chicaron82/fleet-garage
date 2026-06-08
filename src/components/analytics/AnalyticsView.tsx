@@ -5,7 +5,8 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, businessDateOf } from '../../lib/shiftDay';
 import { canEnterFleetBalance, isManagement } from '../../lib/analytics';
 import { StatCard } from './AnalyticsComponents';
@@ -31,7 +32,7 @@ export function AnalyticsView() {
   const { washbayLogs, handoffNotes, getTodayWashbayLog, shiftCheckpoints } = useWashbayContext();
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
-  const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
+  const { entries, loading, upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
   const [activeTab, setActiveTab] = useState<'holds' | 'productivity' | 'my-shift'>('holds');
   const [todayTrips, setTodayTrips] = useState<TripRow[]>([]);
 

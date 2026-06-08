@@ -12,7 +12,14 @@ interface Props {
 export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Props) {
   const { user } = useAuth();
   const { getName } = useUserResolver();
-  const [editing, setEditing] = useState(!todayEntry);
+  // `editing` defaults false (NOT `!todayEntry`): the summary-vs-form choice is
+  // made from the *live* todayEntry prop in the render gate below. todayEntry
+  // arrives async from the parent fetch, so seeding `editing` from it once at
+  // mount used to strand the form blank in entry mode (showing the estimate)
+  // after a remount that painted before the fetch resolved. The edit-mode inputs
+  // are seeded in the Edit button's onClick so they reflect todayEntry even if it
+  // loaded after mount.
+  const [editing, setEditing] = useState(false);
   const [outCount, setOutCount] = useState(todayEntry?.outCount.toString() ?? '');
   const [inCount, setInCount] = useState(todayEntry?.inCount.toString() ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +57,11 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
             Today's Fleet Numbers
           </h3>
           <button
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setOutCount(todayEntry.outCount.toString());
+              setInCount(todayEntry.inCount.toString());
+              setEditing(true);
+            }}
             className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition cursor-pointer"
           >
             Edit

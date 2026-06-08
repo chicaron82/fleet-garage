@@ -12,7 +12,8 @@ import { ShiftSummarySection } from '../analytics/ShiftSummarySection';
 import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
-import { useFleetBalance, localDateStr } from '../../hooks/useFleetBalance';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus, HandoffNote } from '../../types';
@@ -149,7 +150,7 @@ export function MyShiftView() {
   const isManagementRole  = ['Lead VSA', 'Branch Manager', 'Operations Manager'].includes(user!.role);
   const canSeeCheckIn     = isScheduledToday || isManagementRole;
 
-  const { upsertEntry, getTodayEntry, getProjection } = useFleetBalance();
+  const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
   const checkInDoneToday  = !!getTodayCheckpoint();
   const handoffDoneToday  = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
