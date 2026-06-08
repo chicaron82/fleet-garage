@@ -91,8 +91,8 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
         otHours      += ot;
         regularHours += Math.max(0, net - ot);
       }
-    } else if (shift.shiftType === 'pto') {
-      ptoDays++;
+    } else if (shift.shiftType === 'pto' || shift.shiftType === 'sick') {
+      if (shift.shiftType === 'pto') ptoDays++;
       daysProjected++;
       regularHours += 8;
     } else if (!isFullDayShift(shift.shiftType) && !shift.isStat) {
@@ -105,7 +105,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       // Unworked stat: HolPrem entitlement still paid (Holiday = $0)
       holPremGross += 8 * PAY_CONFIG.regularRate;
     }
-    // day-off, sick (non-PTO, non-stat): $0
+    // day-off (non-stat): $0
   }
 
   // Sick day payout: unused entitlement paid out on the first December payday.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPayPeriod, calcPayEstimate, PAY_CONFIG } from './payEstimate';
+import { getPayPeriod, calcPayEstimate, PAY_CONFIG } from '../../src/lib/payEstimate';
 import type { Shift } from '../types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -136,6 +136,18 @@ describe('calcPayEstimate', () => {
     expect(est.holidayHours).toBe(0);
     expect(est.holPremGross).toBe(0);
     expect(est.ptoDays).toBe(1);
+    expect(est.daysProjected).toBe(1);
+    expect(est.daysLogged).toBe(0);
+  });
+
+  it('credits 8 regular hours for a sick shift (always a full day)', () => {
+    const shift = makeShift({ date: '2026-06-06', shiftType: 'sick' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.regularHours).toBe(8);
+    expect(est.otHours).toBe(0);
+    expect(est.holidayHours).toBe(0);
+    expect(est.holPremGross).toBe(0);
+    expect(est.ptoDays).toBe(0);
     expect(est.daysProjected).toBe(1);
     expect(est.daysLogged).toBe(0);
   });
