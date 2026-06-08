@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
@@ -82,6 +82,20 @@ export function useOffStandardSession({
       setSelectedReason(row.reason as OffStandardReason);
       setExplanation((row.explanation as string | null) ?? '');
       if (row.preset_reason) edv.setSelectedPreset(row.preset_reason as OffStandardPresetReason);
+      // The timer state alone doesn't carry the EDV context — rebuild it from the
+      // row so a navigate-away mid-session doesn't lose the manually-entered plate
+      // + condition (no-match) or the linked hold (matched). Both are needed at End.
+      if (row.preset_reason === 'edv') {
+        if (row.linked_hold_id) {
+          edv.restoreLinkedEdv(row.linked_hold_id as string);
+        } else {
+          edv.restoreNoMatchEdv({
+            plate:    (row.edv_plate as string | null) ?? '',
+            exterior: !!row.edv_exterior,
+            interior: !!row.edv_interior,
+          });
+        }
+      }
       setTimerState('running');
     },
   );
@@ -131,6 +145,20 @@ export function useOffStandardSession({
     writeOrEnqueue('update', 'holds',
       { offstandard_linked: true, cleaned_inhouse_logged_at: new Date().toISOString() },
       'id', holdId);
+
+  // Write-through: persist EDV no-match fields to the in-progress row as they're
+  // entered (they're typed after start, so the start INSERT can't carry them).
+  // Each change is written immediately so the latest survives a navigate-away —
+  // the recovery above restores it on the next mount. Matched EDV needs none of
+  // this; its linked hold is already written at start.
+  useEffect(() => {
+    if (timerState !== 'running' || selectedPreset !== 'edv' || !edvNoMatch || !inProgressId) return;
+    void writeOrEnqueue('update', 'off_standard_entries', {
+      edv_plate:    edvPlate.trim() || null,
+      edv_exterior: edvExterior,
+      edv_interior: edvInterior,
+    }, 'id', inProgressId);
+  }, [edvPlate, edvExterior, edvInterior, timerState, selectedPreset, edvNoMatch, inProgressId]);
 
   const handleStartWith = async (
     reason: OffStandardReason,

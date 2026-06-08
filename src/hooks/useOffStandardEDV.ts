@@ -28,6 +28,8 @@ export interface OffStandardEDVSlice {
   setEdvInterior: Dispatch<SetStateAction<boolean>>;
   edvPlateMatch: KnownPlate | null;
   rememberEdvPlate: () => void;
+  restoreNoMatchEdv: (fields: { plate: string; exterior: boolean; interior: boolean }) => void;
+  restoreLinkedEdv: (holdId: string) => void;
   selectPreset: (preset: OffStandardPresetReason) => void;
   resetEDV: () => void;
 }
@@ -109,6 +111,28 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvPlateMatch(null);
   }
 
+  // Recovery restore — called by the session's in-progress recovery so a session
+  // resumed after a navigate-away rebuilds its EDV context (the timer state alone
+  // doesn't carry it). The no-match branch restores the manually-entered plate +
+  // condition; the matched branch restores the linked hold (+ its display) so End
+  // still marks it cleaned in-house.
+  function restoreNoMatchEdv(fields: { plate: string; exterior: boolean; interior: boolean }) {
+    setEdvNoMatch(true);
+    setEdvPlate(fields.plate);
+    setEdvExterior(fields.exterior);
+    setEdvInterior(fields.interior);
+  }
+
+  function restoreLinkedEdv(holdId: string) {
+    setEdvLinkedHoldId(holdId);
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) return;
+    const vehicle = vehicles.find(v => v.id === hold.vehicleId);
+    setEdvUnitNumber(vehicle?.unitNumber ?? hold.vehicleId);
+    const approvedById = hold.release?.approvedById;
+    setEdvManagerName(approvedById ? resolveName(approvedById) : 'Unknown');
+  }
+
   return {
     selectedPreset,
     setSelectedPreset,
@@ -124,6 +148,8 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvInterior,
     edvPlateMatch,
     rememberEdvPlate,
+    restoreNoMatchEdv,
+    restoreLinkedEdv,
     selectPreset,
     resetEDV,
   };

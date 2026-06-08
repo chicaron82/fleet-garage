@@ -8,6 +8,7 @@ vi.mock('../../src/hooks/useVehicleByPlate', () => ({
 }));
 
 import { useOffStandardEDV } from '../../src/hooks/useOffStandardEDV';
+import type { Hold, Vehicle } from '../../src/types';
 
 const DEFAULT_PROPS = {
   holds: [],
@@ -45,5 +46,48 @@ describe('useOffStandardEDV — selectPreset', () => {
     expect(result.current.edvUnitNumber).toBe('');
     expect(result.current.edvManagerName).toBe('');
     expect(result.current.edvNoMatch).toBe(false);
+  });
+});
+
+describe('useOffStandardEDV — recovery restore', () => {
+  it('restoreNoMatchEdv rebuilds the no-match panel from a persisted row', () => {
+    const { result } = renderHook(() => useOffStandardEDV(DEFAULT_PROPS));
+
+    act(() => { result.current.restoreNoMatchEdv({ plate: 'LZM524', exterior: true, interior: false }); });
+
+    expect(result.current.edvNoMatch).toBe(true);
+    expect(result.current.edvPlate).toBe('LZM524');
+    expect(result.current.edvExterior).toBe(true);
+    expect(result.current.edvInterior).toBe(false);
+  });
+
+  it('restoreLinkedEdv restores the linked hold and derives unit + manager', () => {
+    const hold = { id: 'h1', vehicleId: 'v1', release: { approvedById: 'm1' } } as unknown as Hold;
+    const vehicle = { id: 'v1', unitNumber: '1234567' } as unknown as Vehicle;
+    const { result } = renderHook(() => useOffStandardEDV({
+      holds: [hold],
+      vehicles: [vehicle],
+      resolveName: (id: string) => (id === 'm1' ? 'Manager Mike' : id),
+    }));
+
+    act(() => { result.current.restoreLinkedEdv('h1'); });
+
+    expect(result.current.edvLinkedHoldId).toBe('h1');
+    expect(result.current.edvUnitNumber).toBe('1234567');
+    expect(result.current.edvManagerName).toBe('Manager Mike');
+  });
+
+  it('restoreLinkedEdv falls back to the hold’s vehicleId when the vehicle is not loaded yet', () => {
+    const hold = { id: 'h2', vehicleId: 'v9', release: { approvedById: 'm1' } } as unknown as Hold;
+    const { result } = renderHook(() => useOffStandardEDV({
+      holds: [hold],
+      vehicles: [],
+      resolveName: () => 'Manager Mike',
+    }));
+
+    act(() => { result.current.restoreLinkedEdv('h2'); });
+
+    expect(result.current.edvLinkedHoldId).toBe('h2');
+    expect(result.current.edvUnitNumber).toBe('v9'); // vehicle not loaded → falls back to vehicleId
   });
 });
