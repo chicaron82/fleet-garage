@@ -17,3 +17,15 @@ export function findPriorShiftLog<T extends { date: string }>(
   const priorDate = shiftDateStr(-1, now);
   return logs.find(l => l.date === priorDate);
 }
+
+/**
+ * Whether a washbay log carries only the prior shift's carry-over (a lightweight
+ * opener backfill) rather than a real close. Its gas-sheet counters are zero — and
+ * a real close can never look like this, because the closing form refuses to
+ * submit with zero cars on the sheet (`carsIn > 0`). Such rows have no throughput,
+ * so they must stay out of the "recent log" / week-average throughput displays
+ * (the carry-over lineage still reads their `carsRemaining`).
+ */
+export function isCarryOverOnly(log: { fullPages: number; lastPageEntries: number }): boolean {
+  return log.fullPages === 0 && log.lastPageEntries === 0;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findPriorShiftLog } from '../../src/lib/washbayLineage';
+import { findPriorShiftLog, isCarryOverOnly } from '../../src/lib/washbayLineage';
 
 // Local-time constructor — keeps assertions timezone-independent (shiftDateStr
 // reads local components).
@@ -35,5 +35,16 @@ describe('findPriorShiftLog', () => {
       { date: '2026-05-31', carsRemaining: 7 },
     ];
     expect(findPriorShiftLog(logs, at(2026, 6, 2, 2, 0))?.carsRemaining).toBe(7);
+  });
+});
+
+describe('isCarryOverOnly', () => {
+  it('flags a zero-counter row (a lightweight opener backfill)', () => {
+    expect(isCarryOverOnly({ fullPages: 0, lastPageEntries: 0 })).toBe(true);
+  });
+
+  it('does not flag a real close (the form requires cars on the sheet)', () => {
+    expect(isCarryOverOnly({ fullPages: 3, lastPageEntries: 5 })).toBe(false);
+    expect(isCarryOverOnly({ fullPages: 0, lastPageEntries: 4 })).toBe(false);
   });
 });

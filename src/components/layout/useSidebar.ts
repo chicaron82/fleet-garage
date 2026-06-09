@@ -7,6 +7,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
+import { isCarryOverOnly } from '../../lib/washbayLineage';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { isRealAccount } from '../../lib/demo-accounts';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -103,7 +104,10 @@ export function useSidebar() {
     query.maybeSingle().then(({ data }) => setLatestBackfill(data));
   }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const recentPrimary = washbayLogs.length > 0 ? washbayLogs[0] : null;
+  // Skip lightweight carry-over backfills — they have no throughput, so the most
+  // recent *real* close drives the sidebar's productivity readout (the same
+  // filter the week-average below applies).
+  const recentPrimary = washbayLogs.find(l => !isCarryOverOnly(l)) ?? null;
   const activeLog = (() => {
     if (!recentPrimary && !latestBackfill) return null;
     if (!recentPrimary) return latestBackfill;
@@ -245,7 +249,7 @@ export function useSidebar() {
 
   const weekLogs = washbayLogs
     .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
-    .filter(l => l.fullPages > 0 || l.lastPageEntries > 0);
+    .filter(l => !isCarryOverOnly(l));
   const weekAvgRate = weekLogs.length >= 3
     ? Math.round(weekLogs.reduce((s, l) => {
         const ci = l.fullPages * 19 + l.lastPageEntries;
