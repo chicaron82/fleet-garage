@@ -20,6 +20,17 @@ export function canRelease(role: UserRole): boolean {
   return CAN_RELEASE.includes(role);
 }
 
+// Confirming a repair / marking a hold done is an OBSERVATION — the person at the
+// washbay can see the crack is fixed — so VSAs + Lead VSAs can do it (on top of
+// management), and it's attributed to whoever actually did it. This is distinct
+// from CAN_RELEASE: releasing a known-damaged car on exception is a liability
+// judgment that stays management-only.
+export const CAN_MARK_REPAIRED: UserRole[] = ['VSA', 'Lead VSA', ...CAN_RELEASE];
+
+export function canMarkRepaired(role: UserRole): boolean {
+  return CAN_MARK_REPAIRED.includes(role);
+}
+
 // Who can clear a sale/auction flag logged in error — the staff who can flag a
 // vehicle in the first place (floor VSAs + management), so a mistake can be
 // self-corrected. Every clear is audited and pings management for awareness.

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { canRelease, canManageVehicles, canClearSaleFlag } from '../../types';
+import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag } from '../../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { hapticHeavy } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
@@ -128,28 +128,27 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                 {vehicle.status === 'HELD' ? '+ Add hold' : '+ Flag Issue'}
               </button>
             )}
-            {canRelease(h.user.role) && (
-              <>
-                {h.activeHolds.length > 0 && (
-                  <button
-                    onClick={() => { hapticHeavy(); h.openReleaseAction(); }}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-                  >
-                    Approve Release{h.activeHolds.length > 1 ? ` (${h.activeHolds.length})` : ''}
-                  </button>
-                )}
-                {h.repairableHolds.length > 0 && (
-                  <button
-                    onClick={h.openRepairAction}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-                  >
-                    ✓ {h.repairableHolds.length === 1
-                      ? holdActionLabel(h.repairableHolds[0].holdTypes)
-                      : 'Mark as Done'}
-                  </button>
-                )}
-              </>
+            {/* Release on Exception — management only (renting a known-damaged car: a liability call) */}
+            {canRelease(h.user.role) && h.activeHolds.length > 0 && (
+              <button
+                onClick={() => { hapticHeavy(); h.openReleaseAction(); }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+              >
+                Approve Release{h.activeHolds.length > 1 ? ` (${h.activeHolds.length})` : ''}
+              </button>
             )}
+            {/* Mark Repaired / Done — VSAs + Lead VSAs can confirm a repair they can see at the washbay */}
+            {canMarkRepaired(h.user.role) && h.repairableHolds.length > 0 && (
+              <button
+                onClick={h.openRepairAction}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+              >
+                ✓ {h.repairableHolds.length === 1
+                  ? holdActionLabel(h.repairableHolds[0].holdTypes)
+                  : 'Mark as Done'}
+              </button>
+            )}
+            {/* Non-management: verbal override + the release-gated notice (repair is handled above) */}
             {h.activeHolds.length > 0 && !canRelease(h.user.role) && (
               <>
                 <button
