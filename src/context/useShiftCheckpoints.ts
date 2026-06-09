@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ShiftCheckpoint, User, BranchId } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { mapCheckpoint } from '../lib/garage-mappers';
+import { localDateStr } from '../hooks/useFleetBalance';
 
 export interface ShiftCheckpointsSlice {
   shiftCheckpoints: ShiftCheckpoint[];
@@ -25,7 +26,7 @@ export function useShiftCheckpoints(
   const [shiftCheckpoints, setShiftCheckpoints] = useState<ShiftCheckpoint[]>([]);
 
   const getTodayCheckpoint = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0); // shift-date (04:00 cutover) — matches washbay/off-standard dating
     return (
       shiftCheckpoints.find(
         (c) => c.date === today && c.checkpointType === 'closing_arrival'
@@ -34,7 +35,7 @@ export function useShiftCheckpoints(
   };
 
   const getMidArrival = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0); // shift-date (04:00 cutover) — matches washbay/off-standard dating
     return (
       shiftCheckpoints.find(
         (c) => c.date === today && c.checkpointType === 'mid_arrival'
@@ -43,7 +44,7 @@ export function useShiftCheckpoints(
   };
 
   const getMidDeparture = (): ShiftCheckpoint | null => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0); // shift-date (04:00 cutover) — matches washbay/off-standard dating
     return (
       shiftCheckpoints.find(
         (c) => c.date === today && c.checkpointType === 'mid_departure'
@@ -55,7 +56,7 @@ export function useShiftCheckpoints(
     fullPages: number,
     lastPageEntries: number
   ): Promise<boolean> => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0); // shift-date (04:00 cutover) — matches washbay/off-standard dating
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const { data, error } = await writeWithRefresh(() =>
       supabase
@@ -96,7 +97,7 @@ export function useShiftCheckpoints(
     fullPages: number,
     lastPageEntries: number
   ): Promise<boolean> => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0); // shift-date (04:00 cutover) — matches washbay/off-standard dating
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const { data, error } = await writeWithRefresh(() =>
       supabase

@@ -8,6 +8,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, businessDateOf } from '../../lib/shiftDay';
+import { findPriorShiftLog } from '../../lib/washbayLineage';
 import { canEnterFleetBalance, isManagement } from '../../lib/analytics';
 import { StatCard } from './AnalyticsComponents';
 import { AnalyticsTripsSummary } from './AnalyticsTripsSummary';
@@ -111,10 +112,7 @@ export function AnalyticsView() {
   })();
 
   const todayWashbayLog     = getTodayWashbayLog();
-  const yesterdayWashbayLog = washbayLogs.find(l => {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    return l.date === d.toLocaleDateString('en-CA');
-  });
+  const yesterdayWashbayLog = findPriorShiftLog(washbayLogs);
   const todayBalanceEntry   = getTodayEntry();
   const projection          = getProjection();
   const liveWashbay30DayAvg = washbayLogs.length >= 3

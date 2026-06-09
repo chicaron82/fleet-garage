@@ -3,6 +3,8 @@ import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { convertToBackendFormat, convertFromBackend } from '../../lib/gas-sheet';
+import { localDateStr } from '../../hooks/useFleetBalance';
+import { businessDateOf } from '../../lib/shiftDay';
 import { BackfillEntryForm, type BackfillFormState } from './BackfillEntryForm';
 import {
   type BackfillEntry,
@@ -75,7 +77,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
     primary: washbayLogs.find(l => l.date.startsWith(date)) ?? null,
     backfill: backfillEntries.find(b => b.date.startsWith(date)) ?? null,
     handoff: handoffNotes.find(n =>
-      new Date(n.loggedAt).toLocaleDateString('en-CA') === date,
+      businessDateOf(n.loggedAt) === date,
     ) ?? null,
   }));
 
@@ -210,7 +212,7 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
             {rows.map(row => {
               const entry  = row.primary ?? row.backfill ?? null;
               const isOpen = openDate === row.date;
-              const today  = new Date().toLocaleDateString('en-CA');
+              const today  = localDateStr(0);
               if (row.date === today) return null;
 
               return (

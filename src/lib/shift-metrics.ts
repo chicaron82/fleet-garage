@@ -1,5 +1,6 @@
 import type { Shift, ShiftType, ShiftWithUser } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
+import { businessDateOf } from './shiftDay';
 
 // Structural minimal inputs — the live card passes full HandoffNote/ShiftCheckpoint
 // objects (which satisfy these), and the report fetcher passes mapped DB rows.
@@ -45,7 +46,7 @@ export interface ShiftRates {
 
 // The local moment that separates morning from closing on the given handoff's date.
 export function morningHandoffBoundary(handoff: { loggedAt: string }): Date {
-  const dateStr = new Date(handoff.loggedAt).toLocaleDateString('en-CA');
+  const dateStr = businessDateOf(handoff.loggedAt);
   return new Date(`${dateStr}T${MORNING_HANDOFF_LOCAL_TIME}`);
 }
 

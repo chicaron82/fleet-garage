@@ -5,6 +5,8 @@ import { mapWashbayLog, mapHandoffNote, mapCheckpoint } from '../lib/garage-mapp
 import { useWashbayHandoff, type WashbayHandoffSlice } from './useWashbayHandoff';
 import { useShiftCheckpoints, type ShiftCheckpointsSlice } from './useShiftCheckpoints';
 import { latestGasSheetReading, type GasSheetReading } from '../lib/gas-sheet';
+import { localDateStr } from '../hooks/useFleetBalance';
+import { businessDateOf } from '../lib/shiftDay';
 
 export type WashbayContextValue = WashbayHandoffSlice & ShiftCheckpointsSlice & {
   loadError: boolean;
@@ -58,13 +60,13 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getLatestGasSheetReading = (): GasSheetReading | null => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = localDateStr(0);
     const candidates: GasSheetReading[] = [];
     for (const c of checkpointsSlice.shiftCheckpoints) {
       if (c.date === today) candidates.push(c);
     }
     for (const n of washbaySlice.handoffNotes) {
-      if (new Date(n.loggedAt).toLocaleDateString('en-CA') === today) candidates.push(n);
+      if (businessDateOf(n.loggedAt) === today) candidates.push(n);
     }
     const todayLog = washbaySlice.getTodayWashbayLog();
     if (todayLog) candidates.push(todayLog);

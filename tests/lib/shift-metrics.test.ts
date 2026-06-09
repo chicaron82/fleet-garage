@@ -76,6 +76,14 @@ describe('morningHandoffBoundary', () => {
     expect(b.getHours()).toBe(15);
     expect(b.getMinutes()).toBe(15);
   });
+
+  it('anchors a post-midnight handoff to its shift-day (the prior date), not the calendar date', () => {
+    // Logged 01:00 on the 23rd is still the 22nd's shift (04:00 cutover) → boundary is the 22nd 15:15.
+    const b = morningHandoffBoundary(makeHandoff({ loggedAt: '2026-05-23T01:00:00' }));
+    expect(b.getDate()).toBe(22);
+    expect(b.getHours()).toBe(15);
+    expect(b.getMinutes()).toBe(15);
+  });
 });
 
 // ── splitOffStandard ──────────────────────────────────────────────────────────

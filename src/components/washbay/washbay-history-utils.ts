@@ -1,5 +1,6 @@
 import type { HandoffNote } from '../../types';
 import type { BackfillFormState } from './BackfillEntryForm';
+import { shiftDateStr, businessDateOf } from '../../lib/shiftDay';
 
 export interface BackfillEntry {
   id: string;
@@ -19,12 +20,10 @@ export function findLatestBackfill(entries: BackfillEntry[]): BackfillEntry | nu
   return [...entries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 }
 
-export function buildRollingDates(): string[] {
+export function buildRollingDates(now: Date = new Date()): string[] {
   const dates: string[] = [];
   for (let i = 0; i < 30; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dates.push(d.toLocaleDateString('en-CA'));
+    dates.push(shiftDateStr(-i, now));
   }
   return dates;
 }
@@ -48,7 +47,7 @@ export function deriveStats(
 
 export function deriveHandoffStats(note: HandoffNote) {
   const carsIn       = note.fullPages * 19 + note.lastPageEntries;
-  const dateStr      = new Date(note.loggedAt).toLocaleDateString('en-CA');
+  const dateStr      = businessDateOf(note.loggedAt);
   const shiftStart   = new Date(`${dateStr}T06:45:00`);
   const handoffHours = Math.max(0, (new Date(note.loggedAt).getTime() - shiftStart.getTime()) / 3_600_000);
   const partialRate  = handoffHours > 0 ? carsIn / handoffHours : 0;

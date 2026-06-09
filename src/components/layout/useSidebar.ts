@@ -8,6 +8,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
 import { isCarryOverOnly } from '../../lib/washbayLineage';
+import { morningHandoffBoundary } from '../../lib/shift-metrics';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { isRealAccount } from '../../lib/demo-accounts';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -221,9 +222,7 @@ export function useSidebar() {
   const closingCleaned  = closingStartCount != null && carsCleaned != null ? Math.max(0, carsCleaned - closingStartCount) : null;
   const closingOpHours: number | null = morningOpHours != null ? 8.0 : null;
 
-  const handoffTimestamp = todayHandoff
-    ? (() => { const dateStr = new Date(todayHandoff.loggedAt).toLocaleDateString('en-CA'); return new Date(`${dateStr}T15:15:00`); })()
-    : null;
+  const handoffTimestamp = todayHandoff ? morningHandoffBoundary(todayHandoff) : null;
   const morningOTH = handoffTimestamp
     ? offStandardEntries.filter(e => new Date(e.startTime) < handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
     : offStandardMinutes;
