@@ -1,12 +1,12 @@
 import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
-import { supabase, writeWithRefresh } from '../lib/supabase';
-import { enqueueOfflineAction } from '../lib/offlineQueue';
+import { supabase } from '../lib/supabase';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User, Hold, Vehicle } from '../types';
 import { localDateStr } from './useFleetBalance';
 import { useInProgressRecovery } from './useInProgressRecovery';
 import { useOffStandardEDV } from './useOffStandardEDV';
 import { deriveExplanation } from '../lib/offStandardReport';
+import { writeOrEnqueue } from '../lib/offStandardWrite';
 
 const MIN_ENTRY_MINUTES = 5;
 
@@ -106,37 +106,6 @@ export function useOffStandardSession({
       .from('off_standard_entries')
       .update({ explanation: val.trim() || null })
       .eq('id', inProgressId);
-  };
-
-  // Online twin of executeOfflineAction: attempt a live write (with session
-  // refresh), falling back to the offline queue on a network error. Mirrors
-  // the writeOrEnqueue pattern in useDriverLiveTrip, generalised to the two
-  // tables this hook writes — off_standard_entries and the EDV-linked hold.
-  const writeOrEnqueue = async (
-    action: 'insert' | 'update' | 'delete',
-    table: 'off_standard_entries' | 'holds',
-    payload: Record<string, unknown>,
-    eqField?: string,
-    eqValue?: string,
-  ): Promise<{ ok: boolean }> => {
-    const enqueue = () => enqueueOfflineAction({ table, action, payload, eqField, eqValue });
-    if (!navigator.onLine) { enqueue(); return { ok: true }; }
-    const res = await writeWithRefresh(() => {
-      // Runtime-dynamic table dispatch — bypass the typed client (see executeOfflineAction).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const query = (supabase as any).from(table);
-      if (action === 'insert') return query.insert(payload);
-      if (action === 'update') {
-        const q = query.update(payload);
-        return eqField && eqValue !== undefined ? q.eq(eqField, eqValue) : q;
-      }
-      const q = query.delete();
-      return eqField && eqValue !== undefined ? q.eq(eqField, eqValue) : q;
-    });
-    if (!res.error) return { ok: true };
-    const isNetworkErr = !navigator.onLine || res.error.message?.includes('Fetch') || !res.error.code;
-    if (isNetworkErr) { enqueue(); return { ok: true }; }
-    return { ok: false };
   };
 
   // The EDV preset marks its linked hold as cleaned in-house. Same write on
