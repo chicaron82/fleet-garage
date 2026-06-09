@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
-import { localDateStr } from '../../hooks/useFleetBalance';
+import { shiftDateStr } from '../../lib/shiftDay';
+import { findPriorShiftLog } from '../../lib/washbayLineage';
 import type { LotStatus } from '../../types';
 
 interface Props {
@@ -19,9 +20,10 @@ const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function HandoffForm({ onClose }: Props) {
-  const { submitHandoff, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
+  const { submitHandoff, submitWashbayLog, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
 
-  const yesterdayLog = washbayLogs.find(l => l.date === localDateStr(-1));
+  // The prior shift-day's close (cutover-aware), or undefined if nobody logged it.
+  const priorLog = findPriorShiftLog(washbayLogs);
 
   // Pick up from the furthest-along reading logged today (the check-in) rather
   // than recounting the running gas sheet from zero.
@@ -31,7 +33,7 @@ export function HandoffForm({ onClose }: Props) {
   const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [baselineCount] = useState(seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0);
-  const inheritedBacklog = yesterdayLog?.carsRemaining ?? 0;
+  const inheritedBacklog = priorLog?.carsRemaining ?? 0;
 
   const [teamSize,        setTeamSize]        = useState(2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
@@ -39,6 +41,25 @@ export function HandoffForm({ onClose }: Props) {
   const [adjustMorning,    setAdjustMorning]   = useState(false);
   const [morningHours,     setMorningHours]    = useState(8.0);
   const [submitting,       setSubmitting]      = useState(false);
+
+  // Backfill: when last night's close was never logged, the opener records how
+  // many were left so they carry into the morning rate. Writes a real
+  // washbay_logs row stamped to the prior shift-date (the lineage reads it back).
+  const [backfillCount, setBackfillCount] = useState(0);
+  const [backfilling,   setBackfilling]   = useState(false);
+
+  const handleBackfillPriorClose = async () => {
+    setBackfilling(true);
+    const ok = await submitWashbayLog({
+      fullPages: 0, lastPageEntries: 0, carsRemaining: backfillCount,
+      cleanNotPickedUp: 0, nonRentablesFuelled: 0, deferredCompletions: 0,
+      nonRentablesNote: null, carryOver: 0, teamSize: 1, shiftHours: 8,
+      overtimeHours: 0, lotStatus: backfillCount > 0 ? 'manageable' : 'zeroed',
+    }, shiftDateStr(-1));
+    // On success the optimistic washbayLogs update makes findPriorShiftLog match,
+    // so this panel gives way to the inherited-backlog line on the next render.
+    if (!ok) setBackfilling(false);
+  };
 
   const carsIn        = carsFromPageCounter(totalPages, entriesOnCurrentPage);
   const cleanedSince  = Math.max(0, carsIn - baselineCount);
@@ -117,6 +138,34 @@ export function HandoffForm({ onClose }: Props) {
               </p>
             )}
           </div>
+
+          {/* Backfill last night's close — only when it was never logged */}
+          {!priorLog && (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-3 space-y-2.5">
+              <div>
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">⚠ No closing log from last night</p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                  Record how many were left in the queue so they carry into your morning rate.
+                </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-gray-500 dark:text-gray-400">Cars left in queue</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => { setBackfillCount(n => Math.max(0, n - 1)); hapticLight(); }} className={STEP_BTN}>−</button>
+                  <span className={STEP_VAL}>{backfillCount}</span>
+                  <button type="button" onClick={() => { setBackfillCount(n => n + 1); hapticLight(); }} className={STEP_BTN}>+</button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleBackfillPriorClose}
+                disabled={backfilling}
+                className="w-full py-2 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50 bg-amber-500 hover:bg-amber-400 text-white"
+              >
+                {backfilling ? 'Saving…' : "Save last night's close"}
+              </button>
+            </div>
+          )}
 
           {/* Carry-over inherited from closing */}
           {inheritedBacklog > 0 && (

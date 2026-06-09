@@ -9,7 +9,9 @@ export interface WashbayHandoffSlice {
   washbayLogs: WashbayLog[];
   handoffNotes: HandoffNote[];
   latestHandoff: HandoffNote | undefined;
-  submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>) => Promise<boolean>;
+  /** `targetDate` (a shift-date string) backfills a prior shift-day's log; omit it
+   *  for the normal "today" close. Upserts on (branch_id, date) either way. */
+  submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>, targetDate?: string) => Promise<boolean>;
   getTodayWashbayLog: () => WashbayLog | undefined;
   submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number; carryOverCleared?: number }) => Promise<boolean>;
 }
@@ -27,10 +29,11 @@ export function useWashbayHandoff(
   const latestHandoff = handoffNotes[0];
 
   const submitWashbayLog = async (
-    data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>
+    data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>,
+    targetDate?: string,
   ): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const date = localDateStr(0);
+    const date = targetDate ?? localDateStr(0);
     const loggedAt = new Date().toISOString();
     try {
       const { data: row, error } = await writeWithRefresh(() =>
