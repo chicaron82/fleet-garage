@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { isStatDay, getStatName } from '../../lib/stats';
-import { calcOT, calcHours, netActualHours, fmtHours } from '../../lib/ot';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { ClockPicker } from './ClockPicker';
+import { ShiftActualHours } from './ShiftActualHours';
 import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
@@ -48,7 +48,7 @@ function nextDay(iso: string): string {
 }
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
-  const { updateShift, deleteShift, logActualHours, setPtoApproved, isPeakSeason } = useSchedule();
+  const { updateShift, deleteShift, setPtoApproved, isPeakSeason } = useSchedule();
   useEscapeKey(onClose);
   const typeDefaults = getTypeDefaults(isPeakSeason);
 
@@ -67,27 +67,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     catch { setApproved(!next); }
   };
 
-  // Actual hours section
-  const [showActual,   setShowActual]   = useState(false);
-  const [actualStart,  setActualStart]  = useState(shift.actualStartTime ?? '');
-  const [actualEnd,    setActualEnd]    = useState(shift.actualEndTime   ?? '');
-  const [isStat,       setIsStat]       = useState(shift.isStat ?? isStatDay(shift.date));
-  const [savingActual, setSavingActual] = useState(false);
-  const [actualError,  setActualError]  = useState('');
-
   const isDayOff = shiftType !== null && isFullDayShift(shiftType);
-
-  // Live OT preview
-  const previewOT = calcOT({
-    ...shift,
-    shiftType: shiftType ?? shift.shiftType,
-    actualStartTime: actualStart || undefined,
-    actualEndTime:   actualEnd   || undefined,
-    isStat,
-  });
-  const grossHrs  = calcHours(actualStart, actualEnd);
-  const netHrs    = netActualHours(grossHrs);
-  const breakDeducted = grossHrs > 0 && netHrs < grossHrs;
 
   const handleTypeChange = (t: ShiftType) => {
     if (t === shiftType) {
@@ -132,23 +112,6 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       setError('Failed to save. Please try again.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleLogActual = async () => {
-    if (actualStart && actualEnd && actualStart >= actualEnd) {
-      setActualError('End time must be after start time.');
-      return;
-    }
-    setSavingActual(true);
-    setActualError('');
-    try {
-      await logActualHours(shift.id, actualStart, actualEnd, isStat);
-      onClose();
-    } catch {
-      setActualError('Failed to save. Please try again.');
-    } finally {
-      setSavingActual(false);
     }
   };
 
@@ -257,79 +220,8 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             : (shiftType === null ? 'Remove Shift' : 'Save')}
         </button>
 
-        {/* Divider */}
-        <div className="border-t border-gray-100 dark:border-gray-800" />
-
-        {/* Log actual hours */}
-        {!showActual ? (
-          <button
-            onClick={() => setShowActual(true)}
-            className="w-full text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-left transition cursor-pointer"
-          >
-            {shift.actualStartTime ? '✏️ Edit actual hours' : 'Log actual hours ↓'}
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Actual Hours</p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start</label>
-                <input
-                  type="time"
-                  value={actualStart}
-                  onChange={e => setActualStart(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End</label>
-                <input
-                  type="time"
-                  value={actualEnd}
-                  onChange={e => setActualEnd(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
-                />
-              </div>
-            </div>
-
-            {/* Stat checkbox */}
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isStat}
-                onChange={e => setIsStat(e.target.checked)}
-                className="w-4 h-4 rounded accent-yellow-500"
-              />
-              <span className="text-xs text-gray-700 dark:text-gray-300">
-                Stat holiday
-                {statName && <span className="ml-1 text-amber-500 font-medium">★ {statName}</span>}
-              </span>
-            </label>
-
-            {/* Live OT calculation */}
-            {actualStart && actualEnd && (
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
-                {fmtHours(netHrs)} actual
-                {breakDeducted && <span className="ml-1 text-gray-400 dark:text-gray-500">· −30m break</span>}
-                {previewOT > 0
-                  ? <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">· {fmtHours(previewOT)} OT</span>
-                  : <span className="ml-2 text-green-600 dark:text-green-400">· No OT</span>
-                }
-              </div>
-            )}
-
-            {actualError && <p className="text-xs text-red-500">{actualError}</p>}
-
-            <button
-              onClick={handleLogActual}
-              disabled={savingActual || !actualStart || !actualEnd}
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-white font-semibold text-sm rounded-xl transition cursor-pointer"
-            >
-              {savingActual ? 'Saving…' : 'Log Hours'}
-            </button>
-          </div>
-        )}
+        {/* Actual hours — log/edit real clock-in/out, OT preview, clear saved hours */}
+        <ShiftActualHours shift={shift} shiftType={shiftType} onClose={onClose} />
       </div>
     </div>
   );
