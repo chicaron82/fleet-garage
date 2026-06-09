@@ -57,11 +57,13 @@ export interface OffStandardMinutes {
   presetReason?: string | null;
 }
 
-// 'fleeting_sent' is fleeting time whose cars went up to fleet — logged, but it
-// must NOT reduce the rate denominator (the cars already count in sent-to-fleet,
-// so crediting the time too would double-count). Everything else reduces it.
+// Two presets are logged but must NOT reduce the rate denominator:
+//   • 'fleeting_sent' — the cars went up to fleet and already count in sent-to-fleet.
+//   • 'edv' — extra-detail time IS cleaning (one slow car, already in the cleaned
+//     count); exempting it would double-credit and inflate the rate.
+// Subtracting either from the denominator double-counts. Everything else reduces it.
 export function reducesDenominator(e: { presetReason?: string | null }): boolean {
-  return e.presetReason !== 'fleeting_sent';
+  return e.presetReason !== 'fleeting_sent' && e.presetReason !== 'edv';
 }
 
 // Partition off-standard minutes by the morning/closing boundary.

@@ -465,6 +465,9 @@ describe('reducesDenominator', () => {
   it('excludes fleeting_sent (cars shipped — already counted in sent-to-fleet)', () => {
     expect(reducesDenominator({ presetReason: 'fleeting_sent' })).toBe(false);
   });
+  it('excludes edv (extra-detail time is cleaning — the slow car already counts)', () => {
+    expect(reducesDenominator({ presetReason: 'edv' })).toBe(false);
+  });
   it('includes plain fleeting_cars (prep that stayed on the lot)', () => {
     expect(reducesDenominator({ presetReason: 'fleeting_cars' })).toBe(true);
   });
