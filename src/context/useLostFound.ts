@@ -3,6 +3,7 @@ import type { LostFoundItem, LostFoundLocation, LostFoundStatus, BranchId } from
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadLostFoundPhoto } from '../lib/garage-uploads';
+import { useVehicleByPlate } from '../hooks/useVehicleByPlate';
 
 export interface LostFoundSlice {
   lostFoundItems: LostFoundItem[];
@@ -30,9 +31,9 @@ export interface LostFoundSlice {
 export function useLostFound(
   user: User | null,
   activeBranch: BranchId | 'ALL',
-  allVehicles: { licensePlate: string; unitNumber: string | null; year: number; make: string; model: string }[],
 ): LostFoundSlice & { setAllLostFoundItems: React.Dispatch<React.SetStateAction<LostFoundItem[]>> } {
   const [allLostFoundItems, setAllLostFoundItems] = useState<LostFoundItem[]>([]);
+  const { resolve, remember } = useVehicleByPlate();
 
   const lostFoundItems = useMemo(() => {
     if (activeBranch === 'ALL') return allLostFoundItems;
@@ -53,15 +54,19 @@ export function useLostFound(
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const foundAt = new Date().toISOString();
 
+    // Resolve the plate through the shared primitive: a fleet match (any branch)
+    // wins, else a remembered registry sighting — so a plate logged once is
+    // recognized here and everywhere after.
     let unitNumber = data.unitNumber;
     let vehicleMake: string | undefined;
+    let knownVehicleId: string | null = null;
     if (data.licensePlate) {
-      const matched = allVehicles.find(
-        v => v.licensePlate.toLowerCase() === data.licensePlate!.toLowerCase()
-      );
-      if (matched) {
-        unitNumber = matched.unitNumber ?? undefined;
-        vehicleMake = `${matched.year} ${matched.make} ${matched.model}`;
+      const known = await resolve(data.licensePlate);
+      if (known) {
+        unitNumber = known.unitNumber ?? unitNumber;
+        const veh = [known.year, known.make, known.model].filter(Boolean).join(' ');
+        vehicleMake = veh || undefined;
+        knownVehicleId = known.vehicleId;
       }
     }
 
@@ -90,6 +95,11 @@ export function useLostFound(
         })
       );
       if (error) return false;
+      // Stage the plate so it's recognized next time — best-effort, links to the
+      // fleet vehicle when one matched, else seeds a remembered identity.
+      if (data.licensePlate) {
+        void remember(data.licensePlate, { unitNumber: unitNumber ?? null, vehicleId: knownVehicleId });
+      }
       const newItem: LostFoundItem = {
         id: itemId, branchId,
         foundById: user.id, foundByName: user.name, foundAt,

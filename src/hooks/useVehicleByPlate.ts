@@ -22,19 +22,22 @@ interface RememberFields {
  */
 export function useVehicleByPlate() {
   const { user } = useAuth();
-  const { vehicles } = useVehicleHoldContext();
+  // allVehicles (not the branch-filtered `vehicles`): a plate is a global identity,
+  // so recognition must reach every branch + archived records, not just the active
+  // branch's live lot.
+  const { allVehicles } = useVehicleHoldContext();
 
   // Resolve a plate to its best-known identity: instant canonical-fleet match
   // first, then the cross-date registry memory. Null when unknown to both.
   const resolve = useCallback(async (rawPlate: string): Promise<KnownPlate | null> => {
     const plate = normalizePlate(rawPlate);
     if (!plate) return null;
-    const fleet = pickKnownVehicle(plate, vehicles, null);
+    const fleet = pickKnownVehicle(plate, allVehicles, null);
     if (fleet) return fleet;
     if (!user) return null;
     const entry = await lookupRegistryAnyDate(plate, user.branchId);
-    return pickKnownVehicle(plate, vehicles, entry);
-  }, [vehicles, user]);
+    return pickKnownVehicle(plate, allVehicles, entry);
+  }, [allVehicles, user]);
 
   // Stage a plate (creating or enriching its registry entry) so it's remembered.
   // Idempotent per day via createOrEnrichRegistry's find-or-enrich path.

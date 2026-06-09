@@ -63,3 +63,13 @@ export function pickKnownVehicle(
   }
   return null;
 }
+
+/**
+ * Human-readable one-liner for a resolved plate — "Unit 1234567 · 2023 Toyota
+ * Camry", or "" when only the bare plate is known (the caller shows a fallback
+ * like "recognized from a previous log"). Shared by every plate-entry surface.
+ */
+export function describeKnownPlate(m: KnownPlate): string {
+  const veh = [m.year, m.make, m.model].filter(Boolean).join(' ');
+  return [m.unitNumber ? `Unit ${m.unitNumber}` : '', veh].filter(Boolean).join(' · ');
+}

@@ -3,7 +3,6 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapLostFoundItem } from '../lib/garage-mappers';
 import { useLostFound, type LostFoundSlice } from './useLostFound';
-import { useVehicleHoldContext } from './VehicleHoldContext';
 
 export type LostFoundContextValue = LostFoundSlice & { loadError: boolean; reload: () => void };
 
@@ -11,8 +10,7 @@ const LostFoundContext = createContext<LostFoundContextValue | null>(null);
 
 export function LostFoundProvider({ children }: { children: React.ReactNode }) {
   const { user, activeBranch } = useAuth();
-  const { allVehicles } = useVehicleHoldContext();
-  const { setAllLostFoundItems, ...slice } = useLostFound(user, activeBranch, allVehicles);
+  const { setAllLostFoundItems, ...slice } = useLostFound(user, activeBranch);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizePlate, pickKnownVehicle } from '../../src/lib/vehicleByPlate';
+import { normalizePlate, pickKnownVehicle, describeKnownPlate, type KnownPlate } from '../../src/lib/vehicleByPlate';
 import type { Vehicle, VehicleRegistryEntry } from '../../src/types';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -84,5 +84,32 @@ describe('pickKnownVehicle', () => {
       unitNumber: null, make: null, model: null, year: null, color: null,
       vehicleId: null, registryId: 'r1',
     });
+  });
+});
+
+// ── describeKnownPlate ────────────────────────────────────────────────────────
+
+describe('describeKnownPlate', () => {
+  const base: KnownPlate = {
+    source: 'vehicle', plate: 'ABC123',
+    unitNumber: null, make: null, model: null, year: null, color: null,
+    vehicleId: null, registryId: null,
+  };
+
+  it('joins unit and vehicle when both are known', () => {
+    expect(describeKnownPlate({ ...base, unitNumber: '1234567', year: 2023, make: 'Toyota', model: 'Camry' }))
+      .toBe('Unit 1234567 · 2023 Toyota Camry');
+  });
+
+  it('shows just the unit when the vehicle details are unknown', () => {
+    expect(describeKnownPlate({ ...base, unitNumber: '1234567' })).toBe('Unit 1234567');
+  });
+
+  it('shows just the vehicle when the unit is unknown', () => {
+    expect(describeKnownPlate({ ...base, year: 2022, make: 'Honda', model: 'Civic' })).toBe('2022 Honda Civic');
+  });
+
+  it('returns empty string when only the bare plate is known', () => {
+    expect(describeKnownPlate(base)).toBe('');
   });
 });

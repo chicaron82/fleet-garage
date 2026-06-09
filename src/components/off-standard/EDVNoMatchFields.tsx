@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { KnownPlate } from '../../lib/vehicleByPlate';
+import { describeKnownPlate, type KnownPlate } from '../../lib/vehicleByPlate';
 
 interface Props {
   plate: string;
@@ -9,11 +9,6 @@ interface Props {
   onExteriorChange: Dispatch<SetStateAction<boolean>>;
   interior: boolean;
   onInteriorChange: Dispatch<SetStateAction<boolean>>;
-}
-
-function describeMatch(m: KnownPlate): string {
-  const veh = [m.year, m.make, m.model].filter(Boolean).join(' ');
-  return [m.unitNumber ? `Unit ${m.unitNumber}` : '', veh].filter(Boolean).join(' · ');
 }
 
 const PILL_ACTIVE   = 'bg-amber-500 border-amber-500 text-white';
@@ -40,7 +35,7 @@ export function EDVNoMatchFields({ plate, onPlateChange, match, exterior, onExte
         {plate.trim().length >= 4 && (
           match ? (
             <p className="text-[11px] text-teal-700 dark:text-teal-400 mt-1.5">
-              ✓ Recognized{describeMatch(match) ? ` — ${describeMatch(match)}` : ' from a previous log'}
+              ✓ Recognized{describeKnownPlate(match) ? ` — ${describeKnownPlate(match)}` : ' from a previous log'}
             </p>
           ) : (
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 italic">
