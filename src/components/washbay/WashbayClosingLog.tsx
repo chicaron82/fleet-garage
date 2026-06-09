@@ -3,15 +3,13 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import { hapticLight } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
 import { sentToFleetFromCount } from '../../lib/washbay-throughput';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { businessDateOf } from '../../lib/shiftDay';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
-import { LOT_STATUS_OPTIONS } from './lotStatusOptions';
-import type { LotStatus } from '../../types';
+import { lotStatusFromQueue } from '../../lib/closingQueue';
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -31,13 +29,11 @@ export function WashbayClosingLog() {
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
-  const [carryOver,        setCarryOver]        = useState(0);
   const [nonRentables,     setNonRentables]     = useState('');
   const [deferred,         setDeferred]         = useState('');
   const [nonRentablesNote, setNonRentablesNote] = useState('');
   const [teamSize,         setTeamSize]         = useState(2);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
-  const [lotStatus,        setLotStatus]        = useState<LotStatus>('manageable');
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
   const [overtimeOpen,     setOvertimeOpen]     = useState(false);
@@ -56,13 +52,11 @@ export function WashbayClosingLog() {
       setEntriesOnCurrentPage(ep);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
-      setCarryOver(todayLog.carryOver);
       setNonRentables(todayLog.nonRentablesFuelled ? String(todayLog.nonRentablesFuelled) : '');
       setDeferred(todayLog.deferredCompletions ? String(todayLog.deferredCompletions) : '');
       setNonRentablesNote(todayLog.nonRentablesNote ?? '');
       setTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
-      setLotStatus(todayLog.lotStatus);
     }
     setEditing(true);
   };
@@ -87,7 +81,7 @@ export function WashbayClosingLog() {
     if (!canSubmit) return;
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: nrf, deferredCompletions: dc, nonRentablesNote: nonRentablesNote.trim() || null, carryOver, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: nrf, deferredCompletions: dc, nonRentablesNote: nonRentablesNote.trim() || null, carryOver: 0, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus: lotStatusFromQueue(cr) });
     setEditing(false);
     setSubmitting(false);
   };
@@ -137,18 +131,6 @@ export function WashbayClosingLog() {
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
             />
-          </div>
-        </div>
-
-        {/* Carry-over — vehicles in queue at start of shift, inherited from previous close */}
-        <div className="flex items-center justify-between">
-          <label className="text-xs text-gray-400 dark:text-gray-500">Carry-over from last night</label>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setCarryOver(n => Math.max(0, n - 1))}
-              className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">−</button>
-            <span className="text-sm font-bold text-gray-900 dark:text-gray-100 w-5 text-center tabular-nums">{carryOver}</span>
-            <button type="button" onClick={() => setCarryOver(n => n + 1)}
-              className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold">+</button>
           </div>
         </div>
 
@@ -220,25 +202,6 @@ export function WashbayClosingLog() {
             >
               +
             </button>
-          </div>
-        </div>
-
-        {/* Lot status */}
-        <div>
-          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Lot status at close</label>
-          <div className="flex gap-2">
-            {LOT_STATUS_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { setLotStatus(opt.value); hapticLight(); }}
-                className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                  lotStatus === opt.value ? opt.color : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
           </div>
         </div>
 

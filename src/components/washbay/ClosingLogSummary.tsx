@@ -1,5 +1,4 @@
 import { sentToFleet } from '../../lib/washbay-throughput';
-import { LOT_STATUS_OPTIONS } from './lotStatusOptions';
 import type { WashbayLog } from '../../types';
 
 const COMPANY_STANDARD = 3.0;
@@ -20,7 +19,6 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
   const d   = tp - COMPANY_STANDARD;
   const rp  = Math.max(0, ci - heldToday);
   const da  = Math.max(0, rp - log.cleanNotPickedUp);
-  const lotOpt = LOT_STATUS_OPTIONS.find(o => o.value === log.lotStatus);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -91,12 +89,6 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
           </p>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Lot status at close</span>
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${lotOpt?.color ?? ''}`}>
-            {lotOpt?.label ?? log.lotStatus}
-          </span>
-        </div>
       </div>
     </div>
   );

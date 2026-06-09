@@ -169,13 +169,21 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           : <Text style={s.rateNoOth}>Log off-standard time to see your personal rate</Text>
         }
       </View>
-      {t.lotStatus && (
+      {t.queueAtClose != null ? (
+        <View style={s.lotPill}>
+          <Text style={s.lotPillText}>
+            {t.queueAtClose === 0
+              ? 'In queue at close: 0 (zeroed)'
+              : `In queue at close: ${t.queueAtClose} vehicle${t.queueAtClose !== 1 ? 's' : ''}`}
+          </Text>
+        </View>
+      ) : t.lotStatus ? (
         <View style={s.lotPill}>
           <Text style={s.lotPillText}>
             Lot status at handoff: {t.lotStatus.charAt(0).toUpperCase() + t.lotStatus.slice(1)}
           </Text>
         </View>
-      )}
+      ) : null}
       {t.carryOver > 0 && (
         <View style={s.lotPill}>
           <Text style={s.lotPillText}>

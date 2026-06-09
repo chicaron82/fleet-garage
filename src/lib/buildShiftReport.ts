@@ -11,6 +11,7 @@ export interface ReportThroughput {
   fullDayCleaned: number | null;
   branchOpHours:  number;
   lotStatus:      string | null;
+  queueAtClose:   number | null;  // closing only — the objective end-of-shift queue count (replaces the lot-status label)
   // Personal rates — computed once via computeShiftRates so the report matches
   // the live ShiftRatesCard exactly (cars / fixed shift-hours, effort-adjusted
   // for off-standard within the shift window). null when the window has no count.
@@ -180,7 +181,11 @@ export function buildReport(d: ReportData): string {
     }
     if (rateParts.length > 0) lines.push(rateParts.join('  |  '));
 
-    if (t.lotStatus) {
+    if (t.queueAtClose != null) {
+      lines.push(t.queueAtClose === 0
+        ? 'In queue at close: 0 (zeroed)'
+        : `In queue at close: ${t.queueAtClose} vehicle${t.queueAtClose !== 1 ? 's' : ''}`);
+    } else if (t.lotStatus) {
       const label = t.lotStatus.charAt(0).toUpperCase() + t.lotStatus.slice(1);
       lines.push(`Lot status at handoff: ${label}`);
     }

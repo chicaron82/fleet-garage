@@ -180,9 +180,10 @@ export function ShiftReportExport({ date }: { date: string }) {
         ? Math.max(0.1, (new Date(midDepRow.logged_at).getTime() - new Date(midArrRow.logged_at).getTime()) / 3_600_000)
         : null;
 
-      const lotStatus = shiftType === 'closing'
-        ? (washbayRow?.lot_status ?? null)
-        : (handoffRow?.lot_status ?? null);
+      // Closing reports show the objective queue count (queueAtClose) instead of a
+      // Zeroed/Manageable/Backlog judgment; only opening/handoff keep the label.
+      const lotStatus = shiftType === 'closing' ? null : (handoffRow?.lot_status ?? null);
+      const queueAtClose = shiftType === 'closing' ? (washbayRow?.cars_remaining ?? null) : null;
 
       // Personal rate — same path as the live ShiftRatesCard so the PDF/text
       // report and the in-app card never disagree. Off-standard is scoped to the
@@ -225,6 +226,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         fullDayCleaned,
         branchOpHours: 15 + (washbayRow?.overtime_hours ?? 0),
         lotStatus,
+        queueAtClose,
         baseline,
         yourEffort,
         actualWindowLabel,
