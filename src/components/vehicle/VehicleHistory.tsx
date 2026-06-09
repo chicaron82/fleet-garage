@@ -13,7 +13,7 @@ import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
 import { RepairConfirmSection } from '../holds/RepairConfirmSection';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
-import { exportHoldToHtml } from '../../lib/hold-export';
+import { HoldShareMenu } from '../holds/HoldShareMenu';
 
 
 interface Props {
@@ -163,12 +163,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </>
             )}
             {h.holds.length > 0 && (
-              <button
-                onClick={() => exportHoldToHtml({ vehicle, holds: h.holds, getName: h.getName, getEmpId: h.getEmpId })}
-                className="ml-auto px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-200 font-medium text-sm rounded-lg transition cursor-pointer"
-              >
-                ↗ Share
-              </button>
+              <HoldShareMenu vehicle={vehicle} holds={h.holds} getName={h.getName} getEmpId={h.getEmpId} />
             )}
           </div>
 
