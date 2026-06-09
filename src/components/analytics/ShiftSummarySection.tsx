@@ -9,7 +9,7 @@ import {
   SummaryRow, ShiftSparkline, HistoryCard,
 } from './AnalyticsComponents';
 import { ShiftExportActionSheet } from '../my-shift/ShiftExportActionSheet';
-import { type SavedSummary, mapSaved } from './shiftSummaryUtils';
+import { type SavedSummary, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
 
 function fmtMinutes(mins: number): string {
   if (mins === 0) return '0m';
@@ -24,10 +24,12 @@ function fmtTime(iso: string): string {
 }
 
 interface LiveSummary {
-  offStandardMinutes: number;
-  offStandardBreakdown: Record<string, number>;
+  offStandardMinutes: number;   // total (persisted) — equals nonAirport + airport
+  nonAirportMinutes: number;    // manually-logged off-standard (the card's "Off-Standard" row)
+  airportMinutes: number;       // auto-logged airport time (the card's "VSA Trips" row)
+  offStandardBreakdown: Record<string, number>;  // non-airport reasons only
   tripCount: number;
-  tripMinutes: number;
+  tripMinutes: number;          // from vsa_trips — still persisted to the snapshot
   holdsFlagged: number;
   firstActivityAt: string | null;
 }
@@ -59,7 +61,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
 
     const [osResult, tripsResult, holdsResult, histResult] = await Promise.all([
       supabase.from('off_standard_entries')
-        .select('start_time, minutes, reason')
+        .select('start_time, minutes, reason, auto_from_trip')
         .eq('user_id', user.id)
         .eq('date', date)
         .not('minutes', 'is', null)
@@ -84,12 +86,15 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     ]);
 
     const osEntries = osResult.data ?? [];
-    const offStandardMinutes = osEntries.reduce((s, r) => s + ((r.minutes as number) ?? 0), 0);
-    const offStandardBreakdown: Record<string, number> = {};
-    osEntries.forEach(r => {
-      const reason = r.reason as string;
-      offStandardBreakdown[reason] = (offStandardBreakdown[reason] ?? 0) + ((r.minutes as number) ?? 0);
-    });
+    // Decompose off-standard into airport (auto-logged from trips) and non-airport
+    // so the card shows airport time once, not double-counted against trip minutes.
+    const offStandard = decomposeOffStandard(
+      osEntries.map(r => ({
+        minutes:      r.minutes as number | null,
+        reason:       r.reason as string,
+        autoFromTrip: (r.auto_from_trip as boolean) ?? false,
+      })),
+    );
 
     const trips = tripsResult.data ?? [];
     const tripCount = trips.length;
@@ -108,7 +113,13 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
       ...(holdsResult.data ?? []).map(r => r.flagged_at as string),
     ].filter(Boolean).sort();
 
-    setLive({ offStandardMinutes, offStandardBreakdown, tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null });
+    setLive({
+      offStandardMinutes:   offStandard.total,
+      nonAirportMinutes:    offStandard.nonAirport,
+      airportMinutes:       offStandard.airport,
+      offStandardBreakdown: offStandard.breakdown,
+      tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null,
+    });
 
     const saved = (histResult.data ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>));
     setHistory(saved);
@@ -213,10 +224,10 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
           </p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {live!.offStandardMinutes > 0 && (
+            {live!.nonAirportMinutes > 0 && (
               <SummaryRow
-                label="Off-Standard"
-                value={fmtMinutes(live!.offStandardMinutes)}
+                label={live!.airportMinutes > 0 ? 'Off-Standard (non-airport)' : 'Off-Standard'}
+                value={fmtMinutes(live!.nonAirportMinutes)}
                 sub={topReasons.length > 0 ? (
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {topReasons.map(([reason, mins]) => (
@@ -234,12 +245,21 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
               />
             )}
 
-            {live!.tripCount > 0 && (
+            {(live!.airportMinutes > 0 || live!.tripCount > 0) && (
               <SummaryRow
-                label="VSA Trips"
-                value={fmtMinutes(live!.tripMinutes)}
+                label="VSA Trips (airport)"
+                value={fmtMinutes(live!.airportMinutes)}
                 sub={<p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{live!.tripCount} run{live!.tripCount !== 1 ? 's' : ''}</p>}
               />
+            )}
+
+            {/* Reconciling subtotal — the two scoped rows above add to this (and to
+                the off-standard PDF). Shown only when there are both parts to sum. */}
+            {live!.nonAirportMinutes > 0 && live!.airportMinutes > 0 && (
+              <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                <span>Total off-standard</span>
+                <span className="font-medium">{fmtMinutes(live!.offStandardMinutes)}</span>
+              </div>
             )}
 
             {live!.holdsFlagged > 0 && (

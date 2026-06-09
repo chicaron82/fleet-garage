@@ -36,3 +36,42 @@ export function fmtDateShift(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
 }
+
+export interface OffStandardDecomposition {
+  /** All off-standard minutes for the day — always equals nonAirport + airport. */
+  total: number;
+  /** Manually-logged off-standard (opening duties, fleeting, EDV, CSR rescue, …). */
+  nonAirport: number;
+  /** Auto-logged VSA airport-run minutes (the `auto_from_trip` rows). */
+  airport: number;
+  /** Reason → minutes for the non-airport entries only — drives the chips. */
+  breakdown: Record<string, number>;
+}
+
+/**
+ * Split the day's off-standard entries into airport (auto-logged from VSA trips,
+ * `autoFromTrip`) and non-airport (everything manually logged). The two parts are
+ * disjoint and sum to the total, so the My-Shift card can show airport time in
+ * exactly one row instead of double-counting it against the separately-sourced
+ * trip minutes. Trip *count* still comes from `vsa_trips`; the *minutes* shown
+ * come from here so the two rows can't drift out of summing to the total.
+ */
+export function decomposeOffStandard(
+  entries: { minutes: number | null; reason: string; autoFromTrip: boolean }[],
+): OffStandardDecomposition {
+  let total = 0;
+  let nonAirport = 0;
+  let airport = 0;
+  const breakdown: Record<string, number> = {};
+  for (const e of entries) {
+    const m = e.minutes ?? 0;
+    total += m;
+    if (e.autoFromTrip) {
+      airport += m;
+    } else {
+      nonAirport += m;
+      breakdown[e.reason] = (breakdown[e.reason] ?? 0) + m;
+    }
+  }
+  return { total, nonAirport, airport, breakdown };
+}

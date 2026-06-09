@@ -93,9 +93,12 @@ export function ShiftRatesCard() {
             <span className="font-medium text-gray-900 dark:text-gray-100">{mySnapshot.hours}h</span>
           </div>
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
-            <span>Off-standard total</span>
+            <span>Off-standard (rate-affecting)</span>
             <span className="font-medium text-gray-900 dark:text-gray-100">{fmtMinutes(offTotal)}</span>
           </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1">
+            Counts against rate — excludes EDV &amp; cars sent to fleet. May read below the My&nbsp;Shift total.
+          </p>
           <div className="flex justify-between text-gray-600 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
             <span>Active cleaning</span>
             <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtMinutes(activeMinutes)}</span>
