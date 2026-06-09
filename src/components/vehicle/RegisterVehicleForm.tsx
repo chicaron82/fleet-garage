@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { hapticMedium } from '../../lib/haptics';
+import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
+import { describeKnownPlate, type KnownPlate } from '../../lib/vehicleByPlate';
 
 interface Props {
   prefill?: string;
@@ -51,6 +53,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
   const { addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
+  const { resolve, remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
 
   const currentYear = new Date().getFullYear();
@@ -65,6 +68,24 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const [hasJ1772Adapter, setHasJ1772Adapter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [plateMatch, setPlateMatch] = useState<KnownPlate | null>(null);
+
+  // Recognize the plate as it's typed: a fleet match means it's already
+  // registered (duplicate guard); a registry match means it was remembered earlier
+  // and registering now promotes it to a real fleet vehicle. Pre-fills the unit
+  // from a recognized sighting while the field is still empty (functional update,
+  // so it never fights the user's own typing).
+  useEffect(() => {
+    const p = plate.trim();
+    let cancelled = false;
+    const lookup = p.length >= 4 ? resolve(p) : Promise.resolve(null);
+    lookup.then(m => {
+      if (cancelled) return;
+      setPlateMatch(m);
+      if (m?.unitNumber) setUnit(prev => (prev.trim() === '' ? m.unitNumber! : prev));
+    });
+    return () => { cancelled = true; };
+  }, [plate, resolve]);
 
   const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
 
@@ -99,6 +120,9 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         status: returnTo === 'fleet' ? 'CLEAR' : undefined,
       });
       hapticMedium();
+      // Promotion bookkeeping: point any remembered registry sighting for this
+      // plate at the now-canonical vehicle (best-effort).
+      void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
       if (returnTo === 'fleet') {
         setSuccessToast(`✅ Vehicle ${unit.trim()} registered`);
         setTimeout(() => onSuccess(id), 2500);
@@ -156,6 +180,22 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
                 />
               </div>
             </div>
+
+            {plateMatch && (
+              plateMatch.source === 'vehicle' ? (
+                <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    ⚠️ This plate is already on a registered vehicle{describeKnownPlate(plateMatch) ? ` — ${describeKnownPlate(plateMatch)}` : ''}. Adding it again creates a duplicate.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-teal-300 dark:border-teal-700/60 bg-teal-50 dark:bg-teal-900/20 px-3 py-2">
+                  <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                    ✓ Seen before — recognized from a previous log. Adding it now promotes it to the fleet.
+                  </p>
+                </div>
+              )
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
