@@ -4,19 +4,9 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { hapticLight } from '../../lib/haptics';
 import type { LostFoundStatus } from '../../types';
 import { canActionLostFound } from '../../types';
+import { fmtRelativeDate } from '../../lib/lostFoundDate';
 import { LostFoundCard } from './LostFoundCard';
 import { LogLostFoundItemModal } from './LogLostFoundItemModal';
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtRelativeDate(iso: string) {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days === 0) return `Today ${fmtTime(iso)}`;
-  if (days === 1) return `Yesterday ${fmtTime(iso)}`;
-  return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-}
 
 export function LostAndFoundView() {
   const { user } = useAuth();

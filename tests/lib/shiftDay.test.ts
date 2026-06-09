@@ -5,6 +5,7 @@ import {
   businessDateOf,
   shiftDayWindow,
   shiftDayStartISO,
+  shiftDaysSince,
 } from '../../src/lib/shiftDay';
 
 // Local-time constructor keeps these assertions timezone-independent: the
@@ -70,5 +71,30 @@ describe('shiftDayWindow — cutover-to-cutover bracket', () => {
   });
   it('shiftDayStartISO matches the window start', () => {
     expect(shiftDayStartISO('2026-06-01')).toBe(shiftDayWindow('2026-06-01').startISO);
+  });
+});
+
+describe('shiftDaysSince — held-age counted in shift-days, not 24h spans', () => {
+  it('is 0 for an item found earlier the same shift-day', () => {
+    expect(shiftDaysSince(at(2026, 6, 1, 11, 5), at(2026, 6, 1, 16, 0))).toBe(0);
+  });
+  it('is 1 for an item found on the previous shift-day (the Today/Yesterday bug)', () => {
+    // found yesterday 11:05, viewed today 09:37 — elapsed-ms math wrongly read 0.
+    expect(shiftDaysSince(at(2026, 6, 1, 11, 5), at(2026, 6, 2, 9, 37))).toBe(1);
+  });
+  it('buckets a 00:00–04:00 found-time into the in-progress shift-day', () => {
+    // found 02:00 on the 2nd is still the 1st's shift; viewed 03:00 same night, same shift → 0.
+    expect(shiftDaysSince(at(2026, 6, 2, 2, 0), at(2026, 6, 2, 3, 0))).toBe(0);
+  });
+  it('advances at the cutover, not the 24-hour anniversary', () => {
+    // found 23:00 on the 1st, viewed 05:00 on the 2nd — only ~6h elapsed but a
+    // cutover boundary was crossed → 1.
+    expect(shiftDaysSince(at(2026, 6, 1, 23, 0), at(2026, 6, 2, 5, 0))).toBe(1);
+  });
+  it('counts whole shift-days for older items', () => {
+    expect(shiftDaysSince(at(2026, 6, 1, 12, 0), at(2026, 6, 17, 12, 0))).toBe(16);
+  });
+  it('accepts an ISO string', () => {
+    expect(shiftDaysSince(at(2026, 6, 1, 11, 5).toISOString(), at(2026, 6, 2, 9, 37))).toBe(1);
   });
 });

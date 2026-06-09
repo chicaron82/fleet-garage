@@ -47,3 +47,21 @@ export function shiftDayWindow(dateStr: string): { startISO: string; endISO: str
 export function shiftDayStartISO(dateStr: string): string {
   return shiftDayWindow(dateStr).startISO;
 }
+
+// Midday UTC for a YYYY-MM-DD string — a DST-safe anchor for counting whole
+// days between two shift-dates (noon is never near a DST transition).
+function dateStrToUTCNoon(s: string): number {
+  const [y, m, d] = s.split('-').map(Number);
+  return Date.UTC(y, m - 1, d, 12);
+}
+
+/** Whole shift-days from an earlier instant's shift-date to now's shift-date —
+ *  the count of 04:00 cutover boundaries crossed, not 24-hour spans. 0 = same
+ *  shift-day ("today"), 1 = the prior shift-day ("yesterday"). Use this for
+ *  held-age / relative-date reckoning so they advance at the boundary like the
+ *  rest of the app, instead of on the 24-hour anniversary of the instant. */
+export function shiftDaysSince(ts: string | Date, now: Date = new Date()): number {
+  const from = dateStrToUTCNoon(businessDateOf(ts));
+  const to   = dateStrToUTCNoon(shiftDateStr(0, now));
+  return Math.round((to - from) / 86_400_000);
+}

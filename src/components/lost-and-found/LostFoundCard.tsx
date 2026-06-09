@@ -2,19 +2,8 @@ import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
+import { fmtRelativeDate, daysHeld, ageTier } from '../../lib/lostFoundDate';
 import { LostFoundEditSheet } from './LostFoundEditSheet';
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtRelativeDate(iso: string) {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days === 0) return `Today ${fmtTime(iso)}`;
-  if (days === 1) return `Yesterday ${fmtTime(iso)}`;
-  return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-}
-
 
 interface CardProps {
   item: LostFoundItem;
@@ -49,12 +38,11 @@ export function LostFoundCard({
     ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
 
-  const [today] = useState(() => Date.now());
-  const daysHeld = Math.floor((today - new Date(item.foundAt).getTime()) / 86_400_000);
-  const ageTier = item.status === 'returned' ? null : daysHeld >= 30 ? 'expired' : daysHeld >= 15 ? 'aging' : 'fresh';
-  const tierClass = ageTier === 'fresh' ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
-    : ageTier === 'aging' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20'
-    : ageTier === 'expired' ? 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30'
+  const held = daysHeld(item.foundAt);
+  const tier = ageTier(item.status, held);
+  const tierClass = tier === 'fresh' ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+    : tier === 'aging' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20'
+    : tier === 'expired' ? 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30'
     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
 
   const [editOpen, setEditOpen] = useState(false);
@@ -128,9 +116,9 @@ export function LostFoundCard({
               </span>{' '}
               · {fmtRelativeDate(item.foundAt)}
             </p>
-            {ageTier && (
+            {tier && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                Day {daysHeld}
+                Day {held}
               </p>
             )}
             {item.editedByName && (
