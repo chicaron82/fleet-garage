@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
+import { daysOpen } from './issueDate';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 
 interface IssueEvent {
@@ -23,13 +24,6 @@ const EVENT_LABELS: Record<IssueEvent['eventType'], string> = {
   resolved: 'Resolved',
   reopened: 'Reopened',
 };
-
-function daysOpen(reportedAt: string): string {
-  const days = Math.floor((Date.now() - new Date(reportedAt).getTime()) / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Day 1';
-  return `Day ${days}`;
-}
 
 function fmtEventTime(iso: string): string {
   const d = new Date(iso);
