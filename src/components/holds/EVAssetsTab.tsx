@@ -41,16 +41,17 @@ export function EVAssetsTab() {
   const selected    = selectedId ? vehicles.find(v => v.id === selectedId) ?? null : null;
   const bothMissing = cable === 'missing' && adapter === 'missing';
 
-  // The whole Tesla roster — few enough to show at a glance. Missing-anything
-  // floats to the top (that's what needs acting on), then by unit.
+  // The whole Tesla roster — few enough to show at a glance. Most recently
+  // interacted (last EV-asset check) floats to the top, like the holds list;
+  // never-logged sink to the bottom; tiebreak by unit.
   const q = query.trim().toLowerCase();
   const teslas = vehicles
     .filter(isTeslaVehicle)
     .filter(v => !q || `${v.unitNumber ?? ''} ${v.licensePlate} ${v.make} ${v.model}`.toLowerCase().includes(q))
     .sort((a, b) => {
-      const am = (a.hasMobileCable === false || a.hasJ1772Adapter === false) ? 0 : 1;
-      const bm = (b.hasMobileCable === false || b.hasJ1772Adapter === false) ? 0 : 1;
-      return am - bm || (a.unitNumber ?? a.licensePlate).localeCompare(b.unitNumber ?? b.licensePlate);
+      const at = a.evLastUpdatedAt ? new Date(a.evLastUpdatedAt).getTime() : 0;
+      const bt = b.evLastUpdatedAt ? new Date(b.evLastUpdatedAt).getTime() : 0;
+      return bt - at || (a.unitNumber ?? a.licensePlate).localeCompare(b.unitNumber ?? b.licensePlate);
     });
 
   const selectVehicle = (v: Vehicle) => {
