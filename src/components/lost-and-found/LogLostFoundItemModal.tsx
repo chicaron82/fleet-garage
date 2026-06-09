@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundLocation, User } from '../../types';
 import { PhotoSlot } from '../shared/PhotoSlot';
-import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
-import { describeKnownPlate, type KnownPlate } from '../../lib/vehicleByPlate';
+import { usePlateRecognition } from '../../hooks/usePlateRecognition';
+import { describeKnownPlate } from '../../lib/vehicleByPlate';
 
 const LOCATION_ORDER: LostFoundLocation[] = [
   'visor',
@@ -45,22 +45,12 @@ export function LogLostFoundItemModal({
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
-  const { resolve } = useVehicleByPlate();
-  const [plateMatch, setPlateMatch] = useState<KnownPlate | null>(null);
+  // Recognize the typed plate live, so the logger sees whose car it is before submitting.
+  const plateMatch = usePlateRecognition(licensePlate);
 
   const keyTagCamRef = useRef<HTMLInputElement>(null);
   const itemCamRef = useRef<HTMLInputElement>(null);
   const itemGalleryRef = useRef<HTMLInputElement>(null);
-
-  // Recognize the typed plate against the fleet + the cross-date registry memory,
-  // so the logger sees whose car it is (or that it's new) before submitting.
-  useEffect(() => {
-    const p = licensePlate.trim();
-    let cancelled = false;
-    const lookup = p.length >= 4 ? resolve(p) : Promise.resolve(null);
-    lookup.then(m => { if (!cancelled) setPlateMatch(m); });
-    return () => { cancelled = true; };
-  }, [licensePlate, resolve]);
 
   const handlePhotoCapture = (setter: (v: string) => void) =>
     async (e: React.ChangeEvent<HTMLInputElement>) => {

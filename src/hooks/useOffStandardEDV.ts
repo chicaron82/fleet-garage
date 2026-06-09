@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { hapticLight } from '../lib/haptics';
 import { useVehicleByPlate } from './useVehicleByPlate';
+import { usePlateRecognition } from './usePlateRecognition';
 import type { KnownPlate } from '../lib/vehicleByPlate';
 import { localDateStr } from './useFleetBalance';
 import { businessDateOf } from '../lib/shiftDay';
@@ -43,20 +44,9 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
   const [edvPlate,    setEdvPlate]    = useState('');
   const [edvExterior, setEdvExterior] = useState(false);
   const [edvInterior, setEdvInterior] = useState(false);
-  const [edvPlateMatch, setEdvPlateMatch] = useState<KnownPlate | null>(null);
-  const { resolve, remember } = useVehicleByPlate();
-
-  // Recognize the typed no-match plate against the fleet + the cross-date registry
-  // memory, so the field shows whose car it is instead of staying a blind text box.
-  // Empty/short plates resolve to null without a query; the clear also goes through
-  // the async path, so there's no synchronous setState in the effect body.
-  useEffect(() => {
-    const p = edvPlate.trim();
-    let cancelled = false;
-    const lookup = p.length >= 4 ? resolve(p) : Promise.resolve(null);
-    lookup.then(m => { if (!cancelled) setEdvPlateMatch(m); });
-    return () => { cancelled = true; };
-  }, [edvPlate, resolve]);
+  const { remember } = useVehicleByPlate();
+  // Recognize the typed no-match plate live — fleet + cross-date registry memory.
+  const edvPlateMatch = usePlateRecognition(edvPlate);
 
   // Stage the no-match plate so it's recognized next time — best-effort, called
   // from the session's handleEnd once the entry has saved.
@@ -77,7 +67,6 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvPlate('');
     setEdvExterior(false);
     setEdvInterior(false);
-    setEdvPlateMatch(null);
 
     if (next !== 'edv') return;
 
@@ -108,7 +97,6 @@ export function useOffStandardEDV({ holds, vehicles, resolveName }: Props): OffS
     setEdvPlate('');
     setEdvExterior(false);
     setEdvInterior(false);
-    setEdvPlateMatch(null);
   }
 
   // Recovery restore — called by the session's in-progress recovery so a session

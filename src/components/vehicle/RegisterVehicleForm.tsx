@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
-import { describeKnownPlate, type KnownPlate } from '../../lib/vehicleByPlate';
+import { usePlateRecognition } from '../../hooks/usePlateRecognition';
+import { describeKnownPlate } from '../../lib/vehicleByPlate';
 
 interface Props {
   prefill?: string;
@@ -53,7 +54,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
   const { addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
-  const { resolve, remember } = useVehicleByPlate();
+  const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
 
   const currentYear = new Date().getFullYear();
@@ -68,24 +69,14 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const [hasJ1772Adapter, setHasJ1772Adapter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const [plateMatch, setPlateMatch] = useState<KnownPlate | null>(null);
-
-  // Recognize the plate as it's typed: a fleet match means it's already
-  // registered (duplicate guard); a registry match means it was remembered earlier
-  // and registering now promotes it to a real fleet vehicle. Pre-fills the unit
-  // from a recognized sighting while the field is still empty (functional update,
-  // so it never fights the user's own typing).
-  useEffect(() => {
-    const p = plate.trim();
-    let cancelled = false;
-    const lookup = p.length >= 4 ? resolve(p) : Promise.resolve(null);
-    lookup.then(m => {
-      if (cancelled) return;
-      setPlateMatch(m);
-      if (m?.unitNumber) setUnit(prev => (prev.trim() === '' ? m.unitNumber! : prev));
-    });
-    return () => { cancelled = true; };
-  }, [plate, resolve]);
+  // Recognize the plate as it's typed: a fleet match means it's already registered
+  // (duplicate guard); a registry match means it was remembered earlier and
+  // registering now promotes it to a real fleet vehicle. The onResolved callback
+  // pre-fills the unit from a recognized sighting while the field is still empty
+  // (functional update, so it never fights the user's own typing).
+  const plateMatch = usePlateRecognition(plate, m => {
+    if (m?.unitNumber) setUnit(prev => (prev.trim() === '' ? m.unitNumber! : prev));
+  });
 
   const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
 
