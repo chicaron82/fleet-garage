@@ -13,7 +13,10 @@ import type { KnownPlate } from '../lib/vehicleByPlate';
  *   result, and the clear goes through the same async path (no synchronous
  *   setState in the effect body).
  * - `onResolved` fires after each settle — for callers that pre-fill a field
- *   from a recognized plate (e.g. registration filling the unit number).
+ *   from a recognized plate (e.g. registration filling the unit number). It is
+ *   intentionally excluded from the effect deps, so it must NOT close over
+ *   changing state: use functional setState (`setX(prev => …)`) inside it rather
+ *   than a captured value, or you'll act on a stale closure.
  */
 export function usePlateRecognition(
   plate: string,

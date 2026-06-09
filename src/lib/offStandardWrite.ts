@@ -30,6 +30,15 @@ export async function writeOrEnqueue(
     console.error('[offStandardWrite] refusing an unscoped delete');
     return { ok: false };
   }
+  // An insert without a client-generated primary key can't be safely de-duplicated
+  // on an offline retry: the queue's upsert-on-conflict needs `id` to turn a
+  // lost-ack replay into a no-op instead of a second row. Both tables use `id` as
+  // their client-supplied PK. Refuse loudly rather than risk a dupe — same
+  // fail-fast posture as the unscoped-delete guard above.
+  if (action === 'insert' && payload.id == null) {
+    console.error('[offStandardWrite] refusing an insert missing its primary key (id)');
+    return { ok: false };
+  }
   const enqueue = () => enqueueOfflineAction({ table, action, payload, eqField, eqValue });
   if (!navigator.onLine) { enqueue(); return { ok: true }; }
   const res = await writeWithRefresh(() => {
