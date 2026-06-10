@@ -30,7 +30,7 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Cars In',       value: ci },
-            { label: 'Sent to Fleet', value: sent },
+            { label: 'Cars Cleaned', value: sent },
             { label: 'Throughput',    value: `${tp.toFixed(1)}/hr` },
           ].map(({ label, value }) => (
             <div key={label} className="text-center">
@@ -41,7 +41,7 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
         </div>
 
         <div className="space-y-1 text-sm pt-2 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Sent-to-fleet</p>
+          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Cars cleaned</p>
           {[
             { label: 'Cars fuelled (gas sheet)', value: ci,                indent: false, sign: '' },
             { label: 'In queue at close',        value: log.carsRemaining, indent: true,  sign: '−' },
@@ -49,7 +49,7 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
             // closing logs count every processed car, so these are 0 and stay hidden.
             ...(log.nonRentablesFuelled > 0 ? [{ label: 'Parked, not sent',   value: log.nonRentablesFuelled, indent: true, sign: '−' }] : []),
             ...(log.deferredCompletions > 0 ? [{ label: 'Carry-over cleared', value: log.deferredCompletions, indent: true, sign: '+' }] : []),
-            { label: 'Sent to fleet',            value: sent,              indent: false, sign: '' },
+            { label: 'Cars cleaned',             value: sent,              indent: false, sign: '' },
           ].map(({ label, value, indent, sign }) => (
             <div key={label} className={`flex justify-between ${indent ? 'pl-4 text-gray-400 dark:text-gray-500' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
               <span className="text-xs">{sign ? `${sign} ` : ''}{label}</span>
