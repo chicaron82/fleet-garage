@@ -94,10 +94,14 @@ const CLOSING_STEPS: { step: string; note?: string }[] = [
 ];
 
 function ClosingChecklist({ defaultOpen }: { defaultOpen: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+  // Follow the live `defaultOpen` (isScheduledToday resolves async) until the user
+  // explicitly toggles — seeding useState(defaultOpen) froze it collapsed when the
+  // schedule loaded after mount.
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? defaultOpen;
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-      <button type="button" onClick={() => setOpen(o => !o)}
+      <button type="button" onClick={() => setOverride(!open)}
         className="w-full px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Closing Checklist</span>
         <span className="text-gray-400 dark:text-gray-500 text-xs">{open ? '▼' : '▶'}</span>
