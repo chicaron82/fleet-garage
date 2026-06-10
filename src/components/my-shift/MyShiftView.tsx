@@ -213,12 +213,12 @@ export function MyShiftView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
-          {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <AfternoonCheckIn />)}
           <FleetBalanceEntryForm
             onSubmit={(out, inc) => upsertEntry(localDateStr(), out, inc, user!.id)}
             todayEntry={getTodayEntry()}
             projection={getProjection()}
           />
+          {canSeeCheckIn && (isMidShift ? <MidShiftCheckIn /> : <AfternoonCheckIn />)}
           <StepSection title="Shift Handoff" open={handoffOpen} onToggle={() => setHandoffOpen(o => !o)}>
             <HandoffSection latestHandoff={latestHandoff} canLog={canLogHandoff(user!.role)} onLogHandoff={() => setShowHandoffForm(true)} />
           </StepSection>
