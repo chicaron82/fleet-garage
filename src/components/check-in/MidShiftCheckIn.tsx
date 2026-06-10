@@ -78,8 +78,11 @@ export function MidShiftCheckIn() {
   const [depEntries,  setDepEntries]  = useState(initDeparture.entriesOnCurrentPage);
   const [submittingA, setSubmittingA] = useState(false);
   const [submittingD, setSubmittingD] = useState(false);
-  const [editingA,    setEditingA]    = useState(!existingArrival);
-  const [editingD,    setEditingD]    = useState(!existingDeparture);
+  // Default false, not !existing — getMidArrival/Departure() resolve async, so seeding
+  // from them froze the form open until a second refresh. `arrivalDone`/`departureDone`
+  // already gate on the live `existing`; editing is just the Edit-button intent.
+  const [editingA,    setEditingA]    = useState(false);
+  const [editingD,    setEditingD]    = useState(false);
 
   const arrivalCount   = carsFromPageCounter(arrPages, arrEntries);
   const departureCount = carsFromPageCounter(depPages, depEntries);

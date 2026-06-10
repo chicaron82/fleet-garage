@@ -20,7 +20,11 @@ export function AfternoonCheckIn() {
   const [totalPages,           setTotalPages]           = useState(initPages.totalPages);
   const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(initPages.entriesOnCurrentPage);
   const [submitting,           setSubmitting]           = useState(false);
-  const [collapsed,            setCollapsed]            = useState(!!existing);
+  // Render the "checked-in" view off the LIVE `existing`, not a mount-time snapshot:
+  // getTodayCheckpoint() resolves async, so seeding a `collapsed` flag from it froze a
+  // blank form until a second refresh. `editing` (default false) is the only local
+  // intent; the Edit button flips it. (Same class as the FleetBalanceEntryForm fix.)
+  const [editing,              setEditing]              = useState(false);
 
   const carsIn    = carsFromPageCounter(totalPages, entriesOnCurrentPage);
   const canSubmit = !submitting && carsIn > 0;
@@ -53,7 +57,7 @@ export function AfternoonCheckIn() {
       setTotalPages(tp);
       setEntriesOnCurrentPage(ep);
     }
-    setCollapsed(false);
+    setEditing(true);
   };
 
   const handleSubmit = async () => {
@@ -61,11 +65,11 @@ export function AfternoonCheckIn() {
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
     const ok = await submitCheckpoint(fullPages, lastPageEntries);
-    if (ok) setCollapsed(true);
+    if (ok) setEditing(false);
     else setSubmitting(false);
   };
 
-  if (collapsed && existing) {
+  if (existing && !editing) {
     const count = existing.fullPages * 19 + existing.lastPageEntries;
     return (
       <button
