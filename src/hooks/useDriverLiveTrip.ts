@@ -213,11 +213,16 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
 
     const arrivalOverrides = { arrive_time: arrived, status: 'complete' };
     let ok: boolean;
+    // The one-shot "depart + arrive logged together" path inserts a fresh row, so it
+    // needs a client id — without one the offline-queue dedup (upsert on `id`) can't
+    // turn a lost-ack retry into a no-op, and the PK-less-insert guard would refuse it.
+    let completedId: string | undefined;
 
     if (trip.inProgressId) {
       ({ ok } = await writeOrEnqueue('update', buildTransitPayload(arrivalOverrides), 'id', trip.inProgressId));
     } else {
-      ({ ok } = await writeOrEnqueue('insert', buildTransitPayload({ depart_time: trip.departureTime, ...arrivalOverrides })));
+      completedId = crypto.randomUUID();
+      ({ ok } = await writeOrEnqueue('insert', buildTransitPayload({ id: completedId, depart_time: trip.departureTime, ...arrivalOverrides })));
     }
 
     if (!ok) {
@@ -227,7 +232,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     }
 
     const tripRun: TripRun = {
-      id:             trip.inProgressId ?? `live-${Date.now()}`,
+      id:             trip.inProgressId ?? completedId ?? `live-${Date.now()}`,
       vehiclePlate:   trip.plate,
       vehicleUnit:    '',
       tripType:       trip.isShuttle ? 'transfer' : 'clean',

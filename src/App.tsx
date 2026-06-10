@@ -12,6 +12,7 @@ import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
 import { isRealAccount } from './lib/demo-accounts';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
+import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
 import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
@@ -39,6 +40,9 @@ export default function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [prevUserId, setPrevUserId] = useState(user?.id);
   const [fleetRefreshKey, setFleetRefreshKey] = useState(0);
+
+  // Drain any queued offline writes on mount / refocus / reconnect (see hook).
+  useOfflineQueueFlush();
 
   const navigate = useCallback((next: Screen) => {
     window.history.pushState(next, '');

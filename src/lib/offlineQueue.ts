@@ -31,7 +31,16 @@ export function saveOfflineQueue(queue: OfflineAction[]): void {
   }
 }
 
-export function enqueueOfflineAction(action: Omit<OfflineAction, 'id'>): string {
+export function enqueueOfflineAction(action: Omit<OfflineAction, 'id'>): string | null {
+  // An insert without a client-generated primary key can't be safely de-duplicated
+  // on a lost-ack retry: the flush upserts on `id` (executeOfflineAction), so a
+  // PK-less insert replays as a duplicate row. Refuse it loudly. The write helpers
+  // (offStandardWrite/vsaTripWrite) already supply `id`; this guards the assumption
+  // at the queue level for *all* callers — the same assumption that bit in 0ffbe8e.
+  if (action.action === 'insert' && action.payload.id == null) {
+    console.error('[offlineQueue] refusing to enqueue a PK-less insert (would duplicate on retry):', action.table);
+    return null;
+  }
   const id = crypto.randomUUID();
   const fullAction: OfflineAction = { ...action, id };
   const queue = getOfflineQueue();
@@ -83,6 +92,7 @@ export async function flushOfflineQueue(): Promise<void> {
   console.log(`Starting to flush ${queue.length} offline actions...`);
 
   const remaining: OfflineAction[] = [];
+  const deadLettered: OfflineAction[] = [];
   let stopFlushing = false;
 
   for (const action of queue) {
@@ -97,7 +107,11 @@ export async function flushOfflineQueue(): Promise<void> {
     } else {
       const attempts = (action.attempts ?? 0) + 1;
       if (attempts >= MAX_ATTEMPTS) {
-        console.error(`Offline action ${action.id} on table ${action.table} failed ${attempts} times — dropping to unblock queue`);
+        // Preserve, don't discard: move to the dead-letter queue so the write isn't
+        // silently lost and the UI can surface it for retry. Continue past it so it
+        // doesn't block the rest of the queue.
+        console.error(`Offline action ${action.id} on table ${action.table} failed ${attempts} times — moving to dead-letter`);
+        deadLettered.push({ ...action, attempts });
       } else {
         console.log(`Failed to sync offline action ${action.id}, postponing rest of queue`);
         remaining.push({ ...action, attempts });
@@ -107,12 +121,59 @@ export async function flushOfflineQueue(): Promise<void> {
   }
 
   saveOfflineQueue(remaining);
+  if (deadLettered.length > 0) {
+    saveDeadLetterQueue([...getDeadLetterQueue(), ...deadLettered]);
+  }
   isFlushing = false;
 }
 
-// Auto-sync when going online
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    void flushOfflineQueue();
-  });
+// ── Dead-letter queue ────────────────────────────────────────────────────────
+// Actions that exhausted MAX_ATTEMPTS land here instead of vanishing, so a failed
+// field write is recoverable and the UI can surface it (see useOfflineDeadLetter).
+
+const DEAD_LETTER_KEY = 'fg_offline_deadletter';
+
+export function getDeadLetterQueue(): OfflineAction[] {
+  try {
+    const raw = localStorage.getItem(DEAD_LETTER_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDeadLetterQueue(queue: OfflineAction[]): void {
+  try {
+    localStorage.setItem(DEAD_LETTER_KEY, JSON.stringify(queue));
+  } catch (err) {
+    console.error('Failed to save dead-letter queue to localStorage:', err);
+  }
+  notifyListeners();
+}
+
+/** Move every dead-lettered action back into the live queue (attempts reset) and flush. */
+export async function retryDeadLetter(): Promise<void> {
+  const dead = getDeadLetterQueue();
+  if (dead.length === 0) return;
+  saveOfflineQueue([...getOfflineQueue(), ...dead.map(a => ({ ...a, attempts: 0 }))]);
+  saveDeadLetterQueue([]);
+  await flushOfflineQueue();
+}
+
+/** Discard the dead-lettered actions — acknowledge the loss. */
+export function clearDeadLetter(): void {
+  saveDeadLetterQueue([]);
+}
+
+// Lets the UI react to dead-letter changes without polling.
+type QueueListener = () => void;
+const listeners = new Set<QueueListener>();
+
+export function subscribeOfflineQueue(cb: QueueListener): () => void {
+  listeners.add(cb);
+  return () => { listeners.delete(cb); };
+}
+
+function notifyListeners(): void {
+  for (const cb of listeners) cb();
 }

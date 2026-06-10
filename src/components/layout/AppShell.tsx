@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { OfflineSyncBanner } from './OfflineSyncBanner';
 import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { NotificationBell } from '../shared/NotificationBell';
@@ -101,6 +102,8 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
             <UserProfileMenu />
           </div>
         </div>
+
+        <OfflineSyncBanner />
 
         <div className="flex-1 overflow-auto">
           {children}
