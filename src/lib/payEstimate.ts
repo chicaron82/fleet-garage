@@ -14,7 +14,7 @@ export const PAY_CONFIG = {
   cppRate:                0.0595,   // 2026 statutory — update Jan 1
   cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods — update Jan 1
   eiRate:                 0.0163,   // 2026 statutory — update Jan 1
-  taxRate:                0.117,    // observed effective rate — update from first paystub of the year
+  taxRate:                0.1227,   // observed effective rate (184.71 ÷ 1504.95, stub PP ending 2026-06-04) — refresh from a recent paystub
   anchorPeriodEnd:        '2026-05-07',
   sickDaysEntitlement:    6,        // 48h ÷ 8h; unused days paid out first December payday
 } as const;
