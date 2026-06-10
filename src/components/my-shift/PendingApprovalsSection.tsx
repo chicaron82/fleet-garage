@@ -26,7 +26,13 @@ export function PendingApprovalsSection({
     .filter(h => h.status === 'ACTIVE')
     .sort((a, b) => new Date(a.flaggedAt).getTime() - new Date(b.flaggedAt).getTime()); // oldest first
 
-  const [open, setOpen] = useState(pending.length > 0);
+  // Default-open whenever there are pendings (the early-return below means this only
+  // renders when pending.length > 0). Tracking the user's collapse intent instead of
+  // seeding `open` from pending.length avoids the async-freeze: holds load after mount,
+  // so seeding from the mount-time (empty) list left the panel stuck collapsed once
+  // they arrived.
+  const [collapsed, setCollapsed] = useState(false);
+  const open = !collapsed;
 
   if (pending.length === 0) return null;
 
@@ -36,7 +42,7 @@ export function PendingApprovalsSection({
         type="button"
         onClick={() => {
           hapticLight();
-          setOpen(!open);
+          setCollapsed(c => !c);
         }}
         className="w-full flex items-center justify-between px-4 py-3 cursor-pointer"
       >
