@@ -1,7 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
-import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException } from './holdResolution';
+import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import type {
   Vehicle, Hold, Release,
@@ -190,6 +190,7 @@ export function useVehicleOperations({
   const markReturned   = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
   const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const markRepairedBatch = makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles });
 
   const archiveVehicle = async (vehicleId: string) => {
     const now = new Date().toISOString();
@@ -307,6 +308,7 @@ export function useVehicleOperations({
     addRelease,
     addPhotosToHold,
     markRepaired,
+    markRepairedBatch,
     markReturned,
     clearSaleHold,
     closeException,

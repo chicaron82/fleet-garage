@@ -257,11 +257,12 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         )}
 
         {h.showRepairConfirm && (() => {
-          const confirmHold = h.holds.find(hold => hold.id === h.showRepairConfirm);
-          if (!confirmHold) return null;
+          const ids = h.showRepairConfirm;
+          const confirmHolds = h.holds.filter(hold => ids.includes(hold.id));
+          if (confirmHolds.length === 0) return null;
           return (
             <RepairConfirmSection
-              hold={confirmHold}
+              holds={confirmHolds}
               repairNotes={h.repairNotes}
               setRepairNotes={h.setRepairNotes}
               repairOutcome={h.repairOutcome}
@@ -280,7 +281,9 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           showHoldPicker={h.showHoldPicker}
           repairableHolds={h.repairableHolds}
           closeHoldPicker={h.closeHoldPicker}
-          pickHoldForRepair={h.pickHoldForRepair}
+          toggleRepairPick={h.toggleRepairPick}
+          pickedForRepair={h.pickedForRepair}
+          confirmRepairSelection={h.confirmRepairSelection}
           showReleasePicker={h.showReleasePicker}
           activeHolds={h.activeHolds}
           closeReleasePicker={h.closeReleasePicker}

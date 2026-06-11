@@ -28,7 +28,9 @@ interface Props {
   showHoldPicker: boolean;
   repairableHolds: Hold[];
   closeHoldPicker: () => void;
-  pickHoldForRepair: (holdId: string) => void;
+  toggleRepairPick: (holdId: string) => void;
+  pickedForRepair: string[];
+  confirmRepairSelection: () => void;
   showReleasePicker: boolean;
   activeHolds: Hold[];
   closeReleasePicker: () => void;
@@ -45,7 +47,7 @@ interface Props {
 
 export function HoldHistorySection({
   vehicle, holds, showHoldPicker, repairableHolds,
-  closeHoldPicker, pickHoldForRepair,
+  closeHoldPicker, toggleRepairPick, pickedForRepair, confirmRepairSelection,
   showReleasePicker, activeHolds, closeReleasePicker, pickHoldForRelease,
   uploadingFor, addPhotoClick, handlePhotoSelected, openLightbox, setCoverPhoto,
   getName, getEmpId, getRole,
@@ -65,7 +67,7 @@ export function HoldHistorySection({
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden max-w-sm mx-auto">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                  Which hold are you resolving?
+                  Which hold(s) are you resolving?
                 </p>
                 <button
                   type="button"
@@ -75,31 +77,55 @@ export function HoldHistorySection({
                   ×
                 </button>
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {repairableHolds.map(hold => (
-                  <button
-                    key={hold.id}
-                    type="button"
-                    onClick={() => pickHoldForRepair(hold.id)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-                        {hold.damageDescription}
-                      </p>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        hold.status === 'ACTIVE'
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+              <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[50vh] overflow-y-auto">
+                {repairableHolds.map(hold => {
+                  const checked = pickedForRepair.includes(hold.id);
+                  return (
+                    <button
+                      key={hold.id}
+                      type="button"
+                      onClick={() => toggleRepairPick(hold.id)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer flex items-start gap-3"
+                    >
+                      <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center text-xs font-bold leading-none ${
+                        checked
+                          ? 'bg-green-600 border-green-600 text-white'
+                          : 'border-gray-300 dark:border-gray-600 text-transparent'
                       }`}>
-                        {hold.status === 'ACTIVE' ? 'ACTIVE' : 'RELEASED'}
+                        ✓
                       </span>
-                    </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                      {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
-                    </p>
-                  </button>
-                ))}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 flex-wrap">
+                          <span className="text-base font-medium text-gray-900 dark:text-gray-100">
+                            {hold.damageDescription}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            hold.status === 'ACTIVE'
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                          }`}>
+                            {hold.status === 'ACTIVE' ? 'ACTIVE' : 'RELEASED'}
+                          </span>
+                        </span>
+                        <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                          {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={confirmRepairSelection}
+                  disabled={pickedForRepair.length === 0}
+                  className="w-full py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {pickedForRepair.length === 0
+                    ? 'Select hold(s) to resolve'
+                    : `Mark ${pickedForRepair.length} as Done`}
+                </button>
               </div>
             </div>
           </div>

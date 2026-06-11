@@ -3,7 +3,7 @@ import { REPAIR_OUTCOME_LABELS } from '../../types';
 import type { Hold, RepairOutcome } from '../../types';
 
 interface RepairConfirmSectionProps {
-  hold: Hold;
+  holds: Hold[];
   repairNotes: string;
   setRepairNotes: (notes: string) => void;
   repairOutcome: RepairOutcome;
@@ -28,7 +28,7 @@ function holdConfirmBody(holdTypes: string[]): string {
 }
 
 export function RepairConfirmSection({
-  hold,
+  holds,
   repairNotes,
   setRepairNotes,
   repairOutcome,
@@ -38,8 +38,9 @@ export function RepairConfirmSection({
   onCancel,
   onConfirm,
 }: RepairConfirmSectionProps) {
-  const actionLabel = holdActionLabel(hold.holdTypes);
-  const bodyText = holdConfirmBody(hold.holdTypes);
+  if (holds.length === 0) return null;
+  const count = holds.length;
+  const actionLabel = count > 1 ? `Mark ${count} as Done` : holdActionLabel(holds[0].holdTypes);
 
   return (
     <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/40 p-5 space-y-4">
@@ -47,7 +48,11 @@ export function RepairConfirmSection({
         Confirm
       </h2>
       <p className="text-sm text-green-900 dark:text-green-200">
-        {bodyText} The vehicle will be set to <strong>Clear</strong> and returned to service.
+        {count > 1 ? (
+          <>Resolves <strong>{count} holds</strong> on this vehicle (same notes &amp; outcome for all). Its status updates to the result once they're marked done.</>
+        ) : (
+          <>{holdConfirmBody(holds[0].holdTypes)} The vehicle will be set to <strong>Clear</strong> and returned to service.</>
+        )}
       </p>
       <div>
         <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">

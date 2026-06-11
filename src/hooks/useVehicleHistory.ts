@@ -8,10 +8,14 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
-  const [showRepairConfirm, setShowRepairConfirm] = useState<string | null>(null);
+  // The hold(s) being repaired in the confirm step — an array so one confirm can
+  // resolve several at once (the multi-select picker). `pickedForRepair` is the
+  // in-progress checkbox selection inside the picker, before confirm.
+  const [showRepairConfirm, setShowRepairConfirm] = useState<string[] | null>(null);
+  const [pickedForRepair, setPickedForRepair] = useState<string[]>([]);
   const [repairNotes, setRepairNotes] = useState('');
   const [repairOutcome, setRepairOutcome] = useState<RepairOutcome>('clean');
   const [repairing, setRepairing] = useState(false);
@@ -85,7 +89,7 @@ export function useVehicleHistory(vehicleId: string) {
   };
 
   const openRepairConfirm = (holdId: string) => {
-    setShowRepairConfirm(holdId);
+    setShowRepairConfirm([holdId]);
     setShowReleaseForm(null);
     setShowVerbalOverride(null);
     setShowHoldPicker(false);
@@ -95,6 +99,7 @@ export function useVehicleHistory(vehicleId: string) {
     if (repairableHolds.length === 1) {
       openRepairConfirm(repairableHolds[0].id);
     } else if (repairableHolds.length > 1) {
+      setPickedForRepair([]);
       setShowHoldPicker(true);
       setShowReleaseForm(null);
       setShowVerbalOverride(null);
@@ -116,8 +121,15 @@ export function useVehicleHistory(vehicleId: string) {
   const closeReleasePicker  = () => setShowReleasePicker(false);
   const pickHoldForRelease  = (holdId: string) => { setShowReleasePicker(false); openReleaseForm(holdId); };
 
-  const pickHoldForRepair = (holdId: string) => openRepairConfirm(holdId);
-  const closeHoldPicker   = () => setShowHoldPicker(false);
+  const toggleRepairPick = (holdId: string) =>
+    setPickedForRepair(prev => prev.includes(holdId) ? prev.filter(id => id !== holdId) : [...prev, holdId]);
+  const confirmRepairSelection = () => {
+    if (pickedForRepair.length === 0) return;
+    setShowRepairConfirm([...pickedForRepair]);
+    setShowHoldPicker(false);
+    setPickedForRepair([]);
+  };
+  const closeHoldPicker   = () => { setShowHoldPicker(false); setPickedForRepair([]); };
 
   const closeReleaseForm = () => setShowReleaseForm(null);
   const closeVerbalOverride = () => setShowVerbalOverride(null);
@@ -138,19 +150,24 @@ export function useVehicleHistory(vehicleId: string) {
   };
 
   const handleRepair = async () => {
-    if (!showRepairConfirm) return;
+    if (!showRepairConfirm || showRepairConfirm.length === 0) return;
     setRepairing(true);
     setRepairError(false);
+    // markRepaired(Batch) throws if a write fails — don't clear the form or claim
+    // success on a write that didn't land.
+    const base = {
+      repairedById: user!.id,
+      repairedAt: new Date().toISOString(),
+      notes: repairNotes.trim(),
+      outcome: repairOutcome,
+    };
     try {
-      // markRepaired throws if the repair insert fails — don't clear the form or
-      // claim success on a write that didn't land.
-      await markRepaired(showRepairConfirm, {
-        holdId: showRepairConfirm,
-        repairedById: user!.id,
-        repairedAt: new Date().toISOString(),
-        notes: repairNotes.trim(),
-        outcome: repairOutcome,
-      });
+      if (showRepairConfirm.length === 1) {
+        // Single keeps markRepaired's linked-exception auto-close.
+        await markRepaired(showRepairConfirm[0], { holdId: showRepairConfirm[0], ...base });
+      } else {
+        await markRepairedBatch(showRepairConfirm, { holdId: showRepairConfirm[0], ...base });
+      }
       hapticMedium();
       setShowRepairConfirm(null);
       setRepairNotes('');
@@ -164,6 +181,7 @@ export function useVehicleHistory(vehicleId: string) {
 
   const cancelRepair = () => {
     setShowRepairConfirm(null);
+    setPickedForRepair([]);
     setRepairNotes('');
     setRepairOutcome('clean');
     setRepairError(false);
@@ -178,7 +196,7 @@ export function useVehicleHistory(vehicleId: string) {
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
     showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
-    showHoldPicker, openRepairAction, pickHoldForRepair, closeHoldPicker,
+    showHoldPicker, openRepairAction, toggleRepairPick, pickedForRepair, confirmRepairSelection, closeHoldPicker,
     showReleasePicker, openReleaseAction, pickHoldForRelease, closeReleasePicker,
     repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing, repairError,
     lightboxPhotos, lightboxIndex,

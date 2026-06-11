@@ -201,3 +201,50 @@ export function makeCloseException({ holds, allVehicles, setAllHolds, setAllVehi
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
   };
 }
+
+// Mark SEVERAL holds on one vehicle as repaired in a single pass — the batch
+// behind the "resolve multiple" picker (e.g. a re-flag + its stale original,
+// both genuinely fixed). Looping the single markRepaired would be WRONG: each
+// call derives the vehicle status from its own closed-over `holds` snapshot, so
+// the last write would reflect only its own hold's change and clobber the rest.
+// Instead, this writes every repair, then projects ALL targets as REPAIRED and
+// derives the vehicle status ONCE from that full projection. Same shared notes /
+// outcome for the batch. (No linked auto-close here — the picker resolves exactly
+// what's checked; the single-hold path keeps the `findLinkedOpenException` close.)
+export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: ResolutionDeps) {
+  return async (holdIds: string[], repair: Omit<Repair, 'id'>) => {
+    const targets = holds.filter(h => holdIds.includes(h.id));
+    if (targets.length === 0) throw new Error('No holds to repair');
+    const vehicleId = targets[0].vehicleId;
+    const repairsById = new Map<string, Repair>();
+    for (const t of targets) {
+      const repairId = crypto.randomUUID();
+      repairsById.set(t.id, { ...repair, id: repairId, holdId: t.id });
+      // Primary write per hold — throw on failure like single markRepaired.
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('repairs').insert({
+          id: repairId, hold_id: t.id,
+          repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
+          outcome: repair.outcome,
+        })
+      );
+      if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
+      await writeWithRefresh(() =>
+        supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', t.id)
+      );
+    }
+    // Project EVERY target as REPAIRED at once, then derive the vehicle once.
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === vehicleId)
+      .map(h => holdIds.includes(h.id) ? { ...h, status: 'REPAIRED' as const } : h);
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+    const { error: vehErr } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', vehicleId)
+    );
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: newVehicleStatus }));
+    setAllHolds(prev => prev.map(h => {
+      const r = repairsById.get(h.id);
+      return r ? { ...h, status: 'REPAIRED' as const, repair: r } : h;
+    }));
+  };
+}

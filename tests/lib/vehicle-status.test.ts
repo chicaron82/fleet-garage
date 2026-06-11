@@ -356,3 +356,29 @@ describe('closing a stale exception returns the vehicle to its derived status', 
     expect(deriveHoldStatus([closed, active])).toBe('held');
   });
 });
+
+// ── markRepairedBatch's contract — every selected hold REPAIRED, derived once ──
+// The batch projects ALL selected holds as REPAIRED before deriving the vehicle a
+// single time (looping single repairs would each derive off a stale snapshot and
+// the last write would clobber the rest — the bug this op exists to avoid).
+describe('batch-repairing a re-flag + its stale original clears the vehicle', () => {
+  type H = { id: string; status: string; holdTypes: string[]; release?: { releaseType: string; actualReturn?: string | null } | null };
+  const project = (holds: H[], ids: string[]) =>
+    holds.map(h => ids.includes(h.id) ? { ...h, status: 'REPAIRED' } : h);
+  const holds: H[] = [
+    { id: 'active',   status: 'ACTIVE',   holdTypes: ['mechanical'] },
+    { id: 'released', status: 'RELEASED', holdTypes: ['mechanical'], release: { releaseType: 'EXCEPTION', actualReturn: null } },
+  ];
+
+  it('before: the active grounds it held, the released keeps an open exception', () => {
+    expect(deriveHoldStatus(holds.map(factsFromHold))).toBe('held');
+  });
+
+  it('both selected → both REPAIRED → clear', () => {
+    expect(deriveHoldStatus(project(holds, ['active', 'released']).map(factsFromHold))).toBe('clear');
+  });
+
+  it('only the active one selected → the exception lingers → still on-exception (why both must be picked)', () => {
+    expect(deriveHoldStatus(project(holds, ['active']).map(factsFromHold))).toBe('on-exception');
+  });
+});
