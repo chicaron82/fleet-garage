@@ -45,6 +45,8 @@ export function VehicleDirectEditModal({
             </label>
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={editUnit}
               onChange={(e) => setEditUnit(e.target.value)}
               placeholder="Unit number (leave blank if unknown)"

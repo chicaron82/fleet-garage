@@ -77,7 +77,7 @@ export function QuickAddTeslaForm({ onDone }: { onDone: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Unit #</label>
-          <input type="text" value={unitNumber} onChange={e => setUnitNumber(e.target.value)} placeholder="e.g. 5421" className={FIELD} />
+          <input type="text" inputMode="numeric" pattern="[0-9]*" value={unitNumber} onChange={e => setUnitNumber(e.target.value)} placeholder="e.g. 5421" className={FIELD} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License plate</label>
