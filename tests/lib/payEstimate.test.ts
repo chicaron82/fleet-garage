@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPayPeriod, calcPayEstimate, PAY_CONFIG } from '../../src/lib/payEstimate';
+import { getPayPeriod, getActivePayPeriod, getPayday, periodConfidence, calcPayEstimate, PAY_CONFIG } from '../../src/lib/payEstimate';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -36,6 +36,52 @@ describe('getPayPeriod', () => {
     const { start, end } = getPayPeriod('2026-06-18');
     expect(start).toBe('2026-06-05');
     expect(end).toBe('2026-06-18');
+  });
+});
+
+describe('getPayday', () => {
+  it('adds the configured lag to the period end', () => {
+    expect(getPayday({ end: '2026-06-04' })).toBe('2026-06-11'); // 7-day lag
+    expect(PAY_CONFIG.payDayLagDays).toBe(7);
+  });
+});
+
+describe('getActivePayPeriod — anchors on the next-cheque period', () => {
+  it('in the lag window (period ended, payday not yet), the just-ended period is current', () => {
+    // Jun 10: period Jun 5–18 contains today, but May 22–Jun 4 (pays Jun 11) is the next cheque.
+    expect(getActivePayPeriod('2026-06-10')).toEqual({ start: '2026-05-22', end: '2026-06-04' });
+  });
+
+  it('stays current on payday itself (inclusive)', () => {
+    expect(getActivePayPeriod('2026-06-11')).toEqual({ start: '2026-05-22', end: '2026-06-04' });
+  });
+
+  it('rolls forward to the in-progress period the day after payday', () => {
+    expect(getActivePayPeriod('2026-06-12')).toEqual({ start: '2026-06-05', end: '2026-06-18' });
+  });
+
+  it('mid-period and well past the prior payday, the containing period is current', () => {
+    expect(getActivePayPeriod('2026-06-15')).toEqual({ start: '2026-06-05', end: '2026-06-18' });
+  });
+
+  it("on a period's last day (before any lag), that period is current", () => {
+    expect(getActivePayPeriod('2026-06-04')).toEqual({ start: '2026-05-22', end: '2026-06-04' });
+  });
+});
+
+describe('periodConfidence — derived from today vs the period + its payday', () => {
+  const P = (periodStart: string, periodEnd: string) => ({ periodStart, periodEnd });
+
+  it('during the lag window (today Jun 10)', () => {
+    expect(periodConfidence(P('2026-05-08', '2026-05-21'), '2026-06-10')).toBe('paid');          // paid cheques ago
+    expect(periodConfidence(P('2026-05-22', '2026-06-04'), '2026-06-10')).toBe('near-final');    // the imminent cheque
+    expect(periodConfidence(P('2026-06-05', '2026-06-18'), '2026-06-10')).toBe('in-progress');   // contains today
+    expect(periodConfidence(P('2026-06-19', '2026-07-02'), '2026-06-10')).toBe('schedule-floor');// fully future
+  });
+
+  it('is near-final on payday itself (inclusive), and paid the day after', () => {
+    expect(periodConfidence(P('2026-05-22', '2026-06-04'), '2026-06-11')).toBe('near-final');
+    expect(periodConfidence(P('2026-05-22', '2026-06-04'), '2026-06-12')).toBe('paid');
   });
 });
 

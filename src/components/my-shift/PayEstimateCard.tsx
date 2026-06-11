@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { rowToShiftBase } from '../../lib/rowToShift';
-import { calcPayEstimate, getPayPeriod, PAY_CONFIG, type PayEstimate } from '../../lib/payEstimate';
+import { calcPayEstimate, getPayPeriod, getActivePayPeriod, getPayday, periodConfidence, PAY_CONFIG, type PayEstimate, type PeriodConfidence } from '../../lib/payEstimate';
 import { fmtHours } from '../../lib/ot';
 import type { Shift } from '../../types';
 
@@ -25,22 +25,29 @@ function offsetDay(iso: string, days: number): string {
 interface PeriodBlockProps {
   est: PayEstimate;
   label: string;
-  nearFinal?: boolean;
-  scheduleFloor?: boolean;
+  confidence: PeriodConfidence;
+  payday: string;
 }
 
-function PeriodBlock({ est, label, nearFinal, scheduleFloor }: PeriodBlockProps) {
+const CONFIDENCE_TAG: Record<PeriodConfidence, { text: string; className: string } | null> = {
+  'paid':           { text: '· paid',           className: 'text-gray-400 dark:text-gray-500' },
+  'near-final':     { text: '· near-final',     className: 'text-green-600 dark:text-green-400 font-medium' },
+  'in-progress':    null,
+  'schedule-floor': { text: '· schedule floor', className: 'text-gray-400 dark:text-gray-500' },
+};
+
+function PeriodBlock({ est, label, confidence, payday }: PeriodBlockProps) {
   const totalDays = est.daysLogged + est.daysProjected;
+  const tag = CONFIDENCE_TAG[confidence];
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-gray-700 dark:text-gray-300">{label}</span>
-          {nearFinal && <span className="text-gray-400 dark:text-gray-500">· near-final</span>}
-          {scheduleFloor && <span className="text-gray-400 dark:text-gray-500">· schedule floor</span>}
+          {tag && <span className={tag.className}>{tag.text}</span>}
         </div>
         <span className="text-gray-500 dark:text-gray-400">
-          {fmtDate(est.periodStart)} – {fmtDate(est.periodEnd)}
+          {fmtDate(est.periodStart)} – {fmtDate(est.periodEnd)} · pays {fmtDate(payday)}
         </span>
       </div>
 
@@ -107,12 +114,12 @@ function PeriodBlock({ est, label, nearFinal, scheduleFloor }: PeriodBlockProps)
         <span className="text-xl font-black tabular-nums text-green-600 dark:text-green-400">{fmt(est.net)}</span>
       </div>
 
-      {scheduleFloor && (
+      {confidence === 'schedule-floor' && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
           Schedule floor — no OT projected.
         </p>
       )}
-      {!scheduleFloor && est.daysProjected > 0 && (
+      {confidence !== 'schedule-floor' && est.daysProjected > 0 && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
           {est.daysProjected} day{est.daysProjected !== 1 ? 's' : ''} not yet logged — using scheduled hours. OT not projected.
         </p>
@@ -129,10 +136,13 @@ export function PayEstimateCard() {
 
   const today = toISO(new Date());
 
-  // Compute all three periods from today
-  const { prevPeriod, nextPeriod } = useMemo(() => {
-    const curr = getPayPeriod(today);
+  // Anchor on the period whose cheque is NEXT (earned-but-unpaid), not the
+  // calendar period containing today — so during the payday lag the card leads
+  // with the imminent cheque, and rolls forward only once it's paid.
+  const { currPeriod, prevPeriod, nextPeriod } = useMemo(() => {
+    const curr = getActivePayPeriod(today);
     return {
+      currPeriod: curr,
       prevPeriod: getPayPeriod(offsetDay(curr.start, -1)),
       nextPeriod: getPayPeriod(offsetDay(curr.end, 1)),
     };
@@ -154,9 +164,9 @@ export function PayEstimateCard() {
 
   const [prevEst, currEst, nextEst] = useMemo(() => [
     calcPayEstimate(shifts, prevPeriod.start, sickDaysUsed),
-    calcPayEstimate(shifts, today,            sickDaysUsed),
+    calcPayEstimate(shifts, currPeriod.start, sickDaysUsed),
     calcPayEstimate(shifts, nextPeriod.start, sickDaysUsed),
-  ], [shifts, today, prevPeriod.start, nextPeriod.start, sickDaysUsed]);
+  ], [shifts, prevPeriod.start, currPeriod.start, nextPeriod.start, sickDaysUsed]);
 
   if (user?.employeeId !== PAY_CONFIG.employeeId) return null;
 
@@ -179,13 +189,13 @@ export function PayEstimateCard() {
       {open && (
         <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
           <div className="px-4 py-4">
-            <PeriodBlock est={prevEst} label="Previous" nearFinal />
+            <PeriodBlock est={prevEst} label="Previous" confidence={periodConfidence(prevEst, today)} payday={getPayday({ end: prevEst.periodEnd })} />
           </div>
           <div className="px-4 py-4">
-            <PeriodBlock est={currEst} label="Current" />
+            <PeriodBlock est={currEst} label="Current" confidence={periodConfidence(currEst, today)} payday={getPayday({ end: currEst.periodEnd })} />
           </div>
           <div className="px-4 py-4">
-            <PeriodBlock est={nextEst} label="Next" scheduleFloor />
+            <PeriodBlock est={nextEst} label="Next" confidence={periodConfidence(nextEst, today)} payday={getPayday({ end: nextEst.periodEnd })} />
           </div>
         </div>
       )}

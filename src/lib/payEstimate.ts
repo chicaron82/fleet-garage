@@ -16,6 +16,7 @@ export const PAY_CONFIG = {
   eiRate:                 0.0163,   // 2026 statutory — update Jan 1
   taxRate:                0.1227,   // observed effective rate (184.71 ÷ 1504.95, stub PP ending 2026-06-04) — refresh from a recent paystub
   anchorPeriodEnd:        '2026-05-07',
+  payDayLagDays:          7,        // payroll lag — a period ending Jun 4 pays out Jun 11
   sickDaysEntitlement:    6,        // 48h ÷ 8h; unused days paid out first December payday
 } as const;
 
@@ -38,6 +39,50 @@ export function getPayPeriod(today: string): { start: string; end: string } {
     start: periodStart.toISOString().slice(0, 10),
     end:   periodEnd.toISOString().slice(0, 10),
   };
+}
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// The payday for a pay period = its end date + the payroll lag (PAY_CONFIG).
+export function getPayday(period: { end: string }): string {
+  return addDays(period.end, PAY_CONFIG.payDayLagDays);
+}
+
+// The period whose cheque is NEXT — the most recent period whose payday hasn't
+// arrived yet (earned-but-unpaid). Because payroll runs on a lag, in the days
+// between a period ending and its payday the just-ended period is the worker's
+// "current" cheque, not the calendar period containing today.
+//
+// The active period is only ever the period containing today or the one before
+// it: the containing period's payday is always in the future, and any period
+// older than the previous one has already paid. So we just check the previous
+// period — if its payday is still today-or-later (inclusive: current THROUGH
+// payday, rolls the day after), that's the next cheque; otherwise the containing
+// period is.
+export function getActivePayPeriod(today: string): { start: string; end: string } {
+  const containing = getPayPeriod(today);
+  const prevPeriod = { start: addDays(containing.start, -14), end: addDays(containing.end, -14) };
+  return getPayday(prevPeriod) >= today ? prevPeriod : containing;
+}
+
+export type PeriodConfidence = 'paid' | 'near-final' | 'in-progress' | 'schedule-floor';
+
+// How much to trust a period's number, derived from where today sits relative to
+// the period and its payday — NOT from its slot in the card. A fully-past period
+// is either already 'paid' or 'near-final' (logged, but the cheque hasn't landed
+// yet); a period containing today is 'in-progress'; a fully-future one is a
+// 'schedule-floor'.
+export function periodConfidence(
+  period: { periodStart: string; periodEnd: string },
+  today: string,
+): PeriodConfidence {
+  if (period.periodStart > today) return 'schedule-floor';
+  if (period.periodEnd  >= today) return 'in-progress';
+  return getPayday({ end: period.periodEnd }) >= today ? 'near-final' : 'paid';
 }
 
 // ── Estimate ───────────────────────────────────────────────────────────────────
