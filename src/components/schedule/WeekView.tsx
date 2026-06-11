@@ -5,6 +5,7 @@ import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
+import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
@@ -41,6 +42,7 @@ export function WeekView({ today, visibleUserIds }: Props) {
   const [addForDate, setAddForDate]   = useState<string | null>(null);
   const touchStartX    = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
+  const scrollRef      = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current    = e.touches[0].clientX;
@@ -52,10 +54,14 @@ export function WeekView({ today, visibleUserIds }: Props) {
     const elapsed = Date.now() - touchStartTime.current;
     touchStartX.current    = null;
     touchStartTime.current = null;
-    // Must be a quick flick (< 250ms) AND meaningful distance (> 50px)
+    // Must be a quick flick (< 250ms); distance + scroll-edge gating lives in
+    // resolveWeekSwipe so a mid-week swipe scrolls toward Sunday instead of
+    // yanking to the next week before it's been seen.
     if (elapsed > 250) return;
-    if (deltaX > 50)       goToNext();
-    else if (deltaX < -50) goToPrev();
+    const el = scrollRef.current;
+    const nav = resolveWeekSwipe(deltaX, el ?? { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 });
+    if (nav === 'next')      goToNext();
+    else if (nav === 'prev') goToPrev();
   };
 
   // Build 7 days of this week (Mon–Sun)
@@ -81,6 +87,7 @@ export function WeekView({ today, visibleUserIds }: Props) {
   return (
     <>
       <div
+        ref={scrollRef}
         className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto transition-colors"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
