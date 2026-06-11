@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
@@ -26,6 +26,9 @@ export function useNewHold(preselectedId?: string) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Synchronous in-flight lock — `submitting` is async state, so it can't guard
+  // against two taps fired in the same render frame (see `submit`).
+  const inFlightRef = useRef(false);
 
   const selectedVehicle = selectedVehicleId
     ? vehicles.find(v => v.id === selectedVehicleId)
@@ -143,14 +146,20 @@ export function useNewHold(preselectedId?: string) {
   };
 
   const submit = async (): Promise<string | null> => {
-    if (!canSubmit || !selectedVehicle) return null;
-    if (!user?.id || !user?.name) {
-      setSubmitError('Session error — please refresh and try again.');
-      return null;
-    }
-    setSubmitError(null);
-    setSubmitting(true);
+    // `canSubmit` is derived from `submitting` STATE, which doesn't flip until the
+    // next render — so two rapid taps (or a re-fired handler on a slow network) can
+    // both pass this guard before either re-renders, and each would flag a SEPARATE
+    // hold with its own UUID. The ref flips synchronously, closing the window the
+    // state-derived guard can't. Cleared in `finally`, so the lock always releases.
+    if (!canSubmit || !selectedVehicle || inFlightRef.current) return null;
+    inFlightRef.current = true;
     try {
+      if (!user?.id || !user?.name) {
+        setSubmitError('Session error — please refresh and try again.');
+        return null;
+      }
+      setSubmitError(null);
+      setSubmitting(true);
       await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
       return selectedVehicle.id;
     } catch {
@@ -158,6 +167,7 @@ export function useNewHold(preselectedId?: string) {
       return null;
     } finally {
       setSubmitting(false);
+      inFlightRef.current = false;
     }
   };
 
