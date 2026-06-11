@@ -98,6 +98,37 @@ export function factsFromHold(hold: {
 }
 
 /**
+ * The linked prior hold whose OPEN exception a repair should auto-close, or null.
+ *
+ * When an exception-released hold is re-flagged and repaired, the re-hold carries
+ * `linkedHoldId` pointing at the original release (set by the re-hold flow). Once
+ * the underlying issue is repaired, the exception that was only covering for that
+ * same issue has nothing left to cover — so this finds the linked hold still
+ * holding an OPEN exception (the thing keeping the vehicle `on-exception`) for the
+ * caller to close.
+ *
+ * The link is the identity — an unlinked hold is never matched, and we never
+ * fuzzy-match on description/type. Only an open EXCEPTION qualifies: an already
+ * returned exception (`actualReturn` set), a PRE_EXISTING/MECHANICAL release, or a
+ * non-RELEASED hold all return null.
+ */
+export function findLinkedOpenException<
+  T extends {
+    id: string;
+    status: string;
+    release?: { releaseType: string; actualReturn?: string | null } | null;
+  },
+>(repairedHold: { linkedHoldId?: string | null }, holds: T[]): T | null {
+  if (!repairedHold.linkedHoldId) return null;
+  const linked = holds.find(h => h.id === repairedHold.linkedHoldId);
+  if (!linked) return null;
+  const r = linked.release;
+  const isOpenException =
+    linked.status === 'RELEASED' && r?.releaseType === 'EXCEPTION' && !r.actualReturn;
+  return isOpenException ? linked : null;
+}
+
+/**
  * Derives the status AND returns the holds in the winning bucket, in the same
  * cascade priority as `deriveHoldStatus`. Callers get status + group from one
  * derivation — no need to re-implement the bucket predicates locally.

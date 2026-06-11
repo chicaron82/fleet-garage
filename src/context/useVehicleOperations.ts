@@ -1,10 +1,10 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
-import { makeClearSaleHold, makeMarkReturned } from './holdResolution';
+import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import type {
-  Vehicle, Hold, Release, Repair,
+  Vehicle, Hold, Release,
   HoldType, DetailReason, MechanicalSubType, BranchId, VehicleStatus,
 } from '../types';
 
@@ -185,38 +185,8 @@ export function useVehicleOperations({
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, photos: merged }));
   };
 
-  const markRepaired = async (holdId: string, repair: Omit<Repair, 'id'>) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
-    const repairId = crypto.randomUUID();
-    const newRepair: Repair = { ...repair, id: repairId };
-    // Primary write — throw on failure like addHold/addRelease so callers can
-    // surface it, instead of silently flipping the hold + local state to REPAIRED
-    // while the repairs table got nothing.
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('repairs').insert({
-        id: repairId, hold_id: holdId,
-        repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
-        outcome: repair.outcome,
-      })
-    );
-    if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
-    );
-    // Project the post-repair hold set and derive from the shared cascade.
-    const projectedHolds = holds
-      .filter(h => h.vehicleId === hold.vehicleId)
-      .map(h => h.id === holdId ? { ...h, status: 'REPAIRED' as const } : h);
-    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
-    const { error: vehErr } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
-    );
-    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'REPAIRED', repair: newRepair }));
-  };
-
   // Hold-resolution ops live in ./holdResolution to keep this file under the cap.
+  const markRepaired  = makeMarkRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markReturned  = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
   const clearSaleHold = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
 

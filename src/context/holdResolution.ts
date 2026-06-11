@@ -1,7 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
-import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
-import type { Hold, Vehicle } from '../types';
+import { deriveHoldStatus, factsFromHold, toVehicleStatus, findLinkedOpenException } from '../lib/vehicle-status';
+import type { Hold, Vehicle, Repair } from '../types';
 
 // Hold-resolution ops that move a hold out of ACTIVE and reconcile the vehicle
 // status. Extracted from useVehicleOperations to keep it under the 330-line cap;
@@ -85,5 +85,75 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
       release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined,
     }));
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+  };
+}
+
+// Record a hold's issue as physically repaired and reconcile the vehicle status.
+// When the repaired hold is a re-hold linking back to a prior exception release
+// (`linkedHoldId`), that linked exception only existed to cover for this same
+// issue — so repairing it auto-closes the linked exception in the same op: the
+// release's `actual_return` is stamped (as of the repair) and the linked hold is
+// resolved like a normal return, so the vehicle derives off-exception in one pass
+// instead of staying stuck behind a stale sibling. Only an explicitly linked open
+// EXCEPTION is closed — never a fuzzy text match (see `findLinkedOpenException`).
+export function makeMarkRepaired({ holds, setAllHolds, setAllVehicles }: ResolutionDeps) {
+  return async (holdId: string, repair: Omit<Repair, 'id'>) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    const repairId = crypto.randomUUID();
+    const newRepair: Repair = { ...repair, id: repairId };
+    // Primary write — throw on failure like addHold/addRelease so callers can
+    // surface it, instead of silently flipping the hold + local state to REPAIRED
+    // while the repairs table got nothing.
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('repairs').insert({
+        id: repairId, hold_id: holdId,
+        repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
+        outcome: repair.outcome,
+      })
+    );
+    if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
+    await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
+    );
+
+    // If this repair resolves a linked prior exception, close it too: stamp the
+    // release's actual_return (as of the repair) and resolve the linked hold like
+    // a normal return, so its open-exception fact clears in the projection below.
+    const linked = findLinkedOpenException(hold, holds);
+    if (linked) {
+      await writeWithRefresh(() =>
+        supabase.from('releases').update({ actual_return: repair.repairedAt }).eq('id', linked.release!.id)
+      );
+      await writeWithRefresh(() =>
+        supabase.from('holds').update({ status: 'RETURNED' }).eq('id', linked.id)
+      );
+    }
+
+    // Project the post-repair hold set (repaired hold + any closed linked
+    // exception) and derive the vehicle status from the shared cascade.
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === hold.vehicleId)
+      .map(h => {
+        if (h.id === holdId) return { ...h, status: 'REPAIRED' as const };
+        if (linked && h.id === linked.id) return {
+          ...h, status: 'RETURNED' as const,
+          release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
+        };
+        return h;
+      });
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+    const { error: vehErr } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+    );
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+    setAllHolds(prev => prev.map(h => {
+      if (h.id === holdId) return { ...h, status: 'REPAIRED', repair: newRepair };
+      if (linked && h.id === linked.id) return {
+        ...h, status: 'RETURNED',
+        release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
+      };
+      return h;
+    }));
   };
 }

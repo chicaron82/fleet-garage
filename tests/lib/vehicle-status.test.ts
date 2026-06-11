@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  deriveHoldStatus, toVehicleStatus, factsFromRow, factsFromHold,
+  deriveHoldStatus, toVehicleStatus, factsFromRow, factsFromHold, findLinkedOpenException,
   type HoldFacts,
 } from '../../src/lib/vehicle-status';
 
@@ -226,5 +226,109 @@ describe('clearing a sale flag returns the vehicle to rentable', () => {
     const clearedSale = factsFromHold({ status: 'RETURNED', holdTypes: ['sale_car'], release: null });
     const realDamage  = factsFromHold({ status: 'ACTIVE', holdTypes: ['damage'] });
     expect(deriveHoldStatus([clearedSale, realDamage])).toBe('held');
+  });
+});
+
+// ── markRepaired's linked-exception close — the identity is the link, never text ──
+
+interface TestHold {
+  id: string;
+  vehicleId: string;
+  status: string;
+  holdTypes: string[];
+  linkedHoldId?: string | null;
+  release?: { releaseType: string; actualReturn?: string | null } | null;
+}
+
+const exceptionRelease = (over: Partial<TestHold['release'] & object> = {}) => ({
+  releaseType: 'EXCEPTION', actualReturn: null, ...over,
+});
+
+describe('findLinkedOpenException', () => {
+  const openSibling: TestHold = {
+    id: 'may5', vehicleId: 'rogue', status: 'RELEASED', holdTypes: ['mechanical'],
+    release: exceptionRelease(),
+  };
+
+  it('returns the linked hold when it holds an open exception', () => {
+    const repaired = { linkedHoldId: 'may5' };
+    expect(findLinkedOpenException(repaired, [openSibling])).toBe(openSibling);
+  });
+
+  it('no linkedHoldId → null (unlinked holds are never matched)', () => {
+    expect(findLinkedOpenException({ linkedHoldId: undefined }, [openSibling])).toBeNull();
+    expect(findLinkedOpenException({ linkedHoldId: null }, [openSibling])).toBeNull();
+  });
+
+  it('linkedHoldId points at a hold not present → null', () => {
+    expect(findLinkedOpenException({ linkedHoldId: 'ghost' }, [openSibling])).toBeNull();
+  });
+
+  it('linked exception already returned (actual_return set) → null', () => {
+    const returned: TestHold = { ...openSibling, release: exceptionRelease({ actualReturn: '2026-06-02T12:00:00Z' }) };
+    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [returned])).toBeNull();
+  });
+
+  it('linked release is PRE_EXISTING (not an exception) → null', () => {
+    const preExisting: TestHold = { ...openSibling, release: { releaseType: 'PRE_EXISTING', actualReturn: null } };
+    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [preExisting])).toBeNull();
+  });
+
+  it('linked release is a MECHANICAL_RELEASE (scoped to EXCEPTION) → null', () => {
+    const mech: TestHold = { ...openSibling, release: { releaseType: 'MECHANICAL_RELEASE', actualReturn: null } };
+    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [mech])).toBeNull();
+  });
+
+  it('linked hold is not RELEASED → null', () => {
+    const active: TestHold = { ...openSibling, status: 'ACTIVE', release: null };
+    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [active])).toBeNull();
+  });
+});
+
+// The acceptance scenario, end-to-end through the same projection markRepaired runs:
+// a May exception release + a linked June re-hold. Repairing the June hold must
+// close the May exception so the vehicle derives off-exception — and must NOT when
+// the holds aren't linked.
+describe('repairing a linked re-hold resolves the stuck-on-exception vehicle', () => {
+  const may5: TestHold = {
+    id: 'may5', vehicleId: 'rogue', status: 'RELEASED', holdTypes: ['mechanical'],
+    release: exceptionRelease(),
+  };
+  const repairedAt = '2026-06-02T15:00:00Z';
+
+  // Mirror makeMarkRepaired's projection: repaired hold → REPAIRED, the linked
+  // open exception → RETURNED with actual_return stamped.
+  const project = (holds: TestHold[], repairedId: string, linked: TestHold | null) =>
+    holds.map(h => {
+      if (h.id === repairedId) return { ...h, status: 'REPAIRED' };
+      if (linked && h.id === linked.id) return {
+        ...h, status: 'RETURNED',
+        release: h.release ? { ...h.release, actualReturn: repairedAt } : null,
+      };
+      return h;
+    });
+
+  it('stays on-exception before the fix (the stuck Rogue)', () => {
+    const jun1: TestHold = { id: 'jun1', vehicleId: 'rogue', status: 'REPAIRED', holdTypes: ['mechanical'], linkedHoldId: 'may5' };
+    // May5 still open, only Jun1 flipped to REPAIRED → the sibling keeps it stuck.
+    expect(deriveHoldStatus([may5, jun1].map(factsFromHold))).toBe('on-exception');
+  });
+
+  it('linked repair closes the exception → clear', () => {
+    const jun1: TestHold = { id: 'jun1', vehicleId: 'rogue', status: 'ACTIVE', holdTypes: ['mechanical'], linkedHoldId: 'may5' };
+    const holds = [may5, jun1];
+    const linked = findLinkedOpenException(jun1, holds);
+    expect(linked).toBe(may5);
+    const projected = project(holds, 'jun1', linked);
+    expect(deriveHoldStatus(projected.map(factsFromHold))).toBe('clear');
+  });
+
+  it('an UNLINKED open exception is left untouched → still on-exception', () => {
+    const jun1: TestHold = { id: 'jun1', vehicleId: 'rogue', status: 'ACTIVE', holdTypes: ['mechanical'] }; // no link
+    const holds = [may5, jun1];
+    const linked = findLinkedOpenException(jun1, holds);
+    expect(linked).toBeNull();
+    const projected = project(holds, 'jun1', linked);
+    expect(deriveHoldStatus(projected.map(factsFromHold))).toBe('on-exception');
   });
 });
