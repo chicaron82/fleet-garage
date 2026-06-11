@@ -64,11 +64,13 @@ export function AnalyticsView() {
     const damage     = activeHolds.filter(h => h.holdTypes.includes('damage')).length;
     const detail     = activeHolds.filter(h => h.holdTypes.includes('detail')).length;
     const mechanical = activeHolds.filter(h => h.holdTypes.includes('mechanical')).length;
-    const total = damage + detail + mechanical || 1;
+    const hail       = activeHolds.filter(h => h.holdTypes.includes('hail')).length;
+    const total = damage + detail + mechanical + hail || 1;
     return [
-      { label: 'Damage',     count: damage,     color: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400',  pct: damage / total },
-      { label: 'Detail',     count: detail,     color: 'bg-teal-400',  text: 'text-teal-700 dark:text-teal-400',   pct: detail / total },
-      { label: 'Mechanical', count: mechanical, color: 'bg-blue-400',  text: 'text-blue-700 dark:text-blue-400',   pct: mechanical / total },
+      { label: 'Damage',     count: damage,     color: 'bg-amber-400',  text: 'text-amber-700 dark:text-amber-400',   pct: damage / total },
+      { label: 'Detail',     count: detail,     color: 'bg-teal-400',   text: 'text-teal-700 dark:text-teal-400',     pct: detail / total },
+      { label: 'Mechanical', count: mechanical, color: 'bg-blue-400',   text: 'text-blue-700 dark:text-blue-400',     pct: mechanical / total },
+      { label: 'Hail',       count: hail,       color: 'bg-indigo-400', text: 'text-indigo-700 dark:text-indigo-400', pct: hail / total },
     ];
   })();
 

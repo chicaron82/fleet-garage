@@ -49,6 +49,11 @@ export function holdBadgeConfig(
         label: 'Missing Assets',
         className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
       };
+    case 'hail':
+      return {
+        label: '⛈️ Hail',
+        className: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+      };
     default:
       return {
         label: 'Held',
@@ -70,6 +75,7 @@ export function holdContextEmojis(
   if (mechanicalSubType === 'pm-due')                                          emojis.push('⚙️');
   if (holdTypes.includes('mechanical') && !mechanicalSubType || mechanicalSubType === 'other') emojis.push('🔧');
   if (holdTypes.includes('missing_accessories'))                               emojis.push('🔌');
+  if (holdTypes.includes('hail'))                                              emojis.push('⛈️');
   if (detailReason === 'smoke-vape')                                           emojis.push('🚬');
   if (detailReason === 'pet-hair')                                             emojis.push('🐾');
   return emojis;
@@ -81,6 +87,7 @@ export function holdTypePillClass(type: HoldType): string {
     case 'detail':     return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800';
     case 'sale_car':   return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800';
     case 'missing_accessories': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800';
+    case 'hail':       return 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800';
     default:           return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
   }
 }

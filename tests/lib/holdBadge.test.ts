@@ -54,6 +54,7 @@ describe('holdBadgeConfig', () => {
     ['detail', 'Held'],
     ['sale_car', 'Sale Car'],
     ['damage', 'Held'],
+    ['hail', '⛈️ Hail'],
   ] as [HoldType, string][])('single %s hold → label %s', (type, label) => {
     expect(holdBadgeConfig([type]).label).toBe(label);
   });
@@ -61,6 +62,11 @@ describe('holdBadgeConfig', () => {
   it('gives sale_car a distinct (teal) className vs damage (red)', () => {
     expect(holdBadgeConfig(['sale_car']).className).toContain('teal');
     expect(holdBadgeConfig(['damage']).className).toContain('red');
+  });
+
+  it('gives hail its own indigo className — not the damage-red default', () => {
+    expect(holdBadgeConfig(['hail']).className).toContain('indigo');
+    expect(holdBadgeConfig(['hail']).className).not.toContain('red');
   });
 });
 
@@ -81,6 +87,10 @@ describe('holdContextEmojis', () => {
     expect(holdContextEmojis('HELD', ['detail'], 'pet-hair')).toContain('🐾');
   });
 
+  it('adds the storm emoji for a hail hold', () => {
+    expect(holdContextEmojis('HELD', ['hail'])).toContain('⛈️');
+  });
+
   it('returns an empty list when nothing applies', () => {
     expect(holdContextEmojis('CLEAR', ['damage'])).toEqual([]);
   });
@@ -94,5 +104,6 @@ describe('holdTypePillClass', () => {
     expect(holdTypePillClass('detail')).toContain('teal');
     expect(holdTypePillClass('sale_car')).toContain('purple');
     expect(holdTypePillClass('damage')).toContain('red');
+    expect(holdTypePillClass('hail')).toContain('indigo');
   });
 });

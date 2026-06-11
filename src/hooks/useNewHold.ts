@@ -59,8 +59,9 @@ export function useNewHold(preselectedId?: string) {
   const isSaleCarOnly = holdTypes.length === 1 && holdTypes[0] === 'sale_car';
 
   const parts = [
-    holdTypes.includes('damage')     ? damageDesc    : '',
-    holdTypes.includes('detail')     ? detailDesc    : '',
+    holdTypes.includes('damage')     ? damageDesc     : '',
+    holdTypes.includes('hail')       ? 'Hail damage'  : '',  // storm batch — specifics go in notes
+    holdTypes.includes('detail')     ? detailDesc     : '',
     holdTypes.includes('mechanical') ? mechanicalDesc : '',
   ].filter(Boolean);
   const finalDamage = isSaleCarOnly
@@ -73,7 +74,8 @@ export function useNewHold(preselectedId?: string) {
     (mechanicalTypes.filter(t => t !== 'Other').length > 0 ||
      (mechanicalTypes.includes('Other') && !!customMechanical.trim()));
 
-  const photosOk  = !holdTypes.includes('damage') || photos.length > 0;
+  // Damage and hail are both photo-documented (assessment leans on the photo).
+  const photosOk  = (!holdTypes.includes('damage') && !holdTypes.includes('hail')) || photos.length > 0;
   const canSubmit = !!(selectedVehicle && !submitting && damageOk && detailOk && mechanicalOk && photosOk);
 
   // Primary holdType for backwards compat

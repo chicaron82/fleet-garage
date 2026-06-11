@@ -2,6 +2,7 @@ import type { Hold, Vehicle } from '../types';
 
 const HOLD_TYPE_LABELS: Record<string, string> = {
   damage:              'Damage',
+  hail:                'Hail',
   detail:              'Detail',
   mechanical:          'Mechanical',
   sale_car:            'Sale Car',

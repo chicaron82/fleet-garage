@@ -143,7 +143,7 @@ export function canManageVehicles(role: UserRole): boolean {
 // ── Holds ────────────────────────────────────────────────────────────────────
 
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED' | 'VOIDED';
-export type HoldType = 'damage' | 'detail' | 'mechanical' | 'sale_car' | 'missing_accessories';
+export type HoldType = 'damage' | 'hail' | 'detail' | 'mechanical' | 'sale_car' | 'missing_accessories';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
 

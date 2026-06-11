@@ -71,12 +71,31 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
           <span className="block font-semibold">🏷️ Sale Car</span>
           <span className="block text-xs opacity-70 mt-0.5">Auction — don't clean</span>
         </button>
+        <button
+          type="button"
+          onClick={() => { hapticLight(); h.toggleHoldType('hail'); }}
+          className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition cursor-pointer text-left ${
+            h.holdTypes.includes('hail')
+              ? 'border-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 text-gray-900 dark:text-gray-100'
+              : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+          }`}
+        >
+          <span className="block font-semibold">⛈️ Hail</span>
+          <span className="block text-xs opacity-70 mt-0.5">Storm batch — assess</span>
+        </button>
       </div>
 
       {/* Sale Car info */}
       {h.isSaleCarOnly && (
         <div className="rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 px-4 py-3 text-xs text-purple-800 dark:text-purple-300">
           No photos required — this is a disposition flag, not a damage record. Add an auction date or reference in notes if known.
+        </div>
+      )}
+
+      {/* Hail info */}
+      {h.holdTypes.includes('hail') && (
+        <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 px-4 py-3 text-xs text-indigo-800 dark:text-indigo-300">
+          Storm batch — photograph the hail damage for assessment. Held pending management's call; the whole batch can be released short-term if rentals get tight.
         </div>
       )}
 
@@ -157,11 +176,11 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
       {/* Photos — hidden for sale_car (no damage to document) */}
       {!h.isSaleCarOnly && <div>
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-          Photos {h.holdTypes.includes('damage') ? <span className="text-red-500">*</span> : <span className="normal-case font-normal text-gray-400 dark:text-gray-500">(optional)</span>} · max {h.MAX_PHOTOS}
+          Photos {(h.holdTypes.includes('damage') || h.holdTypes.includes('hail')) ? <span className="text-red-500">*</span> : <span className="normal-case font-normal text-gray-400 dark:text-gray-500">(optional)</span>} · max {h.MAX_PHOTOS}
         </label>
-        {h.holdTypes.includes('damage') && h.photos.length === 0 && (
+        {(h.holdTypes.includes('damage') || h.holdTypes.includes('hail')) && h.photos.length === 0 && (
           <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
-            At least one photo is required for damage holds.
+            At least one photo is required for damage and hail holds.
           </p>
         )}
         <div className="flex flex-wrap gap-2">

@@ -28,7 +28,8 @@ function statusLetter(entry: ExportEntry): string {
   if (entry.classification === 'Rentable') return 'A';
   if (entry.classification === 'Dirty')    return 'D';
   if (entry.classification === 'Held') {
-    return entry.holdType === 'damage' ? 'B' : 'M';
+    // Hail is body damage too — both print as 'B' on the paper form.
+    return entry.holdType === 'damage' || entry.holdType === 'hail' ? 'B' : 'M';
   }
   return '';
 }
@@ -36,7 +37,10 @@ function statusLetter(entry: ExportEntry): string {
 // Pre-fill notes with lot location so the closer doesn't have to retype it
 function defaultNotes(entry: ExportEntry): string {
   if (entry.classification === 'Held') {
-    return entry.holdType === 'damage' ? 'Body damage — see hold' : entry.holdType === 'mechanical' ? 'Mechanical — see hold' : 'Held';
+    return entry.holdType === 'damage' ? 'Body damage — see hold'
+      : entry.holdType === 'hail' ? 'Hail damage — see hold'
+      : entry.holdType === 'mechanical' ? 'Mechanical — see hold'
+      : 'Held';
   }
   if (entry.zone === 'Other') return entry.locationText || '';
   if (entry.row && entry.zone) return `${entry.row}, ${entry.zone}`;
