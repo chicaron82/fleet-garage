@@ -157,3 +157,47 @@ export function makeMarkRepaired({ holds, setAllHolds, setAllVehicles }: Resolut
     }));
   };
 }
+
+// Manually close a hold's OPEN exception without a physical return — for a stale
+// or orphaned exception (the issue was resolved another way, or the hold was a
+// duplicate) that's keeping a vehicle stuck On-Exception. Stamps the release's
+// actual_return, resolves the hold like a normal return, and re-derives the
+// vehicle from the shared cascade (→ clear unless another genuine hold grounds
+// it). Pings management for awareness — but NOT the re-evaluation alarm, since
+// nothing physically returned. A management-level liability call (gated upstream
+// by canRelease — the inverse of putting a car on exception in the first place).
+export function makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles }: ResolutionDeps) {
+  return async (holdId: string, resolvedByName: string) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    const resolvedAt = new Date().toISOString();
+    // Primary write — throw on failure like the sibling ops so the caller can
+    // surface it instead of flipping local state on a write that didn't land.
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', holdId)
+    );
+    if (error) throw new Error(`Failed to close exception: ${(error as { message?: string }).message}`);
+    if (hold.release) await writeWithRefresh(() =>
+      supabase.from('releases').update({ actual_return: resolvedAt }).eq('id', hold.release!.id)
+    );
+    // Re-derive from the projected hold set — lands clear unless a separate genuine
+    // hold still grounds the vehicle.
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === hold.vehicleId)
+      .map(h => h.id === holdId
+        ? { ...h, status: 'RETURNED' as const, release: h.release ? { ...h.release, actualReturn: resolvedAt } : undefined }
+        : h);
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+    const { error: vehErr } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+    );
+    const unit = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
+    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], 'ℹ️',
+      `Exception on unit ${unit} resolved (closed without return) by ${resolvedByName}.`, 'info', { vehicleId: hold.vehicleId });
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
+      ...h, status: 'RETURNED',
+      release: h.release ? { ...h.release, actualReturn: resolvedAt } : undefined,
+    }));
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+  };
+}

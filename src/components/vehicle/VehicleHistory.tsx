@@ -3,6 +3,7 @@ import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag } from '../../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
+import { CloseExceptionAction } from './CloseExceptionAction';
 import { hapticHeavy } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
 import { ReleaseForm } from '../holds/ReleaseForm';
@@ -208,6 +209,8 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               )}
             </div>
           )}
+
+          <CloseExceptionAction holds={h.holds} role={h.user.role} />
 
           {canManageVehicles(h.user.role) && !vehicle.archivedAt && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-end">

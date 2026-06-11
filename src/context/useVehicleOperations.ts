@@ -1,7 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
-import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired } from './holdResolution';
+import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import type {
   Vehicle, Hold, Release,
@@ -187,8 +187,9 @@ export function useVehicleOperations({
 
   // Hold-resolution ops live in ./holdResolution to keep this file under the cap.
   const markRepaired  = makeMarkRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
-  const markReturned  = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
-  const clearSaleHold = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const markReturned   = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
 
   const archiveVehicle = async (vehicleId: string) => {
     const now = new Date().toISOString();
@@ -308,6 +309,7 @@ export function useVehicleOperations({
     markRepaired,
     markReturned,
     clearSaleHold,
+    closeException,
     archiveVehicle,
     restoreVehicle,
     syncVehicleStatus,

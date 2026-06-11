@@ -332,3 +332,27 @@ describe('repairing a linked re-hold resolves the stuck-on-exception vehicle', (
     expect(deriveHoldStatus(projected.map(factsFromHold))).toBe('on-exception');
   });
 });
+
+// ── closeException's contract — a manually closed exception returns to derived status ──
+// makeCloseException resolves a stale/orphaned open exception by stamping the
+// release's actual_return and setting the hold RETURNED; the vehicle then derives
+// off whatever holds remain (clear, unless another genuine hold grounds it).
+describe('closing a stale exception returns the vehicle to its derived status', () => {
+  it('a non-sale exception hold, closed (RETURNED + release closed), is no longer on-exception', () => {
+    const closed = factsFromHold({
+      status: 'RETURNED', holdTypes: ['mechanical'],
+      release: { releaseType: 'EXCEPTION', actualReturn: '2026-06-10T20:00:00Z' },
+    });
+    expect(closed.isOpenException).toBe(false);
+    expect(deriveHoldStatus([closed])).toBe('clear');
+  });
+
+  it('does NOT clear a vehicle that still has a separate active hold', () => {
+    const closed = factsFromHold({
+      status: 'RETURNED', holdTypes: ['mechanical'],
+      release: { releaseType: 'EXCEPTION', actualReturn: '2026-06-10T20:00:00Z' },
+    });
+    const active = factsFromHold({ status: 'ACTIVE', holdTypes: ['damage'] });
+    expect(deriveHoldStatus([closed, active])).toBe('held');
+  });
+});

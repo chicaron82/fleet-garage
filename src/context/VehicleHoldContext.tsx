@@ -28,6 +28,7 @@ export interface VehicleHoldContextValue {
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
   clearSaleHold: (holdId: string, clearedByName: string) => Promise<void>;
+  closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;
   restoreVehicle: (vehicleId: string) => Promise<void>;
