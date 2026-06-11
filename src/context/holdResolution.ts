@@ -216,6 +216,14 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
     const targets = holds.filter(h => holdIds.includes(h.id));
     if (targets.length === 0) throw new Error('No holds to repair');
     const vehicleId = targets[0].vehicleId;
+    // All targets must share one vehicle: the projection below filters holds by
+    // vehicleId and derives ONE vehicle status, so a cross-vehicle batch would
+    // write every repair but re-derive only the first vehicle — the others would
+    // keep a stale status. Today's only caller (the per-vehicle repair picker)
+    // can't produce this; fail fast before any write in case a second caller can.
+    if (targets.some(t => t.vehicleId !== vehicleId)) {
+      throw new Error('Batch repair must target holds on a single vehicle');
+    }
     const repairsById = new Map<string, Repair>();
     for (const t of targets) {
       const repairId = crypto.randomUUID();
