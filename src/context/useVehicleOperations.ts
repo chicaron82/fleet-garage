@@ -3,6 +3,7 @@ import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
+import { withSubmitLock } from '../lib/submitLock';
 import type {
   Vehicle, Hold, Release,
   HoldType, DetailReason, MechanicalSubType, BranchId, VehicleStatus,
@@ -77,99 +78,110 @@ export function useVehicleOperations({
     mechanicalSubType?: MechanicalSubType | null,
     linkedHoldId?: string,
   ) => {
-    const holdId = crypto.randomUUID();
-    const flaggedAt = new Date().toISOString();
-    const branchId = (activeBranch === 'ALL' ? 'YWG' : activeBranch) as BranchId;
+    // Double-submit guard at the convergence point: every addHold caller (six and
+    // counting) is protected here, not per-form. Keyed per vehicle — a re-entrant
+    // flag for the same vehicle while the first is in flight is dropped.
+    await withSubmitLock(`hold:${vehicleId}`, async () => {
+      const holdId = crypto.randomUUID();
+      const flaggedAt = new Date().toISOString();
+      const branchId = (activeBranch === 'ALL' ? 'YWG' : activeBranch) as BranchId;
 
-    const photoUrls = (await Promise.all(
-      (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
-    )).filter((url): url is string => url !== null);
+      const photoUrls = (await Promise.all(
+        (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
+      )).filter((url): url is string => url !== null);
 
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').insert({
-        id: holdId, vehicle_id: vehicleId,
-        hold_type: holdTypes[0], hold_types: holdTypes,
-        detail_reason: detailReason ?? null,
-        mechanical_sub_type: mechanicalSubType ?? null,
-        damage_description: damageDescription,
-        flagged_by_id:          flaggedById,
-        flagged_by_name:        userName,
-        flagged_by_employee_id: userEmployeeId,
-        flagged_at:             flaggedAt,
-        notes, photos: photoUrls, status: 'ACTIVE',
-        linked_hold_id: linkedHoldId ?? null,
-        branch_id: branchId,
-      })
-    );
-    if (error) throw new Error(`Failed to add hold: ${(error as { message?: string }).message}`);
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('holds').insert({
+          id: holdId, vehicle_id: vehicleId,
+          hold_type: holdTypes[0], hold_types: holdTypes,
+          detail_reason: detailReason ?? null,
+          mechanical_sub_type: mechanicalSubType ?? null,
+          damage_description: damageDescription,
+          flagged_by_id:          flaggedById,
+          flagged_by_name:        userName,
+          flagged_by_employee_id: userEmployeeId,
+          flagged_at:             flaggedAt,
+          notes, photos: photoUrls, status: 'ACTIVE',
+          linked_hold_id: linkedHoldId ?? null,
+          branch_id: branchId,
+        })
+      );
+      if (error) throw new Error(`Failed to add hold: ${(error as { message?: string }).message}`);
 
-    const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
-    await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
-      `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
+      const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
+      await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
+        `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
 
-    // The hold insert is the source of truth for "the hold exists", so the hold
-    // is added locally unconditionally below. The vehicle status flip is a derived
-    // follow-up: gate its optimistic update on the write so a failed `vehicles`
-    // update (no realtime channel — won't self-heal) can't diverge from the DB.
-    const { error: vehErr } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId)
-    );
+      // The hold insert is the source of truth for "the hold exists", so the hold
+      // is added locally unconditionally below. The vehicle status flip is a derived
+      // follow-up: gate its optimistic update on the write so a failed `vehicles`
+      // update (no realtime channel — won't self-heal) can't diverge from the DB.
+      const { error: vehErr } = await writeWithRefresh(() =>
+        supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId)
+      );
 
-    const newHold: Hold = {
-      id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
-      damageDescription, flaggedById,
-      flaggedByName: userName, flaggedByEmployeeId: userEmployeeId,
-      flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
-    };
-    setAllHolds(prev => [newHold, ...prev]);
-    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
+      const newHold: Hold = {
+        id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
+        damageDescription, flaggedById,
+        flaggedByName: userName, flaggedByEmployeeId: userEmployeeId,
+        flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
+      };
+      // Idempotent local add: never show two copies of the same hold id (e.g. a
+      // realtime echo arriving alongside this optimistic insert).
+      setAllHolds(prev => prev.some(h => h.id === holdId) ? prev : [newHold, ...prev]);
+      if (!vehErr) setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
+    });
   };
 
   const addRelease = async (holdId: string, release: Omit<Release, 'id'>) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    // Keyed per hold — `hold.release` is singular downstream, so a double-submit
+    // here is data corruption (two release rows on one hold), not just a UX dupe.
+    await withSubmitLock(`release:${holdId}`, async () => {
+      const hold = holds.find(h => h.id === holdId);
+      if (!hold) throw new Error(`Hold not found: ${holdId}`);
 
-    const releaseId = crypto.randomUUID();
-    const newRelease: Release = { ...release, id: releaseId };
-    // Project the post-release hold set and derive the vehicle status from the
-    // shared cascade (lib/vehicle-status) so the read and write paths agree.
-    const projectedHolds = holds
-      .filter(h => h.vehicleId === hold.vehicleId)
-      .map(h => h.id === holdId ? { ...h, status: 'RELEASED' as const, release: newRelease } : h);
-    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+      const releaseId = crypto.randomUUID();
+      const newRelease: Release = { ...release, id: releaseId };
+      // Project the post-release hold set and derive the vehicle status from the
+      // shared cascade (lib/vehicle-status) so the read and write paths agree.
+      const projectedHolds = holds
+        .filter(h => h.vehicleId === hold.vehicleId)
+        .map(h => h.id === holdId ? { ...h, status: 'RELEASED' as const, release: newRelease } : h);
+      const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
 
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('releases').insert({
-        id: releaseId, hold_id: holdId,
-        approved_by_id: release.approvedById, approved_at: release.approvedAt,
-        release_type: release.releaseType ?? 'EXCEPTION',
-        release_method: release.releaseMethod ?? 'standard',
-        override_authorization: release.overrideAuthorization ?? null,
-        reason: release.reason,
-        expected_return: release.expectedReturn ?? null,
-        actual_return: release.actualReturn ?? null,
-        notes: release.notes,
-      })
-    );
-    if (error) throw new Error(`Failed to add release: ${(error as { message?: string }).message}`);
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('releases').insert({
+          id: releaseId, hold_id: holdId,
+          approved_by_id: release.approvedById, approved_at: release.approvedAt,
+          release_type: release.releaseType ?? 'EXCEPTION',
+          release_method: release.releaseMethod ?? 'standard',
+          override_authorization: release.overrideAuthorization ?? null,
+          reason: release.reason,
+          expected_return: release.expectedReturn ?? null,
+          actual_return: release.actualReturn ?? null,
+          notes: release.notes,
+        })
+      );
+      if (error) throw new Error(`Failed to add release: ${(error as { message?: string }).message}`);
 
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId)
-    );
+      await writeWithRefresh(() =>
+        supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId)
+      );
 
-    const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
-      `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
+      const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
+      await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
+        `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
 
-    const { error: vehErr } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
-    );
+      const { error: vehErr } = await writeWithRefresh(() =>
+        supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+      );
 
-    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
-    // Gate the derived vehicle-status flip on its write (vehicles has no realtime
-    // self-heal). The fleet view derives status from holds regardless; this keeps
-    // the stored status from diverging when the follow-up update fails.
-    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+      setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
+      // Gate the derived vehicle-status flip on its write (vehicles has no realtime
+      // self-heal). The fleet view derives status from holds regardless; this keeps
+      // the stored status from diverging when the follow-up update fails.
+      if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+    });
   };
 
   const addPhotosToHold = async (holdId: string, newPhotos: string[]) => {

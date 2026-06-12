@@ -166,6 +166,20 @@ describe('addHold', () => {
     expect(setAllHolds).toHaveBeenCalledTimes(1);
     expect(setAllVehicles).not.toHaveBeenCalled();
   });
+
+  it('double-submit in the same frame inserts exactly one hold (shared lock)', async () => {
+    // Two taps fired before the first resolves — the synchronous withSubmitLock
+    // (keyed per vehicle) drops the second, so only one holds row is written.
+    const v = makeVehicle();
+    const { ops, setAllHolds } = makeOps([], [v]);
+
+    const p1 = ops.addHold(v.id, 'scrape', '', 'u-1');
+    const p2 = ops.addHold(v.id, 'scrape', '', 'u-1'); // same key, lock held → dropped
+    await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'holds')).toHaveLength(1);
+    expect(setAllHolds).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ── addRelease ────────────────────────────────────────────────────────────────
@@ -199,6 +213,21 @@ describe('addRelease', () => {
     const { ops } = makeOps([]);
 
     await expect(ops.addRelease('missing', EXCEPTION_RELEASE)).rejects.toThrow('Hold not found');
+  });
+
+  it('double-submit on the same hold inserts exactly one release (shared lock)', async () => {
+    // Sharpest teeth in the class: `hold.release` is singular downstream, so two
+    // release rows corrupt exception/return state. The per-hold lock prevents it.
+    const hold = makeHold();
+    const v = makeVehicle();
+    const { ops, setAllHolds } = makeOps([hold], [v]);
+
+    const p1 = ops.addRelease(hold.id, EXCEPTION_RELEASE);
+    const p2 = ops.addRelease(hold.id, EXCEPTION_RELEASE); // same hold, lock held → dropped
+    await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'releases')).toHaveLength(1);
+    expect(setAllHolds).toHaveBeenCalledTimes(1);
   });
 });
 

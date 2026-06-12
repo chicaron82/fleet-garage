@@ -27,7 +27,10 @@ export function useNewHold(preselectedId?: string) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Synchronous in-flight lock — `submitting` is async state, so it can't guard
-  // against two taps fired in the same render frame (see `submit`).
+  // against two taps fired in the same render frame (see `submit`). The load-bearing
+  // dedup now lives in `addHold` itself (shared `withSubmitLock`), so every caller is
+  // protected; this ref stays as a UI early-out (the second tap never even flips
+  // `submitting`), redundant-but-intentional.
   const inFlightRef = useRef(false);
 
   const selectedVehicle = selectedVehicleId

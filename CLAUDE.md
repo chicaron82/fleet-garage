@@ -63,6 +63,22 @@ under `tests/lib/` in the same commit.
 > and `types/index` (clean moves). Keep all new tests in `tests/` — this rule has
 > needed re-enforcing twice now, so don't co-locate "just this one."
 
+## Writing data — the submit lock
+
+Insert-shaped writes (anything that mints a fresh row id) go through
+`withSubmitLock(key, fn)` from `src/lib/submitLock.ts`, applied **inside the context
+write function** (`addHold`, `addRelease`, `createShift`, `bulkCreateShifts`,
+`addIssue`, …) — never re-derived per-form. A React `submitting` state / `disabled`
+button flips on the *next* render, so two taps in the same frame both pass and you get
+a duplicate row (each insert mints its own UUID, so nothing collides); the synchronous
+`Set`-check in `withSubmitLock` closes that window. **State flags are for
+spinners/`disabled` only — never the lock.** Key on the logical target
+(`hold:${vehicleId}`, `release:${holdId}`, `shift:${userId}:${date}:${type}`). A new
+insert form inherits protection by routing through a guarded write fn. Updates and
+keyed upserts converge harmlessly and don't need it. *(This lesson recurred three
+times — `useState(async)` sweep, the `addHold` shared guard, the app-wide sweep — each
+time the fix was "move it to where paths converge.")*
+
 ## Build & Test
 
 ```bash

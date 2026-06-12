@@ -7,6 +7,7 @@ import { usePeakSeason } from '../hooks/usePeakSeason';
 import { usePTOStats } from '../hooks/usePTOStats';
 import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
 import { rowToShiftBase } from '../lib/rowToShift';
+import { withSubmitLock } from '../lib/submitLock';
 import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -138,47 +139,60 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [activeBranch]);
 
   const createShift = async (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
-    const { data, error } = await writeWithRefresh(() =>
-      supabase.from('shifts').insert({
-        user_id: shift.userId,
-        date: shift.date,
-        start_time: shift.startTime,
-        end_time: shift.endTime,
-        shift_type: shift.shiftType,
-        notes: shift.notes,
-        actual_start_time: shift.actualStartTime,
-        actual_end_time: shift.actualEndTime,
-        is_stat: shift.isStat,
-      }).select().single()
-    );
-    if (error) throw error;
-    setShifts(prev => [...prev, rowToShift(data as Record<string, unknown>)]);
-    applyTally(shift.userId, null, { shiftType: shift.shiftType, date: shift.date });
-    if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
-      const target = getProfile(shift.userId);
-      if (target) {
-        await pushNotification(
-          user.branchId, [target.role], '📅',
-          `${user.name} added ${formatShiftLabel(shift.shiftType, shift.date)} to your schedule.`,
-          'info', { shiftDate: shift.date, shiftType: shift.shiftType }, target.id,
-        );
+    // Keyed per user+date+type — two same-frame taps (e.g. logging a sick day) can
+    // otherwise insert two shift rows and corrupt the limited tally (0/6).
+    await withSubmitLock(`shift:${shift.userId}:${shift.date}:${shift.shiftType}`, async () => {
+      const { data, error } = await writeWithRefresh(() =>
+        supabase.from('shifts').insert({
+          user_id: shift.userId,
+          date: shift.date,
+          start_time: shift.startTime,
+          end_time: shift.endTime,
+          shift_type: shift.shiftType,
+          notes: shift.notes,
+          actual_start_time: shift.actualStartTime,
+          actual_end_time: shift.actualEndTime,
+          is_stat: shift.isStat,
+        }).select().single()
+      );
+      if (error) throw error;
+      const created = rowToShift(data as Record<string, unknown>);
+      setShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
+      applyTally(shift.userId, null, { shiftType: shift.shiftType, date: shift.date });
+      if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
+        const target = getProfile(shift.userId);
+        if (target) {
+          await pushNotification(
+            user.branchId, [target.role], '📅',
+            `${user.name} added ${formatShiftLabel(shift.shiftType, shift.date)} to your schedule.`,
+            'info', { shiftDate: shift.date, shiftType: shift.shiftType }, target.id,
+          );
+        }
       }
-    }
+    });
   };
 
   const bulkCreateShifts = async (newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => {
-    const rows = newShifts.map(s => ({
-      user_id:    s.userId,
-      date:       s.date,
-      start_time: s.startTime ?? null,
-      end_time:   s.endTime   ?? null,
-      shift_type: s.shiftType,
-      notes:      s.notes     ?? null,
-    }));
-    const { data, error } = await writeWithRefresh(() => supabase.from('shifts').insert(rows).select());
-    if (error) throw error;
-    setShifts(prev => [...prev, ...(data as Record<string, unknown>[]).map(rowToShift)]);
-    for (const s of newShifts) applyTally(s.userId, null, { shiftType: s.shiftType, date: s.date });
+    // Keyed on the payload signature — a double-tapped fill would otherwise insert
+    // the whole range twice.
+    await withSubmitLock(`bulkShifts:${newShifts[0]?.userId}:${newShifts[0]?.date}:${newShifts.length}`, async () => {
+      const rows = newShifts.map(s => ({
+        user_id:    s.userId,
+        date:       s.date,
+        start_time: s.startTime ?? null,
+        end_time:   s.endTime   ?? null,
+        shift_type: s.shiftType,
+        notes:      s.notes     ?? null,
+      }));
+      const { data, error } = await writeWithRefresh(() => supabase.from('shifts').insert(rows).select());
+      if (error) throw error;
+      const created = (data as Record<string, unknown>[]).map(rowToShift);
+      setShifts(prev => {
+        const existing = new Set(prev.map(s => s.id));
+        return [...prev, ...created.filter(s => !existing.has(s.id))];
+      });
+      for (const s of newShifts) applyTally(s.userId, null, { shiftType: s.shiftType, date: s.date });
+    });
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {

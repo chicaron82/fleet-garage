@@ -3,6 +3,7 @@ import type { FacilityIssue, IssueSeverity, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadIssuePhoto } from '../lib/garage-uploads';
+import { withSubmitLock } from '../lib/submitLock';
 
 export interface IssuesSlice {
   facilityIssues: FacilityIssue[];
@@ -19,36 +20,40 @@ export function useIssues(
   const [facilityIssues, setFacilityIssues] = useState<FacilityIssue[]>([]);
 
   const addIssue = async ({ title, description, severity, photo }: { title: string; description?: string; severity: IssueSeverity; photo?: string }) => {
-    const issueId   = crypto.randomUUID();
-    const branchId  = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const reportedAt = new Date().toISOString();
-    const photoUrl  = photo ? await uploadIssuePhoto(photo, issueId) : null;
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('facility_issues').insert({
-        id:          issueId,
-        branch_id:   branchId,
-        title,
-        description: description ?? null,
-        severity,
-        reported_by: user!.id,
-        reported_at: reportedAt,
-        photo_url:   photoUrl ?? null,
-      })
-    );
-    if (!error) {
-      setFacilityIssues(prev => [
-        { id: issueId, branchId, title, description, severity, reportedById: user!.id, reportedAt, photoUrl: photoUrl ?? undefined, status: 'open', reopenCount: 0 },
-        ...prev,
-      ]);
-      await writeWithRefresh(() =>
-        supabase.from('issue_events').insert({
-          issue_id:   issueId,
-          event_type: 'opened',
-          user_id:    user!.id,
-          note:       null,
+    // The handler doesn't gate on its submitting flag at all, so a double-tap can
+    // file two identical facility issues. Keyed per reporter+title.
+    await withSubmitLock(`issue:${user?.id}:${title.trim().toLowerCase()}`, async () => {
+      const issueId   = crypto.randomUUID();
+      const branchId  = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+      const reportedAt = new Date().toISOString();
+      const photoUrl  = photo ? await uploadIssuePhoto(photo, issueId) : null;
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('facility_issues').insert({
+          id:          issueId,
+          branch_id:   branchId,
+          title,
+          description: description ?? null,
+          severity,
+          reported_by: user!.id,
+          reported_at: reportedAt,
+          photo_url:   photoUrl ?? null,
         })
       );
-    }
+      if (!error) {
+        setFacilityIssues(prev => prev.some(i => i.id === issueId) ? prev : [
+          { id: issueId, branchId, title, description, severity, reportedById: user!.id, reportedAt, photoUrl: photoUrl ?? undefined, status: 'open', reopenCount: 0 },
+          ...prev,
+        ]);
+        await writeWithRefresh(() =>
+          supabase.from('issue_events').insert({
+            issue_id:   issueId,
+            event_type: 'opened',
+            user_id:    user!.id,
+            note:       null,
+          })
+        );
+      }
+    });
   };
 
   const attachPhoto = async (issueId: string, photo: string) => {
