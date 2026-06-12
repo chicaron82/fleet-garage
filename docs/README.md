@@ -69,6 +69,10 @@ _Full folder, rebuilt from the stamps on 2026-06-10 (the earlier list had drifte
 **2026-06-11**
 - [June/ticket-shift-payday-anchored-period.md](June/ticket-shift-payday-anchored-period.md) — anchor the pay card on the next-cheque (earned-but-unpaid) period, not the calendar one; payday-lag constant + state-derived confidence labels + per-block payday. **✅** · `d14983d`.
 - [June/ticket-holds-vehicle-operations-test-net.md](June/ticket-holds-vehicle-operations-test-net.md) — behaviour-locking net for `useVehicleOperations`: 17 tests covering primary-write-failure contracts, vehicle-status derivation, and optimistic-state gating across all exported ops. **✅** · `0674161`.
+- [June/bug-holds-addhold-shared-guard.md](June/bug-holds-addhold-shared-guard.md) — move the duplicate-flag guard into `addHold` so all six callers are protected, not just `useNewHold`. **✅** · `e131340`.
+- [June/bug-submit-lock-class-sweep.md](June/bug-submit-lock-class-sweep.md) — shared `withSubmitLock` at the write layer kills the double-submit class app-wide (`addHold`/`addRelease`/`createShift`/`bulkCreateShifts`/`addIssue`); convention in CLAUDE.md. **✅** · `e131340`.
+- [June/ticket-holds-pin-at-capture-back-visible.md](June/ticket-holds-pin-at-capture-back-visible.md) — pin the card photo from the flag form (📌 toggle; `addHold` returns the uploaded URLs, pinned post-submit) + scroll-reset on nav so ← Back is visible after creating a hold. **✅** · `803a46a`.
+- [June/ticket-holds-multi-issue-resolution.md](June/ticket-holds-multi-issue-resolution.md) — resolve each issue in a multi-type hold independently (`resolved_types[]`, migration 077; cascade untouched — partial holds stay ACTIVE) + scroll-to-section on the flag form. **✅** · `f8ec781` `7295a69`.
 
 **Dropped**
 - [June/bug-washbay-deferred-double-count.md](June/bug-washbay-deferred-double-count.md) — deferred plate-install double-count (handoff `carryOverCleared` vs closing `deferredCompletions`). **⬇️ dropped** — superseded by `ticket-washbay-carryover-lineage` (`60eaa6e`), which resolves the same seam cleanly.
