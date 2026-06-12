@@ -184,7 +184,7 @@ export default function App() {
           <IssueProvider>
             <LostFoundProvider>
               <FleetBalanceProvider>
-                <AppShell activeModule={activeModule} onNavigate={navigate}>
+                <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
                   <AppErrorBoundary>
                     <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
                       {renderScreen()}

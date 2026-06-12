@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { OfflineSyncBanner } from './OfflineSyncBanner';
 import { BuildStamp } from './BuildStamp';
@@ -17,14 +17,24 @@ import type { Module, Screen } from '../../types';
 
 interface Props {
   activeModule: Module;
+  /** Identity of the active screen — changing it scrolls the content area back to top. */
+  screenKey: string;
   onNavigate: (screen: Screen) => void;
   children: React.ReactNode;
 }
 
-export function AppShell({ activeModule, onNavigate, children }: Props) {
+export function AppShell({ activeModule, screenKey, onNavigate, children }: Props) {
   const { user, activeBranch } = useAuth();
   const isOnline = useNavigatorOnLine();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Reset the content scroll on navigation so a new screen starts at the top —
+  // otherwise you land scrolled past the sticky nav (← Back off-screen) after,
+  // e.g., submitting a long flag form.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [screenKey]);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
   const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
   const [pendingBackdateId, setPendingBackdateId]           = useState<string | null>(null);
@@ -106,7 +116,7 @@ export function AppShell({ activeModule, onNavigate, children }: Props) {
 
         <OfflineSyncBanner />
 
-        <div className="flex-1 overflow-auto">
+        <div ref={contentRef} className="flex-1 overflow-auto">
           {children}
         </div>
 

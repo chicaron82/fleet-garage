@@ -80,8 +80,10 @@ export function useVehicleOperations({
   ) => {
     // Double-submit guard at the convergence point: every addHold caller (six and
     // counting) is protected here, not per-form. Keyed per vehicle — a re-entrant
-    // flag for the same vehicle while the first is in flight is dropped.
-    await withSubmitLock(`hold:${vehicleId}`, async () => {
+    // flag for the same vehicle while the first is in flight is dropped. Returns the
+    // created hold id + final uploaded photo URLs so callers can compose follow-ups
+    // (e.g. pinning a card photo); a dropped re-entrant call resolves `undefined`.
+    return withSubmitLock(`hold:${vehicleId}`, async () => {
       const holdId = crypto.randomUUID();
       const flaggedAt = new Date().toISOString();
       const branchId = (activeBranch === 'ALL' ? 'YWG' : activeBranch) as BranchId;
@@ -130,6 +132,8 @@ export function useVehicleOperations({
       // realtime echo arriving alongside this optimistic insert).
       setAllHolds(prev => prev.some(h => h.id === holdId) ? prev : [newHold, ...prev]);
       if (!vehErr) setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
+
+      return { holdId, photoUrls };
     });
   };
 

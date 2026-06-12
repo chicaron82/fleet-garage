@@ -10,7 +10,7 @@ const MAX_PHOTOS = 4;
 
 export function useNewHold(preselectedId?: string) {
   const { user } = useAuth();
-  const { vehicles, getActiveHold, addHold } = useVehicleHoldContext();
+  const { vehicles, getActiveHold, addHold, setCoverPhoto } = useVehicleHoldContext();
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
@@ -24,6 +24,9 @@ export function useNewHold(preselectedId?: string) {
   const [safetyRecallBypassChecked, setSafetyRecallBypassChecked] = useState(false);
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  // Which photo (by index) to pin as the vehicle's card photo. Applied after the
+  // upload resolves the final storage URL (the local preview isn't pinnable).
+  const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Synchronous in-flight lock — `submitting` is async state, so it can't guard
@@ -148,6 +151,16 @@ export function useNewHold(preselectedId?: string) {
 
   const removePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
+    // Keep the pin pointing at the same photo as the list shifts (or drop it if
+    // the pinned photo was the one removed).
+    setPinnedPhotoIndex(prev =>
+      prev === null ? null : prev === index ? null : prev > index ? prev - 1 : prev
+    );
+  };
+
+  // One pin max — tapping the pinned photo unpins; tapping another moves it.
+  const togglePinPhoto = (index: number) => {
+    setPinnedPhotoIndex(prev => prev === index ? null : index);
   };
 
   const submit = async (): Promise<string | null> => {
@@ -165,7 +178,15 @@ export function useNewHold(preselectedId?: string) {
       }
       setSubmitError(null);
       setSubmitting(true);
-      await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
+      const result = await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
+      // Pin the chosen photo as the vehicle's card photo, using the final uploaded
+      // URL. Length guard: if an upload failed it's filtered out of photoUrls and
+      // indices would shift, so only pin when the counts match. Best-effort — a pin
+      // failure must not fail the (already-created) hold.
+      if (result && pinnedPhotoIndex !== null && result.photoUrls.length === photos.length) {
+        try { await setCoverPhoto(selectedVehicle.id, result.photoUrls[pinnedPhotoIndex]); }
+        catch { /* the hold is created; the card-photo pin is a nicety */ }
+      }
       return selectedVehicle.id;
     } catch {
       setSubmitError('Something went wrong. Please try again.');
@@ -191,6 +212,7 @@ export function useNewHold(preselectedId?: string) {
     safetyRecallBypassChecked, setSafetyRecallBypassChecked, safetyRecallBypassActive,
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
+    pinnedPhotoIndex, togglePinPhoto,
     submitting, submitError, canSubmit, photosOk,
     selectVehicle, clearVehicle,
     submit,

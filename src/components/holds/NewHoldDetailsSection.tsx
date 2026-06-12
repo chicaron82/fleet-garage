@@ -184,22 +184,33 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          {h.photos.map((src, i) => (
-            <div key={i} className="relative">
-              <img
-                src={src}
-                alt={`Damage photo ${i + 1}`}
-                className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
-              />
-              <button
-                type="button"
-                onClick={() => h.removePhoto(i)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+          {h.photos.map((src, i) => {
+            const isPinned = h.pinnedPhotoIndex === i;
+            return (
+              <div key={i} className={`relative rounded-lg ${isPinned ? 'ring-2 ring-yellow-400' : ''}`}>
+                <img
+                  src={src}
+                  alt={`Damage photo ${i + 1}`}
+                  className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => h.removePhoto(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center cursor-pointer leading-none transition"
+                >
+                  ×
+                </button>
+                <button
+                  type="button"
+                  onClick={() => h.togglePinPhoto(i)}
+                  title={isPinned ? 'Card photo — tap to unpin' : 'Set as card photo'}
+                  className={`absolute -bottom-1.5 -left-1.5 w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer leading-none transition ${isPinned ? 'bg-yellow-400 text-white shadow' : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-400 hover:text-yellow-500'}`}
+                >
+                  📌
+                </button>
+              </div>
+            );
+          })}
           {h.photos.length < h.MAX_PHOTOS && (
             <div className="flex gap-2">
               <button

@@ -77,17 +77,19 @@ export function useReEval() {
     if (!user) return;
     const hold = holds.find(h => h.id === holdId);
     if (!hold) return;
-    return runAction(() => addHold(
-      hold.vehicleId,
-      hold.damageDescription,
-      notes.trim() || 'Re-hold from re-evaluation — issue persists',
-      user.id,
-      [],
-      ['detail'],
-      hold.detailReason,
-      undefined,
-      holdId,
-    ));
+    return runAction(async () => {
+      await addHold(
+        hold.vehicleId,
+        hold.damageDescription,
+        notes.trim() || 'Re-hold from re-evaluation — issue persists',
+        user.id,
+        [],
+        ['detail'],
+        hold.detailReason,
+        undefined,
+        holdId,
+      );
+    });
   };
 
   return {
