@@ -28,12 +28,14 @@ vi.mock('../../src/context/AuthContext', () => ({
 
 // getActiveHold returns null by default — overridden per-test where needed
 let getActiveHoldImpl: (id: string) => unknown = () => null;
+let getActiveHoldsImpl: (id: string) => unknown[] = () => [];
 
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({
     vehicles:         [VEHICLE],
     getVehicleByUnit: (u: string) => (u === VEHICLE.unitNumber ? VEHICLE : null),
     getActiveHold:    (id: string) => getActiveHoldImpl(id),
+    getActiveHolds:   (id: string) => getActiveHoldsImpl(id),
     addHold:          addHoldSpy,
     addVehicle:       addVehicleSpy,
   }),
@@ -114,6 +116,7 @@ beforeEach(() => {
   BASE_PROPS.onBack = vi.fn();
   BASE_PROPS.onSuccess = vi.fn();
   getActiveHoldImpl = () => null;
+  getActiveHoldsImpl = () => [];
 });
 
 describe('NewHoldForm — vehicle selection', () => {
@@ -158,6 +161,23 @@ describe('NewHoldForm — vehicle selection', () => {
     render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
 
     expect(await screen.findByText(/already has an active hold/i)).toBeInTheDocument();
+  });
+
+  it('sharpens the warning to who/when on a same-type duplicate flag (advisory, not a block)', async () => {
+    getActiveHoldImpl = () => ({ id: 'existing-hold' });
+    // Form defaults to flagging 'damage' — the existing active hold carries an
+    // unresolved damage too, so the duplicate advisory beats the generic note.
+    getActiveHoldsImpl = () => [{
+      id: 'existing-hold', vehicleId: 'v-1', holdTypes: ['damage'], resolvedTypes: [],
+      status: 'ACTIVE', flaggedByName: 'Belle', flaggedAt: new Date().toISOString(),
+    }];
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+
+    expect(await screen.findByText(/already has an active/i)).toBeInTheDocument();
+    expect(screen.getByText(/Belle/)).toBeInTheDocument();
+    expect(screen.getByText(/Flag anyway if this is a separate issue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/You are adding a second hold/i)).not.toBeInTheDocument();
   });
 });
 

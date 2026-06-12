@@ -29,9 +29,10 @@ vi.mock('../../src/context/AuthContext', () => ({
 
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({
-    vehicles:      [VEHICLE],
-    getActiveHold: () => null,
-    addHold:       addHoldSpy,
+    vehicles:       [VEHICLE],
+    getActiveHold:  () => null,
+    getActiveHolds: () => [],
+    addHold:        addHoldSpy,
   }),
 }));
 

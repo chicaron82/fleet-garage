@@ -6,6 +6,7 @@ import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
 import { hapticLight, hapticMedium, hapticHeavy } from '../../lib/haptics';
 import { parseFleetBarcode } from '../../lib/barcode';
+import { fmtRelativeDate } from '../../lib/lostFoundDate';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { canRelease } from '../../types';
 import { NewHoldDetailsSection } from './NewHoldDetailsSection';
@@ -148,7 +149,20 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                     </button>
                   )}
                 </div>
-                {h.alreadyHeld && (
+                {/* Duplicate-type advisory beats the generic held note: name the
+                    overlap + who/when, so a second flagger learns someone beat
+                    them to this exact issue. Informs, never blocks. */}
+                {h.duplicateTypeOverlaps.length > 0 ? (
+                  <div className="mt-3 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-700 dark:text-amber-400 space-y-1">
+                    {h.duplicateTypeOverlaps.map(({ hold, types }) => (
+                      <p key={hold.id}>
+                        ⚠️ This unit already has an active <span className="font-semibold">{types.join(' + ')}</span> hold
+                        — {hold.flaggedByName}, {fmtRelativeDate(hold.flaggedAt)}.
+                      </p>
+                    ))}
+                    <p>Flag anyway if this is a separate issue — both must be resolved before it returns to fleet.</p>
+                  </div>
+                ) : h.alreadyHeld && (
                   <div className="mt-3 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-700 dark:text-amber-400">
                     This vehicle already has an active hold. You are adding a second hold — both must be resolved before it returns to fleet.
                   </div>

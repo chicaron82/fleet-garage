@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
 import { MECHANICAL_PRESET_META } from '../lib/hold-presets';
+import { findActiveTypeOverlap } from '../lib/holdFilters';
 import type { HoldType, DetailReason, MechanicalSubType } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
 
@@ -10,7 +11,7 @@ const MAX_PHOTOS = 4;
 
 export function useNewHold(preselectedId?: string) {
   const { user } = useAuth();
-  const { vehicles, getActiveHold, addHold, setCoverPhoto } = useVehicleHoldContext();
+  const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto } = useVehicleHoldContext();
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
@@ -46,6 +47,14 @@ export function useNewHold(preselectedId?: string) {
   const alreadyHeld = selectedVehicleId
     ? !!getActiveHold(selectedVehicleId)
     : false;
+
+  // Duplicate-flag advisory: active holds whose unresolved types overlap what's
+  // being flagged. Informs the flagger (who/when), never blocks — the layer-2
+  // dedup decision (2026-06-12): suppressing a legitimate second flag is worse
+  // than a duplicate, which batch-resolve makes cheap to clean.
+  const duplicateTypeOverlaps = selectedVehicleId
+    ? findActiveTypeOverlap(getActiveHolds(selectedVehicleId), holdTypes)
+    : [];
 
   const searchResults = unitSearch.trim().length >= 2
     ? vehicles.filter(v =>
@@ -206,7 +215,7 @@ export function useNewHold(preselectedId?: string) {
   return {
     user: user!,
     unitSearch, setUnitSearch,
-    selectedVehicle, alreadyHeld, preselectedId,
+    selectedVehicle, alreadyHeld, duplicateTypeOverlaps, preselectedId,
     searchResults, noResults,
     holdTypes, holdType, toggleHoldType, isSaleCarOnly, lastRevealedType,
     damageTypes, toggleDamageType,
