@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { describeKnownPlate, type KnownPlate } from '../../lib/vehicleByPlate';
+import { PlateInput } from '../shared/VehicleFields';
 
 interface Props {
   plate: string;
@@ -25,10 +26,9 @@ export function EDVNoMatchFields({ plate, onPlateChange, match, exterior, onExte
         <label className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest block mb-1">
           Vehicle plate (optional)
         </label>
-        <input
-          type="text"
+        <PlateInput
           value={plate}
-          onChange={e => onPlateChange(e.target.value.toUpperCase())}
+          onValueChange={onPlateChange}
           placeholder="e.g. LUR249"
           className="w-full px-2 py-1.5 rounded-md border border-amber-300 dark:border-amber-700 text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
         />

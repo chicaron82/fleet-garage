@@ -6,6 +6,7 @@ import { pushNotification } from '../../lib/garage-uploads';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { Vehicle } from '../../types';
+import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 
 interface Props {
   vehicle: Vehicle;
@@ -109,12 +110,9 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
             <span className="text-sm text-gray-600 dark:text-gray-400">Clear — correct unit unknown</span>
           </label>
           {!clearUnit && (
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
+            <UnitNumberInput
               value={newUnit}
-              onChange={e => setNewUnit(e.target.value)}
+              onValueChange={setNewUnit}
               placeholder="New unit number"
               className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
@@ -128,12 +126,11 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
             <span className="text-xs text-gray-400 dark:text-gray-500">Current</span>
             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{vehicle.licensePlate}</span>
           </div>
-          <input
-            type="text"
+          <PlateInput
             value={newPlate}
-            onChange={e => setNewPlate(e.target.value.toUpperCase())}
+            onValueChange={setNewPlate}
             placeholder="New license plate"
-            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400 uppercase"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
         </div>
 

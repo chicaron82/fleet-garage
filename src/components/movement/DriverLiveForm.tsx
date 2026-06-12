@@ -9,6 +9,7 @@ import { PriorityHint } from './PriorityHint';
 import { DriverLiveTransitView } from './DriverLiveTransitView';
 import { DriverLiveCompleteView } from './DriverLiveCompleteView';
 import { useDriverLiveTrip, LOCATIONS } from '../../hooks/useDriverLiveTrip';
+import { PlateInput } from '../shared/VehicleFields';
 
 interface Props {
   flaggedClasses: RentalClass[];
@@ -113,11 +114,10 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         {/* License Plate */}
         <div className="relative z-10">
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
-          <input
-            type="text" placeholder="e.g. JFT 881" value={plate}
+          <PlateInput
+            placeholder="e.g. JFT 881" value={plate}
             name="license-plate" autoComplete="off" spellCheck={false}
-            onChange={e => {
-              const val = e.target.value.toUpperCase();
+            onValueChange={val => {
               setPlate(val);
               if (shuttlePlate) setIsShuttle(val.trim() === shuttlePlate.toUpperCase().trim());
               if (!val) setShowSuggestions(false);
@@ -127,7 +127,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               handlePlateBlur();
             }}
             onFocus={() => { if (plateSuggestions.length > 0) setShowSuggestions(true); }}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
+            className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
           />
           {showSuggestions && plateSuggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-[68px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">

@@ -4,6 +4,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
+import { PlateInput } from '../shared/VehicleFields';
 
 const LOCATION_ORDER: LostFoundLocation[] = [
   'visor', 'front_seat', 'back_seat', 'trunk', 'under_seat', 'other',
@@ -159,12 +160,11 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
 
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License plate</label>
-            <input
-              type="text"
+            <PlateInput
               placeholder="e.g. LUR 224"
               value={editPlate}
-              onChange={e => { hapticLight(); setEditPlate(e.target.value.toUpperCase()); }}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
+              onValueChange={v => { hapticLight(); setEditPlate(v); }}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
             />
           </div>
 

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { createOrEnrichRegistry, lookupRegistry, mergeRegistryRecords } from '../../lib/vehicleRegistry';
 import type { VehicleRegistryEntry } from '../../types';
 import { VehicleMergePrompt } from '../vehicle/VehicleMergePrompt';
+import { PlateInput } from './VehicleFields';
 
 interface Props {
   /**
@@ -93,12 +94,11 @@ export function PlateArrivalSection({ unitSearch }: Props) {
       {open && !done && !mergeTarget && (
         <div className="space-y-2 px-1">
           <div className="flex gap-2">
-            <input
-              type="text"
+            <PlateInput
               placeholder="Plate (e.g. LUR156)"
               value={plate}
-              onChange={e => setPlate(e.target.value.toUpperCase())}
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+              onValueChange={setPlate}
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
             />
             <button
               type="button"

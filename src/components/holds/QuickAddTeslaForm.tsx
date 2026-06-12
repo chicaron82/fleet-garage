@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { hapticMedium } from '../../lib/haptics';
+import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import type { EvAssetStatus } from '../../types';
 
 // Mirrors EVAssetsTab — a Tesla with neither accessory is held from dispatch.
@@ -77,11 +78,11 @@ export function QuickAddTeslaForm({ onDone }: { onDone: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Unit #</label>
-          <input type="text" inputMode="numeric" pattern="[0-9]*" value={unitNumber} onChange={e => setUnitNumber(e.target.value)} placeholder="e.g. 5421" className={FIELD} />
+          <UnitNumberInput value={unitNumber} onValueChange={setUnitNumber} placeholder="e.g. 5421" className={FIELD} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License plate</label>
-          <input type="text" value={plate} onChange={e => setPlate(e.target.value.toUpperCase())} placeholder="e.g. HFE 872" className={`${FIELD} uppercase`} />
+          <PlateInput value={plate} onValueChange={setPlate} placeholder="e.g. HFE 872" className={FIELD} />
         </div>
       </div>
 

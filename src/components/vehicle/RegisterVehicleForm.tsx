@@ -5,6 +5,7 @@ import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
+import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 
 interface Props {
   prefill?: string;
@@ -150,24 +151,21 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Unit #</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
+                <UnitNumberInput
                   value={unit}
-                  onChange={e => setUnit(e.target.value.toUpperCase())}
+                  onValueChange={setUnit}
                   placeholder="e.g. 5428735"
                   autoFocus
-                  className={`${INPUT} uppercase`}
+                  className={INPUT}
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate</label>
-                <input
-                  type="text"
+                <PlateInput
                   value={plate}
-                  onChange={e => setPlate(e.target.value.toUpperCase())}
+                  onValueChange={setPlate}
                   placeholder="e.g. LFJ108"
-                  className={`${INPUT} uppercase`}
+                  className={INPUT}
                 />
               </div>
             </div>
