@@ -1,5 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { pushNotification } from '../lib/garage-uploads';
+import { pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, findLinkedOpenException } from '../lib/vehicle-status';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Hold, HoldType, Vehicle, Repair } from '../types';
@@ -37,7 +37,7 @@ export function makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicl
       supabase.from('vehicles').update({ status: 'RETURNED' }).eq('id', hold.vehicleId)
     );
     const unitForReturn = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], '🔁',
+    await pushNotification(hold.branchId, NOTIFY_MGMT, '🔁',
       `Exception vehicle ${unitForReturn} has returned. Re-evaluation required.`, 'urgent', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
       ...h, status: 'RETURNED',
@@ -79,7 +79,7 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
     const unit = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], 'ℹ️',
+    await pushNotification(hold.branchId, NOTIFY_MGMT, 'ℹ️',
       `Sale/auction flag cleared on unit ${unit} (logged in error) by ${clearedByName}.`, 'info', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
       ...h, status: 'VOIDED',
@@ -241,7 +241,7 @@ export function makeCloseException({ holds, allVehicles, setAllHolds, setAllVehi
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
     );
     const unit = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-    await pushNotification(hold.branchId, ['Branch Manager', 'Operations Manager'], 'ℹ️',
+    await pushNotification(hold.branchId, NOTIFY_MGMT, 'ℹ️',
       `Exception on unit ${unit} resolved (closed without return) by ${resolvedByName}.`, 'info', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
       ...h, status: 'RETURNED',

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
-import { pushNotification } from '../../lib/garage-uploads';
+import { pushNotification, NOTIFY_MGMT_WIDE } from '../../lib/garage-uploads';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { Vehicle } from '../../types';
@@ -63,7 +63,7 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
 
     await pushNotification(
       vehicle.branchId,
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      NOTIFY_MGMT_WIDE,
       '✏️',
       `${user.name} suggested an edit to vehicle ${vehicle.licensePlate} — ${note.trim()}`,
       'info',

@@ -53,6 +53,12 @@ export async function uploadLostFoundPhoto(base64: string, itemId: string, slot:
   return supabase.storage.from('lost-found-photos').getPublicUrl(path).data.publicUrl;
 }
 
+// The two dominant notification audiences (16 of ~25 call sites). The other
+// role combinations are deliberate per-event choices — name a new constant
+// only when a combination earns a third use, don't normalize them away.
+export const NOTIFY_MGMT: UserRole[] = ['Branch Manager', 'Operations Manager'];
+export const NOTIFY_MGMT_WIDE: UserRole[] = [...NOTIFY_MGMT, 'City Manager'];
+
 export async function pushNotification(
   branchId: string,
   roles: UserRole[],

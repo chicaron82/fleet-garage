@@ -34,6 +34,8 @@ vi.mock('../../src/lib/supabase', () => ({
 vi.mock('../../src/lib/garage-uploads', () => ({
   uploadPhoto:      (...args: unknown[]) => uploadPhotoMock(...args),
   pushNotification: (...args: unknown[]) => pushNotificationMock(...args),
+  NOTIFY_MGMT:      ['Branch Manager', 'Operations Manager'],
+  NOTIFY_MGMT_WIDE: ['Branch Manager', 'Operations Manager', 'City Manager'],
 }));
 
 vi.mock('../../src/context/evAssetWrite', () => ({

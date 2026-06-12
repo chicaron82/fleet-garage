@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { pushNotification } from '../lib/garage-uploads';
+import { pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { localDateStr } from './useFleetBalance';
 import { fmtTime } from '../lib/offStandardReport';
 import type { OffStandardEntry, OffStandardReason, User } from '../types';
@@ -49,7 +49,7 @@ export function useOffStandardEntryEdits({ user, setEntries }: UseOffStandardEnt
       const label = OFF_STANDARD_LABELS[reason].short;
       await pushNotification(
         user.branchId,
-        ['Branch Manager', 'Operations Manager'],
+        NOTIFY_MGMT,
         '⏱️',
         `${user.name} submitted a backdated OTH entry — ${label} — ${fmtTime(startTime)}–${fmtTime(endTime)} — ${notes}`,
         'warning',
@@ -113,7 +113,7 @@ export function useOffStandardEntryEdits({ user, setEntries }: UseOffStandardEnt
         : OFF_STANDARD_LABELS[editingEntry.reason].short;
       await pushNotification(
         user.branchId,
-        ['Branch Manager', 'Operations Manager'],
+        NOTIFY_MGMT,
         '⏱️',
         `${user.name} requested an OTH edit — ${label} — ${editingEntry.minutes}m → ${newMinutes}m`,
         'warning',

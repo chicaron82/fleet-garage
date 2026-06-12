@@ -1,5 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
+import { uploadPhoto, pushNotification, NOTIFY_MGMT, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
@@ -56,7 +56,7 @@ export function useVehicleOperations({
       })
     );
     if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
-    await pushNotification(branchId, ['Branch Manager', 'Operations Manager', 'City Manager'], '🚗',
+    await pushNotification(branchId, NOTIFY_MGMT_WIDE, '🚗',
       `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
     const newVehicle: Vehicle = { ...vehicle, id, status, branchId };
     setAllVehicles(prev => [newVehicle, ...prev]);
@@ -111,7 +111,7 @@ export function useVehicleOperations({
       if (error) throw new Error(`Failed to add hold: ${(error as { message?: string }).message}`);
 
       const unitForHold = allVehicles.find(v => v.id === vehicleId)?.unitNumber ?? vehicleId;
-      await pushNotification(branchId, ['Branch Manager', 'Operations Manager'], '🔴',
+      await pushNotification(branchId, NOTIFY_MGMT, '🔴',
         `Hold flagged on unit ${unitForHold}: ${damageDescription}`, 'warning', { vehicleId });
 
       // The hold insert is the source of truth for "the hold exists", so the hold
@@ -221,7 +221,7 @@ export function useVehicleOperations({
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     await pushNotification(
       vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      NOTIFY_MGMT_WIDE,
       '📦',
       `Unit ${vehicle?.unitNumber ?? vehicleId} archived by ${userName}.`,
       'info',
@@ -240,7 +240,7 @@ export function useVehicleOperations({
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     await pushNotification(
       vehicle?.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch),
-      ['Branch Manager', 'Operations Manager', 'City Manager'],
+      NOTIFY_MGMT_WIDE,
       '🔄',
       `Unit ${vehicle?.unitNumber ?? vehicleId} restored to active service.`,
       'info',
