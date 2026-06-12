@@ -15,6 +15,9 @@ export function useNewHold(preselectedId?: string) {
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
   const [holdTypes, setHoldTypes] = useState<HoldType[]>(['damage']);
+  // The category most recently toggled ON — drives scroll-to-section so a newly
+  // revealed sub-section comes into view (the tap otherwise looks like a no-op).
+  const [lastRevealedType, setLastRevealedType] = useState<HoldType | null>(null);
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
   const [customDamage, setCustomDamage] = useState('');
   const [detailReason, setDetailReason] = useState<DetailReason | ''>('');
@@ -95,6 +98,7 @@ export function useNewHold(preselectedId?: string) {
   };
 
   const toggleHoldType = (type: HoldType) => {
+    const isAdding = !holdTypes.includes(type);
     setHoldTypes(prev => {
       if (prev.includes(type)) {
         if (prev.length === 1) return prev; // can't deselect last
@@ -105,6 +109,8 @@ export function useNewHold(preselectedId?: string) {
       // Auto-deselect any other type that has no content filled in yet
       return next.filter(t => t === type || !isHoldTypeEmpty(t));
     });
+    // Newly added → let the revealed sub-section scroll into view.
+    if (isAdding) setLastRevealedType(type);
   };
 
   const toggleDamageType = (preset: string) => {
@@ -202,7 +208,7 @@ export function useNewHold(preselectedId?: string) {
     unitSearch, setUnitSearch,
     selectedVehicle, alreadyHeld, preselectedId,
     searchResults, noResults,
-    holdTypes, holdType, toggleHoldType, isSaleCarOnly,
+    holdTypes, holdType, toggleHoldType, isSaleCarOnly, lastRevealedType,
     damageTypes, toggleDamageType,
     customDamage, setCustomDamage,
     detailReason, setDetailReason,

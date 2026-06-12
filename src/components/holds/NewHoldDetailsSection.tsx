@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
 import type { useNewHold } from '../../hooks/useNewHold';
 import { hapticLight } from '../../lib/haptics';
@@ -15,6 +16,21 @@ interface Props {
 /** The "What are you flagging?" card — hold-type toggles, type-specific inputs,
  *  notes and photos. Rendered once a vehicle is selected and not already held. */
 export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Props) {
+  // Scroll a newly-revealed category sub-section into view so a second-category
+  // tap doesn't look like it did nothing. (useRef values are stable — no dep needed.)
+  const hailRef       = useRef<HTMLDivElement>(null);
+  const damageRef     = useRef<HTMLDivElement>(null);
+  const detailRef     = useRef<HTMLDivElement>(null);
+  const mechanicalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ref: RefObject<HTMLDivElement | null> | null =
+      h.lastRevealedType === 'hail'       ? hailRef :
+      h.lastRevealedType === 'damage'     ? damageRef :
+      h.lastRevealedType === 'detail'     ? detailRef :
+      h.lastRevealedType === 'mechanical' ? mechanicalRef : null;
+    ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [h.lastRevealedType]);
+
   return (
     <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
       <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
@@ -94,24 +110,26 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
 
       {/* Hail info */}
       {h.holdTypes.includes('hail') && (
-        <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 px-4 py-3 text-xs text-indigo-800 dark:text-indigo-300">
+        <div ref={hailRef} className="scroll-mt-24 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 px-4 py-3 text-xs text-indigo-800 dark:text-indigo-300">
           Storm batch — photograph the hail damage for assessment. Held pending management's call; the whole batch can be released short-term if rentals get tight.
         </div>
       )}
 
       {/* Damage Type */}
       {h.holdTypes.includes('damage') && (
-        <DamagePresetsSelector
-          damageTypes={h.damageTypes}
-          toggleDamageType={h.toggleDamageType}
-          customDamage={h.customDamage}
-          setCustomDamage={h.setCustomDamage}
-        />
+        <div ref={damageRef} className="scroll-mt-24">
+          <DamagePresetsSelector
+            damageTypes={h.damageTypes}
+            toggleDamageType={h.toggleDamageType}
+            customDamage={h.customDamage}
+            setCustomDamage={h.setCustomDamage}
+          />
+        </div>
       )}
 
       {/* Detail Reason */}
       {h.holdTypes.includes('detail') && (
-      <div>
+      <div ref={detailRef} className="scroll-mt-24">
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
           Detail Reason *
         </label>
@@ -136,12 +154,14 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
 
       {/* Mechanical Type */}
       {h.holdTypes.includes('mechanical') && (
-        <MechanicalConcernSelector
-          mechanicalTypes={h.mechanicalTypes}
-          toggleMechanicalType={h.toggleMechanicalType}
-          customMechanical={h.customMechanical}
-          setCustomMechanical={h.setCustomMechanical}
-        />
+        <div ref={mechanicalRef} className="scroll-mt-24">
+          <MechanicalConcernSelector
+            mechanicalTypes={h.mechanicalTypes}
+            toggleMechanicalType={h.toggleMechanicalType}
+            customMechanical={h.customMechanical}
+            setCustomMechanical={h.setCustomMechanical}
+          />
+        </div>
       )}
 
       {/* Safety / Recall bypass */}
