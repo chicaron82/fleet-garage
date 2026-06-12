@@ -1,7 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
-import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch } from './holdResolution';
+import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { withSubmitLock } from '../lib/submitLock';
 import type {
@@ -123,7 +123,7 @@ export function useVehicleOperations({
       );
 
       const newHold: Hold = {
-        id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], detailReason, mechanicalSubType, linkedHoldId,
+        id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], resolvedTypes: [], detailReason, mechanicalSubType, linkedHoldId,
         damageDescription, flaggedById,
         flaggedByName: userName, flaggedByEmployeeId: userEmployeeId,
         flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,
@@ -207,6 +207,7 @@ export function useVehicleOperations({
   const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markRepairedBatch = makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const markIssueRepaired = makeMarkIssueRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
 
   const archiveVehicle = async (vehicleId: string) => {
     const now = new Date().toISOString();
@@ -325,6 +326,7 @@ export function useVehicleOperations({
     addPhotosToHold,
     markRepaired,
     markRepairedBatch,
+    markIssueRepaired,
     markReturned,
     clearSaleHold,
     closeException,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Hold, Repair } from '../../src/types';
+import type { Hold, HoldType, Repair } from '../../src/types';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 // writeWithRefresh executes the query callback (so we can see which tables get
@@ -29,18 +29,19 @@ vi.mock('../../src/lib/garage-uploads', () => ({
   pushNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { makeMarkRepairedBatch } = await import('../../src/context/holdResolution');
+const { makeMarkRepairedBatch, makeMarkIssueRepaired } = await import('../../src/context/holdResolution');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-function makeHold(id: string, vehicleId: string): Hold {
+function makeHold(id: string, vehicleId: string, overrides: Partial<Hold> = {}): Hold {
   return {
     id, vehicleId,
-    holdTypes: ['damage'], holdType: 'damage',
+    holdTypes: ['damage'], holdType: 'damage', resolvedTypes: [],
     damageDescription: 'scrape', notes: '',
     flaggedById: 'u-1', flaggedByName: 'Test VSA', flaggedByEmployeeId: 'E001',
     flaggedAt: '2026-06-11T08:00:00.000Z',
     status: 'ACTIVE', branchId: 'YWG',
+    ...overrides,
   };
 }
 
@@ -105,5 +106,91 @@ describe('makeMarkRepairedBatch single-vehicle guard', () => {
     const next = updater(holds);
     expect(next.map(h => h.status)).toEqual(['REPAIRED', 'REPAIRED']);
     expect(next.every(h => h.repair?.holdId === h.id)).toBe(true);
+  });
+});
+
+// ── Per-issue resolution within one (multi-type) hold ────────────────────────
+// A multi-type hold stays ACTIVE — and the vehicle stays held via the unchanged
+// cascade — until resolved_types covers every hold_type; only then does it flip
+// REPAIRED. Different axis from the batch above (several holds vs several issues).
+
+describe('makeMarkIssueRepaired (per-issue resolution)', () => {
+  it('intermediate: resolving a non-final issue records it and keeps the hold ACTIVE', async () => {
+    const hold = makeHold('h-1', 'v-1', { holdTypes: ['damage', 'mechanical'] });
+    const d = deps([hold]);
+
+    await makeMarkIssueRepaired(d)('h-1', 'mechanical');
+
+    expect(fromCalls).toEqual(['holds']);                            // resolved_types only
+    expect(chain.update).toHaveBeenCalledWith({ resolved_types: ['mechanical'] });
+    expect(d.setAllVehicles).not.toHaveBeenCalled();                 // vehicle stays held
+    const patch = d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[];
+    const after = patch([hold]);
+    expect(after[0].status).toBe('ACTIVE');
+    expect(after[0].resolvedTypes).toEqual(['mechanical']);
+  });
+
+  it('final: resolving the last issue flips the hold REPAIRED and clears the vehicle', async () => {
+    const hold = makeHold('h-1', 'v-1', { holdTypes: ['damage', 'mechanical'], resolvedTypes: ['mechanical'] });
+    const d = deps([hold]);
+
+    await makeMarkIssueRepaired(d)('h-1', 'damage', REPAIR);
+
+    expect(fromCalls).toEqual(['repairs', 'holds', 'vehicles']);
+    expect(chain.update).toHaveBeenCalledWith({ status: 'CLEAR' });  // vehicle derives clear
+    const patch = d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[];
+    const after = patch([hold]);
+    expect(after[0].status).toBe('REPAIRED');
+    expect(after[0].resolvedTypes).toEqual(['mechanical', 'damage']);
+    expect(after[0].repair?.outcome).toBe('clean');
+  });
+
+  it('the final flip requires repair details (notes/outcome)', async () => {
+    const hold = makeHold('h-1', 'v-1', { holdTypes: ['damage', 'mechanical'], resolvedTypes: ['mechanical'] });
+    const d = deps([hold]);
+
+    await expect(makeMarkIssueRepaired(d)('h-1', 'damage')).rejects.toThrow('Repair details');
+    expect(fromCalls).toEqual([]);                                   // nothing written
+  });
+
+  it('single-type hold: resolving its one issue flips REPAIRED at once', async () => {
+    const hold = makeHold('h-1', 'v-1');                             // holdTypes ['damage']
+    const d = deps([hold]);
+
+    await makeMarkIssueRepaired(d)('h-1', 'damage', REPAIR);
+
+    expect(fromCalls).toEqual(['repairs', 'holds', 'vehicles']);
+    const patch = d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[];
+    expect(patch([hold])[0].status).toBe('REPAIRED');
+  });
+
+  it('resolving an already-cleared issue is a no-op — no premature flip', async () => {
+    const hold = makeHold('h-1', 'v-1', { holdTypes: ['damage', 'mechanical'], resolvedTypes: ['mechanical'] });
+    const d = deps([hold]);
+
+    await makeMarkIssueRepaired(d)('h-1', 'mechanical');             // already resolved
+
+    expect(fromCalls).toEqual(['holds']);                            // stays intermediate
+    expect(chain.update).toHaveBeenCalledWith({ resolved_types: ['mechanical'] });
+    expect(d.setAllVehicles).not.toHaveBeenCalled();                 // damage still open → no flip
+  });
+
+  it('linked-exception auto-close fires only on the whole-hold flip, not a partial', async () => {
+    const linked = makeHold('h-orig', 'v-1', {
+      status: 'RELEASED',
+      release: { id: 'r-1', holdId: 'h-orig', approvedById: 'mgr', approvedAt: '2026-06-10T00:00:00.000Z',
+        releaseType: 'EXCEPTION', releaseMethod: 'standard', reason: '', notes: '' },
+    });
+    const reHold = makeHold('h-1', 'v-1', { holdTypes: ['damage', 'mechanical'], linkedHoldId: 'h-orig' });
+
+    // Partial resolution → no linked close (no releases write).
+    await makeMarkIssueRepaired(deps([reHold, linked]))('h-1', 'mechanical');
+    expect(fromCalls).not.toContain('releases');
+
+    // Final flip → finalize closes the linked open exception.
+    fromCalls.length = 0;
+    const reHoldNext = { ...reHold, resolvedTypes: ['mechanical'] as HoldType[] };
+    await makeMarkIssueRepaired(deps([reHoldNext, linked]))('h-1', 'damage', REPAIR);
+    expect(fromCalls).toContain('releases');
   });
 });

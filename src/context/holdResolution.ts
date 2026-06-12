@@ -1,7 +1,8 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, findLinkedOpenException } from '../lib/vehicle-status';
-import type { Hold, Vehicle, Repair } from '../types';
+import { withSubmitLock } from '../lib/submitLock';
+import type { Hold, HoldType, Vehicle, Repair } from '../types';
 
 // Hold-resolution ops that move a hold out of ACTIVE and reconcile the vehicle
 // status. Extracted from useVehicleOperations to keep it under the 330-line cap;
@@ -96,66 +97,114 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
 // resolved like a normal return, so the vehicle derives off-exception in one pass
 // instead of staying stuck behind a stale sibling. Only an explicitly linked open
 // EXCEPTION is closed — never a fuzzy text match (see `findLinkedOpenException`).
-export function makeMarkRepaired({ holds, setAllHolds, setAllVehicles }: ResolutionDeps) {
-  return async (holdId: string, repair: Omit<Repair, 'id'>) => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
-    const repairId = crypto.randomUUID();
-    const newRepair: Repair = { ...repair, id: repairId };
-    // Primary write — throw on failure like addHold/addRelease so callers can
-    // surface it, instead of silently flipping the hold + local state to REPAIRED
-    // while the repairs table got nothing.
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('repairs').insert({
-        id: repairId, hold_id: holdId,
-        repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
-        outcome: repair.outcome,
-      })
-    );
-    if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
+// The shared finalize: record the repair, flip the hold to REPAIRED (stamping the
+// resolved issue set), auto-close any linked open exception, and re-derive the
+// vehicle from the shared cascade. Used by the whole-hold `markRepaired` (all
+// issues at once) and the per-issue `markIssueRepaired` final flip — one path, so
+// the linked-close + derivation can't drift between them.
+async function finalizeRepairedHold(
+  { holds, setAllHolds, setAllVehicles }: ResolutionDeps,
+  hold: Hold,
+  repair: Omit<Repair, 'id'>,
+  resolvedTypes: HoldType[],
+) {
+  const repairId = crypto.randomUUID();
+  const newRepair: Repair = { ...repair, id: repairId };
+  // Primary write — throw on failure like addHold/addRelease so callers can
+  // surface it, instead of silently flipping the hold + local state to REPAIRED
+  // while the repairs table got nothing.
+  const { error } = await writeWithRefresh(() =>
+    supabase.from('repairs').insert({
+      id: repairId, hold_id: hold.id,
+      repaired_by_id: repair.repairedById, repaired_at: repair.repairedAt, notes: repair.notes,
+      outcome: repair.outcome,
+    })
+  );
+  if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
+  await writeWithRefresh(() =>
+    supabase.from('holds').update({ status: 'REPAIRED', resolved_types: resolvedTypes }).eq('id', hold.id)
+  );
+
+  // If this repair resolves a linked prior exception, close it too: stamp the
+  // release's actual_return (as of the repair) and resolve the linked hold like
+  // a normal return, so its open-exception fact clears in the projection below.
+  const linked = findLinkedOpenException(hold, holds);
+  if (linked) {
     await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', holdId)
+      supabase.from('releases').update({ actual_return: repair.repairedAt }).eq('id', linked.release!.id)
     );
-
-    // If this repair resolves a linked prior exception, close it too: stamp the
-    // release's actual_return (as of the repair) and resolve the linked hold like
-    // a normal return, so its open-exception fact clears in the projection below.
-    const linked = findLinkedOpenException(hold, holds);
-    if (linked) {
-      await writeWithRefresh(() =>
-        supabase.from('releases').update({ actual_return: repair.repairedAt }).eq('id', linked.release!.id)
-      );
-      await writeWithRefresh(() =>
-        supabase.from('holds').update({ status: 'RETURNED' }).eq('id', linked.id)
-      );
-    }
-
-    // Project the post-repair hold set (repaired hold + any closed linked
-    // exception) and derive the vehicle status from the shared cascade.
-    const projectedHolds = holds
-      .filter(h => h.vehicleId === hold.vehicleId)
-      .map(h => {
-        if (h.id === holdId) return { ...h, status: 'REPAIRED' as const };
-        if (linked && h.id === linked.id) return {
-          ...h, status: 'RETURNED' as const,
-          release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
-        };
-        return h;
-      });
-    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
-    const { error: vehErr } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+    await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', linked.id)
     );
-    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
-    setAllHolds(prev => prev.map(h => {
-      if (h.id === holdId) return { ...h, status: 'REPAIRED', repair: newRepair };
+  }
+
+  // Project the post-repair hold set (repaired hold + any closed linked
+  // exception) and derive the vehicle status from the shared cascade.
+  const projectedHolds = holds
+    .filter(h => h.vehicleId === hold.vehicleId)
+    .map(h => {
+      if (h.id === hold.id) return { ...h, status: 'REPAIRED' as const };
       if (linked && h.id === linked.id) return {
-        ...h, status: 'RETURNED',
+        ...h, status: 'RETURNED' as const,
         release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
       };
       return h;
-    }));
+    });
+  const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+  const { error: vehErr } = await writeWithRefresh(() =>
+    supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+  );
+  if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+  setAllHolds(prev => prev.map(h => {
+    if (h.id === hold.id) return { ...h, status: 'REPAIRED', resolvedTypes, repair: newRepair };
+    if (linked && h.id === linked.id) return {
+      ...h, status: 'RETURNED',
+      release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
+    };
+    return h;
+  }));
+}
+
+export function makeMarkRepaired(deps: ResolutionDeps) {
+  return async (holdId: string, repair: Omit<Repair, 'id'>) => {
+    const hold = deps.holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    // Whole-hold repair: every issue resolved at once.
+    await finalizeRepairedHold(deps, hold, repair, hold.holdTypes);
   };
+}
+
+// Resolve ONE issue within a (possibly multi-type) hold. Appends the type to
+// resolved_types; the hold stays ACTIVE — and the vehicle stays held via the
+// unchanged cascade — until resolved_types covers every hold_type, at which point
+// the whole hold is finalized to REPAIRED exactly like a single-issue repair
+// (repairs row, linked-exception auto-close, vehicle re-derive). `repair` carries
+// the notes/outcome and is required only for the final flip; intermediate
+// resolutions just check the box. Re-resolving an already-cleared issue is a no-op.
+export function makeMarkIssueRepaired(deps: ResolutionDeps) {
+  const { holds, setAllHolds } = deps;
+  return async (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) =>
+    withSubmitLock(`repair:${holdId}`, async () => {
+      const hold = holds.find(h => h.id === holdId);
+      if (!hold) throw new Error(`Hold not found: ${holdId}`);
+      const next = hold.resolvedTypes.includes(type)
+        ? hold.resolvedTypes
+        : [...hold.resolvedTypes, type];
+      const isFinal = hold.holdTypes.every(t => next.includes(t));
+
+      if (isFinal) {
+        if (!repair) throw new Error('Repair details are required to resolve the final issue');
+        await finalizeRepairedHold(deps, hold, repair, next);
+        return;
+      }
+      // Intermediate: record the cleared issue only. Hold stays ACTIVE, so the
+      // vehicle stays held by construction — no repairs row, no re-derive.
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('holds').update({ resolved_types: next }).eq('id', holdId)
+      );
+      if (error) throw new Error(`Failed to resolve issue: ${(error as { message?: string }).message}`);
+      setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, resolvedTypes: next }));
+    });
 }
 
 // Manually close a hold's OPEN exception without a physical return — for a stale
@@ -238,7 +287,7 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
       );
       if (error) throw new Error(`Failed to record repair: ${(error as { message?: string }).message}`);
       await writeWithRefresh(() =>
-        supabase.from('holds').update({ status: 'REPAIRED' }).eq('id', t.id)
+        supabase.from('holds').update({ status: 'REPAIRED', resolved_types: t.holdTypes }).eq('id', t.id)
       );
     }
     // Project EVERY target as REPAIRED at once, then derive the vehicle once.
@@ -252,7 +301,7 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: newVehicleStatus }));
     setAllHolds(prev => prev.map(h => {
       const r = repairsById.get(h.id);
-      return r ? { ...h, status: 'REPAIRED' as const, repair: r } : h;
+      return r ? { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r } : h;
     }));
   };
 }

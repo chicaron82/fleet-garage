@@ -164,6 +164,7 @@ export interface Hold {
   vehicleId: string;
   holdTypes: HoldType[];   // all types for this hold (min 1)
   holdType: HoldType;      // primary type = holdTypes[0], kept for backwards compat
+  resolvedTypes: HoldType[]; // which holdTypes are cleared; hold flips REPAIRED once it covers holdTypes
   detailReason?: DetailReason;
   mechanicalSubType?: MechanicalSubType | null;
   damageDescription: string;   // for damage holds; "Detail required — X" for detail holds

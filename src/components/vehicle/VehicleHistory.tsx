@@ -12,7 +12,7 @@ import { PhotoLightbox } from '../shared/PhotoLightbox';
 import { VehicleEVAssets } from './VehicleEVAssets';
 import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
-import { RepairConfirmSection } from '../holds/RepairConfirmSection';
+import { RepairResolution } from '../holds/RepairResolution';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
 
@@ -256,24 +256,23 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           />
         )}
 
-        {h.showRepairConfirm && (() => {
-          const ids = h.showRepairConfirm;
-          const confirmHolds = h.holds.filter(hold => ids.includes(hold.id));
-          if (confirmHolds.length === 0) return null;
-          return (
-            <RepairConfirmSection
-              holds={confirmHolds}
-              repairNotes={h.repairNotes}
-              setRepairNotes={h.setRepairNotes}
-              repairOutcome={h.repairOutcome}
-              setRepairOutcome={h.setRepairOutcome}
-              repairing={h.repairing}
-              error={h.repairError}
-              onCancel={h.cancelRepair}
-              onConfirm={h.handleRepair}
-            />
-          );
-        })()}
+        {h.showRepairConfirm && (
+          <RepairResolution
+            confirmHolds={h.holds.filter(hold => h.showRepairConfirm!.includes(hold.id))}
+            userId={h.user.id}
+            markIssueRepaired={h.markIssueRepaired}
+            confirm={{
+              repairNotes: h.repairNotes,
+              setRepairNotes: h.setRepairNotes,
+              repairOutcome: h.repairOutcome,
+              setRepairOutcome: h.setRepairOutcome,
+              repairing: h.repairing,
+              error: h.repairError,
+              onCancel: h.cancelRepair,
+              onConfirm: h.handleRepair,
+            }}
+          />
+        )}
 
         <HoldHistorySection
           vehicle={vehicle}

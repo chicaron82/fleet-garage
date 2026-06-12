@@ -257,6 +257,7 @@ export type Database = {
           notes: string
           offstandard_linked: boolean | null
           photos: string[]
+          resolved_types: string[]
           status: string
           vehicle_id: string
         }
@@ -278,6 +279,7 @@ export type Database = {
           notes?: string
           offstandard_linked?: boolean | null
           photos?: string[]
+          resolved_types?: string[]
           status: string
           vehicle_id: string
         }
@@ -299,6 +301,7 @@ export type Database = {
           notes?: string
           offstandard_linked?: boolean | null
           photos?: string[]
+          resolved_types?: string[]
           status?: string
           vehicle_id?: string
         }

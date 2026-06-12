@@ -8,7 +8,7 @@ import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
+  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   // The hold(s) being repaired in the confirm step — an array so one confirm can
@@ -195,7 +195,7 @@ export function useVehicleHistory(vehicleId: string) {
     confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
-    showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair,
+    showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair, markIssueRepaired,
     showHoldPicker, openRepairAction, toggleRepairPick, pickedForRepair, confirmRepairSelection, closeHoldPicker,
     showReleasePicker, openReleaseAction, pickHoldForRelease, closeReleasePicker,
     repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing, repairError,

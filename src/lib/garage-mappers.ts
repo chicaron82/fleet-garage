@@ -149,6 +149,7 @@ export function mapHold(row: Row): Hold {
     vehicleId:          reqStr(row, 'vehicle_id',         'mapHold'),
     holdTypes,
     holdType:           holdTypes[0],
+    resolvedTypes:      optStrArray(row, 'resolved_types') as HoldType[],
     detailReason:       optStr(row, 'detail_reason') as DetailReason | undefined,
     mechanicalSubType:  optStr(row, 'mechanical_sub_type') as MechanicalSubType | undefined,
     damageDescription:  reqStr(row, 'damage_description', 'mapHold'),

@@ -2,7 +2,7 @@ import { hapticLight } from '../../lib/haptics';
 import { REPAIR_OUTCOME_LABELS } from '../../types';
 import type { Hold, RepairOutcome } from '../../types';
 
-interface RepairConfirmSectionProps {
+export interface RepairConfirmSectionProps {
   holds: Hold[];
   repairNotes: string;
   setRepairNotes: (notes: string) => void;
