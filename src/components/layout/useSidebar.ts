@@ -6,9 +6,8 @@ import { useIssueContext } from '../../context/IssueContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
-import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
-import { isCarryOverOnly } from '../../lib/washbayLineage';
-import { morningHandoffBoundary } from '../../lib/shift-metrics';
+import { shiftDayStartISO, shiftDayWindow } from '../../lib/shiftDay';
+import { resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, type BackfillLog } from '../../lib/sidebarProductivity';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { isRealAccount } from '../../lib/demo-accounts';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
@@ -45,8 +44,7 @@ export function useSidebar() {
   const [hidden, setHidden]                     = useState<Module[]>([]);
   const [driverWeekTrips, setDriverWeekTrips]   = useState<{ depart_time: string }[]>([]);
   const [offStandardEntries, setOffStandardEntries] = useState<{ minutes: number; startTime: string }[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [latestBackfill, setLatestBackfill]     = useState<any>(null);
+  const [latestBackfill, setLatestBackfill]     = useState<BackfillLog | null>(null);
   const [todayHandoff, setTodayHandoff]         = useState<HandoffNote | null>(null);
   const [userShiftType, setUserShiftType]       = useState<ShiftType | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -105,16 +103,9 @@ export function useSidebar() {
     query.maybeSingle().then(({ data }) => setLatestBackfill(data));
   }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Skip lightweight carry-over backfills — they have no throughput, so the most
-  // recent *real* close drives the sidebar's productivity readout (the same
-  // filter the week-average below applies).
-  const recentPrimary = washbayLogs.find(l => !isCarryOverOnly(l)) ?? null;
-  const activeLog = (() => {
-    if (!recentPrimary && !latestBackfill) return null;
-    if (!recentPrimary) return latestBackfill;
-    if (!latestBackfill) return recentPrimary;
-    return recentPrimary.date >= latestBackfill.date ? recentPrimary : latestBackfill;
-  })();
+  // Active-log selection + all productivity math live in lib/sidebarProductivity
+  // (pure, tested) — this hook owns I/O and wiring only.
+  const activeLog = resolveActiveLog(washbayLogs, latestBackfill);
   const recentLogDate = activeLog?.date;
 
   // ── Driver week trips loader ─────────────────────────────────────────────────
@@ -202,74 +193,15 @@ export function useSidebar() {
     });
   }, [user?.id, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Derived VSA productivity values ─────────────────────────────────────────
-  const isBackfill    = activeLog && 'full_pages' in activeLog;
-  const carsIn        = activeLog ? (isBackfill ? activeLog.full_pages * 19 + activeLog.last_page_entries : activeLog.fullPages * 19 + activeLog.lastPageEntries) : null;
-  const carsCleaned   = carsIn != null ? carsIn - (isBackfill ? activeLog.cars_remaining : activeLog.carsRemaining) : null;
-  const offStandardMinutes = offStandardEntries.reduce((s, e) => s + e.minutes, 0);
-  const teamOpHours   = isPeakSeason ? 16 : 15 + (activeLog ? (isBackfill ? activeLog.overtime_hours : activeLog.overtimeHours) : 0);
-  const teamThroughput = carsCleaned != null ? carsCleaned / teamOpHours : null;
-  const adjustedOpHours = Math.max(0.1, teamOpHours - (offStandardMinutes / 60));
-  const dailyRate     = carsCleaned != null
-    ? (offStandardMinutes > 0 ? Math.round((carsCleaned / adjustedOpHours) * 10) / 10 : Math.round(teamThroughput! * 10) / 10)
-    : null;
-
-  const morningCleaned  = todayHandoff ? todayHandoff.fullPages * 19 + todayHandoff.lastPageEntries : null;
-  const morningOpHours  = todayHandoff ? todayHandoff.morningHours ?? 8.0 : null;
-  const activeCheckpoint = shiftCheckpoints.find(c => c.date === recentLogDate && c.checkpointType === 'closing_arrival') ?? null;
-  const checkpointCount  = activeCheckpoint ? activeCheckpoint.fullPages * 19 + activeCheckpoint.lastPageEntries : null;
-  const closingStartCount = checkpointCount ?? morningCleaned;
-  const closingCleaned  = closingStartCount != null && carsCleaned != null ? Math.max(0, carsCleaned - closingStartCount) : null;
-  const closingOpHours: number | null = morningOpHours != null ? 8.0 : null;
-
-  const handoffTimestamp = todayHandoff ? morningHandoffBoundary(todayHandoff) : null;
-  const morningOTH = handoffTimestamp
-    ? offStandardEntries.filter(e => new Date(e.startTime) < handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
-    : offStandardMinutes;
-  const closingOTH = handoffTimestamp
-    ? offStandardEntries.filter(e => new Date(e.startTime) >= handoffTimestamp).reduce((s, e) => s + e.minutes, 0)
-    : 0;
-
-  const morningAdjustedHours = morningOpHours != null ? Math.max(0.1, morningOpHours - morningOTH / 60) : null;
-  const closingAdjustedHours = closingOpHours != null ? Math.max(0.1, closingOpHours - closingOTH / 60) : null;
-  const morningRate = morningCleaned != null && morningAdjustedHours != null ? Math.round((morningCleaned / morningAdjustedHours) * 10) / 10 : null;
-  const closingRate = closingCleaned != null && closingAdjustedHours != null ? Math.round((closingCleaned / closingAdjustedHours) * 10) / 10 : null;
-
-  const hasSplit = morningRate != null && closingRate != null;
-  const resolvedRate = hasSplit && userShiftType
-    ? userShiftType === 'opening' ? morningRate : userShiftType === 'closing' ? closingRate : dailyRate
-    : dailyRate;
-  const resolvedShiftIcon = hasSplit && userShiftType === 'opening' ? '☀️'
-    : hasSplit && userShiftType === 'closing' ? '🌙' : null;
-
-  const recentLabel = recentLogDate === localDateStr(0)  ? 'Earlier today'
-                    : recentLogDate === localDateStr(-1) ? 'Yesterday'
-                    : recentLogDate ?? 'Last shift';
-
-  const weekLogs = washbayLogs
-    .filter(l => l.date >= localDateStr(-7) && l.date < localDateStr(0))
-    .filter(l => !isCarryOverOnly(l));
-  const weekAvgRate = weekLogs.length >= 3
-    ? Math.round(weekLogs.reduce((s, l) => {
-        const ci = l.fullPages * 19 + l.lastPageEntries;
-        return s + (ci - l.carsRemaining) / (isPeakSeason ? 16 : 15 + l.overtimeHours);
-      }, 0) / weekLogs.length * 10) / 10
-    : null;
-
-  const delta      = resolvedRate != null && weekAvgRate != null ? Math.round((resolvedRate - weekAvgRate) * 10) / 10 : null;
-  const deltaLabel = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : null;
-  const deltaColor = delta != null ? (delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : '';
-
-  // ── Driver productivity derivations ──────────────────────────────────────────
-  const tripsToday   = driverWeekTrips.filter(t => businessDateOf(t.depart_time) === localDateStr(0)).length;
-  const byDay        = driverWeekTrips.reduce((acc, t) => {
-    const date = businessDateOf(t.depart_time);
-    acc[date] = (acc[date] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  const weekAvgTrips = Object.keys(byDay).length >= 3
-    ? Math.round(Object.values(byDay).reduce((s, n) => s + n, 0) / Object.keys(byDay).length * 10) / 10
-    : null;
+  // ── Productivity readouts (pure math in lib/sidebarProductivity) ────────────
+  const vsa = deriveVsaProductivity({
+    activeLog, offStandardEntries, todayHandoff, shiftCheckpoints,
+    userShiftType, isPeakSeason, washbayLogs,
+  });
+  const { tripsToday, weekAvgTrips } = deriveDriverWeek(driverWeekTrips);
+  const deltaColor = vsa.delta != null
+    ? (vsa.delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400')
+    : '';
 
   // ── Nav item lists ───────────────────────────────────────────────────────────
   const displayedItems = localOrder
@@ -338,10 +270,11 @@ export function useSidebar() {
     localOrder, hidden,
     popoverRef,
     // VSA productivity
-    recentRate: resolvedRate, recentLabel,
-    resolvedShiftIcon, userShiftType,
-    morningRate, closingRate, hasSplit, dailyRate,
-    weekAvgRate, deltaLabel, deltaColor,
+    recentRate: vsa.resolvedRate, recentLabel: vsa.recentLabel,
+    resolvedShiftIcon: vsa.resolvedShiftIcon, userShiftType,
+    morningRate: vsa.morningRate, closingRate: vsa.closingRate,
+    hasSplit: vsa.hasSplit, dailyRate: vsa.dailyRate,
+    weekAvgRate: vsa.weekAvgRate, deltaLabel: vsa.deltaLabel, deltaColor,
     // Driver productivity
     tripsToday, weekAvgTrips,
     // Nav
