@@ -119,6 +119,10 @@ the "nothing here yet" placeholder; the persistent create-action is the header p
 ## Build & Test
 
 ```bash
+# Run all gates from the repo root (structural — no ambient-cwd risk):
+bash /home/ronnie/Kitchen/fleet-garage/scripts/gate.sh
+
+# Or individually:
 npx tsc -b           # type check — use -b, NOT --noEmit. The root tsconfig is a
                      # solution file (`files: []`); --noEmit checks zero files and
                      # exits clean, missing real errors. -b follows the references.
@@ -126,6 +130,15 @@ npx eslint .         # lint — enforces the line cap (0 errors, 0 warnings expe
 npx vitest run       # tests
 npm run dev          # dev server
 ```
+
+### Visual changes — pre-ship checklist
+
+`tsc`/`eslint`/`vitest` are blind to layout. Before committing any visual change:
+
+- [ ] Dark mode: toggle and spot-check affected surfaces
+- [ ] Mobile width (≤375px): no overflow, no cramped labels
+- [ ] Alignment: header title and action slot stay on the same baseline
+- [ ] Color: action buttons are `bg-fg-yellow`, not raw `yellow-400` or any other tone
 
 ## Stack
 
