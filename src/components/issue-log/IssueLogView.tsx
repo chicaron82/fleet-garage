@@ -5,6 +5,8 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 import { IssueCard } from './IssueCard';
+import { ModuleHeader } from '../shared/ModuleHeader';
+import { PrimaryAction } from '../shared/PrimaryAction';
 
 const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = {
   low:    { icon: '🟢', label: 'Low' },
@@ -79,16 +81,13 @@ export function IssueLogView() {
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Issue Log</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-            {openIssues.length === 0
-              ? 'No open issues'
-              : `${openIssues.length} open issue${openIssues.length === 1 ? '' : 's'}`}
-          </p>
-        </div>
-      </div>
+      <ModuleHeader
+        title="Issue Log"
+        subtitle={openIssues.length === 0
+          ? 'No open issues'
+          : `${openIssues.length} open issue${openIssues.length === 1 ? '' : 's'}`}
+        action={<PrimaryAction label="Issue" onClick={() => setShowNewForm(true)} disabled={showNewForm} />}
+      />
 
       {/* Search */}
       <input
@@ -140,16 +139,8 @@ export function IssueLogView() {
         ))}
       </section>
 
-      {/* Log New Issue */}
-      {!showNewForm ? (
-        <button
-          type="button"
-          onClick={() => { hapticLight(); setShowNewForm(true); }}
-          className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
-        >
-          + Log New Issue
-        </button>
-      ) : (
+      {/* New Issue form — opened from the header action */}
+      {showNewForm && (
         <div className="rounded-xl border border-yellow-300 dark:border-yellow-700 bg-yellow-50/50 dark:bg-yellow-900/10 p-4 space-y-3">
           <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider">New Issue</p>
 

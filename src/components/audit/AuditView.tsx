@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase } from '../../lib/supabase';
 import { MOCK_AUDITS } from '../../data/mock-audits';
+import { PrimaryAction } from '../shared/PrimaryAction';
 import { AUDIT_POSITION_LABELS } from '../../types';
 import type { AuditRecord, AuditCrewMember } from '../../types';
 
@@ -120,13 +121,7 @@ export function AuditView({ onNewAudit }: Props) {
             </p>
           )}
         </div>
-        <button
-          onClick={onNewAudit}
-          className="w-10 h-10 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-300 dark:hover:bg-yellow-400 rounded-xl flex items-center justify-center text-black font-bold text-xl transition cursor-pointer shadow-sm shrink-0"
-          aria-label="New audit"
-        >
-          +
-        </button>
+        <PrimaryAction label="Audit" aria-label="New audit" onClick={onNewAudit} />
       </div>
 
       {/* Live mode notice */}

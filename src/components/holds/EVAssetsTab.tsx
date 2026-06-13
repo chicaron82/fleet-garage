@@ -4,6 +4,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { QuickAddTeslaForm } from './QuickAddTeslaForm';
+import { PrimaryAction } from '../shared/PrimaryAction';
 import { isTeslaMake } from '../../lib/ev-detection';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
@@ -141,10 +142,10 @@ export function EVAssetsTab() {
   // ── Roster view ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
-      <button type="button" onClick={() => setAdding(true)}
-        className="w-full py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-200 transition cursor-pointer">
-        + Register Tesla
-      </button>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Tesla roster</p>
+        <PrimaryAction label="Register" aria-label="Register a Tesla" onClick={() => setAdding(true)} />
+      </div>
 
       {vehicles.filter(isTeslaVehicle).length > 4 && (
         <input type="text" value={query} onChange={e => setQuery(e.target.value)}

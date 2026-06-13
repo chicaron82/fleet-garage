@@ -7,6 +7,8 @@ import { canActionLostFound } from '../../types';
 import { fmtRelativeDate } from '../../lib/lostFoundDate';
 import { LostFoundCard } from './LostFoundCard';
 import { LogLostFoundItemModal } from './LogLostFoundItemModal';
+import { ModuleHeader } from '../shared/ModuleHeader';
+import { PrimaryAction } from '../shared/PrimaryAction';
 
 export function LostAndFoundView() {
   const { user } = useAuth();
@@ -55,21 +57,11 @@ export function LostAndFoundView() {
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Lost & Found</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-            {holding.length} item{holding.length !== 1 ? 's' : ''} holding
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => { hapticLight(); setShowSheet(true); }}
-          className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
-        >
-          + Log
-        </button>
-      </div>
+      <ModuleHeader
+        title="Lost & Found"
+        subtitle={`${holding.length} item${holding.length !== 1 ? 's' : ''} holding`}
+        action={<PrimaryAction label="Log" aria-label="Log a found item" onClick={() => setShowSheet(true)} />}
+      />
 
       {/* Search */}
       {holding.length > 0 && (
