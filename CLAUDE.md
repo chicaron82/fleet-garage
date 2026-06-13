@@ -79,6 +79,39 @@ keyed upserts converge harmlessly and don't need it. *(This lesson recurred thre
 times — `useState(async)` sweep, the `addHold` shared guard, the app-wide sweep — each
 time the fix was "move it to where paths converge.")*
 
+## Design Language — One Header, One Action, One Accent
+
+Every module wears the same header and exposes one create-action, so neither
+drifts. This is **encoded in two shared components, not just documented** — the
+encoding is what makes it hold.
+
+- **`<ModuleHeader title subtitle action />`** (`src/components/shared/`) is the
+  one header: bold title, optional gray subtitle, optional top-right `action`
+  slot. Use it for every module — don't hand-roll an `<h1>`. The markup had
+  already drifted before this consolidated it (Schedule shrank to `text-lg`;
+  headers split on `items-center` vs `items-start`).
+- **`<PrimaryAction label onClick />`** is the one create-action: a solid yellow
+  `+ {label}` pill with baked-in haptics, living in the ModuleHeader action slot
+  (or centered in an empty state). Because the header owns the slot, the action
+  *structurally can't* land somewhere inconsistent. Every "add a record" is this
+  pill — header actions and empty-state register CTAs alike.
+
+**Colour lanes — never cross them.** Action = `fg-yellow` (the accent: PrimaryAction,
+focus rings). Status = red / green / amber (urgency, success, state). A red "add"
+button reads as a warning; a yellow status dot reads as a control. Keep them apart.
+
+**The accent is a token.** Action surfaces use `bg-fg-yellow` /
+`hover:bg-fg-yellow-hi` (`--color-fg-yellow` #facc15 / `-hi` #eab308 in
+`index.css`), darken-on-hover. The whole action surface (bg/border/ring) derives
+from it — change the brand action colour in one place. Don't reintroduce raw
+`bg-yellow-400`; `tests/components/ModuleHeader.test.tsx` guards PrimaryAction
+against it. *Not yet tokenised (a later palette pass): readable text-yellow links
+(yellow-600/700), soft-tint panels (yellow-50/100/900), native form accent
+(accent-yellow). Those are a separate lane for now.*
+
+**Dashed = empty states**, not persistent actions. The dashed-ghost treatment is
+the "nothing here yet" placeholder; the persistent create-action is the header pill.
+
 ## Build & Test
 
 ```bash
