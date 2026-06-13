@@ -137,16 +137,16 @@ export function EVAssetsTab() {
   }
 
   // ── Quick-add view ───────────────────────────────────────────────────────────
-  if (adding) return <QuickAddTeslaForm onDone={() => setAdding(false)} />;
+  if (adding) return <QuickAddTeslaForm prefill={query} onDone={() => setAdding(false)} />;
 
   // ── Roster view ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
       <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Tesla roster</p>
       <div className="flex gap-2">
-        <input type="text" value={query} onChange={e => setQuery(e.target.value)}
+        <input type="text" value={query} onChange={e => setQuery(e.target.value.toUpperCase())}
           placeholder="Filter Teslas…"
-          className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
+          className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition uppercase" />
         <PrimaryAction label="Register" aria-label="Register a Tesla" onClick={() => setAdding(true)} />
       </div>
 

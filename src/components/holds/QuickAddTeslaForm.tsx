@@ -13,12 +13,21 @@ const BOTH_MISSING_DESCRIPTION =
 
 const FIELD = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 
-export function QuickAddTeslaForm({ onDone }: { onDone: () => void }) {
+function classifyPrefill(value?: string): { unit: string; plate: string } {
+  if (!value) return { unit: '', plate: '' };
+  // All digits → unit number; anything with letters → license plate
+  return /^\d+$/.test(value)
+    ? { unit: value, plate: '' }
+    : { unit: '', plate: value };
+}
+
+export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDone: () => void }) {
   const { user } = useAuth();
   const { addVehicle, updateVehicleEVAssets, addHold } = useVehicleHoldContext();
 
-  const [unitNumber, setUnitNumber] = useState('');
-  const [plate, setPlate]           = useState('');
+  const seed = classifyPrefill(prefill);
+  const [unitNumber, setUnitNumber] = useState(seed.unit);
+  const [plate, setPlate]           = useState(seed.plate);
   const [cable, setCable]           = useState<EvAssetStatus | null>(null);
   const [adapter, setAdapter]       = useState<EvAssetStatus | null>(null);
   const [notes, setNotes]           = useState('');
