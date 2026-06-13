@@ -6,6 +6,7 @@ import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { PreferencesProvider } from './context/PreferencesContext.tsx'
 import { ProfilesProvider } from './context/ProfilesContext.tsx'
+import { PwaUpdatePrompt } from './components/shared/PwaUpdatePrompt.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -17,5 +18,6 @@ createRoot(document.getElementById('root')!).render(
       </ProfilesProvider>
     </AuthProvider>
     <Analytics />
+    <PwaUpdatePrompt />
   </StrictMode>,
 )

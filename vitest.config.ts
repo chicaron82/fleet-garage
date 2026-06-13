@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // vite-plugin-pwa's virtual module isn't in vitest's plugin chain — point
+      // it at a stub so components that import it (PwaUpdatePrompt) are testable.
+      'virtual:pwa-register/react': new URL('./tests/stubs/pwa-register.ts', import.meta.url).pathname,
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

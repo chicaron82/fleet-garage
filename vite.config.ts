@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'node:child_process'
 
 // Build stamp: short commit SHA + build date, injected at build time.
@@ -16,7 +17,33 @@ export default defineConfig({
     __BUILD_SHA__: JSON.stringify(buildSha()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10).replace(/-/g, '.')),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // PWA: precache the app shell so a reload on flaky garage wifi opens the
+    // app (offline-resilient writes already exist; this completes the story on
+    // the shell side). registerType 'prompt' — never silently swap the app
+    // mid-shift; the PwaUpdatePrompt toast lets the crew reload on their terms,
+    // which also cooperates with chunkReload (the SW serves cached chunks, so a
+    // post-deploy reload finds them instead of erroring).
+    VitePWA({
+      registerType: 'prompt',
+      // Keep the hand-authored public/site.webmanifest (icons + fg-yellow theme);
+      // the plugin only generates the service worker.
+      manifest: false,
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webp,woff2,json}'],
+        // Don't precache the lazy ~1.4 MB react-pdf chunk — it's only the
+        // end-of-shift PDF export, rarely needed offline, and bloats the
+        // first-install on field wifi. It loads from network on demand.
+        globIgnores: ['**/react-pdf.browser-*.js'],
+        cleanupOutdatedCaches: true,
+        // Offline deep-link support: serve the cached shell for unknown routes
+        // (pairs with screenRouting's pathToScreen + the vercel.json SPA rewrite).
+        navigateFallback: 'index.html',
+      },
+    }),
+  ],
   build: {
     // react-pdf (@react-pdf/renderer, ~1.4 MB raw) is the only chunk over the
     // default 500 kB limit — and it's dynamically imported only at PDF-export
