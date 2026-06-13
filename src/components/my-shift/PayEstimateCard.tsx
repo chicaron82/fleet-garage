@@ -180,7 +180,10 @@ export function PayEstimateCard() {
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Pay Estimate</span>
           {!open && currEst.gross > 0 && (
-            <span className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(currEst.net)} est. net</span>
+            <>
+              <span className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(currEst.net)} est. net</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">pays {fmtDate(getPayday({ end: currEst.periodEnd }))}</span>
+            </>
           )}
         </div>
         <span className="text-gray-400 dark:text-gray-500 text-xs">{open ? '▼' : '▶'}</span>
