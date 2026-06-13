@@ -91,6 +91,10 @@ export function useSidebar() {
         if (!n.recipient_roles.includes(user.role) && n.recipient_user_id !== user.id) return;
         setLiveNotifs(prev => [n, ...prev]);
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const updated = payload.new as LiveNotification;
+        setLiveNotifs(prev => prev.map(l => l.id === updated.id ? updated : l));
+      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [notifMode, user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -219,7 +223,7 @@ export function useSidebar() {
     if (!user) return;
     const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
     await Promise.all(unread.map(n =>
-      writeWithRefresh(() => supabase.from('notifications').update({ read_by: [...n.read_by, user.id] }).eq('id', n.id))
+      writeWithRefresh(() => supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id }))
     ));
     setLiveNotifs(prev => prev.map(n => ({
       ...n,
