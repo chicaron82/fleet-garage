@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { User, UserRole, BranchId } from '../types';
 import { supabase } from '../lib/supabase';
+import { cacheProfile, getCachedProfile, clearProfileCache, restoreOnNullProfile } from '../lib/profileCache';
 
 interface AuthContextValue {
   user: User | null;
@@ -63,9 +64,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         setUser(profile);
         setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
+        cacheProfile(profile); // for an offline reload — see profileCache
       } else if (event === 'INITIAL_SESSION') {
-        setUser(null);
-        setActiveBranch('YWG');
+        // Token restored but the profile read failed. If we're genuinely offline,
+        // ride the cached profile so a logged-in VSA isn't locked out on a
+        // dead-wifi reload; online → require login (profile may be gone).
+        const restored = restoreOnNullProfile(event, navigator.onLine, getCachedProfile(session.user.id));
+        if (restored) {
+          setUser(restored);
+          setActiveBranch(restored.branchId === 'ALL' ? 'ALL' : restored.branchId);
+        } else {
+          setUser(null);
+          setActiveBranch('YWG');
+        }
       }
       // SIGNED_IN with no profile: leave user alone — login() already set it
       setLoading(false);
@@ -81,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (profile) {
       setUser(profile);
       setActiveBranch(profile.branchId === 'ALL' ? 'ALL' : profile.branchId);
+      cacheProfile(profile); // seed the offline-reload cache on a fresh login too
     }
     return !!profile;
   };
@@ -91,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith('sb-')) localStorage.removeItem(key);
     }
+    clearProfileCache(); // drop the offline-reload profile too — no riding it after logout
     setUser(null);
     setActiveBranch('YWG');
     await supabase.auth.signOut();
