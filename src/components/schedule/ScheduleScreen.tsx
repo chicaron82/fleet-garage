@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { SCHEDULE_GROUPS } from '../../lib/scheduleGroups';
 import type { ScheduleGroup } from '../../lib/scheduleGroups';
@@ -68,41 +69,43 @@ export function ScheduleScreen() {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Schedule</h1>
-        <div className="flex items-center gap-2 ml-auto">
-          {/* Fill schedule */}
-          <button
-            onClick={() => setShowFill(true)}
-            className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
-          >
-            Fill range ↓
-          </button>
-          {/* View toggle */}
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-semibold">
-          <button
-            onClick={() => setViewMode('week')}
-            className={`px-3 py-1.5 transition cursor-pointer ${
-              viewMode === 'week'
-                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setViewMode('calendar')}
-            className={`px-3 py-1.5 transition cursor-pointer border-l border-gray-200 dark:border-gray-700 ${
-              viewMode === 'calendar'
-                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
-          >
-            Calendar
-          </button>
-        </div>
-        </div>
-      </div>
+      <ModuleHeader
+        title="Schedule"
+        action={
+          <div className="flex items-center gap-2">
+            {/* Fill schedule */}
+            <button
+              onClick={() => setShowFill(true)}
+              className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
+            >
+              Fill range ↓
+            </button>
+            {/* View toggle */}
+            <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-semibold">
+              <button
+                onClick={() => setViewMode('week')}
+                className={`px-3 py-1.5 transition cursor-pointer ${
+                  viewMode === 'week'
+                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 transition cursor-pointer border-l border-gray-200 dark:border-gray-700 ${
+                  viewMode === 'calendar'
+                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                Calendar
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       {/* Peak season banner — managers only */}
       {isManager && (

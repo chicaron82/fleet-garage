@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { supabase } from '../../lib/supabase';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -140,10 +141,10 @@ export function AnalyticsView() {
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Analytics</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Fleet hold summary · your data</p>
-      </div>
+      <ModuleHeader
+        title="Analytics"
+        subtitle="Fleet hold summary · your data"
+      />
 
       {/* High-severity facility issue banner */}
       {(() => {

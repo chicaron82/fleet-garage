@@ -7,6 +7,7 @@ import type { Hold, Vehicle, VehicleStatus } from '../../types';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { parseFleetBarcode } from '../../lib/barcode';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
@@ -190,10 +191,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
         {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Holds</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">Flagged vehicles · damage | mechanical | detail</p>
-        </div>
+        <ModuleHeader
+          title="Holds"
+          subtitle="Flagged vehicles · damage | mechanical | detail"
+        />
 
         <HoldsTabStrip activeTab={activeTab} onTab={setActiveTab} />
 

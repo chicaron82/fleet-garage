@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { canRelease, deriveRouting } from '../../types';
 import { MOCK_CHECK_INS } from '../../data/checkIns';
 import type { VehicleCheckIn } from '../../data/checkIns';
@@ -96,12 +97,10 @@ export function CheckInView({ onFlagIssue }: { onFlagIssue: (vehicleId: string) 
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
 
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Vehicle Check-in</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">
-          Return inspections · {MOCK_CHECK_INS.length} today
-        </p>
-      </div>
+      <ModuleHeader
+        title="Vehicle Check-in"
+        subtitle={`Return inspections · ${MOCK_CHECK_INS.length} today`}
+      />
 
       {/* Tab switcher */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">

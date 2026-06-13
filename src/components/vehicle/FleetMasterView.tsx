@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { loadFleet } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import type { Screen } from '../../types';
@@ -75,19 +76,20 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Fleet</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} registered</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onRegisterNew()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
-        >
-          + Add Vehicle
-        </button>
-      </div>
+      <ModuleHeader
+        align="start"
+        title="Fleet"
+        subtitle={`${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''} registered`}
+        action={
+          <button
+            type="button"
+            onClick={() => onRegisterNew()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+          >
+            + Add Vehicle
+          </button>
+        }
+      />
 
       {/* Search */}
       <input

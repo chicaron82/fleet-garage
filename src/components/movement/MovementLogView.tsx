@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import { useCanDemo } from '../../hooks/useCanDemo';
 import { canRelease } from '../../types';
 import { MOCK_TRIPS } from '../../data/trips';
@@ -176,14 +177,11 @@ export function MovementLogView() {
   // ── Driver / CSR / HIR / Management ──────────────────────────────────────
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
-            {isManagement ? 'All Trips Today' : "Today's Runs"}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
-        </div>
-        {!isVSA && !isManagement && canDemo && (
+      <ModuleHeader
+        align="start"
+        title={isManagement ? 'All Trips Today' : "Today's Runs"}
+        subtitle={today}
+        action={!isVSA && !isManagement && canDemo ? (
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {(['live', 'demo'] as const).map(mode => (
               <button
@@ -200,8 +198,8 @@ export function MovementLogView() {
               </button>
             ))}
           </div>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Log trip — Live or Demo */}
       {!isManagement && driverMode === 'live' ? (
