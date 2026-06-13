@@ -14,6 +14,7 @@ import {
   reducesDenominator,
 } from '../../lib/shift-metrics';
 import { sentToFleet } from '../../lib/washbay-throughput';
+import { fmtHours } from '../../lib/ot';
 
 const STANDARD_RATE = 3.0;
 
@@ -90,7 +91,7 @@ export function ShiftRatesCard() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>Shift hours</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{mySnapshot.hours}h</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">{fmtHours(mySnapshot.hours)}</span>
           </div>
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>Off-standard (rate-affecting)</span>
@@ -129,7 +130,7 @@ export function ShiftRatesCard() {
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{STANDARD_RATE.toFixed(1)} / hr</span>
             </div>
             <div className="flex justify-between items-baseline mt-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Shift baseline ({mySnapshot.hours}h window)</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Shift baseline ({fmtHours(mySnapshot.hours)} window)</span>
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{shiftBaseline!.toFixed(1)} / hr</span>
             </div>
             <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
