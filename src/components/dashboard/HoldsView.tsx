@@ -151,6 +151,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  // Typed ≥2 chars with nothing matching: the search-row button flips from
+  // "scan" to "add to ledger", and the list shows the not-found note.
+  const noMatch = filtered.length === 0 && search.trim().length >= 2;
+
   const getDisplayHold = (vehicleId: string, status: VehicleStatus) => {
     const vh = holds.filter(h => h.vehicleId === vehicleId);
     if (vh.length === 0) return undefined;
@@ -251,7 +255,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
               </button>
             )}
           </div>
-          <CameraBarcodeScanner onDecode={handleCameraDecode} />
+          {noMatch
+            ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
+            : <CameraBarcodeScanner onDecode={handleCameraDecode} />}
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
@@ -282,11 +288,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
               getName={getName}
             />
           ))}
-          {filtered.length === 0 && search.trim().length >= 2 && (
-            <div className="text-center py-8 space-y-3">
-              <p className="text-gray-400 text-sm">"{search}" not in the system.</p>
-              <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
-            </div>
+          {noMatch && (
+            <p className="text-center text-gray-400 text-sm py-8">"{search}" not in the system.</p>
           )}
           {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>

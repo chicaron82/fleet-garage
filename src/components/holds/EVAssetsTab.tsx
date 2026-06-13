@@ -142,16 +142,13 @@ export function EVAssetsTab() {
   // ── Roster view ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Tesla roster</p>
-        <PrimaryAction label="Register" aria-label="Register a Tesla" onClick={() => setAdding(true)} />
-      </div>
-
-      {vehicles.filter(isTeslaVehicle).length > 4 && (
+      <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Tesla roster</p>
+      <div className="flex gap-2">
         <input type="text" value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Filter Teslas…"
-          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
-      )}
+          className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
+        <PrimaryAction label="Register" aria-label="Register a Tesla" onClick={() => setAdding(true)} />
+      </div>
 
       {teslas.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-8">No Teslas in the fleet.</p>

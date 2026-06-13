@@ -78,20 +78,21 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
     <div className="space-y-4">
       {/* Header */}
       <ModuleHeader
-        align="start"
         title="Fleet"
         subtitle={`${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''} registered`}
-        action={<PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />}
       />
 
-      {/* Search */}
-      <input
-        type="text"
-        placeholder="Search plate or unit…"
-        value={search}
-        onChange={e => setSearch(e.target.value.toUpperCase())}
-        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
-      />
+      {/* Search + add */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Search plate or unit…"
+          value={search}
+          onChange={e => setSearch(e.target.value.toUpperCase())}
+          className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
+        />
+        <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />
+      </div>
 
       {/* No match — register CTA */}
       {noMatch && (

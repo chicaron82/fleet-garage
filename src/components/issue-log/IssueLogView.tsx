@@ -86,17 +86,19 @@ export function IssueLogView() {
         subtitle={openIssues.length === 0
           ? 'No open issues'
           : `${openIssues.length} open issue${openIssues.length === 1 ? '' : 's'}`}
-        action={<PrimaryAction label="Issue" onClick={() => setShowNewForm(true)} disabled={showNewForm} />}
       />
 
-      {/* Search */}
-      <input
-        type="search"
-        placeholder="Search issues…"
-        value={searchQuery}
-        onChange={e => setSearchQuery(e.target.value)}
-        className={inputCls}
-      />
+      {/* Search + new issue */}
+      <div className="flex gap-2">
+        <input
+          type="search"
+          placeholder="Search issues…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className={`${inputCls} flex-1`}
+        />
+        <PrimaryAction label="Issue" onClick={() => setShowNewForm(true)} disabled={showNewForm} />
+      </div>
 
       {/* High-severity banner */}
       {openHighIssues > 0 && (
