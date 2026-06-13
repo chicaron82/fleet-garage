@@ -77,6 +77,22 @@ export function IssueLogView() {
     setSubmitting(false);
   };
 
+  const handleReopenDuplicate = (id: string) => {
+    hapticMedium();
+    reopenIssue(id);
+    setShowNewForm(false);
+    setNewTitle(''); setNewDescription(''); setNewSeverity('medium'); setNewPhoto(null);
+  };
+
+  // Catch a duplicate before it's created: does the typed title match an existing
+  // issue (open or cleared)? Either-direction substring so "Mat" finds "Mat machine
+  // electrical" and vice versa. The cleared case is the dangerous one — a fixed
+  // problem re-logged as new instead of reopened.
+  const titleQ = newTitle.trim().toLowerCase();
+  const duplicateMatch = showNewForm && titleQ.length >= 3
+    ? facilityIssues.find(i => i.title.toLowerCase().includes(titleQ) || titleQ.includes(i.title.toLowerCase()))
+    : undefined;
+
   return (
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
 
@@ -122,10 +138,15 @@ export function IssueLogView() {
         </p>
 
         {openIssues.length === 0 && (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
+          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center space-y-1.5">
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              {q ? 'No matching open issues.' : 'All clear. Nothing logged.'}
+              {q ? `No open issues match "${searchQuery.trim()}".` : 'All clear. Nothing logged.'}
             </p>
+            {q && clearedIssues.length > 0 && (
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                ↓ {clearedIssues.length} cleared {clearedIssues.length === 1 ? 'issue matches' : 'issues match'} — reopen below instead of re-adding.
+              </p>
+            )}
           </div>
         )}
 
@@ -154,6 +175,26 @@ export function IssueLogView() {
             className={inputCls}
             autoFocus
           />
+
+          {duplicateMatch && (
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                <span className="font-semibold">"{duplicateMatch.title}"</span> already exists
+                {duplicateMatch.status === 'resolved'
+                  ? ' (cleared). Reopen it instead of logging a duplicate?'
+                  : ' and is already open.'}
+              </p>
+              {duplicateMatch.status === 'resolved' && (
+                <button
+                  type="button"
+                  onClick={() => handleReopenDuplicate(duplicateMatch.id)}
+                  className="px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                >
+                  ↩ Reopen instead
+                </button>
+              )}
+            </div>
+          )}
 
           <textarea
             placeholder="Description (optional)"
