@@ -8,6 +8,7 @@ import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
 import { ModuleHeader } from '../shared/ModuleHeader';
+import { PrimaryAction } from '../shared/PrimaryAction';
 import { parseFleetBarcode } from '../../lib/barcode';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
@@ -284,12 +285,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {filtered.length === 0 && search.trim().length >= 2 && (
             <div className="text-center py-8 space-y-3">
               <p className="text-gray-400 text-sm">"{search}" not in the system.</p>
-              <button
-                onClick={() => onRegisterAndFlag(search)}
-                className="text-sm font-semibold text-yellow-600 hover:text-yellow-800 transition cursor-pointer"
-              >
-                + Add to ledger &amp; flag →
-              </button>
+              <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
             </div>
           )}
           {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (

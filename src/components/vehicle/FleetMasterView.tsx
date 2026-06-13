@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
+import { PrimaryAction } from '../shared/PrimaryAction';
 import { loadFleet } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import type { Screen } from '../../types';
@@ -80,15 +81,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
         align="start"
         title="Fleet"
         subtitle={`${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''} registered`}
-        action={
-          <button
-            type="button"
-            onClick={() => onRegisterNew()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
-          >
-            + Add Vehicle
-          </button>
-        }
+        action={<PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />}
       />
 
       {/* Search */}
@@ -106,13 +99,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           <p className="text-sm text-gray-500 dark:text-gray-400">
             No vehicle found for <span className="font-semibold text-gray-700 dark:text-gray-300">{term}</span>
           </p>
-          <button
-            type="button"
-            onClick={() => onRegisterNew(term)}
-            className="text-xs font-medium text-yellow-600 dark:text-yellow-400 underline underline-offset-2 cursor-pointer"
-          >
-            + Register this vehicle
-          </button>
+          <PrimaryAction label="Register this vehicle" onClick={() => onRegisterNew(term)} />
         </div>
       )}
 
@@ -120,13 +107,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       {vehicles.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-12 text-center space-y-3">
           <p className="text-sm text-gray-500 dark:text-gray-400">No vehicles registered for this branch yet.</p>
-          <button
-            type="button"
-            onClick={() => onRegisterNew()}
-            className="text-xs font-medium text-yellow-600 dark:text-yellow-400 underline underline-offset-2 cursor-pointer"
-          >
-            + Add your first vehicle
-          </button>
+          <PrimaryAction label="Add your first vehicle" onClick={() => onRegisterNew()} />
         </div>
       )}
 
