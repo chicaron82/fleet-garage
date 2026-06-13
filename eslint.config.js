@@ -45,6 +45,34 @@ export default defineConfig([
       'max-lines': 'off',
     },
   },
+  {
+    // Gate: USERS mock data must only flow through useUserResolver and useTeamMembers.
+    // A direct import anywhere else surfaces fake employee names on real branches —
+    // the exact regression the attribution split was built to prevent. BRANCH_CONFIGS
+    // from the same file is legitimate public static config and is not restricted.
+    // To add a new legitimate consumer (e.g. a test fixture), extend the ignores list.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/hooks/useUserResolver.ts',
+      'src/hooks/useTeamMembers.ts',
+      'src/data/mock.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/data/mock'],
+              importNames: ['USERS'],
+              message:
+                'Import USERS through useUserResolver or useTeamMembers — direct access surfaces fake employee data on real branches.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Grandfather list fully burned down (2026-05-31): every logic file is now under
   // the 330 cap. The cap is a hard error for all of src/ except the exemptions above.
 ])
