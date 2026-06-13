@@ -10,6 +10,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
+import { screenToPath, pathToScreen } from './lib/screenRouting';
 import { isRealAccount } from './lib/demo-accounts';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
@@ -45,7 +46,7 @@ export default function App() {
   useOfflineQueueFlush();
 
   const navigate = useCallback((next: Screen) => {
-    window.history.pushState(next, '');
+    window.history.pushState(next, '', screenToPath(next));
     setScreen(next);
   }, []);
 
@@ -54,11 +55,16 @@ export default function App() {
     setPrevUserId(user?.id);
     if (user) {
       const navItems = getNavItemsForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+      const deepLinkScreen = window.location.pathname !== '/'
+        ? pathToScreen(window.location.pathname)
+        : null;
       const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
       const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
-      const targetScreen = savedNavItem?.defaultScreen ?? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
-      window.history.replaceState({ appRoot: true }, '');
-      window.history.pushState(targetScreen, '');
+      const targetScreen = deepLinkScreen
+        ?? savedNavItem?.defaultScreen
+        ?? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+      window.history.replaceState({ appRoot: true }, '', '/');
+      window.history.pushState(targetScreen, '', screenToPath(targetScreen));
       setScreen(targetScreen);
     }
   }
@@ -74,7 +80,7 @@ export default function App() {
       const state = e.state as (Screen & { appRoot?: boolean }) | null;
       if (!state || state.appRoot) {
         const def = user ? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId)) : { name: 'dashboard' as const };
-        window.history.pushState(def, '');
+        window.history.pushState(def, '', screenToPath(def));
         setScreen(def);
         setShowLogoutConfirm(true);
       } else {
@@ -108,9 +114,9 @@ export default function App() {
             onSuccess={(vehicleId) => {
               // If this hold came from a fresh registration, clean the history stack
               if (screen.fromRegister) {
-                window.history.replaceState({ appRoot: true }, '');
-                window.history.pushState({ name: 'dashboard' }, '');
-                window.history.pushState({ name: 'vehicle', vehicleId }, '');
+                window.history.replaceState({ appRoot: true }, '', '/');
+                window.history.pushState({ name: 'dashboard' }, '', '/');
+                window.history.pushState({ name: 'vehicle', vehicleId }, '', `/vehicle/${vehicleId}`);
                 setScreen({ name: 'vehicle', vehicleId });
               } else {
                 navigate({ name: 'vehicle', vehicleId });
