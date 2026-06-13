@@ -65,7 +65,7 @@ export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpda
                 placeholder="Wooden rod, jacket, luggage…"
                 value={item.description}
                 onChange={e => onUpdate(item.id, { description: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
               />
             </div>
             <div>
@@ -101,7 +101,7 @@ export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpda
                   </button>
                 </div>
               ) : (
-                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer">
                   📷 Add photo
                   <input
                     type="file"

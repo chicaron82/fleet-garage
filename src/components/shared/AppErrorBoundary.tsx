@@ -49,7 +49,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
           This screen hit an error it couldn't recover from. A reload usually clears it.
         </p>
         <button type="button" onClick={this.handleReload}
-          className="mt-5 rounded-lg bg-yellow-400 px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-yellow-300 cursor-pointer">
+          className="mt-5 rounded-lg bg-fg-yellow px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-fg-yellow-hi cursor-pointer">
           Reload
         </button>
       </div>

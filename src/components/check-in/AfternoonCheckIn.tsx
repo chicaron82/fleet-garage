@@ -5,7 +5,7 @@ import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from 
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { businessDateOf } from '../../lib/shiftDay';
 
-const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
+const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function AfternoonCheckIn() {
@@ -137,7 +137,7 @@ export function AfternoonCheckIn() {
           disabled={!canSubmit}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
             canSubmit
-              ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+              ? 'bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
           }`}
         >

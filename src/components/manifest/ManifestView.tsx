@@ -342,9 +342,9 @@ export function ManifestView() {
               <div key={r.id}>
                 {showNowLine && (
                   <div ref={nowLineRef} className="flex items-center gap-2 my-1">
-                    <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
+                    <div className="flex-1 h-px bg-fg-yellow" />
                     <span className="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400 shrink-0">NOW</span>
-                    <div className="flex-1 h-px bg-yellow-400 dark:bg-yellow-500" />
+                    <div className="flex-1 h-px bg-fg-yellow" />
                   </div>
                 )}
                 <ReservationRow

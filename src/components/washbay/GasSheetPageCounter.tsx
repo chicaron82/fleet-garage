@@ -7,7 +7,7 @@ interface Props {
   onChange: (totalPages: number, entriesOnCurrentPage: number) => void;
 }
 
-const BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
+const BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 
 export function GasSheetPageCounter({ totalPages, entriesOnCurrentPage, onChange }: Props) {
   const onEntryInc = () => {

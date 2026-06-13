@@ -135,7 +135,7 @@ export function LogLostFoundItemModal({
                     hapticLight();
                     setStep(2);
                   }}
-                  className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+                  className="w-full py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
                 >
                   Next: Add Details →
                 </button>
@@ -197,7 +197,7 @@ export function LogLostFoundItemModal({
                   placeholder="e.g. Black garage door opener, visor…"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
                 />
               </div>
 
@@ -217,7 +217,7 @@ export function LogLostFoundItemModal({
                       }}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
                         location === loc
-                          ? 'bg-yellow-400 border-yellow-400 text-black'
+                          ? 'bg-fg-yellow border-fg-yellow text-black'
                           : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
                       }`}
                     >
@@ -236,7 +236,7 @@ export function LogLostFoundItemModal({
                   placeholder="e.g. LUR 224"
                   value={licensePlate}
                   onValueChange={setLicensePlate}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
                 />
                 {licensePlate.trim().length >= 4 ? (
                   plateMatch ? (
@@ -265,7 +265,7 @@ export function LogLostFoundItemModal({
                   placeholder="Any additional context…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
                 />
               </div>
 
@@ -289,7 +289,7 @@ export function LogLostFoundItemModal({
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+                className="w-full py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
               >
                 {submitting ? 'Saving…' : 'Submit Found Item'}
               </button>

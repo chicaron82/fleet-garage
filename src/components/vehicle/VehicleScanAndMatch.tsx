@@ -52,7 +52,7 @@ export function VehicleScanAndMatch({
             placeholder="Or enter unit # or plate…"
             value={unitSearch}
             onChange={e => onUnitSearchChange(e.target.value.toUpperCase())}
-            className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+            className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition uppercase"
           />
           {unitSearch && (
             <button
@@ -72,7 +72,7 @@ export function VehicleScanAndMatch({
                     key={v.id}
                     type="button"
                     onClick={() => onSelectVehicle(v, new Date().toISOString())}
-                    className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
+                    className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-fg-yellow hover:bg-yellow-50 transition text-sm cursor-pointer"
                   >
                     <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
                     <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>

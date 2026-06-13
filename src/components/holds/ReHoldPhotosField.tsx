@@ -43,7 +43,7 @@ export function ReHoldPhotosField({ photos, maxPhotos, bypassActive, onAdd, onRe
             <button
               type="button"
               onClick={() => cameraRef.current?.click()}
-              className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+              className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
             >
               <span className="text-lg leading-none">📷</span>
               <span className="text-xs font-medium">Take Photo</span>
@@ -51,7 +51,7 @@ export function ReHoldPhotosField({ photos, maxPhotos, bypassActive, onAdd, onRe
             <button
               type="button"
               onClick={() => galleryRef.current?.click()}
-              className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+              className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
             >
               <span className="text-lg leading-none">🖼</span>
               <span className="text-xs font-medium">Gallery</span>

@@ -76,7 +76,7 @@ export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
               type="time"
               value={startHM}
               onChange={e => setStartHM(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
             />
             {startErr && <p className="text-xs text-red-500 mt-1">{startErr}</p>}
           </div>
@@ -87,7 +87,7 @@ export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
               type="time"
               value={endHM}
               onChange={e => setEndHM(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
             />
             {endErr && <p className="text-xs text-red-500 mt-1">{endErr}</p>}
           </div>
@@ -108,7 +108,7 @@ export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
                 onClick={() => { hapticLight(); setReason(r); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                   reason === r
-                    ? 'bg-yellow-400 border-yellow-400 text-gray-900'
+                    ? 'bg-fg-yellow border-fg-yellow text-gray-900'
                     : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
@@ -128,7 +128,7 @@ export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
             onChange={e => setNotes(e.target.value)}
             rows={2}
             placeholder="Briefly describe what you were doing…"
-            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-fg-yellow"
           />
         </div>
 
@@ -147,7 +147,7 @@ export function BackdateEntrySheet({ onSubmit, onClose }: Props) {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="flex-1 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            className="flex-1 py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
           >
             Submit for Approval
           </button>

@@ -63,7 +63,7 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
 
         {/* Logo + title */}
         <div className="flex flex-col items-center text-center pt-2 pb-6">
-          <div className="w-14 h-14 bg-yellow-400 dark:bg-yellow-500 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20 mb-3">
+          <div className="w-14 h-14 bg-fg-yellow rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/20 mb-3">
             <span className="text-black font-bold text-xl">FG</span>
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Fleet Garage</h2>

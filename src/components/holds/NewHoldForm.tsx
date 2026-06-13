@@ -179,7 +179,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                       value={h.unitSearch}
                       onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
                       autoFocus
-                      className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition uppercase"
+                      className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition uppercase"
                     />
                     {h.unitSearch && (
                       <button
@@ -200,7 +200,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
                         key={v.id}
                         type="button"
                         onClick={() => selectVehicleAndLink(v.id)}
-                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-400 hover:bg-yellow-50 transition text-sm cursor-pointer"
+                        className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-fg-yellow hover:bg-yellow-50 transition text-sm cursor-pointer"
                       >
                         <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
@@ -264,7 +264,7 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
             <button
               type="submit"
               disabled={!h.canSubmit}
-              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
               {h.submitting ? 'Flagging…' : 'Flag Issue'}
             </button>

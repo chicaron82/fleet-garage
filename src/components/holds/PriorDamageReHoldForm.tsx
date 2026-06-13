@@ -77,7 +77,7 @@ export function PriorDamageReHoldForm({
           placeholder="Any change in condition since release…"
           value={reHoldNotes}
           onChange={(e) => setReHoldNotes(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition resize-none"
         />
       </div>
 
@@ -146,7 +146,7 @@ export function PriorDamageReHoldForm({
                   <button
                     type="button"
                     onClick={() => cameraRef.current?.click()}
-                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
                   >
                     <span className="text-lg leading-none">📷</span>
                     <span className="text-xs font-medium">Take Photo</span>
@@ -154,7 +154,7 @@ export function PriorDamageReHoldForm({
                   <button
                     type="button"
                     onClick={() => galleryRef.current?.click()}
-                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                    className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
                   >
                     <span className="text-lg leading-none">🖼</span>
                     <span className="text-xs font-medium">Gallery</span>
@@ -199,7 +199,7 @@ export function PriorDamageReHoldForm({
           type="button"
           disabled={submitting}
           onClick={handleLocalSubmit}
-          className="flex-1 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 bg-fg-yellow-hi hover:bg-fg-yellow disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
         >
           {submitting ? 'Saving...' : 'Confirm Re-hold'}
         </button>

@@ -24,7 +24,7 @@ export function OffStdQuickStart({ timerState, isRecovering, handleQuickTap, onB
               key={tap.label}
               type="button"
               onClick={() => handleQuickTap(tap)}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 active:scale-95 shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:text-yellow-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 active:scale-95 shadow-sm transition-all cursor-pointer"
             >
               <span className="text-base">{tap.emoji}</span>
               <span>{tap.label}</span>

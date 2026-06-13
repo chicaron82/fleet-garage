@@ -124,7 +124,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             {(vehicle.status === 'RETURNED' || vehicle.status === 'PRE_EXISTING' || vehicle.status === 'CLEAR' || vehicle.status === 'HELD') && (
               <button
                 onClick={() => onNewHold(vehicleId)}
-                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+                className="px-4 py-2 bg-fg-yellow hover:bg-fg-yellow-hi text-black font-semibold text-sm rounded-lg transition cursor-pointer"
               >
                 {vehicle.status === 'HELD' ? '+ Add hold' : '+ Flag Issue'}
               </button>

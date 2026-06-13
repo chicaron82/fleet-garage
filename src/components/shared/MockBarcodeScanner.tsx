@@ -39,7 +39,7 @@ export function MockBarcodeScanner({ onScan, label = 'Scan Vehicle', disabled = 
         type="button"
         onClick={handleScan}
         disabled={disabled || isScanning}
-        className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+        className="flex items-center gap-2 px-4 py-2.5 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
       >
         <span className="text-base leading-none">⬡</span>
         {isScanning ? 'Scanning…' : label}

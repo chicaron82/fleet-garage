@@ -191,7 +191,7 @@ export function HoldContextPanel({ vehicle, holds, user, onReHold, autoExpand, r
                   <button
                     type="button"
                     onClick={() => setShowPriorDamageForm(true)}
-                    className="w-full px-4 py-2.5 border-2 border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 font-semibold text-sm rounded-lg transition cursor-pointer text-left"
+                    className="w-full px-4 py-2.5 border-2 border-fg-yellow dark:border-yellow-600 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 font-semibold text-sm rounded-lg transition cursor-pointer text-left"
                   >
                     Prior damage/issue — re-hold
                   </button>

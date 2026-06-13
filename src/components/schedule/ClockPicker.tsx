@@ -94,7 +94,7 @@ export function ClockPicker({ value, onChange, disabled, direction = 'down' }: C
                    bg-white dark:bg-gray-950 text-left text-gray-900 dark:text-gray-100
                    disabled:opacity-50 disabled:cursor-not-allowed
                    hover:border-gray-400 dark:hover:border-gray-500
-                   focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent
+                   focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent
                    transition font-mono tracking-wide cursor-pointer"
       >
         {displayLabel}

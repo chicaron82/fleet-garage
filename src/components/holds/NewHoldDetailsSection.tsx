@@ -141,7 +141,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               onClick={() => { hapticLight(); h.setDetailReason(key); }}
               className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
                 h.detailReason === key
-                  ? 'border-yellow-400 bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
+                  ? 'border-fg-yellow bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
                   : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
               }`}
             >
@@ -189,7 +189,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
           placeholder="Location, customer context, circumstances…"
           value={h.notes}
           onChange={e => h.setNotes(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition resize-none"
         />
       </div>
 
@@ -207,7 +207,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
           {h.photos.map((src, i) => {
             const isPinned = h.pinnedPhotoIndex === i;
             return (
-              <div key={i} className={`relative rounded-lg ${isPinned ? 'ring-2 ring-yellow-400' : ''}`}>
+              <div key={i} className={`relative rounded-lg ${isPinned ? 'ring-2 ring-fg-yellow' : ''}`}>
                 <img
                   src={src}
                   alt={`Damage photo ${i + 1}`}
@@ -224,7 +224,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
                   type="button"
                   onClick={() => h.togglePinPhoto(i)}
                   title={isPinned ? 'Card photo — tap to unpin' : 'Set as card photo'}
-                  className={`absolute -bottom-1.5 -left-1.5 w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer leading-none transition ${isPinned ? 'bg-yellow-400 text-white shadow' : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-400 hover:text-yellow-500'}`}
+                  className={`absolute -bottom-1.5 -left-1.5 w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer leading-none transition ${isPinned ? 'bg-fg-yellow text-white shadow' : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-400 hover:text-yellow-500'}`}
                 >
                   📌
                 </button>
@@ -236,7 +236,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
-                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
               >
                 <span className="text-lg leading-none">📷</span>
                 <span className="text-xs font-medium">Take Photo</span>
@@ -244,7 +244,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               <button
                 type="button"
                 onClick={() => galleryInputRef.current?.click()}
-                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-1"
+                className="h-20 px-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-1"
               >
                 <span className="text-lg leading-none">🖼️</span>
                 <span className="text-xs font-medium">Upload from Gallery</span>

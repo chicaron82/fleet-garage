@@ -40,7 +40,7 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
   if (!latestHandoff || !isToday) {
     return (
       <button type="button" onClick={onLogHandoff}
-        className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-yellow-400 dark:hover:border-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+        className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
         Log Morning Shift Handoff →
       </button>
     );
@@ -176,7 +176,7 @@ export function MyShiftView() {
         <button
           type="button"
           onClick={reload}
-          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+          className="px-4 py-2 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi text-black text-sm font-semibold transition cursor-pointer"
         >
           Retry
         </button>

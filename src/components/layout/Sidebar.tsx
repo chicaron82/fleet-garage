@@ -173,7 +173,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           <select
             value={s.activeBranch}
             onChange={(e) => setActiveBranch(e.target.value as BranchId)}
-            className="w-full bg-green-800 border border-green-700 text-white rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-colors cursor-pointer"
+            className="w-full bg-green-800 border border-green-700 text-white rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-fg-yellow focus:border-fg-yellow outline-none transition-colors cursor-pointer"
           >
             {Object.values(BRANCH_CONFIGS).map(config => (
               <option key={config.id} value={config.id}>{config.name}</option>
@@ -193,7 +193,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
                 onClick={() => onNavigate(item.defaultScreen)}
                 className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                   isActive
-                    ? 'bg-yellow-400/15 text-yellow-300'
+                    ? 'bg-fg-yellow/15 text-yellow-300'
                     : 'text-green-300 hover:bg-green-800 hover:text-white'
                 }`}
               >
@@ -259,7 +259,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           </button>
         ) : (
           <div className="flex gap-2">
-            <button type="button" onClick={s.handleSave} className="flex-1 py-2 rounded-lg bg-yellow-400 text-black text-xs font-semibold transition hover:bg-yellow-300 cursor-pointer">
+            <button type="button" onClick={s.handleSave} className="flex-1 py-2 rounded-lg bg-fg-yellow text-black text-xs font-semibold transition hover:bg-fg-yellow-hi cursor-pointer">
               ✓ Save
             </button>
             <button type="button" onClick={s.handleReset} className="px-3 py-2 rounded-lg border border-green-700 text-xs font-medium text-green-400 hover:border-green-600 hover:text-green-200 transition cursor-pointer" title="Reset to default">

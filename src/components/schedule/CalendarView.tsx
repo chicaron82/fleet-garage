@@ -10,7 +10,7 @@ import type { ShiftType, ShiftWithUser } from '../../types';
 const TYPE_DOT: Record<ShiftType, string> = {
   'opening': 'bg-blue-400',
   'mid':     'bg-teal-400',
-  'closing': 'bg-yellow-400',
+  'closing': 'bg-fg-yellow',
   'day-off': 'bg-gray-300 dark:bg-gray-600',
   'pto':     'bg-violet-400',
   'sick':    'bg-rose-400',

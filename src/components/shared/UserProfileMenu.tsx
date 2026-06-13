@@ -49,7 +49,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 p-1.5 pr-3 rounded-full transition cursor-pointer border border-transparent ${dropUp ? 'hover:bg-green-800 hover:border-green-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-700'}`}
       >
-        <div className="w-8 h-8 rounded-full bg-yellow-400 dark:bg-yellow-500 overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="w-8 h-8 rounded-full bg-fg-yellow overflow-hidden flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-sm">
           {avatarBase64 ? (
             <img src={avatarBase64} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -125,7 +125,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
             
             <div className="flex flex-col items-center gap-4 mb-6">
               <div className="relative group w-24 h-24">
-                <div className="w-24 h-24 rounded-full bg-yellow-400 overflow-hidden flex items-center justify-center border-4 border-gray-50 dark:border-gray-800 shadow-sm transition-all">
+                <div className="w-24 h-24 rounded-full bg-fg-yellow overflow-hidden flex items-center justify-center border-4 border-gray-50 dark:border-gray-800 shadow-sm transition-all">
                   {avatarBase64 ? (
                     <img src={avatarBase64} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -176,7 +176,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                 <div className="bg-gray-50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
                   <label className="flex items-center justify-between cursor-pointer group">
                     <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Dark Mode</span>
-                    <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${prefs.darkMode ? 'bg-yellow-400' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${prefs.darkMode ? 'bg-fg-yellow' : 'bg-gray-300 dark:bg-gray-600'}`}>
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300 ${prefs.darkMode ? 'translate-x-5' : 'translate-x-1'}`} />
                       <input type="checkbox" className="sr-only" checked={prefs.darkMode} onChange={e => updatePref('darkMode', e.target.checked)} />
                     </div>
@@ -194,7 +194,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                     </div>
                     <select
                       defaultValue="holds"
-                      className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+                      className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer"
                     >
                       <option value="holds">Holds</option>
                       <option value="check-in">Check-in</option>
@@ -239,7 +239,7 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                         type="text"
                         value={shuttlePlate}
                         onChange={e => setShuttlePlate(e.target.value.toUpperCase())}
-                        className="w-28 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition uppercase"
+                        className="w-28 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition uppercase"
                       />
                     </div>
                   </div>

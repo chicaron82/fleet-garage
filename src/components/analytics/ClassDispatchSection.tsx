@@ -134,7 +134,7 @@ export function ClassDispatchSection({ activeBranch }: Props) {
                   <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-sm overflow-hidden">
                     {!isUnregistered && (
                       <div
-                        className="h-full bg-yellow-400 dark:bg-yellow-500 rounded-sm"
+                        className="h-full bg-fg-yellow rounded-sm"
                         style={{ width: `${barPct}%` }}
                       />
                     )}

@@ -46,7 +46,7 @@ export function PendingVehicleSheet({ vehicle, hold, onClose, onConfirm }: Props
               </button>
               <button
                 onClick={onConfirm}
-                className="flex-1 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-sm font-semibold text-gray-900 transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-sm font-semibold text-gray-900 transition cursor-pointer"
               >
                 Yes, open it
               </button>

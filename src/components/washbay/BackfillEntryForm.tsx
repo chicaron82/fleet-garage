@@ -21,8 +21,8 @@ interface Props {
   onSave: () => void;
 }
 
-const INPUT = 'w-full px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
-const STEPPER_BTN = 'w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-sm font-semibold';
+const INPUT = 'w-full px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
+const STEPPER_BTN = 'w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow transition cursor-pointer flex items-center justify-center text-sm font-semibold';
 
 export function BackfillEntryForm({ label, form, setForm, saving, saveError, onSave }: Props) {
   // ── Rollover handlers (same pattern as WashbayClosingLog) ──────────────────
@@ -125,11 +125,11 @@ export function BackfillEntryForm({ label, form, setForm, saving, saveError, onS
         <div className="flex items-center gap-3">
           <button type="button"
             onClick={() => setForm(f => ({ ...f, teamSize: Math.max(1, f.teamSize - 1) }))}
-            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-lg font-semibold">−</button>
+            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow transition cursor-pointer flex items-center justify-center text-lg font-semibold">−</button>
           <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{form.teamSize}</span>
           <button type="button"
             onClick={() => setForm(f => ({ ...f, teamSize: f.teamSize + 1 }))}
-            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-400 transition cursor-pointer flex items-center justify-center text-lg font-semibold">+</button>
+            className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow transition cursor-pointer flex items-center justify-center text-lg font-semibold">+</button>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export function BackfillEntryForm({ label, form, setForm, saving, saveError, onS
               onClick={() => setForm(f => ({ ...f, overtimeHours: h }))}
               className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                 form.overtimeHours === h
-                  ? 'bg-yellow-400 border-yellow-400 text-gray-900'
+                  ? 'bg-fg-yellow border-fg-yellow text-gray-900'
                   : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
               }`}>
               {h === 0 ? '0' : `+${h}h`}
@@ -159,7 +159,7 @@ export function BackfillEntryForm({ label, form, setForm, saving, saveError, onS
         type="button"
         onClick={onSave}
         disabled={saving}
-        className="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 disabled:opacity-40 text-gray-900 text-sm font-semibold transition cursor-pointer"
+        className="w-full py-2.5 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-gray-900 text-sm font-semibold transition cursor-pointer"
       >
         {saving ? 'Saving…' : 'Save Entry'}
       </button>

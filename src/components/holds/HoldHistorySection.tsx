@@ -240,7 +240,7 @@ export function HoldHistorySection({
                           onClick={() => setCoverPhoto(vehicle.id, isCover ? null : src)}
                           className={`absolute bottom-0.5 right-0.5 w-5 h-5 rounded text-[10px] flex items-center justify-center transition cursor-pointer ${
                             isCover
-                              ? 'bg-yellow-400 text-black'
+                              ? 'bg-fg-yellow text-black'
                               : 'bg-black/50 text-white hover:bg-black/70'
                           }`}
                         >
@@ -255,7 +255,7 @@ export function HoldHistorySection({
                         type="button"
                         onClick={() => addPhotoClick(hold.id, cameraInputRef)}
                         disabled={uploadingFor === hold.id}
-                        className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {uploadingFor === hold.id ? (
                           <span className="text-xs">…</span>
@@ -270,7 +270,7 @@ export function HoldHistorySection({
                         type="button"
                         onClick={() => addPhotoClick(hold.id, galleryInputRef)}
                         disabled={uploadingFor === hold.id}
-                        className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="h-14 px-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {uploadingFor === hold.id ? (
                           <span className="text-xs">…</span>

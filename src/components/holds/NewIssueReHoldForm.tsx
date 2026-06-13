@@ -105,7 +105,7 @@ export function NewIssueReHoldForm({
               }}
               className={`py-2 rounded-lg border text-sm font-medium transition cursor-pointer capitalize ${
                 newIssueHoldType === ht
-                  ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
+                  ? 'border-fg-yellow bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
                   : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
               }`}
             >
@@ -140,7 +140,7 @@ export function NewIssueReHoldForm({
                 onClick={() => toggleDamageType(preset)}
                 className={`text-left px-3 py-2 rounded-lg border text-sm transition cursor-pointer ${
                   damageTypes.includes(preset)
-                    ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
+                    ? 'border-fg-yellow bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
                     : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
                 }`}
               >
@@ -154,7 +154,7 @@ export function NewIssueReHoldForm({
               placeholder="Describe the damage…"
               value={customDamage}
               onChange={(e) => setCustomDamage(e.target.value)}
-              className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+              className="mt-2 w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
             />
           )}
         </div>
@@ -176,7 +176,7 @@ export function NewIssueReHoldForm({
               }
               value={newIssueDescription}
               onChange={(e) => setNewIssueDescription(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition resize-none"
             />
           </div>
           {newIssueHoldType === 'detail' && (
@@ -242,7 +242,7 @@ export function NewIssueReHoldForm({
           placeholder="Additional context…"
           value={reHoldNotes}
           onChange={(e) => setReHoldNotes(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+          className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition resize-none"
         />
       </div>
 

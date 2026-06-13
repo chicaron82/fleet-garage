@@ -14,7 +14,7 @@ const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = 
   high:   { icon: '🔴', label: 'High' },
 };
 
-const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
+const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 
 export function IssueLogView() {
   const { facilityIssues, addIssue, attachPhoto, clearIssue, reopenIssue, loadError, reload } = useIssueContext();
@@ -37,7 +37,7 @@ export function IssueLogView() {
         <button
           type="button"
           onClick={reload}
-          className="px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-400 text-black text-sm font-semibold transition cursor-pointer"
+          className="px-4 py-2 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi text-black text-sm font-semibold transition cursor-pointer"
         >
           Retry
         </button>
@@ -172,11 +172,11 @@ export function IssueLogView() {
               </>
             ) : (
               <div className="flex gap-2">
-                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
                   📷 Take photo
                   <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
                 </label>
-                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
                   Gallery
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 </label>
@@ -195,7 +195,7 @@ export function IssueLogView() {
                   onClick={() => { hapticLight(); setNewSeverity(s); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
                     active
-                      ? 'bg-yellow-400 dark:bg-yellow-500 border-yellow-400 dark:border-yellow-500 text-black'
+                      ? 'bg-fg-yellow border-fg-yellow text-black'
                       : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
@@ -210,7 +210,7 @@ export function IssueLogView() {
               type="button"
               onClick={handleSubmitNew}
               disabled={!newTitle.trim() || submitting}
-              className="flex-1 py-2 rounded-lg bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-500 text-black text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-2 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi text-black text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Logging…' : '+ Log Issue'}
             </button>

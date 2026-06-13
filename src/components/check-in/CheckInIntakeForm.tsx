@@ -112,7 +112,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                   placeholder="e.g. 42800"
                   value={mileage}
                   onChange={e => setMileage(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition ${
+                  className={`w-full px-3 py-2 rounded-lg border text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition ${
                     lastMileage !== null && mileage && Number(mileage) < lastMileage
                       ? 'border-amber-500 focus:ring-amber-500'
                       : 'border-gray-300 dark:border-gray-700'
@@ -134,7 +134,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 <button
                   type="button"
                   onClick={() => setPhotoCount(p => Math.min(p + 1, 6))}
-                  className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5"
+                  className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-0.5"
                 >
                   <span className="text-xl leading-none">+</span>
                   <span className="text-xs leading-none">Photo</span>
@@ -163,7 +163,7 @@ export function CheckInIntakeForm({ onFlagIssue }: Props) {
                 placeholder="Rear seat looks stained, possible food spill…"
                 value={conditionNotes}
                 onChange={e => setConditionNotes(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
               />
             </div>
 

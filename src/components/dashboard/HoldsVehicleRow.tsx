@@ -44,7 +44,7 @@ export function HoldsVehicleRow({
       )}
       <button
         onClick={() => { hapticLight(); onOpen(vehicle); }}
-        className={`flex-1 bg-white dark:bg-gray-900 rounded-xl border p-4 text-left hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-sm transition-all cursor-pointer group ${
+        className={`flex-1 bg-white dark:bg-gray-900 rounded-xl border p-4 text-left hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:shadow-sm transition-all cursor-pointer group ${
           isPinned
             ? 'border-red-300 dark:border-red-700/60'
             : 'border-gray-200 dark:border-gray-800'

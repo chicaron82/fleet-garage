@@ -134,7 +134,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
               placeholder="e.g. Black garage door opener, visor…"
               value={editDesc}
               onChange={e => { hapticLight(); setEditDesc(e.target.value); }}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
                   onClick={() => { hapticLight(); setEditLocation(l => l === loc ? null : loc); }}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
                     editLocation === loc
-                      ? 'bg-yellow-400 border-yellow-400 text-black'
+                      ? 'bg-fg-yellow border-fg-yellow text-black'
                       : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
                   }`}
                 >
@@ -164,7 +164,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
               placeholder="e.g. LUR 224"
               value={editPlate}
               onValueChange={v => { hapticLight(); setEditPlate(v); }}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
           </div>
 
@@ -175,7 +175,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
               placeholder="Any additional context…"
               value={editNotes}
               onChange={e => { hapticLight(); setEditNotes(e.target.value); }}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
             />
           </div>
 
@@ -183,7 +183,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
             type="button"
             disabled={saving}
             onClick={handleSave}
-            className="w-full py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+            className="w-full py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
           >
             {saving ? 'Saving…' : 'Save Changes'}
           </button>

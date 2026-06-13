@@ -71,7 +71,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                   onClick={() => handleLocationTap(loc)}
                   className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
                     from === loc
-                      ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
+                      ? 'border-fg-yellow bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100'
                       : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
                   }`}
                 >{loc}</button>
@@ -85,7 +85,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                 type="text" autoFocus placeholder="Specify origin…" value={customFrom}
                 name="trip-origin" autoComplete="off" spellCheck={false}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
               />
               <button
                 type="button" onClick={handleRouteReset} aria-label="Clear origin"
@@ -99,7 +99,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                 type="text" autoFocus placeholder="Specify destination…" value={customTo}
                 name="trip-destination" autoComplete="off" spellCheck={false}
                 onChange={e => setCustomTo(e.target.value)}
-                className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
               />
               <button
                 type="button"
@@ -127,7 +127,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               handlePlateBlur();
             }}
             onFocus={() => { if (plateSuggestions.length > 0) setShowSuggestions(true); }}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+            className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
           />
           {showSuggestions && plateSuggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-[68px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
@@ -145,7 +145,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
           )}
           <div className="flex items-center gap-4 mt-3">
             <label className="flex items-center gap-2 cursor-pointer group">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-yellow-400 border-yellow-400 text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-fg-yellow border-fg-yellow text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
                 {isShuttle && <span className="text-xs font-bold leading-none">✓</span>}
               </div>
               <input type="checkbox" className="sr-only" checked={isShuttle} onChange={e => {

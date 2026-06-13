@@ -115,7 +115,7 @@ export function WashbayClosingLog() {
             <input
               type="number" min="0" value={carsRemaining} onChange={e => setCarsRemaining(e.target.value)}
               placeholder="0"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
           </div>
           <div>
@@ -123,7 +123,7 @@ export function WashbayClosingLog() {
             <input
               type="number" min="0" value={cleanNotPickedUp} onChange={e => setCleanNotPickedUp(e.target.value)}
               placeholder="0"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
           </div>
         </div>
@@ -134,7 +134,7 @@ export function WashbayClosingLog() {
             <button
               type="button"
               onClick={() => setTeamSize(t => Math.max(1, t - 1))}
-              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
+              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
             >
               −
             </button>
@@ -144,7 +144,7 @@ export function WashbayClosingLog() {
             <button
               type="button"
               onClick={() => setTeamSize(t => t + 1)}
-              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
+              className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
             >
               +
             </button>
@@ -176,7 +176,7 @@ export function WashbayClosingLog() {
                     onClick={() => setOvertimeHours(h)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                       overtimeHours === h
-                        ? 'bg-yellow-400 dark:bg-yellow-500 border-yellow-400 dark:border-yellow-500 text-gray-900'
+                        ? 'bg-fg-yellow border-fg-yellow text-gray-900'
                         : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
@@ -211,7 +211,7 @@ export function WashbayClosingLog() {
           disabled={!canSubmit}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
             canSubmit
-              ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+              ? 'bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
           }`}
         >

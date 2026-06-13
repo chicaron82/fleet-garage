@@ -16,7 +16,7 @@ const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; description: string
   { value: 'backlog',    label: 'Backlog',    description: 'Significant queue, needs immediate attention',  color: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700' },
 ];
 
-const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
+const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
 export function HandoffForm({ onClose }: Props) {
@@ -187,10 +187,10 @@ export function HandoffForm({ onClose }: Props) {
             <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
             <div className="flex items-center gap-4">
               <button type="button" onClick={() => setTeamSize(v => Math.max(1, v - 1))}
-                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
+                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
               <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{teamSize}</span>
               <button type="button" onClick={() => setTeamSize(v => v + 1)}
-                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-yellow-400 hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
+                className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
             </div>
           </div>
 
@@ -223,7 +223,7 @@ export function HandoffForm({ onClose }: Props) {
               rows={3} value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Anything the next shift needs to know…"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
             />
           </div>
 
@@ -232,7 +232,7 @@ export function HandoffForm({ onClose }: Props) {
             <label className="flex items-center gap-2 cursor-pointer">
               <div
                 onClick={() => setAdjustMorning(v => !v)}
-                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${adjustMorning ? 'bg-yellow-400 border-yellow-400' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${adjustMorning ? 'bg-fg-yellow border-fg-yellow' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
               >
                 {adjustMorning && <span className="text-[10px] font-bold text-black leading-none">✓</span>}
               </div>
@@ -254,7 +254,7 @@ export function HandoffForm({ onClose }: Props) {
             disabled={!canSubmit}
             className={`w-full py-3 rounded-xl text-sm font-semibold transition cursor-pointer ${
               canSubmit
-                ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+                ? 'bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
             }`}
           >

@@ -77,7 +77,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     resolveName,
   });
 
-  const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition';
+  const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 
   return (
     <>
@@ -111,7 +111,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   onClick={() => { if (timerState === 'idle') { hapticLight(); setSelectedReason(r); } }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
                     selectedReason === r
-                      ? 'bg-yellow-400 border-yellow-400 text-gray-900'
+                      ? 'bg-fg-yellow border-fg-yellow text-gray-900'
                       : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
@@ -141,7 +141,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                     onClick={() => selectPreset(p.value)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                       selectedPreset === p.value
-                        ? 'bg-yellow-400 border-yellow-400 text-gray-900'
+                        ? 'bg-fg-yellow border-fg-yellow text-gray-900'
                         : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
@@ -205,7 +205,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               <button
                 type="button"
                 onClick={handleStart}
-                className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition cursor-pointer"
+                className="w-full py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-semibold transition cursor-pointer"
               >
                 Start
               </button>
@@ -283,7 +283,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
               <button
                 type="button"
                 onClick={handleDiscard}
-                className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition cursor-pointer"
+                className="w-full py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-semibold transition cursor-pointer"
               >
                 Done
               </button>

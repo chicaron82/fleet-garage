@@ -64,7 +64,7 @@ export function LoginScreen() {
                 onChange={e => setEmployeeId(e.target.value.toUpperCase())}
                 placeholder="e.g. 331965"
                 autoFocus
-                className="w-full px-3.5 py-2.5 rounded-lg uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                className="w-full px-3.5 py-2.5 rounded-lg uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
                 style={{
                   background: 'rgba(255,255,255,0.10)',
                   border: '1px solid rgba(255,255,255,0.2)',
@@ -83,7 +83,7 @@ export function LoginScreen() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3.5 py-2.5 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+                  className="w-full px-3.5 py-2.5 pr-12 rounded-lg focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
                   style={{
                     background: 'rgba(255,255,255,0.10)',
                     border: '1px solid rgba(255,255,255,0.2)',

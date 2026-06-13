@@ -44,7 +44,7 @@ export function PhotoSlot({
           <button
             type="button"
             onClick={() => cameraRef.current?.click()}
-            className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5"
+            className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-0.5"
           >
             <span className="text-lg leading-none">📷</span>
             <span className="text-[10px] leading-none">Camera</span>
@@ -53,7 +53,7 @@ export function PhotoSlot({
             <button
               type="button"
               onClick={() => galleryRef.current?.click()}
-              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-yellow-400 hover:text-yellow-500 transition cursor-pointer gap-0.5"
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer gap-0.5"
             >
               <span className="text-lg leading-none">🖼️</span>
               <span className="text-[10px] leading-none">Gallery</span>

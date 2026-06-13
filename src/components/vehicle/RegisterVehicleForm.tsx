@@ -42,7 +42,7 @@ const MAKES_MODELS: Record<string, string[]> = {
 
 const MAKES = Object.keys(MAKES_MODELS).sort();
 
-const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition bg-white dark:bg-gray-900 transition-colors';
+const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition bg-white dark:bg-gray-900 transition-colors';
 
 function classifyPrefill(value?: string): { unit: string; plate: string } {
   if (!value) return { unit: '', plate: '' };
@@ -285,7 +285,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
               {submitting ? 'Adding…' : 'Add to Ledger'}
             </button>

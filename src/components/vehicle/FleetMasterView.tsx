@@ -90,7 +90,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
         placeholder="Search plate or unit…"
         value={search}
         onChange={e => setSearch(e.target.value.toUpperCase())}
-        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
       />
 
       {/* No match — register CTA */}

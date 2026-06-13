@@ -69,23 +69,23 @@ export function DriverDemoForm({ flaggedClasses, topClasses }: DriverDemoFormPro
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">From</label>
                 <select value={origin} onChange={e => setOrigin(e.target.value as Location)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer">
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer">
                   {LOCATIONS.map(l => <option key={l}>{l}</option>)}
                 </select>
                 {origin === 'Other' && (
                   <input type="text" placeholder="Enter location…" value={customOrigin} onChange={e => setCustomOrigin(e.target.value)}
-                    className="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition" />
+                    className="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
                 )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">To</label>
                 <select value={destination} onChange={e => setDestination(e.target.value as Location)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer">
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer">
                   {LOCATIONS.map(l => <option key={l}>{l}</option>)}
                 </select>
                 {destination === 'Other' && (
                   <input type="text" placeholder="Enter location…" value={customDestination} onChange={e => setCustomDestination(e.target.value)}
-                    className="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition" />
+                    className="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
                 )}
               </div>
             </div>

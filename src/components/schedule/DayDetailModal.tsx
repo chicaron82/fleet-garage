@@ -67,7 +67,7 @@ export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Pr
               return (
                 <div
                   key={shift.id}
-                  className={`p-3 rounded-lg ${mine ? 'ring-1 ring-yellow-400 dark:ring-yellow-500' : 'bg-gray-50 dark:bg-gray-800/50'}`}
+                  className={`p-3 rounded-lg ${mine ? 'ring-1 ring-fg-yellow' : 'bg-gray-50 dark:bg-gray-800/50'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -106,7 +106,7 @@ export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Pr
         {!myShift && (
           <button
             onClick={onAddShift}
-            className="w-full py-2.5 border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-xl hover:border-yellow-400 hover:text-yellow-600 dark:hover:border-yellow-500 dark:hover:text-yellow-400 transition cursor-pointer"
+            className="w-full py-2.5 border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-xl hover:border-fg-yellow hover:text-yellow-600 dark:hover:border-fg-yellow-hi dark:hover:text-yellow-400 transition cursor-pointer"
           >
             + Add my shift for this day
           </button>

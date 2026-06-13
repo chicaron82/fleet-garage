@@ -81,7 +81,7 @@ export function WhiteboardSectionCard({ icon, title, section, active, archived, 
             placeholder="Quick note for the shift…"
             value={body}
             onChange={e => isShiftBoard ? setBody(e.target.value.slice(0, SHIFT_BOARD_MAX)) : setBody(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition resize-none"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
           />
           <div className="flex items-center gap-2">
             {isShiftBoard ? (
@@ -92,7 +92,7 @@ export function WhiteboardSectionCard({ icon, title, section, active, archived, 
               <select
                 value={visibility}
                 onChange={e => setVisibility(e.target.value as VisibilityPreset)}
-                className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition cursor-pointer"
+                className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer"
               >
                 {(Object.entries(VISIBILITY_PRESETS) as [VisibilityPreset, { label: string }][]).map(([key, { label }]) => (
                   <option key={key} value={key}>{label}</option>
@@ -103,7 +103,7 @@ export function WhiteboardSectionCard({ icon, title, section, active, archived, 
               type="button"
               disabled={!body.trim() || saving}
               onClick={handleSubmit}
-              className="px-4 py-1.5 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-lg transition cursor-pointer shrink-0"
+              className="px-4 py-1.5 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-lg transition cursor-pointer shrink-0"
             >
               {saving ? 'Saving…' : 'Post'}
             </button>
