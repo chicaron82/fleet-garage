@@ -91,10 +91,14 @@ encoding is what makes it hold.
   already drifted before this consolidated it (Schedule shrank to `text-lg`;
   headers split on `items-center` vs `items-start`).
 - **`<PrimaryAction label onClick />`** is the one create-action: a solid yellow
-  `+ {label}` pill with baked-in haptics, living in the ModuleHeader action slot
-  (or centered in an empty state). Because the header owns the slot, the action
-  *structurally can't* land somewhere inconsistent. Every "add a record" is this
-  pill — header actions and empty-state register CTAs alike.
+  `+ {label}` pill with baked-in haptics. **Placement:** if the module has a
+  search/filter, the pill pairs with it on one row — input left, button right
+  (`<div className="flex gap-2">[input flex-1][PrimaryAction]</div>`), co-locating
+  "search → not found → add"; otherwise it sits in the ModuleHeader action slot.
+  Either way it's the same pill, so every "add a record" reads and behaves the
+  same — search-row actions, header actions, and empty-state register CTAs alike.
+  (Holds takes it further: the search-row button is `Scan Barcode` until a search
+  matches nothing, then it becomes `+ Add to ledger & flag`.)
 
 **Colour lanes — never cross them.** Action = `fg-yellow` (the accent: PrimaryAction,
 focus rings). Status = red / green / amber (urgency, success, state). A red "add"
