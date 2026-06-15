@@ -10,3 +10,8 @@ export const HOLD_TYPE_LABELS: Record<HoldType, string> = {
   sale_car:            'Sale Car',
   missing_accessories: 'Missing Accessories',
 };
+
+/** Look up a hold type label from a raw DB string, with a title-case fallback. */
+export function holdTypeLabel(t: string): string {
+  return (HOLD_TYPE_LABELS as Record<string, string>)[t] ?? (t.charAt(0).toUpperCase() + t.slice(1));
+}

@@ -3,6 +3,7 @@
 import { View, Text, Image, Link } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes, type ReportData, type ReportThroughput } from '../../lib/buildShiftReport';
 import { LOGO_SRC, s, resolveQueueLabel } from './ShiftReportPDFUtils';
+import { holdTypeLabel } from '../../lib/holdTypeLabels';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -15,18 +16,10 @@ function SectionHead({ title }: { title: string }) {
   );
 }
 
-// keep in sync with HOLD_TYPE_LABELS in buildShiftReport.ts
-const HOLD_TYPE_LABELS: Record<string, string> = {
-  damage:     'Damage',
-  detail:     'Detail',
-  mechanical: 'Mechanical',
-  sale_car:   'Sale Car',
-  missing_accessories: 'Missing Accessories',
-};
 
 function formatHoldTypes(types: string[]): string {
   if (types.length === 0) return 'Hold';
-  return types.map(t => HOLD_TYPE_LABELS[t] ?? (t.charAt(0).toUpperCase() + t.slice(1))).join(' & ') + ' hold';
+  return types.map(holdTypeLabel).join(' & ') + ' hold';
 }
 
 function formatLocation(loc: string): string {

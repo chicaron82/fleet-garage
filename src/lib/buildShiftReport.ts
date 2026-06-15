@@ -1,4 +1,5 @@
 import type { ShiftType, ShiftWithUser } from '../types';
+import { holdTypeLabel } from './holdTypeLabels';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,18 +86,10 @@ function formatLocation(loc: string): string {
   return loc.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// keep in sync with HOLD_TYPE_LABELS in ShiftReportPDFSections.tsx
-const HOLD_TYPE_LABELS: Record<string, string> = {
-  damage:     'Damage',
-  detail:     'Detail',
-  mechanical: 'Mechanical',
-  sale_car:   'Sale Car',
-  missing_accessories: 'Missing Accessories',
-};
 
 function formatHoldTypes(types: string[]): string {
   if (types.length === 0) return 'Hold';
-  return types.map(t => HOLD_TYPE_LABELS[t] ?? (t.charAt(0).toUpperCase() + t.slice(1))).join(' & ') + ' hold';
+  return types.map(holdTypeLabel).join(' & ') + ' hold';
 }
 
 function resolveQueueLabel(raw: string | null): string | null {

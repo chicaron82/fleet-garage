@@ -1,13 +1,5 @@
 import type { Hold, Vehicle } from '../types';
-
-const HOLD_TYPE_LABELS: Record<string, string> = {
-  damage:              'Damage',
-  hail:                'Hail',
-  detail:              'Detail',
-  mechanical:          'Mechanical',
-  sale_car:            'Sale Car',
-  missing_accessories: 'Missing Accessories',
-};
+import { holdTypeLabel } from './holdTypeLabels';
 
 const HOLD_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   ACTIVE:   { bg: '#fee2e2', color: '#dc2626' },
@@ -36,7 +28,7 @@ function fmtTs(iso: string): string {
 
 function holdTypePills(holdTypes: string[]): string {
   return holdTypes.map(t => {
-    const label = HOLD_TYPE_LABELS[t] ?? (t.charAt(0).toUpperCase() + t.slice(1));
+    const label = holdTypeLabel(t);
     return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.05em;margin-right:4px;">${label}</span>`;
   }).join('');
 }
