@@ -46,8 +46,28 @@ export function LostFoundCard({
     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
 
   const [editOpen, setEditOpen] = useState(false);
+  const [shared, setShared] = useState(false);
 
   const handleOpenEdit = () => { hapticLight(); setEditOpen(true); };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticLight();
+    const parts = [
+      `Lost & Found — ${item.description ?? 'No description'}`,
+      item.location ? `📍 ${LOST_FOUND_LOCATION_LABELS[item.location]}` : null,
+      vehicleLabel,
+      item.vehicleMake ?? null,
+      `Found by: ${item.foundByName} · ${fmtRelativeDate(item.foundAt)}`,
+      item.notes ? `"${item.notes}"` : null,
+    ].filter(Boolean).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Lost & Found Item', text: parts }); return; } catch { /* fall through */ }
+    }
+    await navigator.clipboard.writeText(parts);
+    setShared(true);
+    setTimeout(() => setShared(false), 1500);
+  };
 
   return (
     <>
@@ -172,6 +192,16 @@ export function LostFoundCard({
             </button>
           </div>
         )}
+
+        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+          >
+            {shared ? '✓ Copied' : '↗ Share'}
+          </button>
+        </div>
       </div>
 
       {editOpen && (

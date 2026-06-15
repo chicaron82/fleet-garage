@@ -51,10 +51,32 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
   const [events, setEvents]               = useState<IssueEvent[] | null>(null);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [shared, setShared] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const cfg = SEVERITY_CONFIG[issue.severity];
+
+  const handleShare = async () => {
+    hapticLight();
+    const status = issue.clearedAt
+      ? `Cleared ${new Date(issue.clearedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+      : 'Open';
+    const parts = [
+      `${cfg.icon} Issue: ${issue.title}`,
+      `${SEVERITY_CONFIG[issue.severity].label} severity`,
+      `Reported by: ${getUserName(issue.reportedById)} · ${daysOpen(issue.reportedAt)}`,
+      issue.description ? `"${issue.description}"` : null,
+      `Status: ${status}`,
+      cleared && issue.notes ? `✓ ${issue.notes}` : null,
+    ].filter(Boolean).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: `Issue: ${issue.title}`, text: parts }); return; } catch { /* fall through */ }
+    }
+    await navigator.clipboard.writeText(parts);
+    setShared(true);
+    setTimeout(() => setShared(false), 1500);
+  };
 
   const handleConfirmClear = async () => {
     hapticMedium();
@@ -132,7 +154,14 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
             </span>
           )}
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+          >
+            {shared ? '✓' : '↗'}
+          </button>
           {!cleared && (
             <button
               type="button"
