@@ -16,6 +16,7 @@ export * from './PhotoSlot';
 export * from './PlateArrivalSection';
 export * from './PrimaryAction';
 export * from './ShareAction';
+export * from './ShareTextButton';
 export * from './Toast';
 export * from './UserProfileMenu';
 export * from './WhiteboardView';

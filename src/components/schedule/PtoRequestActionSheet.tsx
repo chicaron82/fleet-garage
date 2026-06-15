@@ -3,7 +3,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
-import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
+import { ShareTextButton } from '../shared/ShareTextButton';
 import { toISO } from '../../context/ScheduleContext';
 import { buildPtoRequest, ptoTaken, type StatInfo } from '../../lib/ptoRequest';
 import { isStatDay, getStatName } from '../../lib/stats';
@@ -126,14 +126,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
               <DayList label={`Already approved (${approvedDays.length})`} days={approvedDays} accent="emerald" />
             )}
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleShare}
-                disabled={busy}
-                className={SHARE_TEXT_BUTTON}
-              >
-                {copied ? '✓ Copied' : '↗ Plain Text'}
-              </button>
+              <ShareTextButton onClick={handleShare} disabled={busy} copied={copied} />
               <button
                 type="button"
                 onClick={handlePDF}

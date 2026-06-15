@@ -4,7 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
-import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
+import { ShareTextButton } from '../shared/ShareTextButton';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   buildShiftPartition,
@@ -331,14 +331,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
   return (
     <div className="flex gap-2">
-      <button
-        type="button"
-        onClick={handleExport}
-        disabled={busy}
-        className={SHARE_TEXT_BUTTON}
-      >
-        {loading ? 'Generating…' : copied ? '✓ Copied' : '↗ Plain Text'}
-      </button>
+      <ShareTextButton onClick={handleExport} disabled={busy} copied={copied} loading={loading} />
       <button
         type="button"
         onClick={handlePDFExport}

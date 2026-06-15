@@ -1,18 +1,6 @@
 import { hapticLight } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
 
-/**
- * The amber "share as text" block button used by the export sheets (the Plain
- * Text option, beside a dark PDF/HTML sibling). Single-sourced here so every
- * in-sheet share reads the same as the inline `<ShareAction>` — same lane, same
- * glyph. Callers own the click/loading; this owns only the look.
- */
-export const SHARE_TEXT_BUTTON =
-  'flex-1 py-3 rounded-xl border border-amber-300 dark:border-amber-700/60 ' +
-  'text-amber-700 dark:text-amber-400 text-sm font-semibold ' +
-  'hover:bg-amber-50 dark:hover:bg-amber-950/30 transition cursor-pointer ' +
-  'disabled:opacity-50 disabled:cursor-not-allowed';
-
 interface ShareActionProps {
   /**
    * Built on click (not on render) — returns the title + body to share. Deferred

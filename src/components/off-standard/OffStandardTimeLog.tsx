@@ -9,7 +9,7 @@ import { BackdateEntrySheet } from './BackdateEntrySheet';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { fmtTime, fmtMinutes } from '../../lib/offStandardReport';
 import { ElapsedTicker } from '../shared/ElapsedTicker';
-import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
+import { ShareTextButton } from '../shared/ShareTextButton';
 import { OffStandardEntriesList } from './OffStandardEntriesList';
 import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
 import { OffStdQuickStart } from './OffStdQuickStart';
@@ -301,14 +301,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
       {/* Today's export */}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={pdfLoading}
-          className={SHARE_TEXT_BUTTON}
-        >
-          {copied ? '✓ Copied' : '↗ Plain Text'}
-        </button>
+        <ShareTextButton onClick={handleExport} disabled={pdfLoading} copied={copied} />
         <button
           type="button"
           onClick={handlePDFExport}

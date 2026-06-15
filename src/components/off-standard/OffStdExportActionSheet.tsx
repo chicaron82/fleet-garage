@@ -5,7 +5,7 @@ import type { User, ShiftWithUser } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
-import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
+import { ShareTextButton } from '../shared/ShareTextButton';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   rowToOffStandard, deriveShiftLine, generateOffStandardReport,
@@ -120,14 +120,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
           <p className="text-sm text-center text-gray-400 dark:text-gray-500 py-2 italic">No OTH entries for this date.</p>
         ) : (
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={busy}
-              className={SHARE_TEXT_BUTTON}
-            >
-              {copied ? '✓ Copied' : '↗ Plain Text'}
-            </button>
+            <ShareTextButton onClick={handleExport} disabled={busy} copied={copied} />
             <button
               type="button"
               onClick={handlePDFExport}

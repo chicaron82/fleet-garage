@@ -106,11 +106,13 @@ encoding is what makes it hold.
   `↗` when `compact`) whose `build` thunk is deferred so a heavy log isn't assembled
   every render; haptics + `stopPropagation` are baked in (safe on a clickable card).
   The export sheets (PTO, Off-Standard, Shift Report) keep their format pickers but
-  their text option is the amber **`SHARE_TEXT_BUTTON`** block (`↗ Plain Text`,
-  exported from `ShareAction.tsx`) beside a dark PDF sibling. It had drifted badly —
-  three cards (glyph vs label, gray vs amber) + four export buttons each re-rolling
-  the fallback — before this consolidated it. `tests/hooks/useShareText.test.ts` and
-  `tests/components/ShareAction.test.tsx` guard the contract.
+  their text option is **`<ShareTextButton>`** — the amber block sibling
+  (`↗ Plain Text`, `✓ Copied`, optional `loading`) beside a dark PDF button. It's a
+  component, not a copied className, so the lane is enforced by existence. It had
+  drifted badly — three cards (glyph vs label, gray vs amber) + four export buttons
+  each re-rolling the fallback — before this consolidated it.
+  `tests/hooks/useShareText.test.ts`, `tests/components/ShareAction.test.tsx`, and
+  `tests/components/ShareTextButton.test.tsx` guard the contract.
 
 **Colour lanes — never cross them.** Action = `fg-yellow` (the accent: PrimaryAction,
 focus rings). Status = red / green / amber (urgency, success, state). Share = amber
