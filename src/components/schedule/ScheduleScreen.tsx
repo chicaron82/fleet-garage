@@ -180,9 +180,9 @@ export function ScheduleScreen() {
           onClick={() => setShowPtoSheet(true)}
           disabled={ptoUsed === 0}
           title={ptoUsed === 0 ? 'Add PTO days to your schedule first' : 'Share your upcoming PTO as a request for approval'}
-          className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline whitespace-nowrap"
+          className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline whitespace-nowrap"
         >
-          Share PTO request →
+          Share PTO request ↗
         </button>
 
         {/* Sick chip */}

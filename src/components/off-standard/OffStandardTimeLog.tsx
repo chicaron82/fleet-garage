@@ -9,6 +9,7 @@ import { BackdateEntrySheet } from './BackdateEntrySheet';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { fmtTime, fmtMinutes } from '../../lib/offStandardReport';
 import { ElapsedTicker } from '../shared/ElapsedTicker';
+import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
 import { OffStandardEntriesList } from './OffStandardEntriesList';
 import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
 import { OffStdQuickStart } from './OffStdQuickStart';
@@ -304,9 +305,9 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
           type="button"
           onClick={handleExport}
           disabled={pdfLoading}
-          className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className={SHARE_TEXT_BUTTON}
         >
-          {copied ? '✓ Copied' : '📄 Plain Text'}
+          {copied ? '✓ Copied' : '↗ Plain Text'}
         </button>
         <button
           type="button"

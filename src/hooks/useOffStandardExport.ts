@@ -1,5 +1,6 @@
 import { useState, createElement, type ReactElement } from 'react';
 import { hapticMedium } from '../lib/haptics';
+import { useShareText } from './useShareText';
 import { supabase } from '../lib/supabase';
 import {
   deriveShiftLine,
@@ -23,7 +24,7 @@ interface UseOffStandardExportProps {
  * transient UI flags (`copied`, `pdfLoading`).
  */
 export function useOffStandardExport({ user, shifts, entries }: UseOffStandardExportProps) {
-  const [copied, setCopied]         = useState(false);
+  const { copied, share }           = useShareText();
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const handleExport = async () => {
@@ -42,20 +43,10 @@ export function useOffStandardExport({ user, shifts, entries }: UseOffStandardEx
       user,
       shiftLine,
     );
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Off-Standard Report — ${user.name} · ${todayDateStr()}`,
-          text: reportText,
-        });
-        return;
-      } catch {
-        // fall through to clipboard
-      }
-    }
-    await navigator.clipboard.writeText(reportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    await share({
+      title: `Off-Standard Report — ${user.name} · ${todayDateStr()}`,
+      text: reportText,
+    });
   };
 
   const handlePDFExport = async () => {

@@ -9,7 +9,7 @@ interface Props {
   getEmpId: (id: string, snapshot?: string) => string;
 }
 
-const TRIGGER = 'px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-200 font-medium text-sm rounded-lg transition cursor-pointer';
+const TRIGGER = 'px-3 py-2 border border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 font-medium text-sm rounded-lg transition cursor-pointer';
 const OPTION  = 'w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer';
 
 /**

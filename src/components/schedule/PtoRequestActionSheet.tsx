@@ -2,6 +2,8 @@ import { useState, useEffect, createElement, type ReactElement } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
+import { useShareText } from '../../hooks/useShareText';
+import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
 import { toISO } from '../../context/ScheduleContext';
 import { buildPtoRequest, ptoTaken, type StatInfo } from '../../lib/ptoRequest';
 import { isStatDay, getStatName } from '../../lib/stats';
@@ -26,7 +28,7 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
   const [approvedDays, setApprovedDays] = useState<string[]>([]);
   const [altByDate, setAltByDate]       = useState<Record<string, string>>({});
   const [fetching, setFetching] = useState(true);
-  const [copied, setCopied]     = useState(false);
+  const { copied, share } = useShareText();
   const [pdfLoading, setPdfLoading] = useState(false);
 
   // Upcoming PTO from today onward, split by approval. Pending days are the
@@ -70,14 +72,10 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
 
   const handleShare = async () => {
     hapticMedium();
-    const text = buildPtoRequest(user.name, pendingDays, entitlement, used, approvedDays, statInfo);
-    if (navigator.share) {
-      try { await navigator.share({ title: `PTO Request — ${user.name}`, text }); return; }
-      catch { /* fall through to clipboard */ }
-    }
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    await share({
+      title: `PTO Request — ${user.name}`,
+      text: buildPtoRequest(user.name, pendingDays, entitlement, used, approvedDays, statInfo),
+    });
   };
 
   const handlePDF = async () => {
@@ -132,9 +130,9 @@ export function PtoRequestActionSheet({ user, entitlement, used, onClose }: Prop
                 type="button"
                 onClick={handleShare}
                 disabled={busy}
-                className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className={SHARE_TEXT_BUTTON}
               >
-                {copied ? '✓ Copied' : '📄 Plain Text'}
+                {copied ? '✓ Copied' : '↗ Plain Text'}
               </button>
               <button
                 type="button"

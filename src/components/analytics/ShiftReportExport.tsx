@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
+import { useShareText } from '../../hooks/useShareText';
+import { SHARE_TEXT_BUTTON } from '../shared/ShareAction';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import {
   buildShiftPartition,
@@ -25,7 +27,7 @@ export function ShiftReportExport({ date }: { date: string }) {
   const { shifts } = useSchedule();
   const [loading,    setLoading]    = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [copied,     setCopied]     = useState(false);
+  const { copied, share }           = useShareText();
 
   if (!user) return null;
 
@@ -298,16 +300,7 @@ export function ShiftReportExport({ date }: { date: string }) {
     setLoading(true);
     try {
       const data = await fetchReportData();
-      const reportText = buildReport(data);
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: `Shift Report — ${user.name} · ${formatDateStr(date)}`, text: reportText });
-          return;
-        } catch { /* fall through to clipboard */ }
-      }
-      await navigator.clipboard.writeText(reportText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+      await share({ title: `Shift Report — ${user.name} · ${formatDateStr(date)}`, text: buildReport(data) });
     } finally {
       setLoading(false);
     }
@@ -342,9 +335,9 @@ export function ShiftReportExport({ date }: { date: string }) {
         type="button"
         onClick={handleExport}
         disabled={busy}
-        className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className={SHARE_TEXT_BUTTON}
       >
-        {loading ? 'Generating…' : copied ? '✓ Copied' : 'Export as Text'}
+        {loading ? 'Generating…' : copied ? '✓ Copied' : '↗ Plain Text'}
       </button>
       <button
         type="button"
