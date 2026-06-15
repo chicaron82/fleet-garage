@@ -230,12 +230,6 @@ export function ScheduleScreen() {
           ‹
         </button>
         <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">{label}</span>
-        <button
-          onClick={goToNext}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer text-sm"
-        >
-          ›
-        </button>
         {!isCurrentPeriod && (
           <button
             onClick={goToToday}
@@ -244,6 +238,14 @@ export function ScheduleScreen() {
             Today
           </button>
         )}
+        {/* Next stays rightmost so repeated taps keep advancing — "Today" slots in
+            to its left rather than hijacking the forward-tap location. */}
+        <button
+          onClick={goToNext}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer text-sm"
+        >
+          ›
+        </button>
       </div>
 
       {/* Content */}
