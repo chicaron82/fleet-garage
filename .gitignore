@@ -13,6 +13,9 @@ dist-ssr
 docs
 *.local
 
+# DiZee's authed-verify session + screenshots (holds a real session token)
+.verify/
+
 supabase/.temp
 
 # Editor directories and files

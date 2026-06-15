@@ -154,6 +154,17 @@ npm run dev          # dev server
 - [ ] Mobile width (≤375px): no overflow, no cramped labels
 - [ ] Alignment: header title and action slot stay on the same baseline
 - [ ] Color: action buttons are `bg-fg-yellow`, not raw `yellow-400` or any other tone
+- [ ] **Actually look at it** — don't ship visual work pixel-unseen (see below)
+
+**Authed-verify helper — render an authed screen and screenshot it.** With the
+dev server up, `node scripts/verify-fg.mjs <path> <name> [clickText]` logs in as
+the verify bot (creds in gitignored `.env.local`: `VERIFY_EMPLOYEE_ID` /
+`VERIFY_PASSWORD`; the `DIZEE` / GM account), caches the session in `.verify/`
+(gitignored), optionally clicks `clickText`, and screenshots `<path>` to
+`.verify/<name>.png` for the Read tool. Paths: `/`, `/schedule`, `/shift`,
+`/lost-and-found`, `/analytics`, `/issue-log`. **Read/render only — never drive
+writes to crew tables** (trusted-PoC RLS is allow-all; the bot *could*, so it
+mustn't). This is the standing cure for "shipped visual work unseen."
 
 ## Stack
 
