@@ -6,7 +6,7 @@ import { canRelease } from '../../types';
 import { MOCK_TRIPS } from '../../data/trips';
 import type { TripRun } from '../../data/trips';
 import { supabase } from '../../lib/supabase';
-import { hapticMedium } from '../../lib/haptics';
+import { ShareAction } from '../shared/ShareAction';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO } from '../../lib/shiftDay';
 import { DriverLiveForm } from './DriverLiveForm';
@@ -56,7 +56,6 @@ export function MovementLogView() {
   const [driverMode, setDriverMode] = useState<'demo' | 'live'>('live');
   const canDemo = useCanDemo();
 
-  const [copied, setCopied] = useState(false);
 
 
   const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
@@ -157,17 +156,10 @@ export function MovementLogView() {
     return header + rows.join('\n');
   };
 
-  const handleShareLog = async (trips: TripRun[]) => {
-    hapticMedium();
-    const text  = buildTripLog(trips);
-    const title = `Trip Log — ${user.name ?? user.id} · ${new Date().toLocaleDateString('en-CA')}`;
-    if (navigator.share) {
-      try { await navigator.share({ title, text }); return; } catch { /* fall through */ }
-    }
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
-  };
+  const buildTripShare = (trips: TripRun[]) => ({
+    title: `Trip Log — ${user.name ?? user.id} · ${new Date().toLocaleDateString('en-CA')}`,
+    text: buildTripLog(trips),
+  });
 
   // ── VSA view — Movement Log + Off-Standard Time tabs ─────────────────────
   if (isVSA) {
@@ -251,13 +243,7 @@ export function MovementLogView() {
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
-              <button
-                type="button"
-                onClick={() => handleShareLog(liveOnly)}
-                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer"
-              >
-                {copied ? '✓ Copied' : 'Share log ↗'}
-              </button>
+              <ShareAction label="Share log" build={() => buildTripShare(liveOnly)} />
             </div>
             <TripList trips={liveOnly} isManagement={false} />
           </div>
@@ -267,13 +253,7 @@ export function MovementLogView() {
           {myTrips.length > 0 && (
             <div className="flex items-center justify-between px-1">
               <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
-              <button
-                type="button"
-                onClick={() => handleShareLog(myTrips)}
-                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer"
-              >
-                {copied ? '✓ Copied' : 'Share log ↗'}
-              </button>
+              <ShareAction label="Share log" build={() => buildTripShare(myTrips)} />
             </div>
           )}
           <TripList trips={myTrips} isManagement={false} />

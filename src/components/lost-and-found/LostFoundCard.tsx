@@ -3,6 +3,7 @@ import { hapticLight } from '../../lib/haptics';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
 import { fmtRelativeDate, daysHeld, ageTier } from '../../lib/lostFoundDate';
+import { ShareAction } from '../shared';
 import { LostFoundEditSheet } from './LostFoundEditSheet';
 
 interface CardProps {
@@ -46,28 +47,20 @@ export function LostFoundCard({
     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
 
   const [editOpen, setEditOpen] = useState(false);
-  const [shared, setShared] = useState(false);
 
   const handleOpenEdit = () => { hapticLight(); setEditOpen(true); };
 
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    hapticLight();
-    const parts = [
+  const buildShare = () => ({
+    title: 'Lost & Found Item',
+    text: [
       `Lost & Found — ${item.description ?? 'No description'}`,
       item.location ? `📍 ${LOST_FOUND_LOCATION_LABELS[item.location]}` : null,
       vehicleLabel,
       item.vehicleMake ?? null,
       `Found by: ${item.foundByName} · ${fmtRelativeDate(item.foundAt)}`,
       item.notes ? `"${item.notes}"` : null,
-    ].filter(Boolean).join('\n');
-    if (navigator.share) {
-      try { await navigator.share({ title: 'Lost & Found Item', text: parts }); return; } catch { /* fall through */ }
-    }
-    await navigator.clipboard.writeText(parts);
-    setShared(true);
-    setTimeout(() => setShared(false), 1500);
-  };
+    ].filter(Boolean).join('\n'),
+  });
 
   return (
     <>
@@ -193,14 +186,8 @@ export function LostFoundCard({
           </div>
         )}
 
-        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
-          >
-            {shared ? '✓ Copied' : '↗ Share'}
-          </button>
+        <div className="flex justify-end">
+          <ShareAction build={buildShare} />
         </div>
       </div>
 

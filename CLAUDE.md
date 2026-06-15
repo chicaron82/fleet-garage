@@ -99,10 +99,18 @@ encoding is what makes it hold.
   same — search-row actions, header actions, and empty-state register CTAs alike.
   (Holds takes it further: the search-row button is `Scan Barcode` until a search
   matches nothing, then it becomes `+ Add to ledger & flag`.)
+- **`<ShareAction build compact? label? />`** is the one share affordance: an amber
+  `↗ Share` link that flips to `✓ Copied` on the clipboard fallback, with the native
+  share-sheet → clipboard dance and haptics baked in. Callers own only their payload
+  via the `build` thunk (deferred so a heavy log isn't assembled every render);
+  `compact` drops to a glyph-only `↗`/`✓` for tight rows. It had drifted across three
+  cards (glyph-only vs labelled, gray vs amber, each re-rolling the fallback) before
+  this consolidated it. `tests/components/ShareAction.test.tsx` guards the contract.
 
 **Colour lanes — never cross them.** Action = `fg-yellow` (the accent: PrimaryAction,
-focus rings). Status = red / green / amber (urgency, success, state). A red "add"
-button reads as a warning; a yellow status dot reads as a control. Keep them apart.
+focus rings). Status = red / green / amber (urgency, success, state). Share = amber
+(`ShareAction` only — its own affordance, not a status). A red "add" button reads as
+a warning; a yellow status dot reads as a control. Keep them apart.
 
 **The accent is a token.** Action surfaces use `bg-fg-yellow` /
 `hover:bg-fg-yellow-hi` (`--color-fg-yellow` #facc15 / `-hi` #eab308 in
