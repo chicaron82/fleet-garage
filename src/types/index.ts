@@ -48,8 +48,15 @@ export function canLogHandoff(role: UserRole): boolean {
 
 const CAN_ACTION_LOST_FOUND: UserRole[] = ['CSR', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
-export function canActionLostFound(role: UserRole): boolean {
-  return CAN_ACTION_LOST_FOUND.includes(role);
+/**
+ * Who can action (contact / return / throw out) a lost-and-found item. The role
+ * list is the standard gate; once an item has been held `days` ≥ 30 the holding
+ * obligation has elapsed, so ANY role (incl. plain VSA) may dispose of it without
+ * escalating. Pass `daysHeld(item.foundAt)` for the age-aware unlock; omit it for
+ * the role-only check.
+ */
+export function canActionLostFound(role: UserRole, days?: number): boolean {
+  return CAN_ACTION_LOST_FOUND.includes(role) || (days != null && days >= 30);
 }
 
 const CAN_WRITE_WHITEBOARD: UserRole[] = ['Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
@@ -435,7 +442,7 @@ export function deriveRouting(interior: ConditionRating, exterior: ConditionRati
 
 // ── Lost & Found ─────────────────────────────────────────────────────────────
 
-export type LostFoundStatus = 'holding' | 'customer_contacted' | 'returned';
+export type LostFoundStatus = 'holding' | 'customer_contacted' | 'returned' | 'disposed';
 
 export type LostFoundLocation =
   | 'visor'

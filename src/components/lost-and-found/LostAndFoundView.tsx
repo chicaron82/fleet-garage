@@ -4,7 +4,7 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { hapticLight } from '../../lib/haptics';
 import type { LostFoundStatus } from '../../types';
 import { canActionLostFound } from '../../types';
-import { fmtRelativeDate } from '../../lib/lostFoundDate';
+import { fmtRelativeDate, daysHeld } from '../../lib/lostFoundDate';
 import { LostFoundCard } from './LostFoundCard';
 import { LogLostFoundItemModal } from './LogLostFoundItemModal';
 import { ModuleHeader } from '../shared/ModuleHeader';
@@ -35,9 +35,10 @@ export function LostAndFoundView() {
     );
   }
 
-  const canAction = user ? canActionLostFound(user.role) : false;
-  const holding = lostFoundItems.filter(i => i.status !== 'returned');
-  const resolved = lostFoundItems.filter(i => i.status === 'returned');
+  // Terminal states leave the holding list. canAction is computed per-item below
+  // (the 30-day age unlock is item-specific, not a single view-wide flag).
+  const holding = lostFoundItems.filter(i => i.status !== 'returned' && i.status !== 'disposed');
+  const resolved = lostFoundItems.filter(i => i.status === 'returned' || i.status === 'disposed');
 
   const q = query.trim().toLowerCase();
   const filteredHolding = q
@@ -87,9 +88,10 @@ export function LostAndFoundView() {
                 item={item}
                 currentUserName={user?.name ?? ''}
                 updating={updatingId === item.id}
-                canAction={canAction}
+                canAction={user ? canActionLostFound(user.role, daysHeld(item.foundAt)) : false}
                 onContactCustomer={() => handleStatusUpdate(item.id, 'customer_contacted')}
                 onMarkReturned={() => handleStatusUpdate(item.id, 'returned')}
+                onDispose={() => handleStatusUpdate(item.id, 'disposed')}
                 onPhotoTap={setLightboxUrl}
                 onEditSave={patch => updateLostFoundItem(item.id, patch)}
               />
@@ -137,7 +139,9 @@ export function LostAndFoundView() {
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
                     {item.unitNumber ? `Unit ${item.unitNumber} · ` : ''}{fmtRelativeDate(item.foundAt)}
                   </p>
-                  <p className="text-xs font-semibold text-green-600 dark:text-green-500 mt-0.5">✓ Returned</p>
+                  {item.status === 'disposed'
+                    ? <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-0.5">🗑️ Thrown out</p>
+                    : <p className="text-xs font-semibold text-green-600 dark:text-green-500 mt-0.5">✓ Returned</p>}
                 </div>
               </div>
             </div>

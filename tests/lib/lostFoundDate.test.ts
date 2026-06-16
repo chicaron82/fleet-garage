@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { fmtRelativeDate, daysHeld, ageTier } from '../../src/lib/lostFoundDate';
+import { canActionLostFound } from '../../src/types';
 
 // Local-time constructor — keeps assertions timezone-independent (the shift-day
 // helpers underneath read local components).
@@ -37,6 +38,9 @@ describe('ageTier — escalation flips at the 15 / 30 marks', () => {
   it('returned items have no tier', () => {
     expect(ageTier('returned', 40)).toBeNull();
   });
+  it('disposed (thrown out) items have no tier either', () => {
+    expect(ageTier('disposed', 40)).toBeNull();
+  });
   it('fresh below 15', () => {
     expect(ageTier('holding', 14)).toBe('fresh');
   });
@@ -48,5 +52,25 @@ describe('ageTier — escalation flips at the 15 / 30 marks', () => {
   });
   it('expired at exactly 30', () => {
     expect(ageTier('holding', 30)).toBe('expired');
+  });
+});
+
+describe('canActionLostFound — role gate + 30-day age unlock', () => {
+  it('management/eligible roles can action at any age', () => {
+    expect(canActionLostFound('Branch Manager', 5)).toBe(true);
+    expect(canActionLostFound('Lead VSA')).toBe(true);
+    expect(canActionLostFound('GM', 0)).toBe(true);
+  });
+  it('a plain VSA cannot action a fresh item', () => {
+    expect(canActionLostFound('VSA')).toBe(false);
+    expect(canActionLostFound('VSA', 29)).toBe(false);
+  });
+  it('a plain VSA CAN action once an item hits 30 days', () => {
+    expect(canActionLostFound('VSA', 30)).toBe(true);
+    expect(canActionLostFound('VSA', 45)).toBe(true);
+  });
+  it('a Driver follows the same age unlock', () => {
+    expect(canActionLostFound('Driver', 29)).toBe(false);
+    expect(canActionLostFound('Driver', 30)).toBe(true);
   });
 });

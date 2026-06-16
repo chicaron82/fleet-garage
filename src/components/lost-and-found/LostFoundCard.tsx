@@ -13,6 +13,7 @@ interface CardProps {
   canAction: boolean;
   onContactCustomer: () => void;
   onMarkReturned: () => void;
+  onDispose: () => void;
   onPhotoTap: (url: string) => void;
   onEditSave: (patch: {
     description: string;
@@ -32,6 +33,7 @@ export function LostFoundCard({
   canAction,
   onContactCustomer,
   onMarkReturned,
+  onDispose,
   onPhotoTap,
   onEditSave,
 }: CardProps) {
@@ -47,6 +49,7 @@ export function LostFoundCard({
     : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900';
 
   const [editOpen, setEditOpen] = useState(false);
+  const [pendingDispose, setPendingDispose] = useState(false);
 
   const handleOpenEdit = () => { hapticLight(); setEditOpen(true); };
 
@@ -164,25 +167,47 @@ export function LostFoundCard({
 
         {/* Actions */}
         {canAction && (
-          <div className="flex gap-2 pt-0.5" onClick={(e) => e.stopPropagation()}>
-            {item.status === 'holding' && (
+          <div className="space-y-2 pt-0.5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-2">
+              {item.status === 'holding' && (
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={onContactCustomer}
+                  className="flex-1 py-2 text-xs font-semibold rounded-lg border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition cursor-pointer"
+                >
+                  Customer contacted
+                </button>
+              )}
               <button
                 type="button"
                 disabled={updating}
-                onClick={onContactCustomer}
-                className="flex-1 py-2 text-xs font-semibold rounded-lg border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition cursor-pointer"
+                onClick={onMarkReturned}
+                className="flex-1 py-2 text-xs font-semibold rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition cursor-pointer"
               >
-                Customer contacted
+                {updating ? 'Updating…' : 'Mark returned'}
+              </button>
+            </div>
+
+            {/* Disposal — gated like the rest, but a plain VSA only reaches it via the
+                30-day age unlock. Irreversible, so it's a two-step confirm. */}
+            {pendingDispose ? (
+              <div className="flex items-center justify-between rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/20 px-3 py-2">
+                <span className="text-xs font-semibold text-red-700 dark:text-red-400">Throw out? Can't be undone.</span>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setPendingDispose(false)} className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer">Cancel</button>
+                  <button type="button" disabled={updating} onClick={onDispose} className="text-xs font-bold text-red-600 hover:text-red-800 dark:hover:text-red-300 transition cursor-pointer disabled:opacity-50">{updating ? 'Updating…' : 'Throw out'}</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { hapticLight(); setPendingDispose(true); }}
+                className="w-full py-2 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
+              >
+                🗑️ Thrown out{tier === 'expired' ? ' · 30+ days' : ''}
               </button>
             )}
-            <button
-              type="button"
-              disabled={updating}
-              onClick={onMarkReturned}
-              className="flex-1 py-2 text-xs font-semibold rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition cursor-pointer"
-            >
-              {updating ? 'Updating…' : 'Mark returned'}
-            </button>
           </div>
         )}
 

@@ -37,6 +37,6 @@ export type AgeTier = 'fresh' | 'aging' | 'expired';
  *  expired. Returned items have no tier. Takes the already-computed held count so
  *  a caller showing "Day N" doesn't reckon it twice. */
 export function ageTier(status: LostFoundStatus, days: number): AgeTier | null {
-  if (status === 'returned') return null;
+  if (status === 'returned' || status === 'disposed') return null;
   return days >= 30 ? 'expired' : days >= 15 ? 'aging' : 'fresh';
 }
