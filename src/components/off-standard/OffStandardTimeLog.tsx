@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { hapticLight } from '../../lib/haptics';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import type { OffStandardReason, OffStandardPresetReason, User } from '../../types';
+import type { User } from '../../types';
 import { OFF_STANDARD_LABELS } from '../../types';
 import { OffStdEditSheet } from './OffStdEditSheet';
 import { BackdateEntrySheet } from './BackdateEntrySheet';
@@ -15,8 +14,6 @@ import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
 import { OffStdQuickStart } from './OffStdQuickStart';
 import { OffStdRecentHistory } from './OffStdRecentHistory';
 import { EDVNoMatchFields } from './EDVNoMatchFields';
-
-const REASONS: OffStandardReason[] = ['CLASS', 'WFW', 'MTG', 'WTH', 'OTH'];
 
 interface Props {
   user: User;
@@ -33,7 +30,6 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     isRecovering,
     timerState,
     selectedReason,
-    setSelectedReason,
     startTimestamp,
     stopTimestamp,
     pendingMinutes,
@@ -57,9 +53,8 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     edvInterior,
     setEdvInterior,
     edvPlateMatch,
-    selectPreset,
+    toggleFleetingSent,
     saveNotes,
-    handleStart,
     handleQuickTap,
     handleEnd,
     handleDiscard,
@@ -100,92 +95,6 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
         </div>
         <div className="p-4 space-y-4">
 
-          {/* Reason pills — disabled while running or complete */}
-          <div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Reason</p>
-            <div className="flex flex-wrap gap-2">
-              {REASONS.map(r => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={timerState !== 'idle'}
-                  onClick={() => { if (timerState === 'idle') { hapticLight(); setSelectedReason(r); } }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer disabled:cursor-default ${
-                    selectedReason === r
-                      ? 'bg-fg-yellow border-fg-yellow text-gray-900'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  {r} · {OFF_STANDARD_LABELS[r].full}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Preset selector — visible when OTH selected and timer idle */}
-          {selectedReason === 'OTH' && timerState === 'idle' && (
-            <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Quick reason (optional)</p>
-              <div className="flex flex-wrap gap-2">
-                {([
-                  { value: 'fleeting_cars',   label: 'Fleeting Cars' },
-                  { value: 'fleeting_sent',   label: 'Fleeting — Sent Up' },
-                  { value: 'closing_duties',  label: 'Closing Duties' },
-                  { value: 'opening_duties',  label: 'Opening Duties' },
-                  { value: 'lot_organization', label: 'Lot Organization' },
-                  { value: 'edv',             label: 'EDV' },
-                  { value: 'customer_pickup', label: 'Customer Pickup/Drop-off' },
-                  { value: 'airport_flip',    label: 'Flipping Returns' },
-                ] as { value: OffStandardPresetReason; label: string }[]).map(p => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => selectPreset(p.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                      selectedPreset === p.value
-                        ? 'bg-fg-yellow border-fg-yellow text-gray-900'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Fleeting: which preset to pick — affects the rate denominator */}
-              {(selectedPreset === 'fleeting_cars' || selectedPreset === 'fleeting_sent') && (
-                <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 text-xs text-blue-700 dark:text-blue-400">
-                  {selectedPreset === 'fleeting_sent'
-                    ? 'Cars went up to fleet — counted as sent, so this time won\'t reduce your rate.'
-                    : 'Prepped but stayed on the lot (no plates yet) — this time is credited back to your rate.'}
-                </div>
-              )}
-
-              {/* EDV auto-populate result */}
-              {selectedPreset === 'edv' && !edvNoMatch && edvLinkedHoldId && (
-                <div className="mt-2 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 text-xs space-y-0.5">
-                  <p className="font-semibold text-teal-800 dark:text-teal-300">Hold matched</p>
-                  <p className="text-teal-700 dark:text-teal-400">Unit: <span className="font-medium">{edvUnitNumber}</span></p>
-                  <p className="text-teal-700 dark:text-teal-400">Released by: <span className="font-medium">{edvManagerName}</span></p>
-                  <p className="text-teal-600 dark:text-teal-500 mt-1">💡 Typical EDV clean: 30–40 min</p>
-                </div>
-              )}
-
-              {/* EDV no-match: plate + condition pills */}
-              {selectedPreset === 'edv' && edvNoMatch && (
-                <EDVNoMatchFields
-                  plate={edvPlate}
-                  onPlateChange={setEdvPlate}
-                  match={edvPlateMatch}
-                  exterior={edvExterior}
-                  onExteriorChange={setEdvExterior}
-                  interior={edvInterior}
-                  onInteriorChange={setEdvInterior}
-                />
-              )}
-            </div>
-          )}
-
           <p className="text-xs text-blue-600 dark:text-blue-400">
             🔗 Airport trips log automatically from the Movement Log — no need to add them here.
           </p>
@@ -197,21 +106,11 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
             </div>
           )}
 
-          {/* idle → Start (or recovering placeholder) */}
-          {timerState === 'idle' && (
-            isRecovering ? (
-              <div className="flex items-center justify-center py-3">
-                <p className="text-xs text-gray-400 dark:text-gray-500">Resuming session…</p>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStart}
-                className="w-full py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-semibold transition cursor-pointer"
-              >
-                Start
-              </button>
-            )
+          {/* idle + recovering → restoring an in-progress session on mount */}
+          {timerState === 'idle' && isRecovering && (
+            <div className="flex items-center justify-center py-3">
+              <p className="text-xs text-gray-400 dark:text-gray-500">Resuming session…</p>
+            </div>
           )}
 
           {/* running → elapsed + notes + End */}
@@ -228,12 +127,36 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   Started {fmtTime(startTimestamp)}
                 </p>
               </div>
+              {selectedPreset === 'edv' && !edvNoMatch && edvLinkedHoldId && (
+                <div className="px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800/40 text-xs space-y-0.5">
+                  <p className="font-semibold text-teal-800 dark:text-teal-300">Hold matched</p>
+                  <p className="text-teal-700 dark:text-teal-400">Unit: <span className="font-medium">{edvUnitNumber}</span></p>
+                  <p className="text-teal-700 dark:text-teal-400">Released by: <span className="font-medium">{edvManagerName}</span></p>
+                  <p className="text-teal-600 dark:text-teal-500 mt-1">💡 Typical EDV clean: 30–40 min</p>
+                </div>
+              )}
               {selectedPreset === 'edv' && edvNoMatch && (
                 <EDVNoMatchFields
                   plate={edvPlate} onPlateChange={setEdvPlate} match={edvPlateMatch}
                   exterior={edvExterior} onExteriorChange={setEdvExterior}
                   interior={edvInterior} onInteriorChange={setEdvInterior}
                 />
+              )}
+              {(selectedPreset === 'fleeting_cars' || selectedPreset === 'fleeting_sent') && (
+                <button
+                  type="button"
+                  onClick={toggleFleetingSent}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                    selectedPreset === 'fleeting_sent'
+                      ? 'bg-fg-yellow border-fg-yellow text-gray-900'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <span>{selectedPreset === 'fleeting_sent' ? '✓ Sent up to fleet' : 'Sent up to fleet?'}</span>
+                  <span className="font-normal opacity-70">
+                    {selectedPreset === 'fleeting_sent' ? "won't dock your rate" : 'tap if they shipped'}
+                  </span>
+                </button>
               )}
               <div>
                 <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Notes (optional)</label>

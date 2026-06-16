@@ -2,6 +2,7 @@ import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase } from '../lib/supabase';
 import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, User, Hold, Vehicle } from '../types';
+import { SENT_UP_PRESET } from '../types';
 import { localDateStr } from './useFleetBalance';
 import { useInProgressRecovery } from './useInProgressRecovery';
 import { useOffStandardEDV } from './useOffStandardEDV';
@@ -29,7 +30,12 @@ export const QUICK_TAPS: QuickTap[] = [
   { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
   { label: 'Flipping Returns',     reason: 'OTH',   preset: 'airport_flip',     emoji: '🔄' },
   { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
+  { label: 'Meeting',              reason: 'MTG',   preset: null,               emoji: '🗣️' },
+  { label: 'Weather',              reason: 'WTH',   preset: null,               emoji: '🌧️' },
   { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
+  // Catch-all for one-offs that don't fit a preset — no prefilled context,
+  // filled in manually via Notes once running.
+  { label: 'Other',                reason: 'OTH',   preset: null,               emoji: '📝' },
 ];
 
 interface UseOffStandardSessionProps {
@@ -65,7 +71,7 @@ export function useOffStandardSession({
   const [endError, setEndError]             = useState(false);
 
   const edv = useOffStandardEDV({ holds, vehicles, resolveName });
-  const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch, selectPreset,
+  const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch,
           edvPlate, edvExterior, edvInterior } = edv;
 
   // Recovery: restore any in_progress entry on mount
@@ -173,11 +179,6 @@ export function useOffStandardSession({
     setTimerState('running');
   };
 
-  const handleStart = async () => {
-    hapticLight();
-    await handleStartWith(selectedReason, selectedPreset, edvLinkedHoldId);
-  };
-
   const handleQuickTap = async (tap: QuickTap) => {
     if (timerState !== 'idle') return;
     hapticMedium();
@@ -254,6 +255,17 @@ export function useOffStandardSession({
     setTimerState('complete');
   };
 
+  // Fleeting Cars and Fleeting — Sent Up are the same physical task; whether the
+  // cars actually went up to fleet is often only known partway through, so this
+  // flips the preset on the live row rather than requiring a separate quick-tap.
+  const toggleFleetingSent = () => {
+    if (timerState !== 'running' || !inProgressId) return;
+    if (selectedPreset !== 'fleeting_cars' && selectedPreset !== SENT_UP_PRESET) return;
+    const next = selectedPreset === SENT_UP_PRESET ? 'fleeting_cars' : SENT_UP_PRESET;
+    edv.setSelectedPreset(next);
+    void writeOrEnqueue('update', 'off_standard_entries', { preset_reason: next }, 'id', inProgressId);
+  };
+
   const handleDiscard = () => {
     setTimerState('idle');
     setInProgressId(null);
@@ -271,7 +283,6 @@ export function useOffStandardSession({
     timerState,
     inProgressId,
     selectedReason,
-    setSelectedReason,
     startTimestamp,
     stopTimestamp,
     pendingMinutes,
@@ -291,9 +302,8 @@ export function useOffStandardSession({
     edvInterior,
     setEdvInterior: edv.setEdvInterior,
     edvPlateMatch: edv.edvPlateMatch,
-    selectPreset,
+    toggleFleetingSent,
     saveNotes,
-    handleStart,
     handleQuickTap,
     handleEnd,
     handleDiscard,

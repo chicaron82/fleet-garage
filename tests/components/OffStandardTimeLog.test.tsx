@@ -125,6 +125,40 @@ describe('OffStandardTimeLog Component', () => {
     const button = await screen.findByText('Opening Duties');
     expect(button).toBeInTheDocument();
     expect(screen.getByText('Closing Duties')).toBeInTheDocument();
+    expect(screen.getByText('Meeting')).toBeInTheDocument();
+    expect(screen.getByText('Weather')).toBeInTheDocument();
+    expect(screen.getByText('Other')).toBeInTheDocument();
+    // The manual start flow (reason pills + Start button) is gone — quick-start
+    // taps are the only way in now.
+    expect(screen.queryByText('Reason')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+  });
+
+  it('toggles Fleeting Cars between docking and sent-up-to-fleet presets', async () => {
+    render(<OffStandardTimeLog user={TEST_USER} />);
+
+    const btn = await screen.findByText('Fleeting Cars');
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(insertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ preset_reason: 'fleeting_cars' }),
+      );
+    });
+
+    const toggleOff = await screen.findByText('Sent up to fleet?');
+    fireEvent.click(toggleOff);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith({ preset_reason: 'fleeting_sent' });
+    });
+
+    const toggleOn = await screen.findByText('✓ Sent up to fleet');
+    fireEvent.click(toggleOn);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith({ preset_reason: 'fleeting_cars' });
+    });
   });
 
   it('starts a timer online and saves it to supabase', async () => {
