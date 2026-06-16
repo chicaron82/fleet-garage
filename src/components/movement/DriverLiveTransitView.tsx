@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { NotesField } from './VSATripComponents';
-import { fmtTime } from '../../lib/vsa-trip';
+import { fmtTime, TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
 
 interface DriverLiveTransitViewProps {
   vehicleDetails: { make: string; model: string; year: number; color: string } | null;
@@ -30,6 +31,17 @@ export function DriverLiveTransitView({
   handleArrived,
   handleCancelTrip,
 }: DriverLiveTransitViewProps) {
+  // A real trip runs ~8–15 min; under 5 is almost always a mis-tap. Rather than
+  // silently log it (trips have no minimum the way off-standard does), confirm
+  // first — log it or delete it.
+  const [confirmShort, setConfirmShort] = useState(false);
+
+  const onArrive = () => {
+    const mins = (Date.now() - new Date(departureTime).getTime()) / 60000;
+    if (mins < TRIP_DURATION_THRESHOLDS.short) { setConfirmShort(true); return; }
+    handleArrived();
+  };
+
   return (
     <div className="space-y-3">
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-4 transition-colors">
@@ -67,21 +79,48 @@ export function DriverLiveTransitView({
           </p>
         </div>
       )}
-      <button
-        type="button"
-        onClick={handleArrived}
-        disabled={submitting}
-        className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
-      >
-        {submitting ? 'Saving…' : '✓ Arrived at Destination'}
-      </button>
-      <button
-        type="button"
-        onClick={handleCancelTrip}
-        className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer py-1"
-      >
-        Cancel trip
-      </button>
+      {confirmShort ? (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-800/50 rounded-lg px-4 py-3 space-y-3">
+          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+            Only {elapsed || '0m 00s'} — short for a real trip. Log it, or delete it?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setConfirmShort(false); handleCancelTrip(); }}
+              className="flex-1 py-2.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold transition cursor-pointer"
+            >
+              Delete it
+            </button>
+            <button
+              type="button"
+              onClick={handleArrived}
+              disabled={submitting}
+              className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-semibold transition cursor-pointer"
+            >
+              {submitting ? 'Saving…' : 'Log it'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onArrive}
+            disabled={submitting}
+            className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+          >
+            {submitting ? 'Saving…' : '✓ Arrived at Destination'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelTrip}
+            className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer py-1"
+          >
+            Cancel trip
+          </button>
+        </>
+      )}
     </div>
   );
 }

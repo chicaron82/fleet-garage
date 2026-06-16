@@ -14,6 +14,8 @@ export const FUEL_LABELS: Record<number, string> = {
 };
 
 export const TRIP_DURATION_THRESHOLDS = {
+  short: 5,    // under 5 min — confirm log-or-delete (a real run is ~8–15 min;
+               // anything shorter is a fat-finger or a mis-tapped start/stop)
   amber: 15,   // 15+ min — amber on trip card
   alert: 25,   // 25+ min — notification fires to management
 } as const;
