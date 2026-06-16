@@ -476,6 +476,9 @@ describe('reducesDenominator', () => {
   it('excludes edv (extra-detail time is cleaning — the slow car already counts)', () => {
     expect(reducesDenominator({ presetReason: 'edv' })).toBe(false);
   });
+  it('excludes airport_flip (cleaning done off-site — never reaches the washbay rate)', () => {
+    expect(reducesDenominator({ presetReason: 'airport_flip' })).toBe(false);
+  });
   it('includes plain fleeting_cars (prep that stayed on the lot)', () => {
     expect(reducesDenominator({ presetReason: 'fleeting_cars' })).toBe(true);
   });

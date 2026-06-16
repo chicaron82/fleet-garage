@@ -70,6 +70,7 @@ function baseData(over: Partial<ReportData> = {}): ReportData {
     issues: [],
     fleetBalance: null,
     throughput: null,
+    airportFlipping: false,
     ...over,
   };
 }
@@ -142,6 +143,22 @@ describe('buildReport — throughput', () => {
     }));
     expect(r).toContain('Opening crew: 30 cars');
     expect(r).not.toContain('Closing crew');
+  });
+
+  it('surfaces the airport-flip flag in the throughput block when active', () => {
+    const r = buildReport(baseData({
+      throughput: throughput({ closingCleaned: 20, fullDayCleaned: 40, branchOpHours: 8 }),
+      airportFlipping: true,
+    }));
+    expect(r).toContain('✈️ Airport flipping active');
+  });
+
+  it('omits the airport-flip flag when no airport-flip time was logged', () => {
+    const r = buildReport(baseData({
+      throughput: throughput({ closingCleaned: 20, fullDayCleaned: 40, branchOpHours: 8 }),
+      airportFlipping: false,
+    }));
+    expect(r).not.toContain('Airport flipping');
   });
 
   it('shows the standard window range when no actual hours are logged', () => {

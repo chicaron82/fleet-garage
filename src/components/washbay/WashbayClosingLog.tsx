@@ -6,6 +6,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
 import { sentToFleetFromCount } from '../../lib/washbay-throughput';
 import { localDateStr } from '../../hooks/useFleetBalance';
+import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { businessDateOf } from '../../lib/shiftDay';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
@@ -65,6 +66,7 @@ export function WashbayClosingLog() {
   const throughput  = operatingHours > 0 ? carsCleaned / operatingHours : 0;
   const delta       = throughput - COMPANY_STANDARD;
 
+  const airportFlipping    = useTodayAirportFlip(user?.id, localDateStr(0));
   const heldToday          = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === localDateStr(0)).length;
   const rentablesProcessed = Math.max(0, carsIn - heldToday);
   const deliveredToAirport = Math.max(0, rentablesProcessed - cnpu);
@@ -89,6 +91,7 @@ export function WashbayClosingLog() {
         baseHours={baseHours}
         isPeakSeason={isPeakSeason}
         heldToday={heldToday}
+        airportFlipping={airportFlipping}
         onEdit={enterEditMode}
       />
     );

@@ -292,6 +292,7 @@ export function ShiftReportExport({ date }: { date: string }) {
       })),
       fleetBalance,
       throughput,
+      airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip'),
     };
   };
 

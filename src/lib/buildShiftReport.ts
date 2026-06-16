@@ -39,6 +39,10 @@ export interface ReportData {
   issues:       { reportedAt: string; title: string; severity: string }[];
   fleetBalance: { outCount: number; inCount: number; isProjected: boolean } | null;
   throughput:   ReportThroughput | null;
+  // True when the shift logged any 'airport_flip' OTH time. Cars flipped at the
+  // airport never reach the washbay, so the bay count reads light — this flag
+  // tells a report reader the low number had airport turnarounds behind it.
+  airportFlipping: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -173,6 +177,10 @@ export function buildReport(d: ReportData): string {
       }
     }
     if (rateParts.length > 0) lines.push(rateParts.join('  |  '));
+
+    if (d.airportFlipping) {
+      lines.push('✈️ Airport flipping active — bay count excludes cars turned around at the airport');
+    }
 
     if (t.queueAtClose != null) {
       lines.push(t.queueAtClose === 0

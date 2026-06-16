@@ -58,13 +58,23 @@ export interface OffStandardMinutes {
   presetReason?: string | null;
 }
 
-// Two presets are logged but must NOT reduce the rate denominator:
+// Three presets are logged but must NOT reduce the rate denominator — for two
+// distinct reasons:
+//   Already-in-the-numerator (exempt to avoid DOUBLE-COUNTING):
 //   • 'fleeting_sent' — the cars went up to fleet and already count in sent-to-fleet.
 //   • 'edv' — extra-detail time IS cleaning (one slow car, already in the cleaned
 //     count); exempting it would double-credit and inflate the rate.
-// Subtracting either from the denominator double-counts. Everything else reduces it.
+//   Outside-the-washbay-rate entirely:
+//   • 'airport_flip' — a fast interior turnaround done AT the airport (mats, garbage,
+//     quick wipe; rentable in <6min, never comes to the washbay). It's cleaning, but
+//     off-site: the flipped cars aren't in the numerator (no gas sheet), and the time
+//     isn't washbay time, so it sits outside the rate. Logged for visibility (shift
+//     summary, export); the closing/report context flag explains the light bay count.
+// Everything else (closing duties, lot org, etc.) is non-cleaning time and reduces it.
 export function reducesDenominator(e: { presetReason?: string | null }): boolean {
-  return e.presetReason !== 'fleeting_sent' && e.presetReason !== 'edv';
+  return e.presetReason !== 'fleeting_sent'
+    && e.presetReason !== 'edv'
+    && e.presetReason !== 'airport_flip';
 }
 
 // Partition off-standard minutes by the morning/closing boundary.

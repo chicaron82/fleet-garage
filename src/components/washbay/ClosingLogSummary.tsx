@@ -8,10 +8,12 @@ interface Props {
   baseHours: number;
   isPeakSeason: boolean;
   heldToday: number;
+  /** True when the shift logged airport-flip OTH — surfaces a context flag so a light bay count reads honestly. */
+  airportFlipping?: boolean;
   onEdit: () => void;
 }
 
-export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onEdit }: Props) {
+export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, airportFlipping, onEdit }: Props) {
   const ci  = log.fullPages * 19 + log.lastPageEntries;
   const sent = sentToFleet(log);
   const opH = baseHours + log.overtimeHours;
@@ -89,6 +91,11 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, onE
             {opH}h operating window{isPeakSeason ? ' · peak season' : ''}
             {log.overtimeHours > 0 && ` · Extended operations: +${log.overtimeHours}h`}
           </p>
+          {airportFlipping && (
+            <p className={`text-xs mt-1.5 font-medium ${d >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+              ✈️ Airport flipping active — cars turned around at the airport (excluded from the bay count)
+            </p>
+          )}
         </div>
 
       </div>

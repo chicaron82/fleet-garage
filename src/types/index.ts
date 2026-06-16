@@ -511,7 +511,7 @@ export const OFF_STANDARD_LABELS: Record<OffStandardReason, { short: string; ful
   OTH:   { short: 'OTH',   full: 'Other' },
 };
 
-export type OffStandardPresetReason = 'fleeting_cars' | 'fleeting_sent' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv' | 'customer_pickup';
+export type OffStandardPresetReason = 'fleeting_cars' | 'fleeting_sent' | 'closing_duties' | 'opening_duties' | 'lot_organization' | 'edv' | 'customer_pickup' | 'airport_flip';
 
 export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string> = {
   opening_duties:  'Opening Duties',
@@ -521,6 +521,7 @@ export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string>
   lot_organization:'Lot Organization',
   edv:             'EDV',
   customer_pickup: 'Customer Pickup/Drop',
+  airport_flip:    'Airport Flip',
 };
 
 // Fleeting time that resulted in cars going up to fleet. Logged like any other
