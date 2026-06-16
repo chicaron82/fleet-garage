@@ -179,7 +179,7 @@ export function buildReport(d: ReportData): string {
     if (rateParts.length > 0) lines.push(rateParts.join('  |  '));
 
     if (d.airportFlipping) {
-      lines.push('✈️ Airport flipping active — bay count excludes cars turned around at the airport');
+      lines.push('🔄 Flipping returns — bay count excludes cars turned around at the airport');
     }
 
     if (t.queueAtClose != null) {

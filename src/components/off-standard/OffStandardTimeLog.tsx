@@ -135,7 +135,7 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
                   { value: 'lot_organization', label: 'Lot Organization' },
                   { value: 'edv',             label: 'EDV' },
                   { value: 'customer_pickup', label: 'Customer Pickup/Drop-off' },
-                  { value: 'airport_flip',    label: 'Airport Flip' },
+                  { value: 'airport_flip',    label: 'Flipping Returns' },
                 ] as { value: OffStandardPresetReason; label: string }[]).map(p => (
                   <button
                     key={p.value}

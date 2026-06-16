@@ -150,7 +150,7 @@ describe('buildReport — throughput', () => {
       throughput: throughput({ closingCleaned: 20, fullDayCleaned: 40, branchOpHours: 8 }),
       airportFlipping: true,
     }));
-    expect(r).toContain('✈️ Airport flipping active');
+    expect(r).toContain('🔄 Flipping returns');
   });
 
   it('omits the airport-flip flag when no airport-flip time was logged', () => {
@@ -158,7 +158,7 @@ describe('buildReport — throughput', () => {
       throughput: throughput({ closingCleaned: 20, fullDayCleaned: 40, branchOpHours: 8 }),
       airportFlipping: false,
     }));
-    expect(r).not.toContain('Airport flipping');
+    expect(r).not.toContain('Flipping returns');
   });
 
   it('shows the standard window range when no actual hours are logged', () => {

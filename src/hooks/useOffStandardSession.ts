@@ -27,7 +27,7 @@ export const QUICK_TAPS: QuickTap[] = [
   { label: 'Lot Organization',     reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
   { label: 'EDV',                  reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
   { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
-  { label: 'Airport Flip',         reason: 'OTH',   preset: 'airport_flip',     emoji: '✈️' },
+  { label: 'Flipping Returns',     reason: 'OTH',   preset: 'airport_flip',     emoji: '🔄' },
   { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
   { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
 ];

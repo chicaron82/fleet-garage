@@ -528,7 +528,7 @@ export const OFF_STANDARD_PRESET_LABELS: Record<OffStandardPresetReason, string>
   lot_organization:'Lot Organization',
   edv:             'EDV',
   customer_pickup: 'Customer Pickup/Drop',
-  airport_flip:    'Airport Flip',
+  airport_flip:    'Flipping Returns',
 };
 
 // Fleeting time that resulted in cars going up to fleet. Logged like any other
