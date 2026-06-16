@@ -162,9 +162,17 @@ the verify bot (creds in gitignored `.env.local`: `VERIFY_EMPLOYEE_ID` /
 `VERIFY_PASSWORD`; the `DIZEE` / GM account), caches the session in `.verify/`
 (gitignored), optionally clicks `clickText`, and screenshots `<path>` to
 `.verify/<name>.png` for the Read tool. Paths: `/`, `/schedule`, `/shift`,
-`/lost-and-found`, `/analytics`, `/issue-log`. **Read/render only — never drive
-writes to crew tables** (trusted-PoC RLS is allow-all; the bot *could*, so it
-mustn't). This is the standing cure for "shipped visual work unseen."
+`/lost-and-found`, `/analytics`, `/issue-log`. This is the standing cure for
+"shipped visual work unseen."
+
+**Write boundary (DiZee is a mock account, scoped writes OK as of 2026-06-16):**
+self-scoped writes are free — anything affecting only DiZee's own numbers
+(off-standard, airport flips, own shift/closing logs). Vehicle/hold ops are OK
+on **HRZ-prefixed mock vehicles only** (`src/data/mock.ts`), borrow-and-return
+(clear/release what you create). Off-limits: real (non-HRZ) vehicles, other
+crew's records, destructive ops on real data. Note frontline writes are
+role-gated (`isVSA = 'VSA' || 'Lead VSA'`) — the bot's `profiles.role` is set
+per the verification at hand.
 
 ## Stack
 
