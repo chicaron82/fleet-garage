@@ -17,12 +17,16 @@ const env = Object.fromEntries(
     .filter(l => l.includes('=') && !l.trim().startsWith('#'))
     .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }),
 );
-const EMP = env.VERIFY_EMPLOYEE_ID, PW = env.VERIFY_PASSWORD;
-if (!EMP || !PW) { console.error('Missing VERIFY_EMPLOYEE_ID / VERIFY_PASSWORD in .env.local'); process.exit(1); }
+// Identity: VID=vsa → the Lead VSA mock account; default → DiZee (GM). Sessions
+// cache per-identity so they don't clobber each other.
+const ID = (process.env.VID || 'dizee').toLowerCase();
+const EMP = ID === 'vsa' ? env.VERIFY_VSA_EMPLOYEE_ID : env.VERIFY_EMPLOYEE_ID;
+const PW  = ID === 'vsa' ? env.VERIFY_VSA_PASSWORD     : env.VERIFY_PASSWORD;
+if (!EMP || !PW) { console.error(`Missing creds for identity '${ID}' in .env.local`); process.exit(1); }
 
 const BASE = 'http://localhost:5173';
 const verifyDir = fileURLToPath(new URL('.verify/', root));
-const statePath = fileURLToPath(new URL('.verify/state.json', root));
+const statePath = fileURLToPath(new URL(`.verify/state-${ID}.json`, root));
 mkdirSync(verifyDir, { recursive: true });
 
 const path = process.argv[2] || '/';
