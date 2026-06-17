@@ -68,8 +68,6 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const [model, setModel] = useState('');
   const [year, setYear] = useState(currentYear);
   const [color, setColor] = useState('');
-  const [hasMobileCable,  setHasMobileCable]  = useState(true);
-  const [hasJ1772Adapter, setHasJ1772Adapter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   // Recognize the plate as it's typed: a fleet match means it's already registered
@@ -111,8 +109,11 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         color,
         branchId:       user?.branchId,
         isTesla,
-        hasMobileCable:  isTesla ? hasMobileCable  : null,
-        hasJ1772Adapter: isTesla ? hasJ1772Adapter : null,
+        // EV assets register as "not assessed" (null) — never assume present.
+        // The first real present/missing observation (and its timeline entry)
+        // comes from the EV Assets tab / check-in, not from cataloging the car.
+        hasMobileCable:  null,
+        hasJ1772Adapter: null,
         // Fleet-add path has no hold — vehicle enters clean. Hold path lets
         // addVehicle default to HELD, then addHold overwrites it immediately.
         status: returnTo === 'fleet' ? 'CLEAR' : undefined,
@@ -270,24 +271,14 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
             </div>
           </div>
 
-          {/* EV Asset Check — shown when Tesla is selected */}
+          {/* Teslas register with EV assets unassessed — assessment is a logged
+              action, done in the EV Assets tab, not assumed at registration. */}
           {make === 'Tesla' && (
-            <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
-              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-widest">⚡ EV Asset Check</p>
-              {([
-                { label: 'Mobile Charge Cable',  checked: hasMobileCable,  onChange: setHasMobileCable },
-                { label: 'J1772 Adapter',        checked: hasJ1772Adapter, onChange: setHasJ1772Adapter },
-              ] as const).map(({ label, checked, onChange }) => (
-                <label key={label} className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={e => onChange(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
-                </label>
-              ))}
+            <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 p-4">
+              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">⚡ EV Assets</p>
+              <p className="text-xs text-blue-700/80 dark:text-blue-300/80">
+                Registers as <span className="font-semibold">Not assessed</span>. Check the charge cable &amp; J1772 adapter in the <span className="font-semibold">EV Assets</span> tab — the first check logs the real status to the asset history.
+              </p>
             </div>
           )}
 
