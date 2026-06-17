@@ -12,13 +12,18 @@ import type { VehicleStatus } from '../types';
  *   held               — any ACTIVE non-sale-car hold (vehicle is grounded)
  *   sale-car           — any ACTIVE sale_car hold
  *   auction-short-term — a sale_car released on an open EXCEPTION (going to auction)
- *   pre-existing       — a hold released as PRE_EXISTING (damage accepted as-is)
  *   on-exception       — a hold released on an open EXCEPTION or MECHANICAL_RELEASE
+ *   pre-existing       — a hold released as PRE_EXISTING (damage accepted as-is)
  *   clear              — none of the above
  *
- * Auction beats pre-existing: a car going to auction as-is shows its auction
- * status regardless of accepted pre-existing damage. Pre-existing is a release
- * decision, never a hold type — it's detected from the release record.
+ * On-exception beats pre-existing: a vehicle still OUT on an override (often a
+ * verbal/unverified one) or out for mechanical work is an active concern that
+ * belongs in Exception Returns for return-comparison — it outranks accepted
+ * pre-existing damage, which is a stable "renting as-is" state. Only an *open*
+ * exception counts; one that's already returned falls through to pre-existing.
+ * Auction still beats both: a sale car going to auction as-is shows its auction
+ * status. Pre-existing is a release decision, never a hold type — it's detected
+ * from the release record.
  */
 
 export type HoldDerivedStatus =
@@ -46,8 +51,8 @@ export function deriveHoldStatus(facts: HoldFacts[]): HoldDerivedStatus {
   if (facts.some(f => f.isActive && !f.isSaleCar))   return 'held';
   if (facts.some(f => f.isActive && f.isSaleCar))    return 'sale-car';
   if (facts.some(f => f.isOpenException && f.isSaleCar)) return 'auction-short-term';
-  if (facts.some(f => f.isPreExisting))              return 'pre-existing';
   if (facts.some(f => f.isOpenException || f.isOpenMechanical)) return 'on-exception';
+  if (facts.some(f => f.isPreExisting))              return 'pre-existing';
   return 'clear';
 }
 

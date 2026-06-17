@@ -60,8 +60,13 @@ describe('deriveHoldStatus', () => {
     expect(deriveHoldStatus([f({ isOpenException: true, isSaleCar: true }), f({ isPreExisting: true })])).toBe('auction-short-term');
   });
 
-  it('pre-existing beats on-exception', () => {
-    expect(deriveHoldStatus([f({ isPreExisting: true }), f({ isOpenException: true })])).toBe('pre-existing');
+  it('an open exception beats pre-existing (out on an override is the active concern)', () => {
+    expect(deriveHoldStatus([f({ isPreExisting: true }), f({ isOpenException: true })])).toBe('on-exception');
+  });
+
+  it('a returned exception falls through to pre-existing (only open exceptions outrank)', () => {
+    // isOpenException is false once it's back; the pre-existing clearance then wins.
+    expect(deriveHoldStatus([f({ isPreExisting: true }), f({ isOpenException: false })])).toBe('pre-existing');
   });
 
   it('a grounding active hold wins over everything', () => {
