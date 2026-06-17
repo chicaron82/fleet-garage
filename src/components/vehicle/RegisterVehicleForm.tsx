@@ -5,7 +5,9 @@ import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
+import { useUnitConflict } from '../../hooks/useUnitConflict';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
+import { UnitConflictNotice } from './UnitConflictNotice';
 
 interface Props {
   prefill?: string;
@@ -53,7 +55,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 }
 
 export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle } = useVehicleHoldContext();
+  const { addVehicle, allVehicles, releaseUnitNumber } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
@@ -78,6 +80,10 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const plateMatch = usePlateRecognition(plate, m => {
     if (m?.unitNumber) setUnit(prev => (prev.trim() === '' ? m.unitNumber! : prev));
   });
+
+  // A different active vehicle already carrying this unit# — the conflict the
+  // user can resolve by moving the number onto the record being registered.
+  const { conflict: unitConflict, armed, arm, disarm } = useUnitConflict(unit, allVehicles);
 
   const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
 
@@ -112,6 +118,13 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         status: returnTo === 'fleet' ? 'CLEAR' : undefined,
       });
       hapticMedium();
+      // Reconcile a confirmed unit# conflict: the new vehicle now carries the
+      // number, so release it from the record it was stapled to in error. The
+      // registration already succeeded — a failed release leaves a recoverable
+      // duplicate, not a lost unit#, so it must not block the success path.
+      if (armed && unitConflict) {
+        try { await releaseUnitNumber(unitConflict.id); } catch { /* recoverable duplicate; surfaced on next conflict check */ }
+      }
       // Promotion bookkeeping: point any remembered registry sighting for this
       // plate at the now-canonical vehicle (best-effort).
       void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
@@ -184,6 +197,10 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
                   </p>
                 </div>
               )
+            )}
+
+            {unitConflict && (
+              <UnitConflictNotice conflict={unitConflict} armed={armed} onArm={arm} onDisarm={disarm} />
             )}
 
             <div className="grid grid-cols-2 gap-3">

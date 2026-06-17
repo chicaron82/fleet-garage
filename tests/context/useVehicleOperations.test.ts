@@ -362,3 +362,38 @@ describe('directEditVehicleIdentity', () => {
     expect(updated.editStatus).toBeNull();
   });
 });
+
+describe('releaseUnitNumber', () => {
+  it('nulls unit_number on the old record, leaving plate/make intact', async () => {
+    const old = makeVehicle('old'); // unitNumber 4916466, plate ABC 123
+    const { ops, setAllVehicles } = makeOps([], [old]);
+
+    await ops.releaseUnitNumber('old');
+
+    expect(fromCalls).toContain('vehicles');
+    expect(chain.update).toHaveBeenCalledWith({ unit_number: null });
+    const updater = setAllVehicles.mock.calls[0][0] as (prev: Vehicle[]) => Vehicle[];
+    const updated = updater([old])[0];
+    expect(updated.unitNumber).toBeNull();
+    expect(updated.licensePlate).toBe('ABC 123'); // plate untouched — both records survive
+  });
+
+  it('throws on write-failure and does not touch local state', async () => {
+    const { ops, setAllVehicles } = makeOps([], [makeVehicle('old')]);
+    writeWithRefreshMock.mockResolvedValueOnce({ error: { message: 'DB down' } });
+
+    await expect(ops.releaseUnitNumber('old')).rejects.toThrow('Failed to release unit number');
+    expect(setAllVehicles).not.toHaveBeenCalled();
+  });
+
+  it('double-submit in the same frame writes exactly once (shared lock)', async () => {
+    const { ops, setAllVehicles } = makeOps([], [makeVehicle('old')]);
+
+    const p1 = ops.releaseUnitNumber('old');
+    const p2 = ops.releaseUnitNumber('old'); // same key, lock held → dropped
+    await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'vehicles')).toHaveLength(1);
+    expect(setAllVehicles).toHaveBeenCalledTimes(1);
+  });
+});

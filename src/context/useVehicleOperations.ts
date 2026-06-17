@@ -3,6 +3,7 @@ import { uploadPhoto, pushNotification, NOTIFY_MGMT, NOTIFY_MGMT_WIDE } from '..
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
+import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type {
   Vehicle, Hold, Release,
@@ -66,6 +67,10 @@ export function useVehicleOperations({
   // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite
   // to keep this file under the line cap.
   const updateVehicleEVAssets = makeUpdateVehicleEVAssets({ userId, setAllVehicles });
+
+  // Reconcile a unit# conflict at registration: release the number from the
+  // record it was on so it can land on the one being added. See ./identityReconcile.
+  const releaseUnitNumber = makeReleaseUnitNumber({ setAllVehicles });
 
   const addHold = async (
     vehicleId: string,
@@ -321,6 +326,7 @@ export function useVehicleOperations({
   return {
     addVehicle,
     updateVehicleEVAssets,
+    releaseUnitNumber,
     addHold,
     addRelease,
     addPhotosToHold,
