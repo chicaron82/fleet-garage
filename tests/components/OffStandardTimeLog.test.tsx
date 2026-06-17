@@ -120,11 +120,16 @@ describe('OffStandardTimeLog Component', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders quick start buttons initially', async () => {
+  it('shows the top 4 quick-starts with the rest behind a chevron', async () => {
     render(<OffStandardTimeLog user={TEST_USER} />);
-    const button = await screen.findByText('Opening Duties');
-    expect(button).toBeInTheDocument();
+    // No rostered shift in this test → default order; top 4 visible.
+    expect(await screen.findByText('Opening Duties')).toBeInTheDocument();
     expect(screen.getByText('Closing Duties')).toBeInTheDocument();
+    expect(screen.getByText('Fleeting Cars')).toBeInTheDocument();
+    expect(screen.getByText('Lot Organization')).toBeInTheDocument();
+    // The remaining 8 are collapsed until the chevron is tapped.
+    expect(screen.queryByText('Meeting')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/8 more/));
     expect(screen.getByText('Meeting')).toBeInTheDocument();
     expect(screen.getByText('Weather')).toBeInTheDocument();
     expect(screen.getByText('Other')).toBeInTheDocument();

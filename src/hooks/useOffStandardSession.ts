@@ -14,6 +14,8 @@ const MIN_ENTRY_MINUTES = 5;
 export type TimerState = 'idle' | 'running' | 'complete';
 
 export interface QuickTap {
+  /** Stable identity for ordering/persistence — survives label/emoji changes. */
+  id: string;
   label: string;
   reason: OffStandardReason;
   preset: OffStandardPresetReason | null;
@@ -22,20 +24,20 @@ export interface QuickTap {
 }
 
 export const QUICK_TAPS: QuickTap[] = [
-  { label: 'Opening Duties',       reason: 'OTH',   preset: 'opening_duties',   emoji: '🌅' },
-  { label: 'Closing Duties',       reason: 'OTH',   preset: 'closing_duties',   emoji: '🌙' },
-  { label: 'Fleeting Cars',        reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
-  { label: 'Lot Organization',     reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
-  { label: 'EDV',                  reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
-  { label: 'Pickup/Drop',          reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
-  { label: 'Flipping Returns',     reason: 'OTH',   preset: 'airport_flip',     emoji: '🔄' },
-  { label: 'Waiting for Work',     reason: 'WFW',   preset: null,               emoji: '⏳' },
-  { label: 'Meeting',              reason: 'MTG',   preset: null,               emoji: '🗣️' },
-  { label: 'Weather',              reason: 'WTH',   preset: null,               emoji: '🌧️' },
-  { label: 'Training',             reason: 'CLASS', preset: null,               emoji: '📚' },
+  { id: 'opening_duties',   label: 'Opening Duties',   reason: 'OTH',   preset: 'opening_duties',   emoji: '🌅' },
+  { id: 'closing_duties',   label: 'Closing Duties',   reason: 'OTH',   preset: 'closing_duties',   emoji: '🌙' },
+  { id: 'fleeting_cars',    label: 'Fleeting Cars',    reason: 'OTH',   preset: 'fleeting_cars',    emoji: '🚗' },
+  { id: 'lot_organization', label: 'Lot Organization', reason: 'OTH',   preset: 'lot_organization', emoji: '🅿️' },
+  { id: 'edv',              label: 'EDV',              reason: 'OTH',   preset: 'edv',              emoji: '⚡' },
+  { id: 'customer_pickup',  label: 'Pickup/Drop',      reason: 'OTH',   preset: 'customer_pickup',  emoji: '🤝' },
+  { id: 'airport_flip',     label: 'Flipping Returns', reason: 'OTH',   preset: 'airport_flip',     emoji: '🔄' },
+  { id: 'wfw',              label: 'Waiting for Work', reason: 'WFW',   preset: null,               emoji: '⏳' },
+  { id: 'meeting',          label: 'Meeting',          reason: 'MTG',   preset: null,               emoji: '🗣️' },
+  { id: 'weather',          label: 'Weather',          reason: 'WTH',   preset: null,               emoji: '🌧️' },
+  { id: 'training',         label: 'Training',         reason: 'CLASS', preset: null,               emoji: '📚' },
   // Catch-all for one-offs that don't fit a preset — no prefilled context,
   // filled in manually via Notes once running.
-  { label: 'Other',                reason: 'OTH',   preset: null,               emoji: '📝' },
+  { id: 'other',            label: 'Other',            reason: 'OTH',   preset: null,               emoji: '📝' },
 ];
 
 interface UseOffStandardSessionProps {

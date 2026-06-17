@@ -81,6 +81,8 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
 
       {/* Quick Start */}
       <OffStdQuickStart
+        user={user}
+        shifts={shifts}
         timerState={timerState}
         isRecovering={isRecovering}
         handleQuickTap={handleQuickTap}
