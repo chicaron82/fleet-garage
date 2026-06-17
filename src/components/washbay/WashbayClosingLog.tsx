@@ -23,11 +23,17 @@ export function WashbayClosingLog() {
 
   // A fresh closing log picks up from the furthest-along reading today (the
   // handoff) rather than recounting the running gas sheet from zero.
-  const seed = getLatestGasSheetReading();
-  const seedInit = seed ? convertFromBackend(seed.fullPages, seed.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+  // null = user hasn't touched the field yet — reads live from the seed until then,
+  // so async context load after mount doesn't freeze a stale zero.
+  const seed      = getLatestGasSheetReading();
+  const seedPages = seed
+    ? convertFromBackend(seed.fullPages, seed.lastPageEntries)
+    : { totalPages: 0, entriesOnCurrentPage: 0 };
 
-  const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
-  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
+  const [userPages,   setUserPages]   = useState<number | null>(null);
+  const [userEntries, setUserEntries] = useState<number | null>(null);
+  const totalPages           = userPages  ?? seedPages.totalPages;
+  const entriesOnCurrentPage = userEntries ?? seedPages.entriesOnCurrentPage;
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
   const [teamSize,         setTeamSize]         = useState(2);
@@ -37,7 +43,10 @@ export function WashbayClosingLog() {
   const [overtimeOpen,     setOvertimeOpen]     = useState(false);
 
   const todayLog    = getTodayWashbayLog();
-  const showSummary = !!todayLog && !editing;
+  // Only lock into summary when there's an actual finalized closing log (has gas-sheet
+  // data). A backfill/placeholder row (fullPages=0, lastPageEntries=0) is not a close.
+  const isRealClose = !!todayLog && (todayLog.fullPages > 0 || todayLog.lastPageEntries > 0);
+  const showSummary = isRealClose && !editing;
 
   const baseHours = isPeakSeason ? 16 : 15;
 
@@ -45,8 +54,8 @@ export function WashbayClosingLog() {
   const enterEditMode = () => {
     if (todayLog) {
       const { totalPages: tp, entriesOnCurrentPage: ep } = convertFromBackend(todayLog.fullPages, todayLog.lastPageEntries);
-      setTotalPages(tp);
-      setEntriesOnCurrentPage(ep);
+      setUserPages(tp);
+      setUserEntries(ep);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setTeamSize(todayLog.teamSize);
@@ -109,7 +118,7 @@ export function WashbayClosingLog() {
         <GasSheetPageCounter
           totalPages={totalPages}
           entriesOnCurrentPage={entriesOnCurrentPage}
-          onChange={(tp, ep) => { setTotalPages(tp); setEntriesOnCurrentPage(ep); }}
+          onChange={(tp, ep) => { setUserPages(tp); setUserEntries(ep); }}
         />
 
         <div className="grid grid-cols-2 gap-3">

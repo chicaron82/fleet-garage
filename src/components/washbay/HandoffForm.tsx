@@ -27,12 +27,21 @@ export function HandoffForm({ onClose }: Props) {
 
   // Pick up from the furthest-along reading logged today (the check-in) rather
   // than recounting the running gas sheet from zero.
-  const seed = getLatestGasSheetReading();
-  const seedInit = seed ? convertFromBackend(seed.fullPages, seed.lastPageEntries) : { totalPages: 0, entriesOnCurrentPage: 0 };
+  // null = user hasn't touched the field yet — reads live from the seed until then,
+  // so async context load after mount doesn't freeze a stale zero.
+  const seed      = getLatestGasSheetReading();
+  const seedPages = seed
+    ? convertFromBackend(seed.fullPages, seed.lastPageEntries)
+    : { totalPages: 0, entriesOnCurrentPage: 0 };
 
-  const [totalPages,           setTotalPages]           = useState(seedInit.totalPages);
-  const [entriesOnCurrentPage, setEntriesOnCurrentPage] = useState(seedInit.entriesOnCurrentPage);
-  const [baselineCount] = useState(seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0);
+  const [userPages,   setUserPages]   = useState<number | null>(null);
+  const [userEntries, setUserEntries] = useState<number | null>(null);
+  const totalPages           = userPages  ?? seedPages.totalPages;
+  const entriesOnCurrentPage = userEntries ?? seedPages.entriesOnCurrentPage;
+
+  // Baseline tracks the live seed — stable between user edits because new readings
+  // (check-ins, handoffs) only arrive via explicit submits, not while this form is open.
+  const baselineCount = seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0;
   const inheritedBacklog = priorLog?.carsRemaining ?? 0;
 
   const [teamSize,        setTeamSize]        = useState(2);
@@ -66,15 +75,15 @@ export function HandoffForm({ onClose }: Props) {
   const canSubmit     = !submitting && carsIn > 0;
 
   const handleEntryIncrement = () => {
-    if (entriesOnCurrentPage === 19) { setTotalPages(p => p + 1); setEntriesOnCurrentPage(0); hapticMedium(); }
-    else { setEntriesOnCurrentPage(e => e + 1); hapticLight(); }
+    if (entriesOnCurrentPage === 19) { setUserPages(totalPages + 1); setUserEntries(0); hapticMedium(); }
+    else { setUserEntries(entriesOnCurrentPage + 1); hapticLight(); }
   };
   const handleEntryDecrement = () => {
-    if (entriesOnCurrentPage === 0 && totalPages > 0) { setTotalPages(p => p - 1); setEntriesOnCurrentPage(19); hapticMedium(); }
-    else if (entriesOnCurrentPage > 0) { setEntriesOnCurrentPage(e => e - 1); hapticLight(); }
+    if (entriesOnCurrentPage === 0 && totalPages > 0) { setUserPages(totalPages - 1); setUserEntries(19); hapticMedium(); }
+    else if (entriesOnCurrentPage > 0) { setUserEntries(entriesOnCurrentPage - 1); hapticLight(); }
   };
-  const handlePageIncrement = () => { setTotalPages(p => p + 1); setEntriesOnCurrentPage(19); hapticLight(); };
-  const handlePageDecrement = () => { setTotalPages(p => Math.max(0, p - 1)); hapticLight(); };
+  const handlePageIncrement = () => { setUserPages(totalPages + 1); setUserEntries(19); hapticLight(); };
+  const handlePageDecrement = () => { setUserPages(Math.max(0, totalPages - 1)); hapticLight(); };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;

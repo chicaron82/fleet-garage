@@ -97,25 +97,51 @@ describe('latestGasSheetReading', () => {
     expect(latestGasSheetReading([])).toBeNull();
   });
 
-  it('picks the furthest-along reading, not the last in the list', () => {
+  it('handles a single candidate', () => {
+    expect(latestGasSheetReading([{ fullPages: 2, lastPageEntries: 18 }]))
+      .toEqual({ fullPages: 2, lastPageEntries: 18 });
+  });
+
+  // ── Timestamp-aware path (production data) ────────────────────────────────
+
+  it('picks the most recently logged reading when timestamps are present', () => {
+    // Morning preseed carries yesterday's closing total (high count, logged early).
+    // Afternoon check-in is logged later with a lower count — it's authoritative.
     const result = latestGasSheetReading([
-      { fullPages: 3, lastPageEntries: 10 }, // 67 — the check-in
-      { fullPages: 2, lastPageEntries: 18 }, // 56 — an earlier reading
+      { fullPages: 2, lastPageEntries: 5, loggedAt: '2026-06-16T06:00:00.000Z' }, // morning preseed — 43 cars
+      { fullPages: 1, lastPageEntries: 0, loggedAt: '2026-06-16T14:30:00.000Z' }, // afternoon check-in — 19 cars
+    ]);
+    expect(result).toMatchObject({ fullPages: 1, lastPageEntries: 0 });
+  });
+
+  it('most-recent wins even with three candidates of varying counts', () => {
+    const result = latestGasSheetReading([
+      { fullPages: 0, lastPageEntries: 5,  loggedAt: '2026-06-16T06:00:00.000Z' }, // earliest
+      { fullPages: 3, lastPageEntries: 10, loggedAt: '2026-06-16T15:00:00.000Z' }, // highest count but not latest
+      { fullPages: 1, lastPageEntries: 7,  loggedAt: '2026-06-16T17:00:00.000Z' }, // latest ← should win
+    ]);
+    expect(result).toMatchObject({ fullPages: 1, lastPageEntries: 7 });
+  });
+
+  it('falls back to highest count when no candidates have timestamps', () => {
+    const result = latestGasSheetReading([
+      { fullPages: 3, lastPageEntries: 10 }, // 67
+      { fullPages: 2, lastPageEntries: 18 }, // 56
       { fullPages: 1, lastPageEntries: 0 },  // 19
     ]);
     expect(result).toEqual({ fullPages: 3, lastPageEntries: 10 });
   });
 
-  it('ignores lower readings even when they appear last (sheet only grows)', () => {
+  it('fallback ignores lower readings regardless of list order', () => {
     const result = latestGasSheetReading([
       { fullPages: 4, lastPageEntries: 2 },  // 78
-      { fullPages: 2, lastPageEntries: 0 },  // 38 — a stale/corrected entry
+      { fullPages: 2, lastPageEntries: 0 },  // 38
     ]);
     expect(result).toEqual({ fullPages: 4, lastPageEntries: 2 });
   });
 
-  it('handles a single candidate', () => {
-    expect(latestGasSheetReading([{ fullPages: 2, lastPageEntries: 18 }]))
-      .toEqual({ fullPages: 2, lastPageEntries: 18 });
+  it('a single timestamped candidate is returned directly', () => {
+    expect(latestGasSheetReading([{ fullPages: 2, lastPageEntries: 18, loggedAt: '2026-06-16T12:00:00.000Z' }]))
+      .toMatchObject({ fullPages: 2, lastPageEntries: 18 });
   });
 });

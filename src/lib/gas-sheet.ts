@@ -33,23 +33,29 @@ export function carsFromPageCounter(totalPages: number, entriesOnCurrentPage: nu
 export interface GasSheetReading {
   fullPages: number;
   lastPageEntries: number;
+  /** ISO timestamp of when this reading was logged. When present, the most-recently
+   *  logged reading wins — a later check-in is authoritative over an earlier preseed
+   *  even if the preseed has a higher count (e.g. morning crew carrying forward
+   *  yesterday's closing total). */
+  loggedAt?: string;
 }
 
 /**
- * The furthest-along reading wins. The gas sheet is one continuous document
- * that only grows through the day, so the highest cumulative count across the
- * day's checkpoints is "where the sheet stands now" — the right place for the
- * next checkpoint to pick up from instead of recounting from zero.
+ * The most recently logged reading wins when timestamps are available. Without
+ * timestamps (test / legacy data), falls back to the highest count — the gas
+ * sheet is one continuous document that only grows through the day.
  */
 export function latestGasSheetReading(candidates: GasSheetReading[]): GasSheetReading | null {
+  if (candidates.length === 0) return null;
+  const withTs = candidates.filter(c => c.loggedAt);
+  if (withTs.length > 0) {
+    return withTs.reduce((best, c) => (c.loggedAt! > best.loggedAt! ? c : best));
+  }
   let best: GasSheetReading | null = null;
   let bestCount = -1;
   for (const c of candidates) {
     const count = gasSheetCount(c.fullPages, c.lastPageEntries);
-    if (count > bestCount) {
-      bestCount = count;
-      best = { fullPages: c.fullPages, lastPageEntries: c.lastPageEntries };
-    }
+    if (count > bestCount) { bestCount = count; best = c; }
   }
   return best;
 }
