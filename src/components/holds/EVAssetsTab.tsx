@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
+import { EVAssetHistoryPanel } from '../vehicle/EVAssetHistoryPanel';
 import { QuickAddTeslaForm } from './QuickAddTeslaForm';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { isTeslaMake } from '../../lib/ev-detection';
@@ -132,6 +133,8 @@ export function EVAssetsTab() {
             {saving ? 'Saving…' : 'Update Assets'}
           </button>
         )}
+
+        <EVAssetHistoryPanel vehicleId={selected.id} />
       </div>
     );
   }
