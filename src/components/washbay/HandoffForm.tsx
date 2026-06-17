@@ -39,9 +39,16 @@ export function HandoffForm({ onClose }: Props) {
   const totalPages           = userPages  ?? seedPages.totalPages;
   const entriesOnCurrentPage = userEntries ?? seedPages.entriesOnCurrentPage;
 
-  // Baseline tracks the live seed — stable between user edits because new readings
-  // (check-ins, handoffs) only arrive via explicit submits, not while this form is open.
-  const baselineCount = seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0;
+  // Baseline = the check-in count we measure "cleaned since" against. It tracks the
+  // live seed while untouched (so async context load doesn't freeze a stale zero),
+  // then freezes the instant the user starts counting — otherwise a reading that
+  // lands via the realtime checkpoint subscription mid-edit would shift the seed,
+  // and "cleaned since check-in" would jump under them without a keypress.
+  const liveBaseline  = seed ? gasSheetCount(seed.fullPages, seed.lastPageEntries) : 0;
+  const [frozenBaseline, setFrozenBaseline] = useState<number | null>(null);
+  const baselineCount = frozenBaseline ?? liveBaseline;
+  // Anchor the baseline at its first-touch value; no-op once anchored.
+  const anchorBaseline = () => setFrozenBaseline(b => b ?? liveBaseline);
   const inheritedBacklog = priorLog?.carsRemaining ?? 0;
 
   const [teamSize,        setTeamSize]        = useState(2);
@@ -75,15 +82,17 @@ export function HandoffForm({ onClose }: Props) {
   const canSubmit     = !submitting && carsIn > 0;
 
   const handleEntryIncrement = () => {
+    anchorBaseline();
     if (entriesOnCurrentPage === 19) { setUserPages(totalPages + 1); setUserEntries(0); hapticMedium(); }
     else { setUserEntries(entriesOnCurrentPage + 1); hapticLight(); }
   };
   const handleEntryDecrement = () => {
+    anchorBaseline();
     if (entriesOnCurrentPage === 0 && totalPages > 0) { setUserPages(totalPages - 1); setUserEntries(19); hapticMedium(); }
     else if (entriesOnCurrentPage > 0) { setUserEntries(entriesOnCurrentPage - 1); hapticLight(); }
   };
-  const handlePageIncrement = () => { setUserPages(totalPages + 1); setUserEntries(19); hapticLight(); };
-  const handlePageDecrement = () => { setUserPages(Math.max(0, totalPages - 1)); hapticLight(); };
+  const handlePageIncrement = () => { anchorBaseline(); setUserPages(totalPages + 1); setUserEntries(19); hapticLight(); };
+  const handlePageDecrement = () => { anchorBaseline(); setUserPages(Math.max(0, totalPages - 1)); hapticLight(); };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
