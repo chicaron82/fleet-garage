@@ -3,7 +3,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import { convertToBackendFormat, convertFromBackend, carsFromPageCounter } from '../../lib/gas-sheet';
+import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, hasGasSheetData } from '../../lib/gas-sheet';
 import { sentToFleetFromCount } from '../../lib/washbay-throughput';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
@@ -45,7 +45,7 @@ export function WashbayClosingLog() {
   const todayLog    = getTodayWashbayLog();
   // Only lock into summary when there's an actual finalized closing log (has gas-sheet
   // data). A backfill/placeholder row (fullPages=0, lastPageEntries=0) is not a close.
-  const isRealClose = !!todayLog && (todayLog.fullPages > 0 || todayLog.lastPageEntries > 0);
+  const isRealClose = hasGasSheetData(todayLog);
   const showSummary = isRealClose && !editing;
 
   const baseHours = isPeakSeason ? 16 : 15;

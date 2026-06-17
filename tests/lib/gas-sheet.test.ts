@@ -5,6 +5,7 @@ import {
   carsFromPageCounter,
   gasSheetCount,
   latestGasSheetReading,
+  hasGasSheetData,
   ENTRIES_PER_PAGE,
 } from '../../src/lib/gas-sheet';
 
@@ -143,5 +144,27 @@ describe('latestGasSheetReading', () => {
   it('a single timestamped candidate is returned directly', () => {
     expect(latestGasSheetReading([{ fullPages: 2, lastPageEntries: 18, loggedAt: '2026-06-16T12:00:00.000Z' }]))
       .toMatchObject({ fullPages: 2, lastPageEntries: 18 });
+  });
+});
+
+// The gate that decides whether the closing form locks into its read-only summary
+// (isRealClose) or stays editable. A finalized close has gas-sheet data; a
+// handoff/backfill placeholder row (0/0) does not.
+describe('hasGasSheetData', () => {
+  it('a placeholder/backfill row (0/0) is not a close → form stays editable', () => {
+    expect(hasGasSheetData({ fullPages: 0, lastPageEntries: 0 })).toBe(false);
+  });
+
+  it('a finalized close with full pages is a close → summary shown', () => {
+    expect(hasGasSheetData({ fullPages: 3, lastPageEntries: 10 })).toBe(true);
+  });
+
+  it('a thin-but-real close on page 1 only (e.g. 7 cars all day) still counts', () => {
+    expect(hasGasSheetData({ fullPages: 0, lastPageEntries: 7 })).toBe(true);
+  });
+
+  it('a not-yet-loaded today-log (null/undefined) is not a close', () => {
+    expect(hasGasSheetData(null)).toBe(false);
+    expect(hasGasSheetData(undefined)).toBe(false);
   });
 });

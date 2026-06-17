@@ -30,6 +30,18 @@ export function carsFromPageCounter(totalPages: number, entriesOnCurrentPage: nu
   return gasSheetCount(fullPages, lastPageEntries);
 }
 
+/**
+ * A washbay_log row counts as a finalized close only when it carries real
+ * gas-sheet data. A backfill/placeholder row (fullPages=0, lastPageEntries=0 —
+ * e.g. a prior-shift backfill stub) is not a close, so the closing form must
+ * stay editable rather than locking into the read-only summary.
+ */
+export function hasGasSheetData(
+  reading: { fullPages: number; lastPageEntries: number } | null | undefined,
+): boolean {
+  return !!reading && (reading.fullPages > 0 || reading.lastPageEntries > 0);
+}
+
 export interface GasSheetReading {
   fullPages: number;
   lastPageEntries: number;
