@@ -7,9 +7,13 @@ import { REASON_LABELS } from '../../lib/vsa-trip';
 import type { Reason } from '../../lib/vsa-trip';
 import { searchVehicles, detectTeslaByPlate } from '../../lib/ev-detection';
 import type { VehicleSearchResult } from '../../lib/ev-detection';
+import type { EvDispatchWarning } from '../../lib/evDispatch';
 import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 import { PlateInput } from '../shared/VehicleFields';
+
+const MISSING_LABEL: Record<'cable' | 'adapter', string> = { cable: 'charge cable', adapter: 'J1772 adapter' };
+const fmtMissing = (m: ('cable' | 'adapter')[]) => m.map(x => MISSING_LABEL[x]).join(' & ');
 
 export interface TripFormProps {
   isShuttle: boolean;
@@ -27,6 +31,7 @@ export interface TripFormProps {
   evAdapterStatus: EvAssetStatus | null;
   setEvCableStatus: (s: EvAssetStatus | null) => void;
   setEvAdapterStatus: (s: EvAssetStatus | null) => void;
+  evWarning?: EvDispatchWarning | null;
 }
 
 export function TripForm({
@@ -36,6 +41,7 @@ export function TripForm({
   onShuttleToggle, onCodeRedDispatch, onQuickStart,
   isTeslaRun, setIsTeslaRun,
   evCableStatus, evAdapterStatus, setEvCableStatus, setEvAdapterStatus,
+  evWarning,
 }: TripFormProps) {
   const { user } = useAuth();
 
@@ -156,6 +162,21 @@ export function TripForm({
           </div>
         )}
       </div>
+
+      {/* EV dispatch guard — known-missing assets / not-dispatchable hold on this Tesla */}
+      {evWarning && (
+        <div className={`rounded-lg border px-3 py-2.5 ${
+          evWarning.notDispatchable
+            ? 'border-red-300 dark:border-red-700/60 bg-red-50 dark:bg-red-900/20'
+            : 'border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20'
+        }`}>
+          <p className={`text-xs font-semibold ${evWarning.notDispatchable ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
+            {evWarning.notDispatchable
+              ? '🔴 Not cleared for dispatch — this Tesla has an open “missing EV assets” hold.'
+              : `⚠️ Record shows ${fmtMissing(evWarning.missing)} missing — verify before dispatch.`}
+          </p>
+        </div>
+      )}
 
       {/* Quick-start cards — tap and go, fill context on return */}
       <div className="space-y-2">

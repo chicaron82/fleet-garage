@@ -12,6 +12,7 @@ import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH } from '../../lib/
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../../lib/vsa-trip';
 import { pushNotification } from '../../lib/garage-uploads';
 import { detectTeslaByPlate } from '../../lib/ev-detection';
+import { useEvDispatchWarning } from '../../hooks/useEvDispatchWarning';
 import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
@@ -71,6 +72,9 @@ export function TripStartForm({
       flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
     };
   }, []);
+
+  // Dispatch guard — flags a Tesla with known-missing EV kit before the run (see hook).
+  const evWarning = useEvDispatchWarning(vehiclePlate);
 
   useEffect(() => {
     if (tripState !== 'in_transit' || !departureTime) return;
@@ -188,7 +192,6 @@ export function TripStartForm({
     setNotes(tripNotes);
     setDepartureTime(now);
     setElapsed('0m 00s');
-    setStarting(false);
     setTripState('in_transit');
 
     onTripStarted?.({
@@ -333,6 +336,7 @@ export function TripStartForm({
               isTeslaRun={isTeslaRun}         setIsTeslaRun={setIsTeslaRun}
               evCableStatus={evCableStatus}   setEvCableStatus={setEvCableStatus}
               evAdapterStatus={evAdapterStatus} setEvAdapterStatus={setEvAdapterStatus}
+              evWarning={evWarning}
             />
             {startError && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">
