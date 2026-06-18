@@ -8,7 +8,7 @@ import { EvLoanSection } from '../vehicle/EvLoanSection';
 import { QuickAddTeslaForm } from './QuickAddTeslaForm';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { isTeslaMake } from '../../lib/ev-detection';
-import { isAssetLentOut } from '../../lib/evAssetLoans';
+import { isAssetLentOut, lentOutBy } from '../../lib/evAssetLoans';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
 
@@ -29,7 +29,7 @@ function AssetLine({ label, has }: { label: string; has: boolean | null }) {
 
 export function EVAssetsTab() {
   const { user } = useAuth();
-  const { vehicles, updateVehicleEVAssets, addHold, evAssetLoans, createEvAssetLoan } = useVehicleHoldContext();
+  const { vehicles, updateVehicleEVAssets, addHold, evAssetLoans, createEvAssetLoan, returnEvAssetLoan } = useVehicleHoldContext();
   const { getName } = useUserResolver();
 
   const [query, setQuery]           = useState('');
@@ -80,6 +80,13 @@ export function EVAssetsTab() {
     }
     if (adapter === 'missing' && adapterLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'adapter')) {
       await createEvAssetLoan(selected.id, 'adapter', adapterLentUnit, notes.trim() || null);
+    }
+    // Marking a lent asset present here means it came back — close its loan so the
+    // card can't read "✓ Present" and "out → unit X" at the same time.
+    for (const [asset, status] of [['cable', cable], ['adapter', adapter]] as const) {
+      if (status !== 'present') continue;
+      const open = lentOutBy(evAssetLoans, selected.id).find(l => l.assetType === asset);
+      if (open) await returnEvAssetLoan(open);
     }
     if (bothMissing) {
       await addHold(selected.id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
