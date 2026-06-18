@@ -18,4 +18,29 @@ describe('hold presets', () => {
     expect(DAMAGE_PRESETS).toContain('Other');
     expect(DAMAGE_PRESETS.length).toBeGreaterThan(0);
   });
+
+  it('damage presets are the curated list, in order (13 categories + Other)', () => {
+    expect(DAMAGE_PRESETS).toEqual([
+      'Scratch — paint surface',
+      'Scratch — to bare metal',
+      'Dent — minor (no paint break)',
+      'Dent — major / crumple',
+      'Cracked windshield',
+      'Windshield chip',
+      'Broken glass (window / mirror)',
+      'Mirror damage / missing',
+      'Bumper damage — cosmetic',
+      'Bumper damage — structural',
+      'Collision',
+      'Rim / hubcap damage',
+      'Missing part / accessory',
+      'Other',
+    ]);
+  });
+
+  it('retired presets are gone (mechanical / interior / tire / repaired-chip)', () => {
+    for (const gone of ['Mechanical concern', 'Interior stain', 'Interior damage (seat / trim)', 'Tire damage / flat', 'Windshield chip — repaired (scar remaining)']) {
+      expect(DAMAGE_PRESETS).not.toContain(gone);
+    }
+  });
 });

@@ -69,7 +69,7 @@ describe('buildReHoldSubmission', () => {
 
   it('free-text fallbacks for detail / mechanical with no toggle', () => {
     expect(buildReHoldSubmission(draft({ holdType: 'detail' })).description).toBe('Detail required');
-    expect(buildReHoldSubmission(draft({ holdType: 'mechanical' })).description).toBe('Mechanical concern');
+    expect(buildReHoldSubmission(draft({ holdType: 'mechanical' })).description).toBe('Mechanical hold');
     expect(buildReHoldSubmission(draft({ holdType: 'detail', description: 'full detail' })).description).toBe('full detail');
   });
 });

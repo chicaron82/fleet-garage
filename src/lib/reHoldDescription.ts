@@ -63,7 +63,7 @@ export function buildReHoldSubmission(d: ReHoldDraft): { description: string; no
   } else if (d.holdType === 'mechanical' && d.mechanicalSafetyRecall) {
     description = d.description.trim() ? `Safety / recall — ${d.description.trim()}` : 'Safety / recall — no visible defect';
   } else {
-    description = d.description.trim() || (d.holdType === 'detail' ? 'Detail required' : 'Mechanical concern');
+    description = d.description.trim() || (d.holdType === 'detail' ? 'Detail required' : 'Mechanical hold');
   }
 
   return { description, notes: d.notes };

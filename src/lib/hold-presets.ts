@@ -5,16 +5,13 @@ export const DAMAGE_PRESETS = [
   'Dent — major / crumple',
   'Cracked windshield',
   'Windshield chip',
-  'Windshield chip — repaired (scar remaining)',
   'Broken glass (window / mirror)',
+  'Mirror damage / missing',
   'Bumper damage — cosmetic',
   'Bumper damage — structural',
+  'Collision',
   'Rim / hubcap damage',
-  'Interior stain',
-  'Interior damage (seat / trim)',
-  'Mechanical concern',
   'Missing part / accessory',
-  'Tire damage / flat',
   'Other',
 ];
 
