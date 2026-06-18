@@ -4,9 +4,11 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { EVAssetHistoryPanel } from '../vehicle/EVAssetHistoryPanel';
+import { EvLoanSection } from '../vehicle/EvLoanSection';
 import { QuickAddTeslaForm } from './QuickAddTeslaForm';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { isTeslaMake } from '../../lib/ev-detection';
+import { isAssetLentOut } from '../../lib/evAssetLoans';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
 
@@ -27,7 +29,7 @@ function AssetLine({ label, has }: { label: string; has: boolean | null }) {
 
 export function EVAssetsTab() {
   const { user } = useAuth();
-  const { vehicles, updateVehicleEVAssets, addHold } = useVehicleHoldContext();
+  const { vehicles, updateVehicleEVAssets, addHold, evAssetLoans, createEvAssetLoan } = useVehicleHoldContext();
   const { getName } = useUserResolver();
 
   const [query, setQuery]           = useState('');
@@ -35,6 +37,8 @@ export function EVAssetsTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cable, setCable]           = useState<EvAssetStatus | null>(null);
   const [adapter, setAdapter]       = useState<EvAssetStatus | null>(null);
+  const [cableLentUnit, setCableLentUnit]     = useState('');
+  const [adapterLentUnit, setAdapterLentUnit] = useState('');
   const [notes, setNotes]           = useState('');
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving]         = useState(false);
@@ -60,6 +64,8 @@ export function EVAssetsTab() {
     setSelectedId(v.id);
     setCable(toStatus(v.hasMobileCable));
     setAdapter(toStatus(v.hasJ1772Adapter));
+    setCableLentUnit('');
+    setAdapterLentUnit('');
     setNotes('');
     setConfirming(false);
   };
@@ -68,6 +74,13 @@ export function EVAssetsTab() {
     if (!selected || !user) return;
     setSaving(true);
     await updateVehicleEVAssets(selected.id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined);
+    // Marking an asset missing-because-lent records a structured loan, not a note.
+    if (cable === 'missing' && cableLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'cable')) {
+      await createEvAssetLoan(selected.id, 'cable', cableLentUnit, notes.trim() || null);
+    }
+    if (adapter === 'missing' && adapterLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'adapter')) {
+      await createEvAssetLoan(selected.id, 'adapter', adapterLentUnit, notes.trim() || null);
+    }
     if (bothMissing) {
       await addHold(selected.id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
     }
@@ -107,10 +120,33 @@ export function EVAssetsTab() {
           } : null}
         />
 
+        {((cable === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'cable')) ||
+          (adapter === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'adapter'))) && (
+          <div className="space-y-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2.5">
+            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Lent to another unit? (optional)</p>
+            {cable === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'cable') && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 dark:text-gray-300 w-32 shrink-0">🔌 Charge cable →</span>
+                <input value={cableLentUnit} onChange={e => setCableLentUnit(e.target.value.toUpperCase())} placeholder="unit #"
+                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700/60 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition uppercase" />
+              </div>
+            )}
+            {adapter === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'adapter') && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 dark:text-gray-300 w-32 shrink-0">🔗 J1772 adapter →</span>
+                <input value={adapterLentUnit} onChange={e => setAdapterLentUnit(e.target.value.toUpperCase())} placeholder="unit #"
+                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700/60 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition uppercase" />
+              </div>
+            )}
+          </div>
+        )}
+
+        <EvLoanSection vehicle={selected} />
+
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Notes (optional)</label>
           <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="e.g. adapter lent to unit 5424…"
+            placeholder="e.g. found in trunk, scratched casing…"
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
         </div>
 

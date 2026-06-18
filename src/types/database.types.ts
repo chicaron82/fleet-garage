@@ -77,6 +77,53 @@ export type Database = {
         }
         Relationships: []
       }
+      ev_asset_loans: {
+        Row: {
+          asset_type: string
+          borrower_unit: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lender_vehicle_id: string
+          notes: string | null
+          returned_at: string | null
+          returned_by: string | null
+          status: string
+        }
+        Insert: {
+          asset_type: string
+          borrower_unit: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lender_vehicle_id: string
+          notes?: string | null
+          returned_at?: string | null
+          returned_by?: string | null
+          status?: string
+        }
+        Update: {
+          asset_type?: string
+          borrower_unit?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lender_vehicle_id?: string
+          notes?: string | null
+          returned_at?: string | null
+          returned_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ev_asset_loans_lender_vehicle_id_fkey"
+            columns: ["lender_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ev_asset_updates: {
         Row: {
           adapter_status: string | null
@@ -1362,7 +1409,10 @@ export type Database = {
     Functions: {
       get_my_branch_id: { Args: never; Returns: string }
       is_manager: { Args: never; Returns: boolean }
-      mark_notification_read: { Args: { p_notification_id: string; p_user_id: string }; Returns: void }
+      mark_notification_read: {
+        Args: { p_notification_id: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

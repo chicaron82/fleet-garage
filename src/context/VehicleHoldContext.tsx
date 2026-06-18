@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
-import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, VehicleStatus } from '../types';
+import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
 import { useVehicleOperations } from './useVehicleOperations';
 import { isStaleHold } from '../lib/holdFilters';
 import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
+import { makeEvAssetLoanOps, loadOpenLoans } from './evAssetLoanWrite';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -21,6 +22,9 @@ export interface VehicleHoldContextValue {
   getActiveHold: (vehicleId: string) => Hold | undefined;
   getActiveHolds: (vehicleId: string) => Hold[];
   releaseStreak: (vehicleId: string) => number;
+  evAssetLoans: EvAssetLoan[];
+  createEvAssetLoan: (lenderVehicleId: string, assetType: EvLoanAsset, borrowerUnit: string, notes: string | null) => Promise<void>;
+  returnEvAssetLoan: (loan: EvAssetLoan) => Promise<void>;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
@@ -51,6 +55,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   const { user, activeBranch } = useAuth();
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [allHolds, setAllHolds] = useState<Hold[]>([]);
+  const [evAssetLoans, setEvAssetLoans] = useState<EvAssetLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -77,12 +82,14 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     async function load() {
       try {
-        const [{ data: vData }, { data: hData }] = await Promise.all([
+        const [{ data: vData }, { data: hData }, loans] = await Promise.all([
           supabase.from('vehicles').select('*').order('created_at', { ascending: false }),
           supabase.from('holds').select('*, releases(*), repairs(*)').order('flagged_at', { ascending: false }),
+          loadOpenLoans(),
         ]);
         setAllVehicles((vData ?? []).map(mapVehicle));
         setAllHolds((hData ?? []).map(mapHold));
+        setEvAssetLoans(loans);
       } catch (err) {
         console.error('[VehicleHoldContext] Initial load failed:', err);
         setLoadError(true);
@@ -195,11 +202,19 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
     setAllVehicles, setAllHolds,
   });
 
+  // EV asset loans — create + the two-sided return (auto-restores the lender).
+  const loanOps = useMemo(() => makeEvAssetLoanOps({ setAllVehicles, setLoans: setEvAssetLoans }), []);
+  const createEvAssetLoan = (lenderVehicleId: string, assetType: EvLoanAsset, borrowerUnit: string, notes: string | null) =>
+    loanOps.createEvAssetLoan(lenderVehicleId, assetType, borrowerUnit, notes, user?.id ?? '');
+  const returnEvAssetLoan = (loan: EvAssetLoan) =>
+    loanOps.returnEvAssetLoan(loan, allVehicles.find(v => v.id === loan.lenderVehicleId), user?.id ?? '');
+
   return (
     <VehicleHoldContext.Provider value={{
       vehicles, allVehicles, holds, staleHolds, loading, loadError, reload,
       getVehicle, getVehicleByUnit,
       getHoldsForVehicle, getActiveHold, getActiveHolds, releaseStreak,
+      evAssetLoans, createEvAssetLoan, returnEvAssetLoan,
       ...ops,
       archivedVehicles,
       shuttlePlate, setShuttlePlate,

@@ -1,6 +1,7 @@
 import { canManageVehicles } from '../../types';
 import type { Vehicle, UserRole, EvSource } from '../../types';
 import { EVAssetHistoryPanel } from './EVAssetHistoryPanel';
+import { EvLoanSection } from './EvLoanSection';
 
 interface VehicleEVAssetsProps {
   vehicle: Vehicle;
@@ -80,6 +81,9 @@ export function VehicleEVAssets({
           ))}
         </div>
       )}
+
+      {/* Lent-out / borrowed EV assets */}
+      <EvLoanSection vehicle={vehicle} />
 
       {/* Update history */}
       <EVAssetHistoryPanel vehicleId={vehicle.id} />

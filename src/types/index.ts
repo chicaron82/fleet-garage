@@ -111,6 +111,24 @@ export type EvAssetStatus    = 'present' | 'missing';
 // Where an EV-accessory observation came from — tags each ev_asset_updates row
 // so the unified timeline shows which touchpoint last saw the cable/adapter.
 export type EvSource         = 'check_in' | 'driver_trip' | 'vsa_washbay' | 'management';
+
+// A lent EV asset (cable or adapter) as a structured cross-vehicle link, not a
+// free-text note. The borrower is a unit# (text) resolved to a vehicle at read
+// time — so a lend to a not-yet-registered unit records and links later.
+export type EvLoanAsset = 'cable' | 'adapter';
+export interface EvAssetLoan {
+  id: string;
+  lenderVehicleId: string;
+  assetType: EvLoanAsset;
+  borrowerUnit: string;
+  status: 'out' | 'returned';
+  notes: string | null;
+  createdAt: string;
+  createdBy: string | null;
+  returnedAt: string | null;
+  returnedBy: string | null;
+}
+
 export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
 export interface Vehicle {
