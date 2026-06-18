@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
 import { useVehicleOperations } from './useVehicleOperations';
 import { isStaleHold } from '../lib/holdFilters';
+import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -181,18 +182,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   const getActiveHolds = (vehicleId: string) =>
     holds.filter(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');
 
-  const releaseStreak = (vehicleId: string): number => {
-    const completed = holds
-      .filter(h => h.vehicleId === vehicleId && h.status !== 'ACTIVE')
-      .sort((a, b) => new Date(b.flaggedAt).getTime() - new Date(a.flaggedAt).getTime());
-    let count = 0;
-    for (const hold of completed) {
-      if (hold.status === 'REPAIRED') break;
-      if (hold.release?.releaseType === 'PRE_EXISTING') break;
-      if (hold.status === 'RELEASED' || hold.status === 'RETURNED') count++;
-    }
-    return count;
-  };
+  const releaseStreak = (vehicleId: string): number => computeReleaseStreak(holds, vehicleId);
 
   const staleHolds = useMemo(() => holds.filter(h => isStaleHold(h)), [holds]);
 

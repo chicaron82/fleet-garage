@@ -25,10 +25,12 @@ import { ShiftThroughputSection } from '../washbay/ShiftThroughputSection';
 import { EVAssetStatusSection } from './EVAssetStatusSection';
 import { ClassDispatchSection } from './ClassDispatchSection';
 import { ShiftSummarySection } from './ShiftSummarySection';
+import { ChronicIssuesSection } from './ChronicIssuesSection';
+import { chronicVehicles, CHRONIC_THRESHOLD } from '../../lib/chronicIssues';
 
 interface TripRow { trip_type: string; driver_id: string; }
 
-export function AnalyticsView() {
+export function AnalyticsView({ onOpenVehicle }: { onOpenVehicle?: (vehicleId: string) => void } = {}) {
   const { user, activeBranch } = useAuth();
   const { holds, vehicles } = useVehicleHoldContext();
   const { washbayLogs, handoffNotes, getTodayWashbayLog, shiftCheckpoints } = useWashbayContext();
@@ -201,6 +203,12 @@ export function AnalyticsView() {
           <AnalyticsActivityChart
             weekActivity={weekActivity}
             exceptionSummary={exceptionSummary}
+          />
+
+          <ChronicIssuesSection
+            entries={chronicVehicles(vehicles, holds)}
+            threshold={CHRONIC_THRESHOLD}
+            onOpenVehicle={onOpenVehicle}
           />
         </>
       )}

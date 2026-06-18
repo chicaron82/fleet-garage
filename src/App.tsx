@@ -160,7 +160,7 @@ export default function App() {
       case 'audit-form':
         return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
       case 'analytics':
-        return <AnalyticsView />;
+        return <AnalyticsView onOpenVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })} />;
       case 'issue-log':
         return <IssueLogView />;
       case 'manifest':
