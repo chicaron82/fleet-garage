@@ -10,6 +10,7 @@ import { ReleaseForm } from '../holds/ReleaseForm';
 import { VerbalOverrideForm } from '../holds/VerbalOverrideForm';
 import { PhotoLightbox } from '../shared/PhotoLightbox';
 import { VehicleEVAssets } from './VehicleEVAssets';
+import { VehicleLostFoundSection } from './VehicleLostFoundSection';
 import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
 import { RepairResolution } from '../holds/RepairResolution';
@@ -230,6 +231,8 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
           userRole={h.user.role}
           updateVehicleEVAssets={updateVehicleEVAssets}
         />
+
+        <VehicleLostFoundSection vehicle={vehicle} />
 
         {showArchiveConfirm && (
           <VehicleArchiveModal
