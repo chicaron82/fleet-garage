@@ -113,6 +113,15 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
   });
 
+  it('splits unlogged scheduled days: past → confirmed, today/future → projected', () => {
+    // now = 2026-06-06; 06-05 already happened, 06-06 (today) + 06-10 are not yet confirmed.
+    const shifts = [makeShift({ date: '2026-06-05' }), makeShift({ date: '2026-06-06' }), makeShift({ date: '2026-06-10' })];
+    const est = calcPayEstimate(shifts, today, 0, today);
+    expect(est.daysConfirmed).toBe(1);
+    expect(est.daysProjected).toBe(2);
+    expect(est.daysLogged).toBe(0);
+  });
+
   it('uses actual hours when logged — regular shift', () => {
     // 10:30–20:00 = 9.5h gross, net = 9h, 8h regular + 1h OT
     const shift = makeShift({ date: '2026-06-06', actualStartTime: '10:30', actualEndTime: '20:00' });

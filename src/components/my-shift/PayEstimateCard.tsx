@@ -37,7 +37,11 @@ const CONFIDENCE_TAG: Record<PeriodConfidence, { text: string; className: string
 };
 
 function PeriodBlock({ est, label, confidence, payday }: PeriodBlockProps) {
-  const totalDays = est.daysLogged + est.daysProjected;
+  const dayParts = [
+    est.daysLogged    > 0 && `${est.daysLogged} logged`,
+    est.daysConfirmed > 0 && `${est.daysConfirmed} confirmed`,
+    est.daysProjected > 0 && `${est.daysProjected} projected`,
+  ].filter(Boolean) as string[];
   const tag = CONFIDENCE_TAG[confidence];
   return (
     <div className="space-y-3">
@@ -51,12 +55,8 @@ function PeriodBlock({ est, label, confidence, payday }: PeriodBlockProps) {
         </span>
       </div>
 
-      {totalDays > 0 && (
-        <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          {est.daysLogged > 0 && `${est.daysLogged} logged`}
-          {est.daysLogged > 0 && est.daysProjected > 0 && ' · '}
-          {est.daysProjected > 0 && `${est.daysProjected} projected`}
-        </p>
+      {dayParts.length > 0 && (
+        <p className="text-[10px] text-gray-400 dark:text-gray-500">{dayParts.join(' · ')}</p>
       )}
 
       <div className="space-y-1.5">
@@ -116,12 +116,16 @@ function PeriodBlock({ est, label, confidence, payday }: PeriodBlockProps) {
 
       {confidence === 'schedule-floor' && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          Schedule floor — no OT projected.
+          Schedule floor — projected from scheduled hours.
         </p>
       )}
-      {confidence !== 'schedule-floor' && est.daysProjected > 0 && (
+      {confidence !== 'schedule-floor' && (est.daysConfirmed > 0 || est.daysProjected > 0) && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          {est.daysProjected} day{est.daysProjected !== 1 ? 's' : ''} not yet logged — using scheduled hours. OT not projected.
+          {est.daysConfirmed > 0 && est.daysProjected > 0
+            ? 'Confirmed (past) & projected (upcoming) days use scheduled hours.'
+            : est.daysProjected > 0
+              ? 'Projected days use scheduled hours.'
+              : 'Confirmed days use scheduled hours.'}
         </p>
       )}
     </div>
@@ -163,10 +167,10 @@ export function PayEstimateCard() {
   }, [user, prevPeriod.start, nextPeriod.end]);
 
   const [prevEst, currEst, nextEst] = useMemo(() => [
-    calcPayEstimate(shifts, prevPeriod.start, sickDaysUsed),
-    calcPayEstimate(shifts, currPeriod.start, sickDaysUsed),
-    calcPayEstimate(shifts, nextPeriod.start, sickDaysUsed),
-  ], [shifts, prevPeriod.start, currPeriod.start, nextPeriod.start, sickDaysUsed]);
+    calcPayEstimate(shifts, prevPeriod.start, sickDaysUsed, today),
+    calcPayEstimate(shifts, currPeriod.start, sickDaysUsed, today),
+    calcPayEstimate(shifts, nextPeriod.start, sickDaysUsed, today),
+  ], [shifts, prevPeriod.start, currPeriod.start, nextPeriod.start, sickDaysUsed, today]);
 
   if (user?.employeeId !== PAY_CONFIG.employeeId) return null;
 

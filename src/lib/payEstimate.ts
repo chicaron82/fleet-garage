@@ -102,12 +102,17 @@ export interface PayEstimate {
   tax:             number;
   net:             number;
   daysLogged:      number;
+  daysConfirmed:   number;
   daysProjected:   number;
   ptoDays:         number;
 }
 
 // myShifts should already be filtered to the current user.
-export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed = 0): PayEstimate {
+// `now` (the real current date) splits unlogged scheduled days: a day strictly
+// before `now` already happened → "confirmed" (scheduled = worked); today or
+// later → "projected". Defaults to `today` (the period anchor) for callers that
+// only care about totals; the card passes the real today so the split is honest.
+export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed = 0, now = today): PayEstimate {
   const { start, end } = getPayPeriod(today);
 
   const periodShifts = myShifts.filter(s => s.date >= start && s.date <= end);
@@ -117,8 +122,10 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   let holidayHours  = 0;
   let holPremGross  = 0;
   let daysLogged    = 0;
+  let daysConfirmed = 0;
   let daysProjected = 0;
   let ptoDays       = 0;
+  const bumpUnlogged = (date: string) => { if (date < now) daysConfirmed++; else daysProjected++; };
 
   for (const shift of periodShifts) {
     const hasActual = !!(shift.actualStartTime && shift.actualEndTime);
@@ -138,11 +145,11 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       }
     } else if (shift.shiftType === 'pto' || shift.shiftType === 'sick') {
       if (shift.shiftType === 'pto') ptoDays++;
-      daysProjected++;
+      bumpUnlogged(shift.date);
       regularHours += 8;
     } else if (!isFullDayShift(shift.shiftType) && !shift.isStat) {
-      // Unlogged working day — project from scheduled hours (no OT assumed)
-      daysProjected++;
+      // Unlogged working day — scheduled hours (no OT assumed); confirmed if past
+      bumpUnlogged(shift.date);
       const scheduled = calcHours(shift.startTime, shift.endTime);
       const net       = netActualHours(scheduled);
       regularHours   += Math.min(net, 8);
@@ -171,5 +178,5 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   const tax   = gross * PAY_CONFIG.taxRate;
   const net   = gross - cpp - ei - tax;
 
-  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, sickPayoutGross, sickDaysUnused, gross, cpp, ei, tax, net, daysLogged, daysProjected, ptoDays };
+  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, sickPayoutGross, sickDaysUnused, gross, cpp, ei, tax, net, daysLogged, daysConfirmed, daysProjected, ptoDays };
 }
