@@ -22,6 +22,7 @@ interface SidebarNotificationPopoverProps {
   unreadCount: number;
   notifications: MockNotification[];
   liveNotifs: LiveNotification[];
+  offShiftNotifIds: Set<string>;
   notifMode: 'demo' | 'live';
   setNotifMode: (mode: 'demo' | 'live') => void;
   desktopInboxOpen: boolean;
@@ -36,6 +37,7 @@ export function SidebarNotificationPopover({
   unreadCount,
   notifications,
   liveNotifs,
+  offShiftNotifIds,
   notifMode,
   setNotifMode,
   desktopInboxOpen,
@@ -46,7 +48,8 @@ export function SidebarNotificationPopover({
 }: SidebarNotificationPopoverProps) {
   const isDemo = notifMode === 'demo';
   const canDemo = useCanDemo();
-  const liveUnread = liveNotifs.filter(n => !n.read_by.includes(user.id)).length;
+  // Off-shift alerts stay in the feed but don't count toward the urgent badge.
+  const liveUnread = liveNotifs.filter(n => !n.read_by.includes(user.id) && !offShiftNotifIds.has(n.id)).length;
   const activeUnread = isDemo ? unreadCount : liveUnread;
 
   const formatTime = (iso: string) =>
@@ -170,13 +173,15 @@ export function SidebarNotificationPopover({
               </div>
             ) : (
               liveNotifs.map((n, i) => {
-                const isUnread = !n.read_by.includes(user.id);
+                const isOff = offShiftNotifIds.has(n.id);
+                // Off-shift alerts stay readable but lose the urgent treatment.
+                const urgentUnread = !n.read_by.includes(user.id) && !isOff;
                 return (
                   <div
                     key={n.id}
                     className={`flex items-start gap-3 px-4 py-3 ${
-                      isUnread ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''
-                    } ${i < liveNotifs.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
+                      urgentUnread ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''
+                    } ${isOff ? 'opacity-60' : ''} ${i < liveNotifs.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
                   >
                     <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">
                       {n.icon}
@@ -184,16 +189,17 @@ export function SidebarNotificationPopover({
                     <div className="flex-1 min-w-0">
                       <p
                         className={`text-xs leading-relaxed ${
-                          isUnread ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'
+                          urgentUnread ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'
                         }`}
                       >
                         {n.text}
                       </p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                         {formatTime(n.created_at)}
+                        {isOff && <span className="ml-1.5 text-gray-400 dark:text-gray-500">· off-shift</span>}
                       </p>
                     </div>
-                    {isUnread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
+                    {urgentUnread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
                   </div>
                 );
               })

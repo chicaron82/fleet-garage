@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -14,6 +14,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { mapHandoffNote } from '../../lib/garage-mappers';
+import { offShiftNotifications, workingShiftDates } from '../../lib/notificationShift';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Module, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
@@ -39,6 +40,7 @@ export function useSidebar() {
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
   const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('live');
   const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
+  const [userShifts, setUserShifts]             = useState<{ userId: string; date: string; shiftType: ShiftType }[]>([]);
   const [editMode, setEditMode]                 = useState(false);
   const [localOrder, setLocalOrder]             = useState<Module[]>([]);
   const [hidden, setHidden]                     = useState<Module[]>([]);
@@ -98,6 +100,26 @@ export function useSidebar() {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [notifMode, user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── User's recent roster — to de-prioritize alerts that fired on a day off ───
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('shifts')
+      .select('user_id,date,shift_type')
+      .eq('user_id', user.id)
+      .gte('date', localDateStr(-21))
+      .then(({ data }) => setUserShifts(
+        (data ?? []).map(r => ({ userId: r.user_id as string, date: r.date as string, shiftType: r.shift_type as ShiftType })),
+      ));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notifications that fired while off-shift — dimmed + dropped from the urgent
+  // badge (read-time, soft). Oversight roles + no-roster fail open (empty set).
+  const offShiftNotifIds = useMemo(
+    () => offShiftNotifications(liveNotifs, workingShiftDates(userShifts, user?.id ?? ''), user?.role ?? 'Driver'),
+    [liveNotifs, userShifts, user?.id, user?.role],
+  );
 
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
   useEffect(() => {
@@ -269,7 +291,7 @@ export function useSidebar() {
     todayFleetEntry, fleetProjection, MODULE_BADGES,
     desktopInboxOpen, setDesktopInboxOpen,
     notifMode, setNotifMode,
-    liveNotifs,
+    liveNotifs, offShiftNotifIds,
     editMode, setEditMode,
     localOrder, hidden,
     popoverRef,

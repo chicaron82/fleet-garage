@@ -276,6 +276,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           unreadCount={unreadCount}
           notifications={notifications}
           liveNotifs={s.liveNotifs}
+          offShiftNotifIds={s.offShiftNotifIds}
           notifMode={s.notifMode}
           setNotifMode={s.setNotifMode}
           desktopInboxOpen={s.desktopInboxOpen}
