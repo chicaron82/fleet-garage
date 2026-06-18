@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useWashbayContext } from '../../context/WashbayContext';
+import { useSchedule } from '../../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
 import { shiftDateStr } from '../../lib/shiftDay';
+import { rosteredVsaCount } from '../../lib/rosterCount';
 import { findPriorShiftLog } from '../../lib/washbayLineage';
 import type { LotStatus } from '../../types';
 
@@ -21,6 +23,7 @@ const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-ce
 
 export function HandoffForm({ onClose }: Props) {
   const { submitHandoff, submitWashbayLog, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
+  const { shifts } = useSchedule();
 
   // The prior shift-day's close (cutover-aware), or undefined if nobody logged it.
   const priorLog = findPriorShiftLog(washbayLogs);
@@ -51,7 +54,11 @@ export function HandoffForm({ onClose }: Props) {
   const anchorBaseline = () => setFrozenBaseline(b => b ?? liveBaseline);
   const inheritedBacklog = priorLog?.carsRemaining ?? 0;
 
-  const [teamSize,        setTeamSize]        = useState(2);
+  // Default from the rostered opening crew; reads live until the user adjusts it
+  // (async roster load can't freeze a stale default), and flags a roster mismatch.
+  const rosteredTeam = rosteredVsaCount(shifts, shiftDateStr(0), ['opening']);
+  const [userTeamSize, setUserTeamSize] = useState<number | null>(null);
+  const teamSize = userTeamSize ?? (rosteredTeam || 2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,    setAdjustMorning]   = useState(false);
@@ -202,12 +209,19 @@ export function HandoffForm({ onClose }: Props) {
 
           {/* Team size */}
           <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
+            <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+              Team size
+              {rosteredTeam > 0 && (
+                <span className={`ml-2 font-normal ${teamSize !== rosteredTeam ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                  · roster shows {rosteredTeam}{teamSize !== rosteredTeam ? ` (logging ${teamSize})` : ''}
+                </span>
+              )}
+            </label>
             <div className="flex items-center gap-4">
-              <button type="button" onClick={() => setTeamSize(v => Math.max(1, v - 1))}
+              <button type="button" onClick={() => setUserTeamSize(Math.max(1, teamSize - 1))}
                 className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">−</button>
               <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-8 text-center tabular-nums">{teamSize}</span>
-              <button type="button" onClick={() => setTeamSize(v => v + 1)}
+              <button type="button" onClick={() => setUserTeamSize(teamSize + 1)}
                 className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center">+</button>
             </div>
           </div>

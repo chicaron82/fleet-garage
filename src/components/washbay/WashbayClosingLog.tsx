@@ -7,7 +7,8 @@ import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, hasGas
 import { sentToFleetFromCount } from '../../lib/washbay-throughput';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
-import { businessDateOf } from '../../lib/shiftDay';
+import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
+import { rosteredVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
 import { lotStatusFromQueue } from '../../lib/closingQueue';
@@ -19,7 +20,7 @@ export function WashbayClosingLog() {
   const { holds } = useVehicleHoldContext();
   const { submitWashbayLog, getTodayWashbayLog, getLatestGasSheetReading } = useWashbayContext();
   const { user } = useAuth();
-  const { isPeakSeason } = useSchedule();
+  const { isPeakSeason, shifts } = useSchedule();
 
   // A fresh closing log picks up from the furthest-along reading today (the
   // handoff) rather than recounting the running gas sheet from zero.
@@ -36,7 +37,12 @@ export function WashbayClosingLog() {
   const entriesOnCurrentPage = userEntries ?? seedPages.entriesOnCurrentPage;
   const [carsRemaining,    setCarsRemaining]    = useState('');
   const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
-  const [teamSize,         setTeamSize]         = useState(2);
+  // Default team size from the rostered closing crew (read live until the user
+  // touches it, so an async roster load can't freeze a stale default). The floor
+  // truth still wins — it stays editable and the roster mismatch is flagged.
+  const rosteredTeam = rosteredVsaCount(shifts, shiftDateStr(0), ['closing']);
+  const [userTeamSize, setUserTeamSize] = useState<number | null>(null);
+  const teamSize = userTeamSize ?? (rosteredTeam || 2);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
@@ -58,7 +64,7 @@ export function WashbayClosingLog() {
       setUserEntries(ep);
       setCarsRemaining(String(todayLog.carsRemaining));
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
-      setTeamSize(todayLog.teamSize);
+      setUserTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
     }
     setEditing(true);
@@ -141,11 +147,18 @@ export function WashbayClosingLog() {
         </div>
 
         <div>
-          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">Team size</label>
+          <label className="text-xs text-gray-400 dark:text-gray-500 mb-2 block">
+            Team size
+            {rosteredTeam > 0 && (
+              <span className={`ml-2 font-normal ${teamSize !== rosteredTeam ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                · roster shows {rosteredTeam}{teamSize !== rosteredTeam ? ` (logging ${teamSize})` : ''}
+              </span>
+            )}
+          </label>
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setTeamSize(t => Math.max(1, t - 1))}
+              onClick={() => setUserTeamSize(Math.max(1, teamSize - 1))}
               className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
             >
               −
@@ -155,7 +168,7 @@ export function WashbayClosingLog() {
             </span>
             <button
               type="button"
-              onClick={() => setTeamSize(t => t + 1)}
+              onClick={() => setUserTeamSize(teamSize + 1)}
               className="w-11 h-11 rounded-lg border border-gray-300 dark:border-gray-700 text-xl font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center"
             >
               +
