@@ -14,7 +14,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { mapHandoffNote } from '../../lib/garage-mappers';
-import { offShiftNotifications, workingShiftDates } from '../../lib/notificationShift';
+import { offShiftNotifications } from '../../lib/notificationShift';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Module, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
@@ -114,11 +114,12 @@ export function useSidebar() {
       ));
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Notifications that fired while off-shift — dimmed + dropped from the urgent
-  // badge (read-time, soft). Oversight roles + no-roster fail open (empty set).
+  // Notifications that fired outside the user's shift window (off-day OR off-hours
+  // on a worked day) — dimmed + dropped from the urgent badge (read-time, soft).
+  // Oversight roles + no-roster fail open (empty set).
   const offShiftNotifIds = useMemo(
-    () => offShiftNotifications(liveNotifs, workingShiftDates(userShifts, user?.id ?? ''), user?.role ?? 'Driver', user?.id ?? ''),
-    [liveNotifs, userShifts, user?.id, user?.role],
+    () => offShiftNotifications(liveNotifs, userShifts, user?.id ?? '', user?.role ?? 'Driver', isPeakSeason),
+    [liveNotifs, userShifts, user?.id, user?.role, isPeakSeason],
   );
 
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
