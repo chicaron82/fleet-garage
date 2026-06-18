@@ -33,20 +33,27 @@ describe('offShiftNotifications', () => {
   const offDay   = { id: 'off', created_at: '2026-06-18T18:00:00' };  // day off
 
   it('flags a notification fired on a non-working day', () => {
-    expect(offShiftNotifications([onShift, offDay], working, 'VSA')).toEqual(new Set(['off']));
+    expect(offShiftNotifications([onShift, offDay], working, 'VSA', 'u1')).toEqual(new Set(['off']));
   });
 
   it('a 2am post-close alert attributes back to the working business day (on-shift)', () => {
     // 02:00 → before the 4am cutover → business date is the prior day (06-16, worked).
     const lateNight = { id: 'late', created_at: '2026-06-17T02:00:00' };
-    expect(offShiftNotifications([lateNight], working, 'VSA').has('late')).toBe(false);
+    expect(offShiftNotifications([lateNight], working, 'VSA', 'u1').has('late')).toBe(false);
+  });
+
+  it('a notification addressed directly to you is never dimmed, even on a day off', () => {
+    const directOnDayOff = { id: 'dm', created_at: '2026-06-18T18:00:00', recipient_user_id: 'u1' };
+    expect(offShiftNotifications([directOnDayOff], working, 'VSA', 'u1').has('dm')).toBe(false);
+    // …but a direct ping to someone *else* on your day off still dims for you.
+    expect(offShiftNotifications([{ ...directOnDayOff, recipient_user_id: 'other' }], working, 'VSA', 'u1').has('dm')).toBe(true);
   });
 
   it('oversight roles get an empty set (see everything)', () => {
-    expect(offShiftNotifications([offDay], working, 'Branch Manager')).toEqual(new Set());
+    expect(offShiftNotifications([offDay], working, 'Branch Manager', 'u1')).toEqual(new Set());
   });
 
   it('fail-open: no roster loaded (empty set) → nothing off-shift', () => {
-    expect(offShiftNotifications([offDay], new Set(), 'VSA')).toEqual(new Set());
+    expect(offShiftNotifications([offDay], new Set(), 'VSA', 'u1')).toEqual(new Set());
   });
 });

@@ -35,13 +35,17 @@ export function workingShiftDates(
  * open: with no roster loaded for the user (size 0), nothing is off-shift.
  */
 export function offShiftNotifications(
-  notifs: { id: string; created_at: string }[],
+  notifs: { id: string; created_at: string; recipient_user_id?: string | null }[],
   workingDates: Set<string>,
   role: UserRole,
+  userId: string,
 ): Set<string> {
   if (isOversightRole(role) || workingDates.size === 0) return new Set();
   const off = new Set<string>();
   for (const n of notifs) {
+    // A notification addressed directly to you (not a role broadcast) is
+    // intentional — never dim it, even on a day off.
+    if (n.recipient_user_id === userId) continue;
     if (!workingDates.has(businessDateOf(n.created_at))) off.add(n.id);
   }
   return off;

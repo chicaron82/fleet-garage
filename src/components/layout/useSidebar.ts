@@ -117,7 +117,7 @@ export function useSidebar() {
   // Notifications that fired while off-shift — dimmed + dropped from the urgent
   // badge (read-time, soft). Oversight roles + no-roster fail open (empty set).
   const offShiftNotifIds = useMemo(
-    () => offShiftNotifications(liveNotifs, workingShiftDates(userShifts, user?.id ?? ''), user?.role ?? 'Driver'),
+    () => offShiftNotifications(liveNotifs, workingShiftDates(userShifts, user?.id ?? ''), user?.role ?? 'Driver', user?.id ?? ''),
     [liveNotifs, userShifts, user?.id, user?.role],
   );
 
