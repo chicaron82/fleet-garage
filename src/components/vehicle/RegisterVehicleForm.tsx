@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { hapticMedium } from '../../lib/haptics';
@@ -70,6 +70,10 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const [color, setColor] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  // Set when the conflict reconciliation's release half failed — the new vehicle
+  // is registered, but the OLD record still carries the unit#. Non-blocking warning.
+  const [releaseWarning, setReleaseWarning] = useState<{ old: string; vehicleId: string } | null>(null);
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Recognize the plate as it's typed: a fleet match means it's already registered
   // (duplicate guard); a registry match means it was remembered earlier and
   // registering now promotes it to a real fleet vehicle. The onResolved callback
@@ -123,13 +127,22 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
       // number, so release it from the record it was stapled to in error. The
       // registration already succeeded — a failed release leaves a recoverable
       // duplicate, not a lost unit#, so it must not block the success path.
+      let releaseFailed = false;
       if (armed && unitConflict) {
-        try { await releaseUnitNumber(unitConflict.id); } catch { /* recoverable duplicate; surfaced on next conflict check */ }
+        // The release leaves a recoverable duplicate if it throws (caught on the
+        // next conflict check) — but "recoverable" only helps if the VSA knows to
+        // look, so surface it rather than swallowing it silently.
+        try { await releaseUnitNumber(unitConflict.id); } catch { releaseFailed = true; }
       }
       // Promotion bookkeeping: point any remembered registry sighting for this
       // plate at the now-canonical vehicle (best-effort).
       void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
-      if (returnTo === 'fleet') {
+      if (releaseFailed && unitConflict) {
+        // Registration succeeded; only the old record's cleanup failed. Warn and
+        // auto-proceed — non-blocking (the new vehicle is already correct).
+        setReleaseWarning({ old: unitConflict.licensePlate, vehicleId: id });
+        navTimer.current = setTimeout(() => onSuccess(id), 5000);
+      } else if (returnTo === 'fleet') {
         setSuccessToast(`✅ Vehicle ${unit.trim()} registered`);
         setTimeout(() => onSuccess(id), 2500);
       } else {
@@ -307,6 +320,25 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
           <div className="px-5 py-3 rounded-2xl bg-green-800/90 text-white text-sm font-semibold shadow-xl backdrop-blur-sm">
             {successToast}
           </div>
+        </div>
+      )}
+
+      {releaseWarning && (
+        <div className="fixed bottom-6 inset-x-4 z-50 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (navTimer.current) clearTimeout(navTimer.current);
+              const { vehicleId } = releaseWarning;
+              setReleaseWarning(null);
+              onSuccess(vehicleId);
+            }}
+            className="max-w-md px-5 py-3 rounded-2xl bg-amber-600/95 text-white text-sm font-medium text-left shadow-xl backdrop-blur-sm transition hover:bg-amber-600 cursor-pointer"
+          >
+            ⚠️ Registered — but unit #{unit.trim()} couldn&apos;t be cleared from old record{' '}
+            <span className="font-semibold">{releaseWarning.old}</span>. Check it and remove the unit# if
+            needed. <span className="underline whitespace-nowrap">Got it →</span>
+          </button>
         </div>
       )}
     </div>
