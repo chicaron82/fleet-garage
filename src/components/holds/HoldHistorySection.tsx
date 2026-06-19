@@ -175,29 +175,35 @@ export function HoldHistorySection({
         )}
 
         <div className="space-y-3">
-          {holds.map(hold => (
+          {holds.map(hold => {
+            // Only the still-OPEN types drive the badge + pills — a resolved
+            // type stays in holdTypes (the historical record) but shouldn't read
+            // as active. Mirrors IssueResolutionSection's `unresolved`.
+            const unresolvedTypes = hold.holdTypes.filter(t => !hold.resolvedTypes.includes(t));
+            const mechanicalOpen = unresolvedTypes.includes('mechanical');
+            return (
             <div key={hold.id} className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
               {/* Hold Header */}
               <div className="p-4 border-b border-gray-100">
                 <div className="flex items-start justify-between gap-3 mb-1">
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
-                    {(hold.holdTypes.length > 1 || hold.holdTypes[0] !== 'damage') && hold.holdTypes.map(type => (
+                    {(unresolvedTypes.length > 1 || unresolvedTypes[0] !== 'damage') && unresolvedTypes.map(type => (
                       <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>
                         {type.charAt(0).toUpperCase() + type.slice(1)}
                       </span>
                     ))}
-                    {hold.mechanicalSubType === 'tire-swap' && (
+                    {mechanicalOpen && hold.mechanicalSubType === 'tire-swap' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                         {getTireSwapSeason()} Tire Swap
                       </span>
                     )}
-                    {hold.mechanicalSubType === 'tire-repair' && (
+                    {mechanicalOpen && hold.mechanicalSubType === 'tire-repair' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                         🛞 Tire Repair
                       </span>
                     )}
-                    {hold.mechanicalSubType === 'pm-due' && (
+                    {mechanicalOpen && hold.mechanicalSubType === 'pm-due' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                         ⚙️ PM Due
                       </span>
@@ -208,7 +214,7 @@ export function HoldHistorySection({
                       </span>
                     )}
                   </div>
-                  <StatusBadge status={hold.status} holdTypes={hold.holdTypes} mechanicalSubType={hold.mechanicalSubType} />
+                  <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} />
                 </div>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -295,7 +301,8 @@ export function HoldHistorySection({
                 fmtDate={fmtDate}
               />
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
