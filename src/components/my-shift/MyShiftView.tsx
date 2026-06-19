@@ -13,6 +13,7 @@ import { ShiftSummarySection } from '../analytics/ShiftSummarySection';
 import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
+import { FuelPumpReadings } from './FuelPumpReadings';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
@@ -227,6 +228,7 @@ export function MyShiftView() {
           <StepSection title="Closing Log" open={closingLogOpen} onToggle={() => setClosingLogOpen(o => !o)}>
             <WashbayClosingLog />
           </StepSection>
+          <FuelPumpReadings user={user!} />
           <ClosingChecklist defaultOpen={isScheduledToday} />
         </>
       )}

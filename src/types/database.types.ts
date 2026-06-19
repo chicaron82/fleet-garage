@@ -240,6 +240,51 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_pump_readings: {
+        Row: {
+          branch_id: string
+          created_at: string
+          date: string
+          digital_close: number | null
+          digital_open: number | null
+          id: string
+          logged_by_id: string | null
+          logged_by_name: string | null
+          pump1_close: number | null
+          pump1_open: number | null
+          pump2_reading: number | null
+          topup_note: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          date: string
+          digital_close?: number | null
+          digital_open?: number | null
+          id?: string
+          logged_by_id?: string | null
+          logged_by_name?: string | null
+          pump1_close?: number | null
+          pump1_open?: number | null
+          pump2_reading?: number | null
+          topup_note?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          date?: string
+          digital_close?: number | null
+          digital_open?: number | null
+          id?: string
+          logged_by_id?: string | null
+          logged_by_name?: string | null
+          pump1_close?: number | null
+          pump1_open?: number | null
+          pump2_reading?: number | null
+          topup_note?: string | null
+        }
+        Relationships: []
+      }
       handoff_notes: {
         Row: {
           branch_id: string
