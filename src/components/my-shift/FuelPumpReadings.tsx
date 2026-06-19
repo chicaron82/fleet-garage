@@ -62,26 +62,34 @@ export function FuelPumpReadings({ user }: { user: User }) {
         <div>
           <div className="flex items-baseline justify-between">
             <label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Pump 2 — Analog</label>
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">last recorded: {f.lastPump2}</span>
+            <span className="text-[11px] text-gray-400 dark:text-gray-500">locked at: {f.expectedPump2}</span>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Side unused since policy change — should read {f.lastPump2} every shift</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Side locked out of service — its meter should read {f.expectedPump2} every shift</p>
           <input
             type="number"
             inputMode="numeric"
             step="1"
-            placeholder={`${f.lastPump2}`}
+            placeholder={`${f.expectedPump2}`}
             value={f.pump2Reading}
             onChange={e => { f.setPump2Reading(e.target.value); f.clearSaved(); }}
             className={`w-full mt-2 px-3 py-2.5 rounded-lg border text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition ${
-              f.pump2Warn
+              f.pump2 === 'used'
                 ? 'border-red-300 dark:border-red-700 focus:ring-red-400 focus:border-red-400 bg-red-50 dark:bg-red-900/20'
-                : 'border-gray-300 dark:border-gray-700 focus:ring-fg-yellow focus:border-fg-yellow'
+                : f.pump2 === 'fault'
+                  ? 'border-amber-300 dark:border-amber-700 focus:ring-amber-400 focus:border-amber-400 bg-amber-50 dark:bg-amber-900/20'
+                  : 'border-gray-300 dark:border-gray-700 focus:ring-fg-yellow focus:border-fg-yellow'
             }`}
           />
-          {f.pump2Warn && (
+          {f.pump2 === 'used' && (
             <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
-              <p className="text-sm font-medium text-red-700 dark:text-red-400">⚠️ Pump 2 changed from {f.lastPump2} to {f.pump2Reading}</p>
-              <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">This side shouldn't be in use. Confirm the reading is accurate, or flag for follow-up.</p>
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">⚠️ Pump 2 reads {f.pump2Reading} — UP from {f.expectedPump2}</p>
+              <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">The meter only climbs when fuel is pumped — the locked side was used. Flag for follow-up.</p>
+            </div>
+          )}
+          {f.pump2 === 'fault' && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">⚠️ Pump 2 reads {f.pump2Reading} — below {f.expectedPump2}</p>
+              <p className="text-xs text-amber-700 dark:text-amber-500 mt-0.5">A cumulative meter can't go down — likely a fault or misread. Re-check the gauge.</p>
             </div>
           )}
         </div>

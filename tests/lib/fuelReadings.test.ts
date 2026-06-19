@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analogPumped, digitalDelta, pump2Drifted, digitalWentUp, DEFAULT_PUMP2 } from '../../src/lib/fuelReadings';
+import { analogPumped, digitalDelta, pump2Status, digitalWentUp, EXPECTED_PUMP2 } from '../../src/lib/fuelReadings';
 
 describe('analogPumped', () => {
   it('rounds close − open to a whole number', () => {
@@ -30,22 +30,22 @@ describe('digitalDelta', () => {
   });
 });
 
-describe('pump2Drifted — the tripwire', () => {
-  it('is false when the entry matches the last recorded value', () => {
-    expect(pump2Drifted('1439', DEFAULT_PUMP2)).toBe(false);
+describe('pump2Status — the directional tripwire', () => {
+  it("is 'ok' when the locked meter reads its expected value", () => {
+    expect(pump2Status('1439', EXPECTED_PUMP2)).toBe('ok');
   });
-  it('fires when the entry differs from the last recorded value', () => {
-    expect(pump2Drifted('1201', DEFAULT_PUMP2)).toBe(true); // the side-use incident
-    expect(pump2Drifted('1440', DEFAULT_PUMP2)).toBe(true);
+  it("is 'used' when the reading is ABOVE expected (a cumulative meter only climbs when pumped)", () => {
+    expect(pump2Status('1470', EXPECTED_PUMP2)).toBe('used'); // someone used the locked side
+    expect(pump2Status('1440', EXPECTED_PUMP2)).toBe('used');
   });
-  it('reads against whatever the last recorded value is, not a hardcoded baseline', () => {
-    expect(pump2Drifted('1201', 1201)).toBe(false);
-    expect(pump2Drifted('1439', 1201)).toBe(true);
+  it("is 'fault' when the reading is BELOW expected (a meter can't decrease)", () => {
+    expect(pump2Status('1201', EXPECTED_PUMP2)).toBe('fault'); // impossible drop → fault/misread
+    expect(pump2Status('1438', EXPECTED_PUMP2)).toBe('fault');
   });
-  it('is not a drift while the field is blank or non-numeric', () => {
-    expect(pump2Drifted('', DEFAULT_PUMP2)).toBe(false);
-    expect(pump2Drifted('  ', DEFAULT_PUMP2)).toBe(false);
-    expect(pump2Drifted('abc', DEFAULT_PUMP2)).toBe(false);
+  it('is null while the field is blank or non-numeric (not an alarm)', () => {
+    expect(pump2Status('', EXPECTED_PUMP2)).toBeNull();
+    expect(pump2Status('  ', EXPECTED_PUMP2)).toBeNull();
+    expect(pump2Status('abc', EXPECTED_PUMP2)).toBeNull();
   });
 });
 

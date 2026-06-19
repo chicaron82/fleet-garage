@@ -92,14 +92,22 @@ reading groups:
   the existing "Record gas meter numbers" closing step). Migration 080 adds
   `fuel_pump_readings`; maths in pure `fuelReadings.ts` (12 tests), state/load/
   save in `useFuelPumpReadings`.
-- **Decision — "last recorded" is the most recent *saved* value, branch-scoped**
-  (default 1439 when no rows). A saved drift becomes the new baseline — by then
-  the warning has already fired and the reading is on record; the tripwire's job
-  is catching the shift-to-shift *change*, not pinning 1439 forever.
+- **Correction (Aaron, post-ship) — the baseline is FIXED at 1439, it does NOT
+  drift.** First impl read "last recorded" = the most recent saved value and let
+  it drift forward. Aaron clarified the real pump: the meter is *cumulative* (only
+  climbs when fuel is pumped, never resets) and the side is *locked*, so it should
+  read 1439 forever. Drift-forward was actively wrong — a saved high value would
+  become the new normal and silence the catch. Reworked to a fixed
+  `EXPECTED_PUMP2 = 1439` with a **directional** tripwire (`pump2Status`):
+  **above → 'used'** (red — the locked side was used, the loss-prevention alarm),
+  **below → 'fault'** (amber — a cumulative meter can't drop → fault/misread),
+  **equal → ok**. The DB still records each shift's reading; the baseline is not
+  read from it. Re-baselining after a legitimate use is a deliberate management
+  action (future), not auto-drift. Verified live both directions + non-drift after
+  a 1470 save. _Corrected post-ship — see git log for the directional-tripwire commit._
 - **Deferral — shift-report surfacing of the Pump 2 flag is NOT built.** The
   ticket called it "worth showing… if it fires" (optional). It needs the report
   builder to load fuel data — a separate seam. Parked on the flagged-not-fixed
-  board; wire it if management wants the drift visible in the report.
-- **Note** — the mock's hardcoded `LAST_PUMP2 = 1439` became the `DEFAULT_PUMP2`
-  seed; the live value is read from the DB. Adapted to FG dark-mode card style
-  (not raw mock Tailwind), per the ticket.
+  board; wire it if management wants the alarm visible in the report.
+- **Note** — adapted to FG dark-mode card style (not raw mock Tailwind), per the
+  ticket. The mock's `LAST_PUMP2 = 1439` is the fixed `EXPECTED_PUMP2` baseline.

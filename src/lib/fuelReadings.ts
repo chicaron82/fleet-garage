@@ -1,10 +1,14 @@
 // Fuel pump reading maths for the Shift Duties fuel section. Pure so the form,
 // the tripwire warning, and the tests share one source of truth.
 
-/** The baseline Pump 2 reading — the value that gauge should never move from
- *  (the side was taken out of service). Used when there's no prior shift on
- *  record to read a "last recorded" from. */
-export const DEFAULT_PUMP2 = 1439;
+/** The locked Pump 2 baseline — the side is out of service, so its cumulative
+ *  meter should read this every shift, forever. It is FIXED, not drift-from-saves:
+ *  the meter only climbs when fuel is pumped, so any increase = the locked pump
+ *  was used. (Re-baselining after a legitimate use would be a deliberate
+ *  management action, not an automatic follow of whatever was last entered.) */
+export const EXPECTED_PUMP2 = 1439;
+
+export type Pump2Status = 'ok' | 'used' | 'fault';
 
 const num = (s: string): number | null => {
   if (s.trim() === '') return null;
@@ -28,11 +32,19 @@ export function digitalDelta(open: string, close: string): number | null {
   return Math.round((c - o) * 10) / 10;
 }
 
-/** The tripwire: true when the entered Pump 2 reading differs from the last
- *  recorded value. A blank or non-numeric entry is not a drift (nothing typed). */
-export function pump2Drifted(reading: string, lastRecorded: number): boolean {
+/**
+ * The tripwire, directional. The Pump 2 meter is cumulative and the side is
+ * locked, so against the expected baseline:
+ *   - equal → 'ok'   (untouched, as it should be)
+ *   - above → 'used'  (the meter only climbs when pumped — someone used it)
+ *   - below → 'fault' (a cumulative meter physically can't drop — fault/misread)
+ * null until something numeric is typed (a blank field isn't an alarm).
+ */
+export function pump2Status(reading: string, expected: number): Pump2Status | null {
   const n = num(reading);
-  return n !== null && n !== lastRecorded;
+  if (n === null) return null;
+  if (n === expected) return 'ok';
+  return n > expected ? 'used' : 'fault';
 }
 
 /** A digital reading that went UP mid-shift implies a top-up — prompt for why. */
