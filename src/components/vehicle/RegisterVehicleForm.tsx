@@ -29,7 +29,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
   Chrysler:        ['300', 'Pacifica'],
-  Buick:           ['Encore', 'Encore GX', 'Enclave', 'Envision'],
+  Buick:           ['Encore', 'Encore GX', 'Enclave', 'Envision', 'Envista'],
   GMC:             ['Acadia', 'Canyon', 'Sierra', 'Terrain', 'Yukon'],
   Cadillac:        ['CT4', 'CT5', 'Escalade', 'XT4', 'XT5', 'XT6'],
   BMW:             ['2 Series', '3 Series', '5 Series', 'X1', 'X3', 'X5'],
@@ -37,7 +37,7 @@ const MAKES_MODELS: Record<string, string[]> = {
   Audi:            ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
   Mazda:           ['CX-30', 'CX-5'],
   Volkswagen:      ['Atlas', 'Jetta', 'Passat', 'Taos', 'Tiguan'],
-  Volvo:           ['XC60', 'XC90'],
+  Volvo:           ['XC40', 'XC60', 'XC90'],
   Tesla:           ['Model 3', 'Model S', 'Model X', 'Model Y'],
   Other:           ['Other'],
 };
