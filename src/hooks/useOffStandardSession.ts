@@ -6,6 +6,7 @@ import { SENT_UP_PRESET } from '../types';
 import { localDateStr } from './useFleetBalance';
 import { useInProgressRecovery } from './useInProgressRecovery';
 import { useOffStandardEDV } from './useOffStandardEDV';
+import { useActiveSessions } from '../context/ActiveSessionsContext';
 import { deriveExplanation } from '../lib/offStandardReport';
 import { writeOrEnqueue } from '../lib/offStandardWrite';
 
@@ -72,6 +73,7 @@ export function useOffStandardSession({
   const [startError, setStartError]         = useState(false);
   const [endError, setEndError]             = useState(false);
 
+  const { refresh: refreshActiveSessions } = useActiveSessions();
   const edv = useOffStandardEDV({ holds, vehicles, resolveName });
   const { selectedPreset, edvLinkedHoldId, edvUnitNumber, edvManagerName, edvNoMatch,
           edvPlate, edvExterior, edvInterior } = edv;
@@ -179,6 +181,7 @@ export function useOffStandardSession({
     setInProgressId(entryId);
     setStartTimestamp(now);
     setTimerState('running');
+    refreshActiveSessions(); // surface the pill the moment the timer starts
   };
 
   const handleQuickTap = async (tap: QuickTap) => {
@@ -255,6 +258,7 @@ export function useOffStandardSession({
       } : {}),
     }]);
     setTimerState('complete');
+    refreshActiveSessions(); // timer ended — drop the pill
   };
 
   // Fleeting Cars and Fleeting — Sent Up are the same physical task; whether the
@@ -278,6 +282,7 @@ export function useOffStandardSession({
     edv.resetEDV();
     setStartError(false);
     setEndError(false);
+    refreshActiveSessions(); // discarded — drop the pill
   };
 
   return {

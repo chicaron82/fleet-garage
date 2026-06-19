@@ -2,6 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
+import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { TripStartForm, type TripStartInfo } from './TripStartForm';
 import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { TripList } from './TripList';
@@ -19,8 +20,10 @@ interface Props {
  *  tabs stay mounted so the OTH timer survives switches. Owns its own tab +
  *  off-standard-refresh state — separate from the driver/management view. */
 export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Props) {
-  const [activeTab, setActiveTab] = useState<'movement-log' | 'off-standard'>('movement-log');
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
+  // Tab is context-owned so a pill tap (from anywhere in the shell) selects it as
+  // controlled state — no consume-and-clear signal, no effect.
+  const { refresh: refreshActiveSessions, movementTab: activeTab, setMovementTab: setActiveTab } = useActiveSessions();
 
   const myLiveTrips = liveTrips.filter(t => t.driverId === user.id);
 
@@ -41,6 +44,7 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
   };
 
   const handleTripStarted = (info: TripStartInfo) => {
+    refreshActiveSessions(); // surface the pill the moment a trip starts
     if (info.vehiclePlate) {
       void createOrEnrichRegistry({
         branchId: user.branchId,
@@ -51,6 +55,7 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
   };
 
   const handleTripComplete = (trip: TripRun) => {
+    refreshActiveSessions(); // trip ended — drop the pill
     setLiveTrips(prev => [trip, ...prev.filter(t => t.id !== trip.id)]);
 
     if (trip.isVsaInterruption) {

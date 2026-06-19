@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH, queueWorsened, buildArrivalUpdate } from '../../src/lib/vsa-trip';
+import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH, queueWorsened, buildArrivalUpdate, parseRecoveredQueue } from '../../src/lib/vsa-trip';
 import type { ArrivalInput } from '../../src/lib/vsa-trip';
 
 afterEach(() => {
@@ -135,5 +135,27 @@ describe('buildArrivalUpdate', () => {
     const tesla = buildArrivalUpdate({ ...base, isTeslaRun: true, evCableStatus: 'present', evAdapterStatus: 'missing' }, arrived);
     expect(tesla.ev_cable_status).toBe('present');
     expect(tesla.ev_adapter_status).toBe('missing');
+  });
+});
+
+// ── parseRecoveredQueue — normalising a recovered queue_at_departure ─────────────
+
+describe('parseRecoveredQueue', () => {
+  it('passes through a plain snapshot string', () => {
+    expect(parseRecoveredQueue('0')).toBe('0');
+    expect(parseRecoveredQueue('~5')).toBe('~5');
+  });
+  it('maps the legacy TOO_MUCH sentinel to 10+', () => {
+    expect(parseRecoveredQueue('TOO_MUCH')).toBe('10+');
+    expect(parseRecoveredQueue({ label: 'TOO_MUCH' })).toBe('10+');
+  });
+  it('reads .label off a legacy object form', () => {
+    expect(parseRecoveredQueue({ label: '~5' })).toBe('~5');
+  });
+  it('treats null, the Resumed sentinel, and label-less objects as no reading', () => {
+    expect(parseRecoveredQueue(null)).toBeNull();
+    expect(parseRecoveredQueue(undefined)).toBeNull();
+    expect(parseRecoveredQueue({ label: 'Resumed' })).toBeNull();
+    expect(parseRecoveredQueue({})).toBeNull();
   });
 });

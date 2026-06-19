@@ -70,6 +70,23 @@ export function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Normalise a recovered queue_at_departure value back to a QueueSnapshot. The
+ * column has held both a bare string ('~5') and a legacy object ({ label }), and
+ * uses 'TOO_MUCH' for what the UI shows as '10+'. The 'Resumed' sentinel and any
+ * null map to no reading. Pulled out of TripStartForm's recovery path so it's
+ * testable and the component stays under the line cap.
+ */
+export function parseRecoveredQueue(raw: unknown): QueueSnapshot | null {
+  if (raw == null) return null;
+  if (typeof raw !== 'string') {
+    const label = (raw as { label?: string }).label;
+    if (!label || label === 'Resumed') return null;
+    return (label === 'TOO_MUCH' ? '10+' : label) as QueueSnapshot;
+  }
+  return (raw === 'TOO_MUCH' ? '10+' : raw) as QueueSnapshot;
+}
+
 // ── Arrival write ────────────────────────────────────────────────────────────
 
 export interface ArrivalInput {

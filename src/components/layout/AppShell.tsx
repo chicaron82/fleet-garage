@@ -5,6 +5,7 @@ import { BuildStamp } from './BuildStamp';
 import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { NotificationBell } from '../shared/NotificationBell';
+import { ActiveSessionPill } from './ActiveSessionPill';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
 import { VehicleEditApprovalSheet } from '../vehicle/VehicleEditApprovalSheet';
@@ -122,6 +123,8 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
 
         <BuildStamp />
       </div>
+
+      <ActiveSessionPill onNavigate={handleNavigate} />
 
       {guideModule !== null && (
         <ModuleGuideModal

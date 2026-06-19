@@ -3,12 +3,15 @@ import { useAuth } from '../../context/AuthContext';
 import { writeOrEnqueue } from '../../lib/vsaTripWrite';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useActiveSessions } from '../../context/ActiveSessionsContext';
+import { useStartCollisionGuard } from '../../hooks/useStartCollisionGuard';
+import { SessionCollisionGuard } from '../shared/SessionCollisionGuard';
 import { useInProgressRecovery } from '../../hooks/useInProgressRecovery';
 import type { TripRun } from '../../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
 import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
-import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate } from '../../lib/vsa-trip';
+import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate, parseRecoveredQueue } from '../../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../../lib/vsa-trip';
 import { pushNotification } from '../../lib/garage-uploads';
 import { detectTeslaByPlate } from '../../lib/ev-detection';
@@ -41,6 +44,8 @@ export function TripStartForm({
 }) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate } = useVehicleHoldContext();
+  const { oth, setMovementTab, refresh: refreshActiveSessions } = useActiveSessions();
+  const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 
   const [tripState, setTripState]           = useState<TripState>('form');
   const [reason, setReason]                 = useState<Reason | null>(null);
@@ -97,17 +102,7 @@ export function TripStartForm({
       setIsShuttle((row.is_shuttle as boolean) ?? false);
       setAuthorization((row.auth_type as Authorization) ?? null);
       setReason((row.reason as Reason) ?? null);
-      const rawQueue = row.queue_at_departure;
-      let queueValue: QueueSnapshot | null = null;
-      if (rawQueue != null) {
-        if (typeof rawQueue !== 'string') {
-          const label = (rawQueue as { label?: string }).label;
-          if (label && label !== 'Resumed') queueValue = (label === 'TOO_MUCH' ? '10+' : label) as QueueSnapshot;
-        } else {
-          queueValue = (rawQueue === 'TOO_MUCH' ? '10+' : rawQueue) as QueueSnapshot;
-        }
-      }
-      setQueue(queueValue);
+      setQueue(parseRecoveredQueue(row.queue_at_departure));
       setPendingTripId(row.id as string);
       setTripState('in_transit');
       const plate = (row.vehicle_plate as string) ?? '';
@@ -215,8 +210,9 @@ export function TripStartForm({
 
   const handleQuickStart = (r: Reason) => {
     // Seed the authorization from the trip type (routine = personal, coverage =
-    // management); the VSA can still change it on the in-transit screen.
-    void handleStartTripWith(r, DEFAULT_AUTH[r] ?? null, '');
+    // management); the VSA can still change it on the in-transit screen. Guarded:
+    // if an off-standard timer is already running, confirm before double-running.
+    collision.guard(() => void handleStartTripWith(r, DEFAULT_AUTH[r] ?? null, ''));
   };
 
   // oneWay true = "⬛ End Trip" (one-way airport flip, no return queue); false =
@@ -283,6 +279,7 @@ export function TripStartForm({
     // A completed trip is left alone — Reset there just clears the form.
     if (tripState === 'in_transit' && pendingTripId) {
       void writeOrEnqueue('delete', {}, 'id', pendingTripId);
+      refreshActiveSessions(); // abandoned trip — drop the pill now, don't wait for the poll
     }
     setTripState('form');
     setPendingTripId(null);
@@ -323,6 +320,11 @@ export function TripStartForm({
       </div>
 
       <div className="p-4 space-y-4">
+        {tripState === 'form' && collision.guardActive && oth && (
+          <SessionCollisionGuard other={oth} onProceed={collision.proceed}
+            onGoEnd={() => { collision.dismiss(); setMovementTab('off-standard'); }} />
+        )}
+
         {tripState === 'form' && (
           <>
             <TripForm

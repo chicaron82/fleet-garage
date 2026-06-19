@@ -81,6 +81,15 @@ vi.mock('../../src/context/ScheduleContext', () => ({
   }),
 }));
 
+// The active-session pill context — stub it (no trip/oth running) so the timer
+// test stays focused; covers both OffStandardTimeLog and the nested session hook.
+vi.mock('../../src/context/ActiveSessionsContext', () => ({
+  useActiveSessions: () => ({
+    trip: null, oth: null, refresh: vi.fn(),
+    movementTab: 'movement-log', setMovementTab: vi.fn(),
+  }),
+}));
+
 // EDV plate recognition composes useVehicleByPlate (Auth + VehicleHold context);
 // stub it so the timer test stays focused on the off-standard write path.
 vi.mock('../../src/hooks/useVehicleByPlate', () => ({

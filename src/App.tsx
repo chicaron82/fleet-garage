@@ -6,6 +6,7 @@ import { IssueProvider } from './context/IssueContext';
 import { LostFoundProvider } from './context/LostFoundContext';
 import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
+import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
@@ -190,13 +191,15 @@ export default function App() {
           <IssueProvider>
             <LostFoundProvider>
               <FleetBalanceProvider>
-                <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
-                  <AppErrorBoundary>
-                    <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
-                      {renderScreen()}
-                    </Suspense>
-                  </AppErrorBoundary>
-                </AppShell>
+                <ActiveSessionsProvider>
+                  <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
+                    <AppErrorBoundary>
+                      <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
+                        {renderScreen()}
+                      </Suspense>
+                    </AppErrorBoundary>
+                  </AppShell>
+                </ActiveSessionsProvider>
               </FleetBalanceProvider>
               {showLogoutConfirm && (
                 <LogoutConfirm

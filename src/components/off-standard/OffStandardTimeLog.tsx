@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useSchedule } from '../../context/ScheduleContext';
+import { useActiveSessions } from '../../context/ActiveSessionsContext';
+import { useStartCollisionGuard } from '../../hooks/useStartCollisionGuard';
+import { SessionCollisionGuard } from '../shared/SessionCollisionGuard';
 import type { User } from '../../types';
 import { OFF_STANDARD_LABELS } from '../../types';
 import { OffStdEditSheet } from './OffStdEditSheet';
@@ -24,6 +27,8 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
   const { holds, vehicles } = useVehicleHoldContext();
   const { shifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
+  const { trip, setMovementTab } = useActiveSessions();
+  const collision = useStartCollisionGuard(trip); // speed-bump: OTH-start while a trip runs
   const [showBackdate, setShowBackdate] = useState(false);
 
   const {
@@ -79,13 +84,19 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     <>
     <div className="space-y-5">
 
+      {/* Collision guard — a trip is still running; confirm before double-running */}
+      {collision.guardActive && trip && timerState === 'idle' && (
+        <SessionCollisionGuard other={trip} onProceed={collision.proceed}
+          onGoEnd={() => { collision.dismiss(); setMovementTab('movement-log'); }} />
+      )}
+
       {/* Quick Start */}
       <OffStdQuickStart
         user={user}
         shifts={shifts}
         timerState={timerState}
         isRecovering={isRecovering}
-        handleQuickTap={handleQuickTap}
+        handleQuickTap={(tap) => collision.guard(() => handleQuickTap(tap))}
         onBackdate={() => setShowBackdate(true)}
         startError={startError}
       />
