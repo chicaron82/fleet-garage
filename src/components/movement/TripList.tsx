@@ -80,7 +80,7 @@ export function TripList({ trips, isManagement }: TripListProps) {
                   {trip.fuelOnArrival ? ` · Fuel: ${trip.fuelOnArrival}` : ''}
                 </p>
                 {trip.isVsaInterruption && (
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
                       trip.authorization === 'PERSONAL'
                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
@@ -88,6 +88,11 @@ export function TripList({ trips, isManagement }: TripListProps) {
                     } transition-colors`}>
                       {trip.authorization === 'PERSONAL' ? '🌀 Proactive Run' : '⚠️ VSA Interruption'}
                     </span>
+                    {trip.oneWay && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors">
+                        ⬛ One-way
+                      </span>
+                    )}
                   </div>
                 )}
                 {isManagement && flagged && (

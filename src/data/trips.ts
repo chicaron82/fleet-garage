@@ -21,6 +21,7 @@ export interface TripRun {
   notes?: string;
   // VSA Movement Log fields
   isVsaInterruption?: boolean;
+  oneWay?: boolean;  // ended at destination (airport flip), no return — vs round trip
   authorization?: 'MANAGEMENT' | 'LEAD_VSA' | 'PERSONAL';
   reason?: 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
   queueAtDeparture?: string;

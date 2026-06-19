@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH, queueWorsened } from '../../src/lib/vsa-trip';
+import { fuelColor, elapsedSince, fmtTime, DEFAULT_AUTH, queueWorsened, buildArrivalUpdate } from '../../src/lib/vsa-trip';
+import type { ArrivalInput } from '../../src/lib/vsa-trip';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -88,5 +89,51 @@ describe('queueWorsened — did the washbay back up while away', () => {
     expect(queueWorsened('~5', null)).toBe(false);
     expect(queueWorsened(null, '10+')).toBe(false);
     expect(queueWorsened(null, null)).toBe(false);
+  });
+});
+
+// ── buildArrivalUpdate — round trip vs one-way "End Trip" ────────────────────────
+
+describe('buildArrivalUpdate', () => {
+  const base: ArrivalInput = {
+    oneWay: false,
+    authorization: 'PERSONAL',
+    queue: '~5',
+    queueArrival: '10+',
+    notes: '  backed up bad  ',
+    isTeslaRun: false,
+    evCableStatus: null,
+    evAdapterStatus: null,
+  };
+  const arrived = '2026-06-19T15:00:00.000Z';
+
+  it('round trip keeps the captured return-queue reading and marks one_way false', () => {
+    const out = buildArrivalUpdate({ ...base, oneWay: false }, arrived);
+    expect(out.one_way).toBe(false);
+    expect(out.queue_at_arrival).toBe('10+');
+    expect(out.queue_at_departure).toBe('~5');
+    expect(out.arrive_time).toBe(arrived);
+    expect(out.status).toBe('complete');
+  });
+
+  it('End Trip (one-way) forces queue_at_arrival null even when a value was set, and marks one_way true', () => {
+    const out = buildArrivalUpdate({ ...base, oneWay: true }, arrived);
+    expect(out.one_way).toBe(true);
+    expect(out.queue_at_arrival).toBeNull();
+    expect(out.queue_at_departure).toBe('~5'); // departure reading still stands
+  });
+
+  it('trims notes to null when blank', () => {
+    expect(buildArrivalUpdate({ ...base, notes: '   ' }, arrived).notes).toBeNull();
+    expect(buildArrivalUpdate({ ...base, notes: '  hi ' }, arrived).notes).toBe('hi');
+  });
+
+  it('only writes EV statuses on a Tesla run', () => {
+    const nonTesla = buildArrivalUpdate({ ...base, isTeslaRun: false, evCableStatus: 'present', evAdapterStatus: 'present' }, arrived);
+    expect(nonTesla.ev_cable_status).toBeNull();
+    expect(nonTesla.ev_adapter_status).toBeNull();
+    const tesla = buildArrivalUpdate({ ...base, isTeslaRun: true, evCableStatus: 'present', evAdapterStatus: 'missing' }, arrived);
+    expect(tesla.ev_cable_status).toBe('present');
+    expect(tesla.ev_adapter_status).toBe('missing');
   });
 });

@@ -37,6 +37,7 @@ function rowToTrip(row: Record<string, unknown>): TripRun {
     driverId:        row.driver_id as string,
     branchId:        (row.branch_id as string ?? 'YWG') as TripRun['branchId'],
     isVsaInterruption: (row.is_vsa_interruption as boolean) ?? false,
+    oneWay:          (row.one_way as boolean) ?? false,
     authorization:   (row.auth_type as TripRun['authorization']) ?? undefined,
     reason:          (row.reason as TripRun['reason']) ?? undefined,
     queueAtDeparture: (row.queue_at_departure as string) ?? undefined,

@@ -1,3 +1,5 @@
+import type { EvAssetStatus } from '../types';
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type Reason         = 'ROUTINE' | 'COVERAGE_ASSIST' | 'CODE_RED' | 'OTHER';
@@ -66,4 +68,40 @@ export function elapsedSince(iso: string): string {
 
 export function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Arrival write ────────────────────────────────────────────────────────────
+
+export interface ArrivalInput {
+  oneWay:          boolean;
+  authorization:   Authorization | null;
+  queue:           QueueSnapshot | null;
+  queueArrival:    QueueSnapshot | null;
+  notes:           string;
+  isTeslaRun:      boolean;
+  evCableStatus:   EvAssetStatus | null;
+  evAdapterStatus: EvAssetStatus | null;
+}
+
+/**
+ * The vsa_trips update payload for ending a trip. The one-way branch is the
+ * whole point: a one-way trip (airport flipping — you stayed at the destination)
+ * has no return, so queue_at_arrival is forced null regardless of any value the
+ * field happened to hold. A round trip keeps the captured return-queue reading.
+ * one_way persists the distinction since null queue_at_arrival is ambiguous
+ * (it's optional on round trips too).
+ */
+export function buildArrivalUpdate(input: ArrivalInput, arrivedAt: string): Record<string, unknown> {
+  return {
+    arrive_location:    'Airport Run',
+    arrive_time:        arrivedAt,
+    auth_type:          input.authorization ?? null,
+    queue_at_departure: input.queue ?? null,
+    queue_at_arrival:   input.oneWay ? null : (input.queueArrival ?? null),
+    one_way:            input.oneWay,
+    notes:              input.notes.trim() || null,
+    ev_cable_status:    input.isTeslaRun ? (input.evCableStatus ?? null) : null,
+    ev_adapter_status:  input.isTeslaRun ? (input.evAdapterStatus ?? null) : null,
+    status:             'complete',
+  };
 }

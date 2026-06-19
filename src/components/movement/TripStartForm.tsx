@@ -8,7 +8,7 @@ import type { TripRun } from '../../data/trips';
 import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
 import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
-import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH } from '../../lib/vsa-trip';
+import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate } from '../../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../../lib/vsa-trip';
 import { pushNotification } from '../../lib/garage-uploads';
 import { detectTeslaByPlate } from '../../lib/ev-detection';
@@ -52,6 +52,7 @@ export function TripStartForm({
   const [departureTime, setDepartureTime]   = useState('');
   const [arrivalTime, setArrivalTime]       = useState('');
   const [elapsed, setElapsed]               = useState('');
+  const [completedOneWay, setCompletedOneWay] = useState(false);
 
   const [vehiclePlate, setVehiclePlate]       = useState('');
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
@@ -218,22 +219,18 @@ export function TripStartForm({
     void handleStartTripWith(r, DEFAULT_AUTH[r] ?? null, '');
   };
 
-  const handleArrived = async () => {
+  // oneWay true = "⬛ End Trip" (one-way airport flip, no return queue); false =
+  // "✓ Back at Washbay" (round trip). buildArrivalUpdate owns the queue-nulling.
+  const handleArrived = async (oneWay: boolean) => {
     hapticMedium();
     const arrived = new Date().toISOString();
+    setCompletedOneWay(oneWay);
 
     if (user && pendingTripId) {
-      const { ok } = await writeOrEnqueue('update', {
-        arrive_location:    'Airport Run',
-        arrive_time:        arrived,
-        auth_type:          authorization ?? null,
-        queue_at_departure: queue ?? null,
-        queue_at_arrival:   queueArrival ?? null,
-        notes:              notes.trim() || null,
-        ev_cable_status:    isTeslaRun ? (evCableStatus ?? null) : null,
-        ev_adapter_status:  isTeslaRun ? (evAdapterStatus ?? null) : null,
-        status:             'complete',
-      }, 'id', pendingTripId);
+      const { ok } = await writeOrEnqueue('update', buildArrivalUpdate(
+        { oneWay, authorization, queue, queueArrival, notes, isTeslaRun, evCableStatus, evAdapterStatus },
+        arrived,
+      ), 'id', pendingTripId);
       if (!ok) console.error('[TripStartForm] trip arrive update failed');
     }
 
@@ -257,6 +254,7 @@ export function TripStartForm({
         authorization:     authorization ?? undefined,
         reason:            reason ?? undefined,
         queueAtDeparture:  queue ?? undefined,
+        oneWay,
         notes:             notes.trim() || undefined,
         branchId:          user.branchId,
       });
@@ -297,6 +295,7 @@ export function TripStartForm({
     setDepartureTime('');
     setArrivalTime('');
     setElapsed('');
+    setCompletedOneWay(false);
     setVehiclePlate('');
     setIsTeslaRun(false);
     setEvCableStatus(null);
@@ -354,6 +353,7 @@ export function TripStartForm({
             departureTime={departureTime} elapsed={elapsed}
             notes={notes}                 setNotes={setNotes}
             onArrived={handleArrived}
+            onDelete={handleReset}
           />
         )}
 
@@ -363,6 +363,7 @@ export function TripStartForm({
             authorization={authorization} reason={reason}
             departureTime={departureTime} arrivalTime={arrivalTime}
             queue={queue}                 queueArrival={queueArrival}
+            oneWay={completedOneWay}
             notes={notes}           setNotes={setNotes}
             onReset={handleReset}
           />

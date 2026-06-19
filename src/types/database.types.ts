@@ -1189,6 +1189,7 @@ export type Database = {
           is_shuttle: boolean | null
           is_vsa_interruption: boolean | null
           notes: string | null
+          one_way: boolean
           queue_at_arrival: string | null
           queue_at_departure: string | null
           reason: string | null
@@ -1214,6 +1215,7 @@ export type Database = {
           is_shuttle?: boolean | null
           is_vsa_interruption?: boolean | null
           notes?: string | null
+          one_way?: boolean
           queue_at_arrival?: string | null
           queue_at_departure?: string | null
           reason?: string | null
@@ -1239,6 +1241,7 @@ export type Database = {
           is_shuttle?: boolean | null
           is_vsa_interruption?: boolean | null
           notes?: string | null
+          one_way?: boolean
           queue_at_arrival?: string | null
           queue_at_departure?: string | null
           reason?: string | null
