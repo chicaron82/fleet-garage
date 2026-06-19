@@ -1,5 +1,18 @@
 import type { HoldType, MechanicalSubType, DetailReason, VehicleStatus } from '../types';
 
+/**
+ * The hold types still OPEN — `holdTypes` minus what's been resolved. A resolved
+ * type stays in `holdTypes` (the historical record) but shouldn't drive the
+ * Multi-Hold badge or the active type pills. The single source for "which issues
+ * are still active," so the history card and the dashboard row can't disagree.
+ */
+export function unresolvedHoldTypes(hold: { holdTypes: HoldType[]; resolvedTypes?: HoldType[] | null }): HoldType[] {
+  // resolvedTypes can be missing on holds created before migration 077 added it —
+  // treat absent as "nothing resolved" so every type reads open.
+  const resolved = hold.resolvedTypes ?? [];
+  return hold.holdTypes.filter(t => !resolved.includes(t));
+}
+
 export function getTireSwapSeason(): '☀️' | '❄️' {
   const month = new Date().getMonth() + 1; // 1–12
   return (month >= 5 && month <= 8) ? '☀️' : '❄️';

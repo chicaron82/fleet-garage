@@ -1,7 +1,7 @@
 import type { Hold, Vehicle } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
-import { holdContextEmojis } from '../../lib/holdBadge';
+import { holdContextEmojis, unresolvedHoldTypes } from '../../lib/holdBadge';
 
 interface Props {
   vehicle: Vehicle;
@@ -73,7 +73,7 @@ export function HoldsVehicleRow({
             )}
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <StatusBadge status={vehicle.status} holdTypes={latestHold?.holdTypes} mechanicalSubType={latestHold?.mechanicalSubType} />
+            <StatusBadge status={vehicle.status} holdTypes={latestHold ? unresolvedHoldTypes(latestHold) : undefined} mechanicalSubType={latestHold?.mechanicalSubType} />
             {streak >= 2 && (
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 streak >= 3

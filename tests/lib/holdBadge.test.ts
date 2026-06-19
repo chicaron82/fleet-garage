@@ -1,6 +1,20 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getTireSwapSeason, holdBadgeConfig, holdContextEmojis, holdTypePillClass } from '../../src/lib/holdBadge';
+import { getTireSwapSeason, holdBadgeConfig, holdContextEmojis, holdTypePillClass, unresolvedHoldTypes } from '../../src/lib/holdBadge';
 import type { HoldType } from '../../src/types';
+
+describe('unresolvedHoldTypes', () => {
+  it('drops resolved types, keeps open ones (history stays in holdTypes)', () => {
+    expect(unresolvedHoldTypes({ holdTypes: ['damage', 'mechanical'], resolvedTypes: ['mechanical'] }))
+      .toEqual(['damage']);
+  });
+  it('returns all types when nothing is resolved', () => {
+    expect(unresolvedHoldTypes({ holdTypes: ['damage', 'mechanical'], resolvedTypes: [] }))
+      .toEqual(['damage', 'mechanical']);
+  });
+  it('returns empty when every type is resolved', () => {
+    expect(unresolvedHoldTypes({ holdTypes: ['damage'], resolvedTypes: ['damage'] })).toEqual([]);
+  });
+});
 
 afterEach(() => {
   vi.useRealTimers();

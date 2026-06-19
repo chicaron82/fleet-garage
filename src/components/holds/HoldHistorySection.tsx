@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticHeavy } from '../../lib/haptics';
 import type { RefObject, ChangeEvent } from 'react';
-import { holdTypePillClass, getTireSwapSeason } from '../../lib/holdBadge';
+import { holdTypePillClass, getTireSwapSeason, unresolvedHoldTypes } from '../../lib/holdBadge';
 import { StatusBadge } from './StatusBadge';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import type { Hold, Vehicle } from '../../types';
@@ -176,10 +176,9 @@ export function HoldHistorySection({
 
         <div className="space-y-3">
           {holds.map(hold => {
-            // Only the still-OPEN types drive the badge + pills — a resolved
-            // type stays in holdTypes (the historical record) but shouldn't read
-            // as active. Mirrors IssueResolutionSection's `unresolved`.
-            const unresolvedTypes = hold.holdTypes.filter(t => !hold.resolvedTypes.includes(t));
+            // Only the still-OPEN types drive the badge + pills — a resolved type
+            // stays in holdTypes (the record) but shouldn't read as active.
+            const unresolvedTypes = unresolvedHoldTypes(hold);
             const mechanicalOpen = unresolvedTypes.includes('mechanical');
             return (
             <div key={hold.id} className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">

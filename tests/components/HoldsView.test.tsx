@@ -87,6 +87,7 @@ vi.mock('../../src/components/holds/StatusBadge', () => ({
 vi.mock('../../src/lib/holdBadge', () => ({
   holdContextEmojis: vi.fn().mockReturnValue([]),
   holdBadgeConfig: vi.fn().mockReturnValue({ label: 'Damage', className: 'bg-red-50 text-red-700' }),
+  unresolvedHoldTypes: vi.fn((h) => h.holdTypes ?? []),
 }));
 
 vi.mock('../../src/lib/haptics', () => ({
