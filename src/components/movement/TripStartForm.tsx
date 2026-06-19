@@ -278,8 +278,9 @@ export function TripStartForm({
     // it doesn't orphan in the DB (orphaned in_progress rows break recovery).
     // A completed trip is left alone — Reset there just clears the form.
     if (tripState === 'in_transit' && pendingTripId) {
-      void writeOrEnqueue('delete', {}, 'id', pendingTripId);
-      refreshActiveSessions(); // abandoned trip — drop the pill now, don't wait for the poll
+      // Drop the pill once the delete COMMITS — firing refresh synchronously races
+      // the not-yet-committed delete and re-reads the still-present in_progress row.
+      void writeOrEnqueue('delete', {}, 'id', pendingTripId).then(refreshActiveSessions);
     }
     setTripState('form');
     setPendingTripId(null);
