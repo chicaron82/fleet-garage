@@ -845,6 +845,7 @@ export type Database = {
           id: string
           off_standard_breakdown: Json | null
           off_standard_minutes: number
+          pump2_drift: string | null
           saved_at: string
           trip_count: number
           trip_minutes: number
@@ -859,6 +860,7 @@ export type Database = {
           id?: string
           off_standard_breakdown?: Json | null
           off_standard_minutes?: number
+          pump2_drift?: string | null
           saved_at?: string
           trip_count?: number
           trip_minutes?: number
@@ -873,6 +875,7 @@ export type Database = {
           id?: string
           off_standard_breakdown?: Json | null
           off_standard_minutes?: number
+          pump2_drift?: string | null
           saved_at?: string
           trip_count?: number
           trip_minutes?: number
