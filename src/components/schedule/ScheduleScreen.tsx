@@ -9,8 +9,10 @@ import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
+import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
 import { PtoRequestActionSheet } from './PtoRequestActionSheet';
+import { canManageSchedule } from '../../types';
 
 function weekLabel(date: Date): string {
   const { start, end } = getWeekBounds(date);
@@ -29,12 +31,14 @@ export function ScheduleScreen() {
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
   const [showLogSick, setShowLogSick] = useState(false);
+  const [showRoster,  setShowRoster]  = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);
   const [editingPto,   setEditingPto]   = useState(false);
   const [ptoInput,     setPtoInput]     = useState('');
   const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(new Set());
   const [showPtoSheet, setShowPtoSheet] = useState(false);
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
+  const canSchedule = user ? canManageSchedule(user.role) : false;
   const today = toISO(new Date());
 
   const toggleGroup = (g: ScheduleGroup) => {
@@ -73,6 +77,15 @@ export function ScheduleScreen() {
         title="Schedule"
         action={
           <div className="flex items-center gap-2">
+            {/* Roster staff — managers + leads only */}
+            {canSchedule && (
+              <button
+                onClick={() => setShowRoster(true)}
+                className="text-xs font-semibold text-gray-500 dark:text-gray-400 hover:underline cursor-pointer whitespace-nowrap"
+              >
+                Roster staff
+              </button>
+            )}
             {/* Fill schedule */}
             <button
               onClick={() => setShowFill(true)}
@@ -256,6 +269,7 @@ export function ScheduleScreen() {
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
       {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}
+      {showRoster  && <RosterStaffModal  onClose={() => setShowRoster(false)} />}
       {showPtoSheet && user && (
         <PtoRequestActionSheet user={user} entitlement={ptoEntitlement} used={ptoUsed} onClose={() => setShowPtoSheet(false)} />
       )}

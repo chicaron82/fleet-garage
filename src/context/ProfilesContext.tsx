@@ -1,14 +1,35 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { buildRosterStaff } from '../lib/rosterStaff';
 import type { Profile, UserRole, BranchId } from '../types';
 
 const ProfilesContext = createContext<Map<string, Profile>>(new Map());
 
+interface RosterStaffActions {
+  /** Create a board-only staffer (no login) and add them to the profiles map. */
+  addRosterStaff: (input: { name: string; role: UserRole; branchId: BranchId }) => Promise<Profile>;
+  /** Remove a roster-only staffer. RLS only permits deleting roster_only rows. */
+  removeRosterStaff: (id: string) => Promise<void>;
+}
+const RosterStaffContext = createContext<RosterStaffActions | null>(null);
+
+function rowToProfile(row: Record<string, unknown>): Profile {
+  return {
+    id:         row.id as string,
+    employeeId: row.employee_id as string,
+    name:       row.name as string,
+    role:       row.role as UserRole,
+    branchId:   row.branch_id as BranchId,
+    rosterOnly: (row.roster_only as boolean) ?? false,
+  };
+}
+
 /**
  * Loads every row from `profiles` (migration 054) and exposes them as a
  * `Map<id, Profile>` — the source of truth for resolving Supabase auth UUIDs
- * to display info, consumed by `useUserResolver`.
+ * to display info, consumed by `useUserResolver`. Roster-only staff (migration
+ * 082) live in the same map; they just have no auth account behind them.
  *
  * RLS allows any *authenticated* user to read all profiles (see migration 054).
  * The fetch is therefore gated on `useAuth().user`: firing on bare mount races
@@ -26,7 +47,7 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void supabase
       .from('profiles')
-      .select('id, employee_id, name, role, branch_id')
+      .select('id, employee_id, name, role, branch_id, roster_only')
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error || !data) {
@@ -34,24 +55,50 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const next = new Map<string, Profile>();
-        for (const row of data as Record<string, unknown>[]) {
-          const id = row.id as string;
-          next.set(id, {
-            id,
-            employeeId: (row.employee_id as string),
-            name:       (row.name as string),
-            role:       (row.role as UserRole),
-            branchId:   (row.branch_id as BranchId),
-          });
-        }
+        for (const row of data as Record<string, unknown>[]) next.set(row.id as string, rowToProfile(row));
         setProfiles(next);
       });
     return () => { cancelled = true; };
   }, [user]);
 
+  const addRosterStaff = useCallback(
+    async (input: { name: string; role: UserRole; branchId: BranchId }): Promise<Profile> => {
+      const staff = buildRosterStaff(input);
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id:          staff.id,
+          employee_id: staff.employeeId,
+          name:        staff.name,
+          role:        staff.role,
+          branch_id:   staff.branchId,
+          roster_only: true,
+        })
+        .select('id, employee_id, name, role, branch_id, roster_only')
+        .single();
+      if (error) throw error;
+      const created = rowToProfile(data as Record<string, unknown>);
+      setProfiles(prev => new Map(prev).set(created.id, created));
+      return created;
+    },
+    [],
+  );
+
+  const removeRosterStaff = useCallback(async (id: string): Promise<void> => {
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) throw error;
+    setProfiles(prev => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   return (
     <ProfilesContext.Provider value={profiles}>
-      {children}
+      <RosterStaffContext.Provider value={{ addRosterStaff, removeRosterStaff }}>
+        {children}
+      </RosterStaffContext.Provider>
     </ProfilesContext.Provider>
   );
 }
@@ -59,4 +106,11 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProfiles(): Map<string, Profile> {
   return useContext(ProfilesContext);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRosterStaff(): RosterStaffActions {
+  const ctx = useContext(RosterStaffContext);
+  if (!ctx) throw new Error('useRosterStaff must be used within ProfilesProvider');
+  return ctx;
 }

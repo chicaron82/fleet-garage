@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
-import { isFullDayShift } from '../../types';
+import { canManageSchedule, isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
@@ -31,11 +32,23 @@ type Props = AddProps | EditProps;
 
 export function ShiftForm(props: Props) {
   const { createShift, updateShift, deleteShift, isPeakSeason } = useSchedule();
-  const { user } = useAuth();
+  const { user, activeBranch } = useAuth();
+  const teamMembers = useTeamMembers();
 
   useEscapeKey(props.onClose);
   const isEdit = props.mode === 'edit';
   const existing = isEdit ? props.initial : null;
+
+  // Managers + leads can enter a shift for someone else (self by default). The
+  // list is everyone at the active branch — real users + board-only roster staff.
+  const canSchedule = user ? canManageSchedule(user.role) : false;
+  const [targetUserId, setTargetUserId] = useState(user?.id ?? '');
+  const people = useMemo(
+    () => teamMembers
+      .filter(m => activeBranch === 'ALL' || m.branchId === activeBranch)
+      .sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : a.name.localeCompare(b.name))),
+    [teamMembers, activeBranch, user?.id],
+  );
 
   const initialShiftType: ShiftType = existing?.shiftType ?? 'closing';
   const initialDefaults = getTypeDefaults(isPeakSeason)[initialShiftType];
@@ -76,7 +89,7 @@ export function ShiftForm(props: Props) {
       } else {
         if (!user) return;
         await createShift({
-          userId:    user.id,
+          userId:    canSchedule ? (targetUserId || user.id) : user.id,
           date,
           shiftType,
           startTime: isDayOff ? undefined : startTime,
@@ -117,6 +130,24 @@ export function ShiftForm(props: Props) {
           </h2>
           <button onClick={props.onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
+
+        {/* Who — managers/leads scheduling for someone else (add mode only) */}
+        {!isEdit && canSchedule && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">For</label>
+            <select
+              value={targetUserId}
+              onChange={e => setTargetUserId(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
+            >
+              {people.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.id === user?.id ? 'Me' : p.name}{p.rosterOnly ? ' (roster)' : ''} · {p.role}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Date */}
         <div>

@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
-import { isFullDayShift } from '../../types';
+import { canManageSchedule, isFullDayShift } from '../../types';
 import type { ShiftType } from '../../types';
 
 const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -40,8 +41,19 @@ interface Props {
 
 export function FillScheduleModal({ onClose }: Props) {
   const { shifts, bulkCreateShifts, refresh, isPeakSeason } = useSchedule();
-  const { user } = useAuth();
+  const { user, activeBranch } = useAuth();
+  const teamMembers = useTeamMembers();
   useEscapeKey(onClose);
+
+  const canSchedule = user ? canManageSchedule(user.role) : false;
+  const [targetUserId, setTargetUserId] = useState(user?.id ?? '');
+  const people = useMemo(
+    () => teamMembers
+      .filter(m => activeBranch === 'ALL' || m.branchId === activeBranch)
+      .sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : a.name.localeCompare(b.name))),
+    [teamMembers, activeBranch, user?.id],
+  );
+  const fillFor = canSchedule ? (targetUserId || user?.id) : user?.id;
 
   const [shiftType, setShiftType] = useState<ShiftType>('closing');
   const [startTime, setStartTime] = useState(() => getTypeDefaults(isPeakSeason)['closing'].start);
@@ -54,10 +66,10 @@ export function FillScheduleModal({ onClose }: Props) {
 
   const isDayOff = isFullDayShift(shiftType);
 
-  // Existing shift dates for this user
+  // Existing shift dates for whoever we're filling for (self by default)
   const existingDates = useMemo(
-    () => new Set(shifts.filter(s => s.userId === user?.id).map(s => s.date)),
-    [shifts, user?.id]
+    () => new Set(shifts.filter(s => s.userId === fillFor).map(s => s.date)),
+    [shifts, fillFor]
   );
 
   // Candidate dates: matching DOW + in range + no existing shift
@@ -89,7 +101,7 @@ export function FillScheduleModal({ onClose }: Props) {
     setError('');
     try {
       await bulkCreateShifts(candidateDates.map(date => ({
-        userId:    user.id,
+        userId:    fillFor ?? user.id,
         date,
         shiftType,
         startTime: isDayOff ? undefined : startTime,
@@ -114,11 +126,31 @@ export function FillScheduleModal({ onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">Fill My Schedule</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+              {canSchedule && fillFor !== user?.id ? 'Fill Schedule' : 'Fill My Schedule'}
+            </h2>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Set a recurring shift for selected days</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl cursor-pointer">×</button>
         </div>
+
+        {/* Who — managers/leads filling for someone else */}
+        {canSchedule && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">For</label>
+            <select
+              value={targetUserId}
+              onChange={e => setTargetUserId(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition"
+            >
+              {people.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.id === user?.id ? 'Me' : p.name}{p.rosterOnly ? ' (roster)' : ''} · {p.role}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Shift type */}
         <div>

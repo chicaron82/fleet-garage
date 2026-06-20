@@ -24,7 +24,10 @@ const EMP = ID === 'vsa' ? env.VERIFY_VSA_EMPLOYEE_ID : env.VERIFY_EMPLOYEE_ID;
 const PW  = ID === 'vsa' ? env.VERIFY_VSA_PASSWORD     : env.VERIFY_PASSWORD;
 if (!EMP || !PW) { console.error(`Missing creds for identity '${ID}' in .env.local`); process.exit(1); }
 
-const BASE = 'http://localhost:5173';
+// Default port, but overridable — Vite auto-bumps to 5174+ when another repo's
+// dev server already holds 5173 (e.g. running piggybank alongside). FG_URL lets a
+// caller point at the actual port without editing this file.
+const BASE = process.env.FG_URL || 'http://localhost:5173';
 const verifyDir = fileURLToPath(new URL('.verify/', root));
 const statePath = fileURLToPath(new URL(`.verify/state-${ID}.json`, root));
 mkdirSync(verifyDir, { recursive: true });

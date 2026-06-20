@@ -8,6 +8,7 @@ import { usePTOStats } from '../hooks/usePTOStats';
 import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
 import { rowToShiftBase } from '../lib/rowToShift';
 import { withSubmitLock } from '../lib/submitLock';
+import { canManageSchedule } from '../types';
 import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,8 +45,7 @@ function formatShiftLabel(shiftType: ShiftType, date: string): string {
 }
 
 function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserId: string): boolean {
-  return ['Branch Manager', 'Operations Manager', 'City Manager'].includes(role)
-    && actingId !== targetUserId;
+  return canManageSchedule(role) && actingId !== targetUserId;
 }
 
 function buildRowToShift(resolveUser: (id: string) => Profile | null) {
@@ -296,7 +296,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const canEditShift = (shift: Shift): boolean => {
     if (!user) return false;
-    if (user.role === 'Branch Manager' || user.role === 'Operations Manager') return true;
+    if (canManageSchedule(user.role)) return true; // leads + managers build the floor schedule
     return shift.userId === user.id;
   };
 

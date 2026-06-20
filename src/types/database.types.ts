@@ -690,6 +690,7 @@ export type Database = {
           id: string
           name: string
           role: string
+          roster_only: boolean
         }
         Insert: {
           branch_id: string
@@ -698,6 +699,7 @@ export type Database = {
           id: string
           name: string
           role: string
+          roster_only?: boolean
         }
         Update: {
           branch_id?: string
@@ -706,6 +708,7 @@ export type Database = {
           id?: string
           name?: string
           role?: string
+          roster_only?: boolean
         }
         Relationships: []
       }

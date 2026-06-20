@@ -65,6 +65,15 @@ export function canWriteWhiteboard(role: UserRole): boolean {
   return CAN_WRITE_WHITEBOARD.includes(role);
 }
 
+// Who can build the floor schedule: enter shifts for *other* people and manage
+// roster-only staff (board-only VSAs/drivers who never log in). Mirrors the
+// whiteboard set — Lead VSA + managers — since leads own the schedule in practice.
+const CAN_MANAGE_SCHEDULE: UserRole[] = ['Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+
+export function canManageSchedule(role: UserRole): boolean {
+  return CAN_MANAGE_SCHEDULE.includes(role);
+}
+
 // ── Whiteboard ───────────────────────────────────────────────────────────────
 
 export type WhiteboardSection = 'reminders' | 'downtime' | 'airport' | 'shift_board';
@@ -94,6 +103,9 @@ export interface User {
   name: string;
   role: UserRole;
   branchId: BranchId;
+  /** True for board-only staff (schedule entered for them; they never log in).
+   *  Real authenticated users are undefined/false. See migration 082. */
+  rosterOnly?: boolean;
 }
 
 /**
