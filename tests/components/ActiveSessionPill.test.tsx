@@ -1,7 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ActiveSessionPill } from '../../src/components/layout/ActiveSessionPill';
 import type { ActiveSession } from '../../src/context/ActiveSessionsContext';
+
+// Simulate a desktop viewport so the overlay variant doesn't bail out early.
+// jsdom has no matchMedia; without this mock useMediaQuery returns false (mobile)
+// and every overlay render returns null, breaking the suppression logic tests.
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 const mockTrip: ActiveSession = { id: 't1', startedAt: new Date(Date.now() - 900_000).toISOString(), label: 'In Transit', emoji: '🚗' };
 const mockOth:  ActiveSession = { id: 'o1', startedAt: new Date(Date.now() - 300_000).toISOString(), label: 'OTH',        emoji: '⏱' };

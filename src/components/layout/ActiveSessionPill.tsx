@@ -1,6 +1,7 @@
 import { useActiveSessions, type ActiveSession, type FocusTab } from '../../context/ActiveSessionsContext';
 import { elapsedLabel } from '../../lib/activeSessions';
 import { hapticLight } from '../../lib/haptics';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { Module, Screen } from '../../types';
 
 const TONES = {
@@ -49,6 +50,7 @@ export function ActiveSessionPill({
   onNavigate: (s: Screen) => void;
   variant?: 'header' | 'overlay';
 }) {
+  const isMd = useMediaQuery('(min-width: 768px)');
   const { trip, oth, nowMs, movementTab, setMovementTab } = useActiveSessions();
 
   // Each pill suppresses on its own matching tab — the reminder is redundant
@@ -58,6 +60,7 @@ export function ActiveSessionPill({
   const showOth  = !!oth  && !(onMovementLog && movementTab === 'off-standard');
 
   if (!showTrip && !showOth) return null;
+  if (variant === 'overlay' && !isMd) return null;
 
   const go = (tab: FocusTab) => {
     hapticLight();
