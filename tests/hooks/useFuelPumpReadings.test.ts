@@ -9,9 +9,12 @@ const TEST_USER: User = {
 
 const maybySingleSpy = vi.fn();
 
+const ltSpy = vi.fn(() => queryBuilder);
+
 const queryBuilder: Record<string, unknown> = {
   select:      vi.fn(() => queryBuilder),
   eq:          vi.fn(() => queryBuilder),
+  lt:          ltSpy,
   order:       vi.fn(() => queryBuilder),
   limit:       vi.fn(() => queryBuilder),
   insert:      vi.fn(() => queryBuilder),
@@ -82,5 +85,14 @@ describe('useFuelPumpReadings — opening prefill', () => {
 
     await waitFor(() => expect(result.current.digitalOpen).toBe('88'));
     expect(result.current.pump1Open).toBe('');
+  });
+
+  it('excludes today\'s row so a re-opened form does not seed closing as opening', async () => {
+    maybySingleSpy.mockResolvedValue({ data: null, error: null });
+    renderHook(() => useFuelPumpReadings(TEST_USER));
+
+    await waitFor(() => expect(ltSpy).toHaveBeenCalledTimes(1));
+    // The lt filter must be on the date column, excluding today.
+    expect(ltSpy).toHaveBeenCalledWith('date', '2026-06-20');
   });
 });

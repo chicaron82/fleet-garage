@@ -26,6 +26,7 @@ export function useFuelPumpReadings(user: User) {
         .from('fuel_pump_readings')
         .select('pump1_close, digital_close')
         .eq('branch_id', user.branchId)
+        .lt('date', localDateStr(0))
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
