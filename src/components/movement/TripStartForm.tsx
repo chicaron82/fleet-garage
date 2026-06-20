@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { writeOrEnqueue } from '../../lib/vsaTripWrite';
+import { withSubmitLock } from '../../lib/submitLock';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -215,9 +216,10 @@ export function TripStartForm({
     collision.guard(() => void handleStartTripWith(r, DEFAULT_AUTH[r] ?? null, ''));
   };
 
-  // oneWay true = "⬛ End Trip" (one-way airport flip, no return queue); false =
-  // "✓ Back at Washbay" (round trip). buildArrivalUpdate owns the queue-nulling.
+  // oneWay=true → "⬛ End Trip" (one-way, queue nulled); false → "✓ Back at Washbay".
   const handleArrived = async (oneWay: boolean) => {
+    if (tripState !== 'in_transit') return;
+    await withSubmitLock(`trip-arrive:${pendingTripId ?? 'vsa'}`, async () => {
     hapticMedium();
     const arrived = new Date().toISOString();
     setCompletedOneWay(oneWay);
@@ -271,6 +273,7 @@ export function TripStartForm({
         );
       }
     }
+    });
   };
 
   const handleReset = () => {
@@ -314,9 +317,7 @@ export function TripStartForm({
           )}
         </div>
         {tripState !== 'form' && (
-          <button onClick={handleReset} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer">
-            Reset
-          </button>
+          <button onClick={handleReset} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer">Reset</button>
         )}
       </div>
 

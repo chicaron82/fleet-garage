@@ -60,6 +60,25 @@ describe('withSubmitLock', () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
+  it('trip-arrive: five rapid taps fire the write exactly once (the duplicate-OTH bug class)', async () => {
+    // Simulates five taps on "Back at Washbay" while the first write is still in flight.
+    // Only the first call should reach writeArrival; the other four should be dropped.
+    const d = deferred<void>();
+    const writeArrival = vi.fn(async () => { await d.promise; });
+    const tripId = 'trip-uuid-abc123';
+
+    const p1 = withSubmitLock(`trip-arrive:${tripId}`, writeArrival);
+    const p2 = withSubmitLock(`trip-arrive:${tripId}`, writeArrival);
+    const p3 = withSubmitLock(`trip-arrive:${tripId}`, writeArrival);
+    const p4 = withSubmitLock(`trip-arrive:${tripId}`, writeArrival);
+    const p5 = withSubmitLock(`trip-arrive:${tripId}`, writeArrival);
+
+    d.resolve();
+    await Promise.all([p1, p2, p3, p4, p5]);
+
+    expect(writeArrival).toHaveBeenCalledTimes(1);
+  });
+
   it('releases the lock after the wrapped fn throws, and propagates the error', async () => {
     const boom = vi.fn(async () => { throw new Error('boom'); });
     await expect(withSubmitLock('after-throw', boom)).rejects.toThrow('boom');
