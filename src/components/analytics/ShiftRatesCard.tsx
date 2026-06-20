@@ -15,15 +15,9 @@ import {
 } from '../../lib/shift-metrics';
 import { sentToFleet } from '../../lib/washbay-throughput';
 import { fmtHours } from '../../lib/ot';
+import { fmtMinutes } from './shiftSummaryUtils';
 
 const STANDARD_RATE = 3.0;
-
-function fmtMinutes(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
 
 export function ShiftRatesCard() {
   const { user } = useAuth();
