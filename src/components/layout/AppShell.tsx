@@ -110,6 +110,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <ActiveSessionPill variant="header" activeModule={activeModule} onNavigate={handleNavigate} />
             <NotificationBell onNavigate={handleNavigate} onOffStdEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
             <UserProfileMenu />
           </div>
@@ -124,7 +125,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
         <BuildStamp />
       </div>
 
-      <ActiveSessionPill onNavigate={handleNavigate} />
+      <ActiveSessionPill variant="overlay" activeModule={activeModule} onNavigate={handleNavigate} />
 
       {guideModule !== null && (
         <ModuleGuideModal
