@@ -1,4 +1,4 @@
-import { fmtDateShift, type SavedSummary } from './shiftSummaryUtils';
+import { fmtDateShift, fmtMinutes, fmtTime, type SavedSummary } from './shiftSummaryUtils';
 
 // ── Generic analytics primitives ─────────────────────────────────────────────
 
@@ -27,17 +27,6 @@ export function EmptyState({ message }: { message: string }) {
 
 // ── ShiftSummarySection display components ────────────────────────────────────
 
-function fmtMinutes(mins: number): string {
-  if (mins === 0) return '0m';
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
-}
 
 export function SummaryRow({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
   return (
@@ -107,5 +96,34 @@ export function HistoryCard({ s, onExportClick }: { s: SavedSummary; onExportCli
         {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} unit{s.holdsFlagged !== 1 ? 's' : ''} flagged</span>}
       </div>
     </button>
+  );
+}
+
+export function TeamTodayCard({ team }: { team: SavedSummary[] }) {
+  if (team.length === 0) return null;
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+      <p className="px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest border-b border-gray-100 dark:border-gray-800">
+        Team Today
+      </p>
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        {team.map(s => (
+          <div key={s.id} className="px-4 py-3">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{s.userName}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+              <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
+              {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
+              {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} unit{s.holdsFlagged !== 1 ? 's' : ''} flagged</span>}
+              {s.pump2Drift && s.pump2Drift !== 'ok' && (
+                <span className="text-amber-600 dark:text-amber-500">⚠ Pump 2 {s.pump2Drift}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

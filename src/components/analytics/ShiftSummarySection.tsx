@@ -5,23 +5,12 @@ import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import { isManagement } from '../../lib/analytics';
+import { pump2Status, EXPECTED_PUMP2, type Pump2Status } from '../../lib/fuelReadings';
 import {
-  SummaryRow, ShiftSparkline, HistoryCard,
+  SummaryRow, ShiftSparkline, HistoryCard, TeamTodayCard,
 } from './AnalyticsComponents';
 import { ShiftExportActionSheet } from '../my-shift/ShiftExportActionSheet';
-import { type SavedSummary, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
-
-function fmtMinutes(mins: number): string {
-  if (mins === 0) return '0m';
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
-}
+import { fmtMinutes, fmtTime, type SavedSummary, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
 
 interface LiveSummary {
   offStandardMinutes: number;   // total (persisted) — equals nonAirport + airport
@@ -32,6 +21,7 @@ interface LiveSummary {
   tripMinutes: number;          // from vsa_trips — still persisted to the snapshot
   holdsFlagged: number;
   firstActivityAt: string | null;
+  pump2Drift: Pump2Status | null;
 }
 
 export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) {
@@ -59,7 +49,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     setLoading(true);
     const { startISO: dayStartISO, endISO: dayEndISO } = shiftDayWindow(date);
 
-    const [osResult, tripsResult, holdsResult, histResult] = await Promise.all([
+    const [osResult, tripsResult, holdsResult, histResult, fuelResult] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, minutes, reason, auto_from_trip')
         .eq('user_id', user.id)
@@ -83,6 +73,13 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         .gte('date', localDateStr(-30))
         .order('date', { ascending: false })
         .limit(5),
+      supabase.from('fuel_pump_readings')
+        .select('pump2_reading')
+        .eq('branch_id', user.branchId)
+        .eq('date', date)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     const osEntries = osResult.data ?? [];
@@ -107,6 +104,11 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
 
     const holdsFlagged = (holdsResult.data ?? []).length;
 
+    const fuelRow = fuelResult.data;
+    const pump2Drift = fuelRow?.pump2_reading != null
+      ? pump2Status(String(fuelRow.pump2_reading), EXPECTED_PUMP2)
+      : null;
+
     const allTimes = [
       ...osEntries.map(r => r.start_time as string),
       ...trips.map(r => r.depart_time as string),
@@ -118,7 +120,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
       nonAirportMinutes:    offStandard.nonAirport,
       airportMinutes:       offStandard.airport,
       offStandardBreakdown: offStandard.breakdown,
-      tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null,
+      tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null, pump2Drift,
     });
 
     const saved = (histResult.data ?? []).map(r => mapSaved(r as unknown as Record<string, unknown>));
@@ -153,6 +155,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         trip_count:             liveData.tripCount,
         trip_minutes:           liveData.tripMinutes,
         holds_flagged:          liveData.holdsFlagged,
+        pump2_drift:            liveData.pump2Drift ?? null,
       }, { onConflict: 'user_id,date' })
     );
     if (!error) {
@@ -265,6 +268,12 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
             {live!.holdsFlagged > 0 && (
               <SummaryRow label="Units Flagged" value={String(live!.holdsFlagged)} />
             )}
+            {live!.pump2Drift && live!.pump2Drift !== 'ok' && (
+              <SummaryRow
+                label="Pump 2"
+                value={live!.pump2Drift === 'used' ? '⚠ Used (meter advanced)' : '⚠ Fault (meter dropped)'}
+              />
+            )}
           </div>
         )}
 
@@ -301,29 +310,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         <ShiftExportActionSheet date={exportDate} onClose={() => setExportDate(null)} />
       )}
 
-      {/* Team Today — management only */}
-      {isManagement(user.role) && team.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-          <p className="px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest border-b border-gray-100 dark:border-gray-800">
-            Team Today
-          </p>
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {team.map(s => (
-              <div key={s.id} className="px-4 py-3">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{s.userName}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Saved {fmtTime(s.savedAt)}</p>
-                </div>
-                <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span>⏱ {fmtMinutes(s.offStandardMinutes)}</span>
-                  {s.tripCount > 0 && <span>🚗 {s.tripCount} trip{s.tripCount !== 1 ? 's' : ''} · {fmtMinutes(s.tripMinutes)}</span>}
-                  {s.holdsFlagged > 0 && <span>🚨 {s.holdsFlagged} unit{s.holdsFlagged !== 1 ? 's' : ''} flagged</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <TeamTodayCard team={team} />
 
     </div>
   );

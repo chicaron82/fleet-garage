@@ -20,6 +20,8 @@ export interface ActiveSession {
 interface ActiveSessionsValue {
   trip:           ActiveSession | null;
   oth:            ActiveSession | null;
+  /** Shared elapsed-time tick — single interval for all pill consumers. */
+  nowMs:          number;
   refresh:        () => void;
   movementTab:    FocusTab;
   setMovementTab: (tab: FocusTab) => void;
@@ -46,6 +48,16 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   const [trip, setTrip]               = useState<ActiveSession | null>(null);
   const [oth, setOth]                 = useState<ActiveSession | null>(null);
   const [movementTab, setMovementTab] = useState<FocusTab>('movement-log');
+  const [nowMs, setNowMs]             = useState(() => Date.now());
+
+  // One elapsed-time tick shared across all pill consumers — no duplicate intervals.
+  const hasTrip = trip !== null;
+  const hasOth  = oth  !== null;
+  useEffect(() => {
+    if (!hasTrip && !hasOth) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasTrip, hasOth]);
 
   const refresh = useCallback(async () => {
     if (!userId) { setTrip(null); setOth(null); return; }
@@ -81,7 +93,7 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
 
   return (
     <ActiveSessionsContext.Provider
-      value={{ trip, oth, refresh: () => void refresh(), movementTab, setMovementTab }}
+      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab }}
     >
       {children}
     </ActiveSessionsContext.Provider>

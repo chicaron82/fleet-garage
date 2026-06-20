@@ -13,6 +13,7 @@ const mockContext = (overrides: {
 }) => ({
   trip: overrides.trip ?? null,
   oth:  overrides.oth  ?? null,
+  nowMs: Date.now(),
   refresh: vi.fn(),
   movementTab: overrides.movementTab ?? 'movement-log',
   setMovementTab: vi.fn(),

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useActiveSessions, type ActiveSession, type FocusTab } from '../../context/ActiveSessionsContext';
 import { elapsedLabel } from '../../lib/activeSessions';
 import { hapticLight } from '../../lib/haptics';
@@ -50,20 +49,13 @@ export function ActiveSessionPill({
   onNavigate: (s: Screen) => void;
   variant?: 'header' | 'overlay';
 }) {
-  const { trip, oth, movementTab, setMovementTab } = useActiveSessions();
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const { trip, oth, nowMs, movementTab, setMovementTab } = useActiveSessions();
 
   // Each pill suppresses on its own matching tab — the reminder is redundant
   // when you're already looking at the live session card.
   const onMovementLog = activeModule === 'movement-log';
   const showTrip = !!trip && !(onMovementLog && movementTab === 'movement-log');
   const showOth  = !!oth  && !(onMovementLog && movementTab === 'off-standard');
-
-  useEffect(() => {
-    if (!showTrip && !showOth) return;
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [showTrip, showOth]);
 
   if (!showTrip && !showOth) return null;
 
