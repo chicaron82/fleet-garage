@@ -18,6 +18,7 @@ import {
   type ReportData,
   type ReportThroughput,
 } from '../../lib/buildShiftReport';
+import { pump2Status, EXPECTED_PUMP2 } from '../../lib/fuelReadings';
 import type { ShiftType } from '../../types';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export function ShiftReportExport({ date }: { date: string }) {
     const [
       othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes,
       fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes,
+      fuelRes,
     ] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip, preset_reason')
@@ -131,6 +133,14 @@ export function ShiftReportExport({ date }: { date: string }) {
         .eq('date', date)
         .eq('checkpoint_type', 'mid_departure')
         .limit(1),
+
+      supabase.from('fuel_pump_readings')
+        .select('pump2_reading')
+        .eq('branch_id', user.branchId)
+        .eq('date', date)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     // Shift type + actual hours worked (drives the window when logged)
@@ -293,6 +303,9 @@ export function ShiftReportExport({ date }: { date: string }) {
       fleetBalance,
       throughput,
       airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip'),
+      pump2Drift: fuelRes.data?.pump2_reading != null
+        ? pump2Status(String(fuelRes.data.pump2_reading), EXPECTED_PUMP2)
+        : null,
     };
   };
 
