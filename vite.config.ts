@@ -44,6 +44,10 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    port: 5174,
+    strictPort: true,
+  },
   build: {
     // react-pdf (@react-pdf/renderer, ~1.4 MB raw) is the only chunk over the
     // default 500 kB limit — and it's dynamically imported only at PDF-export
