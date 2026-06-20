@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { localDateStr } from './useFleetBalance';
 import { analogPumped, digitalDelta, pump2Status, digitalWentUp, EXPECTED_PUMP2 } from '../lib/fuelReadings';
@@ -17,6 +17,23 @@ export function useFuelPumpReadings(user: User) {
   const [pump2Reading, setPump2Reading] = useState('');
   const [digitalOpen, setDigitalOpen] = useState('');
   const [digitalClose, setDigitalClose] = useState('');
+
+  // Pre-fill opening readings from the most recent prior shift's closing values.
+  // Pump 2 is intentionally never pre-filled — typing the value is its loss-prevention control.
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('fuel_pump_readings')
+        .select('pump1_close, digital_close')
+        .eq('branch_id', user.branchId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!data) return;
+      if (data.pump1_close != null) setPump1Open(String(data.pump1_close));
+      if (data.digital_close != null) setDigitalOpen(String(data.digital_close));
+    })();
+  }, [user.branchId]);
   const [topupNote, setTopupNote]     = useState('');
 
   const [saving, setSaving]       = useState(false);

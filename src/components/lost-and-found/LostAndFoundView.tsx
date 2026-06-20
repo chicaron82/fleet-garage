@@ -65,13 +65,21 @@ export function LostAndFoundView() {
 
       {/* Search + log */}
       <div className="flex gap-2">
-        <input
-          type="search"
-          placeholder="Search by description, plate, notes…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          className="flex-1 px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
-        />
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search by description, plate, notes…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm leading-none cursor-pointer transition">
+              ✕
+            </button>
+          )}
+        </div>
         <PrimaryAction label="Log" aria-label="Log a found item" onClick={() => setShowSheet(true)} />
       </div>
 
