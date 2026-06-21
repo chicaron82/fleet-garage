@@ -132,6 +132,7 @@ export function mapWashbayLog(row: Row): WashbayLog {
     shiftHours:        Number(row['shift_hours']),
     overtimeHours:     (row['overtime_hours'] as number) ?? 0,
     lotStatus:         (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
+    airportFlipping:   (row['airport_flipping'] as boolean) ?? false,
     loggedById:        reqStr(row, 'logged_by',           'mapWashbayLog'),
     loggedAt:          reqStr(row, 'logged_at',           'mapWashbayLog'),
   };
@@ -183,6 +184,7 @@ export function mapHandoffNote(row: Row): HandoffNote {
     lotStatus:        (optStr(row, 'lot_status') ?? 'manageable') as LotStatus,
     morningHours:     (row['morning_hours'] as number) ?? 8.5,
     carryOverCleared: (row['carry_over_cleared'] as number) ?? 0,
+    airportFlipping:  (row['airport_flipping'] as boolean) ?? false,
   };
 }
 

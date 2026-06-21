@@ -274,6 +274,7 @@ export interface HandoffNote {
   lotStatus: LotStatus;
   morningHours: number; // default 8.0 — productive hours (excludes 30min unpaid lunch)
   carryOverCleared: number; // prior-day-fuelled cars cleaned & sent today (no fresh gas line)
+  airportFlipping: boolean; // Manual attestation: morning crew ran quick turnarounds at the airport
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
@@ -440,6 +441,7 @@ export interface WashbayLog {
   shiftHours: number;        // Hours washbay ran (default 8)
   overtimeHours: number;     // Extended operating hours beyond base (0–3)
   lotStatus: LotStatus;      // Lot state at end of closing shift
+  airportFlipping: boolean;  // Manual attestation: quick turnarounds run at the airport today (lowers bay count)
   loggedById: string;        // User.id
   loggedAt: string;          // ISO timestamp
 }

@@ -13,7 +13,7 @@ export interface WashbayHandoffSlice {
    *  for the normal "today" close. Upserts on (branch_id, date) either way. */
   submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>, targetDate?: string) => Promise<boolean>;
   getTodayWashbayLog: () => WashbayLog | undefined;
-  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number; carryOverCleared?: number }) => Promise<boolean>;
+  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number; carryOverCleared?: number; airportFlipping?: boolean }) => Promise<boolean>;
 }
 
 export function useWashbayHandoff(
@@ -52,6 +52,7 @@ export function useWashbayHandoff(
           shift_hours:         data.shiftHours,
           overtime_hours:      data.overtimeHours,
           lot_status:          data.lotStatus,
+          airport_flipping:    data.airportFlipping,
           logged_by:           user!.id,
           logged_at:           loggedAt,
         }, { onConflict: 'branch_id, date' }).select().single()
@@ -81,6 +82,7 @@ export function useWashbayHandoff(
     notes?: string;
     morningHours?: number;
     carryOverCleared?: number;
+    airportFlipping?: boolean;
   }): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
@@ -98,6 +100,7 @@ export function useWashbayHandoff(
           notes:              data.notes ?? null,
           morning_hours:      data.morningHours ?? 8.0,
           carry_over_cleared: data.carryOverCleared ?? 0,
+          airport_flipping:   data.airportFlipping ?? false,
         }).select().single()
       );
       if (error) throw error;

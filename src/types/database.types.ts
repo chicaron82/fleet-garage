@@ -287,6 +287,7 @@ export type Database = {
       }
       handoff_notes: {
         Row: {
+          airport_flipping: boolean
           branch_id: string
           carry_over_cleared: number
           full_pages: number
@@ -301,6 +302,7 @@ export type Database = {
           team_size: number
         }
         Insert: {
+          airport_flipping?: boolean
           branch_id: string
           carry_over_cleared?: number
           full_pages?: number
@@ -315,6 +317,7 @@ export type Database = {
           team_size?: number
         }
         Update: {
+          airport_flipping?: boolean
           branch_id?: string
           carry_over_cleared?: number
           full_pages?: number
@@ -1350,6 +1353,7 @@ export type Database = {
       }
       washbay_logs: {
         Row: {
+          airport_flipping: boolean
           branch_id: string
           carry_over: number
           cars_remaining: number
@@ -1369,6 +1373,7 @@ export type Database = {
           team_size: number
         }
         Insert: {
+          airport_flipping?: boolean
           branch_id: string
           carry_over?: number
           cars_remaining?: number
@@ -1388,6 +1393,7 @@ export type Database = {
           team_size: number
         }
         Update: {
+          airport_flipping?: boolean
           branch_id?: string
           carry_over?: number
           cars_remaining?: number

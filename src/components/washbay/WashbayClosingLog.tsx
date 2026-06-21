@@ -18,7 +18,7 @@ const SHIFT_HOURS = 8;
 
 export function WashbayClosingLog() {
   const { holds } = useVehicleHoldContext();
-  const { submitWashbayLog, getTodayWashbayLog, getLatestGasSheetReading } = useWashbayContext();
+  const { submitWashbayLog, getTodayWashbayLog, getLatestGasSheetReading, handoffNotes } = useWashbayContext();
   const { user } = useAuth();
   const { isPeakSeason, shifts } = useSchedule();
 
@@ -66,6 +66,7 @@ export function WashbayClosingLog() {
       setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setUserTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
+      setFlippingTouched(todayLog.airportFlipping);
     }
     setEditing(true);
   };
@@ -82,6 +83,15 @@ export function WashbayClosingLog() {
   const delta       = throughput - COMPANY_STANDARD;
 
   const airportFlipping    = useTodayAirportFlip(user?.id, localDateStr(0));
+  // Manual "flipping done today" attestation — covers turnarounds run by people who
+  // don't use FG (a closing partner, roster-only morning crew), which the OTH signal
+  // above can't see. Pre-checks if the morning handoff or an earlier log today
+  // already flagged it (null until touched, so an async context load can't freeze a
+  // stale default).
+  const handoffFlippedToday = handoffNotes.some(h => businessDateOf(h.loggedAt) === localDateStr(0) && h.airportFlipping);
+  const flippingKnown      = airportFlipping || handoffFlippedToday || (todayLog?.airportFlipping ?? false);
+  const [flippingTouched, setFlippingTouched] = useState<boolean | null>(null);
+  const flippingDone       = flippingTouched ?? flippingKnown;
   const heldToday          = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === localDateStr(0)).length;
   const rentablesProcessed = Math.max(0, carsIn - heldToday);
   const deliveredToAirport = Math.max(0, rentablesProcessed - cnpu);
@@ -92,7 +102,7 @@ export function WashbayClosingLog() {
     if (!canSubmit) return;
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: 0, deferredCompletions: 0, nonRentablesNote: null, carryOver: 0, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus: lotStatusFromQueue(cr) });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: 0, deferredCompletions: 0, nonRentablesNote: null, carryOver: 0, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus: lotStatusFromQueue(cr), airportFlipping: flippingDone });
     setEditing(false);
     setSubmitting(false);
   };
@@ -106,7 +116,7 @@ export function WashbayClosingLog() {
         baseHours={baseHours}
         isPeakSeason={isPeakSeason}
         heldToday={heldToday}
-        airportFlipping={airportFlipping}
+        airportFlipping={airportFlipping || (todayLog?.airportFlipping ?? false)}
         onEdit={enterEditMode}
       />
     );
@@ -215,6 +225,19 @@ export function WashbayClosingLog() {
             </div>
           )}
         </div>
+
+        {/* Airport flipping attestation — a low bay count is expected when cars were
+            turned around at the airport instead of washed; record it so the report
+            reads light-for-a-reason, even if the flipper doesn't use FG. */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <div
+            onClick={() => setFlippingTouched(!flippingDone)}
+            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${flippingDone ? 'bg-fg-yellow border-fg-yellow' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+          >
+            {flippingDone && <span className="text-[10px] font-bold text-black leading-none">✓</span>}
+          </div>
+          <span className="text-xs text-gray-500 dark:text-gray-400">🔄 Quick turnarounds done at the airport today</span>
+        </label>
 
         {carsIn > 0 && (
           <div className={`rounded-lg px-4 py-3 ${delta >= 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50' : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'}`}>

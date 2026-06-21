@@ -40,9 +40,10 @@ export interface ReportData {
   issues:       { reportedAt: string; title: string; severity: string }[];
   fleetBalance: { outCount: number; inCount: number; isProjected: boolean } | null;
   throughput:   ReportThroughput | null;
-  // True when the shift logged any 'airport_flip' OTH time. Cars flipped at the
-  // airport never reach the washbay, so the bay count reads light — this flag
-  // tells a report reader the low number had airport turnarounds behind it.
+  // True when flipping was recorded that day through ANY channel — a VSA's own
+  // 'airport_flip' OTH time, or the manual handoff/closing attestation (for flips
+  // run by people who don't use FG). Cars flipped at the airport never reach the
+  // washbay, so the bay count reads light — this flag tells a report reader why.
   airportFlipping: boolean;
   // Every reading the paper Gasoline Pump Card carries, surfaced in FG. null when
   // no fuel was logged for the day. The Pump 2 status doubles as the theft tripwire.

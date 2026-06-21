@@ -102,7 +102,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // Handoff note for the day
       supabase.from('handoff_notes')
-        .select('full_pages, last_page_entries, lot_status, logged_at, morning_hours')
+        .select('full_pages, last_page_entries, lot_status, logged_at, morning_hours, airport_flipping')
         .gte('logged_at', dayStartISO)
         .lt('logged_at', dayEndISO)
         .order('logged_at', { ascending: false })
@@ -110,7 +110,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // Washbay log for the day
       supabase.from('washbay_logs')
-        .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status')
+        .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status, airport_flipping')
         .eq('date', date)
         .limit(1),
 
@@ -166,9 +166,9 @@ export function ShiftReportExport({ date }: { date: string }) {
     }
 
     // Throughput
-    type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string; carry_over: number };
+    type WashbayRow    = { full_pages: number; last_page_entries: number; cars_remaining: number; overtime_hours: number; lot_status: string; carry_over: number; airport_flipping: boolean };
     type CheckpointRow = { full_pages: number; last_page_entries: number; logged_at?: string };
-    const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string; logged_at: string; morning_hours: number | null } | undefined;
+    const handoffRow    = (handoffRes.data    ?? [])[0] as { full_pages: number; last_page_entries: number; lot_status: string; logged_at: string; morning_hours: number | null; airport_flipping: boolean } | undefined;
     const washbayRow    = (washbayRes.data    ?? [])[0] as WashbayRow    | undefined;
     const checkpointRow = (checkpointRes.data ?? [])[0] as CheckpointRow | undefined;
     const midArrRow     = (midArrivalRes.data ?? [])[0] as CheckpointRow | undefined;
@@ -302,7 +302,12 @@ export function ShiftReportExport({ date }: { date: string }) {
       })),
       fleetBalance,
       throughput,
-      airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip'),
+      // True if flipping shows up through ANY channel that day: a VSA's own OTH log,
+      // the morning handoff attestation, or the closing log attestation — so a
+      // turnaround run by someone who doesn't use FG still explains the light count.
+      airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip')
+        || (handoffRow?.airport_flipping ?? false)
+        || (washbayRow?.airport_flipping ?? false),
       fuel: buildFuelReport(fuelRes.data),
     };
   };

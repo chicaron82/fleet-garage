@@ -63,6 +63,7 @@ export function HandoffForm({ onClose }: Props) {
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,    setAdjustMorning]   = useState(false);
   const [morningHours,     setMorningHours]    = useState(8.0);
+  const [airportFlipping,  setAirportFlipping] = useState(false);
   const [submitting,       setSubmitting]      = useState(false);
 
   // Backfill: when last night's close was never logged, the opener records how
@@ -78,6 +79,7 @@ export function HandoffForm({ onClose }: Props) {
       cleanNotPickedUp: 0, nonRentablesFuelled: 0, deferredCompletions: 0,
       nonRentablesNote: null, carryOver: 0, teamSize: 1, shiftHours: 8,
       overtimeHours: 0, lotStatus: backfillCount > 0 ? 'manageable' : 'zeroed',
+      airportFlipping: false,
     }, shiftDateStr(-1));
     // On success the optimistic washbayLogs update makes findPriorShiftLog match,
     // so this panel gives way to the inherited-backlog line on the next render.
@@ -113,6 +115,7 @@ export function HandoffForm({ onClose }: Props) {
       notes: notes.trim() || undefined,
       morningHours: adjustMorning ? morningHours : undefined,
       carryOverCleared: inheritedBacklog > 0 ? inheritedBacklog : undefined,
+      airportFlipping,
     });
     if (ok) onClose();
     else setSubmitting(false);
@@ -257,6 +260,21 @@ export function HandoffForm({ onClose }: Props) {
               placeholder="Anything the next shift needs to know…"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition resize-none"
             />
+          </div>
+
+          {/* Airport flipping attestation — morning crew ran quick turnarounds at
+              the airport (often by people who don't use FG), so the bay count runs
+              light. Recording it here carries the reason into the day. */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div
+                onClick={() => { setAirportFlipping(v => !v); hapticLight(); }}
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${airportFlipping ? 'bg-fg-yellow border-fg-yellow' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+              >
+                {airportFlipping && <span className="text-[10px] font-bold text-black leading-none">✓</span>}
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">🔄 Flipping returns done at the airport this morning</span>
+            </label>
           </div>
 
           {/* AM window adjust */}
