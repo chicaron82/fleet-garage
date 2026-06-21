@@ -19,6 +19,7 @@ const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
 type AddProps = {
   mode: 'add';
   initialDate: string;
+  initialUserId?: string;
   onClose: () => void;
 };
 
@@ -42,7 +43,9 @@ export function ShiftForm(props: Props) {
   // Managers + leads can enter a shift for someone else (self by default). The
   // list is everyone at the active branch — real users + board-only roster staff.
   const canSchedule = user ? canManageSchedule(user.role) : false;
-  const [targetUserId, setTargetUserId] = useState(user?.id ?? '');
+  const [targetUserId, setTargetUserId] = useState(
+    isEdit ? (existing?.userId ?? user?.id ?? '') : (props.initialUserId ?? user?.id ?? ''),
+  );
   const people = useMemo(
     () => teamMembers
       .filter(m => activeBranch === 'ALL' || m.branchId === activeBranch)

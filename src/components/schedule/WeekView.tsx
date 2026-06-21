@@ -6,7 +6,7 @@ import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
 import { resolveWeekSwipe } from '../../lib/weekSwipe';
-import { isFullDayShift } from '../../types';
+import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -39,7 +39,8 @@ export function WeekView({ today, visibleUserIds }: Props) {
   const teamMembers = useTeamMembers();
   const [editShift, setEditShift]     = useState<ShiftWithUser | null>(null);
   const [flipShift, setFlipShift]     = useState<ShiftWithUser | null>(null);
-  const [addForDate, setAddForDate]   = useState<string | null>(null);
+  const [addFor, setAddFor]           = useState<{ date: string; userId: string } | null>(null);
+  const canSchedule = user ? canManageSchedule(user.role) : false;
   const touchStartX    = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
@@ -174,9 +175,9 @@ export function WeekView({ today, visibleUserIds }: Props) {
                               </>
                             )}
                           </button>
-                        ) : isMe ? (
+                        ) : (isMe || canSchedule) ? (
                           <button
-                            onClick={() => setAddForDate(iso)}
+                            onClick={() => setAddFor({ date: iso, userId: u.id })}
                             className="w-full py-1 text-gray-300 dark:text-gray-600 hover:text-yellow-500 dark:hover:text-yellow-400 text-base font-light transition cursor-pointer"
                             aria-label={`Add shift ${DAY_NAMES[i]}`}
                           >
@@ -225,11 +226,12 @@ export function WeekView({ today, visibleUserIds }: Props) {
           onClose={() => setFlipShift(null)}
         />
       )}
-      {addForDate && (
+      {addFor && (
         <ShiftForm
           mode="add"
-          initialDate={addForDate}
-          onClose={() => setAddForDate(null)}
+          initialDate={addFor.date}
+          initialUserId={addFor.userId}
+          onClose={() => setAddFor(null)}
         />
       )}
     </>
