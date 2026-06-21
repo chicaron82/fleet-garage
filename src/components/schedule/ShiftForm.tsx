@@ -16,6 +16,17 @@ const SHIFT_TYPE_OPTIONS: { value: ShiftType; label: string }[] = [
   { value: 'sick',    label: 'Sick Day' },
 ];
 
+// A new shift pre-fills the type you last scheduled, so a run of openings doesn't
+// mean re-picking off the Closing default every time. Falls back to closing.
+const LAST_TYPE_KEY = 'fg.schedule.lastShiftType';
+function rememberedShiftType(): ShiftType {
+  try {
+    const t = localStorage.getItem(LAST_TYPE_KEY);
+    if (t && SHIFT_TYPE_OPTIONS.some(o => o.value === t)) return t as ShiftType;
+  } catch { /* ignore */ }
+  return 'closing';
+}
+
 type AddProps = {
   mode: 'add';
   initialDate: string;
@@ -63,7 +74,7 @@ export function ShiftForm(props: Props) {
     [teamMembers, activeBranch, user?.id, scopedIds, pinnedId],
   );
 
-  const initialShiftType: ShiftType = existing?.shiftType ?? 'closing';
+  const initialShiftType: ShiftType = existing?.shiftType ?? rememberedShiftType();
   const initialDefaults = getTypeDefaults(isPeakSeason)[initialShiftType];
 
   const [date,      setDate]      = useState(existing?.date ?? (props.mode === 'add' ? props.initialDate : ''));
@@ -110,6 +121,7 @@ export function ShiftForm(props: Props) {
           notes:     notes.trim() || undefined,
         });
       }
+      try { localStorage.setItem(LAST_TYPE_KEY, shiftType); } catch { /* ignore */ }
       props.onClose();
     } catch {
       setError('Failed to save. Please try again.');

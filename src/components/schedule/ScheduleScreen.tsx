@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
@@ -25,6 +25,18 @@ function monthLabel(date: Date): string {
   return date.toLocaleDateString('en-CA', { month: 'long', year: 'numeric' });
 }
 
+// The schedule remembers which staff group(s) you last viewed, so it opens on
+// your team instead of just yourself. First load defaults to Floor (the crew the
+// schedule is mostly about) rather than an empty grid.
+const GROUPS_KEY = 'fg.schedule.groups';
+function loadGroups(): Set<ScheduleGroup> {
+  try {
+    const raw = localStorage.getItem(GROUPS_KEY);
+    if (raw) return new Set(JSON.parse(raw) as ScheduleGroup[]);
+  } catch { /* ignore */ }
+  return new Set<ScheduleGroup>(['floor']);
+}
+
 export function ScheduleScreen() {
   const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
@@ -35,8 +47,11 @@ export function ScheduleScreen() {
   const [togglingPeak, setTogglingPeak] = useState(false);
   const [editingPto,   setEditingPto]   = useState(false);
   const [ptoInput,     setPtoInput]     = useState('');
-  const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(new Set());
+  const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(loadGroups);
   const [showPtoSheet, setShowPtoSheet] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify([...activeGroups])); } catch { /* ignore */ }
+  }, [activeGroups]);
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const canSchedule = user ? canManageSchedule(user.role) : false;
   const today = toISO(new Date());
