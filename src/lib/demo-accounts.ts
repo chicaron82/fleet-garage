@@ -15,3 +15,13 @@ const REAL_EMPLOYEE_IDS = new Set<string>([
 export function isRealAccount(employeeId: string | undefined | null): boolean {
   return !!employeeId && REAL_EMPLOYEE_IDS.has(employeeId);
 }
+
+/**
+ * A demo/mock persona — present in the app for demos and screenshots, but not a
+ * real production employee NOR board-only roster staff. This is the set the
+ * schedule hides by default (the UV7 crew accounts), while keeping real crew and
+ * the roster ghosts who genuinely work the floor.
+ */
+export function isMockPersona(p: { employeeId?: string | null; rosterOnly?: boolean | null }): boolean {
+  return !isRealAccount(p.employeeId) && !p.rosterOnly;
+}

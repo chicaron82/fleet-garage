@@ -11,6 +11,7 @@ import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
+import { isMockPersona } from '../../lib/demo-accounts';
 import { PtoRequestActionSheet } from './PtoRequestActionSheet';
 import { canManageSchedule } from '../../types';
 
@@ -37,6 +38,13 @@ function loadGroups(): Set<ScheduleGroup> {
   return new Set<ScheduleGroup>(['floor']);
 }
 
+// Demo/mock personas (the UV7 crew accounts) are hidden from the schedule by
+// default; this remembers when they've been toggled back on for a demo.
+const SHOW_MOCK_KEY = 'fg.schedule.showMock';
+function loadShowMock(): boolean {
+  try { return localStorage.getItem(SHOW_MOCK_KEY) === '1'; } catch { return false; }
+}
+
 export function ScheduleScreen() {
   const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
@@ -49,9 +57,13 @@ export function ScheduleScreen() {
   const [ptoInput,     setPtoInput]     = useState('');
   const [activeGroups, setActiveGroups] = useState<Set<ScheduleGroup>>(loadGroups);
   const [showPtoSheet, setShowPtoSheet] = useState(false);
+  const [showMock, setShowMock] = useState(loadShowMock);
   useEffect(() => {
     try { localStorage.setItem(GROUPS_KEY, JSON.stringify([...activeGroups])); } catch { /* ignore */ }
   }, [activeGroups]);
+  useEffect(() => {
+    try { localStorage.setItem(SHOW_MOCK_KEY, showMock ? '1' : '0'); } catch { /* ignore */ }
+  }, [showMock]);
   const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const canSchedule = user ? canManageSchedule(user.role) : false;
   const today = toISO(new Date());
@@ -70,7 +82,7 @@ export function ScheduleScreen() {
       const group = SCHEDULE_GROUPS.find(sg => sg.id === g);
       if (!group) continue;
       for (const u of teamMembers) {
-        if (group.roles.includes(u.role) && u.id !== user?.id) {
+        if (group.roles.includes(u.role) && u.id !== user?.id && (showMock || !isMockPersona(u))) {
           if (activeBranch === 'ALL' || u.branchId === activeBranch) {
             ids.add(u.id);
           }
@@ -78,7 +90,7 @@ export function ScheduleScreen() {
       }
     }
     return ids;
-  }, [activeGroups, user, activeBranch, teamMembers]);
+  }, [activeGroups, user, activeBranch, teamMembers, showMock]);
   const isCurrentPeriod = viewMode === 'week'
     ? (() => { const { start, end } = getWeekBounds(new Date()); return toISO(currentDate) >= toISO(start) && toISO(currentDate) <= toISO(end); })()
     : currentDate.getFullYear() === new Date().getFullYear() && currentDate.getMonth() === new Date().getMonth();
@@ -247,6 +259,17 @@ export function ScheduleScreen() {
             </button>
           );
         })}
+        <button
+          onClick={() => setShowMock(v => !v)}
+          title="Show demo / test accounts in the schedule"
+          className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
+            showMock
+              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
+              : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500'
+          }`}
+        >
+          🧪 Test accounts{showMock ? ' · on' : ''}
+        </button>
       </div>
 
       {/* Date navigation */}
