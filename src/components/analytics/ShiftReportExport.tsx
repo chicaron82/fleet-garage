@@ -110,7 +110,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // Washbay log for the day
       supabase.from('washbay_logs')
-        .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status, airport_flipping')
+        .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status, carry_over, airport_flipping')
         .eq('date', date)
         .limit(1),
 
