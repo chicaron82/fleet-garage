@@ -52,3 +52,49 @@ export function digitalWentUp(open: string, close: string): boolean {
   const d = digitalDelta(open, close);
   return d !== null && d > 0;
 }
+
+/** A saved fuel_pump_readings row, the raw numeric shape persisted to the DB. */
+export interface FuelRow {
+  pump1_open:    number | null;
+  pump1_close:   number | null;
+  pump2_reading: number | null;
+  digital_open:  number | null;
+  digital_close: number | null;
+  topup_note:    string | null;
+}
+
+/** The shift-report fuel block — every reading the paper Gasoline Pump Card
+ *  carries, plus the derived pumped / net / Pump 2 status. */
+export interface FuelReport {
+  pump1Open:    number | null;
+  pump1Close:   number | null;
+  pump1Pumped:  number | null;       // close − open (litres pumped on Pump 1)
+  pump2Reading: number | null;
+  pump2:        Pump2Status | null;  // against the locked baseline
+  digitalOpen:  number | null;
+  digitalClose: number | null;
+  digitalNet:   number | null;       // close − open (tank inventory change)
+  topupNote:    string | null;
+}
+
+/**
+ * Shape a saved fuel row into the report block — the same three readings the
+ * paper card shows (Pump 1 meter, locked Pump 2, digital tank inventory), with
+ * the derived figures computed through the shared pure maths. null when there's
+ * no fuel row for the day (nothing to report).
+ */
+export function buildFuelReport(row: FuelRow | null | undefined): FuelReport | null {
+  if (!row) return null;
+  const s = (n: number | null) => (n == null ? '' : String(n));
+  return {
+    pump1Open:    row.pump1_open,
+    pump1Close:   row.pump1_close,
+    pump1Pumped:  analogPumped(s(row.pump1_open), s(row.pump1_close)),
+    pump2Reading: row.pump2_reading,
+    pump2:        row.pump2_reading == null ? null : pump2Status(s(row.pump2_reading), EXPECTED_PUMP2),
+    digitalOpen:  row.digital_open,
+    digitalClose: row.digital_close,
+    digitalNet:   digitalDelta(s(row.digital_open), s(row.digital_close)),
+    topupNote:    row.topup_note ?? null,
+  };
+}

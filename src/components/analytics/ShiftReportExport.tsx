@@ -18,7 +18,7 @@ import {
   type ReportData,
   type ReportThroughput,
 } from '../../lib/buildShiftReport';
-import { pump2Status, EXPECTED_PUMP2 } from '../../lib/fuelReadings';
+import { buildFuelReport } from '../../lib/fuelReadings';
 import type { ShiftType } from '../../types';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         .limit(1),
 
       supabase.from('fuel_pump_readings')
-        .select('pump2_reading')
+        .select('pump1_open, pump1_close, pump2_reading, digital_open, digital_close, topup_note')
         .eq('branch_id', user.branchId)
         .eq('date', date)
         .order('created_at', { ascending: false })
@@ -303,9 +303,7 @@ export function ShiftReportExport({ date }: { date: string }) {
       fleetBalance,
       throughput,
       airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip'),
-      pump2Drift: fuelRes.data?.pump2_reading != null
-        ? pump2Status(String(fuelRes.data.pump2_reading), EXPECTED_PUMP2)
-        : null,
+      fuel: buildFuelReport(fuelRes.data),
     };
   };
 

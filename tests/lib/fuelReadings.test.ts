@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { analogPumped, digitalDelta, pump2Status, digitalWentUp, EXPECTED_PUMP2 } from '../../src/lib/fuelReadings';
+import { analogPumped, digitalDelta, pump2Status, digitalWentUp, buildFuelReport, EXPECTED_PUMP2 } from '../../src/lib/fuelReadings';
+import type { FuelRow } from '../../src/lib/fuelReadings';
 
 describe('analogPumped', () => {
   it('rounds close − open to a whole number', () => {
@@ -57,5 +58,46 @@ describe('digitalWentUp', () => {
   });
   it('is false until both readings are in', () => {
     expect(digitalWentUp('', '512')).toBe(false);
+  });
+});
+
+describe('buildFuelReport', () => {
+  const row = (over: Partial<FuelRow> = {}): FuelRow => ({
+    pump1_open: 417547, pump1_close: 417782, pump2_reading: 1439,
+    digital_open: 1677, digital_close: 1462.3, topup_note: null, ...over,
+  });
+
+  it('is null when there is no fuel row for the day', () => {
+    expect(buildFuelReport(null)).toBeNull();
+    expect(buildFuelReport(undefined)).toBeNull();
+  });
+
+  it('mirrors the paper card: Pump 1 pumped, locked Pump 2 ok, tank net change', () => {
+    const f = buildFuelReport(row())!;
+    expect(f.pump1Pumped).toBe(235);       // 417782 − 417547
+    expect(f.pump2).toBe('ok');            // locked at 1439, untouched
+    expect(f.pump2Reading).toBe(1439);
+    expect(f.digitalNet).toBeCloseTo(-214.7); // 1462.3 − 1677, tank drawn down
+  });
+
+  it('flags Pump 2 above the lock as used (theft) and below as fault', () => {
+    expect(buildFuelReport(row({ pump2_reading: 1500 }))!.pump2).toBe('used');
+    expect(buildFuelReport(row({ pump2_reading: 1400 }))!.pump2).toBe('fault');
+  });
+
+  it('leaves Pump 2 status null when the reading is absent', () => {
+    expect(buildFuelReport(row({ pump2_reading: null }))!.pump2).toBeNull();
+  });
+
+  it('carries partial rows — derived figures null until both ends are present', () => {
+    const f = buildFuelReport(row({ pump1_close: null, digital_close: null }))!;
+    expect(f.pump1Open).toBe(417547);
+    expect(f.pump1Pumped).toBeNull();
+    expect(f.digitalNet).toBeNull();
+  });
+
+  it('passes the top-up note through', () => {
+    expect(buildFuelReport(row({ topup_note: 'Tank topped up mid-shift' }))!.topupNote)
+      .toBe('Tank topped up mid-shift');
   });
 });
