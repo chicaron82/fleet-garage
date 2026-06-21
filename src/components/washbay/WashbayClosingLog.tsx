@@ -7,6 +7,7 @@ import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, hasGas
 import { sentToFleetFromCount } from '../../lib/washbay-throughput';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
+import { priorFlippingAttested } from '../../lib/airportFlipping';
 import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
 import { rosteredVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
@@ -88,8 +89,7 @@ export function WashbayClosingLog() {
   // above can't see. Pre-checks if the morning handoff or an earlier log today
   // already flagged it (null until touched, so an async context load can't freeze a
   // stale default).
-  const handoffFlippedToday = handoffNotes.some(h => businessDateOf(h.loggedAt) === localDateStr(0) && h.airportFlipping);
-  const flippingKnown      = airportFlipping || handoffFlippedToday || (todayLog?.airportFlipping ?? false);
+  const flippingKnown      = airportFlipping || priorFlippingAttested(handoffNotes, todayLog, localDateStr(0));
   const [flippingTouched, setFlippingTouched] = useState<boolean | null>(null);
   const flippingDone       = flippingTouched ?? flippingKnown;
   const heldToday          = holds.filter(h => h.status === 'ACTIVE' && businessDateOf(h.flaggedAt) === localDateStr(0)).length;
