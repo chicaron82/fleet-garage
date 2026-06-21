@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule, toISO } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
+import { supabase } from '../../lib/supabase';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { canManageSchedule, isFullDayShift } from '../../types';
 import type { ShiftType } from '../../types';
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export function FillScheduleModal({ onClose }: Props) {
-  const { shifts, bulkCreateShifts, refresh, isPeakSeason } = useSchedule();
+  const { bulkCreateShifts, refresh, isPeakSeason } = useSchedule();
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   useEscapeKey(onClose);
@@ -66,11 +67,25 @@ export function FillScheduleModal({ onClose }: Props) {
 
   const isDayOff = isFullDayShift(shiftType);
 
-  // Existing shift dates for whoever we're filling for (self by default)
-  const existingDates = useMemo(
-    () => new Set(shifts.filter(s => s.userId === fillFor).map(s => s.date)),
-    [shifts, fillFor]
-  );
+  // Existing shift dates queried directly from DB for the full fill range —
+  // not from the view-windowed shifts state, which only covers the displayed
+  // week and would miss dates outside it (causing duplicates on bulk inserts).
+  const [existingDates, setExistingDates] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!fillFor || !from || !to || from > to) { setExistingDates(new Set()); return; }
+    let cancelled = false;
+    void supabase
+      .from('shifts')
+      .select('date')
+      .eq('user_id', fillFor)
+      .gte('date', from)
+      .lte('date', to)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setExistingDates(new Set((data ?? []).map((r: { date: string }) => r.date)));
+      });
+    return () => { cancelled = true; };
+  }, [fillFor, from, to]);
 
   // Candidate dates: matching DOW + in range + no existing shift
   const candidateDates = useMemo(() => {

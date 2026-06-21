@@ -184,7 +184,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         shift_type: s.shiftType,
         notes:      s.notes     ?? null,
       }));
-      const { data, error } = await writeWithRefresh(() => supabase.from('shifts').insert(rows).select());
+      const { data, error } = await writeWithRefresh(() =>
+        supabase.from('shifts').upsert(rows, { onConflict: 'user_id,date', ignoreDuplicates: true }).select()
+      );
       if (error) throw error;
       const created = (data as Record<string, unknown>[]).map(rowToShift);
       setShifts(prev => {
