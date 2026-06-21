@@ -20,6 +20,9 @@ type AddProps = {
   mode: 'add';
   initialDate: string;
   initialUserId?: string;
+  /** When set, the "For" picker is scoped to these (the staff visible in the
+   *  grid) so scheduling one group doesn't list every other role. */
+  visibleUserIds?: Set<string>;
   onClose: () => void;
 };
 
@@ -46,11 +49,18 @@ export function ShiftForm(props: Props) {
   const [targetUserId, setTargetUserId] = useState(
     isEdit ? (existing?.userId ?? user?.id ?? '') : (props.initialUserId ?? user?.id ?? ''),
   );
+  // Scope the picker to the staff currently visible in the grid (the group you're
+  // viewing) when the caller passes that set — so scheduling the Floor doesn't wade
+  // through drivers, CSRs, and managers. Self + the pre-targeted person are always
+  // kept so the current selection can never fall out of the list.
+  const scopedIds = props.mode === 'add' ? props.visibleUserIds : undefined;
+  const pinnedId  = props.mode === 'add' ? props.initialUserId : undefined;
   const people = useMemo(
     () => teamMembers
       .filter(m => activeBranch === 'ALL' || m.branchId === activeBranch)
+      .filter(m => !scopedIds || scopedIds.has(m.id) || m.id === pinnedId || m.id === user?.id)
       .sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : a.name.localeCompare(b.name))),
-    [teamMembers, activeBranch, user?.id],
+    [teamMembers, activeBranch, user?.id, scopedIds, pinnedId],
   );
 
   const initialShiftType: ShiftType = existing?.shiftType ?? 'closing';

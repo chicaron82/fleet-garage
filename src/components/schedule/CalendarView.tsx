@@ -158,6 +158,7 @@ export function CalendarView({ today, visibleUserIds }: Props) {
         <ShiftForm
           mode="add"
           initialDate={addForDate}
+          visibleUserIds={visibleUserIds}
           onClose={() => setAddForDate(null)}
         />
       )}

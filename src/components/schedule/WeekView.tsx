@@ -231,6 +231,7 @@ export function WeekView({ today, visibleUserIds }: Props) {
           mode="add"
           initialDate={addFor.date}
           initialUserId={addFor.userId}
+          visibleUserIds={visibleUserIds}
           onClose={() => setAddFor(null)}
         />
       )}
