@@ -68,7 +68,7 @@ export function canWriteWhiteboard(role: UserRole): boolean {
 // Who can build the floor schedule: enter shifts for *other* people and manage
 // roster-only staff (board-only VSAs/drivers who never log in). Mirrors the
 // whiteboard set — Lead VSA + managers — since leads own the schedule in practice.
-const CAN_MANAGE_SCHEDULE: UserRole[] = ['Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+const CAN_MANAGE_SCHEDULE: UserRole[] = ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
 export function canManageSchedule(role: UserRole): boolean {
   return CAN_MANAGE_SCHEDULE.includes(role);
