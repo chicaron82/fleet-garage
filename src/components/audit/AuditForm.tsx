@@ -3,7 +3,8 @@ import { useAudit } from '../../hooks/useAudit';
 import { exportAuditToHtml } from '../../lib/audit-export';
 import { hapticMedium, hapticLight } from '../../lib/haptics';
 import type { AuditStatus } from '../../types';
-import { CrewRow, ChecklistSection } from './AuditFormSections';
+import { CrewRow } from './AuditCrewRow';
+import { ChecklistSection } from './AuditFormSections';
 
 interface Props {
   onBack: () => void;
