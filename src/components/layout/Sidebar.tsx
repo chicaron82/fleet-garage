@@ -74,9 +74,13 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
         )}
       </div>
 
-      {/* Fleet balance strip — non-management only */}
+      {/* Fleet balance strip — non-management only; tappable shortcut to My Shift */}
       {!['Branch Manager', 'Operations Manager', 'City Manager'].includes(s.user.role) && (
-        <div className="px-4 py-2.5 border-b border-green-800">
+        <button
+          type="button"
+          onClick={() => onNavigate({ name: 'my-shift' })}
+          className="w-full px-4 py-2.5 border-b border-green-800 hover:bg-green-800/50 active:bg-green-800 transition-colors cursor-pointer text-left"
+        >
           {s.todayFleetEntry ? (
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-green-400 uppercase tracking-wider">Fleet Today</span>
@@ -110,7 +114,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
           ) : (
             <p className="text-[10px] text-green-500">No fleet numbers today</p>
           )}
-        </div>
+        </button>
       )}
 
       {/* VSA productivity strip */}
