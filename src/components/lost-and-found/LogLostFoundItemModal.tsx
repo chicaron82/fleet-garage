@@ -18,6 +18,14 @@ const LOCATION_ORDER: LostFoundLocation[] = [
   'other',
 ];
 
+// Erin St = YWG washbay address — hardcoded for now (BranchConfig has no address field)
+const SOURCE_PILLS = [
+  { label: 'Airport',  text: 'Airport return' },
+  { label: 'Erin St',  text: 'Erin St'        },
+  { label: 'Other',    text: null              },
+] as const;
+type SourceTag = typeof SOURCE_PILLS[number]['label'];
+
 interface LogLostFoundItemModalProps {
   user: User | null;
   onClose: () => void;
@@ -44,14 +52,36 @@ export function LogLostFoundItemModal({
   const [location, setLocation] = useState<LostFoundLocation | null>(null);
   const [licensePlate, setLicensePlate] = useState('');
   const [notes, setNotes] = useState('');
+  const [sourceTag, setSourceTag] = useState<SourceTag | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   // Recognize the typed plate live, so the logger sees whose car it is before submitting.
   const plateMatch = usePlateRecognition(licensePlate);
 
-  const keyTagCamRef = useRef<HTMLInputElement>(null);
-  const itemCamRef = useRef<HTMLInputElement>(null);
+  const keyTagCamRef   = useRef<HTMLInputElement>(null);
+  const itemCamRef     = useRef<HTMLInputElement>(null);
   const itemGalleryRef = useRef<HTMLInputElement>(null);
+  const notesRef       = useRef<HTMLTextAreaElement>(null);
+
+  const handleSourcePill = (label: SourceTag, text: string | null) => {
+    hapticLight();
+    if (text === null) {
+      setSourceTag(prev => prev === label ? null : label);
+      notesRef.current?.focus();
+      return;
+    }
+    if (sourceTag === label) {
+      setNotes(prev => prev.replace(` · ${text}`, '').replace(text, '').trim());
+      setSourceTag(null);
+    } else {
+      const oldText = SOURCE_PILLS.find(p => p.label === sourceTag)?.text ?? null;
+      const base = oldText
+        ? notes.replace(` · ${oldText}`, '').replace(oldText, '').trim()
+        : notes.trim();
+      setNotes(base ? `${base} · ${text}` : text);
+      setSourceTag(label);
+    }
+  };
 
   const handlePhotoCapture = (setter: (v: string) => void) =>
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,7 +290,24 @@ export function LogLostFoundItemModal({
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                   Notes
                 </label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {SOURCE_PILLS.map(({ label, text }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleSourcePill(label, text)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                        sourceTag === label
+                          ? 'bg-fg-yellow border-fg-yellow text-black'
+                          : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <textarea
+                  ref={notesRef}
                   rows={2}
                   placeholder="Any additional context…"
                   value={notes}
