@@ -289,7 +289,7 @@ export function QueueSection({ tripsWithQueue, peakCount }: {
       {peakCount > 0 && (
         <View style={s.queueCallout}>
           <Text style={s.queueCallTxt}>
-            ⚠ {peakCount} trip(s) departed with washbay queue at 10+ — VSA coverage pulled during peak window
+            {peakCount} trip(s) departed with washbay queue at 10+ — VSA coverage pulled during peak window
           </Text>
         </View>
       )}
@@ -313,7 +313,7 @@ export function HoldsSection({ holds }: { holds: ReportData['holds'] }) {
                 {(h.photos ?? []).map((url, pi) => (
                   <Link key={pi} src={url} style={{ textDecoration: 'none' }}>
                     <Text style={{ fontSize: 9, color: '#92400e', backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 }}>
-                      📷 Photo {pi + 1}
+                      Photo {pi + 1}
                     </Text>
                   </Link>
                 ))}
