@@ -3,6 +3,7 @@ import {
   getNavItemsForRole,
   getActiveModule,
   getDefaultScreenForRole,
+  canAccessScreen,
 } from '../../src/lib/navigation';
 import type { UserRole } from '../../src/types';
 
@@ -135,5 +136,34 @@ describe('getDefaultScreenForRole', () => {
 
   it.each(DASHBOARD_ROLES)('%s lands on dashboard', (role) => {
     expect(getDefaultScreenForRole(role)).toEqual({ name: 'dashboard' });
+  });
+});
+
+// ── canAccessScreen (the deep-link access guard) ──────────────────────────────
+
+describe('canAccessScreen', () => {
+  it('lets a Lead VSA reach the audit screens', () => {
+    expect(canAccessScreen({ name: 'audits' }, 'Lead VSA')).toBe(true);
+    expect(canAccessScreen({ name: 'audit-form' }, 'Lead VSA')).toBe(true);
+  });
+
+  it('blocks a VSA from the audit module — the reported bug', () => {
+    // A leftover /audits deep-link after switching from a Lead VSA account must not
+    // land a VSA on a module their role is gated out of.
+    expect(canAccessScreen({ name: 'audits' }, 'VSA')).toBe(false);
+    expect(canAccessScreen({ name: 'audit-form' }, 'VSA')).toBe(false);
+  });
+
+  it('still allows deep-links the role CAN access', () => {
+    expect(canAccessScreen({ name: 'schedule' }, 'VSA')).toBe(true);
+    expect(canAccessScreen({ name: 'my-shift' }, 'VSA')).toBe(true);
+    // holds-family screens map to the holds module, which VSA has
+    expect(canAccessScreen({ name: 'dashboard' }, 'VSA')).toBe(true);
+  });
+
+  it('blocks analytics/fleet-master for a frontline role', () => {
+    expect(canAccessScreen({ name: 'analytics' }, 'VSA')).toBe(false);
+    expect(canAccessScreen({ name: 'fleet-master' }, 'VSA')).toBe(false);
+    expect(canAccessScreen({ name: 'analytics' }, 'GM')).toBe(true);
   });
 });

@@ -81,6 +81,19 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   if (navItems.some(item => item.module === preferredModule)) {
     return preferred;
   }
-  
+
   return navItems[0]?.defaultScreen || { name: 'dashboard' };
+}
+
+// ── Access guard ─────────────────────────────────────────────────────────────
+
+/**
+ * Whether a role (at this branch) can actually reach a screen. Guards a restored
+ * deep-link / saved route from landing a user on a module they're gated out of —
+ * e.g. a leftover `/audits` URL after switching accounts in the same browser tab
+ * would otherwise bypass the role gate that hides Audits from the sidebar.
+ */
+export function canAccessScreen(screen: Screen, role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): boolean {
+  const allowed = new Set(getNavItemsForRole(role, activeBranch, canDemo).map(i => i.module));
+  return allowed.has(getActiveModule(screen));
 }

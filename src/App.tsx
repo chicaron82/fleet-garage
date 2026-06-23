@@ -10,7 +10,7 @@ import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
-import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole } from './lib/navigation';
+import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole, canAccessScreen } from './lib/navigation';
 import { screenToPath, pathToScreen } from './lib/screenRouting';
 import { isRealAccount } from './lib/demo-accounts';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
@@ -56,8 +56,13 @@ export default function App() {
     setPrevUserId(user?.id);
     if (user) {
       const navItems = getNavItemsForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
-      const deepLinkScreen = window.location.pathname !== '/'
+      const rawDeepLink = window.location.pathname !== '/'
         ? pathToScreen(window.location.pathname)
+        : null;
+      // Reject a deep-link this user can't access (e.g. a leftover /audits URL from a
+      // different account in the same tab) — it would otherwise bypass the role gate.
+      const deepLinkScreen = rawDeepLink && canAccessScreen(rawDeepLink, user.role, user.branchId, !isRealAccount(user.employeeId))
+        ? rawDeepLink
         : null;
       const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
       const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
