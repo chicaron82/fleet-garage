@@ -4,6 +4,7 @@ import { View, Text, Image, Link } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes, type ReportData, type ReportThroughput } from '../../lib/buildShiftReport';
 import { LOGO_SRC, s, resolveQueueLabel } from './ShiftReportPDFUtils';
 import { holdTypeLabel } from '../../lib/holdTypeLabels';
+import { EXPECTED_PUMP2 } from '../../lib/fuelReadings';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ export function FleetDemandSection({ fb, gap, fullDayCleaned }: {
   );
 }
 
-export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, personalRate }: {
+export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, personalRate, airportFlipping }: {
   t: ReportThroughput;
   fb: ReportData['fleetBalance'];
   offTotal: number;
@@ -103,6 +104,7 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
   shiftRate: number | null;
   windowCleaned: number | null;
   personalRate: number | null;
+  airportFlipping: boolean;
 }) {
   return (
     <View style={s.section}>
@@ -162,6 +164,11 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           : <Text style={s.rateNoOth}>Log off-standard time to see your personal rate</Text>
         }
       </View>
+      {airportFlipping && (
+        <View style={s.flipNote}>
+          <Text style={s.flipNoteText}>Flipping returns — bay count excludes cars turned around at the airport</Text>
+        </View>
+      )}
       {t.queueAtClose != null ? (
         <View style={s.lotPill}>
           <Text style={s.lotPillText}>
@@ -184,6 +191,42 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           </Text>
         </View>
       )}
+    </View>
+  );
+}
+
+export function FuelSection({ fuel }: { fuel: NonNullable<ReportData['fuel']> }) {
+  const n = (v: number) => v.toLocaleString('en-CA');
+  const net = fuel.digitalNet ?? 0;
+  const dir = net > 0 ? `${n(Math.abs(net))} L up` : net < 0 ? `${n(Math.abs(net))} L down` : 'no change';
+  return (
+    <View style={s.section}>
+      <SectionHead title="FUEL — PUMP READINGS" />
+      {fuel.pump1Open != null && fuel.pump1Close != null && (
+        <View style={s.rateRow}>
+          <Text style={s.rateLabel}>Pump 1</Text>
+          <Text style={s.rateValue}>{n(fuel.pump1Open)} – {n(fuel.pump1Close)}{fuel.pump1Pumped != null ? `  ·  ${n(fuel.pump1Pumped)} L pumped` : ''}</Text>
+        </View>
+      )}
+      {fuel.pump2Reading != null && (
+        <View style={s.rateRow}>
+          <Text style={s.rateLabel}>Pump 2 (locked)</Text>
+          {fuel.pump2 === 'used' ? (
+            <Text style={s.fuelAlert}>{n(fuel.pump2Reading)} — above {EXPECTED_PUMP2}. Fuel theft, flag immediately.</Text>
+          ) : fuel.pump2 === 'fault' ? (
+            <Text style={s.fuelAlert}>{n(fuel.pump2Reading)} — below {EXPECTED_PUMP2}. Meter fault / misread.</Text>
+          ) : (
+            <Text style={s.rateValue}>{n(fuel.pump2Reading)}  ·  untouched</Text>
+          )}
+        </View>
+      )}
+      {fuel.digitalOpen != null && fuel.digitalClose != null && (
+        <View style={s.rateRow}>
+          <Text style={s.rateLabel}>Digital tank</Text>
+          <Text style={s.rateValue}>{n(fuel.digitalOpen)} – {n(fuel.digitalClose)}  ·  {dir}</Text>
+        </View>
+      )}
+      {net > 0 && fuel.topupNote ? <Text style={s.subText}>Top-up: {fuel.topupNote}</Text> : null}
     </View>
   );
 }

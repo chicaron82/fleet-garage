@@ -2,7 +2,7 @@ import { Document, Page } from '@react-pdf/renderer';
 import { type ReportData } from '../../lib/buildShiftReport';
 import { s, resolveQueueLabel } from './ShiftReportPDFUtils';
 import {
-  ShiftReportHeader, FleetDemandSection, ThroughputSection,
+  ShiftReportHeader, FleetDemandSection, ThroughputSection, FuelSection,
   OthSection, QueueSection, HoldsSection, CheckInsSection,
   LostFoundSection, AuditsSection, IssuesSection,
   ApprovalSection, ReportFooter,
@@ -44,6 +44,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
             t={t} fb={fb} offTotal={offTotal}
             branchRate={branchRate} shiftRate={shiftRate}
             windowCleaned={windowCleaned} personalRate={personalRate}
+            airportFlipping={data.airportFlipping}
           />
         )}
         <OthSection
@@ -57,6 +58,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
         <LostFoundSection lostFound={data.lostFound} />
         <AuditsSection audits={data.audits} />
         <IssuesSection issues={data.issues} />
+        {data.fuel && <FuelSection fuel={data.fuel} />}
         <ApprovalSection />
         <ReportFooter />
       </Page>

@@ -57,6 +57,11 @@ export const s = StyleSheet.create({
   rateNoOth:     { fontSize: 7, color: '#9ca3af', fontStyle: 'italic' },
   lotPill:       { marginTop: 6, alignSelf: 'flex-start', backgroundColor: '#f3f4f6', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8 },
   lotPillText:   { fontSize: 7, color: '#374151' },
+  flipNote:      { marginTop: 6, alignSelf: 'flex-start', backgroundColor: '#fffbeb', borderRadius: 4, paddingVertical: 4, paddingHorizontal: 8 },
+  flipNoteText:  { fontSize: 7, color: '#b45309' },
+
+  // Fuel — pump readings
+  fuelAlert:     { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#b91c1c' },
 
   // OTH summary
   othTotal:      { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#111827', marginBottom: 4 },
