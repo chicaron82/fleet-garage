@@ -100,6 +100,20 @@ export default function App() {
   if (loading) return null;
   if (!user) return <LoginScreen />;
 
+  // Central access guard (defense-in-depth): never render a screen this user's
+  // role can't reach, however it got set. The entry points are already guarded —
+  // the login-restore validates the deep-link, the nav menu only shows accessible
+  // items — but this is the catch-all net for any future programmatic nav or stale
+  // route. Snaps to the role's default and re-renders before painting gated content.
+  if (!canAccessScreen(screen, user.role, user.branchId, !isRealAccount(user.employeeId))) {
+    const def = getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+    if (screen.name !== def.name) {
+      window.history.replaceState(def, '', screenToPath(def));
+      setScreen(def);
+    }
+    return null;
+  }
+
   const activeModule = getActiveModule(screen);
 
   const renderScreen = () => {
