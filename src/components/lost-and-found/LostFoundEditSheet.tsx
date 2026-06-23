@@ -5,18 +5,12 @@ import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
 import { PlateInput } from '../shared/VehicleFields';
+import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../../lib/lostFoundSourcePills';
+import type { SourceTag } from '../../lib/lostFoundSourcePills';
 
 const LOCATION_ORDER: LostFoundLocation[] = [
   'visor', 'front_seat', 'back_seat', 'trunk', 'under_seat', 'other',
 ];
-
-// Erin St = YWG washbay address — hardcoded for now (BranchConfig has no address field)
-const SOURCE_PILLS = [
-  { label: 'Airport',  text: 'Airport return' },
-  { label: 'Erin St',  text: 'Erin St'        },
-  { label: 'Other',    text: null              },
-] as const;
-type SourceTag = typeof SOURCE_PILLS[number]['label'];
 
 interface Props {
   item: LostFoundItem;
@@ -53,14 +47,12 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
       return;
     }
     if (sourceTag === label) {
-      setEditNotes(prev => prev.replace(` · ${text}`, '').replace(text, '').trim());
+      setEditNotes(removeSourceText(editNotes, text));
       setSourceTag(null);
     } else {
       const oldText = SOURCE_PILLS.find(p => p.label === sourceTag)?.text ?? null;
-      const base = oldText
-        ? editNotes.replace(` · ${oldText}`, '').replace(oldText, '').trim()
-        : editNotes.trim();
-      setEditNotes(base ? `${base} · ${text}` : text);
+      const base = oldText ? removeSourceText(editNotes, oldText) : editNotes.trim();
+      setEditNotes(appendSourceText(base, text));
       setSourceTag(label);
     }
   };

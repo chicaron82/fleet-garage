@@ -8,6 +8,8 @@ import { PhotoSlot } from '../shared/PhotoSlot';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { PlateInput } from '../shared/VehicleFields';
+import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../../lib/lostFoundSourcePills';
+import type { SourceTag } from '../../lib/lostFoundSourcePills';
 
 const LOCATION_ORDER: LostFoundLocation[] = [
   'visor',
@@ -17,14 +19,6 @@ const LOCATION_ORDER: LostFoundLocation[] = [
   'under_seat',
   'other',
 ];
-
-// Erin St = YWG washbay address — hardcoded for now (BranchConfig has no address field)
-const SOURCE_PILLS = [
-  { label: 'Airport',  text: 'Airport return' },
-  { label: 'Erin St',  text: 'Erin St'        },
-  { label: 'Other',    text: null              },
-] as const;
-type SourceTag = typeof SOURCE_PILLS[number]['label'];
 
 interface LogLostFoundItemModalProps {
   user: User | null;
@@ -71,14 +65,12 @@ export function LogLostFoundItemModal({
       return;
     }
     if (sourceTag === label) {
-      setNotes(prev => prev.replace(` · ${text}`, '').replace(text, '').trim());
+      setNotes(removeSourceText(notes, text));
       setSourceTag(null);
     } else {
       const oldText = SOURCE_PILLS.find(p => p.label === sourceTag)?.text ?? null;
-      const base = oldText
-        ? notes.replace(` · ${oldText}`, '').replace(oldText, '').trim()
-        : notes.trim();
-      setNotes(base ? `${base} · ${text}` : text);
+      const base = oldText ? removeSourceText(notes, oldText) : notes.trim();
+      setNotes(appendSourceText(base, text));
       setSourceTag(label);
     }
   };
