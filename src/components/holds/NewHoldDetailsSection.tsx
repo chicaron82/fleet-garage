@@ -141,7 +141,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               onClick={() => { hapticLight(); h.setDetailReason(key); }}
               className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
                 h.detailReason === key
-                  ? 'border-fg-yellow bg-yellow-50 text-gray-900 dark:text-gray-100 font-medium'
+                  ? 'border-fg-yellow bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-gray-100 font-medium'
                   : 'border-gray-200 dark:border-gray-800 text-gray-600 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
               }`}
             >

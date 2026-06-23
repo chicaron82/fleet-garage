@@ -72,7 +72,7 @@ export function VehicleScanAndMatch({
                     key={v.id}
                     type="button"
                     onClick={() => onSelectVehicle(v, new Date().toISOString())}
-                    className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-fg-yellow hover:bg-yellow-50 transition text-sm cursor-pointer"
+                    className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-fg-yellow hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition text-sm cursor-pointer"
                   >
                     <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
                     <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
