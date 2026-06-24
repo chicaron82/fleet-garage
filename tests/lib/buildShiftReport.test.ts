@@ -4,6 +4,7 @@ import {
   formatDateStr,
   deriveShiftLine,
   buildReport,
+  reportOthBreakdown,
   type ReportData,
   type ReportThroughput,
 } from '../../src/lib/buildShiftReport';
@@ -294,5 +295,23 @@ describe('buildReport — fuel section', () => {
     const r = buildReport(baseData({ fuel: { ...fullFuel, digitalOpen: 1400, digitalClose: 1600, digitalNet: 200, topupNote: 'Topped up mid-shift' } }));
     expect(r).toContain('200 L up');
     expect(r).toContain('↳ Topped up mid-shift');
+  });
+});
+
+describe('reportOthBreakdown', () => {
+  const e = (minutes: number, reason: string, autoFromTrip: boolean, presetReason: string | null) =>
+    ({ startTime: '2026-06-23T14:00:00', stopTime: '2026-06-23T14:30:00', minutes, reason, explanation: null, autoFromTrip, presetReason });
+
+  it('keeps a manual airport_flip out of the rate-affecting manual OTH pool', () => {
+    const b = reportOthBreakdown([
+      e(193, 'OTH', false, 'airport_flip'),   // airport flip — its own bucket
+      e(30,  'OTH', false, 'opening_duties'), // manual OTH
+      e(45,  'OTH', true,  null),             // auto-logged VSA trip
+      e(20,  'WFW', false, null),             // waiting for work
+    ]);
+    expect(b.flipping).toBe(193);
+    expect(b.manualOth).toBe(30);
+    expect(b.autoLogged).toBe(45);
+    expect(b.wfw).toBe(20);
   });
 });

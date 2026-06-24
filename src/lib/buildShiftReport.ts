@@ -151,6 +151,24 @@ function fuelSection(f: FuelReport): string[] {
   return out;
 }
 
+// Off-standard breakdown for the formal report — the text builder and the signed
+// @react-pdf renderer both render this, so they share one source (a copy-pasted
+// version of this drifted into 3 buggy classifications once — June 23). 'Flipping
+// Returns' (airport_flip) is airport work, kept out of the rate-affecting manual
+// OTH pool; the My-Shift card uses decomposeOffStandard for its different 3-row shape.
+export function reportOthBreakdown(offStandard: ReportData['offStandard']): {
+  manualOth: number; flipping: number; wfw: number; autoLogged: number;
+} {
+  const sum = (pred: (e: ReportData['offStandard'][number]) => boolean) =>
+    offStandard.filter(pred).reduce((s, e) => s + e.minutes, 0);
+  return {
+    manualOth:  sum(e => !e.autoFromTrip && e.reason === 'OTH' && e.presetReason !== 'airport_flip'),
+    flipping:   sum(e => !e.autoFromTrip && e.presetReason === 'airport_flip'),
+    wfw:        sum(e => e.reason === 'WFW'),
+    autoLogged: sum(e => e.autoFromTrip),
+  };
+}
+
 // ── Report builder ────────────────────────────────────────────────────────────
 
 export function buildReport(d: ReportData): string {
@@ -242,10 +260,7 @@ export function buildReport(d: ReportData): string {
   if (d.offStandard.length === 0) {
     lines.push('(none)');
   } else {
-    const flipping  = d.offStandard.filter(e => !e.autoFromTrip && e.presetReason === 'airport_flip').reduce((s, e) => s + e.minutes, 0);
-    const manualOth = d.offStandard.filter(e => !e.autoFromTrip && e.reason === 'OTH' && e.presetReason !== 'airport_flip').reduce((s, e) => s + e.minutes, 0);
-    const wfw      = d.offStandard.filter(e => e.reason === 'WFW').reduce((s, e) => s + e.minutes, 0);
-    const auto     = d.offStandard.filter(e => e.autoFromTrip).reduce((s, e) => s + e.minutes, 0);
+    const { manualOth, flipping, wfw, autoLogged: auto } = reportOthBreakdown(d.offStandard);
     const interruptions = d.trips.filter(t => t.isVsaInterruption).length;
     lines.push(`Total: ${fmtMinutes(offTotal)}`);
     const breakdown: string[] = [];
