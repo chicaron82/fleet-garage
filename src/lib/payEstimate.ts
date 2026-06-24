@@ -14,7 +14,7 @@ export const PAY_CONFIG = {
   cppRate:                0.0595,   // 2026 statutory — update Jan 1
   cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods — update Jan 1
   eiRate:                 0.0163,   // 2026 statutory — update Jan 1
-  taxRate:                0.1227,   // observed effective rate (184.71 ÷ 1504.95, stub PP ending 2026-06-04) — refresh from a recent paystub
+  taxRate:                0.1232,   // observed effective rate (188.00 ÷ 1526.53 regular earnings, stub PP ending 2026-06-18) — refresh from a recent paystub
   anchorPeriodEnd:        '2026-05-07',
   payDayLagDays:          7,        // payroll lag — a period ending Jun 4 pays out Jun 11
   sickDaysEntitlement:    6,        // 48h ÷ 8h; unused days paid out first December payday
