@@ -60,6 +60,34 @@ describe('decomposeOffStandard', () => {
 
   it('an empty day is all zeros', () => {
     const d = decomposeOffStandard([]);
-    expect(d).toEqual({ total: 0, nonAirport: 0, airport: 0, breakdown: {} });
+    expect(d).toEqual({ total: 0, nonAirport: 0, airport: 0, flipping: 0, breakdown: {} });
+  });
+
+  // Regression: a manual "Flipping Returns" quick-tap (preset_reason 'airport_flip',
+  // auto_from_trip false) used to land in the rate-affecting non-airport pool and
+  // show as an unlabelled "OTH" chip. It's airport work — its own bucket now.
+  it('routes a manual airport_flip into flipping, not non-airport or breakdown', () => {
+    const d = decomposeOffStandard([
+      { minutes: 193, reason: 'OTH', autoFromTrip: false, presetReason: 'airport_flip' },
+    ]);
+    expect(d.flipping).toBe(193);
+    expect(d.nonAirport).toBe(0);
+    expect(d.airport).toBe(0);
+    expect(d.breakdown).toEqual({});
+  });
+
+  it('keeps non-airport, airport, and flipping disjoint and summing to total', () => {
+    const d = decomposeOffStandard([
+      { minutes: 30, reason: 'OTH', autoFromTrip: false, presetReason: 'opening_duties' },
+      { minutes: 20, reason: 'WFW', autoFromTrip: false, presetReason: null },
+      { minutes: 45, reason: 'OTH', autoFromTrip: true,  presetReason: null },
+      { minutes: 60, reason: 'OTH', autoFromTrip: false, presetReason: 'airport_flip' },
+    ]);
+    expect(d.nonAirport).toBe(50);
+    expect(d.airport).toBe(45);
+    expect(d.flipping).toBe(60);
+    expect(d.total).toBe(155);
+    expect(d.nonAirport + d.airport + d.flipping).toBe(d.total);
+    expect(d.breakdown).toEqual({ OTH: 30, WFW: 20 });
   });
 });

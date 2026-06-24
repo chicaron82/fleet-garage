@@ -53,40 +53,50 @@ export function fmtDateShift(dateStr: string): string {
 }
 
 export interface OffStandardDecomposition {
-  /** All off-standard minutes for the day — always equals nonAirport + airport. */
+  /** All off-standard minutes for the day — always equals nonAirport + airport + flipping. */
   total: number;
   /** Manually-logged off-standard (opening duties, fleeting, EDV, CSR rescue, …). */
   nonAirport: number;
   /** Auto-logged VSA airport-run minutes (the `auto_from_trip` rows). */
   airport: number;
+  /**
+   * Manually-tapped "Flipping Returns" (`airport_flip`) minutes — airport work, so
+   * it's not rate-affecting (`reducesDenominator` excludes it), but it isn't a VSA
+   * trip either, so it gets its own line rather than inflating the trip row.
+   */
+  flipping: number;
   /** Reason → minutes for the non-airport entries only — drives the chips. */
   breakdown: Record<string, number>;
 }
 
 /**
- * Split the day's off-standard entries into airport (auto-logged from VSA trips,
- * `autoFromTrip`) and non-airport (everything manually logged). The two parts are
- * disjoint and sum to the total, so the My-Shift card can show airport time in
- * exactly one row instead of double-counting it against the separately-sourced
- * trip minutes. Trip *count* still comes from `vsa_trips`; the *minutes* shown
- * come from here so the two rows can't drift out of summing to the total.
+ * Split the day's off-standard entries into three disjoint buckets that sum to the
+ * total: airport (auto-logged from VSA trips, `autoFromTrip`), flipping (the manual
+ * `airport_flip` quick-tap — airport work, but not a trip), and non-airport
+ * (everything else, manually logged). Keeping them disjoint lets the My-Shift card
+ * show each in exactly one row without double-counting: trip *count* still comes
+ * from `vsa_trips`, the trip *minutes* come from here, and a manual flip lands on
+ * its own labelled line instead of getting lumped into the rate-affecting pool.
  */
 export function decomposeOffStandard(
-  entries: { minutes: number | null; reason: string; autoFromTrip: boolean }[],
+  entries: { minutes: number | null; reason: string; autoFromTrip: boolean; presetReason?: string | null }[],
 ): OffStandardDecomposition {
   let total = 0;
   let nonAirport = 0;
   let airport = 0;
+  let flipping = 0;
   const breakdown: Record<string, number> = {};
   for (const e of entries) {
     const m = e.minutes ?? 0;
     total += m;
     if (e.autoFromTrip) {
       airport += m;
+    } else if (e.presetReason === 'airport_flip') {
+      flipping += m;
     } else {
       nonAirport += m;
       breakdown[e.reason] = (breakdown[e.reason] ?? 0) + m;
     }
   }
-  return { total, nonAirport, airport, breakdown };
+  return { total, nonAirport, airport, flipping, breakdown };
 }

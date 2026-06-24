@@ -13,9 +13,10 @@ import { ShiftExportActionSheet } from '../my-shift/ShiftExportActionSheet';
 import { fmtMinutes, fmtTime, type SavedSummary, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
 
 interface LiveSummary {
-  offStandardMinutes: number;   // total (persisted) — equals nonAirport + airport
+  offStandardMinutes: number;   // total (persisted) — equals nonAirport + airport + flipping
   nonAirportMinutes: number;    // manually-logged off-standard (the card's "Off-Standard" row)
   airportMinutes: number;       // auto-logged airport time (the card's "VSA Trips" row)
+  flippingMinutes: number;      // manual "Flipping Returns" (airport_flip) — its own airport line
   offStandardBreakdown: Record<string, number>;  // non-airport reasons only
   tripCount: number;
   tripMinutes: number;          // from vsa_trips — still persisted to the snapshot
@@ -51,7 +52,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
 
     const [osResult, tripsResult, holdsResult, histResult, fuelResult] = await Promise.all([
       supabase.from('off_standard_entries')
-        .select('start_time, minutes, reason, auto_from_trip')
+        .select('start_time, minutes, reason, auto_from_trip, preset_reason')
         .eq('user_id', user.id)
         .eq('date', date)
         .not('minutes', 'is', null)
@@ -90,6 +91,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         minutes:      r.minutes as number | null,
         reason:       r.reason as string,
         autoFromTrip: (r.auto_from_trip as boolean) ?? false,
+        presetReason: (r.preset_reason as string | null) ?? null,
       })),
     );
 
@@ -119,6 +121,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
       offStandardMinutes:   offStandard.total,
       nonAirportMinutes:    offStandard.nonAirport,
       airportMinutes:       offStandard.airport,
+      flippingMinutes:      offStandard.flipping,
       offStandardBreakdown: offStandard.breakdown,
       tripCount, tripMinutes, holdsFlagged, firstActivityAt: allTimes[0] ?? null, pump2Drift,
     });
@@ -256,9 +259,20 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
               />
             )}
 
-            {/* Reconciling subtotal — the two scoped rows above add to this (and to
-                the off-standard PDF). Shown only when there are both parts to sum. */}
-            {live!.nonAirportMinutes > 0 && live!.airportMinutes > 0 && (
+            {/* Flipping returns — airport work (not rate-affecting), but not a VSA
+                trip either, so it gets its own labelled line rather than inflating
+                the trip row or the rate-affecting non-airport pool. */}
+            {live!.flippingMinutes > 0 && (
+              <SummaryRow
+                label="Flipping Returns (airport)"
+                value={fmtMinutes(live!.flippingMinutes)}
+                sub={<p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">manual turnaround · not rate-affecting</p>}
+              />
+            )}
+
+            {/* Reconciling subtotal — the scoped rows above add to this (and to the
+                off-standard PDF). Shown only when there are ≥2 parts to sum. */}
+            {[live!.nonAirportMinutes, live!.airportMinutes, live!.flippingMinutes].filter(m => m > 0).length >= 2 && (
               <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
                 <span>Total off-standard</span>
                 <span className="font-medium">{fmtMinutes(live!.offStandardMinutes)}</span>

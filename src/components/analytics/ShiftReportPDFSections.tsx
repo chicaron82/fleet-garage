@@ -231,10 +231,11 @@ export function FuelSection({ fuel }: { fuel: NonNullable<ReportData['fuel']> })
   );
 }
 
-export function OthSection({ offStandard, offTotal, manualOth, wfw, autoLogged, tripCount, interrupts }: {
+export function OthSection({ offStandard, offTotal, manualOth, flipping, wfw, autoLogged, tripCount, interrupts }: {
   offStandard: ReportData['offStandard'];
   offTotal: number;
   manualOth: number;
+  flipping: number;
   wfw: number;
   autoLogged: number;
   tripCount: number;
@@ -250,6 +251,7 @@ export function OthSection({ offStandard, offTotal, manualOth, wfw, autoLogged, 
             <Text style={s.othBreakdown}>
               {[
                 manualOth > 0  && `Manual OTH · ${fmtMinutes(manualOth)}`,
+                flipping > 0   && `Flipping (airport) · ${fmtMinutes(flipping)}`,
                 wfw > 0        && `WFW · ${fmtMinutes(wfw)}`,
                 autoLogged > 0 && `Auto-logged · ${fmtMinutes(autoLogged)}`,
               ].filter(Boolean).join('    ')}

@@ -31,7 +31,7 @@ export interface ReportData {
   userName:     string;
   employeeId:   string;
   shiftType:    ShiftType | null;
-  offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean }[];
+  offStandard:  { startTime: string; stopTime: string; minutes: number; reason: string; explanation: string | null; autoFromTrip: boolean; presetReason: string | null }[];
   trips:        { departTime: string; arriveTime: string; isShuffle: boolean | null; reason: string | null; isVsaInterruption: boolean | null; queueAtDeparture: string | null }[];
   holds:        { flaggedAt: string; holdTypes: string[]; vehicleUnit: string; vehiclePlate: string; description: string; photos?: string[] }[];
   checkIns:     { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
@@ -242,13 +242,15 @@ export function buildReport(d: ReportData): string {
   if (d.offStandard.length === 0) {
     lines.push('(none)');
   } else {
-    const manualOth = d.offStandard.filter(e => !e.autoFromTrip && e.reason === 'OTH').reduce((s, e) => s + e.minutes, 0);
+    const flipping  = d.offStandard.filter(e => !e.autoFromTrip && e.presetReason === 'airport_flip').reduce((s, e) => s + e.minutes, 0);
+    const manualOth = d.offStandard.filter(e => !e.autoFromTrip && e.reason === 'OTH' && e.presetReason !== 'airport_flip').reduce((s, e) => s + e.minutes, 0);
     const wfw      = d.offStandard.filter(e => e.reason === 'WFW').reduce((s, e) => s + e.minutes, 0);
     const auto     = d.offStandard.filter(e => e.autoFromTrip).reduce((s, e) => s + e.minutes, 0);
     const interruptions = d.trips.filter(t => t.isVsaInterruption).length;
     lines.push(`Total: ${fmtMinutes(offTotal)}`);
     const breakdown: string[] = [];
     if (manualOth > 0) breakdown.push(`Manual OTH · ${fmtMinutes(manualOth)}`);
+    if (flipping > 0)  breakdown.push(`Flipping (airport) · ${fmtMinutes(flipping)}`);
     if (wfw > 0)       breakdown.push(`WFW · ${fmtMinutes(wfw)}`);
     if (auto > 0)      breakdown.push(`Auto-logged · ${fmtMinutes(auto)}`);
     if (breakdown.length > 0) lines.push(breakdown.join('    '));

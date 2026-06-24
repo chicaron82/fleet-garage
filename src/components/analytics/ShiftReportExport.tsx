@@ -259,6 +259,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         reason:       r.reason as string,
         explanation:  r.explanation as string | null,
         autoFromTrip: r.auto_from_trip as boolean,
+        presetReason: r.preset_reason as string | null,
       })),
       trips: (tripRes.data ?? []).map((r: Record<string, unknown>) => ({
         departTime:       r.depart_time as string,

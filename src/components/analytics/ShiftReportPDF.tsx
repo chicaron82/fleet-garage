@@ -13,7 +13,8 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
   const gap = fb ? fb.inCount - fb.outCount : 0;
 
   const offTotal   = data.offStandard.reduce((s, e) => s + e.minutes, 0);
-  const manualOth  = data.offStandard.filter(e => !e.autoFromTrip && e.reason === 'OTH').reduce((s, e) => s + e.minutes, 0);
+  const flipping   = data.offStandard.filter(e => !e.autoFromTrip && e.presetReason === 'airport_flip').reduce((s, e) => s + e.minutes, 0);
+  const manualOth  = data.offStandard.filter(e => !e.autoFromTrip && e.reason === 'OTH' && e.presetReason !== 'airport_flip').reduce((s, e) => s + e.minutes, 0);
   const wfw        = data.offStandard.filter(e => e.reason === 'WFW').reduce((s, e) => s + e.minutes, 0);
   const autoLogged = data.offStandard.filter(e => e.autoFromTrip).reduce((s, e) => s + e.minutes, 0);
   const interrupts = data.trips.filter(t => t.isVsaInterruption).length;
@@ -49,7 +50,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
         )}
         <OthSection
           offStandard={data.offStandard} offTotal={offTotal}
-          manualOth={manualOth} wfw={wfw} autoLogged={autoLogged}
+          manualOth={manualOth} flipping={flipping} wfw={wfw} autoLogged={autoLogged}
           tripCount={data.trips.length} interrupts={interrupts}
         />
         <QueueSection tripsWithQueue={tripsWithQueue} peakCount={peakCount} />
