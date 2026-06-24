@@ -11,13 +11,31 @@ const ROSTER_ROLES: UserRole[] = ['VSA', 'Lead VSA', 'Driver', 'CSR', 'HIR'];
 export function RosterStaffModal({ onClose }: { onClose: () => void }) {
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
-  const { addRosterStaff, removeRosterStaff } = useRosterStaff();
+  const { addRosterStaff, removeRosterStaff, promoteRosterStaff } = useRosterStaff();
 
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('VSA');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState<string | null>(null);
+  const [empId, setEmpId] = useState('');
+  const [promoteBusy, setPromoteBusy] = useState(false);
+  const [promoteError, setPromoteError] = useState('');
+
+  const handlePromote = async (rosterId: string) => {
+    setPromoteBusy(true);
+    setPromoteError('');
+    try {
+      await promoteRosterStaff(rosterId, empId);  // success → ghost flips to real, leaves this list
+      setPromoting(null);
+      setEmpId('');
+    } catch (e) {
+      setPromoteError(e instanceof Error ? e.message : 'Promotion failed.');
+    } finally {
+      setPromoteBusy(false);
+    }
+  };
 
   useEscapeKey(onClose);
 
@@ -94,29 +112,66 @@ export function RosterStaffModal({ onClose }: { onClose: () => void }) {
             </p>
           ) : (
             rosterStaff.map(m => (
-              <div key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{m.name}</div>
-                  <div className="text-[11px] text-gray-400 dark:text-gray-500">{m.role} · {m.branchId}</div>
-                </div>
-                {pendingRemove === m.id ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => setPendingRemove(null)} className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium cursor-pointer">Cancel</button>
-                    <button
-                      onClick={async () => { await removeRosterStaff(m.id); setPendingRemove(null); }}
-                      className="text-[11px] text-red-600 dark:text-red-400 font-semibold cursor-pointer"
-                    >
-                      Remove
-                    </button>
+              <div key={m.id} className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{m.name}</div>
+                    <div className="text-[11px] text-gray-400 dark:text-gray-500">{m.role} · {m.branchId}</div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setPendingRemove(m.id)}
-                    aria-label={`Remove ${m.name}`}
-                    className="shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer text-sm"
-                  >
-                    🗑
-                  </button>
+                  {pendingRemove === m.id ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => setPendingRemove(null)} className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium cursor-pointer">Cancel</button>
+                      <button
+                        onClick={async () => { await removeRosterStaff(m.id); setPendingRemove(null); }}
+                        className="text-[11px] text-red-600 dark:text-red-400 font-semibold cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : promoting === m.id ? (
+                    <button onClick={() => { setPromoting(null); setPromoteError(''); }} className="shrink-0 text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium cursor-pointer">Cancel</button>
+                  ) : (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => { setPromoting(m.id); setEmpId(''); setPromoteError(''); setPendingRemove(null); }}
+                        className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold cursor-pointer"
+                      >
+                        Promote
+                      </button>
+                      <button
+                        onClick={() => setPendingRemove(m.id)}
+                        aria-label={`Remove ${m.name}`}
+                        className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer text-sm"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {promoting === m.id && (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1.5">
+                      <input
+                        value={empId}
+                        onChange={e => setEmpId(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && empId.trim()) handlePromote(m.id); }}
+                        placeholder="Their real employee ID"
+                        autoFocus
+                        className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+                      />
+                      <button
+                        onClick={() => handlePromote(m.id)}
+                        disabled={promoteBusy || !empId.trim()}
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-xs transition cursor-pointer"
+                      >
+                        {promoteBusy ? '…' : 'Promote'}
+                      </button>
+                    </div>
+                    {promoteError && <p className="text-[11px] text-red-500">{promoteError}</p>}
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                      Links {m.name}’s schedule history to their FG account (created separately). The ghost is retired.
+                    </p>
+                  </div>
                 )}
               </div>
             ))

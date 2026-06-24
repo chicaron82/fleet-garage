@@ -1473,6 +1473,24 @@ export type Database = {
         Args: { p_notification_id: string; p_user_id: string }
         Returns: undefined
       }
+      promote_roster_staff: {
+        Args: { p_employee_id: string; p_roster_id: string }
+        Returns: {
+          branch_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          name: string
+          role: string
+          roster_only: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

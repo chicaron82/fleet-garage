@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useState } from 'rea
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { buildRosterStaff } from '../lib/rosterStaff';
+import { promoteRosterStaff as promoteRosterStaffRpc } from '../lib/rosterPromotion';
 import type { Profile, UserRole, BranchId } from '../types';
 
 const ProfilesContext = createContext<Map<string, Profile>>(new Map());
@@ -11,6 +12,9 @@ interface RosterStaffActions {
   addRosterStaff: (input: { name: string; role: UserRole; branchId: BranchId }) => Promise<Profile>;
   /** Remove a roster-only staffer. RLS only permits deleting roster_only rows. */
   removeRosterStaff: (id: string) => Promise<void>;
+  /** Promote a roster ghost to a real account: carries its shift history to the
+   *  out-of-band auth account and retires the ghost (migration 085 RPC). */
+  promoteRosterStaff: (rosterId: string, employeeId: string) => Promise<Profile>;
 }
 const RosterStaffContext = createContext<RosterStaffActions | null>(null);
 
@@ -94,9 +98,20 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const promoteRosterStaff = useCallback(async (rosterId: string, employeeId: string): Promise<Profile> => {
+    const promoted = await promoteRosterStaffRpc(rosterId, employeeId);
+    setProfiles(prev => {
+      const next = new Map(prev);
+      next.delete(rosterId);           // ghost retired
+      next.set(promoted.id, promoted); // real account now resolves
+      return next;
+    });
+    return promoted;
+  }, []);
+
   return (
     <ProfilesContext.Provider value={profiles}>
-      <RosterStaffContext.Provider value={{ addRosterStaff, removeRosterStaff }}>
+      <RosterStaffContext.Provider value={{ addRosterStaff, removeRosterStaff, promoteRosterStaff }}>
         {children}
       </RosterStaffContext.Provider>
     </ProfilesContext.Provider>
