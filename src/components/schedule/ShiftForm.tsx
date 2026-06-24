@@ -4,6 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
+import { SwapShiftSheet } from './SwapShiftSheet';
 import { canManageSchedule, isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
@@ -85,6 +86,7 @@ export function ShiftForm(props: Props) {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showSwap, setShowSwap] = useState(false);
 
   const isDayOff = isFullDayShift(shiftType);
 
@@ -143,6 +145,8 @@ export function ShiftForm(props: Props) {
   };
 
   return (
+    <>
+    {showSwap && existing && <SwapShiftSheet shift={existing} onClose={() => setShowSwap(false)} />}
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-4" onClick={props.onClose}>
       <div
         className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-5 space-y-4 transition-colors"
@@ -265,6 +269,16 @@ export function ShiftForm(props: Props) {
           </div>
         )}
 
+        {/* Swap / give away — managers, on an existing shift */}
+        {!confirmDelete && isEdit && canSchedule && (
+          <button
+            onClick={() => setShowSwap(true)}
+            className="w-full py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+          >
+            ⇄ Swap / give away
+          </button>
+        )}
+
         {/* Actions */}
         {!confirmDelete && (
           <div className="flex gap-2">
@@ -293,5 +307,6 @@ export function ShiftForm(props: Props) {
         )}
       </div>
     </div>
+    </>
   );
 }
