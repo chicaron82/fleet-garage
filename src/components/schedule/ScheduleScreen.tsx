@@ -7,6 +7,8 @@ import { SCHEDULE_GROUPS } from '../../lib/scheduleGroups';
 import type { ScheduleGroup } from '../../lib/scheduleGroups';
 import { WeekView } from './WeekView';
 import { CalendarView } from './CalendarView';
+import { ScheduleFilterBar } from './ScheduleFilterBar';
+import { useMyShiftFilter } from './useMyShiftFilter';
 import { FillScheduleModal } from './FillScheduleModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
@@ -46,7 +48,7 @@ function loadShowMock(): boolean {
 }
 
 export function ScheduleScreen() {
-  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
+  const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, shifts, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
@@ -94,6 +96,9 @@ export function ScheduleScreen() {
   const isCurrentPeriod = viewMode === 'week'
     ? (() => { const { start, end } = getWeekBounds(new Date()); return toISO(currentDate) >= toISO(start) && toISO(currentDate) <= toISO(end); })()
     : currentDate.getFullYear() === new Date().getFullYear() && currentDate.getMonth() === new Date().getMonth();
+
+  const myShift = useMyShiftFilter({ shifts, teamMembers, user, today, viewMode, isCurrentPeriod, showMock, activeBranch });
+  const effectiveVisibleIds = myShift.visibleIds ?? visibleUserIds;
 
   const label = viewMode === 'week' ? weekLabel(currentDate) : monthLabel(currentDate);
 
@@ -241,36 +246,19 @@ export function ScheduleScreen() {
       </div>
 
       {/* Group view filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-gray-400 dark:text-gray-500 font-medium shrink-0">Showing:</span>
-        {SCHEDULE_GROUPS.map(g => {
-          const isActive = activeGroups.has(g.id);
-          return (
-            <button
-              key={g.id}
-              onClick={() => toggleGroup(g.id)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                isActive
-                  ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
-              }`}
-            >
-              {g.label}
-            </button>
-          );
-        })}
-        <button
-          onClick={() => setShowMock(v => !v)}
-          title="Show demo / test accounts in the schedule"
-          className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
-            showMock
-              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
-              : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500'
-          }`}
-        >
-          🧪 Test accounts{showMock ? ' · on' : ''}
-        </button>
-      </div>
+      <ScheduleFilterBar
+        activeGroups={activeGroups}
+        onToggleGroup={toggleGroup}
+        showMock={showMock}
+        onToggleMock={() => setShowMock(v => !v)}
+        myShift={{
+          show: myShift.show,
+          available: myShift.available,
+          active: myShift.active,
+          tooltip: myShift.available ? 'Only crew who overlap your shift today' : 'No shift entered for today',
+          onToggle: myShift.toggle,
+        }}
+      />
 
       {/* Date navigation */}
       <div className="flex items-center gap-2">
@@ -301,8 +289,8 @@ export function ScheduleScreen() {
 
       {/* Content */}
       {viewMode === 'week'
-        ? <WeekView today={today} visibleUserIds={visibleUserIds} />
-        : <CalendarView today={today} visibleUserIds={visibleUserIds} />
+        ? <WeekView today={today} visibleUserIds={effectiveVisibleIds} overlaps={myShift.overlaps} />
+        : <CalendarView today={today} visibleUserIds={effectiveVisibleIds} />
       }
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}

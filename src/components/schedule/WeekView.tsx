@@ -5,6 +5,7 @@ import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
+import { fmtOverlap } from '../../lib/shiftOverlap';
 import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
@@ -31,9 +32,9 @@ function fmtTime(t?: string): string {
   return `${hr % 12 || 12}:${m}${hr >= 12 ? 'p' : 'a'}`;
 }
 
-interface Props { today: string; visibleUserIds: Set<string>; }
+interface Props { today: string; visibleUserIds: Set<string>; overlaps?: ReadonlyMap<string, number>; }
 
-export function WeekView({ today, visibleUserIds }: Props) {
+export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   const { shifts, currentDate, canEditShift, loading, goToPrev, goToNext } = useSchedule();
   const { user } = useAuth();
   const teamMembers = useTeamMembers();
@@ -127,6 +128,9 @@ export function WeekView({ today, visibleUserIds }: Props) {
                   <td className="py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                     <div>{u.name.split(' ')[0]}</div>
                     <div className="text-gray-400 dark:text-gray-600 font-normal">{u.role.replace('Operations Manager', 'Ops Mgr').replace('Branch Manager', 'Br. Mgr')}</div>
+                    {!isMe && overlaps?.get(u.id) != null && (
+                      <div className="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400">{fmtOverlap(overlaps.get(u.id)!)} w/ you</div>
+                    )}
                   </td>
                   {days.map((d, i) => {
                     const iso = toISO(d);
