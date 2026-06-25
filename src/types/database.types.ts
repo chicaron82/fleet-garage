@@ -692,6 +692,7 @@ export type Database = {
           employee_id: string
           id: string
           name: string
+          quick_start_order: string[] | null
           role: string
           roster_only: boolean
         }
@@ -701,6 +702,7 @@ export type Database = {
           employee_id: string
           id: string
           name: string
+          quick_start_order?: string[] | null
           role: string
           roster_only?: boolean
         }
@@ -710,6 +712,7 @@ export type Database = {
           employee_id?: string
           id?: string
           name?: string
+          quick_start_order?: string[] | null
           role?: string
           roster_only?: boolean
         }
@@ -1481,6 +1484,7 @@ export type Database = {
           employee_id: string
           id: string
           name: string
+          quick_start_order: string[] | null
           role: string
           roster_only: boolean
         }
