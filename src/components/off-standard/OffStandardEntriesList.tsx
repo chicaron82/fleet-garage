@@ -48,6 +48,9 @@ export function OffStandardEntriesList({ entries, onEditClick }: OffStandardEntr
                     )}
                   </>
                 )}
+                {entry.presetReason === 'airport_flip' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Flipping Returns</span>
+                )}
                 {entry.autoFromTrip && (
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">🔗 From movement log</span>
                 )}
