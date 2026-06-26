@@ -121,41 +121,43 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-  if (!apiKey || !supabaseUrl || !supabaseAnonKey) {
-    res.status(500).json({ error: 'Assistant is not configured.' });
-    return;
-  }
-
-  // Require the caller's Supabase session — reads run as this crew member (RLS).
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Not authenticated.' });
-    return;
-  }
-
-  const messages = (req.body?.messages ?? []) as Anthropic.MessageParam[];
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: 'No messages provided.' });
-    return;
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const anthropic = new Anthropic({ apiKey });
-  const convo: Anthropic.MessageParam[] = [...messages];
-
-  // Buffer-then-send (not res.write streaming). A Vercel serverless res doesn't
+  // Everything is wrapped: a throw anywhere — env read, createClient, the
+  // Anthropic constructor, the tool loop — is logged (Vercel runtime logs) AND
+  // returned as JSON for the FAB to show. Nothing escapes as a blind platform 500.
+  //
+  // Buffer-then-send (not res.write streaming): a Vercel serverless res doesn't
   // reliably accept writes from inside an SDK event listener — that throw is
   // uncaught and 500s the function. Tier 1 answers are a sentence or two, so we
-  // run the loop, collect the final turn's text, and send it once. The whole body
-  // is wrapped so any error is logged (Vercel runtime logs) AND returned as JSON
-  // for the FAB to show — no more blind 500s.
+  // run the loop, collect the final turn's text, and send it once.
   try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!apiKey || !supabaseUrl || !supabaseAnonKey) {
+      res.status(500).json({ error: 'Assistant is not configured.' });
+      return;
+    }
+
+    // Require the caller's Supabase session — reads run as this crew member (RLS).
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Not authenticated.' });
+      return;
+    }
+
+    const messages = (req.body?.messages ?? []) as Anthropic.MessageParam[];
+    if (!Array.isArray(messages) || messages.length === 0) {
+      res.status(400).json({ error: 'No messages provided.' });
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const anthropic = new Anthropic({ apiKey });
+    const convo: Anthropic.MessageParam[] = [...messages];
+
     let answer = '';
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
