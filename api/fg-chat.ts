@@ -32,8 +32,7 @@ interface FgResponse {
   setHeader(name: string, value: string): void;
   status(code: number): FgResponse;
   json(body: unknown): void;
-  write(chunk: string): boolean;
-  end(): void;
+  end(chunk?: string): void;
 }
 
 const MODEL = 'claude-haiku-4-5'; // fast + cheap; a plate lookup needs no more.
@@ -148,25 +147,32 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const anthropic = new Anthropic({ apiKey });
-
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
-
   const convo: Anthropic.MessageParam[] = [...messages];
 
+  // Buffer-then-send (not res.write streaming). A Vercel serverless res doesn't
+  // reliably accept writes from inside an SDK event listener — that throw is
+  // uncaught and 500s the function. Tier 1 answers are a sentence or two, so we
+  // run the loop, collect the final turn's text, and send it once. The whole body
+  // is wrapped so any error is logged (Vercel runtime logs) AND returned as JSON
+  // for the FAB to show — no more blind 500s.
   try {
+    let answer = '';
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-      const stream = anthropic.messages.stream({
+      const message = await anthropic.messages.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT,
         tools: TOOLS,
         messages: convo,
       });
-      stream.on('text', (delta) => res.write(delta));
-      const message = await stream.finalMessage();
 
-      if (message.stop_reason !== 'tool_use') break;
+      if (message.stop_reason !== 'tool_use') {
+        answer = message.content
+          .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        break;
+      }
 
       const toolUses = message.content.filter(
         (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
@@ -186,11 +192,12 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       }
       convo.push({ role: 'user', content: results });
     }
-  } catch {
-    if (!res.headersSent && !res.writableEnded) {
-      res.write('\n[Assistant hit an error. Try again.]');
-    }
-  }
 
-  res.end();
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).end(answer || '(no answer)');
+  } catch (err) {
+    console.error('[fg-chat] handler error:', err);
+    res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });
+  }
 }
