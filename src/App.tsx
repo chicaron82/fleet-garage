@@ -8,6 +8,7 @@ import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
 import { AppShell } from './components/layout/AppShell';
+import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole, canAccessScreen } from './lib/navigation';
@@ -226,6 +227,7 @@ export default function App() {
                   onCancel={() => setShowLogoutConfirm(false)}
                 />
               )}
+              <FgAssistantFab />
             </LostFoundProvider>
           </IssueProvider>
         </WashbayProvider>

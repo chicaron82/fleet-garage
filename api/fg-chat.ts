@@ -1,0 +1,196 @@
+// "Hey FG" assistant — Tier 1 proxy (conversational vehicle lookup).
+//
+// The API key lives here, server-side, and NEVER reaches the browser. The FAB
+// POSTs the conversation plus the signed-in crew member's Supabase access token;
+// this function builds a per-request Supabase client WITH that token, so every
+// read the AI makes is RLS-scoped to exactly what that user could see in the UI.
+// No service-role key in this path — the AI reads as the real role.
+//
+// Flow: forward JWT → Claude (Haiku, read-only `lookup_vehicle` tool) → stream
+// the answer back as plain text. Read-only by design; write tools are Tier 2,
+// behind a human confirm gate.
+import Anthropic from '@anthropic-ai/sdk';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  summarizeLookup,
+  type HoldFact,
+  type VehicleFact,
+  type VehicleLookupResult,
+} from '../src/lib/fgAssistant/vehicleSummary';
+
+// Minimal shapes of the Vercel Node serverless req/res — only what this handler
+// touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
+// carried CVEs into the committed lockfile for what is purely build-time typing.
+interface FgRequest {
+  method?: string;
+  headers: { authorization?: string };
+  body?: { messages?: unknown };
+}
+interface FgResponse {
+  headersSent: boolean;
+  writableEnded: boolean;
+  setHeader(name: string, value: string): void;
+  status(code: number): FgResponse;
+  json(body: unknown): void;
+  write(chunk: string): boolean;
+  end(): void;
+}
+
+const MODEL = 'claude-haiku-4-5'; // fast + cheap; a plate lookup needs no more.
+const MAX_TOKENS = 1024;
+const MAX_TOOL_TURNS = 4; // a lookup answer is one tool call; cap the loop defensively.
+
+const SYSTEM_PROMPT = `You are FG, the assistant for a vehicle rental wash-and-return operation. A VSA (the person working the lot) asks you about vehicles in plain language — usually "anything on <plate>?" or about a vehicle's status or holds.
+
+Use the lookup_vehicle tool to check before answering — never guess or invent holds, damage, or vehicle details. Report only what the tool returns.
+
+Answer like a colleague on the lot: short, direct, no preamble. If a vehicle is clean, say so plainly ("Nothing on LUR187 — Unit 1234, 2023 Camry"). If it has holds, lead with that. If the plate isn't in the fleet, say it's not on record.`;
+
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: 'lookup_vehicle',
+    description:
+      'Look up a fleet vehicle by license plate or unit number and report its identity and any ACTIVE holds. Use whenever the user asks whether there is "anything on" a vehicle, or about its status, holds, or damage.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: {
+          type: 'string',
+          description: 'License plate or unit number as the user said it, e.g. "LUR187" or "1234567".',
+        },
+      },
+      required: ['plate'],
+    },
+  },
+];
+
+/** Canonical plate form for matching — mirrors src/lib/vehicleByPlate.ts normalizePlate. */
+function normalizePlate(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, '');
+}
+
+/** Run the read-only vehicle lookup as the asking user (RLS-scoped via the JWT client). */
+async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promise<VehicleLookupResult> {
+  const norm = normalizePlate(rawPlate);
+  if (!norm) return summarizeLookup(rawPlate, null, []);
+
+  // The fleet is small and plates aren't stored normalized, so match in JS the
+  // same way the app does (allVehicles.find). RLS limits the rows to this user's reach.
+  const { data: vehicles, error: vErr } = await supabase
+    .from('vehicles')
+    .select('id, license_plate, unit_number, make, model, year, color')
+    .is('archived_at', null);
+  if (vErr) throw vErr;
+
+  const match = (vehicles ?? []).find(
+    (v) =>
+      normalizePlate(v.license_plate ?? '') === norm ||
+      (v.unit_number ? normalizePlate(v.unit_number) === norm : false),
+  );
+  if (!match) return summarizeLookup(rawPlate, null, []);
+
+  const vehicle: VehicleFact = {
+    plate: match.license_plate,
+    unitNumber: match.unit_number ?? null,
+    year: match.year ?? null,
+    make: match.make ?? null,
+    model: match.model ?? null,
+    color: match.color ?? null,
+  };
+
+  const { data: holdRows, error: hErr } = await supabase
+    .from('holds')
+    .select('hold_type, status, damage_description, flagged_at, flagged_by_name')
+    .eq('vehicle_id', match.id)
+    .eq('status', 'ACTIVE');
+  if (hErr) throw hErr;
+
+  const holds: HoldFact[] = (holdRows ?? []).map((h) => ({
+    holdType: h.hold_type,
+    status: h.status,
+    damageDescription: h.damage_description ?? '',
+    flaggedAt: h.flagged_at,
+    flaggedByName: h.flagged_by_name ?? null,
+  }));
+
+  return summarizeLookup(rawPlate, vehicle, holds);
+}
+
+export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!apiKey || !supabaseUrl || !supabaseAnonKey) {
+    res.status(500).json({ error: 'Assistant is not configured.' });
+    return;
+  }
+
+  // Require the caller's Supabase session — reads run as this crew member (RLS).
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Not authenticated.' });
+    return;
+  }
+
+  const messages = (req.body?.messages ?? []) as Anthropic.MessageParam[];
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: 'No messages provided.' });
+    return;
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const anthropic = new Anthropic({ apiKey });
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+
+  const convo: Anthropic.MessageParam[] = [...messages];
+
+  try {
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+      const stream = anthropic.messages.stream({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        tools: TOOLS,
+        messages: convo,
+      });
+      stream.on('text', (delta) => res.write(delta));
+      const message = await stream.finalMessage();
+
+      if (message.stop_reason !== 'tool_use') break;
+
+      const toolUses = message.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
+      convo.push({ role: 'assistant', content: message.content });
+
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const tu of toolUses) {
+        let content: string;
+        try {
+          const plate = (tu.input as { plate?: string }).plate ?? '';
+          content = JSON.stringify(await executeLookup(supabase, plate));
+        } catch {
+          content = JSON.stringify({ error: 'Lookup failed — could not read vehicle records.' });
+        }
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content });
+      }
+      convo.push({ role: 'user', content: results });
+    }
+  } catch {
+    if (!res.headersSent && !res.writableEnded) {
+      res.write('\n[Assistant hit an error. Try again.]');
+    }
+  }
+
+  res.end();
+}
