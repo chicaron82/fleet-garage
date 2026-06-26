@@ -31,3 +31,4 @@ supabase/.temp
 
 # Generated schema snapshot — contains pgsodium server key, regenerate with npm run gen:schema
 migrations/schema.sql
+.vercel

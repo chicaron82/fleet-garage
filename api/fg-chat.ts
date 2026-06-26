@@ -11,12 +11,16 @@
 // behind a human confirm gate.
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+// Explicit .js extension + co-located under api/_lib: Vercel TRANSPILES functions
+// (doesn't bundle), so this import stays live at runtime as Node ESM — which needs
+// the extension and a path inside the function dir. A cross-dir extensionless
+// import (../src/...) resolves locally but ERR_MODULE_NOT_FOUNDs on Vercel.
 import {
   summarizeLookup,
   type HoldFact,
   type VehicleFact,
   type VehicleLookupResult,
-} from '../src/lib/fgAssistant/vehicleSummary';
+} from './_lib/vehicleSummary.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
