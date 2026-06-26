@@ -39,7 +39,13 @@ export function useFgAssistant() {
             messages: history.map((m) => ({ role: m.role, content: m.text })),
           }),
         });
-        if (!res.ok || !res.body) throw new Error(`http-${res.status}`);
+        if (!res.ok) {
+          // Surface the proxy's own message ("Assistant is not configured", etc.)
+          // instead of a generic shrug — the difference between debuggable and blind.
+          const detail = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(detail?.error || `Request failed (${res.status})`);
+        }
+        if (!res.body) throw new Error('No response from the assistant.');
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -51,8 +57,8 @@ export function useFgAssistant() {
           setMessages((prev) => withLastAssistant(prev, acc));
         }
         if (!acc.trim()) setMessages((prev) => withLastAssistant(prev, '(no answer)'));
-      } catch {
-        setError('Something went wrong — try again.');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Something went wrong — try again.');
         setMessages((prev) => prev.slice(0, -1)); // drop the empty assistant bubble
       } finally {
         setLoading(false);
