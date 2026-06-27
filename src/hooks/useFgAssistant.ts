@@ -1,4 +1,4 @@
-// Client side of the "Hey FG" assistant. Holds the visible conversation, gets the
+// Client side of the Effie (PerZeePhone) assistant. Holds the visible conversation, gets the
 // signed-in crew member's Supabase access token, POSTs the turns to the /api/fg-chat
 // proxy (which holds the API key), and reads back a { text, proposal } envelope. A
 // proposal is a drafted hold the FAB renders as a confirm card — the proxy never
@@ -55,6 +55,7 @@ export function useFgAssistant() {
             messages: history.map((m) => ({ role: m.role, content: m.text })),
             module, // the screen the user is on, for context-aware answers
             image, // a damage photo for THIS turn only (not resent in history)
+            callSign: localStorage.getItem('fg_effie_callsign') || undefined,
           }),
         });
 

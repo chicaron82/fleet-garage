@@ -1,8 +1,6 @@
-// "Hey FG" — the floating action button + chat panel. Tap the FAB, ask about a
-// vehicle in plain language ("anything on LUR187?"), and the assistant looks it
-// up and answers. Tier 1 is read-only (vehicle lookups); guided actions and
-// vision come later, behind confirm gates. All the model/key work lives in the
-// proxy (api/fg-chat.ts) + the hook — this is just the surface.
+// Effie (PerZeePhone) — the floating action button + chat panel for the Fleet
+// Garage shop assistant. All model/key work lives in the proxy (api/fg-chat.ts)
+// + hooks; this is the surface: FAB, chat panel, proposal cards.
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -159,7 +157,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       {/* FAB */}
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label="Ask FG"
+        aria-label="Ask Effie"
         className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition cursor-pointer"
       >
         {open ? <CloseIcon /> : <SparkleIcon />}
@@ -173,8 +171,8 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
             <div className="flex items-center gap-2">
               <span className="text-blue-600 dark:text-blue-400"><SparkleIcon small /></span>
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ask FG</p>
-                <p className="text-[11px] text-gray-400">Try: "anything on LUR187?"</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Effie</p>
+                <p className="text-[11px] text-gray-400">Your lot concierge — ask anything.</p>
               </div>
             </div>
             {tts.supported && (

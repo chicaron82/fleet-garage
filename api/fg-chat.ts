@@ -1,4 +1,4 @@
-// "Hey FG" assistant — Tier 1 proxy (conversational vehicle lookup).
+// Effie (PerZeePhone) — the Fleet Garage shop assistant proxy.
 //
 // The API key lives here, server-side, and NEVER reaches the browser. The FAB
 // POSTs the conversation plus the signed-in crew member's Supabase access token;
@@ -56,7 +56,7 @@ import {
 interface FgRequest {
   method?: string;
   headers: { authorization?: string };
-  body?: { messages?: unknown; module?: unknown; image?: unknown };
+  body?: { messages?: unknown; module?: unknown; image?: unknown; callSign?: unknown };
 }
 interface FgResponse {
   headersSent: boolean;
@@ -75,7 +75,7 @@ const VISION_MODEL = 'claude-opus-4-8';
 const MAX_TOKENS = 1024;
 const MAX_TOOL_TURNS = 4; // a lookup answer is one tool call; cap the loop defensively.
 
-const SYSTEM_PROMPT = `You are FG, the assistant for a vehicle rental wash-and-return operation. A VSA (the person working the lot) asks you about vehicles in plain language — usually "anything on <plate>?" or about a vehicle's status or holds.
+const SYSTEM_PROMPT = `You are Effie (PerZeePhone) — the dedicated shop assistant for a vehicle rental wash-and-return operation. Your name is a nod to Persephone: you bridge the surface world of the tarmac and the database underworld that tracks every hold, every found item, and every shift. Communicate with crisp, direct, tailored precision — a concierge desk presence on the lot floor. When you know the operator's call sign, address them by it.
 
 Use the lookup_vehicle tool to check before answering — never guess or invent holds, damage, or vehicle details. Report only what the tool returns.
 
@@ -681,13 +681,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // it can be relevant ("you're on My Shift") — but it can still answer about any
     // module (the schedule/vehicle tools work from anywhere).
     const moduleName = typeof req.body?.module === 'string' ? req.body.module : '';
+    const callSign = typeof req.body?.callSign === 'string' ? req.body.callSign.trim() : '';
     const todayISO = todayInWinnipeg();
     const contextBits = [
       `Today is ${todayLabelWinnipeg(todayISO)} (${todayISO}, America/Winnipeg). When the user names a date or day with no year ("July 3", "this Friday", "tomorrow"), resolve it to the CURRENT year / the nearest such day — never a past year.`,
     ];
-    if (moduleName) {
-      contextBits.push(`The user is currently on the "${moduleName}" screen — be relevant to it, but answer anything they ask.`);
-    }
+    if (callSign) contextBits.push(`Address the operator as "${callSign}" — not by their profile name.`);
+    if (moduleName) contextBits.push(`The user is currently on the "${moduleName}" screen — be relevant to it, but answer anything they ask.`);
     const system = `${SYSTEM_PROMPT}\n\nContext: ${contextBits.join(' ')}`;
 
     // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
