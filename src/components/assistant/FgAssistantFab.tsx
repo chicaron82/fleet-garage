@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 import { HoldProposalCard } from './HoldProposalCard';
 import { moduleGreeting } from '../../lib/assistantGreeting';
@@ -16,6 +17,7 @@ import type { Proposal } from '../../../api/_lib/holdProposal';
 export function FgAssistantFab({ module }: { module: string }) {
   const { user } = useAuth();
   const { addHold, addVehicle } = useVehicleHoldContext();
+  const { addLostFoundItem } = useLostFoundContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [loginId, setLoginId] = useState<string | null>(null);
@@ -59,6 +61,19 @@ export function FgAssistantFab({ module }: { module: string }) {
   // Both reuse the battle-tested mutations (status flip, mgmt ntfy, dedup) for free.
   const confirmProposal = async (proposal: Proposal) => {
     if (!user) throw new Error('Not signed in.');
+    // Lost & found log → the existing addLostFoundItem (resolves plate, stamps
+    // found_by/found_at, status 'holding'). It returns false (not throw) on failure,
+    // so convert that to a throw for the card's error state.
+    if (proposal.kind === 'lost_item') {
+      const ok = await addLostFoundItem({
+        description: proposal.description,
+        location: proposal.location ?? undefined,
+        licensePlate: proposal.licensePlate ?? undefined,
+        notes: proposal.notes ?? undefined,
+      });
+      if (!ok) throw new Error('Could not log the item — check connection and try again.');
+      return;
+    }
     const holdTypes: HoldType[] = [proposal.holdType as HoldType];
     if (proposal.kind === 'register_and_hold') {
       const nv = proposal.newVehicle;

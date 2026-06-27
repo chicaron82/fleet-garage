@@ -31,6 +31,12 @@ import {
   type RegisterHoldProposal,
   type Proposal,
 } from './_lib/holdProposal.js';
+import {
+  buildLostItemProposal,
+  describeLostItemProposal,
+  LOST_ITEM_LOCATIONS,
+  type LostItemProposal,
+} from './_lib/lostItemProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import {
   formatMyShifts,
@@ -77,6 +83,8 @@ When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on 
 For schedule questions ("who's closing with me tonight?", "who's on tomorrow?"), call lookup_schedule (it defaults to today; pass shift_type like "closing" to narrow). Answer with the names, naturally ("Closing with you tonight: Geoff and Marycel.").
 
 For the user's own shifts ("when am I working?", "am I closing this week?"), call lookup_my_shift. For lost & found ("any lost items?", "did anyone turn in a wallet?"), call search_lost_found. For facility issues ("any open issues?", "what's flagged?"), call lookup_issues. These are read-only — just report what they return.
+
+When the user wants to LOG a found item into lost & found ("someone left a black wallet in the back seat of LUR224", "log a phone charger, found under the seat"), call propose_lost_item with a short description (required) and — only if the user mentioned them — the location (visor, front_seat, back_seat, trunk, under_seat, or other), the license plate, and any notes. Like a hold, this DRAFTS a confirm card the user must tap; phrase it as drafted awaiting confirmation, never as logged. Don't invent details the user didn't give.
 
 If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.`;
 
@@ -184,6 +192,28 @@ const TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: { status: { type: 'string', enum: ['open', 'all'], description: 'Default open.' } },
       required: [],
+    },
+  },
+  {
+    name: 'propose_lost_item',
+    description:
+      'Draft a found item to log into lost & found for the user to confirm. Use when the user reports finding or turning in an item ("someone left a black wallet in the back seat of LUR224", "log a phone charger found under the seat"). This does NOT log it — it returns a draft the user must tap to confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        description: {
+          type: 'string',
+          description: 'Short description of the item, e.g. "black leather wallet", "USB-C phone charger".',
+        },
+        location: {
+          type: 'string',
+          enum: [...LOST_ITEM_LOCATIONS],
+          description: 'Where in the vehicle it was found — only if the user said so.',
+        },
+        license_plate: { type: 'string', description: 'Plate or unit of the vehicle it was found in, if mentioned.' },
+        notes: { type: 'string', description: 'Any extra context the user gives.' },
+      },
+      required: ['description'],
     },
   },
 ];
@@ -467,6 +497,41 @@ async function executeLookupIssues(supabase: SupabaseClient, input: { status?: s
   return JSON.stringify({ count: items.length, summary: formatIssues(items) });
 }
 
+/**
+ * Draft a found item for lost & found — NEVER writes. The proposal goes to the
+ * client as a confirm card, and only a user tap calls the real addLostFoundItem
+ * (which resolves the plate, stamps found_by/found_at, and uploads any photos).
+ * Pure — no DB read needed; the AI parsed the item from the user's words.
+ */
+function executeProposeLostItem(input: {
+  description?: string;
+  location?: string;
+  license_plate?: string;
+  notes?: string;
+}): { toolResult: string; proposal: LostItemProposal | null } {
+  const description = (input.description ?? '').trim();
+  if (!description) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({ ok: false, reason: 'Need a short description of the item first — ask the user what it is.' }),
+    };
+  }
+  const proposal = buildLostItemProposal({
+    description,
+    location: input.location ?? null,
+    licensePlate: input.license_plate ?? null,
+    notes: input.notes ?? null,
+  });
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeLostItemProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is logged, just that it is drafted for them to confirm',
+    }),
+  };
+}
+
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -585,6 +650,12 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
           } else if (tu.name === 'lookup_issues') {
             content = await executeLookupIssues(supabase, tu.input as { status?: string });
+          } else if (tu.name === 'propose_lost_item') {
+            const out = executeProposeLostItem(
+              tu.input as { description?: string; location?: string; license_plate?: string; notes?: string },
+            );
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
           } else {
             const plate = (tu.input as { plate?: string }).plate ?? '';
             content = JSON.stringify(await executeLookup(supabase, plate));

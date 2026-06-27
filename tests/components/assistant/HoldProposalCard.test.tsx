@@ -18,6 +18,14 @@ const registerProposal: Proposal = {
   damageDescription: 'bumper dent',
 };
 
+const lostItemProposal: Proposal = {
+  kind: 'lost_item',
+  description: 'black leather wallet',
+  location: 'back_seat',
+  licensePlate: 'LUR224',
+  notes: 'handed in at front desk',
+};
+
 describe('HoldProposalCard', () => {
   it('shows the drafted hold details', () => {
     render(<HoldProposalCard proposal={proposal} onConfirm={vi.fn()} onDismiss={vi.fn()} />);
@@ -61,5 +69,25 @@ describe('HoldProposalCard', () => {
     fireEvent.click(screen.getByText('Register + hold'));
     await waitFor(() => expect(screen.getByText(/Registered \+ held/)).toBeInTheDocument());
     expect(screen.getByText('LUR187')).toBeInTheDocument();
+  });
+
+  it('renders a lost-item draft and confirms to a logged receipt', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    render(<HoldProposalCard proposal={lostItemProposal} onConfirm={onConfirm} onDismiss={vi.fn()} />);
+    expect(screen.getByText('Confirm — log found item')).toBeInTheDocument();
+    expect(screen.getByText('black leather wallet')).toBeInTheDocument();
+    expect(screen.getByText('Back seat · Plate LUR224')).toBeInTheDocument();
+    expect(screen.getByText('handed in at front desk')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Log item'));
+    await waitFor(() => expect(screen.getByText(/Logged to lost & found/)).toBeInTheDocument());
+  });
+
+  it('a lost-item draft can be cancelled without writing', () => {
+    const onConfirm = vi.fn();
+    const onDismiss = vi.fn();
+    render(<HoldProposalCard proposal={lostItemProposal} onConfirm={onConfirm} onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

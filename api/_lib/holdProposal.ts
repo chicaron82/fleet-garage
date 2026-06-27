@@ -1,8 +1,10 @@
 // A drafted action the AI proposes but never writes. The proxy builds one; the
 // client renders it as a confirm card and only on a tap calls the real
-// addHold/addVehicle. Two kinds: 'hold' (existing vehicle) and 'register_and_hold'
-// (unknown plate → register it, then hold). Keeping the types + builders here
-// (pure, tested) means the proposal shape is one source of truth the client imports.
+// addHold/addVehicle/addLostFoundItem. Three kinds: 'hold' (existing vehicle),
+// 'register_and_hold' (unknown plate → register it, then hold), and 'lost_item'
+// (log a found item — see ./lostItemProposal). This module owns the shared Proposal
+// union the client imports; each kind's own builder/describe lives with its type.
+import { describeLostItemProposal, type LostItemProposal } from './lostItemProposal.js';
 
 /** The vehicle a 'hold' proposal targets — already resolved to a real fleet row. */
 export interface ProposalVehicle {
@@ -38,7 +40,7 @@ export interface RegisterHoldProposal {
   damageDescription: string;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal;
+export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -68,6 +70,7 @@ export function describeNewVehicle(v: NewVehicle): string {
 
 /** A short one-liner the AI/tool can echo back. */
 export function describeProposal(p: Proposal): string {
+  if (p.kind === 'lost_item') return `log found item: ${describeLostItemProposal(p)}`;
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
   if (p.kind === 'register_and_hold') {
     return `register ${describeNewVehicle(p.newVehicle)} + ${p.holdType} hold${desc}`;
