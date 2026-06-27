@@ -27,9 +27,8 @@
 
 ## 📥 Open tickets
 
-_"Hey FG" assistant — next tier (riffed 2026-06-26; voice ✅ shipped, now: key-tag → schedule):_
-- [ticket-optical-keytag-autofill.md](ticket-optical-keytag-autofill.md) — photo a key tag → OCR unit/plate/class → autofill the register-then-hold. Reuses the Tier 3 vision plumbing. **(next up)**
-- [ticket-schedule-photo-import.md](ticket-schedule-photo-import.md) — photo the VSA grid → FG drafts the week behind a preview-you-verify gate. The big one (dense-grid vision + a real bulk write path); spec before cooking.
+_"Hey FG" assistant — next tier (riffed 2026-06-26; voice ✅ + key-tag ✅ shipped):_
+- [ticket-schedule-photo-import.md](ticket-schedule-photo-import.md) — photo the VSA grid → FG drafts the week behind a preview-you-verify gate. **The big one** (dense-grid vision + a real bulk write path); spec it before cooking. **(next up)**
 
 _Other:_
 - [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
