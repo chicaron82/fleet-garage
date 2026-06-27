@@ -32,6 +32,11 @@ describe('matchStaffName', () => {
     expect(matchStaffName('Marycel', roster)).toEqual({ profileId: null, confidence: 'none' });
     expect(matchStaffName('', roster)).toEqual({ profileId: null, confidence: 'none' });
   });
+
+  it('strips role markers like "(PT)" before matching', () => {
+    const r = [{ id: 'x', name: 'CJ' }];
+    expect(matchStaffName('CJ (PT)', r)).toEqual({ profileId: 'x', confidence: 'exact' });
+  });
 });
 
 describe('matchSchedule', () => {

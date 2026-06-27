@@ -5,20 +5,21 @@
 
 export type ParsedShiftType = 'opening' | 'mid' | 'closing' | 'day-off' | 'pto' | 'sick' | 'unknown';
 
-/** One cell of the grid — a person's shift on a day, as read off the photo. */
+/** One cell of the grid — a person's shift on a specific dated day, read off the photo. */
 export interface ParsedCell {
-  day: string; // the column label as seen ("Mon", "Jul 3", a date)
-  type: ParsedShiftType; // the model's best mapping to an FG shift type
-  raw: string; // the raw cell content the model read (source of truth for the human)
+  date: string | null; // resolved ISO date (YYYY-MM-DD) for this cell, or null if unresolvable
+  type: ParsedShiftType; // derived classification (drives the shift_type field + colour)
+  startTime: string | null; // 24h "HH:MM" as printed, or null for off/vacation
+  endTime: string | null;
+  raw: string; // exactly what was printed (source of truth for the human)
 }
 
 export interface ParsedStaffRow {
-  name: string; // the name as read off the grid row
-  cells: ParsedCell[];
+  name: string; // the name as read off the grid row (role markers like "(PT)" stripped)
+  cells: ParsedCell[]; // one per dated column; for a multi-week sheet, all weeks merged
 }
 
 export interface ParsedSchedule {
-  weekStart: string | null; // start date if the photo shows one (ISO or as-seen)
   staff: ParsedStaffRow[];
 }
 
@@ -36,7 +37,8 @@ export interface NameMatch {
   confidence: MatchConfidence;
 }
 
-const norm = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
+// Strip role markers like "(PT)" and collapse whitespace, so "CJ (PT)" matches "CJ".
+const norm = (s: string): string => s.trim().toLowerCase().replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim();
 
 /**
  * Match a name read off the grid to a roster profile. Exact full-name wins; else a

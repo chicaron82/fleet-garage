@@ -1,13 +1,13 @@
-// Schedule-photo parse endpoint (Phase 1 of the import). READ-ONLY: it reads a printed
-// staff-schedule photo and returns a typed grid (ParsedSchedule) — it writes nothing.
-// Structured output is forced via a single required tool (report_schedule) rather than
-// free text, so the response is reliably shaped. Same key/JWT/allowlist gate as fg-chat:
-// the Anthropic key stays server-side and a billable call needs an allowlisted account.
+// Schedule-photo parse endpoint. READ-ONLY: it reads a printed staff-schedule photo and
+// returns a typed grid (ParsedSchedule) — it writes nothing. Handles a single week OR
+// multiple weeks stacked, any day order, real times, and resolves each cell to an ISO
+// date (years inferred from today). Structured output is forced via one required tool.
+// Same key/JWT/allowlist gate as fg-chat.
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
-import type { ParsedSchedule } from './_lib/scheduleParse.js';
+import type { ParsedSchedule, ParsedShiftType } from './_lib/scheduleParse.js';
 
 interface FgRequest {
   method?: string;
@@ -20,16 +20,29 @@ interface FgResponse {
   json(body: unknown): void;
 }
 
-const VISION_MODEL = 'claude-opus-4-8'; // dense grid → the strong vision model.
+const VISION_MODEL = 'claude-opus-4-8'; // dense, multi-week grid → the strong vision model.
+const TZ = 'America/Winnipeg';
 
-const PARSE_PROMPT = `You are reading a printed staff WORK SCHEDULE — a grid with people in rows and days in columns, each cell a shift. Extract every staff row and, for each, every day's cell.
+function todayParts(): { iso: string; label: string } {
+  const iso = new Date().toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
+  const [y, m, d] = iso.split('-').map(Number);
+  const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  return { iso, label };
+}
 
-For each cell:
-- "raw" = exactly what is printed (times like "6:45a-3:15p", a code, "OFF", "PTO", "SICK", or blank).
-- "type" = your best mapping to ONE of: opening (an early start), mid, closing (a late shift), day-off (OFF or blank), pto, sick, or "unknown" if you genuinely can't tell.
-- "day" = the column/day label as shown ("Mon", "Jul 3", a date).
+function buildPrompt(todayIso: string, todayLabel: string): string {
+  return `You are reading a printed staff WORK SCHEDULE photo — people in rows, days in columns, each cell a shift. It may be a SINGLE week, or MULTIPLE weeks STACKED vertically (each week with its own day/date header row). Extract every person and ALL of their cells.
 
-Read each person's name EXACTLY as printed. Report the week's start date in "weekStart" if the photo shows one. Call the report_schedule tool with everything. If the image is not a staff schedule, call it with an empty staff array.`;
+Today is ${todayLabel} (${todayIso}). Use it to resolve YEARS: the sheet shows dates like "17-Apr" or a header like "JUNE 22 - JUNE 28" with no year — assume the year that puts the date nearest to today (usually the current year).
+
+Return ONE row per person, merging ALL their cells across every week shown (a person who appears in each weekly sub-table becomes one row). For each cell:
+- "date": the cell's calendar date as ISO YYYY-MM-DD. Read it from the column's printed date (e.g. "17-Apr" → 2026-04-17), or derive it from the week's header range + the day-of-week column. If you genuinely can't tell, use "".
+- "startTime"/"endTime": the shift's times as 24-hour "HH:MM" ("0645-1515" → "06:45"/"15:15"; "07:00 - 12:00" → "07:00"/"12:00"). For a day off or vacation, use "" for both.
+- "type": classify (for colour only) — opening (early start), mid, closing (late end), day-off (an "OFF" cell or a BLANK cell), pto (VAC / vacation), sick, or unknown if unsure.
+- "raw": exactly what is printed in the cell ("0645-1515", "OFF", "VAC", "", etc.).
+
+Read each person's name as printed but DROP role markers like "(PT)" and labels like "UTILITY" — just the name. Call report_schedule with everything. If the image is not a staff schedule, return an empty staff array.`;
+}
 
 const REPORT_TOOL: Anthropic.Tool = {
   name: 'report_schedule',
@@ -37,28 +50,29 @@ const REPORT_TOOL: Anthropic.Tool = {
   input_schema: {
     type: 'object',
     properties: {
-      weekStart: { type: 'string', description: 'Week start date if shown (ISO YYYY-MM-DD preferred); empty if not shown.' },
       staff: {
         type: 'array',
-        description: 'One entry per person/row in the grid.',
+        description: 'One entry per person, merging all their cells across every week shown.',
         items: {
           type: 'object',
           properties: {
-            name: { type: 'string', description: "The person's name exactly as printed on the row." },
+            name: { type: 'string', description: "The person's name as printed, minus role markers like (PT)/UTILITY." },
             cells: {
               type: 'array',
               items: {
                 type: 'object',
                 properties: {
-                  day: { type: 'string', description: 'Column/day label as seen.' },
+                  date: { type: 'string', description: 'ISO date YYYY-MM-DD for this cell ("" if undeterminable).' },
+                  startTime: { type: 'string', description: '24h HH:MM start, "" for off/vacation.' },
+                  endTime: { type: 'string', description: '24h HH:MM end, "" for off/vacation.' },
                   type: {
                     type: 'string',
                     enum: ['opening', 'mid', 'closing', 'day-off', 'pto', 'sick', 'unknown'],
-                    description: 'Best mapping of the cell to a shift type.',
+                    description: 'Classification for colour.',
                   },
-                  raw: { type: 'string', description: 'Exact cell content read (times/code/OFF/PTO/blank).' },
+                  raw: { type: 'string', description: 'Exact cell content (times / OFF / VAC / blank).' },
                 },
-                required: ['day', 'type', 'raw'],
+                required: ['date', 'type', 'raw'],
               },
             },
           },
@@ -69,6 +83,26 @@ const REPORT_TOOL: Anthropic.Tool = {
     required: ['staff'],
   },
 };
+
+interface RawCell { date?: string; startTime?: string; endTime?: string; type?: ParsedShiftType; raw?: string }
+interface RawStaff { name?: string; cells?: RawCell[] }
+
+/** Normalize the tool output to ParsedSchedule — empty strings → null, defensive defaults. */
+function toSchedule(input: unknown): ParsedSchedule {
+  const staff = (input as { staff?: RawStaff[] })?.staff ?? [];
+  return {
+    staff: staff.map((s) => ({
+      name: (s.name ?? '').trim(),
+      cells: (s.cells ?? []).map((c) => ({
+        date: c.date?.trim() || null,
+        type: c.type ?? 'unknown',
+        startTime: c.startTime?.trim() || null,
+        endTime: c.endTime?.trim() || null,
+        raw: c.raw ?? '',
+      })),
+    })),
+  };
+}
 
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
@@ -110,11 +144,12 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       return;
     }
 
+    const { iso, label } = todayParts();
     const anthropic = new Anthropic({ apiKey });
     const message = await anthropic.messages.create({
       model: VISION_MODEL,
-      max_tokens: 4096,
-      system: PARSE_PROMPT,
+      max_tokens: 8192, // a 4-week grid is large
+      system: buildPrompt(iso, label),
       tools: [REPORT_TOOL],
       tool_choice: { type: 'tool', name: 'report_schedule' },
       messages: [
@@ -133,9 +168,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       res.status(502).json({ error: "Couldn't read a schedule from that photo." });
       return;
     }
-    const schedule = toolUse.input as ParsedSchedule;
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ schedule });
+    res.status(200).json({ schedule: toSchedule(toolUse.input) });
   } catch (err) {
     console.error('[fg-schedule-parse] handler error:', err);
     res.status(500).json({ error: `Parse error: ${err instanceof Error ? err.message : String(err)}` });

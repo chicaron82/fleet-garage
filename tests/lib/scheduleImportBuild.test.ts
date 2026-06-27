@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addDaysISO, buildImportShifts, nextType, type ImportRow } from '../../src/lib/scheduleImportBuild';
+import { addDaysISO, buildImportShifts, nextType, dateRange, type ImportRow } from '../../src/lib/scheduleImportBuild';
 import type { ShiftType } from '../../src/types';
 
 const defaults: Record<ShiftType, { start: string; end: string }> = {
@@ -21,29 +21,57 @@ describe('addDaysISO', () => {
 });
 
 describe('buildImportShifts', () => {
-  it('maps each column to weekStart+i with default times; full-day types carry none', () => {
-    const rows: ImportRow[] = [{ userId: 'u1', types: ['opening', 'day-off', 'closing'] }];
-    expect(buildImportShifts(rows, '2026-06-29', defaults, isFullDay)).toEqual([
-      { userId: 'u1', date: '2026-06-29', shiftType: 'opening', startTime: '06:45', endTime: '15:15' },
-      { userId: 'u1', date: '2026-06-30', shiftType: 'day-off', startTime: undefined, endTime: undefined },
-      { userId: 'u1', date: '2026-07-01', shiftType: 'closing', startTime: '14:30', endTime: '23:00' },
-    ]);
-  });
-
-  it('skips unknown cells — never writes a guess', () => {
-    const rows: ImportRow[] = [{ userId: 'u1', types: ['unknown', 'pto'] }];
-    const out = buildImportShifts(rows, '2026-06-29', defaults, isFullDay);
-    expect(out).toEqual([
-      { userId: 'u1', date: '2026-06-30', shiftType: 'pto', startTime: undefined, endTime: undefined },
-    ]);
-  });
-
-  it('keeps every assigned row', () => {
+  it('writes each cell at its REAL date with its REAL times; full-day types carry none', () => {
     const rows: ImportRow[] = [
-      { userId: 'a', types: ['opening'] },
-      { userId: 'b', types: ['closing'] },
+      {
+        userId: 'u1',
+        cells: [
+          { date: '2026-04-17', type: 'opening', startTime: '06:45', endTime: '15:15' },
+          { date: '2026-04-18', type: 'day-off', startTime: null, endTime: null },
+          { date: '2026-04-19', type: 'pto', startTime: null, endTime: null },
+        ],
+      },
     ];
-    expect(buildImportShifts(rows, '2026-06-29', defaults, isFullDay).map((s) => s.userId)).toEqual(['a', 'b']);
+    expect(buildImportShifts(rows, defaults, isFullDay)).toEqual([
+      { userId: 'u1', date: '2026-04-17', shiftType: 'opening', startTime: '06:45', endTime: '15:15' },
+      { userId: 'u1', date: '2026-04-18', shiftType: 'day-off', startTime: undefined, endTime: undefined },
+      { userId: 'u1', date: '2026-04-19', shiftType: 'pto', startTime: undefined, endTime: undefined },
+    ]);
+  });
+
+  it('falls back to default times when a working cell has none (off flipped to working)', () => {
+    const rows: ImportRow[] = [{ userId: 'u1', cells: [{ date: '2026-04-17', type: 'closing', startTime: null, endTime: null }] }];
+    expect(buildImportShifts(rows, defaults, isFullDay)[0]).toEqual({
+      userId: 'u1', date: '2026-04-17', shiftType: 'closing', startTime: '14:30', endTime: '23:00',
+    });
+  });
+
+  it('skips cells with no date or an unknown type', () => {
+    const rows: ImportRow[] = [
+      {
+        userId: 'u1',
+        cells: [
+          { date: null, type: 'opening', startTime: '06:45', endTime: '15:15' },
+          { date: '2026-04-17', type: 'unknown', startTime: null, endTime: null },
+          { date: '2026-04-18', type: 'mid', startTime: '10:00', endTime: '18:00' },
+        ],
+      },
+    ];
+    expect(buildImportShifts(rows, defaults, isFullDay)).toEqual([
+      { userId: 'u1', date: '2026-04-18', shiftType: 'mid', startTime: '10:00', endTime: '18:00' },
+    ]);
+  });
+});
+
+describe('dateRange', () => {
+  it('returns the min/max date across shifts (the wipe window)', () => {
+    expect(dateRange([{ date: '2026-05-14' }, { date: '2026-04-17' }, { date: '2026-04-30' }])).toEqual({
+      start: '2026-04-17',
+      end: '2026-05-14',
+    });
+  });
+  it('null for empty', () => {
+    expect(dateRange([])).toBeNull();
   });
 });
 

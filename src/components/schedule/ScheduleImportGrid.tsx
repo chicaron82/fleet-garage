@@ -16,6 +16,13 @@ const TYPE_LABEL: Record<ParsedShiftType, string> = {
   opening: 'Open', mid: 'Mid', closing: 'Close', 'day-off': 'Off', pto: 'PTO', sick: 'Sick', unknown: '?',
 };
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { weekday: 'short', month: 'numeric', day: 'numeric' });
+}
+
 interface Props {
   schedule: ParsedSchedule;
   roster: RosterProfile[];
@@ -26,7 +33,7 @@ interface Props {
 }
 
 export function ScheduleImportGrid({ schedule, roster, assignments, types, onAssign, onCycleCell }: Props) {
-  const days = schedule.staff[0]?.cells.map((c) => c.day) ?? [];
+  const dates = schedule.staff[0]?.cells.map((c) => c.date) ?? [];
 
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -36,8 +43,8 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
             <th className="sticky left-0 z-10 bg-gray-50 px-2 py-1.5 text-left font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
               Staff
             </th>
-            {days.map((d, i) => (
-              <th key={i} className="px-2 py-1.5 text-center font-semibold text-gray-600 dark:text-gray-300">{d}</th>
+            {dates.map((d, i) => (
+              <th key={i} className="whitespace-nowrap px-2 py-1.5 text-center font-semibold text-gray-600 dark:text-gray-300">{fmtDate(d)}</th>
             ))}
           </tr>
         </thead>
@@ -65,14 +72,16 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
                 </td>
                 {row.cells.map((c, ci) => {
                   const t = types[ri]?.[ci] ?? c.type;
+                  const times = c.startTime ? `${c.startTime}–${c.endTime ?? ''}` : '';
                   return (
-                    <td key={ci} className="px-1 py-1 text-center">
+                    <td key={ci} className="px-0.5 py-0.5 text-center">
                       <button
                         onClick={() => onCycleCell(ri, ci)}
-                        title={`${c.raw || c.type} — tap to change`}
-                        className={`inline-block min-w-[2.6rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]}`}
+                        title={`${c.raw || c.type}${times ? ` (${times})` : ''} — tap to change`}
+                        className={`block w-full min-w-[3.2rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]}`}
                       >
-                        {TYPE_LABEL[t]}
+                        <span className="block leading-tight">{TYPE_LABEL[t]}</span>
+                        {times && <span className="block text-[9px] leading-none opacity-70">{c.startTime}</span>}
                       </button>
                     </td>
                   );

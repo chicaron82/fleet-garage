@@ -27,7 +27,7 @@ export function useScheduleImport() {
       });
       const data = (await res.json().catch(() => null)) as { schedule?: ParsedSchedule; error?: string } | null;
       if (!res.ok) throw new Error(data?.error || `Parse failed (${res.status})`);
-      setSchedule(data?.schedule ?? { weekStart: null, staff: [] });
+      setSchedule(data?.schedule ?? { staff: [] });
       setStatus('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not parse the schedule.');
