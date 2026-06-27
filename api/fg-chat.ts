@@ -47,13 +47,15 @@ const SYSTEM_PROMPT = `You are FG, the assistant for a vehicle rental wash-and-r
 
 Use the lookup_vehicle tool to check before answering — never guess or invent holds, damage, or vehicle details. Report only what the tool returns.
 
-Answer like a colleague on the lot: short, direct, no preamble. If a vehicle is clean, say so plainly ("Nothing on LUR187 — Unit 1234, 2023 Camry"). If it has holds, lead with that. If the plate isn't in the fleet, say it's not on record.`;
+Answer like a colleague on the lot: short, direct, no preamble. If a vehicle is clean, say so plainly ("Nothing on LUR187 — Unit 1234, 2023 Camry"). If the plate isn't in the fleet, say it's not on record.
+
+Lead with ACTIVE holds — those block the car. Then mention any RELEASED holds as context worth knowing, especially verbal overrides ("no active hold, but it had a paint scratch released on a verbal override by MK"). A released hold means it was flagged then cleared — history, not a current block. Don't bury an active hold under released history.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
     name: 'lookup_vehicle',
     description:
-      'Look up a fleet vehicle by license plate or unit number and report its identity and any ACTIVE holds. Use whenever the user asks whether there is "anything on" a vehicle, or about its status, holds, or damage.',
+      'Look up a fleet vehicle by license plate or unit number and report its identity, any ACTIVE holds (blocking), and any RELEASED holds (recent history/context). Use whenever the user asks whether there is "anything on" a vehicle, or about its status, holds, or damage.',
     input_schema: {
       type: 'object',
       properties: {
@@ -101,20 +103,30 @@ async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promis
     color: match.color ?? null,
   };
 
+  // ACTIVE holds block; RELEASED holds are worth-knowing context (esp. verbal
+  // overrides). Embed the release detail so the answer can name who authorized it.
   const { data: holdRows, error: hErr } = await supabase
     .from('holds')
-    .select('hold_type, status, damage_description, flagged_at, flagged_by_name')
+    .select(
+      'hold_type, status, damage_description, flagged_at, flagged_by_name, releases(release_method, release_type, override_authorization)',
+    )
     .eq('vehicle_id', match.id)
-    .eq('status', 'ACTIVE');
+    .in('status', ['ACTIVE', 'RELEASED']);
   if (hErr) throw hErr;
 
-  const holds: HoldFact[] = (holdRows ?? []).map((h) => ({
-    holdType: h.hold_type,
-    status: h.status,
-    damageDescription: h.damage_description ?? '',
-    flaggedAt: h.flagged_at,
-    flaggedByName: h.flagged_by_name ?? null,
-  }));
+  const holds: HoldFact[] = (holdRows ?? []).map((h) => {
+    const rel = Array.isArray(h.releases) ? h.releases[0] : h.releases;
+    return {
+      holdType: h.hold_type,
+      status: h.status,
+      damageDescription: h.damage_description ?? '',
+      flaggedAt: h.flagged_at,
+      flaggedByName: h.flagged_by_name ?? null,
+      release: rel
+        ? { method: rel.release_method, type: rel.release_type, authorizedBy: rel.override_authorization ?? null }
+        : null,
+    };
+  });
 
   return summarizeLookup(rawPlate, vehicle, holds);
 }
