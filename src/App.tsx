@@ -171,7 +171,7 @@ export default function App() {
       case 'movement-log':
         return <MovementLogView />;
       case 'schedule':
-        return <ScheduleScreen />;
+        return <ScheduleScreen openImport={screen.openImport} />;
       case 'my-shift':
         return <MyShiftView />;
       case 'lost-and-found':
@@ -227,7 +227,7 @@ export default function App() {
                   onCancel={() => setShowLogoutConfirm(false)}
                 />
               )}
-              <FgAssistantFab module={activeModule} />
+              <FgAssistantFab module={activeModule} onNavigate={navigate} />
             </LostFoundProvider>
           </IssueProvider>
         </WashbayProvider>

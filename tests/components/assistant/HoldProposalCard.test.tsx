@@ -26,6 +26,12 @@ const lostItemProposal: Proposal = {
   notes: 'handed in at front desk',
 };
 
+const navigateProposal: Proposal = {
+  kind: 'navigate',
+  destination: 'schedule-import',
+  label: 'Schedule — Import from photo',
+};
+
 describe('HoldProposalCard', () => {
   it('shows the drafted hold details', () => {
     render(<HoldProposalCard proposal={proposal} onConfirm={vi.fn()} onDismiss={vi.fn()} />);
@@ -80,6 +86,14 @@ describe('HoldProposalCard', () => {
     expect(screen.getByText('handed in at front desk')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Log item'));
     await waitFor(() => expect(screen.getByText(/Logged to lost & found/)).toBeInTheDocument());
+  });
+
+  it('renders a navigate offer and confirms by navigating (no write, no receipt)', () => {
+    const onConfirm = vi.fn();
+    render(<HoldProposalCard proposal={navigateProposal} onConfirm={onConfirm} onDismiss={vi.fn()} />);
+    expect(screen.getByText('Schedule — Import from photo')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Take me there →'));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
   it('a lost-item draft can be cancelled without writing', () => {

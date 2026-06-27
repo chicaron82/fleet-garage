@@ -48,12 +48,14 @@ function loadShowMock(): boolean {
   try { return localStorage.getItem(SHOW_MOCK_KEY) === '1'; } catch { return false; }
 }
 
-export function ScheduleScreen() {
+export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
   const { viewMode, setViewMode, currentDate, goToPrev, goToNext, goToToday, shifts, isPeakSeason, togglePeakSeason, ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement } = useSchedule();
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
-  const [showImport,  setShowImport]  = useState(false);
+  // Deep-link from the assistant's "import the schedule?" bridge opens the importer —
+  // but only for managers (same gate as the button); a non-manager deep-link no-ops.
+  const [showImport,  setShowImport]  = useState(() => !!openImport && !!user && canManageSchedule(user.role));
   const [showLogSick, setShowLogSick] = useState(false);
   const [showRoster,  setShowRoster]  = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);

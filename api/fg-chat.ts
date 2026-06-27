@@ -40,6 +40,7 @@ import {
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
+import { buildNavigateProposal, NAV_DESTINATIONS, type NavigateProposal } from './_lib/navProposal.js';
 import {
   formatMyShifts,
   formatLostFound,
@@ -101,7 +102,9 @@ When the user attaches a photo of a KEY TAG (a printed vehicle tag showing field
 - "Lic Plate" → the license plate.
 - The class line (e.g. "CCVL 25"): call lookup_vehicle_class with the code ("CCVL") to get make + model; the trailing number is the model YEAR ("25" → 2025).
 - The colour/body line (e.g. "WHI 4DR"): the colour code (WHI = White, BLK = Black, SIL = Silver, GRY = Gray, BLU = Blue, RED = Red) and body style.
-Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.`;
+Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.
+
+When the user wants to IMPORT THE SCHEDULE from a photo ("I want to import the new schedule", "load the schedule from a photo"), that's done on the Schedule screen — confirm it's possible and call propose_navigation with destination "schedule-import" to OFFER to take them there. More generally, if they want to go to or do something that lives on another screen (lost & found, issue log, my shift, check-in, movement log), offer propose_navigation for the right destination. Phrase it as an offer — "That's on the Schedule screen — want me to take you there?" — and let the confirm card do the navigating. Never claim you navigated or performed the action yourself.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -229,6 +232,22 @@ const TOOLS: Anthropic.Tool[] = [
         notes: { type: 'string', description: 'Any extra context the user gives.' },
       },
       required: ['description'],
+    },
+  },
+  {
+    name: 'propose_navigation',
+    description:
+      'Offer to take the user to a screen for something that lives there. Use when they want to DO something the chat can\'t do inline — MOST IMPORTANTLY import a schedule from a photo (destination "schedule-import"). Returns a confirm card the user taps to navigate; do NOT pretend to do the action in chat yourself.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        destination: {
+          type: 'string',
+          enum: [...NAV_DESTINATIONS],
+          description: 'Where to take them — "schedule-import" to import a schedule photo.',
+        },
+      },
+      required: ['destination'],
     },
   },
   {
@@ -565,6 +584,26 @@ function executeProposeLostItem(input: {
   };
 }
 
+/**
+ * Offer to navigate the user to a screen. NEVER writes or navigates — it returns a
+ * confirm card the client renders; only the user's tap navigates (and even then, only
+ * changes screens, no data write). Safe by construction.
+ */
+function executeProposeNavigation(input: { destination?: string }): { toolResult: string; proposal: NavigateProposal | null } {
+  const proposal = buildNavigateProposal(input.destination ?? '');
+  if (!proposal) {
+    return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: 'Unknown destination — only offer a known screen.' }) };
+  }
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      offered: proposal.label,
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say you navigated, just offer to take them there',
+    }),
+  };
+}
+
 /** Read-only: resolve a key-tag class code to make/model (pure codex lookup, no I/O). */
 function executeLookupVehicleClass(input: { code?: string }): string {
   const vc = lookupVehicleClass(input.code);
@@ -717,6 +756,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
           } else if (tu.name === 'lookup_issues') {
             content = await executeLookupIssues(supabase, tu.input as { status?: string });
+          } else if (tu.name === 'propose_navigation') {
+            const out = executeProposeNavigation(tu.input as { destination?: string });
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
           } else if (tu.name === 'lookup_vehicle_class') {
             content = executeLookupVehicleClass(tu.input as { code?: string });
           } else if (tu.name === 'propose_lost_item') {

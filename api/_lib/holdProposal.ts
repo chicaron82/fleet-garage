@@ -5,6 +5,7 @@
 // (log a found item — see ./lostItemProposal). This module owns the shared Proposal
 // union the client imports; each kind's own builder/describe lives with its type.
 import { describeLostItemProposal, type LostItemProposal } from './lostItemProposal.js';
+import { describeNavigate, type NavigateProposal } from './navProposal.js';
 
 /** The vehicle a 'hold' proposal targets — already resolved to a real fleet row. */
 export interface ProposalVehicle {
@@ -40,7 +41,7 @@ export interface RegisterHoldProposal {
   damageDescription: string;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal;
+export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal | NavigateProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -70,6 +71,7 @@ export function describeNewVehicle(v: NewVehicle): string {
 
 /** A short one-liner the AI/tool can echo back. */
 export function describeProposal(p: Proposal): string {
+  if (p.kind === 'navigate') return describeNavigate(p);
   if (p.kind === 'lost_item') return `log found item: ${describeLostItemProposal(p)}`;
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
   if (p.kind === 'register_and_hold') {

@@ -17,10 +17,23 @@ import { compressImage } from '../../lib/image';
 import {
   SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
 } from './AssistantIcons';
-import type { HoldType } from '../../types';
+import type { HoldType, Screen } from '../../types';
 import type { Proposal } from '../../../api/_lib/holdProposal';
+import type { NavDestination } from '../../../api/_lib/navProposal';
 
-export function FgAssistantFab({ module }: { module: string }) {
+/** Map a navigate proposal's destination to a real app Screen (flagship: the importer). */
+function navDestinationToScreen(dest: NavDestination): Screen {
+  switch (dest) {
+    case 'schedule-import': return { name: 'schedule', openImport: true };
+    case 'lost-found': return { name: 'lost-and-found' };
+    case 'issue-log': return { name: 'issue-log' };
+    case 'my-shift': return { name: 'my-shift' };
+    case 'check-in': return { name: 'check-in' };
+    case 'movement-log': return { name: 'movement-log' };
+  }
+}
+
+export function FgAssistantFab({ module, onNavigate }: { module: string; onNavigate?: (screen: Screen) => void }) {
   const { user } = useAuth();
   const { addHold, addVehicle } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
@@ -83,6 +96,12 @@ export function FgAssistantFab({ module }: { module: string }) {
   // 'register_and_hold' → addVehicle (defaults to HELD) then addHold on the new id.
   // Both reuse the battle-tested mutations (status flip, mgmt ntfy, dedup) for free.
   const confirmProposal = async (proposal: Proposal) => {
+    // Navigate offer → just change screens + close the panel (no write, no user needed).
+    if (proposal.kind === 'navigate') {
+      onNavigate?.(navDestinationToScreen(proposal.destination));
+      setOpen(false);
+      return;
+    }
     if (!user) throw new Error('Not signed in.');
     // Lost & found log → the existing addLostFoundItem (resolves plate, stamps
     // found_by/found_at, status 'holding'). It returns false (not throw) on failure,

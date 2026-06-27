@@ -306,7 +306,7 @@ export type Screen =
   | { name: 'audits' }
   | { name: 'audit-form' }
   | { name: 'analytics' }
-  | { name: 'schedule' }
+  | { name: 'schedule'; openImport?: boolean }
   | { name: 'issue-log' }
   | { name: 'manifest' }
   | { name: 'fleet-master' };
