@@ -10,6 +10,7 @@ import { CalendarView } from './CalendarView';
 import { ScheduleFilterBar } from './ScheduleFilterBar';
 import { useMyShiftFilter } from './useMyShiftFilter';
 import { FillScheduleModal } from './FillScheduleModal';
+import { ScheduleImportModal } from './ScheduleImportModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
@@ -52,6 +53,7 @@ export function ScheduleScreen() {
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
   const [showLogSick, setShowLogSick] = useState(false);
   const [showRoster,  setShowRoster]  = useState(false);
   const [togglingPeak, setTogglingPeak] = useState(false);
@@ -125,6 +127,15 @@ export function ScheduleScreen() {
             >
               Fill range ↓
             </button>
+            {/* Import from photo — managers + leads */}
+            {canSchedule && (
+              <button
+                onClick={() => setShowImport(true)}
+                className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
+              >
+                Import 📷
+              </button>
+            )}
             {/* View toggle */}
             <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-semibold">
               <button
@@ -294,6 +305,7 @@ export function ScheduleScreen() {
       }
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
+      {showImport  && <ScheduleImportModal onClose={() => setShowImport(false)} />}
       {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}
       {showRoster  && <RosterStaffModal  onClose={() => setShowRoster(false)} />}
       {showPtoSheet && user && (
