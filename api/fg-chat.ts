@@ -39,6 +39,7 @@ import {
 } from './_lib/lostItemProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
+import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
 import {
   formatMyShifts,
   formatLostFound,
@@ -93,7 +94,14 @@ When the user wants to LOG a found item into lost & found ("someone left a black
 
 If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.
 
-When the user attaches a PHOTO of vehicle damage, look at it carefully and identify what you see — the damage type and where it is (e.g. "deep scratch along the rear driver-side door", "cracked left tail light", "dent on the front bumper"). Then call propose_hold for the plate from the conversation, using your read of the photo as the damage_description and the best-fitting hold_type. This is a SUGGESTION the user confirms — phrase it as "From the photo, looks like <what you saw> — drafted a hold on <vehicle>, confirm below." If no plate has been given yet, ask which vehicle before proposing. NEVER guess or read a plate off the image; the plate comes from what the user told you. If the photo doesn't show vehicle damage, say so plainly instead of inventing a hold.`;
+When the user attaches a PHOTO of vehicle damage, look at it carefully and identify what you see — the damage type and where it is (e.g. "deep scratch along the rear driver-side door", "cracked left tail light", "dent on the front bumper"). Then call propose_hold for the plate from the conversation, using your read of the photo as the damage_description and the best-fitting hold_type. This is a SUGGESTION the user confirms — phrase it as "From the photo, looks like <what you saw> — drafted a hold on <vehicle>, confirm below." If no plate has been given yet, ask which vehicle before proposing. NEVER guess or read a plate off the image; the plate comes from what the user told you. If the photo doesn't show vehicle damage, say so plainly instead of inventing a hold.
+
+When the user attaches a photo of a KEY TAG (a printed vehicle tag showing fields like "Veh #", "Lic Plate", a class code line such as "CCVL 25", and a colour/body line such as "WHI 4DR"), read these off it:
+- "Veh #" → the unit number (join the digit groups, e.g. "542 0427" → "5420427").
+- "Lic Plate" → the license plate.
+- The class line (e.g. "CCVL 25"): call lookup_vehicle_class with the code ("CCVL") to get make + model; the trailing number is the model YEAR ("25" → 2025).
+- The colour/body line (e.g. "WHI 4DR"): the colour code (WHI = White, BLK = Black, SIL = Silver, GRY = Gray, BLU = Blue, RED = Red) and body style.
+Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -221,6 +229,18 @@ const TOOLS: Anthropic.Tool[] = [
         notes: { type: 'string', description: 'Any extra context the user gives.' },
       },
       required: ['description'],
+    },
+  },
+  {
+    name: 'lookup_vehicle_class',
+    description:
+      'Resolve a Hertz vehicle CLASS CODE (e.g. "CCVL", "CUES") to its make and model. Use when reading a key tag — the tag prints a class code plus model year (e.g. "CCVL 25"), not the make/model spelled out. Returns make + model; an unknown code means you should ask the user for the make/model rather than guess.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'The class code from the tag, e.g. "CCVL" (a trailing year like "25" is fine).' },
+      },
+      required: ['code'],
     },
   },
 ];
@@ -539,6 +559,19 @@ function executeProposeLostItem(input: {
   };
 }
 
+/** Read-only: resolve a key-tag class code to make/model (pure codex lookup, no I/O). */
+function executeLookupVehicleClass(input: { code?: string }): string {
+  const vc = lookupVehicleClass(input.code);
+  if (!vc) {
+    return JSON.stringify({
+      ok: false,
+      code: input.code ?? '',
+      reason: 'Unknown class code — ask the user for the make and model.',
+    });
+  }
+  return JSON.stringify({ ok: true, make: vc.make, model: vc.model });
+}
+
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -673,6 +706,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
           } else if (tu.name === 'lookup_issues') {
             content = await executeLookupIssues(supabase, tu.input as { status?: string });
+          } else if (tu.name === 'lookup_vehicle_class') {
+            content = executeLookupVehicleClass(tu.input as { code?: string });
           } else if (tu.name === 'propose_lost_item') {
             const out = executeProposeLostItem(
               tu.input as { description?: string; location?: string; license_plate?: string; notes?: string },

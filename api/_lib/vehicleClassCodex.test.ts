@@ -1,0 +1,26 @@
+import { describe, it, expect } from 'vitest';
+import { lookupVehicleClass } from './vehicleClassCodex';
+
+describe('lookupVehicleClass', () => {
+  it('maps a known class code to make/model (the tag that prompted this feature)', () => {
+    expect(lookupVehicleClass('CCVL')).toEqual({ make: 'Kia', model: 'Carnival' });
+  });
+
+  it('tolerates the raw tag token "CCVL 25" and lowercase/whitespace', () => {
+    expect(lookupVehicleClass('CCVL 25')).toEqual({ make: 'Kia', model: 'Carnival' });
+    expect(lookupVehicleClass('  ccvl  ')).toEqual({ make: 'Kia', model: 'Carnival' });
+  });
+
+  it('resolves a spread of makes', () => {
+    expect(lookupVehicleClass('CUES')).toEqual({ make: 'Ford', model: 'Escape' });
+    expect(lookupVehicleClass('CTM3')).toEqual({ make: 'Tesla', model: 'Model 3' });
+    expect(lookupVehicleClass('CGCL')).toEqual({ make: 'Dodge', model: 'Grand Caravan' });
+    expect(lookupVehicleClass('CELA')).toEqual({ make: 'Hyundai', model: 'Elantra' }); // C-prefix but Hyundai
+  });
+
+  it('returns null for unknown / empty codes (assistant then asks for make/model)', () => {
+    expect(lookupVehicleClass('CZZZ')).toBeNull();
+    expect(lookupVehicleClass('')).toBeNull();
+    expect(lookupVehicleClass(undefined)).toBeNull();
+  });
+});
