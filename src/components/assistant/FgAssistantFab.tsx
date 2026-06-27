@@ -4,16 +4,25 @@
 // vision come later, behind confirm gates. All the model/key work lives in the
 // proxy (api/fg-chat.ts) + the hook — this is just the surface.
 import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 
 export function FgAssistantFab() {
-  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [loginId, setLoginId] = useState<string | null>(null);
   const { messages, loading, error, send } = useFgAssistant();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The login id = the part before @fleet-garage.internal in the auth email —
+  // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
+  // on this, not the profile employee_id, so client + server never disagree.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setLoginId((data.session?.user.email ?? '').split('@')[0].toLowerCase());
+    });
+  }, []);
 
   // Keep the latest turn in view as the answer streams in.
   useEffect(() => {
@@ -33,7 +42,7 @@ export function FgAssistantFab() {
     .split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
-  const allowed = allowIds.length === 0 || allowIds.includes((user?.employeeId ?? '').trim().toLowerCase());
+  const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
 
   const submit = () => {
