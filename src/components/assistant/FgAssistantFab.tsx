@@ -5,13 +5,20 @@
 // proxy (api/fg-chat.ts) + the hook — this is just the surface.
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
+import { HoldProposalCard } from './HoldProposalCard';
+import type { HoldType } from '../../types';
+import type { HoldProposal } from '../../../api/_lib/holdProposal';
 
 export function FgAssistantFab() {
+  const { user } = useAuth();
+  const { addHold } = useVehicleHoldContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [loginId, setLoginId] = useState<string | null>(null);
-  const { messages, loading, error, send } = useFgAssistant();
+  const { messages, loading, error, send, clearProposal } = useFgAssistant();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +51,15 @@ export function FgAssistantFab() {
     .filter(Boolean);
   const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
+
+  // Confirm a drafted hold → the REAL addHold writes it (vehicle→HELD flip, mgmt
+  // ntfy, dedup all reused). The proxy never wrote; this tap is the only write path.
+  const confirmHold = async (proposal: HoldProposal) => {
+    if (!user) throw new Error('Not signed in.');
+    await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, undefined, [
+      proposal.holdType as HoldType,
+    ]);
+  };
 
   const submit = () => {
     const text = draft.trim();
@@ -83,16 +99,25 @@ export function FgAssistantFab() {
               </p>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div
-                  className={
-                    m.role === 'user'
-                      ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-blue-600 px-3 py-2 text-sm text-white'
-                      : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100'
-                  }
-                >
-                  {m.text || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
+              <div key={i} className="space-y-2">
+                <div className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                  <div
+                    className={
+                      m.role === 'user'
+                        ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-blue-600 px-3 py-2 text-sm text-white'
+                        : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100'
+                    }
+                  >
+                    {m.text || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
+                  </div>
                 </div>
+                {m.role === 'assistant' && m.proposal && (
+                  <HoldProposalCard
+                    proposal={m.proposal}
+                    onConfirm={() => confirmHold(m.proposal!)}
+                    onDismiss={() => clearProposal(i)}
+                  />
+                )}
               </div>
             ))}
             {error && <p className="text-center text-xs text-red-500">{error}</p>}
