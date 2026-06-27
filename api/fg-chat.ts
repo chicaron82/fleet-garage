@@ -86,7 +86,7 @@ Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reforma
 
 When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done.
 
-For schedule questions ("who's closing with me tonight?", "who's on tomorrow?"), call lookup_schedule (it defaults to today; pass shift_type like "closing" to narrow). Answer with the names, naturally ("Closing with you tonight: Geoff and Marycel.").
+For schedule questions ("who's closing with me tonight?", "who's on tomorrow?", "who am I working with on July 3?"), call lookup_schedule (it defaults to today; pass an ISO date in the CURRENT year for a named day, and shift_type like "closing" to narrow). Answer with the names, naturally ("Closing with you tonight: Geoff and Marycel."). If it returns no one, say the schedule shows nobody for that day — don't assume the lot is closed.
 
 For the user's own shifts ("when am I working?", "am I closing this week?"), call lookup_my_shift. For lost & found ("any lost items?", "did anyone turn in a wallet?"), call search_lost_found. For facility issues ("any open issues?", "what's flagged?"), call lookup_issues. These are read-only — just report what they return.
 
@@ -429,6 +429,12 @@ function scheduleDateLabel(iso: string): string {
   if (!y || !m || !d) return iso;
   return new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+/** "Saturday, June 27, 2026" — weekday + full date so the model can anchor bare dates. */
+function todayLabelWinnipeg(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
 
 /** Read-only: who's on which shift for a date ("who's closing with me tonight?"). */
 async function executeLookupSchedule(
@@ -636,9 +642,14 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // it can be relevant ("you're on My Shift") — but it can still answer about any
     // module (the schedule/vehicle tools work from anywhere).
     const moduleName = typeof req.body?.module === 'string' ? req.body.module : '';
-    const system = moduleName
-      ? `${SYSTEM_PROMPT}\n\nContext: the user is currently on the "${moduleName}" screen. Be relevant to it, but answer anything they ask.`
-      : SYSTEM_PROMPT;
+    const todayISO = todayInWinnipeg();
+    const contextBits = [
+      `Today is ${todayLabelWinnipeg(todayISO)} (${todayISO}, America/Winnipeg). When the user names a date or day with no year ("July 3", "this Friday", "tomorrow"), resolve it to the CURRENT year / the nearest such day — never a past year.`,
+    ];
+    if (moduleName) {
+      contextBits.push(`The user is currently on the "${moduleName}" screen — be relevant to it, but answer anything they ask.`);
+    }
+    const system = `${SYSTEM_PROMPT}\n\nContext: ${contextBits.join(' ')}`;
 
     // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
     // Attach it to the latest user message as an image block, and give that request
