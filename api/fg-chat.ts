@@ -17,11 +17,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // import (../src/...) resolves locally but ERR_MODULE_NOT_FOUNDs on Vercel.
 import {
   summarizeLookup,
+  describeVehicle,
   type HoldFact,
   type VehicleFact,
   type VehicleLookupResult,
 } from './_lib/vehicleSummary.js';
 import { isAllowed } from './_lib/assistantAccess.js';
+import { buildHoldProposal, describeProposal, type HoldProposal } from './_lib/holdProposal.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -52,7 +54,9 @@ Answer like a colleague on the lot: short, direct, no preamble. If a vehicle is 
 
 Lead with ACTIVE holds — those block the car. Then mention any RELEASED holds as context worth knowing, especially verbal overrides ("no active hold, but it had a paint scratch released on a verbal override by MK"). A released hold means it was flagged then cleared — history, not a current block. Don't bury an active hold under released history.
 
-Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reformat or recompute them.`;
+Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reformat or recompute them.
+
+When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done. If the vehicle isn't on record, say it would need to be registered first.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -70,6 +74,27 @@ const TOOLS: Anthropic.Tool[] = [
       required: ['plate'],
     },
   },
+  {
+    name: 'propose_hold',
+    description:
+      'Draft a damage/mechanical/detail hold on an existing fleet vehicle for the user to confirm. Use when the user wants to flag or hold a vehicle. This does NOT create the hold — it returns a draft the user must tap to confirm. Only works for a vehicle already on record.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: { type: 'string', description: 'License plate or unit number of the vehicle to hold.' },
+        hold_type: {
+          type: 'string',
+          enum: ['damage', 'mechanical', 'detail', 'hail'],
+          description: 'The kind of hold. Default "damage".',
+        },
+        damage_description: {
+          type: 'string',
+          description: 'Short description of what is wrong, e.g. "cracked windshield", "bumper scuff".',
+        },
+      },
+      required: ['plate', 'damage_description'],
+    },
+  },
 ];
 
 /** Canonical plate form for matching — mirrors src/lib/vehicleByPlate.ts normalizePlate. */
@@ -77,34 +102,52 @@ function normalizePlate(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '');
 }
 
-/** Run the read-only vehicle lookup as the asking user (RLS-scoped via the JWT client). */
-async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promise<VehicleLookupResult> {
-  const norm = normalizePlate(rawPlate);
-  if (!norm) return summarizeLookup(rawPlate, null, []);
+/** The minimal vehicle row the tools work from. */
+interface VehicleRow {
+  id: string;
+  license_plate: string;
+  unit_number: string | null;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  color: string | null;
+}
 
-  // The fleet is small and plates aren't stored normalized, so match in JS the
-  // same way the app does (allVehicles.find). RLS limits the rows to this user's reach.
-  const { data: vehicles, error: vErr } = await supabase
+/** Resolve a plate/unit to its fleet row (RLS-scoped), matched in JS like the app does. */
+async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: string): Promise<VehicleRow | null> {
+  const norm = normalizePlate(rawPlate);
+  if (!norm) return null;
+  // The fleet is small and plates aren't stored normalized, so match in JS the same
+  // way the app does (allVehicles.find). RLS limits the rows to this user's reach.
+  const { data: vehicles, error } = await supabase
     .from('vehicles')
     .select('id, license_plate, unit_number, make, model, year, color')
     .is('archived_at', null);
-  if (vErr) throw vErr;
-
-  const match = (vehicles ?? []).find(
-    (v) =>
-      normalizePlate(v.license_plate ?? '') === norm ||
-      (v.unit_number ? normalizePlate(v.unit_number) === norm : false),
+  if (error) throw error;
+  return (
+    (vehicles ?? []).find(
+      (v) =>
+        normalizePlate(v.license_plate ?? '') === norm ||
+        (v.unit_number ? normalizePlate(v.unit_number) === norm : false),
+    ) ?? null
   );
-  if (!match) return summarizeLookup(rawPlate, null, []);
+}
 
-  const vehicle: VehicleFact = {
-    plate: match.license_plate,
-    unitNumber: match.unit_number ?? null,
-    year: match.year ?? null,
-    make: match.make ?? null,
-    model: match.model ?? null,
-    color: match.color ?? null,
+function toVehicleFact(row: VehicleRow): VehicleFact {
+  return {
+    plate: row.license_plate,
+    unitNumber: row.unit_number ?? null,
+    year: row.year ?? null,
+    make: row.make ?? null,
+    model: row.model ?? null,
+    color: row.color ?? null,
   };
+}
+
+/** Run the read-only vehicle lookup as the asking user (RLS-scoped via the JWT client). */
+async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promise<VehicleLookupResult> {
+  const match = await resolveVehicleRow(supabase, rawPlate);
+  if (!match) return summarizeLookup(rawPlate, null, []);
 
   // ACTIVE holds block; RELEASED holds are worth-knowing context (esp. verbal
   // overrides). Embed the release detail so the answer can name who authorized it.
@@ -131,7 +174,42 @@ async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promis
     };
   });
 
-  return summarizeLookup(rawPlate, vehicle, holds);
+  return summarizeLookup(rawPlate, toVehicleFact(match), holds);
+}
+
+/**
+ * Draft a hold for an EXISTING vehicle — resolves it and builds a proposal. NEVER
+ * writes: the proposal goes to the client as a confirm card, and only a user tap
+ * calls the real addHold. The tool result tells the model the draft is pending so
+ * it won't claim the hold was created.
+ */
+async function executeProposeHold(
+  supabase: SupabaseClient,
+  input: { plate?: string; hold_type?: string; damage_description?: string },
+): Promise<{ toolResult: string; proposal: HoldProposal | null }> {
+  const match = await resolveVehicleRow(supabase, input.plate ?? '');
+  if (!match) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({
+        ok: false,
+        reason: `No vehicle on record for "${input.plate ?? ''}". It would have to be registered before a hold can be opened.`,
+      }),
+    };
+  }
+  const proposal = buildHoldProposal(
+    { vehicleId: match.id, plate: match.license_plate, label: describeVehicle(toVehicleFact(match)) },
+    (input.hold_type ?? 'damage').toLowerCase(),
+    input.damage_description ?? '',
+  );
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown to the user; do NOT say the hold is created, just that it is drafted for them to confirm',
+    }),
+  };
 }
 
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
@@ -195,6 +273,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     const convo: Anthropic.MessageParam[] = [...messages];
 
     let answer = '';
+    let proposal: HoldProposal | null = null; // a drafted hold to confirm, if any
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model: MODEL,
@@ -221,19 +300,29 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       for (const tu of toolUses) {
         let content: string;
         try {
-          const plate = (tu.input as { plate?: string }).plate ?? '';
-          content = JSON.stringify(await executeLookup(supabase, plate));
+          if (tu.name === 'propose_hold') {
+            const out = await executeProposeHold(
+              supabase,
+              tu.input as { plate?: string; hold_type?: string; damage_description?: string },
+            );
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else {
+            const plate = (tu.input as { plate?: string }).plate ?? '';
+            content = JSON.stringify(await executeLookup(supabase, plate));
+          }
         } catch {
-          content = JSON.stringify({ error: 'Lookup failed — could not read vehicle records.' });
+          content = JSON.stringify({ error: 'That action failed — could not read vehicle records.' });
         }
         results.push({ type: 'tool_result', tool_use_id: tu.id, content });
       }
       convo.push({ role: 'user', content: results });
     }
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    // Envelope: text answer + an optional drafted hold the client renders as a
+    // confirm card. The proxy never writes — the write happens on the user's tap.
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).end(answer || '(no answer)');
+    res.status(200).json({ text: answer || '(no answer)', proposal });
   } catch (err) {
     console.error('[fg-chat] handler error:', err);
     res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });
