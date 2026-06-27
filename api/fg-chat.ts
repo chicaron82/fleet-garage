@@ -23,7 +23,14 @@ import {
   type VehicleLookupResult,
 } from './_lib/vehicleSummary.js';
 import { isAllowed } from './_lib/assistantAccess.js';
-import { buildHoldProposal, describeProposal, type HoldProposal } from './_lib/holdProposal.js';
+import {
+  buildHoldProposal,
+  buildRegisterHoldProposal,
+  describeProposal,
+  type HoldProposal,
+  type RegisterHoldProposal,
+  type Proposal,
+} from './_lib/holdProposal.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -56,7 +63,9 @@ Lead with ACTIVE holds — those block the car. Then mention any RELEASED holds 
 
 Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reformat or recompute them.
 
-When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done. If the vehicle isn't on record, say it would need to be registered first.`;
+When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done.
+
+If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -93,6 +102,25 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['plate', 'damage_description'],
+    },
+  },
+  {
+    name: 'propose_register_and_hold',
+    description:
+      'Draft REGISTER + hold for a plate NOT yet in the fleet (the user wants to flag a vehicle that is not on record). Gather the vehicle details first, then call this. Does NOT write — returns a draft the user must tap to confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: { type: 'string', description: 'License plate.' },
+        unit_number: { type: 'string', description: 'Fleet unit number.' },
+        make: { type: 'string', description: 'e.g. "Toyota".' },
+        model: { type: 'string', description: 'e.g. "Camry".' },
+        year: { type: 'integer', description: 'Model year, e.g. 2025.' },
+        color: { type: 'string', description: 'e.g. "White".' },
+        hold_type: { type: 'string', enum: ['damage', 'mechanical', 'detail', 'hail'], description: 'Default "damage".' },
+        damage_description: { type: 'string', description: 'What is wrong, e.g. "cracked windshield".' },
+      },
+      required: ['plate', 'unit_number', 'make', 'model', 'year', 'color', 'damage_description'],
     },
   },
 ];
@@ -212,6 +240,66 @@ async function executeProposeHold(
   };
 }
 
+/**
+ * Draft REGISTER + hold for an UNKNOWN plate — the AI gathered the vehicle details.
+ * NEVER writes: the proposal goes to the client, and only a confirm tap calls the
+ * real addVehicle then addHold. Refuses if the plate is already in the fleet (use
+ * propose_hold instead).
+ */
+async function executeProposeRegisterHold(
+  supabase: SupabaseClient,
+  input: {
+    plate?: string;
+    unit_number?: string;
+    make?: string;
+    model?: string;
+    year?: number;
+    color?: string;
+    hold_type?: string;
+    damage_description?: string;
+  },
+): Promise<{ toolResult: string; proposal: RegisterHoldProposal | null }> {
+  const existing = await resolveVehicleRow(supabase, input.plate ?? '');
+  if (existing) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({
+        ok: false,
+        reason: `"${input.plate ?? ''}" is already on record (${describeVehicle(toVehicleFact(existing))}). Use a normal hold, not registration.`,
+      }),
+    };
+  }
+  const missing = (['plate', 'unit_number', 'make', 'model', 'year', 'color'] as const).filter(
+    (k) => input[k] === undefined || input[k] === null || `${input[k]}`.trim() === '',
+  );
+  if (missing.length > 0) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. Ask the user for these before proposing.` }),
+    };
+  }
+  const proposal = buildRegisterHoldProposal(
+    {
+      unitNumber: `${input.unit_number}`.trim(),
+      plate: `${input.plate}`.trim().toUpperCase(),
+      make: `${input.make}`.trim(),
+      model: `${input.model}`.trim(),
+      year: Number(input.year),
+      color: `${input.color}`.trim(),
+    },
+    (input.hold_type ?? 'damage').toLowerCase(),
+    input.damage_description ?? '',
+  );
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is registered/held, just that it is drafted for them to confirm',
+    }),
+  };
+}
+
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -273,7 +361,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     const convo: Anthropic.MessageParam[] = [...messages];
 
     let answer = '';
-    let proposal: HoldProposal | null = null; // a drafted hold to confirm, if any
+    let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model: MODEL,
@@ -306,6 +394,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
               tu.input as { plate?: string; hold_type?: string; damage_description?: string },
             );
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else if (tu.name === 'propose_register_and_hold') {
+            const out = await executeProposeRegisterHold(
+              supabase,
+              tu.input as Parameters<typeof executeProposeRegisterHold>[1],
+            );
+            if (out.proposal) proposal = out.proposal;
             content = out.toolResult;
           } else {
             const plate = (tu.input as { plate?: string }).plate ?? '';

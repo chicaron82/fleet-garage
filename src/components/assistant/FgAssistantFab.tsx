@@ -10,11 +10,11 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 import { HoldProposalCard } from './HoldProposalCard';
 import type { HoldType } from '../../types';
-import type { HoldProposal } from '../../../api/_lib/holdProposal';
+import type { Proposal } from '../../../api/_lib/holdProposal';
 
 export function FgAssistantFab() {
   const { user } = useAuth();
-  const { addHold } = useVehicleHoldContext();
+  const { addHold, addVehicle } = useVehicleHoldContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [loginId, setLoginId] = useState<string | null>(null);
@@ -52,13 +52,31 @@ export function FgAssistantFab() {
   const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
 
-  // Confirm a drafted hold → the REAL addHold writes it (vehicle→HELD flip, mgmt
-  // ntfy, dedup all reused). The proxy never wrote; this tap is the only write path.
-  const confirmHold = async (proposal: HoldProposal) => {
+  // Confirm a drafted proposal → the REAL writes happen here (the proxy never wrote;
+  // this tap is the only write path). 'hold' → addHold on the existing vehicle;
+  // 'register_and_hold' → addVehicle (defaults to HELD) then addHold on the new id.
+  // Both reuse the battle-tested mutations (status flip, mgmt ntfy, dedup) for free.
+  const confirmProposal = async (proposal: Proposal) => {
     if (!user) throw new Error('Not signed in.');
-    await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, undefined, [
-      proposal.holdType as HoldType,
-    ]);
+    const holdTypes: HoldType[] = [proposal.holdType as HoldType];
+    if (proposal.kind === 'register_and_hold') {
+      const nv = proposal.newVehicle;
+      const vehicleId = await addVehicle({
+        unitNumber: nv.unitNumber,
+        licensePlate: nv.plate,
+        make: nv.make,
+        model: nv.model,
+        year: nv.year,
+        color: nv.color,
+        branchId: user.branchId,
+        isTesla: nv.make === 'Tesla',
+        hasMobileCable: null,
+        hasJ1772Adapter: null,
+      });
+      await addHold(vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes);
+      return;
+    }
+    await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes);
   };
 
   const submit = () => {
@@ -114,7 +132,7 @@ export function FgAssistantFab() {
                 {m.role === 'assistant' && m.proposal && (
                   <HoldProposalCard
                     proposal={m.proposal}
-                    onConfirm={() => confirmHold(m.proposal!)}
+                    onConfirm={() => confirmProposal(m.proposal!)}
                     onDismiss={() => clearProposal(i)}
                   />
                 )}

@@ -6,18 +6,18 @@
 // reads are RLS-scoped to this user — see api/fg-chat.ts.
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { HoldProposal } from '../../api/_lib/holdProposal';
+import type { Proposal } from '../../api/_lib/holdProposal';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   /** A drafted hold awaiting the user's confirm tap (assistant turns only). */
-  proposal?: HoldProposal | null;
+  proposal?: Proposal | null;
 }
 
 interface ChatEnvelope {
   text?: string;
-  proposal?: HoldProposal | null;
+  proposal?: Proposal | null;
   error?: string;
 }
 
@@ -83,7 +83,7 @@ export function useFgAssistant() {
 }
 
 /** Replace the trailing assistant bubble's text + proposal. */
-function withLastAssistant(prev: ChatMessage[], text: string, proposal: HoldProposal | null): ChatMessage[] {
+function withLastAssistant(prev: ChatMessage[], text: string, proposal: Proposal | null): ChatMessage[] {
   if (prev.length === 0) return prev;
   const next = [...prev];
   next[next.length - 1] = { role: 'assistant', text, proposal };
