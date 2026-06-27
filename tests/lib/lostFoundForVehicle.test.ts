@@ -46,4 +46,9 @@ describe('lostFoundForVehicle', () => {
     const items = [item({ id: 'a', licensePlate: 'ZZZ999', unitNumber: '888' })];
     expect(lostFoundForVehicle(items, car)).toEqual([]);
   });
+
+  it('matches by unit# when the plate field is absent (undefined)', () => {
+    const items = [item({ id: 'a', licensePlate: undefined, unitNumber: '101' })];
+    expect(lostFoundForVehicle(items, car).map(i => i.id)).toEqual(['a']);
+  });
 });

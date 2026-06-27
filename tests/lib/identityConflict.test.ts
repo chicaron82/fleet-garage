@@ -18,6 +18,7 @@ describe('findUnitConflict', () => {
   });
 
   it('never conflicts on blank input', () => {
+    expect(findUnitConflict('', fleet)).toBeUndefined();
     expect(findUnitConflict('   ', fleet)).toBeUndefined();
   });
 

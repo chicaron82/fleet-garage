@@ -41,6 +41,11 @@ describe('rosteredVsaCount', () => {
     expect(rosteredVsaCount(shifts, DAY, ['opening', 'closing'])).toBe(1);
   });
 
+  it('dedupes a user who appears in duplicate rows for the same window', () => {
+    const shifts = [row('a', DAY, 'opening', 'VSA'), row('a', DAY, 'opening', 'VSA')];
+    expect(rosteredVsaCount(shifts, DAY, ['opening'])).toBe(1);
+  });
+
   it('is zero when nobody matches', () => {
     expect(rosteredVsaCount([], DAY, ['opening'])).toBe(0);
   });

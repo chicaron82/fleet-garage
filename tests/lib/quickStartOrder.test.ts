@@ -47,6 +47,10 @@ describe('orderQuickTaps', () => {
     expect(ids(orderQuickTaps(taps, null, null))).toEqual(['a', 'opening_duties', 'closing_duties', 'b']);
   });
 
+  it('an empty saved order [] falls back to the schedule-aware default', () => {
+    expect(ids(orderQuickTaps(taps, [], 'closing'))[0]).toBe('closing_duties');
+  });
+
   it('returns a copy, not the input array', () => {
     const result = orderQuickTaps(taps, null, null);
     expect(result).not.toBe(taps);

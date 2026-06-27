@@ -28,4 +28,10 @@ describe('buildRosterStaff', () => {
     expect(p.id).toMatch(/[0-9a-f-]{36}/);
     expect(p.employeeId).toMatch(/^ROSTER-[0-9A-F]{8}$/);
   });
+
+  it('generates a unique id on each auto-id call', () => {
+    const a = buildRosterStaff({ name: 'A', role: 'VSA', branchId: 'YWG' });
+    const b = buildRosterStaff({ name: 'B', role: 'VSA', branchId: 'YWG' });
+    expect(a.id).not.toBe(b.id);
+  });
 });

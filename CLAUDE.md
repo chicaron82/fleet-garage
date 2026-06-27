@@ -48,14 +48,15 @@ no longer a warning tier. The only carve-outs in `eslint.config.js` are the
 ## Tests
 
 Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
-`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 72 of 78 `src/lib`
-modules are tested; the remaining 6 gaps are all IO/glue (`audit-export`,
-`hold-export`, `image`, `quickStartPrefs`, `supabase`,
-`vsaTripWrite`). When a new pure function lands in `src/lib/`, add its test
-under `tests/lib/` in the same commit. *(A 2026-06-20 line-check caught ~10 pure
-modules that had trickled in test-less while this count drifted from 47 → 70 — the
-rule slips one commit at a time, so the count above is the canary: if it stops
-matching `find src/lib -name '*.ts' | wc -l`, pure logic is going untested.)*
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 73 of 78 `src/lib`
+modules are tested; the remaining 5 gaps are all IO/glue (`audit-export`,
+`hold-export`, `image`, `supabase`, `vsaTripWrite`). When a new pure function
+lands in `src/lib/`, add its test under `tests/lib/` in the same commit.
+*(A 2026-06-20 line-check caught ~10 pure modules that had trickled in test-less
+while this count drifted from 47 → 70 — the rule slips one commit at a time, so
+the count above is the canary: if it stops matching
+`find src/lib -name '*.ts' ! -name '*.test.ts' | wc -l`, pure logic is going
+untested.)*
 
 > Convention note: lib tests now live **only** under `tests/`, mirroring `src/` —
 > the 6 stragglers that were co-located in `src/lib/` were consolidated 2026-06-01

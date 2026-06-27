@@ -95,6 +95,14 @@ describe('offShiftNotifications', () => {
     expect(offShiftNotifications(notifs, closing, 'me', 'VSA', false).has('n1')).toBe(true);
   });
 
+  it('mid shift uses the 10:30–19:00 window', () => {
+    const mid = [shift(DAY, 'mid', 'u4')];
+    const inside = [notif('in', `${DAY}T12:00:00`)];
+    const outside = [notif('out', `${DAY}T20:00:00`)]; // 8pm, past 19:00+30min grace
+    expect(offShiftNotifications(inside, mid, 'u4', 'VSA', false).size).toBe(0);
+    expect(offShiftNotifications(outside, mid, 'u4', 'VSA', false).has('out')).toBe(true);
+  });
+
   it('exposes a 30-minute default grace', () => {
     expect(SHIFT_GRACE_MIN).toBe(30);
   });

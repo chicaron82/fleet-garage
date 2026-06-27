@@ -48,4 +48,9 @@ describe('evDispatchWarning', () => {
     const v = tesla({ hasMobileCable: true, hasJ1772Adapter: true });
     expect(evDispatchWarning(v, [missingAccHold('other')])).toBeNull();
   });
+
+  it('a resolved missing-accessories hold does not flag not-dispatchable', () => {
+    const released = { vehicleId: 'v1', status: 'RELEASED', holdTypes: ['missing_accessories'] } as Hold;
+    expect(evDispatchWarning(tesla(), [released])).toBeNull();
+  });
 });

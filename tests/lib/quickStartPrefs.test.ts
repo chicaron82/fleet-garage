@@ -8,7 +8,7 @@ const server = {
   lastUpdate: undefined as string[] | null | undefined,
 };
 
-vi.mock('./supabase', () => ({
+vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: () => ({
       select: () => ({
@@ -30,7 +30,7 @@ vi.mock('./supabase', () => ({
   },
 }));
 
-import { loadQuickStartOrder, fetchRemoteOrder, saveQuickStartOrder, clearQuickStartOrder } from './quickStartPrefs';
+import { loadQuickStartOrder, fetchRemoteOrder, saveQuickStartOrder, clearQuickStartOrder } from '../../src/lib/quickStartPrefs';
 
 const USER = 'user-1';
 

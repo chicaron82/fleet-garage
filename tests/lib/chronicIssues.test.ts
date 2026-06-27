@@ -130,6 +130,12 @@ describe('categoryStreak', () => {
     // damage walk never sees the mechanical REPAIRED hold, so it stays at 2
     expect(categoryStreak(holds, 'v1', 'damage')).toBe(2);
   });
+
+  it('a multi-type hold counts toward each of its categories', () => {
+    const holds = [makeHold({ holdTypes: ['damage', 'mechanical'], status: 'RELEASED' })];
+    expect(categoryStreak(holds, 'v1', 'damage')).toBe(1);
+    expect(categoryStreak(holds, 'v1', 'mechanical')).toBe(1);
+  });
 });
 
 describe('chronicVehicles', () => {

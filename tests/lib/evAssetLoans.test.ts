@@ -50,6 +50,12 @@ describe('borrowedByUnit', () => {
     expect(borrowedByUnit([loan()], null)).toEqual([]);
     expect(borrowedByUnit([loan()], undefined)).toEqual([]);
   });
+
+  it('links a loan to a unit the moment a vehicle registers that unit#', () => {
+    const loans = [loan({ borrowerUnit: '7777' })];
+    expect(borrowedByUnit(loans, '5424')).toEqual([]);
+    expect(borrowedByUnit(loans, '7777').map(l => l.borrowerUnit)).toEqual(['7777']);
+  });
 });
 
 describe('isAssetLentOut', () => {
