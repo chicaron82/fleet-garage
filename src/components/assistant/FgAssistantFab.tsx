@@ -9,10 +9,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 import { HoldProposalCard } from './HoldProposalCard';
+import { moduleGreeting } from '../../lib/assistantGreeting';
 import type { HoldType } from '../../types';
 import type { Proposal } from '../../../api/_lib/holdProposal';
 
-export function FgAssistantFab() {
+export function FgAssistantFab({ module }: { module: string }) {
   const { user } = useAuth();
   const { addHold, addVehicle } = useVehicleHoldContext();
   const [open, setOpen] = useState(false);
@@ -83,7 +84,7 @@ export function FgAssistantFab() {
     const text = draft.trim();
     if (!text || loading) return;
     setDraft('');
-    void send(text);
+    void send(text, module);
   };
 
   return (
@@ -112,9 +113,11 @@ export function FgAssistantFab() {
           {/* Transcript */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">
-                Ask about any vehicle by plate or unit number.
-              </p>
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100">
+                  {moduleGreeting(module, (user?.name ?? '').split(' ')[0])}
+                </div>
+              </div>
             )}
             {messages.map((m, i) => (
               <div key={i} className="space-y-2">

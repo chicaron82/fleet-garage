@@ -27,7 +27,7 @@ export function useFgAssistant() {
   const [error, setError] = useState<string | null>(null);
 
   const send = useCallback(
-    async (raw: string) => {
+    async (raw: string, module?: string) => {
       const text = raw.trim();
       if (!text || loading) return;
       setError(null);
@@ -48,6 +48,7 @@ export function useFgAssistant() {
           body: JSON.stringify({
             // Don't send proposals back up — only the visible text turns.
             messages: history.map((m) => ({ role: m.role, content: m.text })),
+            module, // the screen the user is on, for context-aware answers
           }),
         });
 

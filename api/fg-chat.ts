@@ -31,6 +31,7 @@ import {
   type RegisterHoldProposal,
   type Proposal,
 } from './_lib/holdProposal.js';
+import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -38,7 +39,7 @@ import {
 interface FgRequest {
   method?: string;
   headers: { authorization?: string };
-  body?: { messages?: unknown };
+  body?: { messages?: unknown; module?: unknown };
 }
 interface FgResponse {
   headersSent: boolean;
@@ -64,6 +65,8 @@ Lead with ACTIVE holds — those block the car. Then mention any RELEASED holds 
 Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reformat or recompute them.
 
 When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done.
+
+For schedule questions ("who's closing with me tonight?", "who's on tomorrow?"), call lookup_schedule (it defaults to today; pass shift_type like "closing" to narrow). Answer with the names, naturally ("Closing with you tonight: Geoff and Marycel.").
 
 If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.`;
 
@@ -121,6 +124,23 @@ const TOOLS: Anthropic.Tool[] = [
         damage_description: { type: 'string', description: 'What is wrong, e.g. "cracked windshield".' },
       },
       required: ['plate', 'unit_number', 'make', 'model', 'year', 'color', 'damage_description'],
+    },
+  },
+  {
+    name: 'lookup_schedule',
+    description:
+      'Look up who is on which shift for a date — e.g. "who\'s closing with me tonight?". Works from any screen. Defaults to today; pass shift_type to narrow (e.g. "closing").',
+    input_schema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'ISO date YYYY-MM-DD. Omit for today.' },
+        shift_type: {
+          type: 'string',
+          enum: ['opening', 'mid', 'closing'],
+          description: 'Narrow to one shift, e.g. "closing" for "who\'s closing".',
+        },
+      },
+      required: [],
     },
   },
 ];
@@ -300,6 +320,44 @@ async function executeProposeRegisterHold(
   };
 }
 
+const SCHED_TZ = 'America/Winnipeg'; // FG is a single-region YWG pilot
+function todayInWinnipeg(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: SCHED_TZ }); // YYYY-MM-DD
+}
+function scheduleDateLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** Read-only: who's on which shift for a date ("who's closing with me tonight?"). */
+async function executeLookupSchedule(
+  supabase: SupabaseClient,
+  input: { date?: string; shift_type?: string },
+): Promise<string> {
+  const date = input.date && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : todayInWinnipeg();
+  const { data: shiftRows, error } = await supabase.from('shifts').select('user_id, shift_type').eq('date', date);
+  if (error) throw error;
+  const rows = shiftRows ?? [];
+
+  const ids = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+  const names = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: profs } = await supabase.from('profiles').select('id, name').in('id', ids);
+    for (const p of profs ?? []) names.set(p.id, p.name ?? 'Unknown');
+  }
+
+  const byType = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = byType.get(r.shift_type) ?? [];
+    list.push(names.get(r.user_id) ?? 'Unknown');
+    byType.set(r.shift_type, list);
+  }
+  const groups: ScheduleGroup[] = [...byType].map(([shiftType, people]) => ({ shiftType, people }));
+  const shiftType = typeof input.shift_type === 'string' ? input.shift_type : undefined;
+  return JSON.stringify({ date, groups, summary: formatSchedule(scheduleDateLabel(date), groups, shiftType) });
+}
+
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -360,13 +418,21 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     const anthropic = new Anthropic({ apiKey });
     const convo: Anthropic.MessageParam[] = [...messages];
 
+    // Context-awareness: the FAB sends the screen the user is on. Tell the model so
+    // it can be relevant ("you're on My Shift") — but it can still answer about any
+    // module (the schedule/vehicle tools work from anywhere).
+    const moduleName = typeof req.body?.module === 'string' ? req.body.module : '';
+    const system = moduleName
+      ? `${SYSTEM_PROMPT}\n\nContext: the user is currently on the "${moduleName}" screen. Be relevant to it, but answer anything they ask.`
+      : SYSTEM_PROMPT;
+
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
+        system,
         tools: TOOLS,
         messages: convo,
       });
@@ -402,6 +468,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             );
             if (out.proposal) proposal = out.proposal;
             content = out.toolResult;
+          } else if (tu.name === 'lookup_schedule') {
+            content = await executeLookupSchedule(supabase, tu.input as { date?: string; shift_type?: string });
           } else {
             const plate = (tu.input as { plate?: string }).plate ?? '';
             content = JSON.stringify(await executeLookup(supabase, plate));

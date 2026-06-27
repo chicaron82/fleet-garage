@@ -227,7 +227,7 @@ export default function App() {
                   onCancel={() => setShowLogoutConfirm(false)}
                 />
               )}
-              <FgAssistantFab />
+              <FgAssistantFab module={activeModule} />
             </LostFoundProvider>
           </IssueProvider>
         </WashbayProvider>
