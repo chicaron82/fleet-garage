@@ -9,7 +9,9 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
+import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
 import { HoldProposalCard } from './HoldProposalCard';
+import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
 import {
@@ -39,10 +41,16 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const [draft, setDraft] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const { messages, loading, error, send, clearProposal } = useFgAssistant();
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
-  const tts = useSpeechSynthesis();
-  const { enabled: ttsEnabled, speak: ttsSpeak } = tts; // stable refs for the read-back effect
+  const webTts = useSpeechSynthesis();
+  const kokoro = useKokoroSynthesis();
+  // Kokoro takes priority when enabled; falls back to Web Speech API.
+  const ttsEnabled = kokoro.enabled ? true : webTts.enabled;
+  const ttsSpeak = kokoro.enabled ? kokoro.speak : webTts.speak;
+  const ttsCancel = kokoro.enabled ? kokoro.cancel : webTts.cancel;
+  const ttsSupportedOrEnabled = kokoro.enabled || webTts.supported;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -145,7 +153,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     const text = draft.trim();
     if ((!text && !image) || loading) return;
     speech.stop();
-    tts.cancel();
+    ttsCancel();
     const img = image ?? undefined;
     setDraft('');
     setImage(null);
@@ -175,19 +183,31 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                 <p className="text-[11px] text-gray-400">Your lot concierge — ask anything.</p>
               </div>
             </div>
-            {tts.supported && (
+            <div className="flex items-center gap-1">
+              {ttsSupportedOrEnabled && (
+                <button
+                  onClick={() => kokoro.enabled ? kokoro.setEnabled(false) : webTts.setEnabled(!webTts.enabled)}
+                  aria-label={ttsEnabled ? 'Turn off read-back' : 'Read answers aloud'}
+                  title={ttsEnabled ? 'Read-back on' : 'Read-back off'}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
+                    ttsEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  }`}
+                >
+                  {ttsEnabled ? <SpeakerIcon /> : <SpeakerOffIcon />}
+                </button>
+              )}
               <button
-                onClick={() => tts.setEnabled(!tts.enabled)}
-                aria-label={tts.enabled ? 'Turn off read-back' : 'Read answers aloud'}
-                title={tts.enabled ? 'Read-back on' : 'Read-back off'}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
-                  tts.enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                }`}
+                onClick={() => setShowSettings((s) => !s)}
+                aria-label="Effie settings"
+                title="Settings"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-base"
               >
-                {tts.enabled ? <SpeakerIcon /> : <SpeakerOffIcon />}
+                ⚙️
               </button>
-            )}
+            </div>
           </div>
+
+          {showSettings && <EffieSettingsPanel kokoro={kokoro} onClose={() => setShowSettings(false)} />}
 
           {/* Transcript */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -260,7 +280,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               {speech.supported && (
                 <button
                   onClick={() => {
-                    tts.cancel();
+                    ttsCancel();
                     if (speech.listening) speech.stop();
                     else speech.start();
                   }}

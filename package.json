@@ -23,6 +23,7 @@
     "@supabase/supabase-js": "^2.103.0",
     "@vercel/analytics": "^2.0.1",
     "@zxing/browser": "^0.1.5",
+    "kokoro-js": "^1.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

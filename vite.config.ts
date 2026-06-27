@@ -44,9 +44,18 @@ export default defineConfig({
       },
     }),
   ],
+  optimizeDeps: {
+    // kokoro-js uses ONNX Runtime Web (WASM + workers) — pre-bundling breaks it.
+    exclude: ['kokoro-js', 'onnxruntime-web'],
+  },
   server: {
     port: 5174,
     strictPort: true,
+    headers: {
+      // WASM + SharedArrayBuffer (used by onnxruntime-web) require COOP/COEP in dev.
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
   build: {
     // react-pdf (@react-pdf/renderer, ~1.4 MB raw) is the only chunk over the
