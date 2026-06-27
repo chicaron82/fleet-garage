@@ -36,7 +36,8 @@ export default defineConfig({
         // Don't precache the lazy ~1.4 MB react-pdf chunk — it's only the
         // end-of-shift PDF export, rarely needed offline, and bloats the
         // first-install on field wifi. It loads from network on demand.
-        globIgnores: ['**/react-pdf.browser-*.js'],
+        // Don't precache heavy lazy chunks — they load from network on demand.
+        globIgnores: ['**/react-pdf.browser-*.js', '**/kokoro-*.js'],
         cleanupOutdatedCaches: true,
         // Offline deep-link support: serve the cached shell for unknown routes
         // (pairs with screenRouting's pathToScreen + the vercel.json SPA rewrite).
