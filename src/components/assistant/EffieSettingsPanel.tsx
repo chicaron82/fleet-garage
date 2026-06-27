@@ -97,7 +97,20 @@ export function EffieSettingsPanel({ kokoro, onClose }: Props) {
           )}
         </div>
         {kokoro.enabled && kokoro.modelState === 'loading' && (
-          <p className="text-[11px] text-blue-500 animate-pulse">Downloading Kokoro model (~82 MB) — cached after first load.</p>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] text-blue-500">Downloading (~82 MB) — cached after first load</p>
+              {kokoro.downloadProgress !== null && (
+                <span className="text-[11px] tabular-nums text-blue-500">{kokoro.downloadProgress}%</span>
+              )}
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${kokoro.downloadProgress ?? 0}%` }}
+              />
+            </div>
+          </div>
         )}
         {kokoro.enabled && kokoro.modelState === 'error' && (
           <p className="text-[11px] text-red-500">Model failed to load. Toggle off and on to retry.</p>

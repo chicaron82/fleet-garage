@@ -209,6 +209,24 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
 
           {showSettings && <EffieSettingsPanel kokoro={kokoro} onClose={() => setShowSettings(false)} />}
 
+          {/* Kokoro download progress — visible while the model is loading */}
+          {kokoro.modelState === 'loading' && (
+            <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[11px] text-blue-500">Downloading Effie's voice…</span>
+                {kokoro.downloadProgress !== null && (
+                  <span className="text-[11px] tabular-nums text-blue-500">{kokoro.downloadProgress}%</span>
+                )}
+              </div>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${kokoro.downloadProgress ?? 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Transcript */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (

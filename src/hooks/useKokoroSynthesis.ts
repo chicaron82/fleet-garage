@@ -1,6 +1,7 @@
 // Kokoro-82M TTS running fully in the browser via ONNX Runtime Web (WASM).
 // The model downloads once (~82 MB at q8) and is cached by the browser.
-// A module-level singleton avoids re-loading the model across hook re-mounts.
+// A module-level singleton avoids re-loading across hook re-mounts. Progress
+// is tracked via a subscriber pattern so the hook can surface % to the UI.
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type KokoroVoice = 'af_sky' | 'af_nicole';
@@ -26,15 +27,44 @@ function readEnabled(): boolean {
   try { return localStorage.getItem(ENABLED_KEY) === '1'; } catch { return false; }
 }
 
-// Module-level promise — load Kokoro once and share across all hook instances.
+// Module-level singleton + progress tracking.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ttsPromise: Promise<any> | null = null;
+let _moduleProgress: number | null = null; // 0–100 while downloading, null when done
+const _progressSubs = new Set<() => void>();
+const _fileTotals: Record<string, number> = {};
+const _fileLoaded: Record<string, number> = {};
+
+function _notifySubs() { _progressSubs.forEach((cb) => cb()); }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _onProgress(p: Record<string, any>) {
+  if (p.status === 'initiate' && p.file) {
+    // A new file is about to download — register it with 0 loaded.
+    if (typeof p.total === 'number' && p.total > 0) _fileTotals[p.file] = p.total;
+    _fileLoaded[p.file] = 0;
+  } else if (p.status === 'progress' && p.file) {
+    if (typeof p.loaded === 'number') _fileLoaded[p.file] = p.loaded;
+    if (typeof p.total === 'number' && p.total > 0) _fileTotals[p.file] = p.total;
+    const tot = Object.values(_fileTotals).reduce((a, b) => a + b, 0);
+    const lod = Object.values(_fileLoaded).reduce((a, b) => a + b, 0);
+    _moduleProgress = tot > 0 ? Math.round((lod / tot) * 100) : Math.round(p.progress ?? 0);
+    _notifySubs();
+  } else if (p.status === 'ready') {
+    _moduleProgress = null;
+    _notifySubs();
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getTTS(): Promise<any> {
   if (!_ttsPromise) {
     _ttsPromise = import('kokoro-js').then(({ KokoroTTS }) =>
-      KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm' }),
+      KokoroTTS.from_pretrained(MODEL_ID, {
+        dtype: 'q8',
+        device: 'wasm',
+        progress_callback: _onProgress,
+      }),
     );
   }
   return _ttsPromise;
@@ -46,6 +76,8 @@ export interface KokoroSynthesisApi {
   voice: KokoroVoice;
   setVoice: (v: KokoroVoice) => void;
   modelState: 'idle' | 'loading' | 'ready' | 'error';
+  /** 0–100 while downloading the model, null otherwise. */
+  downloadProgress: number | null;
   speak: (text: string) => void;
   cancel: () => void;
 }
@@ -53,13 +85,21 @@ export interface KokoroSynthesisApi {
 export function useKokoroSynthesis(): KokoroSynthesisApi {
   const [enabled, setEnabledState] = useState(readEnabled);
   const [voice, setVoiceState] = useState<KokoroVoice>(readVoice);
-  // 'unloaded' | 'ready' | 'error' — the actual resolved phase.
-  // modelState is derived: when enabled + unloaded, we're implicitly 'loading'.
+  // 'unloaded' | 'ready' | 'error' — the resolved phase. modelState is derived.
   const [modelPhase, setModelPhase] = useState<'unloaded' | 'ready' | 'error'>('unloaded');
   const modelState: 'idle' | 'loading' | 'ready' | 'error' =
     !enabled ? 'idle' :
     modelPhase === 'ready' ? 'ready' :
     modelPhase === 'error' ? 'error' : 'loading';
+
+  // Subscribe to module-level progress notifications.
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(_moduleProgress);
+  useEffect(() => {
+    const update = () => setDownloadProgress(_moduleProgress);
+    _progressSubs.add(update);
+    return () => { _progressSubs.delete(update); };
+  }, []);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
 
@@ -124,5 +164,5 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
   }, []);
 
-  return { enabled, setEnabled, voice, setVoice, modelState, speak, cancel };
+  return { enabled, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
 }
