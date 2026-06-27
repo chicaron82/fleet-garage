@@ -33,6 +33,7 @@ export function EVAssetsTab() {
   const { getName } = useUserResolver();
 
   const [query, setQuery]           = useState('');
+  const [assetFilter, setAssetFilter] = useState<'missing-adapter' | 'missing-cable' | 'missing-both' | null>(null);
   const [adding, setAdding]         = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cable, setCable]           = useState<EvAssetStatus | null>(null);
@@ -54,6 +55,12 @@ export function EVAssetsTab() {
   const teslas = vehicles
     .filter(isTeslaVehicle)
     .filter(v => !q || `${v.unitNumber ?? ''} ${v.licensePlate} ${v.make} ${v.model}`.toLowerCase().includes(q))
+    .filter(v => {
+      if (!assetFilter) return true;
+      if (assetFilter === 'missing-adapter') return v.hasJ1772Adapter === false;
+      if (assetFilter === 'missing-cable') return v.hasMobileCable === false;
+      return v.hasMobileCable === false && v.hasJ1772Adapter === false; // missing-both
+    })
     .sort((a, b) => {
       const at = a.evLastUpdatedAt ? new Date(a.evLastUpdatedAt).getTime() : 0;
       const bt = b.evLastUpdatedAt ? new Date(b.evLastUpdatedAt).getTime() : 0;
@@ -202,6 +209,24 @@ export function EVAssetsTab() {
           )}
         </div>
         <PrimaryAction label="Register" aria-label="Register a Tesla" onClick={() => setAdding(true)} />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {([
+          ['missing-adapter', 'Missing adapter'],
+          ['missing-cable',   'Missing cable'],
+          ['missing-both',    'Missing both'],
+        ] as const).map(([f, label]) => (
+          <button key={f} type="button"
+            onClick={() => setAssetFilter(assetFilter === f ? null : f)}
+            className={`px-3 py-1 text-xs font-semibold rounded-full transition cursor-pointer ${
+              assetFilter === f
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+            }`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {teslas.length === 0 ? (
