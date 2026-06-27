@@ -27,7 +27,6 @@
 
 ## 📥 Open tickets
 
-- [ticket-ai-assistant-fab.md](ticket-ai-assistant-fab.md) — "Hey FG" AI assistant FAB. Tier 1 (lookup) + Tier 2 (guided holds) shipped; **Tier 3 — vision damage suggestion (in progress)** is the last slice to close it.
 - [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
 
 ## 🗄️ archive/ (non-ticket artifacts)
