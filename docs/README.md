@@ -27,6 +27,12 @@
 
 ## 📥 Open tickets
 
+_"Hey FG" assistant — next tier (riffed 2026-06-26; build order: voice → key-tag → schedule):_
+- [ticket-misc-assistant-voice.md](ticket-misc-assistant-voice.md) — hands-free ask + spoken read-back (Web Speech API; no backend, no cost). The cheap, bougie, lowest-risk one.
+- [ticket-optical-keytag-autofill.md](ticket-optical-keytag-autofill.md) — photo a key tag → OCR unit/plate/class → autofill the register-then-hold. Reuses the Tier 3 vision plumbing.
+- [ticket-schedule-photo-import.md](ticket-schedule-photo-import.md) — photo the VSA grid → FG drafts the week behind a preview-you-verify gate. The big one (dense-grid vision + a real bulk write path); spec before cooking.
+
+_Other:_
 - [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
 
 ## 🗄️ archive/ (non-ticket artifacts)
