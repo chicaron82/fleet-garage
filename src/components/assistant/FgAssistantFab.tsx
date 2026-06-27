@@ -11,6 +11,7 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 import { HoldProposalCard } from './HoldProposalCard';
 import { moduleGreeting } from '../../lib/assistantGreeting';
+import { compressImage } from '../../lib/image';
 import type { HoldType } from '../../types';
 import type { Proposal } from '../../../api/_lib/holdProposal';
 
@@ -20,10 +21,12 @@ export function FgAssistantFab({ module }: { module: string }) {
   const { addLostFoundItem } = useLostFoundContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const { messages, loading, error, send, clearProposal } = useFgAssistant();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // The login id = the part before @fleet-garage.internal in the auth email —
   // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
@@ -95,11 +98,19 @@ export function FgAssistantFab({ module }: { module: string }) {
     await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes);
   };
 
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setImage(await compressImage(file));
+    e.target.value = ''; // let the same file be picked again
+  };
+
   const submit = () => {
     const text = draft.trim();
-    if (!text || loading) return;
+    if ((!text && !image) || loading) return;
+    const img = image ?? undefined;
     setDraft('');
-    void send(text, module);
+    setImage(null);
+    void send(text, module, img);
   };
 
   return (
@@ -144,6 +155,9 @@ export function FgAssistantFab({ module }: { module: string }) {
                         : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100'
                     }
                   >
+                    {m.image && (
+                      <img src={m.image} alt="Attached damage photo" className="mb-1.5 max-h-40 rounded-lg object-cover" />
+                    )}
                     {m.text || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
                   </div>
                 </div>
@@ -160,25 +174,46 @@ export function FgAssistantFab({ module }: { module: string }) {
           </div>
 
           {/* Composer */}
-          <div className="flex items-center gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submit();
-              }}
-              placeholder="Ask about a vehicle…"
-              className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
-            />
-            <button
-              onClick={submit}
-              disabled={!draft.trim() || loading}
-              aria-label="Send"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-            >
-              <SendIcon />
-            </button>
+          <div className="border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
+            {image && (
+              <div className="mb-2 flex items-center gap-2">
+                <img src={image} alt="Attached" className="h-12 w-12 rounded-lg border border-gray-200 object-cover dark:border-gray-700" />
+                <button
+                  onClick={() => setImage(null)}
+                  className="text-xs text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                >
+                  Remove photo
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
+              <button
+                onClick={() => fileRef.current?.click()}
+                aria-label="Attach damage photo"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
+              >
+                <CameraIcon />
+              </button>
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submit();
+                }}
+                placeholder="Ask, or attach a damage photo…"
+                className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <button
+                onClick={submit}
+                disabled={(!draft.trim() && !image) || loading}
+                aria-label="Send"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              >
+                <SendIcon />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -207,6 +242,15 @@ function SendIcon() {
   return (
     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0l-7 7m7-7l7 7" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
 }

@@ -38,6 +38,7 @@ import {
   type LostItemProposal,
 } from './_lib/lostItemProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
+import { parseImageDataUrl } from './_lib/imageData.js';
 import {
   formatMyShifts,
   formatLostFound,
@@ -53,7 +54,7 @@ import {
 interface FgRequest {
   method?: string;
   headers: { authorization?: string };
-  body?: { messages?: unknown; module?: unknown };
+  body?: { messages?: unknown; module?: unknown; image?: unknown };
 }
 interface FgResponse {
   headersSent: boolean;
@@ -65,6 +66,10 @@ interface FgResponse {
 }
 
 const MODEL = 'claude-haiku-4-5'; // fast + cheap; a plate lookup needs no more.
+// Tier 3: a damage photo gets stronger eyes. Vision turns route to Opus (ticket
+// specced Opus 4.7+); text turns stay on Haiku. Cost is trivial — a handful of
+// photos a shift — and a suggest-then-confirm read is worth the better model.
+const VISION_MODEL = 'claude-opus-4-8';
 const MAX_TOKENS = 1024;
 const MAX_TOOL_TURNS = 4; // a lookup answer is one tool call; cap the loop defensively.
 
@@ -86,7 +91,9 @@ For the user's own shifts ("when am I working?", "am I closing this week?"), cal
 
 When the user wants to LOG a found item into lost & found ("someone left a black wallet in the back seat of LUR224", "log a phone charger, found under the seat"), call propose_lost_item with a short description (required) and — only if the user mentioned them — the location (visor, front_seat, back_seat, trunk, under_seat, or other), the license plate, and any notes. Like a hold, this DRAFTS a confirm card the user must tap; phrase it as drafted awaiting confirmation, never as logged. Don't invent details the user didn't give.
 
-If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.`;
+If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.
+
+When the user attaches a PHOTO of vehicle damage, look at it carefully and identify what you see — the damage type and where it is (e.g. "deep scratch along the rear driver-side door", "cracked left tail light", "dent on the front bumper"). Then call propose_hold for the plate from the conversation, using your read of the photo as the damage_description and the best-fitting hold_type. This is a SUGGESTION the user confirms — phrase it as "From the photo, looks like <what you saw> — drafted a hold on <vehicle>, confirm below." If no plate has been given yet, ask which vehicle before proposing. NEVER guess or read a plate off the image; the plate comes from what the user told you. If the photo doesn't show vehicle damage, say so plainly instead of inventing a hold.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -600,11 +607,27 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       ? `${SYSTEM_PROMPT}\n\nContext: the user is currently on the "${moduleName}" screen. Be relevant to it, but answer anything they ask.`
       : SYSTEM_PROMPT;
 
+    // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
+    // Attach it to the latest user message as an image block, and give that request
+    // the vision model. Parsed defensively — a bad value is just ignored.
+    const image = parseImageDataUrl(req.body?.image);
+    if (image && convo.length > 0) {
+      const last = convo[convo.length - 1];
+      if (last.role === 'user' && typeof last.content === 'string') {
+        const text = last.content.trim();
+        last.content = [
+          ...(text ? [{ type: 'text', text } as Anthropic.TextBlockParam] : []),
+          { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
+        ];
+      }
+    }
+    const model = image ? VISION_MODEL : MODEL;
+
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
-        model: MODEL,
+        model,
         max_tokens: MAX_TOKENS,
         system,
         tools: TOOLS,

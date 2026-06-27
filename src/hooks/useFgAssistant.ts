@@ -13,6 +13,8 @@ export interface ChatMessage {
   text: string;
   /** A drafted hold awaiting the user's confirm tap (assistant turns only). */
   proposal?: Proposal | null;
+  /** A damage photo the user attached to this turn (base64 data URL, user turns). */
+  image?: string;
 }
 
 interface ChatEnvelope {
@@ -27,13 +29,16 @@ export function useFgAssistant() {
   const [error, setError] = useState<string | null>(null);
 
   const send = useCallback(
-    async (raw: string, module?: string) => {
-      const text = raw.trim();
-      if (!text || loading) return;
+    async (raw: string, module?: string, image?: string) => {
+      const typed = raw.trim();
+      if ((!typed && !image) || loading) return;
+      // A photo can arrive with no caption — give it one so the bubble + the message
+      // history both carry non-empty text (the API rejects empty user content).
+      const text = typed || 'Here\'s a photo of the damage.';
       setError(null);
 
-      // Append the user turn + an empty assistant bubble to fill in.
-      const history: ChatMessage[] = [...messages, { role: 'user', text }];
+      // Append the user turn (with any attached photo) + an empty assistant bubble.
+      const history: ChatMessage[] = [...messages, { role: 'user', text, image }];
       setMessages([...history, { role: 'assistant', text: '' }]);
       setLoading(true);
 
@@ -49,6 +54,7 @@ export function useFgAssistant() {
             // Don't send proposals back up — only the visible text turns.
             messages: history.map((m) => ({ role: m.role, content: m.text })),
             module, // the screen the user is on, for context-aware answers
+            image, // a damage photo for THIS turn only (not resent in history)
           }),
         });
 
