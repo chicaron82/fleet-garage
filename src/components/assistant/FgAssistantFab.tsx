@@ -9,9 +9,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
 import { HoldProposalCard } from './HoldProposalCard';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
+import {
+  SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
+} from './AssistantIcons';
 import type { HoldType } from '../../types';
 import type { Proposal } from '../../../api/_lib/holdProposal';
 
@@ -24,9 +29,13 @@ export function FgAssistantFab({ module }: { module: string }) {
   const [image, setImage] = useState<string | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const { messages, loading, error, send, clearProposal } = useFgAssistant();
+  const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
+  const tts = useSpeechSynthesis();
+  const { enabled: ttsEnabled, speak: ttsSpeak } = tts; // stable refs for the read-back effect
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const spokenRef = useRef(-1);
 
   // The login id = the part before @fleet-garage.internal in the auth email —
   // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
@@ -46,6 +55,17 @@ export function FgAssistantFab({ module }: { module: string }) {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // Read the assistant's answer aloud once it lands, if read-back is on (each turn once).
+  useEffect(() => {
+    if (loading) return;
+    const i = messages.length - 1;
+    const m = messages[i];
+    if (m && m.role === 'assistant' && m.text && ttsEnabled && spokenRef.current !== i) {
+      spokenRef.current = i;
+      ttsSpeak(m.text);
+    }
+  }, [messages, loading, ttsEnabled, ttsSpeak]);
 
   // Only show the FAB to allowlisted accounts (the assistant runs on a personal
   // API key). Mirrors the server's isAllowed gate in api/_lib/assistantAccess —
@@ -107,6 +127,8 @@ export function FgAssistantFab({ module }: { module: string }) {
   const submit = () => {
     const text = draft.trim();
     if ((!text && !image) || loading) return;
+    speech.stop();
+    tts.cancel();
     const img = image ?? undefined;
     setDraft('');
     setImage(null);
@@ -128,12 +150,26 @@ export function FgAssistantFab({ module }: { module: string }) {
       {open && (
         <div className="fixed bottom-24 right-5 z-40 flex max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
           {/* Header */}
-          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-            <span className="text-blue-600 dark:text-blue-400"><SparkleIcon small /></span>
-            <div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ask FG</p>
-              <p className="text-[11px] text-gray-400">Try: "anything on LUR187?"</p>
+          <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 dark:text-blue-400"><SparkleIcon small /></span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ask FG</p>
+                <p className="text-[11px] text-gray-400">Try: "anything on LUR187?"</p>
+              </div>
             </div>
+            {tts.supported && (
+              <button
+                onClick={() => tts.setEnabled(!tts.enabled)}
+                aria-label={tts.enabled ? 'Turn off read-back' : 'Read answers aloud'}
+                title={tts.enabled ? 'Read-back on' : 'Read-back off'}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
+                  tts.enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                }`}
+              >
+                {tts.enabled ? <SpeakerIcon /> : <SpeakerOffIcon />}
+              </button>
+            )}
           </div>
 
           {/* Transcript */}
@@ -186,6 +222,15 @@ export function FgAssistantFab({ module }: { module: string }) {
                 </button>
               </div>
             )}
+            {speech.listening && (
+              <div className="mb-2 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
+                </span>
+                <span className="truncate">{speech.interim || 'Listening…'}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
               <button
@@ -195,6 +240,23 @@ export function FgAssistantFab({ module }: { module: string }) {
               >
                 <CameraIcon />
               </button>
+              {speech.supported && (
+                <button
+                  onClick={() => {
+                    tts.cancel();
+                    if (speech.listening) speech.stop();
+                    else speech.start();
+                  }}
+                  aria-label={speech.listening ? 'Stop listening' : 'Speak'}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition cursor-pointer ${
+                    speech.listening
+                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
+                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <MicIcon />
+                </button>
+              )}
               <input
                 ref={inputRef}
                 value={draft}
@@ -202,7 +264,7 @@ export function FgAssistantFab({ module }: { module: string }) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') submit();
                 }}
-                placeholder="Ask, or attach a damage photo…"
+                placeholder="Ask, speak, or attach a photo…"
                 className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
               />
               <button
@@ -218,49 +280,5 @@ export function FgAssistantFab({ module }: { module: string }) {
         </div>
       )}
     </>
-  );
-}
-
-function SparkleIcon({ small }: { small?: boolean }) {
-  const size = small ? 'h-4 w-4' : 'h-6 w-6';
-  return (
-    <svg className={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L23 12l-6.714 2.143L14 21l-2.286-6.857L5 12l6.714-2.143L14 3z" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0l-7 7m7-7l7 7" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
-function TypingDots() {
-  return (
-    <span className="inline-flex gap-1 py-1">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
-    </span>
   );
 }
