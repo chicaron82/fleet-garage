@@ -20,10 +20,12 @@ interface Props {
   schedule: ParsedSchedule;
   roster: RosterProfile[];
   assignments: (string | null)[];
+  types: ParsedShiftType[][]; // effective type per cell (parse + edits)
   onAssign: (rowIndex: number, profileId: string | null) => void;
+  onCycleCell: (rowIndex: number, cellIndex: number) => void;
 }
 
-export function ScheduleImportGrid({ schedule, roster, assignments, onAssign }: Props) {
+export function ScheduleImportGrid({ schedule, roster, assignments, types, onAssign, onCycleCell }: Props) {
   const days = schedule.staff[0]?.cells.map((c) => c.day) ?? [];
 
   return (
@@ -61,13 +63,20 @@ export function ScheduleImportGrid({ schedule, roster, assignments, onAssign }: 
                     ))}
                   </select>
                 </td>
-                {row.cells.map((c, ci) => (
-                  <td key={ci} className="px-1 py-1 text-center">
-                    <span className={`inline-block min-w-[2.6rem] rounded px-1 py-0.5 ${TYPE_STYLE[c.type]}`} title={c.raw || c.type}>
-                      {TYPE_LABEL[c.type]}
-                    </span>
-                  </td>
-                ))}
+                {row.cells.map((c, ci) => {
+                  const t = types[ri]?.[ci] ?? c.type;
+                  return (
+                    <td key={ci} className="px-1 py-1 text-center">
+                      <button
+                        onClick={() => onCycleCell(ri, ci)}
+                        title={`${c.raw || c.type} — tap to change`}
+                        className={`inline-block min-w-[2.6rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]}`}
+                      >
+                        {TYPE_LABEL[t]}
+                      </button>
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

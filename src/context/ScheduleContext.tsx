@@ -84,6 +84,7 @@ interface ScheduleContextValue {
   updatePtoEntitlement: (days: number) => Promise<void>;
   createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => Promise<void>;
   bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
+  importWeekShifts: (userIds: string[], startDate: string, endDate: string, shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
   setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
@@ -195,6 +196,29 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       });
       for (const s of newShifts) applyTally(s.userId, null, { shiftType: s.shiftType, date: s.date });
     });
+  };
+
+  // Import a whole week from a photo: wipe the window for the imported people (a QUIET
+  // range-delete — no per-row notifications) then create the parsed shifts via the proven
+  // bulk path. Replace semantics: re-importing a week overwrites it. Tally note:
+  // bulkCreateShifts adjusts the logged-in user's PTO/sick tally UP for created rows; the
+  // wipe's tally-DOWN isn't applied, so re-importing a week that already held the
+  // MANAGER'S OWN pto/sick can leave their own counter high until reload (cosmetic;
+  // teammates' tallies are never touched — the tally is per-user-self).
+  const importWeekShifts = async (
+    userIds: string[],
+    startDate: string,
+    endDate: string,
+    newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[],
+  ) => {
+    if (userIds.length > 0) {
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('shifts').delete().in('user_id', userIds).gte('date', startDate).lte('date', endDate),
+      );
+      if (error) throw error;
+    }
+    if (newShifts.length > 0) await bulkCreateShifts(newShifts);
+    refresh();
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {
@@ -352,7 +376,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       ptoEntitlement, ptoUsed, sickDaysUsed,
       setViewMode, setCurrentDate,
       goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
-      createShift, bulkCreateShifts, updateShift, setPtoApproved, deleteShift, logActualHours,
+      createShift, bulkCreateShifts, importWeekShifts, updateShift, setPtoApproved, deleteShift, logActualHours,
       canEditShift, refresh,
     }}>
       {children}
