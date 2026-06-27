@@ -32,6 +32,14 @@ import {
   type Proposal,
 } from './_lib/holdProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
+import {
+  formatMyShifts,
+  formatLostFound,
+  formatIssues,
+  type MyShiftRow,
+  type LostItem,
+  type IssueRow,
+} from './_lib/moduleReads.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -67,6 +75,8 @@ Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reforma
 When the user wants to FLAG or HOLD a vehicle for damage ("there's a scratch on the bumper of LFJ438", "put a hold on LUR187, cracked windshield"), call propose_hold with the plate, the hold type (default "damage"), and a short damage description. This does NOT create the hold — it drafts a confirm card the user must tap. So phrase it as a draft awaiting their confirmation ("Drafted a damage hold on Unit 1234 for the bumper scuff — confirm below"), never as done.
 
 For schedule questions ("who's closing with me tonight?", "who's on tomorrow?"), call lookup_schedule (it defaults to today; pass shift_type like "closing" to narrow). Answer with the names, naturally ("Closing with you tonight: Geoff and Marycel.").
+
+For the user's own shifts ("when am I working?", "am I closing this week?"), call lookup_my_shift. For lost & found ("any lost items?", "did anyone turn in a wallet?"), call search_lost_found. For facility issues ("any open issues?", "what's flagged?"), call lookup_issues. These are read-only — just report what they return.
 
 If the plate is NOT on record and the user wants to hold it, it has to be registered first. Gather the missing vehicle details by ASKING the user — you need all of: unit number, make, model, year, colour (plus the damage). Ask only for what you don't have yet, in one short question. Once you have them all, call propose_register_and_hold (which also drafts a confirm card — never claim it's registered/held). Don't invent vehicle details; if the user doesn't know a field, ask again rather than guessing.`;
 
@@ -140,6 +150,39 @@ const TOOLS: Anthropic.Tool[] = [
           description: 'Narrow to one shift, e.g. "closing" for "who\'s closing".',
         },
       },
+      required: [],
+    },
+  },
+  {
+    name: 'lookup_my_shift',
+    description:
+      "The asking user's OWN upcoming shifts + rough scheduled hours (\"when am I working?\", \"am I closing this week?\"). Defaults to the next 7 days. This is NOT the dollar pay estimate — that lives on the My Shift card.",
+    input_schema: {
+      type: 'object',
+      properties: { days: { type: 'integer', description: 'Days ahead to include (default 7).' } },
+      required: [],
+    },
+  },
+  {
+    name: 'search_lost_found',
+    description:
+      'Search the lost & found for current (not-yet-returned) items, optionally by text (description / location / plate). E.g. "any lost items?", "did anyone turn in a black wallet?".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Optional text to match against description/location/plate.' },
+        status: { type: 'string', enum: ['current', 'all'], description: 'Default current (unreturned).' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'lookup_issues',
+    description:
+      'List open facility issues from the Issue Log ("any open issues?", "what\'s flagged?"). Defaults to open (uncleared).',
+    input_schema: {
+      type: 'object',
+      properties: { status: { type: 'string', enum: ['open', 'all'], description: 'Default open.' } },
       required: [],
     },
   },
@@ -358,6 +401,72 @@ async function executeLookupSchedule(
   return JSON.stringify({ date, groups, summary: formatSchedule(scheduleDateLabel(date), groups, shiftType) });
 }
 
+function addDaysISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/** Read-only: the asking user's own upcoming shifts + rough scheduled hours. */
+async function executeLookupMyShift(supabase: SupabaseClient, userId: string, input: { days?: number }): Promise<string> {
+  const days = Number.isFinite(input.days) ? Math.max(1, Math.min(31, Number(input.days))) : 7;
+  const start = todayInWinnipeg();
+  const end = addDaysISO(start, days);
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('date, shift_type')
+    .eq('user_id', userId)
+    .gte('date', start)
+    .lte('date', end)
+    .order('date', { ascending: true });
+  if (error) throw error;
+  const rows: MyShiftRow[] = (data ?? []).map((r) => ({ dateLabel: scheduleDateLabel(r.date), shiftType: r.shift_type }));
+  return JSON.stringify({ from: start, to: end, summary: formatMyShifts(rows) });
+}
+
+/** Read-only: current (unreturned) lost & found items, optionally text-matched. */
+async function executeSearchLostFound(supabase: SupabaseClient, input: { query?: string; status?: string }): Promise<string> {
+  let q = supabase
+    .from('lost_found')
+    .select('description, location, found_at, license_plate, resolved_at')
+    .order('found_at', { ascending: false });
+  if (input.status !== 'all') q = q.is('resolved_at', null);
+  const { data, error } = await q;
+  if (error) throw error;
+  let rows = data ?? [];
+  const query = (input.query ?? '').trim().toLowerCase();
+  if (query) {
+    const terms = query.split(/\s+/);
+    rows = rows.filter((r) => {
+      const hay = `${r.description ?? ''} ${r.location ?? ''} ${r.license_plate ?? ''}`.toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+  }
+  const items: LostItem[] = rows.map((r) => ({
+    description: r.description ?? '',
+    location: r.location ?? null,
+    foundLabel: scheduleDateLabel((r.found_at ?? '').slice(0, 10)),
+    plate: r.license_plate ?? null,
+  }));
+  return JSON.stringify({ count: items.length, summary: formatLostFound(items, query || undefined) });
+}
+
+/** Read-only: open (uncleared) facility issues from the Issue Log. */
+async function executeLookupIssues(supabase: SupabaseClient, input: { status?: string }): Promise<string> {
+  let q = supabase
+    .from('facility_issues')
+    .select('title, severity, reported_at, cleared_at')
+    .order('reported_at', { ascending: false });
+  if (input.status !== 'all') q = q.is('cleared_at', null);
+  const { data, error } = await q;
+  if (error) throw error;
+  const items: IssueRow[] = (data ?? []).map((r) => ({
+    title: r.title,
+    severity: r.severity,
+    reportedLabel: scheduleDateLabel((r.reported_at ?? '').slice(0, 10)),
+  }));
+  return JSON.stringify({ count: items.length, summary: formatIssues(items) });
+}
+
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -470,6 +579,12 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = out.toolResult;
           } else if (tu.name === 'lookup_schedule') {
             content = await executeLookupSchedule(supabase, tu.input as { date?: string; shift_type?: string });
+          } else if (tu.name === 'lookup_my_shift') {
+            content = await executeLookupMyShift(supabase, userData.user.id, tu.input as { days?: number });
+          } else if (tu.name === 'search_lost_found') {
+            content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
+          } else if (tu.name === 'lookup_issues') {
+            content = await executeLookupIssues(supabase, tu.input as { status?: string });
           } else {
             const plate = (tu.input as { plate?: string }).plate ?? '';
             content = JSON.stringify(await executeLookup(supabase, plate));
