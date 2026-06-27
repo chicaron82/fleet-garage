@@ -8,7 +8,7 @@ import { useProfiles } from '../../context/ProfilesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useScheduleImport } from '../../hooks/useScheduleImport';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { compressImage } from '../../lib/image';
+import { compressDocumentImage } from '../../lib/image';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
@@ -58,7 +58,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const dataUrl = await compressImage(file);
+    const dataUrl = await compressDocumentImage(file); // dense grid → full detail
     resetAll();
     setImage(dataUrl);
     void parse(dataUrl);

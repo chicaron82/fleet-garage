@@ -41,7 +41,7 @@ Return ONE row per person, merging ALL their cells across every week shown (a pe
 - "type": classify (for colour only) — opening (early start), mid, closing (late end), day-off (an "OFF" cell or a BLANK cell), pto (VAC / vacation), sick, or unknown if unsure.
 - "raw": exactly what is printed in the cell ("0645-1515", "OFF", "VAC", "", etc.).
 
-Read each person's name as printed but DROP role markers like "(PT)" and labels like "UTILITY" — just the name. Call report_schedule with everything. If the image is not a staff schedule, return an empty staff array.`;
+Read each person's name as printed but DROP role markers like "(PT)" and labels like "UTILITY" — just the name. Call report_schedule with everything you can read — even if the photo is angled, low-contrast, or has pen marks / crossed-out cells over part of it, push through and read the rest (a crossed-out week is still that week's schedule). Only return an empty staff array if the image genuinely is NOT a staff schedule at all.`;
 }
 
 const REPORT_TOOL: Anthropic.Tool = {
