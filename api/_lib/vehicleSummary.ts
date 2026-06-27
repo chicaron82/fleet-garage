@@ -56,14 +56,25 @@ export function describeVehicle(v: VehicleFact): string {
   return v.color ? `${base} (${v.color})` : base;
 }
 
-/** Deterministic YYYY-MM-DD from an ISO timestamp — locale-free so tests are stable. */
-function isoDate(ts: string): string {
-  return ts.slice(0, 10);
+// FG is a single-region (Winnipeg / YWG) pilot, so format dates in the crew's local
+// time — otherwise a UTC date reads a day off from the hold cards, which render in
+// browser-local time. Explicit timeZone keeps this deterministic wherever it runs
+// (the Vercel function runs in UTC).
+const FG_TZ = 'America/Winnipeg';
+
+/** "Jun 19, 2026" in Winnipeg time — matches the hold cards' fmtDate exactly. */
+function fmtDate(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: FG_TZ,
+  });
 }
 
-/** "damage — front bumper scuff (flagged 2026-06-20 by Ray)" — the shared core. */
+/** "damage — front bumper scuff (flagged Jun 20, 2026 by Ray)" — the shared core. */
 function describeHoldCore(h: HoldFact): string {
-  const meta = [`flagged ${isoDate(h.flaggedAt)}`, h.flaggedByName ? `by ${h.flaggedByName}` : '']
+  const meta = [`flagged ${fmtDate(h.flaggedAt)}`, h.flaggedByName ? `by ${h.flaggedByName}` : '']
     .filter(Boolean)
     .join(' ');
   const desc = h.damageDescription?.trim() ? ` — ${h.damageDescription.trim()}` : '';

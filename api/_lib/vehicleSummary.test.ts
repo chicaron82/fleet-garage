@@ -67,7 +67,7 @@ describe('summarizeLookup — active holds', () => {
     const r = summarizeLookup('LUR187', camry, [hold()]);
     expect(r.activeHolds).toHaveLength(1);
     expect(r.summary).toBe(
-      'Unit 1234567 · 2023 Toyota Camry (White) — 1 active hold: damage — front bumper scuff (flagged 2026-06-20 by Ray).',
+      'Unit 1234567 · 2023 Toyota Camry (White) — 1 active hold: damage — front bumper scuff (flagged Jun 20, 2026 by Ray).',
     );
   });
 
@@ -77,17 +77,24 @@ describe('summarizeLookup — active holds', () => {
       hold({ holdType: 'mechanical', damageDescription: 'check engine', flaggedByName: 'Geoff' }),
     ]);
     expect(r.summary).toContain('2 active holds:');
-    expect(r.summary).toContain('mechanical — check engine (flagged 2026-06-20 by Geoff)');
+    expect(r.summary).toContain('mechanical — check engine (flagged Jun 20, 2026 by Geoff)');
   });
 
   it('omits the dash when a hold has no damage description', () => {
     const r = summarizeLookup('LUR187', camry, [hold({ damageDescription: '' })]);
-    expect(r.summary).toBe('Unit 1234567 · 2023 Toyota Camry (White) — 1 active hold: damage (flagged 2026-06-20 by Ray).');
+    expect(r.summary).toBe('Unit 1234567 · 2023 Toyota Camry (White) — 1 active hold: damage (flagged Jun 20, 2026 by Ray).');
   });
 
   it('handles an unknown flagger', () => {
     const r = summarizeLookup('LUR187', camry, [hold({ flaggedByName: null })]);
-    expect(r.summary).toContain('damage — front bumper scuff (flagged 2026-06-20)');
+    expect(r.summary).toContain('damage — front bumper scuff (flagged Jun 20, 2026)');
+  });
+
+  it('dates in Winnipeg local time, not UTC (a late-evening flag reads the right day)', () => {
+    // 02:00 UTC on the 20th is 21:00 on the 19th in Winnipeg — must read Jun 19.
+    const r = summarizeLookup('LUR187', camry, [hold({ flaggedAt: '2026-06-20T02:00:00.000Z' })]);
+    expect(r.summary).toContain('flagged Jun 19, 2026');
+    expect(r.summary).not.toContain('Jun 20, 2026');
   });
 });
 
@@ -97,7 +104,7 @@ describe('summarizeLookup — released holds (context)', () => {
     expect(r.activeHolds).toEqual([]);
     expect(r.releasedHolds).toHaveLength(1);
     expect(r.summary).toBe(
-      'Unit 1234567 · 2023 Toyota Camry (White) — no active hold, but previously damage — paint surface scratch (flagged 2026-06-19 by Aaron S.), released on a verbal override by MK.',
+      'Unit 1234567 · 2023 Toyota Camry (White) — no active hold, but previously damage — paint surface scratch (flagged Jun 19, 2026 by Aaron S.), released on a verbal override by MK.',
     );
   });
 
@@ -112,15 +119,15 @@ describe('summarizeLookup — released holds (context)', () => {
     const r = summarizeLookup('LFJ318', camry, [
       released({ release: { method: 'standard', type: 'PRE_EXISTING', authorizedBy: null } }),
     ]);
-    expect(r.summary).toMatch(/scratch \(flagged 2026-06-19 by Aaron S\.\), released\.$/);
+    expect(r.summary).toMatch(/scratch \(flagged Jun 19, 2026 by Aaron S\.\), released\.$/);
   });
 
   it('leads with active holds and trails released ones as context', () => {
     const r = summarizeLookup('LFJ318', camry, [hold(), released()]);
     expect(r.activeHolds).toHaveLength(1);
     expect(r.releasedHolds).toHaveLength(1);
-    expect(r.summary).toContain('1 active hold: damage — front bumper scuff (flagged 2026-06-20 by Ray).');
-    expect(r.summary).toContain('Also previously damage — paint surface scratch (flagged 2026-06-19 by Aaron S.), released on a verbal override by MK.');
+    expect(r.summary).toContain('1 active hold: damage — front bumper scuff (flagged Jun 20, 2026 by Ray).');
+    expect(r.summary).toContain('Also previously damage — paint surface scratch (flagged Jun 19, 2026 by Aaron S.), released on a verbal override by MK.');
   });
 
   it('a verbal override with no named authorizer omits the name', () => {
