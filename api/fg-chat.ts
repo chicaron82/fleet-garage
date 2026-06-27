@@ -21,6 +21,7 @@ import {
   type VehicleFact,
   type VehicleLookupResult,
 } from './_lib/vehicleSummary.js';
+import { isAllowed } from './_lib/assistantAccess.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -163,16 +164,33 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       return;
     }
 
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // Cost gate: this runs on a personal Anthropic key, so the assistant is gated to
+    // the allowlisted account(s). Validate the JWT (getUser verifies the signature —
+    // a forged token can't pass and reach a billable Claude call) and check the
+    // employee ID (the part before @fleet-garage.internal) against the allowlist.
+    // Empty allowlist = open to all authed.
+    const { data: userData, error: userErr } = await supabase.auth.getUser(authHeader.slice(7));
+    if (userErr || !userData.user) {
+      res.status(401).json({ error: 'Not authenticated.' });
+      return;
+    }
+    const employeeId = (userData.user.email ?? '').split('@')[0];
+    if (!isAllowed(employeeId, process.env.VITE_FG_ASSISTANT_ALLOWED_EMPLOYEE_IDS)) {
+      res.status(403).json({ error: "The assistant isn't enabled for this account." });
+      return;
+    }
+
     const messages = (req.body?.messages ?? []) as Anthropic.MessageParam[];
     if (!Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ error: 'No messages provided.' });
       return;
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const anthropic = new Anthropic({ apiKey });
     const convo: Anthropic.MessageParam[] = [...messages];
 

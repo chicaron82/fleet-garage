@@ -4,9 +4,11 @@
 // vision come later, behind confirm gates. All the model/key work lives in the
 // proxy (api/fg-chat.ts) + the hook — this is just the surface.
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
 
 export function FgAssistantFab() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const { messages, loading, error, send } = useFgAssistant();
@@ -22,6 +24,17 @@ export function FgAssistantFab() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // Only show the FAB to allowlisted accounts (the assistant runs on a personal
+  // API key). Mirrors the server's isAllowed gate in api/_lib/assistantAccess —
+  // empty/unset allowlist = open to all. The server still enforces regardless;
+  // this just hides a button that would 403. Guard sits after all hooks.
+  const allowIds = ((import.meta.env.VITE_FG_ASSISTANT_ALLOWED_EMPLOYEE_IDS as string | undefined) ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const allowed = allowIds.length === 0 || allowIds.includes((user?.employeeId ?? '').trim().toLowerCase());
+  if (!allowed) return null;
 
   const submit = () => {
     const text = draft.trim();
