@@ -23,6 +23,11 @@ describe('matchStaffName', () => {
     expect(matchStaffName('Aaron', roster)).toEqual({ profileId: null, confidence: 'none' });
   });
 
+  it('duplicate EXACT names are ambiguous too (e.g. two "DiZee" bots)', () => {
+    const dupes: RosterProfile[] = [{ id: 'b1', name: 'DiZee' }, { id: 'b2', name: 'DiZee' }];
+    expect(matchStaffName('DiZee', dupes)).toEqual({ profileId: null, confidence: 'none' });
+  });
+
   it('no match → none', () => {
     expect(matchStaffName('Marycel', roster)).toEqual({ profileId: null, confidence: 'none' });
     expect(matchStaffName('', roster)).toEqual({ profileId: null, confidence: 'none' });

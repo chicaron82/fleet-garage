@@ -48,8 +48,9 @@ export function matchStaffName(parsed: string, roster: RosterProfile[]): NameMat
   const p = norm(parsed);
   if (!p) return { profileId: null, confidence: 'none' };
 
-  const exact = roster.find((r) => norm(r.name) === p);
-  if (exact) return { profileId: exact.id, confidence: 'exact' };
+  const exact = roster.filter((r) => norm(r.name) === p);
+  if (exact.length === 1) return { profileId: exact[0].id, confidence: 'exact' };
+  if (exact.length > 1) return { profileId: null, confidence: 'none' }; // duplicate names → human picks
 
   const first = p.split(' ')[0];
   const candidates = roster.filter((r) => {
