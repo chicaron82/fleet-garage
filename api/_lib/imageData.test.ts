@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImageDataUrl } from './imageData';
+import { parseImageDataUrl, parseDocumentDataUrl } from './imageData';
 
 const B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA',  // long-enough dummy base64
   jpegUrl = `data:image/jpeg;base64,${B64}`;
@@ -26,5 +26,18 @@ describe('parseImageDataUrl', () => {
     expect(parseImageDataUrl('https://example.com/x.jpg')).toBeNull();
     expect(parseImageDataUrl('data:image/jpeg;base64,AAA')).toBeNull(); // < 16 chars
     expect(parseImageDataUrl('')).toBeNull();
+  });
+});
+
+describe('parseDocumentDataUrl', () => {
+  it('accepts an image (with media type) or a PDF (kind pdf)', () => {
+    expect(parseDocumentDataUrl(jpegUrl)).toEqual({ kind: 'image', mediaType: 'image/jpeg', data: B64 });
+    expect(parseDocumentDataUrl(`data:application/pdf;base64,${B64}`)).toEqual({ kind: 'pdf', data: B64 });
+  });
+
+  it('rejects unsupported types + garbage', () => {
+    expect(parseDocumentDataUrl(`data:application/zip;base64,${B64}`)).toBeNull();
+    expect(parseDocumentDataUrl(undefined)).toBeNull();
+    expect(parseDocumentDataUrl('not-a-data-url')).toBeNull();
   });
 });

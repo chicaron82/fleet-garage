@@ -8,7 +8,7 @@ import { useProfiles } from '../../context/ProfilesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useScheduleImport } from '../../hooks/useScheduleImport';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { compressDocumentImage } from '../../lib/image';
+import { compressDocumentImage, readFileAsDataUrl } from '../../lib/image';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
@@ -47,6 +47,16 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   const unmatchedCount = (schedule?.staff.length ?? 0) - assignedCount;
   const allDates = (schedule?.staff ?? []).flatMap((s) => s.cells.map((c) => c.date)).filter((d): d is string => !!d).sort();
   const span = allDates.length ? `${allDates[0]} → ${allDates[allDates.length - 1]}` : '';
+  const isPdfDoc = !!image?.startsWith('data:application/pdf');
+  const thumb = (imgCls: string) =>
+    isPdfDoc ? (
+      <div className="flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800">
+        <span className="text-xl">📄</span>
+        <span className="text-[10px] font-medium">PDF</span>
+      </div>
+    ) : (
+      <img src={image!} alt="Schedule" className={imgCls} />
+    );
 
   const resetAll = () => {
     setNameOverrides({});
@@ -58,7 +68,10 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const dataUrl = await compressDocumentImage(file); // dense grid → full detail
+    // A PDF goes as-is (Claude reads it natively, crisper than a photo); an image is
+    // compressed at document detail.
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressDocumentImage(file);
     resetAll();
     setImage(dataUrl);
     void parse(dataUrl);
@@ -122,17 +135,17 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto p-4">
           {!image && (
             <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">Photograph or upload the printed staff schedule (a single week or a multi-week sheet).</p>
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPick} className="hidden" />
+              <p className="text-sm text-gray-600 dark:text-gray-300">Upload a <b>photo or PDF</b> of the printed staff schedule (a single week or a multi-week sheet). A PDF reads most reliably.</p>
+              <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={onPick} className="hidden" />
               <button onClick={() => fileRef.current?.click()} className="cursor-pointer rounded-lg bg-fg-yellow px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-fg-yellow-hi">
-                📷 Choose schedule photo
+                📄 Choose photo or PDF
               </button>
             </div>
           )}
 
           {image && status === 'parsing' && (
             <div className="flex flex-col items-center gap-3 py-12">
-              <img src={image} alt="Schedule" className="max-h-48 rounded-lg border border-gray-200 dark:border-gray-700" />
+              {thumb('max-h-48 rounded-lg border border-gray-200 dark:border-gray-700')}
               <p className="animate-pulse text-sm text-gray-500 dark:text-gray-400">Reading the schedule…</p>
             </div>
           )}
@@ -155,7 +168,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
           {image && status === 'done' && schedule && writeState !== 'done' && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-start gap-3">
-                <img src={image} alt="Schedule" className="max-h-40 shrink-0 rounded-lg border border-gray-200 dark:border-gray-700" />
+                {thumb('max-h-40 shrink-0 rounded-lg border border-gray-200 dark:border-gray-700')}
                 <p className="min-w-[12rem] flex-1 text-xs text-gray-500 dark:text-gray-400">
                   {schedule.staff.length === 0
                     ? "Couldn't find any staff rows — make sure the photo is a staff schedule."

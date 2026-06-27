@@ -25,3 +25,22 @@ export function parseImageDataUrl(input: unknown): ParsedImage | null {
   if (m[2].length < 16) return null; // too small to be a real image — reject
   return { mediaType: mediaType as ImageMediaType, data: m[2] };
 }
+
+// A document the schedule parser accepts: a base64 image OR a base64 PDF. Claude reads a
+// PDF natively (a document block), which is crisper than a photo of the same sheet.
+export type ParsedDoc =
+  | { kind: 'image'; mediaType: ImageMediaType; data: string }
+  | { kind: 'pdf'; data: string };
+
+/** Parse a base64 data URL as a supported image or a PDF, else null (defensive). */
+export function parseDocumentDataUrl(input: unknown): ParsedDoc | null {
+  if (typeof input !== 'string') return null;
+  const m = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/i.exec(input.trim());
+  if (!m) return null;
+  const mediaType = m[1].toLowerCase();
+  const data = m[2];
+  if (data.length < 16) return null;
+  if (mediaType === 'application/pdf') return { kind: 'pdf', data };
+  if ((SUPPORTED as readonly string[]).includes(mediaType)) return { kind: 'image', mediaType: mediaType as ImageMediaType, data };
+  return null;
+}

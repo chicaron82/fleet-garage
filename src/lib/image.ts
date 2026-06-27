@@ -32,3 +32,13 @@ export function compressImage(file: File): Promise<string> {
 export function compressDocumentImage(file: File): Promise<string> {
   return compress(file, 1600, 0.85);
 }
+
+/** Read a file (e.g. a PDF) to a base64 data URL as-is — no resizing. */
+export function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}

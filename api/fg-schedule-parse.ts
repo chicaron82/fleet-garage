@@ -6,7 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowed } from './_lib/assistantAccess.js';
-import { parseImageDataUrl } from './_lib/imageData.js';
+import { parseDocumentDataUrl } from './_lib/imageData.js';
 import type { ParsedSchedule, ParsedShiftType } from './_lib/scheduleParse.js';
 
 interface FgRequest {
@@ -31,7 +31,7 @@ function todayParts(): { iso: string; label: string } {
 }
 
 function buildPrompt(todayIso: string, todayLabel: string): string {
-  return `You are reading a printed staff WORK SCHEDULE photo — people in rows, days in columns, each cell a shift. It may be a SINGLE week, or MULTIPLE weeks STACKED vertically (each week with its own day/date header row). Extract every person and ALL of their cells.
+  return `You are reading a printed staff WORK SCHEDULE (a photo or a PDF) — people in rows, days in columns, each cell a shift. It may be a SINGLE week, or MULTIPLE weeks STACKED vertically (each week with its own day/date header row). Extract every person and ALL of their cells.
 
 Today is ${todayLabel} (${todayIso}). Use it to resolve YEARS: the sheet shows dates like "17-Apr" or a header like "JUNE 22 - JUNE 28" with no year — assume the year that puts the date nearest to today (usually the current year).
 
@@ -138,11 +138,17 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       return;
     }
 
-    const image = parseImageDataUrl(req.body?.image);
-    if (!image) {
-      res.status(400).json({ error: 'A schedule photo is required.' });
+    const doc = parseDocumentDataUrl(req.body?.image);
+    if (!doc) {
+      res.status(400).json({ error: 'A schedule photo or PDF is required.' });
       return;
     }
+    // Image → image block; PDF → a native document block (Claude reads the PDF directly,
+    // far crisper than a photo of the same sheet).
+    const docBlock: Anthropic.ContentBlockParam =
+      doc.kind === 'pdf'
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: doc.data } }
+        : { type: 'image', source: { type: 'base64', media_type: doc.mediaType, data: doc.data } };
 
     const { iso, label } = todayParts();
     const anthropic = new Anthropic({ apiKey });
@@ -155,10 +161,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       messages: [
         {
           role: 'user',
-          content: [
-            { type: 'text', text: 'Parse this staff schedule.' },
-            { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
-          ],
+          content: [{ type: 'text', text: 'Parse this staff schedule.' }, docBlock],
         },
       ],
     });
