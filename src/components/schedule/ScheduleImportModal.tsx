@@ -172,7 +172,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
                 <p className="min-w-[12rem] flex-1 text-xs text-gray-500 dark:text-gray-400">
                   {schedule.staff.length === 0
                     ? "Couldn't find any staff rows — make sure the photo is a staff schedule."
-                    : <>Parsed <b>{schedule.staff.length}</b> staff{span ? <> · <b>{span}</b></> : ''}. Check each row against the photo; tap a cell to fix its type.{unmatchedCount > 0 && <span className="text-rose-600 dark:text-rose-400"> {unmatchedCount} unassigned (skipped).</span>}</>}
+                    : <>Parsed <b>{schedule.staff.length}</b> staff{span ? <> · <b>{span}</b></> : ''}. Check each row against the photo; tap a cell to fix its type. On confirm, each assigned person's existing shifts in that range are <b>deleted and replaced</b>.{unmatchedCount > 0 && <span className="text-rose-600 dark:text-rose-400"> {unmatchedCount} unassigned (skipped).</span>}</>}
                 </p>
               </div>
               {schedule.staff.length > 0 && (
