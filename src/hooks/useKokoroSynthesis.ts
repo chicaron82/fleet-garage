@@ -27,10 +27,16 @@ function readEnabled(): boolean {
   try { return localStorage.getItem(ENABLED_KEY) === '1'; } catch { return false; }
 }
 
-// Module-level singleton + progress tracking.
+// Module-level singletons.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ttsPromise: Promise<any> | null = null;
-let _moduleProgress: number | null = null; // 0–100 while downloading, null when done
+// AudioContext is pre-warmed during the user gesture that enables Kokoro,
+// so subsequent speak() calls (which arrive asynchronously) aren't blocked
+// by the browser's autoplay policy.
+let _audioCtx: AudioContext | null = null;
+
+// Download progress tracking — subscriber pattern so the hook can reflect it.
+let _moduleProgress: number | null = null;
 const _progressSubs = new Set<() => void>();
 const _fileTotals: Record<string, number> = {};
 const _fileLoaded: Record<string, number> = {};
@@ -40,7 +46,6 @@ function _notifySubs() { _progressSubs.forEach((cb) => cb()); }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function _onProgress(p: Record<string, any>) {
   if (p.status === 'initiate' && p.file) {
-    // A new file is about to download — register it with 0 loaded.
     if (typeof p.total === 'number' && p.total > 0) _fileTotals[p.file] = p.total;
     _fileLoaded[p.file] = 0;
   } else if (p.status === 'progress' && p.file) {
@@ -85,14 +90,12 @@ export interface KokoroSynthesisApi {
 export function useKokoroSynthesis(): KokoroSynthesisApi {
   const [enabled, setEnabledState] = useState(readEnabled);
   const [voice, setVoiceState] = useState<KokoroVoice>(readVoice);
-  // 'unloaded' | 'ready' | 'error' — the resolved phase. modelState is derived.
   const [modelPhase, setModelPhase] = useState<'unloaded' | 'ready' | 'error'>('unloaded');
   const modelState: 'idle' | 'loading' | 'ready' | 'error' =
     !enabled ? 'idle' :
     modelPhase === 'ready' ? 'ready' :
     modelPhase === 'error' ? 'error' : 'loading';
 
-  // Subscribe to module-level progress notifications.
   const [downloadProgress, setDownloadProgress] = useState<number | null>(_moduleProgress);
   useEffect(() => {
     const update = () => setDownloadProgress(_moduleProgress);
@@ -100,18 +103,16 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     return () => { _progressSubs.delete(update); };
   }, []);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
+  // Web Audio source node for the current utterance — used for cancel().
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
 
-  // Kick off model load when enabled for the first time. All setState calls
-  // happen inside async callbacks — never synchronously in the effect body.
   useEffect(() => {
     if (!enabled || modelPhase !== 'unloaded') return;
     let alive = true;
     getTTS()
       .then(() => { if (alive) setModelPhase('ready'); })
       .catch(() => {
-        _ttsPromise = null; // allow retry on next enable
+        _ttsPromise = null;
         if (alive) setModelPhase('error');
       });
     return () => { alive = false; };
@@ -120,12 +121,15 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
   const setEnabled = useCallback((on: boolean) => {
     setEnabledState(on);
     try { localStorage.setItem(ENABLED_KEY, on ? '1' : '0'); } catch { /* private mode */ }
-    if (!on) {
-      audioRef.current?.pause();
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
-    } else {
-      // Reset phase so the effect retries if the user re-enables after an error.
+    if (on) {
+      // Pre-warm the AudioContext during this user gesture so that async speak()
+      // calls later aren't blocked by the browser's autoplay policy.
+      if (!_audioCtx) _audioCtx = new AudioContext();
+      void _audioCtx.resume();
       setModelPhase((p) => p === 'error' ? 'unloaded' : p);
+    } else {
+      sourceRef.current?.stop();
+      sourceRef.current = null;
     }
   }, []);
 
@@ -137,31 +141,35 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
   const speak = useCallback(
     (text: string) => {
       if (!enabled || !text.trim()) return;
-      // Cancel any in-flight utterance before starting a new one.
-      audioRef.current?.pause();
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+      sourceRef.current?.stop();
+      sourceRef.current = null;
 
-      getTTS().then((tts) => {
-        return tts.generate(text.trim(), { voice }).then((audio: { toWav: () => Uint8Array }) => {
-          // Cast via ArrayBuffer to satisfy strict Blob typing (Uint8Array<ArrayBufferLike>
-          // vs ArrayBuffer — runtime is identical, only the generic differs).
-          const wav = audio.toWav() as Uint8Array;
-          const blob = new Blob([wav.buffer as ArrayBuffer], { type: 'audio/wav' });
-          const url = URL.createObjectURL(blob);
-          blobUrlRef.current = url;
-          const el = new Audio(url);
-          audioRef.current = el;
-          el.onended = () => { URL.revokeObjectURL(url); blobUrlRef.current = null; };
-          void el.play();
-        });
-      }).catch(() => { /* model not ready or network error — stay silent */ });
+      // generate() returns { audio: Float32Array, sampling_rate: number }
+      // Play via Web Audio API — bypasses HTMLAudioElement autoplay restrictions
+      // since the AudioContext was pre-warmed during the enable gesture.
+      getTTS().then((tts) =>
+        tts.generate(text.trim(), { voice }).then(
+          (result: { audio: Float32Array; sampling_rate: number }) => {
+            const ctx = _audioCtx;
+            if (!ctx) return;
+            const buffer = ctx.createBuffer(1, result.audio.length, result.sampling_rate);
+            buffer.getChannelData(0).set(result.audio);
+            const source = ctx.createBufferSource();
+            sourceRef.current = source;
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.onended = () => { sourceRef.current = null; };
+            source.start();
+          },
+        )
+      ).catch(() => { /* model error — stay silent */ });
     },
     [enabled, voice],
   );
 
   const cancel = useCallback(() => {
-    audioRef.current?.pause();
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+    sourceRef.current?.stop();
+    sourceRef.current = null;
   }, []);
 
   return { enabled, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
