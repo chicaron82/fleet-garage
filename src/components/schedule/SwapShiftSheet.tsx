@@ -63,7 +63,7 @@ export function SwapShiftSheet({ shift, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center p-4" onClick={onClose}>
       <div
         className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-5 space-y-4 max-h-[85vh] overflow-y-auto transition-colors"
         onClick={e => e.stopPropagation()}
