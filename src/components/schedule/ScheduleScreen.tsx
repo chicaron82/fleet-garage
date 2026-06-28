@@ -113,32 +113,8 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
         title="Schedule"
         action={
           <div className="flex items-center gap-2">
-            {/* Roster staff — managers + leads only */}
-            {canSchedule && (
-              <button
-                onClick={() => setShowRoster(true)}
-                className="text-xs font-semibold text-gray-500 dark:text-gray-400 hover:underline cursor-pointer whitespace-nowrap"
-              >
-                Roster staff
-              </button>
-            )}
-            {/* Fill schedule */}
-            <button
-              onClick={() => setShowFill(true)}
-              className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
-            >
-              Fill range ↓
-            </button>
-            {/* Import from photo — managers + leads */}
-            {canSchedule && (
-              <button
-                onClick={() => setShowImport(true)}
-                className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
-              >
-                Import 📷
-              </button>
-            )}
-            {/* View toggle */}
+            {/* View toggle — the one control that earns a spot by the title;
+                roster/fill/import moved below the legend to declutter the header */}
             <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-semibold">
               <button
                 onClick={() => setViewMode('week')}
@@ -305,6 +281,32 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
         ? <WeekView today={today} visibleUserIds={effectiveVisibleIds} overlaps={myShift.overlaps} />
         : <CalendarView today={today} visibleUserIds={effectiveVisibleIds} />
       }
+
+      {/* Schedule admin — setup actions, tucked under the legend and out of the title row */}
+      <div className="flex items-center gap-3 flex-wrap pt-3 border-t border-gray-100 dark:border-gray-800">
+        {canSchedule && (
+          <button
+            onClick={() => setShowRoster(true)}
+            className="text-xs font-semibold text-gray-500 dark:text-gray-400 hover:underline cursor-pointer whitespace-nowrap"
+          >
+            Roster staff
+          </button>
+        )}
+        <button
+          onClick={() => setShowFill(true)}
+          className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
+        >
+          Fill range ↓
+        </button>
+        {canSchedule && (
+          <button
+            onClick={() => setShowImport(true)}
+            className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
+          >
+            Import 📷
+          </button>
+        )}
+      </div>
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
       {showImport  && <ScheduleImportModal onClose={() => setShowImport(false)} />}
