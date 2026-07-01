@@ -197,6 +197,22 @@ crew's records, destructive ops on real data. Note frontline writes are
 role-gated (`isVSA = 'VSA' || 'Lead VSA'`) — the bot's `profiles.role` is set
 per the verification at hand.
 
+## Dev/prod header parity — a prod-only trap
+
+`vite.config.ts` `server.headers` (dev) and `vercel.json` `headers` (prod) are
+**separate and don't inherit.** A feature depending on a response header can work
+in `npm run dev` and be silently dead in prod. This bit Effie's voice: the COOP/COEP
+isolation headers `SharedArrayBuffer` (Kokoro) needs were added to `vite.config` on
+June 27 but never to `vercel.json` — so `crossOriginIsolated` was `false` on
+`fleet-garage.vercel.app` and the voice failed silently for 4 days until someone
+tested speech on the *deployed* site (`c5dc30d` added the prod header as
+`credentialless`). When you add a header for a feature, add it to **both**, and
+verify on the deploy — `curl -sI https://fleet-garage.vercel.app` + a fresh-browser
+(no-SW) load evaluating the runtime effect. The authed-verify helper renders **dev**
+and will **not** catch a prod-only header gap. (PWA caveat: the SW caches the shell,
+so a returning client serves the old headers until the SW updates — hard-refresh to
+verify now.)
+
 ## Stack
 
 - React + TypeScript (strict) + Vite + Tailwind
