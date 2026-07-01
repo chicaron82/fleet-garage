@@ -50,4 +50,36 @@ describe('matchSchedule', () => {
       { profileId: null, confidence: 'none' },
     ]);
   });
+
+  it('resolves a bare name by elimination when its siblings are uniquely claimed', () => {
+    // The real two-Larrys case: "Larry J" claims Larry J, so the bare utility "LARRY"
+    // has only Larry C left → resolved (partial), no relabeling needed.
+    const larrys: RosterProfile[] = [{ id: 'lc', name: 'Larry C' }, { id: 'lj', name: 'Larry J' }];
+    const staff: ParsedStaffRow[] = [
+      { name: 'Larry J', cells: [] },
+      { name: 'LARRY', cells: [] },
+    ];
+    expect(matchSchedule(staff, larrys)).toEqual([
+      { profileId: 'lj', confidence: 'exact' },
+      { profileId: 'lc', confidence: 'partial' },
+    ]);
+  });
+
+  it('does NOT eliminate while more than one candidate is still open', () => {
+    // Two Aarons, neither claimed elsewhere → genuinely ambiguous, stays none (no guess).
+    const staff: ParsedStaffRow[] = [{ name: 'Aaron', cells: [] }];
+    expect(matchSchedule(staff, roster)).toEqual([{ profileId: null, confidence: 'none' }]);
+  });
+
+  it('order-independent: bare name first still resolves once its sibling is claimed', () => {
+    const larrys: RosterProfile[] = [{ id: 'lc', name: 'Larry C' }, { id: 'lj', name: 'Larry J' }];
+    const staff: ParsedStaffRow[] = [
+      { name: 'LARRY', cells: [] },   // ambiguous in pass 1
+      { name: 'Larry J', cells: [] }, // claims Larry J → elimination frees the bare one
+    ];
+    expect(matchSchedule(staff, larrys)).toEqual([
+      { profileId: 'lc', confidence: 'partial' },
+      { profileId: 'lj', confidence: 'exact' },
+    ]);
+  });
 });

@@ -41,29 +41,53 @@ export interface NameMatch {
 const norm = (s: string): string => s.trim().toLowerCase().replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim();
 
 /**
- * Match a name read off the grid to a roster profile. Exact full-name wins; else a
- * UNIQUE first-name (or clean partial) match is offered as 'partial'; anything ambiguous
- * or unmatched returns 'none' so the human assigns it in the preview. Never guesses among
- * collisions (two "Aaron"s → none).
+ * The roster profiles a read name *could* be: an exact full-name hit (one — or several,
+ * if the roster carries duplicate names) wins outright; otherwise everyone whose first
+ * name (or a clean partial) matches. Shared basis for both a single-row match and the
+ * cross-row elimination pass below.
  */
-export function matchStaffName(parsed: string, roster: RosterProfile[]): NameMatch {
+function candidatesFor(parsed: string, roster: RosterProfile[]): RosterProfile[] {
   const p = norm(parsed);
-  if (!p) return { profileId: null, confidence: 'none' };
-
+  if (!p) return [];
   const exact = roster.filter((r) => norm(r.name) === p);
-  if (exact.length === 1) return { profileId: exact[0].id, confidence: 'exact' };
-  if (exact.length > 1) return { profileId: null, confidence: 'none' }; // duplicate names → human picks
-
+  if (exact.length) return exact;
   const first = p.split(' ')[0];
-  const candidates = roster.filter((r) => {
+  return roster.filter((r) => {
     const rn = norm(r.name);
     return rn === first || rn.startsWith(`${first} `) || rn.split(' ')[0] === first || rn.includes(p);
   });
-  if (candidates.length === 1) return { profileId: candidates[0].id, confidence: 'partial' };
-  return { profileId: null, confidence: 'none' };
 }
 
-/** Match every parsed row to the roster (keeps row order). */
+/**
+ * Match a name read off the grid to a roster profile. Exact full-name wins ('exact');
+ * else a UNIQUE first-name / clean partial resolves ('partial'); anything ambiguous or
+ * unmatched returns 'none' so the human assigns it in the preview. Never guesses among
+ * collisions (two "Aaron"s → none).
+ */
+export function matchStaffName(parsed: string, roster: RosterProfile[]): NameMatch {
+  const cands = candidatesFor(parsed, roster);
+  if (cands.length !== 1) return { profileId: null, confidence: 'none' };
+  const only = cands[0];
+  return { profileId: only.id, confidence: norm(only.name) === norm(parsed) ? 'exact' : 'partial' };
+}
+
+/**
+ * Match every parsed row to the roster (keeps row order), then run an elimination pass:
+ * a name left ambiguous resolves if all but one of its candidates are already uniquely
+ * claimed by other rows. That's a *deduction*, not a guess — a sheet with "Larry J"
+ * (claims Larry J) plus a bare "LARRY" leaves only Larry C for the bare one. Claims are
+ * taken as we go, so two ambiguous rows can never both grab the same leftover profile.
+ */
 export function matchSchedule(staff: ParsedStaffRow[], roster: RosterProfile[]): NameMatch[] {
-  return staff.map((s) => matchStaffName(s.name, roster));
+  const results = staff.map((s) => matchStaffName(s.name, roster));
+  const claimed = new Set(results.map((m) => m.profileId).filter((id): id is string => id !== null));
+  results.forEach((m, i) => {
+    if (m.profileId) return;
+    const open = candidatesFor(staff[i].name, roster).filter((c) => !claimed.has(c.id));
+    if (open.length === 1) {
+      results[i] = { profileId: open[0].id, confidence: 'partial' };
+      claimed.add(open[0].id);
+    }
+  });
+  return results;
 }
