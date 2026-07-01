@@ -1,5 +1,24 @@
 # Fleet Garage — Claude Code Instructions
 
+## Personal-first — one operator, deep (2026-07-01)
+
+FG is **Aaron's personal tool**, not a shared platform — he is the sole active operator,
+and going forward we build **depth for him**, not breadth for many users. Key distinction:
+FG runs a **multi-person operation** (the whole crew's schedule, the fleet, the airport
+queue) but has **one operator** (Aaron).
+
+- **Build for the single operator's depth.** Effie + the UI may assume Aaron's context
+  (YWG, his role, his habits), personalise to him, and surface proactively (a "My Day"
+  cockpit is the flagship next move). The recall→knowing thesis turned *inward*: FG
+  knowing *him*, not just the operation.
+- **Keep the crew/fleet DATA multi-entity** — you still manage a team; don't collapse the
+  schedule/fleet to single-entity.
+- **Keep the substrate** — auth, RLS, roles, schema all stay (the "if another live account
+  activates" insurance). Wire a second operator's UX **then**, not now.
+- **Discipline is unchanged — personal ≠ hacky.** Everything below still applies; "clean
+  code IS fast code." Build new/shape-unknown ideas in **two passes** (pass 1: works +
+  green + rough-shaped; pass 2: extract/split/name/dedupe into proper order) — both green.
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`) stay under 330 lines.**
