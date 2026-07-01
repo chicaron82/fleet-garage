@@ -458,12 +458,16 @@ function todayLabelWinnipeg(iso: string): string {
 /** Read-only: who's on which shift for a date ("who's closing with me tonight?"). */
 async function executeLookupSchedule(
   supabase: SupabaseClient,
+  userId: string,
   input: { date?: string; shift_type?: string },
 ): Promise<string> {
   const date = input.date && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : todayInWinnipeg();
   const { data: shiftRows, error } = await supabase.from('shifts').select('user_id, shift_type').eq('date', date);
   if (error) throw error;
-  const rows = shiftRows ?? [];
+  // "Who's on WITH me" — exclude the asker from their own roster (this tool is always
+  // "with me" framed). Mirrors the cockpit's teammatesOnToday self-filter. If the asker
+  // is the only one on a shift, that group is empty → "nobody else", which is correct.
+  const rows = (shiftRows ?? []).filter((r) => r.user_id !== userId);
 
   const ids = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
   const names = new Map<string, string>();
@@ -749,7 +753,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             if (out.proposal) proposal = out.proposal;
             content = out.toolResult;
           } else if (tu.name === 'lookup_schedule') {
-            content = await executeLookupSchedule(supabase, tu.input as { date?: string; shift_type?: string });
+            content = await executeLookupSchedule(supabase, userData.user.id, tu.input as { date?: string; shift_type?: string });
           } else if (tu.name === 'lookup_my_shift') {
             content = await executeLookupMyShift(supabase, userData.user.id, tu.input as { days?: number });
           } else if (tu.name === 'search_lost_found') {
