@@ -67,7 +67,7 @@ no longer a warning tier. The only carve-outs in `eslint.config.js` are the
 ## Tests
 
 Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
-`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 74 of 79 `src/lib`
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 75 of 80 `src/lib`
 modules are tested; the remaining 5 gaps are all IO/glue (`audit-export`,
 `hold-export`, `image`, `supabase`, `vsaTripWrite`). When a new pure function
 lands in `src/lib/`, add its test under `tests/lib/` in the same commit.

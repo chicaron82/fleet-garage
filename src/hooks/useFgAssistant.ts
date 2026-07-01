@@ -4,8 +4,9 @@
 // proposal is a drafted hold the FAB renders as a confirm card — the proxy never
 // writes; the write happens on the user's tap. Token in the header so the proxy's
 // reads are RLS-scoped to this user — see api/fg-chat.ts.
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { loadThread, saveThread, clearThread } from '../lib/effieThread';
 import type { Proposal } from '../../api/_lib/holdProposal';
 
 export interface ChatMessage {
@@ -24,9 +25,16 @@ interface ChatEnvelope {
 }
 
 export function useFgAssistant() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Restore the visible thread from the last session (thread continuity) — text
+  // turns only; proposals + photos are never persisted (see lib/effieThread).
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () => (loadThread() ?? []).map((m) => ({ role: m.role, text: m.text })),
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Persist the thread whenever it settles so a reload doesn't wipe the chat.
+  useEffect(() => { saveThread(messages); }, [messages]);
 
   const send = useCallback(
     async (raw: string, module?: string, image?: string) => {
@@ -85,6 +93,7 @@ export function useFgAssistant() {
   const reset = useCallback(() => {
     setMessages([]);
     setError(null);
+    clearThread();
   }, []);
 
   return { messages, loading, error, send, reset, clearProposal };
