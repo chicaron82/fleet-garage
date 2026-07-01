@@ -695,6 +695,7 @@ export type Database = {
           quick_start_order: string[] | null
           role: string
           roster_only: boolean
+          utility: boolean
         }
         Insert: {
           branch_id: string
@@ -705,6 +706,7 @@ export type Database = {
           quick_start_order?: string[] | null
           role: string
           roster_only?: boolean
+          utility?: boolean
         }
         Update: {
           branch_id?: string
@@ -715,6 +717,7 @@ export type Database = {
           quick_start_order?: string[] | null
           role?: string
           roster_only?: boolean
+          utility?: boolean
         }
         Relationships: []
       }
@@ -1487,6 +1490,7 @@ export type Database = {
           quick_start_order: string[] | null
           role: string
           roster_only: boolean
+          utility: boolean
         }
         SetofOptions: {
           from: "*"

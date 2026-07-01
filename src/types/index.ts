@@ -106,6 +106,10 @@ export interface User {
   /** True for board-only staff (schedule entered for them; they never log in).
    *  Real authenticated users are undefined/false. See migration 082. */
   rosterOnly?: boolean;
+  /** Display flag: a utility/maintenance staffer (e.g. the in-house PM-cars person).
+   *  Shades + tags their schedule row to set them apart from drivers — does NOT
+   *  affect role or scheduling group. See migration 087. */
+  utility?: boolean;
 }
 
 /**

@@ -122,12 +122,15 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                 <tr
                   key={u.id}
                   className={`border-t border-gray-100 dark:border-gray-800 ${
-                    isMe ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : ''
+                    isMe ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : u.utility ? 'bg-slate-200/70 dark:bg-slate-700/40' : ''
                   }`}
                 >
                   <td className="py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                     <div>{u.name.split(' ')[0]}</div>
                     <div className="text-gray-400 dark:text-gray-600 font-normal">{u.role.replace('Operations Manager', 'Ops Mgr').replace('Branch Manager', 'Br. Mgr')}</div>
+                    {u.utility && (
+                      <div className="mt-0.5 inline-block rounded bg-slate-200 px-1 text-[9px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">🔧 Utility</div>
+                    )}
                     {!isMe && overlaps?.get(u.id) != null && (
                       <div className="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400">{fmtOverlap(overlaps.get(u.id)!)} w/ you</div>
                     )}
