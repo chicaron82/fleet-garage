@@ -5,6 +5,11 @@ import { getNavItemsForRole } from '../../lib/navigation';
 import { isRealAccount } from '../../lib/demo-accounts';
 
 const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: string }> = {
+  'my-day': {
+    what: 'Your at-a-glance cockpit. Leads with today\'s shift and who\'s on with you, then your first action — log the fleet balance if it\'s available, otherwise your afternoon check-in — followed by a throughput glance and anything that needs attention. It doesn\'t replace the deep screens; it points you at the right one fast.',
+    roles: ['VSA', 'Lead VSA'],
+    mockNote: 'Assembles live data from your schedule, fleet balance, and holds — nothing seeded of its own. What you see is your real day.',
+  },
   'holds': {
     what: 'The core of Fleet Garage. Log damage holds, mechanical issues, and detail flags. Every hold is timestamped and tied to the person who created it. Managers approve releases — their Employee ID is permanently attached to every decision. A release streak counter flags vehicles being sent out repeatedly without repair.',
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],

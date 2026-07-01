@@ -3,6 +3,7 @@ import type { Screen } from '../types';
 export function screenToPath(screen: Screen): string {
   switch (screen.name) {
     case 'dashboard':       return '/';
+    case 'my-day':          return '/my-day';
     case 'vehicle':         return `/vehicle/${screen.vehicleId}`;
     case 'my-shift':        return '/shift';
     case 'schedule':        return '/schedule';
@@ -27,6 +28,7 @@ export function pathToScreen(path: string): Screen | null {
   const vehicleMatch = path.match(/^\/vehicle\/(.+)$/);
   if (vehicleMatch) return { name: 'vehicle', vehicleId: vehicleMatch[1] };
   switch (path) {
+    case '/my-day':         return { name: 'my-day' };
     case '/shift':          return { name: 'my-shift' };
     case '/schedule':       return { name: 'schedule' };
     case '/lost-and-found': return { name: 'lost-and-found' };

@@ -11,6 +11,7 @@ export interface NavItem {
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
+  { module: 'my-day',  label: 'My Day',        icon: '🌅', defaultScreen: { name: 'my-day' } },
   { module: 'holds',   label: 'Holds',         icon: '🔧', defaultScreen: { name: 'dashboard' } },
   { module: 'check-in',       label: 'Check-in',      icon: '📸', defaultScreen: { name: 'check-in' } },
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
@@ -26,8 +27,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['holds', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
-  'Lead VSA':            ['holds', 'check-in', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
+  'VSA':                 ['my-day', 'holds', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
+  'Lead VSA':            ['my-day', 'holds', 'check-in', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest'],
   'CSR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'HIR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'Branch Manager':      ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
@@ -71,6 +72,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   
   // Preferred default based on role
   let preferred: Screen = { name: 'dashboard' };
+  if (role === 'VSA' || role === 'Lead VSA') preferred = { name: 'my-day' };
   if (role === 'Driver') preferred = { name: 'movement-log' };
   if (role === 'HIR') preferred = { name: 'check-in' };
   if (role === 'CSR') preferred = { name: 'manifest' };

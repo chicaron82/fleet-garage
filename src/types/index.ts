@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'holds' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
+export type Module = 'my-day' | 'holds' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -300,6 +300,7 @@ export interface ScannedPayload {
 
 export type Screen =
   | { name: 'dashboard' }
+  | { name: 'my-day' }
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }

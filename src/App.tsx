@@ -20,6 +20,7 @@ import type { Screen } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
 const HoldsView          = lazy(() => import('./components/dashboard/HoldsView').then(m => ({ default: m.HoldsView })));
+const MyDayView          = lazy(() => import('./components/my-day/MyDayView').then(m => ({ default: m.MyDayView })));
 const VehicleHistory     = lazy(() => import('./components/vehicle/VehicleHistory').then(m => ({ default: m.VehicleHistory })));
 const NewHoldForm        = lazy(() => import('./components/holds/NewHoldForm').then(m => ({ default: m.NewHoldForm })));
 const RegisterVehicleForm = lazy(() => import('./components/vehicle/RegisterVehicleForm').then(m => ({ default: m.RegisterVehicleForm })));
@@ -166,6 +167,8 @@ export default function App() {
             }}
           />
         );
+      case 'my-day':
+        return <MyDayView onNavigate={navigate} />;
       case 'check-in':
         return <CheckInView onFlagIssue={(vehicleId) => navigate({ name: 'new-hold', vehicleId })} />;
       case 'movement-log':
