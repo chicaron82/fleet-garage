@@ -27,7 +27,8 @@ export function EffieSettingsPanel({ kokoro, onClose }: Props) {
     onClose();
   };
 
-  const modelLabel = kokoro.modelState === 'loading' ? ' (downloading…)' :
+  const modelLabel = !kokoro.available ? ' (not supported here)' :
+    kokoro.modelState === 'loading' ? ' (downloading…)' :
     kokoro.modelState === 'error' ? ' (load failed — retry)' : '';
 
   return (
@@ -64,8 +65,10 @@ export function EffieSettingsPanel({ kokoro, onClose }: Props) {
             </span>
             <button
               onClick={() => {
-                if (kokoro.modelState === 'error') {
-                  // reset so the useEffect retries
+                if (kokoro.available && kokoro.modelState === 'error') {
+                  // reset so the useEffect retries (only worth it when Kokoro can
+                  // actually run here — otherwise it's an unsupported context, not
+                  // a transient load failure).
                   kokoro.setEnabled(false);
                   setTimeout(() => kokoro.setEnabled(true), 0);
                 } else {

@@ -27,6 +27,17 @@ function readEnabled(): boolean {
   try { return localStorage.getItem(ENABLED_KEY) === '1'; } catch { return false; }
 }
 
+// Kokoro runs onnxruntime-web's threaded WASM, which needs SharedArrayBuffer —
+// available only in a cross-origin-isolated context (COOP + COEP headers). Where
+// that's absent (e.g. a deploy missing the headers), the model can't run, so
+// callers should fall back to Web Speech instead of attempting a doomed load
+// that fails silently.
+function kokoroAvailable(): boolean {
+  return typeof window !== 'undefined'
+    && window.crossOriginIsolated === true
+    && typeof SharedArrayBuffer !== 'undefined';
+}
+
 // Module-level singletons.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ttsPromise: Promise<any> | null = null;
@@ -77,6 +88,9 @@ function getTTS(): Promise<any> {
 
 export interface KokoroSynthesisApi {
   enabled: boolean;
+  /** True only in a cross-origin-isolated context (SharedArrayBuffer present).
+   *  When false, Kokoro can't run — the caller should fall back to Web Speech. */
+  available: boolean;
   setEnabled: (on: boolean) => void;
   voice: KokoroVoice;
   setVoice: (v: KokoroVoice) => void;
@@ -89,10 +103,12 @@ export interface KokoroSynthesisApi {
 
 export function useKokoroSynthesis(): KokoroSynthesisApi {
   const [enabled, setEnabledState] = useState(readEnabled);
+  const [available] = useState(kokoroAvailable);
   const [voice, setVoiceState] = useState<KokoroVoice>(readVoice);
   const [modelPhase, setModelPhase] = useState<'unloaded' | 'ready' | 'error'>('unloaded');
   const modelState: 'idle' | 'loading' | 'ready' | 'error' =
     !enabled ? 'idle' :
+    !available ? 'error' :
     modelPhase === 'ready' ? 'ready' :
     modelPhase === 'error' ? 'error' : 'loading';
 
@@ -107,7 +123,7 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
-    if (!enabled || modelPhase !== 'unloaded') return;
+    if (!enabled || !available || modelPhase !== 'unloaded') return;
     let alive = true;
     getTTS()
       .then(() => { if (alive) setModelPhase('ready'); })
@@ -116,7 +132,7 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
         if (alive) setModelPhase('error');
       });
     return () => { alive = false; };
-  }, [enabled, modelPhase]);
+  }, [enabled, available, modelPhase]);
 
   const setEnabled = useCallback((on: boolean) => {
     setEnabledState(on);
@@ -140,7 +156,7 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
 
   const speak = useCallback(
     (text: string) => {
-      if (!enabled || !text.trim()) return;
+      if (!enabled || !available || !text.trim()) return;
       sourceRef.current?.stop();
       sourceRef.current = null;
 
@@ -164,7 +180,7 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
         )
       ).catch(() => { /* model error — stay silent */ });
     },
-    [enabled, voice],
+    [enabled, available, voice],
   );
 
   const cancel = useCallback(() => {
@@ -172,5 +188,5 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     sourceRef.current = null;
   }, []);
 
-  return { enabled, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
+  return { enabled, available, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
 }

@@ -46,10 +46,15 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
   const webTts = useSpeechSynthesis();
   const kokoro = useKokoroSynthesis();
-  // Kokoro takes priority when enabled; falls back to Web Speech API.
-  const ttsEnabled = kokoro.enabled ? true : webTts.enabled;
-  const ttsSpeak = kokoro.enabled ? kokoro.speak : webTts.speak;
-  const ttsCancel = kokoro.enabled ? kokoro.cancel : webTts.cancel;
+  // Kokoro takes priority when it can actually run (needs cross-origin isolation
+  // for SharedArrayBuffer). If the user turned it on but this context can't run it
+  // — e.g. a deploy missing the COOP/COEP headers — fall back to Web Speech so
+  // Effie still talks instead of failing silently.
+  const kokoroActive = kokoro.enabled && kokoro.available;
+  const kokoroFellBack = kokoro.enabled && !kokoro.available && webTts.supported;
+  const ttsEnabled = kokoroActive || webTts.enabled || kokoroFellBack;
+  const ttsSpeak = kokoroActive ? kokoro.speak : webTts.speak;
+  const ttsCancel = kokoroActive ? kokoro.cancel : webTts.cancel;
   const ttsSupportedOrEnabled = kokoro.enabled || webTts.supported;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

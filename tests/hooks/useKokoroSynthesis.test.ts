@@ -41,6 +41,9 @@ describe('useKokoroSynthesis', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    // Default to a cross-origin-isolated context so the model actually loads.
+    // The one unavailable-context test overrides this to false.
+    Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true, writable: true });
     // Base implementations — stay set across clearAllMocks (which only clears call history).
     mockFromPretrained.mockResolvedValue(mockTts);
     mockResume.mockResolvedValue(undefined);
@@ -60,9 +63,21 @@ describe('useKokoroSynthesis', () => {
   it('starts disabled with af_sky voice and idle model state', () => {
     const { result } = renderHook(() => useKokoroSynthesis());
     expect(result.current.enabled).toBe(false);
+    expect(result.current.available).toBe(true);
     expect(result.current.voice).toBe('af_sky');
     expect(result.current.modelState).toBe('idle');
     expect(result.current.downloadProgress).toBeNull();
+  });
+
+  it('is unavailable without cross-origin isolation — modelState error, speak stays silent', () => {
+    // No SharedArrayBuffer context → Kokoro can't run; the FAB falls back to Web Speech.
+    Object.defineProperty(window, 'crossOriginIsolated', { value: false, configurable: true, writable: true });
+    const { result } = renderHook(() => useKokoroSynthesis());
+    expect(result.current.available).toBe(false);
+    act(() => result.current.setEnabled(true));
+    expect(result.current.modelState).toBe('error');
+    act(() => result.current.speak('LUR187 cleared for gate 4.'));
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   it('reads persisted voice from localStorage on mount', () => {
