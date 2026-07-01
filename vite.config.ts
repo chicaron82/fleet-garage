@@ -53,9 +53,14 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     headers: {
-      // WASM + SharedArrayBuffer (used by onnxruntime-web) require COOP/COEP in dev.
+      // WASM + SharedArrayBuffer (used by onnxruntime-web, Effie's voice) require
+      // cross-origin isolation in dev. `credentialless` still delivers it
+      // (crossOriginIsolated stays true → SharedArrayBuffer works) but loads
+      // no-CORS cross-origin subresources *without credentials* instead of
+      // blocking them — so public Supabase damage photos render in dev instead of
+      // tripping ERR_BLOCKED_BY_RESPONSE. Dev-only; prod (Vercel) sets no COEP.
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
     },
   },
   build: {
