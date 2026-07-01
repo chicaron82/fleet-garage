@@ -62,6 +62,18 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
+    // Plain `vite` doesn't run the Vercel serverless functions in api/, so
+    // /api/fg-chat (Effie) 404s locally. Proxy /api/* to the deployed functions so
+    // Effie answers in dev too. NOTE: this hits the DEPLOYED backend (prod env +
+    // keys) — it exercises *deployed* Effie, not local edits to api/fg-chat.ts; for
+    // that use `vercel dev`. Dev already shares the prod Supabase project, so this
+    // adds no new data exposure.
+    proxy: {
+      '/api': {
+        target: 'https://fleet-garage.vercel.app',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     // react-pdf (@react-pdf/renderer, ~1.4 MB raw) is the only chunk over the
