@@ -2,15 +2,18 @@
 // Slides up from inside the chat panel; persists to localStorage.
 import { useEffect, useRef, useState } from 'react';
 import { KOKORO_VOICES, type KokoroSynthesisApi, type KokoroVoice } from '../../hooks/useKokoroSynthesis';
+import type { EffieMemory } from '../../hooks/useEffieMemory';
 
 const CALLSIGN_KEY = 'fg_effie_callsign';
 
 interface Props {
   kokoro: KokoroSynthesisApi;
+  memories: EffieMemory[];
+  onForget: (id: string) => Promise<boolean>;
   onClose: () => void;
 }
 
-export function EffieSettingsPanel({ kokoro, onClose }: Props) {
+export function EffieSettingsPanel({ kokoro, memories, onForget, onClose }: Props) {
   const [draft, setDraft] = useState<string>(() => {
     try { return localStorage.getItem(CALLSIGN_KEY) ?? ''; } catch { return ''; }
   });
@@ -117,6 +120,36 @@ export function EffieSettingsPanel({ kokoro, onClose }: Props) {
         )}
         {kokoro.enabled && kokoro.modelState === 'error' && (
           <p className="text-[11px] text-red-500">Model failed to load. Toggle off and on to retry.</p>
+        )}
+      </div>
+
+      {/* What Effie remembers (#2) — see + forget durable memories. The curate/
+          delete surface: a memory store that only grows becomes noise, and a wrong
+          memory is worse than none, so forgetting has to be one tap. */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          What Effie remembers
+        </label>
+        {memories.length === 0 ? (
+          <p className="text-[11px] text-gray-400">
+            Nothing yet. Tell Effie &ldquo;remember that&hellip;&rdquo; and confirm the card to save a standing note.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {memories.map((m) => (
+              <div key={m.id} className="flex items-start justify-between gap-2 rounded-lg bg-gray-100 px-3 py-2 dark:bg-gray-800">
+                <span className="text-sm text-gray-700 dark:text-gray-300">{m.content}</span>
+                <button
+                  onClick={() => void onForget(m.id)}
+                  aria-label="Forget this"
+                  title="Forget this"
+                  className="shrink-0 text-lg leading-none text-gray-400 transition hover:text-red-500 cursor-pointer"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

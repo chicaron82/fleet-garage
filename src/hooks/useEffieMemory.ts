@@ -1,0 +1,50 @@
+// Client access to Effie's durable per-operator memory (#2): the operator's saved
+// facts, scoped to their profile. `add` is the confirm-tap write path (FgAssistantFab);
+// `memories` + `remove` power the settings-panel management surface — the "curate,
+// don't accumulate" + "wrong memory is worse than none" guards. The server injects
+// these into Effie's context each turn (see api/fg-chat.ts).
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+
+export interface EffieMemory {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+export function useEffieMemory() {
+  const { user } = useAuth();
+  const [memories, setMemories] = useState<EffieMemory[]>([]);
+
+  // Only setState after the await (async) — never synchronously in the effect body,
+  // which would trip react-hooks/set-state-in-effect.
+  const reload = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('effie_memory')
+      .select('id, content, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setMemories((data ?? []).map((r) => ({ id: r.id, content: r.content, createdAt: r.created_at })));
+  }, [user]);
+
+  // Load-on-mount / on user change — the fetch setStates after its await; the rule
+  // still flags the call, so suppress it exactly like ActiveSessionsContext.refresh.
+  useEffect(() => { void reload(); }, [reload]); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const add = useCallback(async (content: string): Promise<boolean> => {
+    if (!user) return false;
+    const { error } = await supabase.from('effie_memory').insert({ user_id: user.id, content });
+    if (!error) await reload();
+    return !error;
+  }, [user, reload]);
+
+  const remove = useCallback(async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('effie_memory').delete().eq('id', id);
+    if (!error) await reload();
+    return !error;
+  }, [reload]);
+
+  return { memories, add, remove, reload };
+}

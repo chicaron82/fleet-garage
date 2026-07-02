@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useFgAssistant } from '../../hooks/useFgAssistant';
+import { useEffieMemory } from '../../hooks/useEffieMemory';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
 import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
@@ -37,6 +38,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const { user } = useAuth();
   const { addHold, addVehicle } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
+  const effieMemory = useEffieMemory();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [image, setImage] = useState<string | null>(null);
@@ -127,10 +129,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       if (!ok) throw new Error('Could not log the item — check connection and try again.');
       return;
     }
-    // Memory (#2) — the only write path for an AI-drafted memory: insert on the tap.
+    // Memory (#2) — the only write path for an AI-drafted memory: save on the tap.
     if (proposal.kind === 'memory') {
-      const { error: memErr } = await supabase.from('effie_memory').insert({ user_id: user.id, content: proposal.content });
-      if (memErr) throw new Error('Could not save that memory — check connection and try again.');
+      const ok = await effieMemory.add(proposal.content);
+      if (!ok) throw new Error('Could not save that memory — check connection and try again.');
       return;
     }
     const holdTypes: HoldType[] = [proposal.holdType as HoldType];
@@ -218,7 +220,14 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
             </div>
           </div>
 
-          {showSettings && <EffieSettingsPanel kokoro={kokoro} onClose={() => setShowSettings(false)} />}
+          {showSettings && (
+            <EffieSettingsPanel
+              kokoro={kokoro}
+              memories={effieMemory.memories}
+              onForget={effieMemory.remove}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
 
           {/* Kokoro download progress — visible while the model is loading */}
           {kokoro.modelState === 'loading' && (
