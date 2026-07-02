@@ -182,9 +182,14 @@ export function useCheckInIntake() {
     );
     if (!insertResult) { setSubmitting(false); return; }
     const { error } = insertResult;
-
-    setSubmitting(false);
-    if (error) { setSaveError(true); return; }
+    if (error) { setSubmitting(false); setSaveError(true); return; }
+    // Keep `submitting` true (button reads "Saving…") through the downstream
+    // writes below — the vehicle lock only covers the insert above, and it's
+    // in-flight-only, so re-arming the button here would let an impatient tap
+    // during the found-items batch (photo uploads — seconds on mobile) mint a
+    // SECOND check-in row. None of the downstream calls throw (EV write
+    // swallows, addHold is caught, addLostFoundItem returns a bool), so every
+    // path reaches the resolution at the bottom.
 
     // Propagate the observed EV status to the canonical profile + unified timeline
     // (so the profile stops silently staying wrong, from the check-in angle too).
@@ -235,6 +240,7 @@ export function useCheckInIntake() {
     }
 
     setSubmitted(true);
+    setSubmitting(false);
 
     // Fire-and-forget registry write — records arrival timestamp for turnaround tracking
     void createOrEnrichRegistry({
