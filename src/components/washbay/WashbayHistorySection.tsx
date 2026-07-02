@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
+import { withSubmitLock } from '../../lib/submitLock';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { convertToBackendFormat, convertFromBackend } from '../../lib/gas-sheet';
@@ -144,46 +145,53 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
       entered_at:          new Date().toISOString(),
     };
 
-    try {
-      const existing = backfillEntries.find(b => b.date.startsWith(openDate));
-      if (existing) {
-        const { error } = await writeWithRefresh(() =>
-          supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id),
-        );
-        if (error) throw error;
-        setBackfillEntries(prev => prev.map(b => b.id === existing.id ? {
-          ...b,
-          fullPages, lastPageEntries,
-          carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
-          cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
-          carryOver:        form.carryOver,
-          teamSize:         form.teamSize,
-          overtimeHours:    form.overtimeHours,
-        } : b));
-      } else {
-        const { data, error } = await writeWithRefresh(() =>
-          supabase.from('washbay_backfill_logs').insert(payload).select('id').single(),
-        );
-        if (error) throw error;
-        setBackfillEntries(prev => [...prev, {
-          id:               (data as { id: string }).id,
-          date:             openDate,
-          fullPages, lastPageEntries,
-          carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
-          cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
-          carryOver:        form.carryOver,
-          teamSize:         form.teamSize,
-          overtimeHours:    form.overtimeHours,
-          enteredBy:        user.id,
-          enteredAt:        new Date().toISOString(),
-        }]);
+    // Find-or-insert per date: a same-frame double-tap sees "no existing entry"
+    // twice and files two backfill logs for one day — a double-counted
+    // throughput number. Both taps carry the identical payload, so the drop
+    // semantic is right here (nothing is lost with the second tap).
+    await withSubmitLock(`backfill:${user.branchId}:${openDate}`, async () => {
+      try {
+        const existing = backfillEntries.find(b => b.date.startsWith(openDate));
+        if (existing) {
+          const { error } = await writeWithRefresh(() =>
+            supabase.from('washbay_backfill_logs').update(payload).eq('id', existing.id),
+          );
+          if (error) throw error;
+          setBackfillEntries(prev => prev.map(b => b.id === existing.id ? {
+            ...b,
+            fullPages, lastPageEntries,
+            carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
+            cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
+            carryOver:        form.carryOver,
+            teamSize:         form.teamSize,
+            overtimeHours:    form.overtimeHours,
+          } : b));
+        } else {
+          const { data, error } = await writeWithRefresh(() =>
+            supabase.from('washbay_backfill_logs').insert(payload).select('id').single(),
+          );
+          if (error) throw error;
+          setBackfillEntries(prev => [...prev, {
+            id:               (data as { id: string }).id,
+            date:             openDate,
+            fullPages, lastPageEntries,
+            carsRemaining:    parseInt(String(form.carsRemaining)) || 0,
+            cleanNotPickedUp: parseInt(String(form.cleanNotPickedUp)) || 0,
+            carryOver:        form.carryOver,
+            teamSize:         form.teamSize,
+            overtimeHours:    form.overtimeHours,
+            enteredBy:        user.id,
+            enteredAt:        new Date().toISOString(),
+          }]);
+        }
+        setOpenDate(null);
+      } catch {
+        setSaveError('Save failed — please try again.');
+      } finally {
+        setSaving(false);
       }
-      setOpenDate(null);
-    } catch {
-      setSaveError('Save failed — please try again.');
-    } finally {
-      setSaving(false);
-    }
+    });
+    setSaving(false); // dropped re-entrant tap: reset the spinner it flipped on
   };
 
   return (

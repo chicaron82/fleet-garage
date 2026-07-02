@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from './supabase';
+import { withKeyedQueue } from './keyedQueue';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
 import type { Database } from '../types/database.types';
@@ -193,7 +194,7 @@ export async function lookupRegistryAnyDate(
 
 // ── Create or enrich ──────────────────────────────────────────────────────────
 
-export async function createOrEnrichRegistry(params: {
+interface CreateOrEnrichParams {
   branchId:     string;
   vehicleId?:   string | null;
   plate?:       string | null;
@@ -207,7 +208,25 @@ export async function createOrEnrichRegistry(params: {
   dispatchedAt?: string | null;
   needsReview?: boolean;
   date?: string;
-}): Promise<VehicleRegistryEntry | null> {
+}
+
+/**
+ * Serialize concurrent calls for the same vehicle+day. This find-or-insert is
+ * hit from several fire-and-forget sites (check-in intake, new-hold, movement,
+ * the lost-found plate `remember`) — two concurrent calls both saw "no row yet"
+ * and both inserted a duplicate. Queued (not lock-dropped: each call can carry
+ * enrichment the others don't), the second call runs after the first and finds
+ * the fresh row to enrich. Keyed plate-first to match lookupRegistry's priority.
+ * NB: a DB unique index would be the wrong fix — the merge_candidate flow
+ * deliberately inserts a second same-day row pending a human merge.
+ */
+export async function createOrEnrichRegistry(params: CreateOrEnrichParams): Promise<VehicleRegistryEntry | null> {
+  const targetDate = params.date ?? localDateStr(0);
+  const queueKey = `registry:${params.branchId}:${targetDate}:${params.plate ?? params.unitNumber ?? 'anon'}`;
+  return withKeyedQueue(queueKey, () => createOrEnrichUnqueued({ ...params, date: targetDate }));
+}
+
+async function createOrEnrichUnqueued(params: CreateOrEnrichParams): Promise<VehicleRegistryEntry | null> {
   const { branchId, date, ...fields } = params;
   const targetDate = date ?? localDateStr(0);
 

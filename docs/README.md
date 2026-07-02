@@ -28,7 +28,6 @@
 ## 📥 Open tickets
 
 - [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
-- [bug-submit-lock-sweep.md](bug-submit-lock-sweep.md) — 6 tap-mint inserts locked 2026-07-01 (lost-found, whiteboard, check-in, fuel, EV-loan, handoff + a test). **Still open:** the vehicle-registry find-or-insert needs a DB unique-constraint + upsert (a drop-lock would lose enrichment), plus a short review list (trip-start leg, manual off-standard, Effie memory).
 
 _The whole "Hey FG" assistant arc (riffed 2026-06-26/27) is shipped — voice, key-tag scan, schedule import (parse → preview → write) + the FAB navigation bridge. See `June/` + the chicharons blog._
 
