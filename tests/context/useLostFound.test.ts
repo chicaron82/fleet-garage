@@ -76,6 +76,18 @@ describe('addLostFoundItem', () => {
     expect([r1, r2].filter(Boolean)).toHaveLength(1); // exactly one reports success
   });
 
+  it('sequential identical items both insert (the lock releases between awaits)', async () => {
+    // The check-in batch runs sequentially for exactly this reason: two REAL
+    // items can share a description (two phone chargers). In order, each write
+    // completes before the next starts, so the content key never collides.
+    const slice = makeSlice();
+    const a = await slice.addLostFoundItem({ description: 'Phone charger' });
+    const b = await slice.addLostFoundItem({ description: 'Phone charger' });
+    expect(fromCalls.filter(t => t === 'lost_found')).toHaveLength(2);
+    expect(a).toBe(true);
+    expect(b).toBe(true);
+  });
+
   it('distinct items in one batch each insert (key is content, not just reporter)', async () => {
     // Mirrors the check-in intake batch: one shared plate, different descriptions.
     // The content key must let both through — a reporter-only key would collapse

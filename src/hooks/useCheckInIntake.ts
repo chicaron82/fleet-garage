@@ -215,14 +215,23 @@ export function useCheckInIntake() {
 
     const validItems = foundItems.filter(i => i.description.trim());
     if (validItems.length > 0) {
-      await Promise.all(validItems.map(item => addLostFoundItem({
-        description:  item.description.trim(),
-        location:     item.location,
-        itemPhoto:    item.additionalPhoto,
-        licensePlate: scanned.vehicle.licensePlate,
-        unitNumber:   scanned.vehicle.unitNumber ?? undefined,
-      })));
-      setLoggedCount(validItems.length);
+      // Sequential, not Promise.all: addLostFoundItem's submit lock keys on
+      // content, so two batch items with the SAME description (two phone
+      // chargers) fired concurrently would collide on the key and silently
+      // drop one row. Run in order — the lock releases between items — and
+      // count what actually landed rather than what we attempted.
+      let logged = 0;
+      for (const item of validItems) {
+        const ok = await addLostFoundItem({
+          description:  item.description.trim(),
+          location:     item.location,
+          itemPhoto:    item.additionalPhoto,
+          licensePlate: scanned.vehicle.licensePlate,
+          unitNumber:   scanned.vehicle.unitNumber ?? undefined,
+        });
+        if (ok) logged++;
+      }
+      setLoggedCount(logged);
     }
 
     setSubmitted(true);
