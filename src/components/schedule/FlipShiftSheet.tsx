@@ -7,16 +7,10 @@ import { ClockPicker } from './ClockPicker';
 import { ShiftActualHours } from './ShiftActualHours';
 import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
+import { SHIFT_TYPE_LABEL } from '../../lib/shiftTypeMeta';
 
-const TYPE_LABELS: Record<ShiftType, string> = {
-  'opening': 'Opening',
-  'mid':     'Mid',
-  'closing': 'Closing',
-  'day-off': 'Day Off',
-  'pto':     'PTO',
-  'sick':    'Sick',
-};
-
+// Button tones stay local: active/idle are this sheet's own render context
+// (Tailwind needs literal classes per context — see lib/shiftTypeMeta's header).
 const TYPE_ACTIVE: Record<ShiftType, string> = {
   'opening': 'bg-blue-500 text-white',
   'mid':     'bg-teal-500 text-white',
@@ -139,7 +133,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
 
         {/* Type buttons — 3×2 grid */}
         <div className="grid grid-cols-3 gap-1.5">
-          {(Object.keys(TYPE_LABELS) as ShiftType[]).map(t => (
+          {(Object.keys(SHIFT_TYPE_LABEL) as ShiftType[]).map(t => (
             <button
               key={t}
               onClick={() => handleTypeChange(t)}
@@ -147,7 +141,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
                 shiftType === t ? TYPE_ACTIVE[t] : TYPE_IDLE[t]
               }`}
             >
-              {TYPE_LABELS[t]}
+              {SHIFT_TYPE_LABEL[t]}
             </button>
           ))}
         </div>

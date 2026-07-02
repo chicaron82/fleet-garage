@@ -1,6 +1,7 @@
 import type { ShiftType, ShiftWithUser } from '../types';
 import { EXPECTED_PUMP2, type FuelReport } from './fuelReadings';
 import { holdTypeLabel } from './holdTypeLabels';
+import { shiftTypeSentence } from './shiftTypeMeta';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -70,22 +71,13 @@ export function formatDateStr(dateISO: string): string {
   });
 }
 
-const SHIFT_TYPE_LABEL: Record<ShiftType, string> = {
-  opening:   'Opening shift',
-  mid:       'Mid shift',
-  closing:   'Closing shift',
-  'day-off': 'Day Off',
-  pto:       'PTO',
-  sick:      'Sick Day',
-};
-
 export function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date: string): string {
   const dayShifts = shifts.filter(s => s.userId === userId && s.date === date);
   if (dayShifts.length === 0) return '8-hour shift';
   const withTimes = dayShifts.find(s => s.startTime && s.endTime);
   const chosen = withTimes ?? dayShifts[0];
   if (!chosen) return '8-hour shift';
-  const label = SHIFT_TYPE_LABEL[chosen.shiftType] ?? 'Shift';
+  const label = shiftTypeSentence(chosen.shiftType);
   return chosen.startTime && chosen.endTime
     ? `${label} ${chosen.startTime}–${chosen.endTime}`
     : label;

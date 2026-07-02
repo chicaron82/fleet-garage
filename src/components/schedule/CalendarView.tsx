@@ -5,8 +5,11 @@ import { DayDetailModal } from './DayDetailModal';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
 import { calcOT, fmtHours } from '../../lib/ot';
+import { fmtTime24 } from '../../lib/shiftTypeMeta';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
+// Dot colors are this view's own context (note closing uses the fg-yellow brand
+// token, deliberately unlike the shared pill's yellow tint) — stays local.
 const TYPE_DOT: Record<ShiftType, string> = {
   'opening': 'bg-blue-400',
   'mid':     'bg-teal-400',
@@ -104,7 +107,7 @@ export function CalendarView({ today, visibleUserIds }: Props) {
                         ? 'text-gray-400 dark:text-gray-600'
                         : 'text-gray-600 dark:text-gray-400'
                     }`}>
-                      {myShift.shiftType === 'day-off' ? 'Off' : myShift.startTime?.slice(0, 5)}
+                      {myShift.shiftType === 'day-off' ? 'Off' : fmtTime24(myShift.startTime)}
                     </span>
                     {calcOT(myShift) > 0 && (
                       <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 px-1 leading-none">

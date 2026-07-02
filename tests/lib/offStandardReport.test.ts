@@ -3,7 +3,6 @@ import {
   fmtMinutes,
   fmtTime,
   rowToOffStandard,
-  shiftTypeLabel,
   deriveShiftLine,
   generateOffStandardReport,
   deriveExplanation,
@@ -84,21 +83,8 @@ describe('rowToOffStandard', () => {
   });
 });
 
-// ── shiftTypeLabel ────────────────────────────────────────────────────────────
-
-describe('shiftTypeLabel', () => {
-  it('uses friendly labels for non-working types', () => {
-    expect(shiftTypeLabel('day-off')).toBe('Day Off');
-    expect(shiftTypeLabel('pto')).toBe('PTO');
-    expect(shiftTypeLabel('sick')).toBe('Sick Day');
-  });
-
-  it('capitalises working shift types', () => {
-    expect(shiftTypeLabel('opening')).toBe('Opening shift');
-    expect(shiftTypeLabel('closing')).toBe('Closing shift');
-    expect(shiftTypeLabel('mid')).toBe('Mid shift');
-  });
-});
+// shiftTypeLabel consolidated into lib/shiftTypeMeta.shiftTypeSentence —
+// covered in shiftTypeMeta.test.ts; deriveShiftLine below still exercises it.
 
 // ── deriveShiftLine ───────────────────────────────────────────────────────────
 

@@ -6,6 +6,7 @@ import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
 import { ShareTextButton } from '../shared/ShareTextButton';
 import { shiftDayWindow } from '../../lib/shiftDay';
+import { fmtTime24 } from '../../lib/shiftTypeMeta';
 import {
   buildShiftPartition,
   deriveUserShift,
@@ -224,9 +225,8 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       // When actual hours are logged, show the real clock window on the report
       // instead of the standard per-type range (or the unreliable checkpoint span).
-      const hhmm = (t: string) => t.slice(0, 5);
       const actualWindowLabel = myShift?.actualStartTime && myShift?.actualEndTime
-        ? `${hhmm(myShift.actualStartTime)}–${hhmm(myShift.actualEndTime)}`
+        ? `${fmtTime24(myShift.actualStartTime)}–${fmtTime24(myShift.actualEndTime)}`
         : null;
 
       throughput = {

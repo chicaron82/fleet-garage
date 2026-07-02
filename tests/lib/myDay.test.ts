@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  greeting, fmtTime, shiftTimeRange, carsCleaned, teammatesOnToday, deriveMyDay,
+  greeting, carsCleaned, teammatesOnToday, deriveMyDay,
 } from '../../src/lib/myDay';
 import type { ShiftWithUser, ShiftType } from '../../src/types';
 
@@ -29,21 +29,7 @@ describe('greeting', () => {
   });
 });
 
-describe('fmtTime', () => {
-  it('trims HH:MM:SS to HH:MM and handles undefined', () => {
-    expect(fmtTime('06:45:00')).toBe('06:45');
-    expect(fmtTime('06:45')).toBe('06:45');
-    expect(fmtTime(undefined)).toBe('');
-  });
-});
-
-describe('shiftTimeRange', () => {
-  it('formats a range, null when either end is missing', () => {
-    expect(shiftTimeRange('06:45:00', '15:30:00')).toBe('06:45 – 15:30');
-    expect(shiftTimeRange(undefined, '15:30')).toBeNull();
-    expect(shiftTimeRange('06:45', undefined)).toBeNull();
-  });
-});
+// fmtTime24 / shiftTimeRange moved to lib/shiftTypeMeta — tested in shiftTypeMeta.test.ts.
 
 describe('carsCleaned', () => {
   it('is full pages of 19 plus the last-page entries', () => {
@@ -94,7 +80,7 @@ describe('deriveMyDay', () => {
     const shifts = [shift({ userId: 'me', date: today, shiftType: 'day-off', name: 'Aaron S' })];
     const m = deriveMyDay({ ...base, shifts });
     expect(m.working).toBe(false);
-    expect(m.shiftLabel).toBe('Day off');
+    expect(m.shiftLabel).toBe('Day Off');
     expect(m.shiftTime).toBeNull();
   });
 

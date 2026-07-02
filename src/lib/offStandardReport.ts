@@ -1,5 +1,6 @@
-import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OffStdEditStatus, ShiftType, ShiftWithUser, User } from '../types';
+import type { OffStandardEntry, OffStandardReason, OffStandardPresetReason, OffStdEditStatus, ShiftWithUser, User } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
+import { shiftTypeSentence } from './shiftTypeMeta';
 
 export interface TripRow {
   depart_time: string;
@@ -52,13 +53,6 @@ export function rowToOffStandard(row: Record<string, unknown>): OffStandardEntry
   };
 }
 
-export function shiftTypeLabel(shiftType: ShiftType): string {
-  if (shiftType === 'day-off') return 'Day Off';
-  if (shiftType === 'pto') return 'PTO';
-  if (shiftType === 'sick') return 'Sick Day';
-  return `${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} shift`;
-}
-
 export function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date?: string): string {
   const today = date ?? localDateStr(0);
   const todaysShifts = shifts.filter(s => s.userId === userId && s.date === today);
@@ -68,7 +62,7 @@ export function deriveShiftLine(shifts: ShiftWithUser[], userId: string, date?: 
   const chosen = withTimes ?? todaysShifts[0];
   if (!chosen) return '8-hour shift';
 
-  const label = shiftTypeLabel(chosen.shiftType);
+  const label = shiftTypeSentence(chosen.shiftType);
   if (chosen.startTime && chosen.endTime) {
     return `${label} ${chosen.startTime}-${chosen.endTime}`;
   }

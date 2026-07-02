@@ -1,16 +1,7 @@
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import type { ShiftType } from '../../types';
-
-const SHIFT_COLORS: Record<ShiftType, string> = {
-  'opening': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-  'mid':     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
-  'closing': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-  'day-off': 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
-  'pto':     'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
-  'sick':    'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
-};
+import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
 
 function fmtTime(t?: string): string {
   if (!t) return '';
@@ -78,8 +69,8 @@ export function DayDetailModal({ date, onClose, onAddShift, visibleUserIds }: Pr
                       isPto
                         ? (pending
                             ? 'border border-dashed border-violet-400 text-violet-600 dark:text-violet-400'
-                            : SHIFT_COLORS['pto'])
-                        : SHIFT_COLORS[shift.shiftType]
+                            : SHIFT_TYPE_PILL['pto'])
+                        : SHIFT_TYPE_PILL[shift.shiftType]
                     }`}>
                       {shift.shiftType === 'day-off' ? 'Day Off'
                         : isPto ? (pending ? 'PTO · pending' : 'PTO ✓')

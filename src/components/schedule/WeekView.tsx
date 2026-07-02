@@ -9,16 +9,10 @@ import { fmtOverlap } from '../../lib/shiftOverlap';
 import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
+import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
 
-const SHIFT_COLORS: Record<ShiftType, string> = {
-  'opening': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-  'mid':     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
-  'closing': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-  'day-off': 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
-  'pto':     'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
-  'sick':    'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
-};
-
+// The grid's compact ALL-CAPS badges are this view's own dialect (not the shared
+// short labels), and the 12h '4:00p' time is deliberately compact for cell width.
 const FULL_DAY_LABEL: Partial<Record<ShiftType, string>> = {
   'day-off': 'OFF',
   'pto':     'PTO',
@@ -152,7 +146,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                             className={`w-full px-1 py-1 rounded-md text-xs font-medium transition ${
                               shift.shiftType === 'pto' && !shift.ptoApproved
                                 ? 'border border-dashed border-violet-400 text-violet-600 dark:text-violet-400'
-                                : SHIFT_COLORS[shift.shiftType]
+                                : SHIFT_TYPE_PILL[shift.shiftType]
                             } ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                           >
                             {isFullDayShift(shift.shiftType) ? (
@@ -212,7 +206,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
       <div className="flex flex-wrap gap-3 text-xs px-1">
         {(['opening', 'mid', 'closing', 'day-off', 'pto', 'sick'] as ShiftType[]).map(t => (
           <div key={t} className="flex items-center gap-1.5">
-            <div className={`w-2.5 h-2.5 rounded-sm ${SHIFT_COLORS[t].split(' ')[0]}`} />
+            <div className={`w-2.5 h-2.5 rounded-sm ${SHIFT_TYPE_PILL[t].split(' ')[0]}`} />
             <span className="text-gray-500 dark:text-gray-400 capitalize">
               {t === 'day-off' ? 'Day off' : t === 'pto' ? 'PTO' : t === 'sick' ? 'Sick' : t.charAt(0).toUpperCase() + t.slice(1)}
             </span>
