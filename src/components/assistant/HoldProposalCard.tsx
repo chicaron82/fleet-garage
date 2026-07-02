@@ -1,8 +1,8 @@
-// The confirm card for a drafted proposal — a hold, a register+hold, or a lost &
-// found log. The AI proposed it (the proxy wrote nothing); only the Confirm tap here
-// calls the real mutation via onConfirm. Owns its own submit/done/error state so the
-// card becomes a receipt ("✓ Hold opened" / "✓ Logged") once it lands — the single
-// write path for an AI-suggested action.
+// The confirm card for a drafted proposal — a hold, a register+hold, a lost & found
+// log, or a memory to remember. The AI proposed it (the proxy wrote nothing); only
+// the Confirm tap here calls the real mutation via onConfirm. Owns its own
+// submit/done/error state so the card becomes a receipt ("✓ Hold opened" / "✓
+// Logged" / "✓ Saved") once it lands — the single write path for an AI-suggested action.
 import { useState } from 'react';
 import { describeNewVehicle, type Proposal } from '../../../api/_lib/holdProposal';
 import { lostItemLocationLabel } from '../../../api/_lib/lostItemProposal';
@@ -91,6 +91,42 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
             className="flex-1 rounded-lg bg-amber-500 py-1.5 text-xs font-semibold text-white hover:bg-amber-400 disabled:opacity-60 cursor-pointer"
           >
             {status === 'submitting' ? 'Working…' : status === 'error' ? 'Retry' : 'Log item'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Memory — Effie's own "remember this about you" (#2). Blue, not amber: it's a
+  // personal note, not an ops write. Shares the submit/done/error machinery above.
+  if (proposal.kind === 'memory') {
+    if (status === 'done') {
+      return (
+        <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400">
+          <CheckIcon />
+          <span>Saved — I&apos;ll remember that.</span>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-xl border border-blue-300/60 bg-blue-50 px-3 py-2.5 dark:border-blue-500/30 dark:bg-blue-500/10">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700 dark:text-blue-400">Remember this?</p>
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.content}</p>
+        {status === 'error' && <p className="mt-1 text-xs text-red-500">{errMsg}</p>}
+        <div className="mt-2.5 flex gap-2">
+          <button
+            onClick={onDismiss}
+            disabled={status === 'submitting'}
+            className="flex-1 rounded-lg border border-gray-300 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirm}
+            disabled={status === 'submitting'}
+            className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 cursor-pointer"
+          >
+            {status === 'submitting' ? 'Saving…' : status === 'error' ? 'Retry' : 'Remember'}
           </button>
         </div>
       </div>

@@ -127,6 +127,12 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       if (!ok) throw new Error('Could not log the item — check connection and try again.');
       return;
     }
+    // Memory (#2) — the only write path for an AI-drafted memory: insert on the tap.
+    if (proposal.kind === 'memory') {
+      const { error: memErr } = await supabase.from('effie_memory').insert({ user_id: user.id, content: proposal.content });
+      if (memErr) throw new Error('Could not save that memory — check connection and try again.');
+      return;
+    }
     const holdTypes: HoldType[] = [proposal.holdType as HoldType];
     if (proposal.kind === 'register_and_hold') {
       const nv = proposal.newVehicle;

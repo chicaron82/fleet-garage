@@ -37,6 +37,7 @@ import {
   LOST_ITEM_LOCATIONS,
   type LostItemProposal,
 } from './_lib/lostItemProposal.js';
+import { buildMemoryProposal, describeMemoryProposal, type MemoryProposal } from './_lib/memoryProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
@@ -104,7 +105,9 @@ When the user attaches a photo of a KEY TAG (a printed vehicle tag showing field
 - The colour/body line (e.g. "WHI 4DR"): the colour code (WHI = White, BLK = Black, SIL = Silver, GRY = Gray, BLU = Blue, RED = Red) and body style.
 Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.
 
-When the user wants to IMPORT THE SCHEDULE from a photo ("I want to import the new schedule", "load the schedule from a photo"), that's done on the Schedule screen — confirm it's possible and call propose_navigation with destination "schedule-import" to OFFER to take them there. More generally, if they want to go to or do something that lives on another screen (lost & found, issue log, my shift, check-in, movement log), offer propose_navigation for the right destination. Phrase it as an offer — "That's on the Schedule screen — want me to take you there?" — and let the confirm card do the navigating. Never claim you navigated or performed the action yourself.`;
+When the user wants to IMPORT THE SCHEDULE from a photo ("I want to import the new schedule", "load the schedule from a photo"), that's done on the Schedule screen — confirm it's possible and call propose_navigation with destination "schedule-import" to OFFER to take them there. More generally, if they want to go to or do something that lives on another screen (lost & found, issue log, my shift, check-in, movement log), offer propose_navigation for the right destination. Phrase it as an offer — "That's on the Schedule screen — want me to take you there?" — and let the confirm card do the navigating. Never claim you navigated or performed the action yourself.
+
+When the operator asks you to REMEMBER something about them, or states a lasting preference or fact clearly worth recalling on a future day ("remember that I run mids", "I prefer set schedules over rotating"), call propose_memory with ONE concise fact phrased about them — it DRAFTS a confirm card and is never saved until they tap it. Don't propose a memory for one-off task requests or things that change every shift. Your saved standing notes about the operator appear in Context — use them to personalize naturally, never recite them back as a list.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -232,6 +235,21 @@ const TOOLS: Anthropic.Tool[] = [
         notes: { type: 'string', description: 'Any extra context the user gives.' },
       },
       required: ['description'],
+    },
+  },
+  {
+    name: 'propose_memory',
+    description:
+      'Draft a durable note to REMEMBER about the operator, for them to confirm. Use when they explicitly ask you to remember something ("remember that I run mids", "remember my sister is learning to drive") OR state a lasting preference/fact clearly worth recalling next time. NOT for one-off task requests or transient status. This does NOT save it — it returns a draft the operator taps to confirm. Keep it to a single concise fact.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'The single concise fact to remember, phrased about the operator (e.g. "Runs mid shifts", "Prefers set schedules over rotating").',
+        },
+      },
+      required: ['content'],
     },
   },
   {
@@ -588,6 +606,26 @@ function executeProposeLostItem(input: {
   };
 }
 
+/** Draft a memory to save about the operator. Pure — the write happens on the
+ *  client's confirm tap (insert into effie_memory), never here. */
+function executeProposeMemory(input: { content?: string }): { toolResult: string; proposal: MemoryProposal | null } {
+  const proposal = buildMemoryProposal({ content: input.content ?? null });
+  if (!proposal) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({ ok: false, reason: 'Need the specific thing to remember first — ask the operator what to note.' }),
+    };
+  }
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeMemoryProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is saved, just that it is drafted for them to confirm',
+    }),
+  };
+}
+
 /**
  * Offer to navigate the user to a screen. NEVER writes or navigates — it returns a
  * confirm card the client renders; only the user's tap navigates (and even then, only
@@ -692,6 +730,17 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     ];
     if (callSign) contextBits.push(`Address the operator as "${callSign}" — not by their profile name.`);
     if (moduleName) contextBits.push(`The user is currently on the "${moduleName}" screen — be relevant to it, but answer anything they ask.`);
+    // Effie's durable memory (#2): inject the operator's saved facts so she personalizes.
+    const { data: memRows } = await supabase
+      .from('effie_memory')
+      .select('content')
+      .eq('user_id', userData.user.id)
+      .order('created_at', { ascending: false })
+      .limit(20); // bound the context — a fact store, not a transcript
+    const memories = (memRows ?? []).map((m) => m.content).filter((c): c is string => !!c);
+    if (memories.length > 0) {
+      contextBits.push(`Standing notes the operator asked you to remember (use them naturally; don't recite the list): ${memories.map((m) => `• ${m}`).join(' ')}`);
+    }
     const system = `${SYSTEM_PROMPT}\n\nContext: ${contextBits.join(' ')}`;
 
     // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
@@ -770,6 +819,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             const out = executeProposeLostItem(
               tu.input as { description?: string; location?: string; license_plate?: string; notes?: string },
             );
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else if (tu.name === 'propose_memory') {
+            const out = executeProposeMemory(tu.input as { content?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
             content = out.toolResult;
           } else {
