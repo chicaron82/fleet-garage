@@ -35,10 +35,14 @@ export function useEffieMemory() {
 
   const add = useCallback(async (content: string): Promise<boolean> => {
     if (!user) return false;
+    // Idempotent: an exact duplicate (case/whitespace-insensitive) is a success,
+    // not a second row — both copies would otherwise inject into Effie's context.
+    const norm = content.trim().toLowerCase();
+    if (memories.some((m) => m.content.trim().toLowerCase() === norm)) return true;
     const { error } = await supabase.from('effie_memory').insert({ user_id: user.id, content });
     if (!error) await reload();
     return !error;
-  }, [user, reload]);
+  }, [user, memories, reload]);
 
   const remove = useCallback(async (id: string): Promise<boolean> => {
     const { error } = await supabase.from('effie_memory').delete().eq('id', id);

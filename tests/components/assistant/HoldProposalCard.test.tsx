@@ -32,6 +32,11 @@ const navigateProposal: Proposal = {
   label: 'Schedule — Import from photo',
 };
 
+const memoryProposal: Proposal = {
+  kind: 'memory',
+  content: 'Runs mid shifts',
+};
+
 describe('HoldProposalCard', () => {
   it('shows the drafted hold details', () => {
     render(<HoldProposalCard proposal={proposal} onConfirm={vi.fn()} onDismiss={vi.fn()} />);
@@ -103,5 +108,32 @@ describe('HoldProposalCard', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('renders a memory draft and confirms to a saved receipt', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    render(<HoldProposalCard proposal={memoryProposal} onConfirm={onConfirm} onDismiss={vi.fn()} />);
+    expect(screen.getByText('Remember this?')).toBeInTheDocument();
+    expect(screen.getByText('Runs mid shifts')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Remember'));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText(/I'll remember that/)).toBeInTheDocument());
+  });
+
+  it('a memory draft can be cancelled without saving', () => {
+    const onConfirm = vi.fn();
+    const onDismiss = vi.fn();
+    render(<HoldProposalCard proposal={memoryProposal} onConfirm={onConfirm} onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('a failed memory save surfaces the error and offers Retry', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new Error('Could not save that memory — check connection and try again.'));
+    render(<HoldProposalCard proposal={memoryProposal} onConfirm={onConfirm} onDismiss={vi.fn()} />);
+    fireEvent.click(screen.getByText('Remember'));
+    await waitFor(() => expect(screen.getByText(/Could not save that memory/)).toBeInTheDocument());
+    expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 });

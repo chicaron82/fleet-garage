@@ -61,7 +61,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const spokenRef = useRef(-1);
+  // Seed to the RESTORED thread's tail (thread continuity restores messages at
+  // mount) so a reload never re-speaks a stale answer aloud — only turns that land
+  // after mount are read. Empty thread → -1, the original behavior.
+  const spokenRef = useRef(messages.length - 1);
 
   // The login id = the part before @fleet-garage.internal in the auth email —
   // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
