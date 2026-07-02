@@ -28,6 +28,8 @@
 ## 📥 Open tickets
 
 - [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
+- [bug-submit-lock-sweep.md](bug-submit-lock-sweep.md) — newer insert families (lost-found, whiteboard, vehicle registry + a triage list) mint rows without `withSubmitLock`; double-tap = duplicate row. From the 2026-07-01 line-check.
+- [ticket-docs-archive-hygiene.md](ticket-docs-archive-hygiene.md) — stray `2026/06/` archive dialect (two washbay tickets → `June/`) + duplicate top-level `Budget.xlsx`. From the 2026-07-01 line-check.
 
 _The whole "Hey FG" assistant arc (riffed 2026-06-26/27) is shipped — voice, key-tag scan, schedule import (parse → preview → write) + the FAB navigation bridge. See `June/` + the chicharons blog._
 
