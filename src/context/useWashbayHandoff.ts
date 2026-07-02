@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { WashbayLog, HandoffNote, LotStatus, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { mapWashbayLog, mapHandoffNote } from '../lib/garage-mappers';
 import { localDateStr } from '../hooks/useFleetBalance';
 
@@ -86,30 +87,36 @@ export function useWashbayHandoff(
   }): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
-    try {
-      const { data: row, error } = await writeWithRefresh(() =>
-        supabase.from('handoff_notes').insert({
-          branch_id:          branchId,
-          logged_by:          user!.id,
-          logged_by_name:     user!.name,
-          logged_at:          loggedAt,
-          full_pages:         data.fullPages,
-          last_page_entries:  data.lastPageEntries,
-          team_size:          data.teamSize,
-          lot_status:         data.lotStatus,
-          notes:              data.notes ?? null,
-          morning_hours:      data.morningHours ?? 8.0,
-          carry_over_cleared: data.carryOverCleared ?? 0,
-          airport_flipping:   data.airportFlipping ?? false,
-        }).select().single()
-      );
-      if (error) throw error;
-      setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
-      return true;
-    } catch (err) {
-      console.error('Failed to submit handoff note:', err);
-      return false;
-    }
+    // Each insert mints a fresh row, so a same-frame double-tap files two handoff
+    // notes for the shift. Guard on branch + reporter + day; a dropped re-entrant
+    // tap resolves undefined → report false (no insert performed).
+    const result = await withSubmitLock(`handoff:${branchId}:${user!.id}:${localDateStr(0)}`, async (): Promise<boolean> => {
+      try {
+        const { data: row, error } = await writeWithRefresh(() =>
+          supabase.from('handoff_notes').insert({
+            branch_id:          branchId,
+            logged_by:          user!.id,
+            logged_by_name:     user!.name,
+            logged_at:          loggedAt,
+            full_pages:         data.fullPages,
+            last_page_entries:  data.lastPageEntries,
+            team_size:          data.teamSize,
+            lot_status:         data.lotStatus,
+            notes:              data.notes ?? null,
+            morning_hours:      data.morningHours ?? 8.0,
+            carry_over_cleared: data.carryOverCleared ?? 0,
+            airport_flipping:   data.airportFlipping ?? false,
+          }).select().single()
+        );
+        if (error) throw error;
+        setHandoffNotes(prev => [mapHandoffNote(row), ...prev]);
+        return true;
+      } catch (err) {
+        console.error('Failed to submit handoff note:', err);
+        return false;
+      }
+    });
+    return result ?? false;
   };
 
   return { washbayLogs, handoffNotes, latestHandoff, submitWashbayLog, getTodayWashbayLog, submitHandoff, setWashbayLogs, setHandoffNotes };

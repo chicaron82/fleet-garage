@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { ASSET_LABEL } from '../lib/evAssetLoans';
 import type { EvAssetLoan, EvLoanAsset, Vehicle } from '../types';
 
@@ -42,12 +43,18 @@ export function makeEvAssetLoanOps(deps: {
   ) => {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    const { error } = await writeWithRefresh(() => supabase.from('ev_asset_loans').insert({
-      id, lender_vehicle_id: lenderVehicleId, asset_type: assetType,
-      borrower_unit: borrowerUnit.trim(), status: 'out', notes,
-      created_at: now, created_by: userId,
-    }));
-    if (error) return;
+    // Fresh id per call, so a same-frame double-tap opens two loans for the same
+    // asset. Guard on lender + asset + borrower — a dropped re-entrant tap resolves
+    // undefined, skipping the local append too.
+    const result = await withSubmitLock(
+      `evloan:${lenderVehicleId}:${assetType}:${borrowerUnit.trim().toLowerCase()}`,
+      () => writeWithRefresh(() => supabase.from('ev_asset_loans').insert({
+        id, lender_vehicle_id: lenderVehicleId, asset_type: assetType,
+        borrower_unit: borrowerUnit.trim(), status: 'out', notes,
+        created_at: now, created_by: userId,
+      })),
+    );
+    if (!result || result.error) return;
     setLoans(prev => [{
       id, lenderVehicleId, assetType, borrowerUnit: borrowerUnit.trim(), status: 'out',
       notes, createdAt: now, createdBy: userId, returnedAt: null, returnedBy: null,

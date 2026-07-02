@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { localDateStr } from './useFleetBalance';
 import { analogPumped, digitalDelta, pump2Status, digitalWentUp, EXPECTED_PUMP2 } from '../lib/fuelReadings';
 import type { User } from '../types';
@@ -101,13 +102,20 @@ export function useFuelPumpReadings(user: User) {
         supabase.from('fuel_pump_readings').update(payload).eq('id', savedId)
       ));
     } else {
-      const res = await writeWithRefresh(() =>
-        supabase.from('fuel_pump_readings').insert({
-          branch_id: user.branchId,
-          date:      localDateStr(0),
-          ...payload,
-        }).select('id').single()
+      // First save of the day mints a row; `savedId` only flips on the next render,
+      // so a same-frame double-tap would insert two readings for the same
+      // branch+day (double-counting fuel). Guard on branch+date — a dropped
+      // re-entrant tap resolves undefined, leaving `saving` to reset below.
+      const res = await withSubmitLock(`fuelreading:${user.branchId}:${localDateStr(0)}`, () =>
+        writeWithRefresh(() =>
+          supabase.from('fuel_pump_readings').insert({
+            branch_id: user.branchId,
+            date:      localDateStr(0),
+            ...payload,
+          }).select('id').single()
+        )
       );
+      if (!res) { setSaving(false); return; }
       error = res.error;
       if (!error && res.data) setSavedId((res.data as { id: string }).id);
     }

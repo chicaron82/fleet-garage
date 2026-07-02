@@ -7,6 +7,7 @@ import type { InlineFoundItem } from '../components/lost-and-found/LostFoundItem
 import { parseFleetBarcode } from '../lib/barcode';
 import { hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { isTesla } from '../lib/vehicles';
 import { createOrEnrichRegistry } from '../lib/vehicleRegistry';
 import type { Vehicle, ConditionRating, CheckInRouting, EvAssetStatus, HoldType } from '../types';
@@ -154,25 +155,33 @@ export function useCheckInIntake() {
     const derivedRouting = deriveRouting(interiorCondition, exteriorCondition);
     const isTeslaVehicle = isTesla(scanned.vehicle);
 
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicle_checkins').insert({
-        branch_id:          user.branchId,
-        vehicle_id:         scanned.vehicle.id,
-        vehicle_unit:       scanned.vehicle.unitNumber ?? '',
-        vehicle_plate:      scanned.vehicle.licensePlate,
-        checked_in_by_id:   user.id,
-        checked_in_by_name: user.name,
-        mileage:            mileage ? Number(mileage) : null,
-        fuel_level:         fuelLevel,
-        photo_count:        photoCount,
-        interior_condition: interiorCondition,
-        exterior_condition: exteriorCondition,
-        routing:            derivedRouting,
-        condition_notes:    conditionNotes.trim() || null,
-        ev_cable_status:    isTeslaVehicle ? (evCableStatus ?? null) : null,
-        ev_adapter_status:  isTeslaVehicle ? (evAdapterStatus ?? null) : null,
-      })
+    // `submitting` only disables on the next render, so a same-frame double-tap
+    // files two check-in rows for the vehicle (and re-runs the found-items batch
+    // below). Guard the insert on the vehicle; a dropped re-entrant tap resolves
+    // undefined, so bail out of the whole submit before the downstream writes.
+    const insertResult = await withSubmitLock(`checkin:${scanned.vehicle.id}`, () =>
+      writeWithRefresh(() =>
+        supabase.from('vehicle_checkins').insert({
+          branch_id:          user.branchId,
+          vehicle_id:         scanned.vehicle.id,
+          vehicle_unit:       scanned.vehicle.unitNumber ?? '',
+          vehicle_plate:      scanned.vehicle.licensePlate,
+          checked_in_by_id:   user.id,
+          checked_in_by_name: user.name,
+          mileage:            mileage ? Number(mileage) : null,
+          fuel_level:         fuelLevel,
+          photo_count:        photoCount,
+          interior_condition: interiorCondition,
+          exterior_condition: exteriorCondition,
+          routing:            derivedRouting,
+          condition_notes:    conditionNotes.trim() || null,
+          ev_cable_status:    isTeslaVehicle ? (evCableStatus ?? null) : null,
+          ev_adapter_status:  isTeslaVehicle ? (evAdapterStatus ?? null) : null,
+        })
+      )
     );
+    if (!insertResult) { setSubmitting(false); return; }
+    const { error } = insertResult;
 
     setSubmitting(false);
     if (error) { setSaveError(true); return; }

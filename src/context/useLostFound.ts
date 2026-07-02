@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { LostFoundItem, LostFoundLocation, LostFoundStatus, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { uploadLostFoundPhoto } from '../lib/garage-uploads';
 import { useVehicleByPlate } from '../hooks/useVehicleByPlate';
 
@@ -50,73 +51,87 @@ export function useLostFound(
     notes?: string;
   }): Promise<boolean> => {
     if (!user) return false;
-    const itemId = crypto.randomUUID();
-    const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
-    const foundAt = new Date().toISOString();
 
-    // Resolve the plate through the shared primitive: a fleet match (any branch)
-    // wins, else a remembered registry sighting — so a plate logged once is
-    // recognized here and everywhere after.
-    let unitNumber = data.unitNumber;
-    let vehicleMake: string | undefined;
-    let knownVehicleId: string | null = null;
-    if (data.licensePlate) {
-      const known = await resolve(data.licensePlate);
-      if (known) {
-        unitNumber = known.unitNumber ?? unitNumber;
-        const veh = [known.year, known.make, known.model].filter(Boolean).join(' ');
-        vehicleMake = veh || undefined;
-        knownVehicleId = known.vehicleId;
-      }
-    }
+    // A fresh crypto.randomUUID() is minted below per call, so two same-frame taps
+    // would insert two rows (and duplicate the photo uploads). Guard on the logical
+    // target — reporter + content — so a double-tap collapses to one insert while a
+    // batch of distinct items (check-in intake) still inserts each. Keyed on content,
+    // not the UUID, so it's stable across the two taps. Include location because the
+    // check-in batch passes one shared plate to every item, so description+location
+    // is what keeps two genuinely different found items in a batch from colliding.
+    const key = `lostfound:${user.id}:${(data.description ?? '').trim().toLowerCase()}:${(data.licensePlate ?? '').trim().toLowerCase()}:${data.location ?? ''}`;
+    const result = await withSubmitLock(key, async (): Promise<boolean> => {
+      const itemId = crypto.randomUUID();
+      const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
+      const foundAt = new Date().toISOString();
 
-    const [keyTagPhotoUrl, itemPhotoUrl] = await Promise.all([
-      data.keyTagPhoto ? uploadLostFoundPhoto(data.keyTagPhoto, itemId, 'key-tag') : Promise.resolve(null),
-      data.itemPhoto   ? uploadLostFoundPhoto(data.itemPhoto,   itemId, 'item')    : Promise.resolve(null),
-    ]);
-
-    try {
-      const { error } = await writeWithRefresh(() =>
-        supabase.from('lost_found').insert({
-          id:            itemId,
-          branch_id:     branchId,
-          found_by:      user.id,
-          found_by_name: user.name,
-          found_at:      foundAt,
-          key_tag_photo: keyTagPhotoUrl ?? null,
-          item_photo:    itemPhotoUrl ?? null,
-          description:   data.description ?? null,
-          location:      data.location ?? null,
-          license_plate: data.licensePlate ?? null,
-          unit_number:   unitNumber ?? null,
-          vehicle_make:  vehicleMake ?? null,
-          status:        'holding',
-          notes:         data.notes ?? null,
-        })
-      );
-      if (error) return false;
-      // Stage the plate so it's recognized next time — best-effort, links to the
-      // fleet vehicle when one matched, else seeds a remembered identity.
+      // Resolve the plate through the shared primitive: a fleet match (any branch)
+      // wins, else a remembered registry sighting — so a plate logged once is
+      // recognized here and everywhere after.
+      let unitNumber = data.unitNumber;
+      let vehicleMake: string | undefined;
+      let knownVehicleId: string | null = null;
       if (data.licensePlate) {
-        void remember(data.licensePlate, { unitNumber: unitNumber ?? null, vehicleId: knownVehicleId });
+        const known = await resolve(data.licensePlate);
+        if (known) {
+          unitNumber = known.unitNumber ?? unitNumber;
+          const veh = [known.year, known.make, known.model].filter(Boolean).join(' ');
+          vehicleMake = veh || undefined;
+          knownVehicleId = known.vehicleId;
+        }
       }
-      const newItem: LostFoundItem = {
-        id: itemId, branchId,
-        foundById: user.id, foundByName: user.name, foundAt,
-        keyTagPhotoUrl: keyTagPhotoUrl ?? undefined,
-        itemPhotoUrl: itemPhotoUrl ?? undefined,
-        description: data.description,
-        location: data.location,
-        licensePlate: data.licensePlate,
-        unitNumber, vehicleMake,
-        status: 'holding',
-        notes: data.notes,
-      };
-      setAllLostFoundItems(prev => [newItem, ...prev]);
-      return true;
-    } catch {
-      return false;
-    }
+
+      const [keyTagPhotoUrl, itemPhotoUrl] = await Promise.all([
+        data.keyTagPhoto ? uploadLostFoundPhoto(data.keyTagPhoto, itemId, 'key-tag') : Promise.resolve(null),
+        data.itemPhoto   ? uploadLostFoundPhoto(data.itemPhoto,   itemId, 'item')    : Promise.resolve(null),
+      ]);
+
+      try {
+        const { error } = await writeWithRefresh(() =>
+          supabase.from('lost_found').insert({
+            id:            itemId,
+            branch_id:     branchId,
+            found_by:      user.id,
+            found_by_name: user.name,
+            found_at:      foundAt,
+            key_tag_photo: keyTagPhotoUrl ?? null,
+            item_photo:    itemPhotoUrl ?? null,
+            description:   data.description ?? null,
+            location:      data.location ?? null,
+            license_plate: data.licensePlate ?? null,
+            unit_number:   unitNumber ?? null,
+            vehicle_make:  vehicleMake ?? null,
+            status:        'holding',
+            notes:         data.notes ?? null,
+          })
+        );
+        if (error) return false;
+        // Stage the plate so it's recognized next time — best-effort, links to the
+        // fleet vehicle when one matched, else seeds a remembered identity.
+        if (data.licensePlate) {
+          void remember(data.licensePlate, { unitNumber: unitNumber ?? null, vehicleId: knownVehicleId });
+        }
+        const newItem: LostFoundItem = {
+          id: itemId, branchId,
+          foundById: user.id, foundByName: user.name, foundAt,
+          keyTagPhotoUrl: keyTagPhotoUrl ?? undefined,
+          itemPhotoUrl: itemPhotoUrl ?? undefined,
+          description: data.description,
+          location: data.location,
+          licensePlate: data.licensePlate,
+          unitNumber, vehicleMake,
+          status: 'holding',
+          notes: data.notes,
+        };
+        setAllLostFoundItems(prev => [newItem, ...prev]);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    // A dropped re-entrant tap resolves `undefined` — it performed no insert, so
+    // report false (the first, real call returns the true/false of its write).
+    return result ?? false;
   };
 
   const updateLostFoundStatus = async (id: string, status: LostFoundStatus, notes?: string): Promise<boolean> => {

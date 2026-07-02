@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
+import { withSubmitLock } from '../../lib/submitLock';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO } from '../../lib/shiftDay';
 import { isNoteActiveForMonth, seasonalStarterBody } from '../../lib/whiteboard-schedule';
@@ -138,26 +139,30 @@ export function WhiteboardView() {
 
   const handleAdd = async (section: WhiteboardSection, body: string, activeMonths: number[]) => {
     if (!user) return;
-    const { data, error } = await writeWithRefresh(() =>
-      supabase
-        .from('whiteboard_notes')
-        .insert({
-          branch_id:    branchId,
-          section,
-          body,
-          author_id:    user.id,
-          author_name:  user.name,
-          author_role:  user.role,
-          trigger_type: 'manual',
-          active_months: activeMonths.length > 0 ? activeMonths : null,
-          status:       'active',
-        })
-        .select()
-        .single()
-    );
-    if (!error && data) {
-      setNotes(prev => [mapNote(data), ...prev]);
-    }
+    // Each insert mints a fresh row id, so two same-frame taps post two identical
+    // notes. Guard on reporter + section + body so a double-tap collapses to one.
+    await withSubmitLock(`whiteboard:${user.id}:${section}:${body.trim().toLowerCase()}`, async () => {
+      const { data, error } = await writeWithRefresh(() =>
+        supabase
+          .from('whiteboard_notes')
+          .insert({
+            branch_id:    branchId,
+            section,
+            body,
+            author_id:    user.id,
+            author_name:  user.name,
+            author_role:  user.role,
+            trigger_type: 'manual',
+            active_months: activeMonths.length > 0 ? activeMonths : null,
+            status:       'active',
+          })
+          .select()
+          .single()
+      );
+      if (!error && data) {
+        setNotes(prev => [mapNote(data), ...prev]);
+      }
+    });
   };
 
   if (loading) {
