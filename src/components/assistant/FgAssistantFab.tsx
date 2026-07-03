@@ -36,7 +36,7 @@ function navDestinationToScreen(dest: NavDestination): Screen {
 
 export function FgAssistantFab({ module, onNavigate }: { module: string; onNavigate?: (screen: Screen) => void }) {
   const { user } = useAuth();
-  const { addHold, addVehicle } = useVehicleHoldContext();
+  const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const effieMemory = useEffieMemory();
   const [open, setOpen] = useState(false);
@@ -139,6 +139,13 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       return;
     }
     const holdTypes: HoldType[] = [proposal.holdType as HoldType];
+    // Save the photo(s) the user attached in this conversation onto the hold. The
+    // proxy only *analysed* them for the AI draft; this confirm is the only write
+    // path, so without this the damage photo never lands on the record. addHold
+    // uploads them and returns their URLs; auto-pin the first as the vehicle cover
+    // so it shows as the holds-list thumbnail ("one photo → pin it").
+    const photos = messages.filter((m) => m.image).map((m) => m.image!);
+    const attach = photos.length > 0 ? photos : undefined;
     if (proposal.kind === 'register_and_hold') {
       const nv = proposal.newVehicle;
       const vehicleId = await addVehicle({
@@ -153,10 +160,12 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
         hasMobileCable: null,
         hasJ1772Adapter: null,
       });
-      await addHold(vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes);
+      const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+      if (result && result.photoUrls.length > 0) await setCoverPhoto(vehicleId, result.photoUrls[0]);
       return;
     }
-    await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes);
+    const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+    if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
   };
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
