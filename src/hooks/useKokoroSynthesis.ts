@@ -91,6 +91,12 @@ export interface KokoroSynthesisApi {
   /** True only in a cross-origin-isolated context (SharedArrayBuffer present).
    *  When false, Kokoro can't run — the caller should fall back to Web Speech. */
   available: boolean;
+  /** Whether the page is cross-origin isolated. When false, `available` is false
+   *  too — but it's the FIXABLE kind (a fresh reload usually restores it, e.g.
+   *  after a service-worker update served a header-less page), as opposed to a
+   *  browser that genuinely lacks SharedArrayBuffer. Surfaced so the UI can tell
+   *  "reload to fix" apart from "not supported here". */
+  isolated: boolean;
   setEnabled: (on: boolean) => void;
   voice: KokoroVoice;
   setVoice: (v: KokoroVoice) => void;
@@ -104,6 +110,7 @@ export interface KokoroSynthesisApi {
 export function useKokoroSynthesis(): KokoroSynthesisApi {
   const [enabled, setEnabledState] = useState(readEnabled);
   const [available] = useState(kokoroAvailable);
+  const [isolated] = useState(() => typeof window !== 'undefined' && window.crossOriginIsolated === true);
   const [voice, setVoiceState] = useState<KokoroVoice>(readVoice);
   const [modelPhase, setModelPhase] = useState<'unloaded' | 'ready' | 'error'>('unloaded');
   const modelState: 'idle' | 'loading' | 'ready' | 'error' =
@@ -188,5 +195,5 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     sourceRef.current = null;
   }, []);
 
-  return { enabled, available, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
+  return { enabled, available, isolated, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
 }

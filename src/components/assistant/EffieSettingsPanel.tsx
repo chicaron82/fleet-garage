@@ -30,9 +30,8 @@ export function EffieSettingsPanel({ kokoro, memories, onForget, onClose }: Prop
     onClose();
   };
 
-  const modelLabel = !kokoro.available ? ' (not supported here)' :
-    kokoro.modelState === 'loading' ? ' (downloading…)' :
-    kokoro.modelState === 'error' ? ' (load failed — retry)' : '';
+  const modelLabel = kokoro.modelState === 'loading' ? ' (downloading…)' :
+    kokoro.available && kokoro.modelState === 'error' ? ' (load failed — retry)' : '';
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col rounded-2xl bg-white dark:bg-gray-900 p-4 gap-4 overflow-y-auto">
@@ -118,8 +117,23 @@ export function EffieSettingsPanel({ kokoro, memories, onForget, onClose }: Prop
             </div>
           </div>
         )}
-        {kokoro.enabled && kokoro.modelState === 'error' && (
+        {kokoro.enabled && kokoro.available && kokoro.modelState === 'error' && (
           <p className="text-[11px] text-red-500">Model failed to load. Toggle off and on to retry.</p>
+        )}
+        {/* Voice-engine readout — so "why is she quiet?" is on screen, not a
+            console mystery. The isolation line is the tell for the post-update
+            silence: a service-worker-served page can drop the COOP/COEP headers →
+            crossOriginIsolated false → Kokoro can't run. */}
+        {kokoro.enabled && kokoro.available && kokoro.modelState === 'ready' && (
+          <p className="text-[11px] text-green-600 dark:text-green-400">✓ Voice engine ready.</p>
+        )}
+        {kokoro.enabled && !kokoro.available && !kokoro.isolated && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            ⚠ Voice engine not isolated — Kokoro can&rsquo;t run right now. Reload the app (or clear site data + reload) to restore it. This can happen right after an update.
+          </p>
+        )}
+        {kokoro.enabled && !kokoro.available && kokoro.isolated && (
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">This browser doesn&rsquo;t support the on-device voice engine.</p>
         )}
       </div>
 
