@@ -141,6 +141,32 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     return () => { alive = false; };
   }, [enabled, available, modelPhase]);
 
+  // Warm the AudioContext on the first user gesture when Kokoro is enabled. The
+  // enable toggle normally does this, but on a fresh load where Kokoro was
+  // already enabled (from localStorage) that gesture never fires — so _audioCtx
+  // stays null and speak() silently no-ops (`if (!ctx) return`) until the user
+  // toggles off/on. The autoplay policy needs a gesture to start/resume an
+  // AudioContext, so we do it on the first pointer/key event instead of a
+  // mandatory toggle. This is the "voice engine ready but silent, fixed by
+  // toggling" bug — it recurred after every deploy because a reload re-nulls the
+  // module singleton.
+  useEffect(() => {
+    if (!enabled || !available) return;
+    if (_audioCtx && _audioCtx.state === 'running') return;
+    const warm = () => {
+      if (!_audioCtx) _audioCtx = new AudioContext();
+      void _audioCtx.resume();
+      window.removeEventListener('pointerdown', warm);
+      window.removeEventListener('keydown', warm);
+    };
+    window.addEventListener('pointerdown', warm);
+    window.addEventListener('keydown', warm);
+    return () => {
+      window.removeEventListener('pointerdown', warm);
+      window.removeEventListener('keydown', warm);
+    };
+  }, [enabled, available]);
+
   const setEnabled = useCallback((on: boolean) => {
     setEnabledState(on);
     try { localStorage.setItem(ENABLED_KEY, on ? '1' : '0'); } catch { /* private mode */ }
