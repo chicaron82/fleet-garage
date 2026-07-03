@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  greeting, carsCleaned, teammatesOnToday, deriveMyDay,
+  greeting, carsCleaned, teammatesOnToday, deriveMyDay, nextAttendance,
 } from '../../src/lib/myDay';
 import type { ShiftWithUser, ShiftType } from '../../src/types';
 
@@ -38,6 +38,14 @@ describe('carsCleaned', () => {
   });
 });
 
+describe('nextAttendance (pill tap cycle)', () => {
+  it('cycles scheduled → present → absent → scheduled', () => {
+    expect(nextAttendance(undefined)).toBe('present');
+    expect(nextAttendance('present')).toBe('absent');
+    expect(nextAttendance('absent')).toBeUndefined();
+  });
+});
+
 describe('teammatesOnToday', () => {
   const today = '2026-07-01';
   const shifts: ShiftWithUser[] = [
@@ -54,6 +62,17 @@ describe('teammatesOnToday', () => {
     expect(team[0].start).toBe('06:45');
     expect(team.find(t => t.firstName === 'Off')).toBeUndefined();
     expect(team.find(t => t.firstName === 'Tomorrow')).toBeUndefined();
+  });
+
+  it('carries each mate\'s attendance through (undefined when unmarked)', () => {
+    const withAtt: ShiftWithUser[] = [
+      shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
+      shift({ userId: 'u2', date: today, shiftType: 'opening', startTime: '07:00:00', name: 'Ray Diaz', attendance: 'present' }),
+      shift({ userId: 'u3', date: today, shiftType: 'closing', startTime: '16:00:00', name: 'CJ Rivera' }),
+    ];
+    const team = teammatesOnToday(withAtt, 'me', today);
+    expect(team.find(t => t.firstName === 'Ray')?.attendance).toBe('present');
+    expect(team.find(t => t.firstName === 'CJ')?.attendance).toBeUndefined();
   });
 });
 

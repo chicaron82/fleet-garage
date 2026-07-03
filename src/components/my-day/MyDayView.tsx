@@ -2,6 +2,7 @@ import { useMyDay } from '../../hooks/useMyDay';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
+import { nextAttendance } from '../../lib/myDay';
 import type { Screen } from '../../types';
 
 // The "My Day" cockpit: Aaron's at-a-glance landing. A thin renderer over
@@ -45,20 +46,38 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
 
         {day.working && (
           <div className="pt-1 border-t border-gray-100 dark:border-gray-800">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-2 mb-1">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-2 mb-0.5">
               On with you today · {day.team.length}
             </p>
             {day.team.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-gray-500">Nobody else scheduled.</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {day.team.map(mate => (
-                  <span key={mate.id} className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300">
-                    {mate.firstName}
-                    <span className="text-gray-400 dark:text-gray-500 tabular-nums">{mate.start}</span>
-                  </span>
-                ))}
-              </div>
+              <>
+                <p className="mb-1.5 text-[11px] text-gray-400 dark:text-gray-500">Tap a name: scheduled → present → no-show.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {day.team.map(mate => {
+                    const att = mate.attendance;
+                    const tone = att === 'present'
+                      ? 'bg-green-100 text-green-800 ring-1 ring-green-300 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
+                      : att === 'absent'
+                        ? 'bg-red-100 text-red-700 ring-1 ring-red-300 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+                    return (
+                      <button
+                        key={mate.id}
+                        type="button"
+                        onClick={() => day.setShiftAttendance(mate.id, nextAttendance(att) ?? null)}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition cursor-pointer ${tone}`}
+                      >
+                        {att === 'present' && <span aria-hidden className="font-bold">✓</span>}
+                        {att === 'absent' && <span aria-hidden className="font-bold">✗</span>}
+                        <span className={att === 'absent' ? 'line-through' : ''}>{mate.firstName}</span>
+                        <span className="tabular-nums opacity-60">{mate.start}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}

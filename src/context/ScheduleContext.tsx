@@ -10,7 +10,7 @@ import { rowToShiftBase } from '../lib/rowToShift';
 import { withSubmitLock } from '../lib/submitLock';
 import { resolveShiftNames } from '../lib/resolveShiftNames';
 import { canManageSchedule } from '../types';
-import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
+import type { Attendance, BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +90,7 @@ interface ScheduleContextValue {
   setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
   logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => Promise<void>;
+  setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
   refresh: () => void;
 }
@@ -309,23 +310,22 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logActualHours = async (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => {
+  // Update one shift's columns (stamps updated_at) and re-map the row locally.
+  const updateShiftRow = async (id: string, patch: Record<string, unknown>) => {
     const { data, error } = await writeWithRefresh(() =>
-      supabase
-        .from('shifts')
-        .update({
-          actual_start_time: actualStartTime || null,
-          actual_end_time:   actualEndTime   || null,
-          is_stat:           isStat,
-          updated_at:        new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single()
+      supabase.from('shifts').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select().single()
     );
     if (error) throw error;
     setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
   };
+
+  const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) =>
+    updateShiftRow(id, { actual_start_time: actualStartTime || null, actual_end_time: actualEndTime || null, is_stat: isStat });
+
+  // Layer attendance on top of the roster — tapped from the My-Day pills
+  // (scheduled → present → absent → scheduled). null clears it back to scheduled.
+  const setShiftAttendance = (id: string, attendance: Attendance | null) =>
+    updateShiftRow(id, { attendance });
 
   // ── Permissions ────────────────────────────────────────────────────────────
 
@@ -386,7 +386,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       setViewMode, setCurrentDate,
       goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
       createShift, bulkCreateShifts, importWeekShifts, updateShift, setPtoApproved, deleteShift, logActualHours,
-      canEditShift, refresh,
+      setShiftAttendance, canEditShift, refresh,
     }}>
       {children}
     </ScheduleContext.Provider>

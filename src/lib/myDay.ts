@@ -1,7 +1,7 @@
 // Pure derivations for the "My Day" cockpit. Kept out of the component + hook so
 // the shift/team/greeting logic is testable without React or context. The hook
 // (useMyDay) assembles the live inputs; the view just renders this model.
-import type { ShiftWithUser, HandoffNote } from '../types';
+import type { ShiftWithUser, HandoffNote, Attendance } from '../types';
 import { isFullDayShift } from '../types';
 import { SHIFT_TYPE_LABEL, fmtTime24, shiftTimeRange } from './shiftTypeMeta';
 
@@ -17,14 +17,22 @@ export function carsCleaned(h: Pick<HandoffNote, 'fullPages' | 'lastPageEntries'
   return h.fullPages * 19 + h.lastPageEntries;
 }
 
-export interface TeamMate { id: string; firstName: string; start: string; }
+export interface TeamMate { id: string; firstName: string; start: string; attendance?: Attendance; }
+
+/** The attendance state a coworker pill cycles to on tap:
+ *  scheduled (undefined) → present → absent → scheduled. */
+export function nextAttendance(current: Attendance | undefined): Attendance | undefined {
+  if (!current) return 'present';
+  if (current === 'present') return 'absent';
+  return undefined;
+}
 
 /** Who else is working today (excludes me + full-day/off types), soonest start first. */
 export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayISO: string): TeamMate[] {
   return shifts
     .filter(s => s.date === todayISO && s.userId !== userId && !isFullDayShift(s.shiftType))
     .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
-    .map(s => ({ id: s.id, firstName: s.user.name.split(' ')[0], start: fmtTime24(s.startTime) }));
+    .map(s => ({ id: s.id, firstName: s.user.name.split(' ')[0], start: fmtTime24(s.startTime), attendance: s.attendance }));
 }
 
 export interface MyDayModel {

@@ -1,4 +1,4 @@
-import type { Shift, ShiftType } from '../types';
+import type { Shift, ShiftType, Attendance } from '../types';
 
 // Canonical DB row → Shift column mapping. Single source of truth for the
 // shifts table's column shape. ScheduleContext layers user-resolution
@@ -18,6 +18,7 @@ export function rowToShiftBase(row: Record<string, unknown>): Shift {
     actualStartTime: (row.actual_start_time as string | null) ?? undefined,
     actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
     isStat:          (row.is_stat as boolean | null) ?? false,
+    attendance:      (row.attendance as Attendance | null) ?? undefined,
     ptoApproved:     (row.pto_approved as boolean | null) ?? false,
     ptoAlternateDate:(row.pto_alternate_date as string | null) ?? undefined,
     createdAt:       row.created_at as string,

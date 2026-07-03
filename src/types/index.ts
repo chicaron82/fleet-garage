@@ -378,6 +378,10 @@ export interface AuditRecord {
 
 export type ShiftType = 'opening' | 'mid' | 'closing' | 'day-off' | 'pto' | 'sick';
 
+/** Per-shift attendance, layered ON TOP of the roster (never overwrites shiftType):
+ *  undefined = scheduled (unmarked) · 'present' = confirmed on shift · 'absent' = no-show/sick. */
+export type Attendance = 'present' | 'absent';
+
 /** True for shift types that occupy a full day with no scheduled start/end times. */
 export function isFullDayShift(t: ShiftType): boolean {
   return t === 'day-off' || t === 'pto' || t === 'sick';
@@ -394,6 +398,7 @@ export interface Shift {
   actualStartTime?: string; // actual hours worked
   actualEndTime?: string;
   isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
+  attendance?: Attendance;  // who actually showed — undefined = scheduled (unmarked)
   ptoApproved?: boolean;    // for shiftType 'pto': false = requested, true = boss-approved
   ptoAlternateDate?: string; // ISO date — optional backup, only set when 'pto' falls on a stat
   createdAt: string;

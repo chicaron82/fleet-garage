@@ -12,7 +12,7 @@ import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
 import { businessDateOf } from '../lib/shiftDay';
 import { deriveMyDay, type MyDayModel } from '../lib/myDay';
-import type { HandoffNote } from '../types';
+import type { HandoffNote, Attendance } from '../types';
 
 export interface UseMyDay extends MyDayModel {
   dateLabel: string;
@@ -22,11 +22,12 @@ export interface UseMyDay extends MyDayModel {
   todayEntry: FleetBalanceEntry | undefined;
   projection: FleetBalanceProjection | null;
   logBalance: (out: number, inc: number) => Promise<boolean>;
+  setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
 }
 
 export function useMyDay(): UseMyDay {
   const { user } = useAuth();
-  const { shifts } = useSchedule();
+  const { shifts, setShiftAttendance } = useSchedule();
   const { staleHolds } = useVehicleHoldContext();
   const { latestHandoff } = useWashbayContext();
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
@@ -56,5 +57,6 @@ export function useMyDay(): UseMyDay {
     todayEntry,
     projection: getProjection(),
     logBalance: (out, inc) => upsertEntry(localDateStr(), out, inc, user!.id),
+    setShiftAttendance,
   };
 }

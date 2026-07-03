@@ -929,6 +929,7 @@ export type Database = {
         Row: {
           actual_end_time: string | null
           actual_start_time: string | null
+          attendance: string | null
           branch_id: string | null
           created_at: string
           date: string
@@ -946,6 +947,7 @@ export type Database = {
         Insert: {
           actual_end_time?: string | null
           actual_start_time?: string | null
+          attendance?: string | null
           branch_id?: string | null
           created_at?: string
           date: string
@@ -963,6 +965,7 @@ export type Database = {
         Update: {
           actual_end_time?: string | null
           actual_start_time?: string | null
+          attendance?: string | null
           branch_id?: string | null
           created_at?: string
           date?: string
