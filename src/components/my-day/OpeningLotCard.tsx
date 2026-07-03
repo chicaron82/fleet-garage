@@ -7,29 +7,52 @@ const CARD = 'rounded-xl border transition-colors';
 const STEP_BTN =
   'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 
-// "What you walked into" — at the top of an opening shift the opener records the
-// dirties left in the queue overnight, right here in My Day, instead of
-// reconstructing it later in the handoff form. `carsRemaining` carries into the
-// morning washbay rate. When last night DID log a close, this shows the inherited
-// number read-only. Reuses the exact backfill write the handoff form uses.
+function Counter({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-600 dark:text-gray-300">{label}</span>
+      <div className="flex items-center gap-3">
+        <button type="button" className={STEP_BTN} onClick={() => onChange(Math.max(0, value - 1))} aria-label={`Fewer — ${label}`}>−</button>
+        <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{value}</span>
+        <button type="button" className={STEP_BTN} onClick={() => onChange(value + 1)} aria-label={`More — ${label}`}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// "What you walked into" — at the top of an opening shift, the overnight lot state
+// carried over from last night's close: dirties still in the queue (which feed the
+// morning washbay rate) and clean cars not yet sent (situational · shown on the
+// shift report). When last night logged a close, both show read-only; when it
+// didn't, the opener records them here (reconstructing the close). Reuses the exact
+// backfill write the handoff form uses.
 export function OpeningLotCard() {
   const { washbayLogs, submitWashbayLog } = useWashbayContext();
   const priorLog = findPriorShiftLog(washbayLogs);
-  const [count, setCount] = useState(0);
+  const [dirties, setDirties] = useState(0);
+  const [cleans, setCleans] = useState(0);
   const [saving, setSaving] = useState(false);
 
   // Last night logged (or already backfilled) → show what was inherited, read-only.
   if (priorLog) {
-    const n = priorLog.carsRemaining;
+    const inDirties = priorLog.carsRemaining;
+    const inCleans = priorLog.cleanNotPickedUp;
     return (
       <section className={`${CARD} border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3`}>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">You walked into</p>
-        {n === 0 ? (
+        {inDirties === 0 && inCleans === 0 ? (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Clean lot — nothing left in the queue from last night. 🎯</p>
         ) : (
-          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            <span className="font-bold text-gray-900 dark:text-gray-100">{n}</span> {n === 1 ? 'dirty' : 'dirties'} left in the queue from last night — carried into your morning rate.
-          </p>
+          <>
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              <span className="font-bold text-gray-900 dark:text-gray-100">{inCleans}</span> clean{inCleans === 1 ? '' : 's'} not sent
+              {' · '}
+              <span className="font-bold text-gray-900 dark:text-gray-100">{inDirties}</span> {inDirties === 1 ? 'dirty' : 'dirties'}
+            </p>
+            {inDirties > 0 && (
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">Dirties carried into your morning rate.</p>
+            )}
+          </>
         )}
       </section>
     );
@@ -38,7 +61,7 @@ export function OpeningLotCard() {
   // No prior close on record → let the opener log what they walked into.
   const save = async () => {
     setSaving(true);
-    const ok = await submitWashbayLog(buildBackfillClose(count), shiftDateStr(-1));
+    const ok = await submitWashbayLog(buildBackfillClose(dirties, cleans), shiftDateStr(-1));
     // On success the optimistic update makes findPriorShiftLog match → this card
     // flips to the inherited line above on the next render.
     if (!ok) setSaving(false);
@@ -49,17 +72,11 @@ export function OpeningLotCard() {
       <div>
         <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">⚠ No closing log from last night</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Log the dirties left in the queue so they carry into your morning rate.
+          Log what you walked into — dirties carry into your morning rate.
         </p>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-600 dark:text-gray-300">Dirties left in queue</span>
-        <div className="flex items-center gap-3">
-          <button type="button" className={STEP_BTN} onClick={() => setCount(c => Math.max(0, c - 1))} aria-label="Fewer">−</button>
-          <span className="text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums">{count}</span>
-          <button type="button" className={STEP_BTN} onClick={() => setCount(c => c + 1)} aria-label="More">+</button>
-        </div>
-      </div>
+      <Counter label="Dirties left in queue" value={dirties} onChange={setDirties} />
+      <Counter label="Clean, not picked up" value={cleans} onChange={setCleans} />
       <button
         type="button"
         onClick={save}

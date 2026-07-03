@@ -65,4 +65,10 @@ describe('buildBackfillClose', () => {
     expect(buildBackfillClose(0).lotStatus).toBe('zeroed');
     expect(buildBackfillClose(3).lotStatus).toBe('manageable');
   });
+
+  it('records clean-not-picked-up when given, defaulting to 0', () => {
+    expect(buildBackfillClose(4).cleanNotPickedUp).toBe(0);
+    expect(buildBackfillClose(4, 12).cleanNotPickedUp).toBe(12);
+    expect(buildBackfillClose(4, 12).carsRemaining).toBe(4);
+  });
 });

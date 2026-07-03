@@ -33,19 +33,20 @@ export function isCarryOverOnly(log: { fullPages: number; lastPageEntries: numbe
 
 /**
  * The payload for an opener backfill — a lightweight prior-shift close recording
- * only how many dirties were left in the queue (`carsRemaining`) so the morning
- * washbay rate inherits a baseline. Written stamped to `shiftDateStr(-1)`. Every
- * gas-sheet counter is zero, so `isCarryOverOnly` keeps it out of throughput
- * displays while the lineage still reads its `carsRemaining`. Shared by the
- * handoff form's "no closing log" recovery and the My-Day opening-lot card, so
- * both write the identical shape.
+ * what was left overnight (`carsRemaining` dirties + `cleanNotPickedUp` clean cars
+ * not yet sent) so the morning inherits it: the dirties feed the washbay rate, the
+ * cleans are situational (surfaced on the morning card + shift report). Written
+ * stamped to `shiftDateStr(-1)`. Every gas-sheet counter is zero, so
+ * `isCarryOverOnly` keeps it out of throughput displays while the lineage still
+ * reads it back. Shared by the handoff form's "no closing log" recovery and the
+ * My-Day opening-lot card, so both write the identical shape.
  */
-export function buildBackfillClose(carsRemaining: number) {
+export function buildBackfillClose(carsRemaining: number, cleanNotPickedUp = 0) {
   return {
     fullPages: 0,
     lastPageEntries: 0,
     carsRemaining,
-    cleanNotPickedUp: 0,
+    cleanNotPickedUp,
     nonRentablesFuelled: 0,
     deferredCompletions: 0,
     nonRentablesNote: null,
