@@ -25,7 +25,7 @@ describe('userShiftTypeOn', () => {
 });
 
 describe('orderQuickTaps', () => {
-  it('a saved custom order wins outright', () => {
+  it('a saved custom order is preserved as-is with no shift context', () => {
     expect(ids(orderQuickTaps(taps, ['b', 'a'], null))).toEqual(['b', 'a', 'opening_duties', 'closing_duties']);
   });
 
@@ -45,6 +45,30 @@ describe('orderQuickTaps', () => {
   it('leaves the default order untouched for mid/none', () => {
     expect(ids(orderQuickTaps(taps, null, 'mid'))).toEqual(['a', 'opening_duties', 'closing_duties', 'b']);
     expect(ids(orderQuickTaps(taps, null, null))).toEqual(['a', 'opening_duties', 'closing_duties', 'b']);
+  });
+
+  // The fix: schedule-aware promotion now layers ON TOP of a saved custom order,
+  // instead of being skipped whenever the user had customized (the "Closing
+  // Duties on an opening shift" bug, 2026-07-03).
+  it('floats the opening duty to the front on top of a saved order', () => {
+    expect(ids(orderQuickTaps(taps, ['b', 'a'], 'opening')))
+      .toEqual(['opening_duties', 'b', 'a', 'closing_duties']);
+  });
+
+  it('floats the closing duty to the front on top of a saved order', () => {
+    expect(ids(orderQuickTaps(taps, ['b', 'a'], 'closing')))
+      .toEqual(['closing_duties', 'b', 'a', 'opening_duties']);
+  });
+
+  it('dedups a duty already in the saved order so it leads exactly once', () => {
+    const out = ids(orderQuickTaps(taps, ['opening_duties', 'b'], 'opening'));
+    expect(out).toEqual(['opening_duties', 'b', 'a', 'closing_duties']);
+    expect(out.filter(id => id === 'opening_duties')).toHaveLength(1);
+  });
+
+  it('leaves a saved order untouched on a mid shift (no duty to float)', () => {
+    expect(ids(orderQuickTaps(taps, ['b', 'a'], 'mid')))
+      .toEqual(['b', 'a', 'opening_duties', 'closing_duties']);
   });
 
   it('an empty saved order [] falls back to the schedule-aware default', () => {
