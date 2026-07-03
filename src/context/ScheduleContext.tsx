@@ -8,6 +8,7 @@ import { usePTOStats } from '../hooks/usePTOStats';
 import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
 import { rowToShiftBase } from '../lib/rowToShift';
 import { withSubmitLock } from '../lib/submitLock';
+import { resolveShiftNames } from '../lib/resolveShiftNames';
 import { canManageSchedule } from '../types';
 import type { BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
@@ -105,6 +106,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading]         = useState(false);
   const [viewMode, setViewMode]       = useState<'week' | 'calendar'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Derive display shifts by re-resolving each shift's user from its userId
+  // against the CURRENT profiles map. loadShifts maps rows at fetch time, so on a
+  // cold open the schedule can load before ProfilesContext populates — baking in
+  // an 'Unknown' name that never re-resolved (My-Day "on with you" showed every
+  // coworker as "Unknown", 2026-07-03). Deriving here re-resolves the moment
+  // profiles arrive, with no refetch and no setState-in-effect.
+  const resolvedShifts = useMemo(() => resolveShiftNames(shifts, getProfile), [shifts, getProfile]);
 
   const { isPeakSeason, togglePeakSeason }                                          = usePeakSeason();
   const { ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement, adjustPTO, adjustSick } = usePTOStats(user);
@@ -372,7 +381,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ScheduleContext.Provider value={{
-      shifts, loading, viewMode, currentDate, isPeakSeason,
+      shifts: resolvedShifts, loading, viewMode, currentDate, isPeakSeason,
       ptoEntitlement, ptoUsed, sickDaysUsed,
       setViewMode, setCurrentDate,
       goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
