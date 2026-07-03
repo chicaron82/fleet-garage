@@ -4,7 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
 import { shiftDateStr } from '../../lib/shiftDay';
-import { rosteredVsaCount } from '../../lib/rosterCount';
+import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { findPriorShiftLog, buildBackfillClose } from '../../lib/washbayLineage';
 import type { LotStatus } from '../../types';
 
@@ -57,8 +57,12 @@ export function HandoffForm({ onClose }: Props) {
   // Default from the rostered opening crew; reads live until the user adjusts it
   // (async roster load can't freeze a stale default), and flags a roster mismatch.
   const rosteredTeam = rosteredVsaCount(shifts, shiftDateStr(0), ['opening']);
+  const presentTeam  = presentVsaCount(shifts, shiftDateStr(0), ['opening']);
   const [userTeamSize, setUserTeamSize] = useState<number | null>(null);
-  const teamSize = userTeamSize ?? (rosteredTeam || 2);
+  // Default team size = who actually showed (roster minus no-shows). The label
+  // still shows the roster, so the existing "roster shows N (logging M)" mismatch
+  // highlight lights up automatically when someone's absent.
+  const teamSize = userTeamSize ?? (presentTeam || 2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,    setAdjustMorning]   = useState(false);

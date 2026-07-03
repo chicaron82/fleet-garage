@@ -9,7 +9,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { priorFlippingAttested } from '../../lib/airportFlipping';
 import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
-import { rosteredVsaCount } from '../../lib/rosterCount';
+import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
 import { lotStatusFromQueue } from '../../lib/closingQueue';
@@ -42,8 +42,10 @@ export function WashbayClosingLog() {
   // touches it, so an async roster load can't freeze a stale default). The floor
   // truth still wins — it stays editable and the roster mismatch is flagged.
   const rosteredTeam = rosteredVsaCount(shifts, shiftDateStr(0), ['closing']);
+  const presentTeam  = presentVsaCount(shifts, shiftDateStr(0), ['closing']);
   const [userTeamSize, setUserTeamSize] = useState<number | null>(null);
-  const teamSize = userTeamSize ?? (rosteredTeam || 2);
+  // Default = who actually showed (roster minus no-shows); label still shows roster.
+  const teamSize = userTeamSize ?? (presentTeam || 2);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
