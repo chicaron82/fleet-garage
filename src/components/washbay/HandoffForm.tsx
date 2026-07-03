@@ -5,7 +5,7 @@ import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
 import { shiftDateStr } from '../../lib/shiftDay';
 import { rosteredVsaCount } from '../../lib/rosterCount';
-import { findPriorShiftLog } from '../../lib/washbayLineage';
+import { findPriorShiftLog, buildBackfillClose } from '../../lib/washbayLineage';
 import type { LotStatus } from '../../types';
 
 interface Props {
@@ -74,13 +74,7 @@ export function HandoffForm({ onClose }: Props) {
 
   const handleBackfillPriorClose = async () => {
     setBackfilling(true);
-    const ok = await submitWashbayLog({
-      fullPages: 0, lastPageEntries: 0, carsRemaining: backfillCount,
-      cleanNotPickedUp: 0, nonRentablesFuelled: 0, deferredCompletions: 0,
-      nonRentablesNote: null, carryOver: 0, teamSize: 1, shiftHours: 8,
-      overtimeHours: 0, lotStatus: backfillCount > 0 ? 'manageable' : 'zeroed',
-      airportFlipping: false,
-    }, shiftDateStr(-1));
+    const ok = await submitWashbayLog(buildBackfillClose(backfillCount), shiftDateStr(-1));
     // On success the optimistic washbayLogs update makes findPriorShiftLog match,
     // so this panel gives way to the inherited-backlog line on the next render.
     if (!ok) setBackfilling(false);

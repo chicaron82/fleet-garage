@@ -1,6 +1,7 @@
 import { useMyDay } from '../../hooks/useMyDay';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
+import { OpeningLotCard } from './OpeningLotCard';
 import type { Screen } from '../../types';
 
 // The "My Day" cockpit: Aaron's at-a-glance landing. A thin renderer over
@@ -91,6 +92,9 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           </button>
         </section>
       )}
+
+      {/* ── What you walked into (opening shift) ─────────────────────────── */}
+      {day.working && day.myShift?.shiftType === 'opening' && <OpeningLotCard />}
 
       {/* ── Washbay throughput glance ────────────────────────────────────── */}
       {day.working && (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findPriorShiftLog, isCarryOverOnly } from '../../src/lib/washbayLineage';
+import { findPriorShiftLog, isCarryOverOnly, buildBackfillClose } from '../../src/lib/washbayLineage';
 
 // Local-time constructor — keeps assertions timezone-independent (shiftDateStr
 // reads local components).
@@ -46,5 +46,23 @@ describe('isCarryOverOnly', () => {
   it('does not flag a real close (the form requires cars on the sheet)', () => {
     expect(isCarryOverOnly({ fullPages: 3, lastPageEntries: 5 })).toBe(false);
     expect(isCarryOverOnly({ fullPages: 0, lastPageEntries: 4 })).toBe(false);
+  });
+});
+
+describe('buildBackfillClose', () => {
+  it('records the dirties in carsRemaining with zeroed gas-sheet counters', () => {
+    const p = buildBackfillClose(4);
+    expect(p.carsRemaining).toBe(4);
+    expect(p.fullPages).toBe(0);
+    expect(p.lastPageEntries).toBe(0);
+  });
+
+  it('reads back as carry-over-only, so it stays out of throughput displays', () => {
+    expect(isCarryOverOnly(buildBackfillClose(4))).toBe(true);
+  });
+
+  it('sets lot status by whether anything was left in the queue', () => {
+    expect(buildBackfillClose(0).lotStatus).toBe('zeroed');
+    expect(buildBackfillClose(3).lotStatus).toBe('manageable');
   });
 });
