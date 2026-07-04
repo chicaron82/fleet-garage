@@ -16,6 +16,7 @@ const fullRow: Record<string, unknown> = {
   actual_start_time: '07:00',
   actual_end_time: '15:30',
   is_stat: true,
+  attendance: 'present',
   pto_approved: true,
   pto_alternate_date: '2026-06-05',
   created_at: '2026-06-01T00:00:00Z',
@@ -35,6 +36,7 @@ describe('rowToShiftBase', () => {
       actualStartTime: '07:00',
       actualEndTime: '15:30',
       isStat: true,
+      attendance: 'present',
       ptoApproved: true,
       ptoAlternateDate: '2026-06-05',
       createdAt: '2026-06-01T00:00:00Z',
@@ -55,6 +57,7 @@ describe('rowToShiftBase', () => {
       actual_start_time: null,
       actual_end_time: null,
       is_stat: null,
+      attendance: null,
       pto_approved: null,
       pto_alternate_date: null,
       created_at: '2026-06-01T00:00:00Z',
@@ -66,6 +69,7 @@ describe('rowToShiftBase', () => {
     expect(shift.notes).toBeUndefined();
     expect(shift.actualStartTime).toBeUndefined();
     expect(shift.actualEndTime).toBeUndefined();
+    expect(shift.attendance).toBeUndefined();
     expect(shift.ptoAlternateDate).toBeUndefined();
   });
 
