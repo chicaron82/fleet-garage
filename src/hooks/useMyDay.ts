@@ -51,7 +51,10 @@ export function useMyDay(): UseMyDay {
   return {
     ...model,
     dateLabel,
-    staleCount: staleHolds.length,
+    // Distinct vehicles, not hold records — a vehicle can carry multiple active
+    // holds, so dedupe by vehicleId. The card reads "N vehicles held too long",
+    // and this keeps that honest + comparable to the HELD-vehicle sidebar badge.
+    staleCount: new Set(staleHolds.map(h => h.vehicleId)).size,
     handoffToday: handoffIsToday ? latestHandoff! : null,
     balanceLogged: !!todayEntry,
     todayEntry,
