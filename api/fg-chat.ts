@@ -25,6 +25,7 @@ import {
 import { isAllowed } from './_lib/assistantAccess.js';
 import { correctManitobaPrefix, MB_PLATE_PREFIXES } from './_lib/platePrefix.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
+import { PHOTO_CONTEXTS, type PhotoContext } from './_lib/photoRequest.js';
 import {
   buildHoldProposal,
   buildRegisterHoldProposal,
@@ -97,6 +98,8 @@ Answer like a colleague on the lot: short, direct, no preamble. If a vehicle is 
 Lead with ACTIVE holds — those block the car. Then mention any RELEASED holds as context worth knowing, especially verbal overrides ("no active hold, but it had a paint scratch released on a verbal override by MK"). A released hold means it was flagged then cleared — history, not a current block. Don't bury an active hold under released history.
 
 Use dates exactly as the tool gives them (e.g. "Jun 19, 2026") — never reformat or recompute them.
+
+Whenever you need the operator to send you a PHOTO — a key tag (to register or read a vehicle), a damage photo (for a hold), a lost-item photo, or the daily inventory sheet — call request_photo with the matching context (keytag / damage / lost_item / inventory) AND say a short one-line ask ("Key tag photo, or read them off to me?"). That shows an inline upload button and captions their photo correctly, so a key tag is never mistaken for damage. Don't describe the button; just ask naturally.
 
 Write in PLAIN TEXT — no markdown. Do NOT use **bold**, *italics*, \`code\`, # headers, or "- " bullet lists. Your replies are shown in a plain bubble that doesn't render markdown AND read aloud by a voice, so a "**" both shows as literal asterisks and gets spoken as "asterisk asterisk". Emphasis with plain words and short sentences instead; if you list things, use natural phrasing ("LFJ379, LUR175, and LUR170") or plain lines, not bullet syntax.
 
@@ -312,6 +315,22 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['destination'],
+    },
+  },
+  {
+    name: 'request_photo',
+    description:
+      'Ask the operator to attach a PHOTO — shows an inline upload button in your reply so they don\'t hunt for the camera. Call this whenever you need an image: a KEY TAG (to register or read a vehicle), a DAMAGE photo (for a hold), a LOST ITEM photo, or the daily INVENTORY sheet. Pair it with a short spoken ask ("Key tag photo, or read them off to me?"). Pass the context that matches what you\'re asking for — it captions the photo so you read it in the right frame (a key tag is NOT damage).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        context: {
+          type: 'string',
+          enum: [...PHOTO_CONTEXTS],
+          description: 'What kind of photo you\'re asking for: keytag, damage, lost_item, or inventory.',
+        },
+      },
+      required: ['context'],
     },
   },
   {
@@ -1127,6 +1146,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
+    let photoRequest: PhotoContext | null = null; // an inline upload button to show, if Effie asked for a photo
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model,
@@ -1192,6 +1212,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             const out = executeProposeNavigation(tu.input as { destination?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
             content = out.toolResult;
+          } else if (tu.name === 'request_photo') {
+            const ctx = (tu.input as { context?: string }).context;
+            if (ctx && (PHOTO_CONTEXTS as readonly string[]).includes(ctx)) photoRequest = ctx as PhotoContext;
+            content = JSON.stringify({
+              ok: true,
+              note: 'An inline upload button is now shown in your reply. Ask the operator for the photo in one short line; do NOT describe the button itself.',
+            });
           } else if (tu.name === 'lookup_vehicle_class') {
             content = executeLookupVehicleClass(tu.input as { code?: string });
           } else if (tu.name === 'propose_lost_item') {
@@ -1227,7 +1254,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // Envelope: text answer + an optional drafted hold the client renders as a
     // confirm card. The proxy never writes — the write happens on the user's tap.
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ text: answer || '(no answer)', proposal });
+    res.status(200).json({ text: answer || '(no answer)', proposal, photoRequest });
   } catch (err) {
     console.error('[fg-chat] handler error:', err);
     res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });

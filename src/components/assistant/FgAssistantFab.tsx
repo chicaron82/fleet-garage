@@ -17,6 +17,7 @@ import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
+import { photoCaptionFor, photoButtonLabel, type PhotoContext } from '../../../api/_lib/photoRequest';
 import {
   SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
 } from './AssistantIcons';
@@ -30,6 +31,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  const [pendingPhotoContext, setPendingPhotoContext] = useState<PhotoContext | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const { messages, loading, error, send, clearProposal } = useFgAssistant();
@@ -114,9 +116,14 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     speech.stop();
     ttsCancel();
     const img = image ?? undefined;
+    // A typed caption always wins. A photo attached via a contextual upload button gets
+    // its context caption ("Here's a photo of the key tag."); a plain photo goes
+    // captionless (empty → image-only bubble, neutral text to the API).
+    const caption = text || (img && pendingPhotoContext ? photoCaptionFor(pendingPhotoContext) : '');
     setDraft('');
     setImage(null);
-    void send(text, module, img);
+    setPendingPhotoContext(null);
+    void send(caption, module, img);
   };
 
   return (
@@ -225,6 +232,15 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                     onDismiss={() => clearProposal(i)}
                   />
                 )}
+                {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && !image && (
+                  <button
+                    onClick={() => { setPendingPhotoContext(m.photoRequest!); fileRef.current?.click(); }}
+                    className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 cursor-pointer"
+                  >
+                    <CameraIcon />
+                    {photoButtonLabel(m.photoRequest)}
+                  </button>
+                )}
               </div>
             ))}
             {error && <p className="text-center text-xs text-red-500">{error}</p>}
@@ -255,7 +271,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" accept="image/*" onChange={onPickImage} className="hidden" />
               <button
-                onClick={() => fileRef.current?.click()}
+                onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
                 aria-label="Attach a photo — camera or gallery"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
               >
