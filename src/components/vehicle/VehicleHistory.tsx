@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag } from '../../types';
+import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag, canMarkPreExisting } from '../../types';
 import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { CloseExceptionAction } from './CloseExceptionAction';
 import { hapticHeavy } from '../../lib/haptics';
@@ -150,9 +150,17 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   : 'Mark as Done'}
               </button>
             )}
-            {/* Non-management: verbal override + the release-gated notice (repair is handled above) */}
+            {/* Non-management: self-serve Pre-existing (bookkeeping) + verbal override for the liability calls */}
             {h.activeHolds.length > 0 && !canRelease(h.user.role) && (
               <>
+                {canMarkPreExisting(h.user.role) && (
+                  <button
+                    onClick={() => { hapticHeavy(); h.openReleaseAction(); }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-lg transition cursor-pointer"
+                  >
+                    Mark Pre-existing{h.activeHolds.length > 1 ? ` (${h.activeHolds.length})` : ''}
+                  </button>
+                )}
                 <button
                   onClick={() => h.openVerbalOverride(h.activeHolds[0].id)}
                   className="px-4 py-2 border-2 border-orange-400 dark:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold text-sm rounded-lg transition cursor-pointer"
@@ -160,7 +168,9 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
                   Log Verbal Override
                 </button>
                 <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm rounded-lg">
-                  Held — management approval required to release
+                  {canMarkPreExisting(h.user.role)
+                    ? 'Exception release needs management approval'
+                    : 'Held — management approval required to release'}
                 </div>
               </>
             )}

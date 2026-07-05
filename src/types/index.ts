@@ -31,6 +31,16 @@ export function canMarkRepaired(role: UserRole): boolean {
   return CAN_MARK_REPAIRED.includes(role);
 }
 
+// Marking a hold PRE_EXISTING is a bookkeeping call, not a liability one — the damage
+// was already on the car (accepted as-is, vehicle keeps circulating), unlike EXCEPTION
+// (sending a NEWLY-damaged car out on an override) which stays management-only via
+// CAN_RELEASE. So floor VSAs may mark pre-existing, like they mark repaired.
+export const CAN_MARK_PRE_EXISTING: UserRole[] = ['VSA', 'Lead VSA', ...CAN_RELEASE];
+
+export function canMarkPreExisting(role: UserRole): boolean {
+  return CAN_MARK_PRE_EXISTING.includes(role);
+}
+
 // Who can clear a sale/auction flag logged in error — the staff who can flag a
 // vehicle in the first place (floor VSAs + management), so a mistake can be
 // self-corrected. Every clear is audited and pings management for awareness.

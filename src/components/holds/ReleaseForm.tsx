@@ -6,6 +6,7 @@ import { reasonsFor } from './releaseReasons';
 import { releaseTypeTheme } from './releaseTheme';
 import { ReleaseConfirmPanel } from './ReleaseConfirmPanel';
 import type { ReleaseType } from '../../types';
+import { canRelease, canMarkPreExisting } from '../../types';
 
 interface Props {
   holdId: string;
@@ -22,8 +23,11 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
   const vehicle = vehicles.find(v => v.id === vehicleId);
   const isDetailHold  = hold?.holdType === 'detail';
   const isSaleCarHold = hold?.holdType === 'sale_car';
+  // A VSA can mark PRE_EXISTING (bookkeeping) but not release on exception — so a
+  // pre-existing-only role gets a form locked to pre-existing (no exception/mechanical).
+  const preExistingOnly = !!user && !canRelease(user.role) && canMarkPreExisting(user.role);
 
-  const [releaseType, setReleaseType] = useState<ReleaseType>('EXCEPTION');
+  const [releaseType, setReleaseType] = useState<ReleaseType>(preExistingOnly ? 'PRE_EXISTING' : 'EXCEPTION');
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [expectedReturn, setExpectedReturn] = useState('');
@@ -129,7 +133,8 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
             Release Type *
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${preExistingOnly ? 'grid-cols-1' : 'grid-cols-3'}`}>
+            {!preExistingOnly && (<>
             <button
               type="button"
               onClick={() => handleTypeChange('EXCEPTION')}
@@ -154,6 +159,7 @@ export function ReleaseForm({ holdId, vehicleId, onClose, streak }: Props) {
               <span className="block text-sm font-semibold">Mechanical</span>
               <span className="block text-xs opacity-70 mt-0.5">Short term — return for service</span>
             </button>
+            </>)}
             <button
               type="button"
               onClick={() => handleTypeChange('PRE_EXISTING')}
