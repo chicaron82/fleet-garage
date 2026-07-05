@@ -123,7 +123,9 @@ When the operator asks WHERE a specific vehicle is or was SENT ("where's LFJ285?
 
 When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.
 
-When the operator says they SENT vehicles to an overflow spot ("these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "sent the keytags to the airport"), call propose_overflow_log with the plates (read from their words OR from any keytag photos they attached) and the destination (AV Flight, FastAir, or Airport). It DRAFTS a confirm card; on their tap the client logs each vehicle so it shows in the Movement Log and answers "where's X?" days later — the whole point is that later, when management emails "where are these vehicles?", they can just ask you (call lookup_vehicle_location) instead of asking around. Never claim you logged them yourself — just that it's drafted for their tap. This is ONLY for overflow sends; a damaged/held vehicle is still a hold, not an overflow log.`;
+When the operator says they SENT vehicles to an overflow spot ("these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "sent the keytags to the airport"), call propose_overflow_log with the plates (read from their words OR from any keytag photos they attached) and the destination (AV Flight, FastAir, or Airport). It DRAFTS a confirm card; on their tap the client logs each vehicle so it shows in the Movement Log and answers "where's X?" days later — the whole point is that later, when management emails "where are these vehicles?", they can just ask you (call lookup_vehicle_location) instead of asking around. Never claim you logged them yourself — just that it's drafted for their tap. This is ONLY for overflow sends; a damaged/held vehicle is still a hold, not an overflow log.
+
+When the operator asks for the whole overflow MANIFEST — "what was sent and where?", "where are the overflow cars?", "what did I send this shift?" — call lookup_sent. Use scope "current" (the default) for where everything is NOW (this is the answer to a "where are these vehicles?" management email, even days later); use scope "shift" only when they specifically ask about THIS shift's sends (the end-of-shift report). It returns the vehicles grouped by spot — read it back as a clean grouped list they can copy into a reply. Use lookup_sent for the whole list, and lookup_vehicle_location for one named vehicle.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -312,6 +314,21 @@ const TOOLS: Anthropic.Tool[] = [
         plate: { type: 'string', description: 'The plate or unit number of the vehicle, e.g. "LFJ285" or "142".' },
       },
       required: ['plate'],
+    },
+  },
+  {
+    name: 'lookup_sent',
+    description:
+      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir / Airport), grouped, for the operator to copy into a reply. Two scopes: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later; "shift" = only what was sent THIS shift — the end-of-shift report ("what did I send this shift?"). Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['current', 'shift'],
+          description: '"current" = where everything is now (default); "shift" = just what was sent this shift.',
+        },
+      },
     },
   },
   {
@@ -542,6 +559,23 @@ function todayLabelWinnipeg(iso: string): string {
   if (!y || !m || !d) return iso;
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
+/** The shift-day (YYYY-MM-DD) a timestamp belongs to, using the 04:00 Winnipeg cutover
+ *  — mirrors src/lib/shiftDay.businessDateOf (can't import src/ into the Vercel fn).
+ *  Intl handles DST, so this is string-comparison only, no UTC-offset math. */
+function shiftDayStr(ts: Date): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: SCHED_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false,
+    }).formatToParts(ts).map((x) => [x.type, x.value]),
+  );
+  let [y, mo, d] = [Number(p.year), Number(p.month), Number(p.day)];
+  if (Number(p.hour) < 4) {
+    const prev = new Date(Date.UTC(y, mo - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    [y, mo, d] = [prev.getUTCFullYear(), prev.getUTCMonth() + 1, prev.getUTCDate()];
+  }
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
 
 /** Read-only: who's on which shift for a date ("who's closing with me tonight?"). */
 async function executeLookupSchedule(
@@ -729,6 +763,46 @@ async function executeLookupVehicleLocation(supabase: SupabaseClient, rawPlate: 
     lastSent: toEntry(mine[0]),
     recent: mine.slice(0, 5).map(toEntry),
   });
+}
+
+/** Read-only: the overflow manifest — which vehicles are at which overflow spot,
+ *  grouped, for the operator to copy into a reply. scope 'current' = latest send per
+ *  vehicle across days (where everything is NOW — the "where are these vehicles?"
+ *  email); scope 'shift' = only what was sent this shift-day (the end-of-shift report).
+ *  Both dedup to the latest send per vehicle, so a moved car shows its newest spot. */
+async function executeLookupSent(supabase: SupabaseClient, input: { scope?: string }): Promise<string> {
+  const scope = input.scope === 'shift' ? 'shift' : 'current';
+  const { data, error } = await supabase
+    .from('vsa_trips')
+    .select('vehicle_plate, vehicle_unit, arrive_location, depart_time')
+    .in('arrive_location', [...OVERFLOW_DESTINATIONS])
+    .order('depart_time', { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+
+  let rows = data ?? [];
+  if (scope === 'shift') {
+    const today = shiftDayStr(new Date());
+    rows = rows.filter((r) => r.depart_time && shiftDayStr(new Date(r.depart_time)) === today);
+  }
+  // Dedup to the latest send per vehicle (rows are newest-first). A returned/re-sent
+  // car reflects its newest spot; there's no return-logging, so this is "last sent".
+  const seen = new Set<string>();
+  const byDest = new Map<string, string[]>();
+  for (const r of rows) {
+    const label = r.vehicle_unit || r.vehicle_plate || 'Unknown';
+    const key = label.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const dest = r.arrive_location ?? 'Unknown';
+    (byDest.get(dest) ?? byDest.set(dest, []).get(dest)!).push(label);
+  }
+  const groups = [...byDest.entries()].map(([destination, vehicles]) => ({
+    destination,
+    count: vehicles.length,
+    vehicles,
+  }));
+  return JSON.stringify({ scope, total: seen.size, groups });
 }
 
 /**
@@ -1041,6 +1115,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeLookupHeld(supabase);
           } else if (tu.name === 'lookup_vehicle_location') {
             content = await executeLookupVehicleLocation(supabase, (tu.input as { plate?: string }).plate ?? '');
+          } else if (tu.name === 'lookup_sent') {
+            content = await executeLookupSent(supabase, tu.input as { scope?: string });
           } else if (tu.name === 'propose_navigation') {
             const out = executeProposeNavigation(tu.input as { destination?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
