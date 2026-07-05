@@ -331,10 +331,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               </div>
             )}
             <div className="flex items-center gap-2">
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*" onChange={onPickImage} className="hidden" />
               <button
                 onClick={() => fileRef.current?.click()}
-                aria-label="Attach damage photo"
+                aria-label="Attach a photo — camera or gallery"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
               >
                 <CameraIcon />
