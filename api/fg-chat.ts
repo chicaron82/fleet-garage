@@ -23,6 +23,7 @@ import {
   type VehicleLookupResult,
 } from './_lib/vehicleSummary.js';
 import { isAllowed } from './_lib/assistantAccess.js';
+import { correctManitobaPrefix, MB_PLATE_PREFIXES } from './_lib/platePrefix.js';
 import {
   buildHoldProposal,
   buildRegisterHoldProposal,
@@ -114,7 +115,7 @@ When the user attaches a photo of a KEY TAG (a printed vehicle tag showing field
 Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.
 
 When the user attaches a photo of a LOCATION DAILY VEHICLE INVENTORY sheet (a Hertz "Location Daily Vehicle Inventory" form — columns Owning Area, Unit Number, License, Class, Status, Notes; status codes A=Available, D=Dirty, M=Mechanical, B=Body, F=Foreign) and asks whether a vehicle is on it, or to read it ("is LUR150 on last night's inventory?", "which of these are on the sheet?", "read me the sheet"), read the handwritten rows and answer FROM THAT PHOTO:
-- Match the plate/unit the OPERATOR asked for against the License/Unit columns. Their spelling is authoritative and the sheet is handwritten, so tolerate messy characters — ESPECIALLY a hand-drawn U that reads like M or N (this fleet's LUR/KUR plates are often written looking like LMR/KMR), and easily-confused digits (0/6, 1/7, 4/9). A close handwriting match to the asked-for plate IS a match; you may call lookup_vehicle with the operator's plate to confirm it's a real fleet vehicle.
+- Match the plate/unit the OPERATOR asked for against the License/Unit columns. Their spelling is authoritative and the sheet is handwritten, so tolerate messy characters — ESPECIALLY a hand-drawn U that reads like M or N. This fleet's Manitoba plates start with ${MB_PLATE_PREFIXES.join(', ')}; a prefix like LMR/KMR/LNR is just a misread U, so snap it to the known one (LMR→LUR, KMR→KUR). Also watch easily-confused digits (0/6, 1/7, 4/9). A close handwriting match to the asked-for plate IS a match; lookup_vehicle auto-corrects these MB-prefix misreads, so use it with the operator's plate to confirm a real fleet vehicle.
 - Whenever you match something you did NOT read exactly, SHOW YOUR WORK: name what the sheet shows and what you matched it to ("the sheet shows 'KMR250', which I read as your KUR250") so they catch a bad read before walking to the wrong stall. If you're torn between two rows, say so and give both — never a silent guess.
 - When you find it, report that row's Status (expand the code: M = Mechanical, B = Body, A = Available, D = Dirty, F = Foreign) and any Notes. If it isn't there, say plainly it's not on this inventory. Do NOT confuse the sheet's own Status codes with FG holds; just report what the sheet says. This read is one-time — the sheet is not stored, so answer only from the photo in front of you.
 
@@ -394,6 +395,10 @@ interface VehicleRow {
 async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: string): Promise<VehicleRow | null> {
   const norm = normalizePlate(rawPlate);
   if (!norm) return null;
+  // Also try the MB-prefix-corrected form, so a handwriting/keytag misread (KMR250 →
+  // KUR250) still resolves. Only snaps a not-in-fleet prefix to a known one, so it
+  // can add a match but never breaks the exact one (checked first).
+  const corrected = correctManitobaPrefix(norm);
   // The fleet is small and plates aren't stored normalized, so match in JS the same
   // way the app does (allVehicles.find). RLS limits the rows to this user's reach.
   const { data: vehicles, error } = await supabase
@@ -402,11 +407,14 @@ async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: string): Pr
     .is('archived_at', null);
   if (error) throw error;
   return (
-    (vehicles ?? []).find(
-      (v) =>
-        normalizePlate(v.license_plate ?? '') === norm ||
-        (v.unit_number ? normalizePlate(v.unit_number) === norm : false),
-    ) ?? null
+    (vehicles ?? []).find((v) => {
+      const plate = normalizePlate(v.license_plate ?? '');
+      return (
+        plate === norm ||
+        plate === corrected ||
+        (v.unit_number ? normalizePlate(v.unit_number) === norm : false)
+      );
+    }) ?? null
   );
 }
 
