@@ -166,6 +166,25 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
     );
   }
 
+  // Overflow log — where a batch of vehicles was sent (AV Flight / FastAir / Airport).
+  // Amber: an ops write (one completed one-way trip each → Movement Log + "where's X?").
+  if (proposal.kind === 'overflow_log') {
+    const n = proposal.vehicles.length;
+    if (status === 'done') return <Receipt>Logged {n} to {proposal.destination}.</Receipt>;
+    return (
+      <Shell tone="amber" kicker={`Log sends → ${proposal.destination}`}>
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+          {n} vehicle{n === 1 ? '' : 's'} → {proposal.destination}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{proposal.vehicles.map((v) => v.label).join(', ')}</p>
+        {proposal.vehicles.some((v) => v.unresolved) && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">Some plates aren&apos;t in the fleet — they&apos;ll be logged as entered.</p>
+        )}
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log sends" workingLabel="Logging…" onDismiss={onDismiss} onConfirm={confirm} />
+      </Shell>
+    );
+  }
+
   const isRegister = proposal.kind === 'register_and_hold';
   const plate = isRegister ? proposal.newVehicle.plate : proposal.vehicle.plate;
   const vehicleLabel = isRegister ? describeNewVehicle(proposal.newVehicle) : proposal.vehicle.label;

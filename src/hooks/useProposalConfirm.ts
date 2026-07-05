@@ -7,6 +7,8 @@
 // the auth user, the effie-memory store — stay single across the component.
 import { useCallback } from 'react';
 import { addWhiteboardReminder } from '../lib/addWhiteboardReminder';
+import { buildOverflowTrip } from '../lib/overflowTrip';
+import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import type { ChatMessage } from './useFgAssistant';
 import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
@@ -86,6 +88,20 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           user: { id: user.id, name: user.name, role: user.role },
         });
         if (!ok) throw new Error('Could not leave that reminder — check connection and try again.');
+        return;
+      }
+      // Overflow log → one completed one-way vsa_trips row per vehicle, stamped with the
+      // real destination. writeOrEnqueue falls back to the offline queue on network loss,
+      // so a bad connection queues rather than fails; a real DB error throws to the card.
+      if (proposal.kind === 'overflow_log') {
+        const nowMs = Date.now();
+        let allOk = true;
+        for (let i = 0; i < proposal.vehicles.length; i++) {
+          const payload = buildOverflowTrip(proposal.vehicles[i], proposal.destination, user.id, user.branchId, nowMs, i);
+          const { ok } = await writeOrEnqueue('insert', payload);
+          if (!ok) allOk = false;
+        }
+        if (!allOk) throw new Error('Could not log all those sends — check connection and try again.');
         return;
       }
       const holdTypes: HoldType[] = [proposal.holdType as HoldType];

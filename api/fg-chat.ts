@@ -39,6 +39,13 @@ import {
 } from './_lib/lostItemProposal.js';
 import { buildMemoryProposal, describeMemoryProposal, type MemoryProposal } from './_lib/memoryProposal.js';
 import { buildReminderProposal, describeReminderProposal, type ReminderProposal } from './_lib/reminderProposal.js';
+import {
+  buildOverflowProposal,
+  OVERFLOW_DESTINATIONS,
+  type OverflowDestination,
+  type OverflowLogProposal,
+  type OverflowVehicle,
+} from './_lib/overflowProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
@@ -114,7 +121,9 @@ When the operator (or a management email they read to you) asks what's HELD, wha
 
 When the operator asks WHERE a specific vehicle is or was SENT ("where's LFJ285?", "where did we send LUR170?", "has KUR250 gone out?"), call lookup_vehicle_location — it reads that vehicle's trip history (airport runs / overflow moves) and reports where it was last sent and when, answering across days even though the Movement Log screen only shows today. Distinct from lookup_vehicle, which gives a vehicle's status and holds rather than where it went. Report the last-sent destination and day plainly; if there's no trip on record, say it hasn't been logged out (it may have gone out under a different plate).
 
-When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.`;
+When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.
+
+When the operator says they SENT vehicles to an overflow spot ("these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "sent the keytags to the airport"), call propose_overflow_log with the plates (read from their words OR from any keytag photos they attached) and the destination (AV Flight, FastAir, or Airport). It DRAFTS a confirm card; on their tap the client logs each vehicle so it shows in the Movement Log and answers "where's X?" days later — the whole point is that later, when management emails "where are these vehicles?", they can just ask you (call lookup_vehicle_location) instead of asking around. Never claim you logged them yourself — just that it's drafted for their tap. This is ONLY for overflow sends; a damaged/held vehicle is still a hold, not an overflow log.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -318,6 +327,27 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['text'],
+    },
+  },
+  {
+    name: 'propose_overflow_log',
+    description:
+      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to the airport". Read the plates from the operator\'s words OR from keytag photos they attach. DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plates: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The plates or unit numbers sent, e.g. ["LFJ379", "LUR175"]. Read from the message or from attached keytag photos.',
+        },
+        destination: {
+          type: 'string',
+          enum: [...OVERFLOW_DESTINATIONS],
+          description: 'Where they were sent. "Airport" = Richardson International.',
+        },
+      },
+      required: ['plates', 'destination'],
     },
   },
 ];
@@ -778,6 +808,53 @@ function executeProposeReminder(input: { text?: string }): { toolResult: string;
 }
 
 /**
+ * Draft a batch of overflow sends — resolve each plate to a fleet row (so the trip
+ * logs the canonical plate/unit) and build a confirm proposal. NEVER writes: the
+ * client logs one completed one-way trip per vehicle only on the tap. Unresolved
+ * plates are kept and flagged so the operator sees them before confirming.
+ */
+async function executeProposeOverflowLog(
+  supabase: SupabaseClient,
+  input: { plates?: string[]; destination?: string },
+): Promise<{ toolResult: string; proposal: OverflowLogProposal | null }> {
+  const destination = (input.destination ?? '') as OverflowDestination;
+  const plates = (input.plates ?? []).map((p) => (p ?? '').trim()).filter(Boolean);
+  if (!OVERFLOW_DESTINATIONS.includes(destination) || plates.length === 0) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({
+        ok: false,
+        reason: 'Need at least one plate and a destination of AV Flight, FastAir, or Airport.',
+      }),
+    };
+  }
+  const vehicles: OverflowVehicle[] = [];
+  for (const raw of plates) {
+    const row = await resolveVehicleRow(supabase, raw);
+    if (row) {
+      vehicles.push({
+        plate: row.license_plate,
+        unit: row.unit_number ?? null,
+        label: row.unit_number ? `Unit ${row.unit_number}` : row.license_plate,
+        unresolved: false,
+      });
+    } else {
+      vehicles.push({ plate: normalizePlate(raw), unit: null, label: raw.trim(), unresolved: true });
+    }
+  }
+  const proposal = buildOverflowProposal(destination, vehicles);
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      drafted: `${vehicles.length} vehicle(s) → ${destination}`,
+      unresolved: vehicles.filter((v) => v.unresolved).map((v) => v.label),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is logged, just that it is drafted to log on their tap',
+    }),
+  };
+}
+
+/**
  * Offer to navigate the user to a screen. NEVER writes or navigates — it returns a
  * confirm card the client renders; only the user's tap navigates (and even then, only
  * changes screens, no data write). Safe by construction.
@@ -982,6 +1059,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = out.toolResult;
           } else if (tu.name === 'propose_reminder') {
             const out = executeProposeReminder(tu.input as { text?: string });
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else if (tu.name === 'propose_overflow_log') {
+            const out = await executeProposeOverflowLog(supabase, tu.input as { plates?: string[]; destination?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
             content = out.toolResult;
           } else {
