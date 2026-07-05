@@ -11,6 +11,7 @@ import { useEffieMemory } from '../../hooks/useEffieMemory';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
 import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
+import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { HoldProposalCard } from './HoldProposalCard';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
@@ -18,22 +19,7 @@ import { compressImage } from '../../lib/image';
 import {
   SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
 } from './AssistantIcons';
-import type { HoldType, Screen } from '../../types';
-import type { Proposal } from '../../../api/_lib/holdProposal';
-import { addWhiteboardReminder } from '../../lib/addWhiteboardReminder';
-import type { NavDestination } from '../../../api/_lib/navProposal';
-
-/** Map a navigate proposal's destination to a real app Screen (flagship: the importer). */
-function navDestinationToScreen(dest: NavDestination): Screen {
-  switch (dest) {
-    case 'schedule-import': return { name: 'schedule', openImport: true };
-    case 'lost-found': return { name: 'lost-and-found' };
-    case 'issue-log': return { name: 'issue-log' };
-    case 'my-shift': return { name: 'my-shift' };
-    case 'check-in': return { name: 'check-in' };
-    case 'movement-log': return { name: 'movement-log' };
-  }
-}
+import type { Screen } from '../../types';
 
 export function FgAssistantFab({ module, onNavigate }: { module: string; onNavigate?: (screen: Screen) => void }) {
   const { user } = useAuth();
@@ -97,6 +83,13 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     }
   }, [messages, loading, ttsEnabled, ttsSpeak]);
 
+  // The confirm handler → the only write path for an AI-drafted proposal (the proxy
+  // never wrote). The per-kind write dispatch lives in useProposalConfirm; shared
+  // instances (auth user, effie-memory store) are passed so they don't fork.
+  const confirmProposal = useProposalConfirm({
+    user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen,
+  });
+
   // Only show the FAB to allowlisted accounts (the assistant runs on a personal
   // API key). Mirrors the server's isAllowed gate in api/_lib/assistantAccess —
   // empty/unset allowlist = open to all. The server still enforces regardless;
@@ -107,78 +100,6 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     .filter(Boolean);
   const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
-
-  // Confirm a drafted proposal → the REAL writes happen here (the proxy never wrote;
-  // this tap is the only write path). 'hold' → addHold on the existing vehicle;
-  // 'register_and_hold' → addVehicle (defaults to HELD) then addHold on the new id.
-  // Both reuse the battle-tested mutations (status flip, mgmt ntfy, dedup) for free.
-  const confirmProposal = async (proposal: Proposal) => {
-    // Navigate offer → just change screens + close the panel (no write, no user needed).
-    if (proposal.kind === 'navigate') {
-      onNavigate?.(navDestinationToScreen(proposal.destination));
-      setOpen(false);
-      return;
-    }
-    if (!user) throw new Error('Not signed in.');
-    // Lost & found log → the existing addLostFoundItem (resolves plate, stamps
-    // found_by/found_at, status 'holding'). It returns false (not throw) on failure,
-    // so convert that to a throw for the card's error state.
-    if (proposal.kind === 'lost_item') {
-      const ok = await addLostFoundItem({
-        description: proposal.description,
-        location: proposal.location ?? undefined,
-        licensePlate: proposal.licensePlate ?? undefined,
-        notes: proposal.notes ?? undefined,
-      });
-      if (!ok) throw new Error('Could not log the item — check connection and try again.');
-      return;
-    }
-    // Memory (#2) — the only write path for an AI-drafted memory: save on the tap.
-    if (proposal.kind === 'memory') {
-      const ok = await effieMemory.add(proposal.content);
-      if (!ok) throw new Error('Could not save that memory — check connection and try again.');
-      return;
-    }
-    // Reminder → a shift_board whiteboard note filed under the user's NEXT shift, so it
-    // surfaces on My Shift then and auto-clears the shift after (addWhiteboardReminder).
-    if (proposal.kind === 'reminder') {
-      const ok = await addWhiteboardReminder({
-        body: proposal.text,
-        branchId: user.branchId,
-        user: { id: user.id, name: user.name, role: user.role },
-      });
-      if (!ok) throw new Error('Could not leave that reminder — check connection and try again.');
-      return;
-    }
-    const holdTypes: HoldType[] = [proposal.holdType as HoldType];
-    // Save the photo(s) the user attached in this conversation onto the hold. The
-    // proxy only *analysed* them for the AI draft; this confirm is the only write
-    // path, so without this the damage photo never lands on the record. addHold
-    // uploads them and returns their URLs; auto-pin the first as the vehicle cover
-    // so it shows as the holds-list thumbnail ("one photo → pin it").
-    const photos = messages.filter((m) => m.image).map((m) => m.image!);
-    const attach = photos.length > 0 ? photos : undefined;
-    if (proposal.kind === 'register_and_hold') {
-      const nv = proposal.newVehicle;
-      const vehicleId = await addVehicle({
-        unitNumber: nv.unitNumber,
-        licensePlate: nv.plate,
-        make: nv.make,
-        model: nv.model,
-        year: nv.year,
-        color: nv.color,
-        branchId: user.branchId,
-        isTesla: nv.make === 'Tesla',
-        hasMobileCable: null,
-        hasJ1772Adapter: null,
-      });
-      const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
-      if (result && result.photoUrls.length > 0) await setCoverPhoto(vehicleId, result.photoUrls[0]);
-      return;
-    }
-    const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
-    if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
-  };
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

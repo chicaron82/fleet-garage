@@ -1,0 +1,122 @@
+// The single write path for an AI-drafted proposal. Effie's proxy (api/fg-chat.ts)
+// NEVER writes — it only drafts a Proposal; the user's Confirm tap on the card is
+// what turns it into the real mutation. This hook owns that per-kind write dispatch
+// (navigate / lost_item / memory / reminder / register_and_hold / hold), lifted out
+// of FgAssistantFab so the component stays a surface and the growing logic has one
+// tested home. Deps are passed in (not re-read from context) so shared instances —
+// the auth user, the effie-memory store — stay single across the component.
+import { useCallback } from 'react';
+import { addWhiteboardReminder } from '../lib/addWhiteboardReminder';
+import type { ChatMessage } from './useFgAssistant';
+import type { useAuth } from '../context/AuthContext';
+import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
+import type { useLostFoundContext } from '../context/LostFoundContext';
+import type { useEffieMemory } from './useEffieMemory';
+import type { Proposal } from '../../api/_lib/holdProposal';
+import type { NavDestination } from '../../api/_lib/navProposal';
+import type { HoldType, Screen } from '../types';
+
+/** Map a navigate proposal's destination to a real app Screen (flagship: the importer). */
+function navDestinationToScreen(dest: NavDestination): Screen {
+  switch (dest) {
+    case 'schedule-import': return { name: 'schedule', openImport: true };
+    case 'lost-found': return { name: 'lost-and-found' };
+    case 'issue-log': return { name: 'issue-log' };
+    case 'my-shift': return { name: 'my-shift' };
+    case 'check-in': return { name: 'check-in' };
+    case 'movement-log': return { name: 'movement-log' };
+  }
+}
+
+interface ProposalConfirmDeps {
+  user: ReturnType<typeof useAuth>['user'];
+  messages: ChatMessage[];
+  addHold: ReturnType<typeof useVehicleHoldContext>['addHold'];
+  addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
+  setCoverPhoto: ReturnType<typeof useVehicleHoldContext>['setCoverPhoto'];
+  addLostFoundItem: ReturnType<typeof useLostFoundContext>['addLostFoundItem'];
+  effieMemory: Pick<ReturnType<typeof useEffieMemory>, 'add'>;
+  onNavigate?: (screen: Screen) => void;
+  setOpen: (open: boolean) => void;
+}
+
+/**
+ * Returns the confirm handler for a drafted proposal → the REAL writes happen here
+ * (the proxy never wrote; this tap is the only write path). 'hold' → addHold on the
+ * existing vehicle; 'register_and_hold' → addVehicle (defaults to HELD) then addHold
+ * on the new id. Both reuse the battle-tested mutations (status flip, mgmt ntfy,
+ * dedup) for free. Throws on failure so the card surfaces its error state.
+ */
+export function useProposalConfirm(deps: ProposalConfirmDeps) {
+  const { user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
+  return useCallback(
+    async (proposal: Proposal) => {
+      // Navigate offer → just change screens + close the panel (no write, no user needed).
+      if (proposal.kind === 'navigate') {
+        onNavigate?.(navDestinationToScreen(proposal.destination));
+        setOpen(false);
+        return;
+      }
+      if (!user) throw new Error('Not signed in.');
+      // Lost & found log → the existing addLostFoundItem (resolves plate, stamps
+      // found_by/found_at, status 'holding'). It returns false (not throw) on failure,
+      // so convert that to a throw for the card's error state.
+      if (proposal.kind === 'lost_item') {
+        const ok = await addLostFoundItem({
+          description: proposal.description,
+          location: proposal.location ?? undefined,
+          licensePlate: proposal.licensePlate ?? undefined,
+          notes: proposal.notes ?? undefined,
+        });
+        if (!ok) throw new Error('Could not log the item — check connection and try again.');
+        return;
+      }
+      // Memory — the only write path for an AI-drafted memory: save on the tap.
+      if (proposal.kind === 'memory') {
+        const ok = await effieMemory.add(proposal.content);
+        if (!ok) throw new Error('Could not save that memory — check connection and try again.');
+        return;
+      }
+      // Reminder → a shift_board whiteboard note filed under the user's NEXT shift, so it
+      // surfaces on My Shift then and auto-clears the shift after (addWhiteboardReminder).
+      if (proposal.kind === 'reminder') {
+        const ok = await addWhiteboardReminder({
+          body: proposal.text,
+          branchId: user.branchId,
+          user: { id: user.id, name: user.name, role: user.role },
+        });
+        if (!ok) throw new Error('Could not leave that reminder — check connection and try again.');
+        return;
+      }
+      const holdTypes: HoldType[] = [proposal.holdType as HoldType];
+      // Save the photo(s) the user attached in this conversation onto the hold. The
+      // proxy only *analysed* them for the AI draft; this confirm is the only write
+      // path, so without this the damage photo never lands on the record. addHold
+      // uploads them and returns their URLs; auto-pin the first as the vehicle cover
+      // so it shows as the holds-list thumbnail ("one photo → pin it").
+      const photos = messages.filter((m) => m.image).map((m) => m.image!);
+      const attach = photos.length > 0 ? photos : undefined;
+      if (proposal.kind === 'register_and_hold') {
+        const nv = proposal.newVehicle;
+        const vehicleId = await addVehicle({
+          unitNumber: nv.unitNumber,
+          licensePlate: nv.plate,
+          make: nv.make,
+          model: nv.model,
+          year: nv.year,
+          color: nv.color,
+          branchId: user.branchId,
+          isTesla: nv.make === 'Tesla',
+          hasMobileCable: null,
+          hasJ1772Adapter: null,
+        });
+        const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+        if (result && result.photoUrls.length > 0) await setCoverPhoto(vehicleId, result.photoUrls[0]);
+        return;
+      }
+      const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+      if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
+    },
+    [user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
+  );
+}
