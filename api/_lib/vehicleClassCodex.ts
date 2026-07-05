@@ -41,6 +41,7 @@ const CODEX: Record<string, VehicleClass> = {
   CSOR: { make: 'Kia', model: 'Sorento' },
   CSOL: { make: 'Kia', model: 'Soul' },
   CSPT: { make: 'Kia', model: 'Sportage' },
+  CSEH: { make: 'Kia', model: 'Sportage Hybrid' },
   // Nissan
   CKSV: { make: 'Nissan', model: 'Kicks' },
   CVSS: { make: 'Nissan', model: 'Versa' },
