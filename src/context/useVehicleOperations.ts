@@ -250,8 +250,19 @@ export function useVehicleOperations({
       supabase.from('vehicles').update({ archived_at: null, archived_by_id: null }).eq('id', vehicleId)
     );
     if (error) return;
+    // Restore the holds archiving voided — unarchive resumes the vehicle's paused
+    // holds (VOIDED → ACTIVE), the mirror of archiveVehicle. Only VOIDED reactivates;
+    // resolved holds (RELEASED/REPAIRED/RETURNED) stay closed. Note: a hold voided
+    // deliberately before archiving also reactivates — a returning vehicle surfaces
+    // its full open slate, and a genuine mis-flag is one tap to re-void.
+    await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'ACTIVE' }).eq('vehicle_id', vehicleId).eq('status', 'VOIDED')
+    );
     setAllVehicles(prev => prev.map(v =>
       v.id === vehicleId ? { ...v, archivedAt: undefined, archivedById: undefined } : v
+    ));
+    setAllHolds(prev => prev.map(h =>
+      h.vehicleId === vehicleId && h.status === 'VOIDED' ? { ...h, status: 'ACTIVE' as const } : h
     ));
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     await pushNotification(
