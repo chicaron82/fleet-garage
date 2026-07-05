@@ -24,6 +24,7 @@ import {
 } from './_lib/vehicleSummary.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { correctManitobaPrefix, MB_PLATE_PREFIXES } from './_lib/platePrefix.js';
+import { shiftBusinessDate } from './_lib/shiftDay.js';
 import {
   buildHoldProposal,
   buildRegisterHoldProposal,
@@ -572,23 +573,6 @@ function todayLabelWinnipeg(iso: string): string {
   if (!y || !m || !d) return iso;
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
-/** The shift-day (YYYY-MM-DD) a timestamp belongs to, using the 04:00 Winnipeg cutover
- *  — mirrors src/lib/shiftDay.businessDateOf (can't import src/ into the Vercel fn).
- *  Intl handles DST, so this is string-comparison only, no UTC-offset math. */
-function shiftDayStr(ts: Date): string {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: SCHED_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false,
-    }).formatToParts(ts).map((x) => [x.type, x.value]),
-  );
-  let [y, mo, d] = [Number(p.year), Number(p.month), Number(p.day)];
-  if (Number(p.hour) < 4) {
-    const prev = new Date(Date.UTC(y, mo - 1, d));
-    prev.setUTCDate(prev.getUTCDate() - 1);
-    [y, mo, d] = [prev.getUTCFullYear(), prev.getUTCMonth() + 1, prev.getUTCDate()];
-  }
-  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
 
 /** Read-only: who's on which shift for a date ("who's closing with me tonight?"). */
 async function executeLookupSchedule(
@@ -795,8 +779,8 @@ async function executeLookupSent(supabase: SupabaseClient, input: { scope?: stri
 
   let rows = data ?? [];
   if (scope === 'shift') {
-    const today = shiftDayStr(new Date());
-    rows = rows.filter((r) => r.depart_time && shiftDayStr(new Date(r.depart_time)) === today);
+    const today = shiftBusinessDate(new Date());
+    rows = rows.filter((r) => r.depart_time && shiftBusinessDate(new Date(r.depart_time)) === today);
   }
   // Dedup to the latest send per vehicle (rows are newest-first). A returned/re-sent
   // car reflects its newest spot; there's no return-logging, so this is "last sent".
