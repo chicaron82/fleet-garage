@@ -178,7 +178,10 @@ export interface Vehicle {
 }
 
 export function canManageVehicles(role: UserRole): boolean {
-  return ['Branch Manager', 'Operations Manager', 'City Manager'].includes(role);
+  // VSA is included for FG's personal-first mode: Aaron is the sole operator, so the
+  // floor role gets full vehicle management — archive/restore, direct identity edits
+  // (suggest→review has no reviewer when solo), and EV asset editing.
+  return ['VSA', 'Branch Manager', 'Operations Manager', 'City Manager'].includes(role);
 }
 
 // ── Holds ────────────────────────────────────────────────────────────────────
