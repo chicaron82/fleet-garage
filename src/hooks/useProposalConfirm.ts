@@ -119,6 +119,11 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           isTesla: nv.make === 'Tesla',
           hasMobileCable: null,
           hasJ1772Adapter: null,
+          // No hold is added here, so override addVehicle's HELD default — a clean
+          // new-to-fleet car is CLEAR, not falsely held (matches RegisterVehicleForm's
+          // returnTo:'fleet' path). Without this it shows "Held" until the detail
+          // view's syncVehicleStatus heals it.
+          status: 'CLEAR',
         });
         return;
       }

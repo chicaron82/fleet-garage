@@ -64,7 +64,8 @@ describe('useProposalConfirm — register_vehicle branch', () => {
       newVehicle: { unitNumber: '5427620', plate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', year: 2026, color: 'Gray' },
     });
     expect(addVehicle).toHaveBeenCalledWith(
-      expect.objectContaining({ licensePlate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', isTesla: false }),
+      // status CLEAR is load-bearing: no hold is added, so it must NOT default to HELD.
+      expect.objectContaining({ licensePlate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', isTesla: false, status: 'CLEAR' }),
     );
     expect(addHold).not.toHaveBeenCalled();
   });
