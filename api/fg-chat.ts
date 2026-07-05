@@ -110,6 +110,8 @@ When the user wants to IMPORT THE SCHEDULE from a photo ("I want to import the n
 
 When the operator asks you to REMEMBER something about them, or states a lasting preference or fact clearly worth recalling on a future day ("remember that I run mids", "I prefer set schedules over rotating"), call propose_memory with ONE concise fact phrased about them — it DRAFTS a confirm card and is never saved until they tap it. Don't propose a memory for one-off task requests or things that change every shift, and never propose one that's already in your standing notes (check Context first — if you already know it, just say so). Your saved standing notes about the operator appear in Context — use them to personalize naturally, never recite them back as a list.
 
+When the operator (or a management email they read to you) asks what's HELD, what's held for maintenance, or to "send the held list", call lookup_held — it reads the live holds and returns each held vehicle with its reason, answering across any day, not just this shift. It's distinct from lookup_issues (facility/building issues, not vehicle holds). Read the result back naturally as a list; if it's empty, say nothing is currently held.
+
 When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.`;
 
 const TOOLS: Anthropic.Tool[] = [
@@ -282,6 +284,12 @@ const TOOLS: Anthropic.Tool[] = [
       },
       required: ['code'],
     },
+  },
+  {
+    name: 'lookup_held',
+    description:
+      'List the vehicles currently on an ACTIVE hold and WHY — the "what\'s held", "held for maintenance", or "send me the held list" question (often a management email asking what\'s held / where vehicles are). Reads live, so it answers across any day, not just this shift. Read-only; no input.',
+    input_schema: { type: 'object', properties: {} },
   },
   {
     name: 'propose_reminder',
@@ -589,6 +597,43 @@ async function executeLookupIssues(supabase: SupabaseClient, input: { status?: s
   return JSON.stringify({ count: items.length, summary: formatIssues(items) });
 }
 
+/** Read-only: vehicles currently on an ACTIVE hold, grouped by vehicle with their
+ *  reasons — the "what's held and why" / "held for maintenance" list management asks
+ *  for. Reads live from the holds table, so it answers across any day (the Movement
+ *  Log view is day-scoped; this is not). Archived/out-of-fleet vehicles are dropped. */
+async function executeLookupHeld(supabase: SupabaseClient): Promise<string> {
+  const { data: holds, error } = await supabase
+    .from('holds')
+    .select('vehicle_id, hold_type, mechanical_sub_type, damage_description, flagged_at')
+    .eq('status', 'ACTIVE')
+    .order('flagged_at', { ascending: true });
+  if (error) throw error;
+
+  const ids = [...new Set((holds ?? []).map((h) => h.vehicle_id))];
+  const veh = new Map<string, string>(); // vehicleId → display id (unit ?? plate)
+  if (ids.length > 0) {
+    const { data: vehicles } = await supabase
+      .from('vehicles')
+      .select('id, unit_number, license_plate, archived_at')
+      .in('id', ids)
+      .is('archived_at', null);
+    for (const v of vehicles ?? []) veh.set(v.id, v.unit_number ?? v.license_plate ?? 'Unknown');
+  }
+
+  const byVehicle = new Map<string, string[]>();
+  for (const h of holds ?? []) {
+    const label = veh.get(h.vehicle_id);
+    if (!label) continue; // archived / not found — out of fleet
+    const reason =
+      (h.damage_description ?? '').trim() ||
+      [h.hold_type, h.mechanical_sub_type].filter(Boolean).join(' · ') ||
+      'held';
+    (byVehicle.get(label) ?? byVehicle.set(label, []).get(label)!).push(reason);
+  }
+  const held = [...byVehicle.entries()].map(([id, reasons]) => `${id} — ${reasons.join('; ')}`);
+  return JSON.stringify({ count: held.length, held });
+}
+
 /**
  * Draft a found item for lost & found — NEVER writes. The proposal goes to the
  * client as a confirm card, and only a user tap calls the real addLostFoundItem
@@ -848,6 +893,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
           } else if (tu.name === 'lookup_issues') {
             content = await executeLookupIssues(supabase, tu.input as { status?: string });
+          } else if (tu.name === 'lookup_held') {
+            content = await executeLookupHeld(supabase);
           } else if (tu.name === 'propose_navigation') {
             const out = executeProposeNavigation(tu.input as { destination?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
