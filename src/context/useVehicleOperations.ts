@@ -220,8 +220,19 @@ export function useVehicleOperations({
       supabase.from('vehicles').update({ archived_at: now, archived_by_id: userId }).eq('id', vehicleId)
     );
     if (error) return;
+    // Void the vehicle's still-active holds — archiving removes it from the working
+    // set, so a lingering ACTIVE hold would orphan: age forever, never actionable,
+    // and inflate "held too long". VOIDED is the right terminal state (it neither
+    // counts nor breaks a streak). Unarchiving does NOT resurrect them — re-flag if
+    // the vehicle ever returns with a real issue.
+    await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'VOIDED' }).eq('vehicle_id', vehicleId).eq('status', 'ACTIVE')
+    );
     setAllVehicles(prev => prev.map(v =>
       v.id === vehicleId ? { ...v, archivedAt: now, archivedById: userId } : v
+    ));
+    setAllHolds(prev => prev.map(h =>
+      h.vehicleId === vehicleId && h.status === 'ACTIVE' ? { ...h, status: 'VOIDED' as const } : h
     ));
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     await pushNotification(
