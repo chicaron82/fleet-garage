@@ -16,6 +16,7 @@ import { HoldProposalCard } from './HoldProposalCard';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
+import { stripForSpeech } from '../../lib/speechText';
 import {
   SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
 } from './AssistantIcons';
@@ -79,7 +80,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     const m = messages[i];
     if (m && m.role === 'assistant' && m.text && ttsEnabled && spokenRef.current !== i) {
       spokenRef.current = i;
-      ttsSpeak(m.text);
+      ttsSpeak(stripForSpeech(m.text)); // no "asterisk asterisk" from stray markdown
     }
   }, [messages, loading, ttsEnabled, ttsSpeak]);
 
