@@ -12,6 +12,7 @@ import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
 import { businessDateOf } from '../lib/shiftDay';
 import { deriveMyDay, type MyDayModel } from '../lib/myDay';
+import { staleHeldVehicleCount } from '../lib/holdFilters';
 import type { HandoffNote, Attendance } from '../types';
 
 export interface UseMyDay extends MyDayModel {
@@ -28,7 +29,7 @@ export interface UseMyDay extends MyDayModel {
 export function useMyDay(): UseMyDay {
   const { user } = useAuth();
   const { shifts, setShiftAttendance } = useSchedule();
-  const { staleHolds } = useVehicleHoldContext();
+  const { staleHolds, vehicles } = useVehicleHoldContext();
   const { latestHandoff } = useWashbayContext();
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
@@ -51,10 +52,10 @@ export function useMyDay(): UseMyDay {
   return {
     ...model,
     dateLabel,
-    // Distinct vehicles, not hold records — a vehicle can carry multiple active
-    // holds, so dedupe by vehicleId. The card reads "N vehicles held too long",
-    // and this keeps that honest + comparable to the HELD-vehicle sidebar badge.
-    staleCount: new Set(staleHolds.map(h => h.vehicleId)).size,
+    // "Held too long" = distinct HELD vehicles (the sidebar badge's population) that
+    // carry a stale hold — so sale_car holds and dangling holds on archived units
+    // don't masquerade as bay holds, and it never exceeds the badge.
+    staleCount: staleHeldVehicleCount(staleHolds, vehicles),
     handoffToday: handoffIsToday ? latestHandoff! : null,
     balanceLogged: !!todayEntry,
     todayEntry,
