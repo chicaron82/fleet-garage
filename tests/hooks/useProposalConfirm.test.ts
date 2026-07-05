@@ -51,3 +51,21 @@ describe('useProposalConfirm — overflow_log branch', () => {
     await expect(result.current(overflow())).rejects.toThrow(/could not log/i);
   });
 });
+
+describe('useProposalConfirm — register_vehicle branch', () => {
+  it('registers a new-to-fleet vehicle with NO hold', async () => {
+    const addVehicle = vi.fn().mockResolvedValue('veh-1');
+    const addHold = vi.fn();
+    const { result } = renderHook(() =>
+      useProposalConfirm({ ...deps, addVehicle, addHold } as unknown as Parameters<typeof useProposalConfirm>[0]),
+    );
+    await result.current({
+      kind: 'register_vehicle',
+      newVehicle: { unitNumber: '5427620', plate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', year: 2026, color: 'Gray' },
+    });
+    expect(addVehicle).toHaveBeenCalledWith(
+      expect.objectContaining({ licensePlate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', isTesla: false }),
+    );
+    expect(addHold).not.toHaveBeenCalled();
+  });
+});

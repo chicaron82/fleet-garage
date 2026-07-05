@@ -104,6 +104,24 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         if (!allOk) throw new Error('Could not log all those sends — check connection and try again.');
         return;
       }
+      // Register-only → add the vehicle to the fleet, NO hold. addVehicle throws on
+      // failure, which the card turns into its error state.
+      if (proposal.kind === 'register_vehicle') {
+        const nv = proposal.newVehicle;
+        await addVehicle({
+          unitNumber: nv.unitNumber,
+          licensePlate: nv.plate,
+          make: nv.make,
+          model: nv.model,
+          year: nv.year,
+          color: nv.color,
+          branchId: user.branchId,
+          isTesla: nv.make === 'Tesla',
+          hasMobileCable: null,
+          hasJ1772Adapter: null,
+        });
+        return;
+      }
       const holdTypes: HoldType[] = [proposal.holdType as HoldType];
       // Save the photo(s) the user attached in this conversation onto the hold. The
       // proxy only *analysed* them for the AI draft; this confirm is the only write

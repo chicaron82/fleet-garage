@@ -185,6 +185,19 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
     );
   }
 
+  // Register-only — new to fleet, NO hold. Amber (a fleet write), distinct from the
+  // register+hold path below (which also opens a hold).
+  if (proposal.kind === 'register_vehicle') {
+    if (status === 'done') return <Receipt>Registered <span className="font-semibold">{proposal.newVehicle.plate}</span> to the fleet.</Receipt>;
+    return (
+      <Shell tone="amber" kicker="Confirm — register (new to fleet)">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">Register {describeNewVehicle(proposal.newVehicle)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">New to the fleet — no hold, just added so FG knows it.</p>
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={confirm} />
+      </Shell>
+    );
+  }
+
   const isRegister = proposal.kind === 'register_and_hold';
   const plate = isRegister ? proposal.newVehicle.plate : proposal.vehicle.plate;
   const vehicleLabel = isRegister ? describeNewVehicle(proposal.newVehicle) : proposal.vehicle.label;

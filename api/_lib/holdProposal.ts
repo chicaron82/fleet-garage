@@ -44,7 +44,14 @@ export interface RegisterHoldProposal {
   damageDescription: string;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
+/** Register an unknown plate to the fleet with NO hold — just add it so FG knows the
+ *  car exists (so it later resolves in "where's X?", overflow logging, inventory). */
+export interface RegisterVehicleProposal {
+  kind: 'register_vehicle';
+  newVehicle: NewVehicle;
+}
+
+export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -64,6 +71,11 @@ export function buildRegisterHoldProposal(
   return { kind: 'register_and_hold', newVehicle, holdType, damageDescription };
 }
 
+/** Build a register-only proposal (new to fleet, no hold). Pure — no write. */
+export function buildRegisterVehicleProposal(newVehicle: NewVehicle): RegisterVehicleProposal {
+  return { kind: 'register_vehicle', newVehicle };
+}
+
 /** "Unit 1234 · 2025 Hyundai Tucson (Gray)" — for a not-yet-registered vehicle. */
 export function describeNewVehicle(v: NewVehicle): string {
   const veh = [v.year, v.make, v.model].filter(Boolean).join(' ');
@@ -79,6 +91,9 @@ export function describeProposal(p: Proposal): string {
   if (p.kind === 'memory') return describeMemoryProposal(p);
   if (p.kind === 'reminder') return describeReminderProposal(p);
   if (p.kind === 'overflow_log') return describeOverflowProposal(p);
+  if (p.kind === 'register_vehicle') {
+    return `register ${describeNewVehicle(p.newVehicle)} (new to fleet, no hold)`;
+  }
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
   if (p.kind === 'register_and_hold') {
     return `register ${describeNewVehicle(p.newVehicle)} + ${p.holdType} hold${desc}`;

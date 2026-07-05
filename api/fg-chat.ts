@@ -28,9 +28,11 @@ import { shiftBusinessDate } from './_lib/shiftDay.js';
 import {
   buildHoldProposal,
   buildRegisterHoldProposal,
+  buildRegisterVehicleProposal,
   describeProposal,
   type HoldProposal,
   type RegisterHoldProposal,
+  type RegisterVehicleProposal,
   type Proposal,
 } from './_lib/holdProposal.js';
 import {
@@ -113,7 +115,7 @@ When the user attaches a photo of a KEY TAG (a printed vehicle tag showing field
 - "Lic Plate" → the license plate.
 - The class line (e.g. "CCVL 25"): call lookup_vehicle_class with the code ("CCVL") to get make + model; the trailing number is the model YEAR ("25" → 2025).
 - The colour/body line (e.g. "WHI 4DR"): the colour code (WHI = White, BLK = Black, SIL = Silver, GRY = Gray, BLU = Blue, RED = Red) and body style.
-Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register and flag the vehicle. If the plate is already on record, just say so. If the user has described what's wrong with it, call propose_register_and_hold with all those fields plus the damage. If they haven't said what the issue is, ask — registering a vehicle in FG goes hand-in-hand with putting it on hold, so don't invent a damage reason. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.
+Once you have make + model (from lookup_vehicle_class), year, colour, unit, and plate, you can register the vehicle. If the plate is already on record, just say so. If the user has described something WRONG with it (damage/mechanical), call propose_register_and_hold with all those fields plus the damage. If it's just NEW TO THE FLEET with nothing wrong ("new car", "just add it", "register this"), call propose_register_vehicle — register-only, no hold; never invent a damage reason to force a hold. If it's unclear whether anything's wrong, ask. If lookup_vehicle_class returns unknown, ask the user for the make/model; never guess it.
 
 When the user attaches a photo of a LOCATION DAILY VEHICLE INVENTORY sheet (a Hertz "Location Daily Vehicle Inventory" form — columns Owning Area, Unit Number, License, Class, Status, Notes; status codes A=Available, D=Dirty, M=Mechanical, B=Body, F=Foreign) and asks whether a vehicle is on it, or to read it ("is LUR150 on last night's inventory?", "which of these are on the sheet?", "read me the sheet"), read the handwritten rows and answer FROM THAT PHOTO:
 - Match the plate/unit the OPERATOR asked for against the License/Unit columns. Their spelling is authoritative and the sheet is handwritten, so tolerate messy characters — ESPECIALLY a hand-drawn U that reads like M or N. This fleet's Manitoba plates start with ${MB_PLATE_PREFIXES.join(', ')}; a prefix like LMR/KMR/LNR is just a misread U, so snap it to the known one (LMR→LUR, KMR→KUR). Also watch easily-confused digits (0/6, 1/7, 4/9). A close handwriting match to the asked-for plate IS a match; lookup_vehicle auto-corrects these MB-prefix misreads, so use it with the operator's plate to confirm a real fleet vehicle.
@@ -188,6 +190,23 @@ const TOOLS: Anthropic.Tool[] = [
         damage_description: { type: 'string', description: 'What is wrong, e.g. "cracked windshield".' },
       },
       required: ['plate', 'unit_number', 'make', 'model', 'year', 'color', 'damage_description'],
+    },
+  },
+  {
+    name: 'propose_register_vehicle',
+    description:
+      'Register a NEW-TO-FLEET vehicle with NO hold — the car is clean, nothing wrong, the operator just wants FG to know it exists (so it later resolves in "where\'s X?", overflow logging, and inventory reads). Read the fields off the KEY TAG (Veh # → unit, Lic Plate, class code → call lookup_vehicle_class for make+model, colour/body line). Use THIS (not propose_register_and_hold) when there is no damage to flag. Does NOT write — returns a draft the user taps to confirm; if the plate is already on record, say so.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: { type: 'string', description: 'License plate.' },
+        unit_number: { type: 'string', description: 'Fleet unit number (join the digit groups).' },
+        make: { type: 'string', description: 'e.g. "Kia".' },
+        model: { type: 'string', description: 'e.g. "Sportage Hybrid" (from lookup_vehicle_class).' },
+        year: { type: 'integer', description: 'Model year, e.g. 2026.' },
+        color: { type: 'string', description: 'e.g. "Gray".' },
+      },
+      required: ['plate', 'unit_number', 'make', 'model', 'year', 'color'],
     },
   },
   {
@@ -554,6 +573,52 @@ async function executeProposeRegisterHold(
       ok: true,
       proposed: describeProposal(proposal),
       awaiting: 'user confirmation — a confirm card is shown; do NOT say it is registered/held, just that it is drafted for them to confirm',
+    }),
+  };
+}
+
+/**
+ * Draft a register-ONLY (new to fleet, no hold) for a plate not yet on record.
+ * NEVER writes: the client calls addVehicle on the confirm tap. Mirrors the
+ * register-and-hold guards (already-on-record, missing fields) minus the hold.
+ */
+async function executeProposeRegisterVehicle(
+  supabase: SupabaseClient,
+  input: { plate?: string; unit_number?: string; make?: string; model?: string; year?: number; color?: string },
+): Promise<{ toolResult: string; proposal: RegisterVehicleProposal | null }> {
+  const existing = await resolveVehicleRow(supabase, input.plate ?? '');
+  if (existing) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({
+        ok: false,
+        reason: `"${input.plate ?? ''}" is already on record (${describeVehicle(toVehicleFact(existing))}). Nothing to register.`,
+      }),
+    };
+  }
+  const missing = (['plate', 'unit_number', 'make', 'model', 'year', 'color'] as const).filter(
+    (k) => input[k] === undefined || input[k] === null || `${input[k]}`.trim() === '',
+  );
+  if (missing.length > 0) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. Read them off the key tag or ask the user before proposing.` }),
+    };
+  }
+  const proposal = buildRegisterVehicleProposal({
+    unitNumber: `${input.unit_number}`.trim(),
+    plate: `${input.plate}`.trim().toUpperCase(),
+    make: `${input.make}`.trim(),
+    model: `${input.model}`.trim(),
+    year: Number(input.year),
+    color: `${input.color}`.trim(),
+  });
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is registered, just that it is drafted for them to confirm',
     }),
   };
 }
@@ -1097,6 +1162,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             const out = await executeProposeRegisterHold(
               supabase,
               tu.input as Parameters<typeof executeProposeRegisterHold>[1],
+            );
+            if (out.proposal) proposal = out.proposal;
+            content = out.toolResult;
+          } else if (tu.name === 'propose_register_vehicle') {
+            const out = await executeProposeRegisterVehicle(
+              supabase,
+              tu.input as Parameters<typeof executeProposeRegisterVehicle>[1],
             );
             if (out.proposal) proposal = out.proposal;
             content = out.toolResult;
