@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isStaleHold, findActiveTypeOverlap, STALE_HOLD_MS } from '../../src/lib/holdFilters';
-import type { Hold } from '../../src/types';
+import { isStaleHold, findActiveTypeOverlap, staleHeldVehicleCount, STALE_HOLD_MS } from '../../src/lib/holdFilters';
+import type { Hold, Vehicle } from '../../src/types';
 
 function makeHold(overrides: Partial<Hold> = {}): Hold {
   return {
@@ -89,5 +89,30 @@ describe('findActiveTypeOverlap', () => {
   it('handles legacy holds with no resolvedTypes field', () => {
     const legacy = makeHold({ holdTypes: ['hail'], resolvedTypes: undefined });
     expect(findActiveTypeOverlap([legacy], ['hail'])).toHaveLength(1);
+  });
+});
+
+// "Held too long" for My Day: distinct HELD (non-archived, passed by caller) vehicles
+// carrying a stale hold — so sale_car / archived-dangling holds don't masquerade as
+// bay holds. Takes an already-stale hold set + the branch's non-archived vehicles.
+describe('staleHeldVehicleCount', () => {
+  const veh = (id: string, status: string) => ({ id, status } as unknown as Vehicle);
+  const on = (vehicleId: string) => makeHold({ vehicleId }); // an already-stale hold on a vehicle
+
+  it('counts a HELD vehicle that carries a stale hold', () => {
+    expect(staleHeldVehicleCount([on('v1')], [veh('v1', 'HELD')])).toBe(1);
+  });
+  it('excludes a stale hold on a non-HELD vehicle (e.g. SALE_CAR)', () => {
+    expect(staleHeldVehicleCount([on('v1')], [veh('v1', 'SALE_CAR')])).toBe(0);
+  });
+  it('excludes a stale hold whose vehicle is absent (archived → filtered upstream)', () => {
+    expect(staleHeldVehicleCount([on('ghost')], [])).toBe(0);
+  });
+  it('dedupes: a HELD vehicle with two stale holds counts once', () => {
+    expect(staleHeldVehicleCount([on('v1'), on('v1')], [veh('v1', 'HELD')])).toBe(1);
+  });
+  it('mixed population → only distinct HELD stale vehicles', () => {
+    const vehicles = [veh('v1', 'HELD'), veh('v2', 'HELD'), veh('v3', 'SALE_CAR')];
+    expect(staleHeldVehicleCount([on('v1'), on('v2'), on('v3'), on('v1')], vehicles)).toBe(2);
   });
 });

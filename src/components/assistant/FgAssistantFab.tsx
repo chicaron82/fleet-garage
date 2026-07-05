@@ -20,6 +20,7 @@ import {
 } from './AssistantIcons';
 import type { HoldType, Screen } from '../../types';
 import type { Proposal } from '../../../api/_lib/holdProposal';
+import { addWhiteboardReminder } from '../../lib/addWhiteboardReminder';
 import type { NavDestination } from '../../../api/_lib/navProposal';
 
 /** Map a navigate proposal's destination to a real app Screen (flagship: the importer). */
@@ -136,6 +137,17 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     if (proposal.kind === 'memory') {
       const ok = await effieMemory.add(proposal.content);
       if (!ok) throw new Error('Could not save that memory — check connection and try again.');
+      return;
+    }
+    // Reminder → a shift_board whiteboard note filed under the user's NEXT shift, so it
+    // surfaces on My Shift then and auto-clears the shift after (addWhiteboardReminder).
+    if (proposal.kind === 'reminder') {
+      const ok = await addWhiteboardReminder({
+        body: proposal.text,
+        branchId: user.branchId,
+        user: { id: user.id, name: user.name, role: user.role },
+      });
+      if (!ok) throw new Error('Could not leave that reminder — check connection and try again.');
       return;
     }
     const holdTypes: HoldType[] = [proposal.holdType as HoldType];

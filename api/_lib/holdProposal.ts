@@ -7,6 +7,7 @@
 import { describeLostItemProposal, type LostItemProposal } from './lostItemProposal.js';
 import { describeNavigate, type NavigateProposal } from './navProposal.js';
 import { describeMemoryProposal, type MemoryProposal } from './memoryProposal.js';
+import { describeReminderProposal, type ReminderProposal } from './reminderProposal.js';
 
 /** The vehicle a 'hold' proposal targets — already resolved to a real fleet row. */
 export interface ProposalVehicle {
@@ -42,7 +43,7 @@ export interface RegisterHoldProposal {
   damageDescription: string;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal;
+export type Proposal = HoldProposal | RegisterHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -75,6 +76,7 @@ export function describeProposal(p: Proposal): string {
   if (p.kind === 'navigate') return describeNavigate(p);
   if (p.kind === 'lost_item') return `log found item: ${describeLostItemProposal(p)}`;
   if (p.kind === 'memory') return describeMemoryProposal(p);
+  if (p.kind === 'reminder') return describeReminderProposal(p);
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
   if (p.kind === 'register_and_hold') {
     return `register ${describeNewVehicle(p.newVehicle)} + ${p.holdType} hold${desc}`;

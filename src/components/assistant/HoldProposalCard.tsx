@@ -4,7 +4,7 @@
 // own submit/done/error state so the card becomes a receipt ("✓ Hold opened" / "✓
 // Logged" / "✓ Saved") once it lands — the single write path for an AI-suggested action.
 //
-// Five kinds share three internal shells (Shell / Receipt / CardActions) so a new
+// Six kinds share three internal shells (Shell / Receipt / CardActions) so a new
 // proposal kind is a body + two labels, not another hand-rolled card. Tones: amber =
 // an ops write (hold, lost & found), blue = personal/no-write (memory, navigate).
 import { useState } from 'react';
@@ -150,6 +150,18 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
       <Shell tone="blue" kicker="Remember this?">
         <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.content}</p>
         <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Remember" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} />
+      </Shell>
+    );
+  }
+
+  // Reminder — a note Effie leaves on the shift whiteboard for the user's next shift.
+  // Blue: a personal note (surfaces on My Shift then, auto-clears after), not an ops write.
+  if (proposal.kind === 'reminder') {
+    if (status === 'done') return <Receipt>On your shift board for next shift.</Receipt>;
+    return (
+      <Shell tone="blue" kicker="Reminder — next shift">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.text}</p>
+        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Leave note" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} />
       </Shell>
     );
   }
