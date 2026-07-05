@@ -9,6 +9,13 @@ describe('correctManitobaPrefix', () => {
     expect(correctManitobaPrefix('KNR232')).toBe('KUR232');
   });
 
+  it('handles the LFJ/LJF swap-pair without cross-correcting them', () => {
+    expect(correctManitobaPrefix('LFJ383')).toBe('LFJ383'); // both are valid, untouched
+    expect(correctManitobaPrefix('LJF701')).toBe('LJF701');
+    expect(correctManitobaPrefix('LJT701')).toBe('LJF701'); // one-off from only LJF
+    expect(correctManitobaPrefix('LFF383')).toBe('LFF383'); // one-off from BOTH → ambiguous, left as-is
+  });
+
   it('leaves an already-valid prefix untouched', () => {
     for (const p of MB_PLATE_PREFIXES) {
       expect(correctManitobaPrefix(`${p}383`)).toBe(`${p}383`);

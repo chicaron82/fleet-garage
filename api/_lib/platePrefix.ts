@@ -10,8 +10,10 @@
 // (client → api/_lib is allowed; the reverse isn't). Scoped to MB prefixes on purpose
 // — Aaron's call, so foreign plates are never "corrected" toward an MB prefix.
 
-/** The known Manitoba plate prefixes in this fleet. Extend as new prefixes appear. */
-export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LZM'] as const;
+/** The known Manitoba plate prefixes in this fleet. Extend as new prefixes appear.
+ *  LFJ and LJF are BOTH real (a letter swap, not a typo) — two chars apart, so a read
+ *  between them is ambiguous and left uncorrected rather than guessed. */
+export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LJF', 'LZM'] as const;
 
 /** True when two equal-length strings differ in exactly one position. */
 function oneCharOff(a: string, b: string): boolean {
