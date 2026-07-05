@@ -24,6 +24,11 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('holds');
   });
 
+  it('VSA + Lead VSA see fleet-master (register-only + fleet browser, opened 2026-07-05)', () => {
+    expect(getNavItemsForRole('VSA').map(n => n.module)).toContain('fleet-master');
+    expect(getNavItemsForRole('Lead VSA').map(n => n.module)).toContain('fleet-master');
+  });
+
   it('CSR does not see fleet-master', () => {
     const modules = getNavItemsForRole('CSR').map(n => n.module);
     expect(modules).not.toContain('fleet-master');
@@ -161,9 +166,9 @@ describe('canAccessScreen', () => {
     expect(canAccessScreen({ name: 'dashboard' }, 'VSA')).toBe(true);
   });
 
-  it('blocks analytics/fleet-master for a frontline role', () => {
+  it('blocks analytics for a frontline role, but VSA now gets fleet-master (register grant 2026-07-05)', () => {
     expect(canAccessScreen({ name: 'analytics' }, 'VSA')).toBe(false);
-    expect(canAccessScreen({ name: 'fleet-master' }, 'VSA')).toBe(false);
+    expect(canAccessScreen({ name: 'fleet-master' }, 'VSA')).toBe(true); // opened for register-only
     expect(canAccessScreen({ name: 'analytics' }, 'GM')).toBe(true);
   });
 });
