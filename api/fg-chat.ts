@@ -112,6 +112,8 @@ When the operator asks you to REMEMBER something about them, or states a lasting
 
 When the operator (or a management email they read to you) asks what's HELD, what's held for maintenance, or to "send the held list", call lookup_held — it reads the live holds and returns each held vehicle with its reason, answering across any day, not just this shift. It's distinct from lookup_issues (facility/building issues, not vehicle holds). Read the result back naturally as a list; if it's empty, say nothing is currently held.
 
+When the operator asks WHERE a specific vehicle is or was SENT ("where's LFJ285?", "where did we send LUR170?", "has KUR250 gone out?"), call lookup_vehicle_location — it reads that vehicle's trip history (airport runs / overflow moves) and reports where it was last sent and when, answering across days even though the Movement Log screen only shows today. Distinct from lookup_vehicle, which gives a vehicle's status and holds rather than where it went. Report the last-sent destination and day plainly; if there's no trip on record, say it hasn't been logged out (it may have gone out under a different plate).
+
 When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.`;
 
 const TOOLS: Anthropic.Tool[] = [
@@ -290,6 +292,18 @@ const TOOLS: Anthropic.Tool[] = [
     description:
       'List the vehicles currently on an ACTIVE hold and WHY — the "what\'s held", "held for maintenance", or "send me the held list" question (often a management email asking what\'s held / where vehicles are). Reads live, so it answers across any day, not just this shift. Read-only; no input.',
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'lookup_vehicle_location',
+    description:
+      'Where a specific vehicle was last SENT / where it currently is — "where\'s LFJ285?", "where did we send LUR170?", "has KUR250 gone out?". Reads the vehicle\'s trip history (airport runs / overflow moves), so it answers ACROSS DAYS, not just this shift — the exact "where are these vehicles?" management email, days later. Read-only. Different from lookup_vehicle (status/holds for one vehicle) and lookup_held (the whole held list).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: { type: 'string', description: 'The plate or unit number of the vehicle, e.g. "LFJ285" or "142".' },
+      },
+      required: ['plate'],
+    },
   },
   {
     name: 'propose_reminder',
@@ -634,6 +648,59 @@ async function executeLookupHeld(supabase: SupabaseClient): Promise<string> {
   return JSON.stringify({ count: held.length, held });
 }
 
+/** Read-only: where a vehicle was last SENT, from its trip history (vsa_trips).
+ *  Answers "where's LFJ285?" ACROSS DAYS — the Movement Log SCREEN is day-scoped,
+ *  but the trip DATA persists here. Trips key off free-text plate/unit (no
+ *  vehicle_id), so we match in JS like resolveVehicleRow does — robust to how a
+ *  plate was typed. Returns the latest trip plus a short recent history. */
+async function executeLookupVehicleLocation(supabase: SupabaseClient, rawPlate: string): Promise<string> {
+  const norm = normalizePlate(rawPlate);
+  if (!norm) return JSON.stringify({ found: false, note: 'No plate given.' });
+
+  // Resolve the fleet row (if any) so we can also match on its canonical plate/unit,
+  // not just what the operator typed.
+  const vehicle = await resolveVehicleRow(supabase, rawPlate);
+  const ids = new Set<string>([norm]);
+  if (vehicle?.license_plate) ids.add(normalizePlate(vehicle.license_plate));
+  if (vehicle?.unit_number) ids.add(normalizePlate(vehicle.unit_number));
+
+  // The table grows slowly (a handful of runs a day); a generous recent window
+  // covers many months, and matching in JS sidesteps free-text formatting drift.
+  const { data: trips, error } = await supabase
+    .from('vsa_trips')
+    .select('vehicle_plate, vehicle_unit, depart_location, arrive_location, depart_time, trip_type, status')
+    .order('depart_time', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+
+  const mine = (trips ?? []).filter(
+    (t) => ids.has(normalizePlate(t.vehicle_plate ?? '')) || ids.has(normalizePlate(t.vehicle_unit ?? '')),
+  );
+  const label = vehicle?.unit_number ?? vehicle?.license_plate ?? rawPlate.trim();
+  if (mine.length === 0) {
+    return JSON.stringify({
+      plate: label,
+      found: false,
+      tripCount: 0,
+      note: 'No trip on record — never logged out, or logged under a different plate.',
+    });
+  }
+
+  const toEntry = (t: (typeof mine)[number]) => ({
+    destination: t.arrive_location ?? t.depart_location ?? 'unknown',
+    when: scheduleDateLabel(new Date(t.depart_time).toLocaleDateString('en-CA', { timeZone: SCHED_TZ })),
+    tripType: t.trip_type,
+    status: t.status,
+  });
+  return JSON.stringify({
+    plate: label,
+    found: true,
+    tripCount: mine.length,
+    lastSent: toEntry(mine[0]),
+    recent: mine.slice(0, 5).map(toEntry),
+  });
+}
+
 /**
  * Draft a found item for lost & found — NEVER writes. The proposal goes to the
  * client as a confirm card, and only a user tap calls the real addLostFoundItem
@@ -895,6 +962,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = await executeLookupIssues(supabase, tu.input as { status?: string });
           } else if (tu.name === 'lookup_held') {
             content = await executeLookupHeld(supabase);
+          } else if (tu.name === 'lookup_vehicle_location') {
+            content = await executeLookupVehicleLocation(supabase, (tu.input as { plate?: string }).plate ?? '');
           } else if (tu.name === 'propose_navigation') {
             const out = executeProposeNavigation(tu.input as { destination?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
