@@ -38,6 +38,7 @@ import {
   type LostItemProposal,
 } from './_lib/lostItemProposal.js';
 import { buildMemoryProposal, describeMemoryProposal, type MemoryProposal } from './_lib/memoryProposal.js';
+import { buildReminderProposal, describeReminderProposal, type ReminderProposal } from './_lib/reminderProposal.js';
 import { formatSchedule, type ScheduleGroup } from './_lib/scheduleSummary.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
@@ -107,7 +108,9 @@ Once you have make + model (from lookup_vehicle_class), year, colour, unit, and 
 
 When the user wants to IMPORT THE SCHEDULE from a photo ("I want to import the new schedule", "load the schedule from a photo"), that's done on the Schedule screen — confirm it's possible and call propose_navigation with destination "schedule-import" to OFFER to take them there. More generally, if they want to go to or do something that lives on another screen (lost & found, issue log, my shift, check-in, movement log), offer propose_navigation for the right destination. Phrase it as an offer — "That's on the Schedule screen — want me to take you there?" — and let the confirm card do the navigating. Never claim you navigated or performed the action yourself.
 
-When the operator asks you to REMEMBER something about them, or states a lasting preference or fact clearly worth recalling on a future day ("remember that I run mids", "I prefer set schedules over rotating"), call propose_memory with ONE concise fact phrased about them — it DRAFTS a confirm card and is never saved until they tap it. Don't propose a memory for one-off task requests or things that change every shift, and never propose one that's already in your standing notes (check Context first — if you already know it, just say so). Your saved standing notes about the operator appear in Context — use them to personalize naturally, never recite them back as a list.`;
+When the operator asks you to REMEMBER something about them, or states a lasting preference or fact clearly worth recalling on a future day ("remember that I run mids", "I prefer set schedules over rotating"), call propose_memory with ONE concise fact phrased about them — it DRAFTS a confirm card and is never saved until they tap it. Don't propose a memory for one-off task requests or things that change every shift, and never propose one that's already in your standing notes (check Context first — if you already know it, just say so). Your saved standing notes about the operator appear in Context — use them to personalize naturally, never recite them back as a list.
+
+When the operator asks you to REMIND them of a task for their next/upcoming shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "leave a note for next shift"), call propose_reminder with the task in their own words — it DRAFTS a confirm card that, once tapped, lands on their My Shift whiteboard for the NEXT shift and auto-clears the shift after. Keep propose_reminder distinct from propose_memory: a reminder is a one-off next-shift TASK ("pack the airport"), a memory is a durable FACT about them ("I run mids"). Never claim you saved or scheduled it yourself — just that it's drafted to land on their next shift.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -278,6 +281,21 @@ const TOOLS: Anthropic.Tool[] = [
         code: { type: 'string', description: 'The class code from the tag, e.g. "CCVL" (a trailing year like "25" is fine).' },
       },
       required: ['code'],
+    },
+  },
+  {
+    name: 'propose_reminder',
+    description:
+      'Draft a note to leave on the operator\'s SHIFT WHITEBOARD for their NEXT shift, for them to confirm — a one-off task or heads-up they want surfaced next shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "note for next shift: overflow to AV Flight"). DIFFERENT from propose_memory: a reminder is a transient next-shift TASK that auto-clears after that shift; a memory is a durable FACT about the operator. Does NOT write — returns a confirm card the operator taps; it then lands on their My Shift whiteboard for the next shift and clears the shift after.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: {
+          type: 'string',
+          description: 'The reminder in the operator\'s own words, e.g. "Pack the airport" or "Check LFJ285 for the windshield".',
+        },
+      },
+      required: ['text'],
     },
   },
 ];
@@ -626,6 +644,27 @@ function executeProposeMemory(input: { content?: string }): { toolResult: string
   };
 }
 
+/** Draft a next-shift whiteboard reminder. Pure — the write (a shift_board note filed
+ *  under the operator's next shift-day) happens on the client's confirm tap, never here. */
+function executeProposeReminder(input: { text?: string }): { toolResult: string; proposal: ReminderProposal | null } {
+  const text = (input.text ?? '').trim();
+  if (!text) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({ ok: false, reason: 'Need the reminder text first — ask the operator what to note for next shift.' }),
+    };
+  }
+  const proposal = buildReminderProposal(text);
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      proposed: describeReminderProposal(proposal),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is saved, just that it is drafted to land on their next shift',
+    }),
+  };
+}
+
 /**
  * Offer to navigate the user to a screen. NEVER writes or navigates — it returns a
  * confirm card the client renders; only the user's tap navigates (and even then, only
@@ -823,6 +862,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = out.toolResult;
           } else if (tu.name === 'propose_memory') {
             const out = executeProposeMemory(tu.input as { content?: string });
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else if (tu.name === 'propose_reminder') {
+            const out = executeProposeReminder(tu.input as { text?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
             content = out.toolResult;
           } else {
