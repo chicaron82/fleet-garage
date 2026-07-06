@@ -63,13 +63,27 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
     // Plain `vite` doesn't run the Vercel serverless functions in api/, so
-    // /api/fg-chat (Effie) 404s locally. Proxy /api/* to the deployed functions so
-    // Effie answers in dev too. NOTE: this hits the DEPLOYED backend (prod env +
-    // keys) — it exercises *deployed* Effie, not local edits to api/fg-chat.ts; for
-    // that use `vercel dev`. Dev already shares the prod Supabase project, so this
-    // adds no new data exposure.
+    // /api/fg-chat (Effie) 404s locally. Proxy the two actual function endpoints to
+    // the deployed backend so they answer in dev too. NOTE: this hits the DEPLOYED
+    // backend (prod env + keys) — it exercises *deployed* Effie, not local edits to
+    // api/fg-chat.ts; for that use `vercel dev`. Dev already shares the prod Supabase
+    // project, so this adds no new data exposure.
+    //
+    // Scoped to the exact endpoint paths, NOT a blanket '/api' prefix: some of Effie's
+    // helpers (api/_lib/holdProposal.ts, photoRequest.ts, lostItemProposal.ts) are
+    // legitimately imported by client components too (HoldProposalCard, FgAssistantFab)
+    // — a real, non-type runtime import, not just types. A blanket '/api' rule swallows
+    // Vite's own request for those modules and forwards it to production instead, which
+    // has no matching route and falls through vercel.json's SPA rewrite — the browser
+    // gets index.html back for a request expecting a JS module ("Failed to load module
+    // script... MIME type text/html"), and since these are static imports the whole
+    // bundle fails to evaluate: a blank white screen on every page, not just Effie.
     proxy: {
-      '/api': {
+      '/api/fg-chat': {
+        target: 'https://fleet-garage.vercel.app',
+        changeOrigin: true,
+      },
+      '/api/fg-schedule-parse': {
         target: 'https://fleet-garage.vercel.app',
         changeOrigin: true,
       },
