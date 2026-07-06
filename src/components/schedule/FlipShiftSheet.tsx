@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useActualHours } from '../../hooks/useActualHours';
 import { isStatDay, getStatName } from '../../lib/stats';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { ClockPicker } from './ClockPicker';
@@ -42,7 +43,7 @@ function nextDay(iso: string): string {
 }
 
 export function FlipShiftSheet({ shift, onClose }: Props) {
-  const { updateShift, deleteShift, setPtoApproved, isPeakSeason } = useSchedule();
+  const { updateShift, deleteShift, logActualHours, setPtoApproved, isPeakSeason } = useSchedule();
   useEscapeKey(onClose);
   const typeDefaults = getTypeDefaults(isPeakSeason);
 
@@ -53,6 +54,11 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
   const [error,     setError]     = useState('');
   const [approved,  setApproved]  = useState(shift.ptoApproved ?? false);
   const [alternateDate, setAlternateDate] = useState(shift.ptoAlternateDate ?? nextDay(shift.date));
+
+  const actual = useActualHours(shift, shiftType);
+  // Actual hours only apply to a timed shift on or before today — a future shift
+  // can't have been worked yet, so scheduling it stays pure (no actual capture).
+  const isPastOrToday = shift.date <= toISO(new Date());
 
   const handleToggleApproved = async () => {
     const next = !approved;
@@ -71,7 +77,12 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     setShiftType(t);
     setStartTime(typeDefaults[t].start);
     setEndTime(typeDefaults[t].end);
+    // Mirror the preset into actual hours too, so the default is "worked as
+    // scheduled" and the user only edits actual when their real hours differed.
+    actual.syncToScheduled(typeDefaults[t].start, typeDefaults[t].end);
   };
+
+  const showActual = shiftType !== null && !isDayOff && isPastOrToday;
 
   const handleSave = async () => {
     if (shiftType === null) {
@@ -91,6 +102,10 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       setError('End time must be after start time.');
       return;
     }
+    if (showActual && actual.actualStart && actual.actualEnd && actual.actualStart >= actual.actualEnd) {
+      setError('Actual end time must be after start time.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -101,6 +116,12 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
         endTime:   isDayOff ? undefined : endTime,
         ptoAlternateDate: isStatPto ? (alternateDate || undefined) : undefined,
       });
+      // One Save logs both: the scheduled block above, and — for a timed shift on
+      // or before today — the actual hours (defaulted to the schedule, so an
+      // untouched normal day logs "worked as scheduled" with no extra taps).
+      if (showActual) {
+        await logActualHours(shift.id, actual.actualStart, actual.actualEnd, actual.isStat);
+      }
       onClose();
     } catch {
       setError('Failed to save. Please try again.');
@@ -214,8 +235,9 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
             : (shiftType === null ? 'Remove Shift' : 'Save')}
         </button>
 
-        {/* Actual hours — log/edit real clock-in/out, OT preview, clear saved hours */}
-        <ShiftActualHours shift={shift} shiftType={shiftType} onClose={onClose} />
+        {/* Actual hours — pre-filled from the preset, logged by the single Save above.
+            Only for a timed shift on or before today; future shifts stay schedule-only. */}
+        {showActual && <ShiftActualHours shift={shift} actual={actual} onClose={onClose} />}
       </div>
     </div>
   );
