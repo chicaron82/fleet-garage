@@ -233,7 +233,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                     {m.image && (
                       <img src={m.image} alt="Attached damage photo" className="mb-1.5 max-h-40 rounded-lg object-cover" />
                     )}
-                    {m.text || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
+                    {/* Strip markdown for DISPLAY too (not just TTS) — the prompt asks
+                        Effie to write plain, but she sometimes slips **bold**; this is the
+                        deterministic guarantee that the bubble never shows literal asterisks. */}
+                    {stripForSpeech(m.text) || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
                   </div>
                 </div>
                 {m.role === 'assistant' && m.proposal && (
