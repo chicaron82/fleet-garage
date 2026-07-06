@@ -85,6 +85,21 @@ extract it to `api/_lib` and test it under `tests/api/_lib/`. R35 caught
 `shiftBusinessDate` inline+untested in `fg-chat.ts` this way (the h23/h24 midnight
 footgun was verified by hand, then pinned in a test).
 
+## Effie behavior bugs: a deterministic guardrail beats another prompt rule
+
+When Effie misbehaves (emits `**markdown**`, narrates "drafted" without calling the
+tool, mislabels a keytag as damage, mis-snaps a plate), the reflex is to add a prompt
+rule. **Prompts are hope; code is a guarantee** — the model is non-deterministic (R36:
+the register card rendered on PC but not phone, *same build*, because she called the
+tool one time and narrated it the next). The durable fixes of 2026-07-05 were all
+deterministic backstops, not prompt rules: `stripForSpeech` (markdown gone from TTS +
+display no matter what she emits), `correctManitobaPrefix` wired into `resolveVehicleRow`
+(a misread plate resolves regardless), the typed-`confirm` fallback (a pending proposal
+fires even if the card never renders). The prompt-only fixes (plain-text instruction,
+the "don't narrate an action" leash) FAILED or are unverifiable. **So: reach for a
+deterministic guardrail FIRST; if a fix can only be a prompt, call it mitigation, not a
+fix, and pair it with a code backstop.** Never claim a prompt-only change is "fixed."
+
 > Convention note: lib tests now live **only** under `tests/`, mirroring `src/` —
 > the 6 stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
 > (`gas-sheet` + `garage-mappers` were merges — each `src/lib` copy covered cases
