@@ -37,7 +37,7 @@ export default defineConfig({
         // end-of-shift PDF export, rarely needed offline, and bloats the
         // first-install on field wifi. It loads from network on demand.
         // Don't precache heavy lazy chunks — they load from network on demand.
-        globIgnores: ['**/react-pdf.browser-*.js', '**/kokoro-*.js'],
+        globIgnores: ['**/react-pdf.browser-*.js', '**/kokoro*.js'],
         cleanupOutdatedCaches: true,
         // Offline deep-link support: serve the cached shell for unknown routes
         // (pairs with screenRouting's pathToScreen + the vercel.json SPA rewrite).

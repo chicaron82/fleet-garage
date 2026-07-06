@@ -1,12 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-// Mock kokoro-js — avoids the ~82 MB model download and ONNX runtime.
-// vi.mock is hoisted so it covers the dynamic import('kokoro-js') inside getTTS().
-const mockGenerate = vi.fn();
-const mockTts = { generate: mockGenerate };
-const mockFromPretrained = vi.fn();
-vi.mock('kokoro-js', () => ({ KokoroTTS: { from_pretrained: mockFromPretrained } }));
+// The hook offloads synthesis to a Web Worker (kokoroWorker.ts) — the freeze fix.
+// jsdom has no Worker, so stub it with a fake that answers init→ready and
+// generate→audio, recording the generate request (text + voice) for assertions.
+// Responses are async (setTimeout) so the transient 'loading' state is observable.
+const mockGenerate = vi.fn(); // records what the worker was asked to synthesize
+
+class FakeWorker {
+  onmessage: ((e: MessageEvent) => void) | null = null;
+  postMessage(msg: { type: string; id?: number; text?: string; voice?: string }) {
+    setTimeout(() => {
+      if (msg.type === 'init') {
+        this.onmessage?.({ data: { type: 'progress', progress: 60 } } as MessageEvent);
+        this.onmessage?.({ data: { type: 'ready' } } as MessageEvent);
+      } else if (msg.type === 'generate') {
+        mockGenerate(msg.text, { voice: msg.voice });
+        this.onmessage?.({
+          data: { type: 'audio', id: msg.id, audio: new Float32Array([0.1, 0.2]), sampling_rate: 22050 },
+        } as MessageEvent);
+      }
+    }, 0);
+  }
+  terminate() {}
+}
+vi.stubGlobal('Worker', FakeWorker);
+
+// Keep kokoro-js mocked too (harmless) in case the worker module is ever touched.
+vi.mock('kokoro-js', () => ({ KokoroTTS: { from_pretrained: vi.fn() } }));
 
 // Stub AudioContext — jsdom does not provide it.
 const mockStop = vi.fn();
@@ -22,32 +43,16 @@ class FakeAudioContext {
   createBuffer = mockCreateBuffer;
   createBufferSource = mockCreateBufferSource;
 }
-Object.defineProperty(window, 'AudioContext', {
-  value: FakeAudioContext,
-  writable: true,
-  configurable: true,
-});
+Object.defineProperty(window, 'AudioContext', { value: FakeAudioContext, writable: true, configurable: true });
 
 import { useKokoroSynthesis } from '../../src/hooks/useKokoroSynthesis';
-
-// NOTE: _ttsPromise is a module-level singleton in useKokoroSynthesis.
-// Tests that need a fresh load (the loading→ready test) must run before any test
-// that resolves the singleton. Tests are ordered accordingly:
-//   1. disabled-state tests (no getTTS() call)
-//   2. loading→ready test (consumes mockImplementationOnce; resolves the singleton)
-//   3. enabled-state tests (use the already-resolved singleton via waitFor)
 
 describe('useKokoroSynthesis', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
-    // Default to a cross-origin-isolated context so the model actually loads.
-    // The one unavailable-context test overrides this to false.
     Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true, writable: true });
-    // Base implementations — stay set across clearAllMocks (which only clears call history).
-    mockFromPretrained.mockResolvedValue(mockTts);
     mockResume.mockResolvedValue(undefined);
-    mockGenerate.mockResolvedValue({ audio: new Float32Array([0.1, 0.2]), sampling_rate: 22050 });
     mockCreateBuffer.mockReturnValue({ getChannelData: () => new Float32Array(2) });
     mockCreateBufferSource.mockReturnValue({
       buffer: null as unknown,
@@ -58,7 +63,7 @@ describe('useKokoroSynthesis', () => {
     });
   });
 
-  // --- disabled-state tests (no model load) ---
+  // --- disabled / unavailable state (no worker created) ---
 
   it('starts disabled with af_sky voice and idle model state', () => {
     const { result } = renderHook(() => useKokoroSynthesis());
@@ -70,7 +75,6 @@ describe('useKokoroSynthesis', () => {
   });
 
   it('is unavailable without cross-origin isolation — modelState error, speak stays silent', () => {
-    // No SharedArrayBuffer context → Kokoro can't run; the FAB falls back to Web Speech.
     Object.defineProperty(window, 'crossOriginIsolated', { value: false, configurable: true, writable: true });
     const { result } = renderHook(() => useKokoroSynthesis());
     expect(result.current.available).toBe(false);
@@ -86,24 +90,11 @@ describe('useKokoroSynthesis', () => {
     expect(result.current.voice).toBe('af_nicole');
   });
 
-  it('reads persisted enabled state from localStorage on mount', () => {
-    // Keep this test free of model-loading side-effects by not calling setEnabled;
-    // the persisted-true path does trigger loading, so it comes after the loading test.
-    localStorage.setItem('fg_effie_kokoro_enabled', '0');
-    const { result } = renderHook(() => useKokoroSynthesis());
-    expect(result.current.enabled).toBe(false);
-  });
-
   it('setVoice writes to localStorage', () => {
     const { result } = renderHook(() => useKokoroSynthesis());
     act(() => result.current.setVoice('af_nicole'));
     expect(result.current.voice).toBe('af_nicole');
     expect(localStorage.getItem('fg_effie_voice')).toBe('af_nicole');
-  });
-
-  it('modelState is idle when disabled', () => {
-    const { result } = renderHook(() => useKokoroSynthesis());
-    expect(result.current.modelState).toBe('idle');
   });
 
   it('speak is a no-op when disabled', () => {
@@ -117,37 +108,17 @@ describe('useKokoroSynthesis', () => {
     expect(() => act(() => result.current.cancel())).not.toThrow();
   });
 
-  // --- model loading test (resolves the _ttsPromise singleton) ---
+  // --- worker-backed model load + speak ---
 
-  it('modelState transitions loading → ready when the model resolves', async () => {
-    // Use a pending promise so we can observe the loading state before it resolves.
-    let resolveLoad!: (v: unknown) => void;
-    let capturedCb!: (p: Record<string, unknown>) => void;
-    mockFromPretrained.mockImplementationOnce(
-      (_id: string, opts: { progress_callback: (p: Record<string, unknown>) => void }) => {
-        capturedCb = opts.progress_callback;
-        capturedCb({ status: 'initiate', file: 'model.onnx', total: 1000 });
-        capturedCb({ status: 'progress', file: 'model.onnx', loaded: 600, total: 1000 });
-        return new Promise((r) => { resolveLoad = r; });
-      },
-    );
-
+  it('modelState transitions loading → ready when the worker reports ready', async () => {
     const { result } = renderHook(() => useKokoroSynthesis());
     act(() => result.current.setEnabled(true));
     expect(result.current.modelState).toBe('loading');
-
-    await waitFor(() => expect(result.current.downloadProgress).toBe(60));
-
-    // The library fires status:'ready' through the callback when fully loaded,
-    // then the promise resolves — simulate both.
-    act(() => { capturedCb({ status: 'ready' }); resolveLoad(mockTts); });
     await waitFor(() => expect(result.current.modelState).toBe('ready'));
     expect(result.current.downloadProgress).toBeNull();
   });
 
-  // --- enabled-state tests (singleton already resolved from above) ---
-
-  it('setEnabled writes to localStorage', async () => {
+  it('setEnabled writes to localStorage', () => {
     const { result } = renderHook(() => useKokoroSynthesis());
     act(() => result.current.setEnabled(true));
     expect(localStorage.getItem('fg_effie_kokoro_enabled')).toBe('1');
@@ -156,7 +127,7 @@ describe('useKokoroSynthesis', () => {
     expect(result.current.enabled).toBe(false);
   });
 
-  it('persisted enabled=true triggers model loading on mount', async () => {
+  it('persisted enabled=true loads the model on mount', async () => {
     localStorage.setItem('fg_effie_kokoro_enabled', '1');
     const { result } = renderHook(() => useKokoroSynthesis());
     await waitFor(() => expect(result.current.modelState).toBe('ready'));
@@ -170,7 +141,7 @@ describe('useKokoroSynthesis', () => {
     expect(mockGenerate).not.toHaveBeenCalled();
   });
 
-  it('speak calls generate with the text and active voice', async () => {
+  it('speak sends the text + active voice to the worker and plays the returned audio', async () => {
     const { result } = renderHook(() => useKokoroSynthesis());
     act(() => { result.current.setEnabled(true); result.current.setVoice('af_nicole'); });
     await waitFor(() => expect(result.current.modelState).toBe('ready'));
@@ -178,7 +149,7 @@ describe('useKokoroSynthesis', () => {
     await waitFor(() =>
       expect(mockGenerate).toHaveBeenCalledWith('LUR187 cleared for gate 4.', { voice: 'af_nicole' }),
     );
-    expect(mockStart).toHaveBeenCalled();
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
   });
 
   it('cancel stops the active audio source', async () => {

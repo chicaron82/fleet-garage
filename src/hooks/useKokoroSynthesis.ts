@@ -2,7 +2,7 @@
 // The model downloads once (~82 MB at q8) and is cached by the browser.
 // A module-level singleton avoids re-loading across hook re-mounts. Progress
 // is tracked via a subscriber pattern so the hook can surface % to the UI.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export type KokoroVoice = 'af_sky' | 'af_nicole';
 
@@ -13,7 +13,6 @@ export const KOKORO_VOICES: { id: KokoroVoice; label: string }[] = [
 
 const VOICE_KEY = 'fg_effie_voice';
 const ENABLED_KEY = 'fg_effie_kokoro_enabled';
-const MODEL_ID = 'onnx-community/Kokoro-82M-ONNX';
 
 function readVoice(): KokoroVoice {
   try {
@@ -38,52 +37,60 @@ function kokoroAvailable(): boolean {
     && typeof SharedArrayBuffer !== 'undefined';
 }
 
-// Module-level singletons.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _ttsPromise: Promise<any> | null = null;
-// AudioContext is pre-warmed during the user gesture that enables Kokoro,
-// so subsequent speak() calls (which arrive asynchronously) aren't blocked
-// by the browser's autoplay policy.
+// Module-level singletons — shared across hook mounts.
+// AudioContext is pre-warmed during the user gesture that enables Kokoro, so
+// subsequent speak() calls (which arrive asynchronously) aren't blocked by the
+// browser's autoplay policy.
 let _audioCtx: AudioContext | null = null;
+// The current Web Audio source, so a new utterance (or cancel) can stop it.
+let _source: AudioBufferSourceNode | null = null;
+// Utterance sequence: each speak() takes the next id; only that id's audio is
+// played, so a superseded or cancelled utterance's late audio is dropped.
+let _seq = 0;
+let _current = 0;
 
-// Download progress tracking — subscriber pattern so the hook can reflect it.
+// Synthesis runs OFF the main thread in a worker (kokoroWorker.ts) — that's the
+// freeze fix. The main thread only inits the worker, sends text, and plays back the
+// audio it returns.
+let _worker: Worker | null = null;
+
+// Download progress + model ready/error, surfaced to the hook via subscribers.
 let _moduleProgress: number | null = null;
 const _progressSubs = new Set<() => void>();
-const _fileTotals: Record<string, number> = {};
-const _fileLoaded: Record<string, number> = {};
+const _stateSubs = new Set<(s: 'ready' | 'error') => void>();
+function _notifyProgress() { _progressSubs.forEach((cb) => cb()); }
+function _notifyState(s: 'ready' | 'error') { _stateSubs.forEach((cb) => cb(s)); }
 
-function _notifySubs() { _progressSubs.forEach((cb) => cb()); }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function _onProgress(p: Record<string, any>) {
-  if (p.status === 'initiate' && p.file) {
-    if (typeof p.total === 'number' && p.total > 0) _fileTotals[p.file] = p.total;
-    _fileLoaded[p.file] = 0;
-  } else if (p.status === 'progress' && p.file) {
-    if (typeof p.loaded === 'number') _fileLoaded[p.file] = p.loaded;
-    if (typeof p.total === 'number' && p.total > 0) _fileTotals[p.file] = p.total;
-    const tot = Object.values(_fileTotals).reduce((a, b) => a + b, 0);
-    const lod = Object.values(_fileLoaded).reduce((a, b) => a + b, 0);
-    _moduleProgress = tot > 0 ? Math.round((lod / tot) * 100) : Math.round(p.progress ?? 0);
-    _notifySubs();
-  } else if (p.status === 'ready') {
-    _moduleProgress = null;
-    _notifySubs();
-  }
+// Play the worker's synthesized audio on the main thread (cheap — the heavy
+// synthesis already happened in the worker). Ignores audio from a superseded utterance.
+function _playAudio(id: number, audio: Float32Array, sampleRate: number) {
+  if (id !== _current) return;
+  const ctx = _audioCtx;
+  if (!ctx) return;
+  _source?.stop();
+  const buffer = ctx.createBuffer(1, audio.length, sampleRate);
+  buffer.getChannelData(0).set(audio);
+  const src = ctx.createBufferSource();
+  _source = src;
+  src.buffer = buffer;
+  src.connect(ctx.destination);
+  src.onended = () => { if (_source === src) _source = null; };
+  src.start();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getTTS(): Promise<any> {
-  if (!_ttsPromise) {
-    _ttsPromise = import('kokoro-js').then(({ KokoroTTS }) =>
-      KokoroTTS.from_pretrained(MODEL_ID, {
-        dtype: 'q8',
-        device: 'wasm',
-        progress_callback: _onProgress,
-      }),
-    );
+function getWorker(): Worker {
+  if (!_worker) {
+    _worker = new Worker(new URL('./kokoroWorker.ts', import.meta.url), { type: 'module' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _worker.onmessage = (e: MessageEvent<any>) => {
+      const m = e.data;
+      if (m.type === 'progress') { _moduleProgress = m.progress; _notifyProgress(); }
+      else if (m.type === 'ready') { _moduleProgress = null; _notifyProgress(); _notifyState('ready'); }
+      else if (m.type === 'error') { _notifyState('error'); }
+      else if (m.type === 'audio') { _playAudio(m.id, m.audio, m.sampling_rate); }
+    };
   }
-  return _ttsPromise;
+  return _worker;
 }
 
 export interface KokoroSynthesisApi {
@@ -126,19 +133,13 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
     return () => { _progressSubs.delete(update); };
   }, []);
 
-  // Web Audio source node for the current utterance — used for cancel().
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-
+  // Load the model in the worker when enabled, and reflect its ready/error state.
   useEffect(() => {
-    if (!enabled || !available || modelPhase !== 'unloaded') return;
-    let alive = true;
-    getTTS()
-      .then(() => { if (alive) setModelPhase('ready'); })
-      .catch(() => {
-        _ttsPromise = null;
-        if (alive) setModelPhase('error');
-      });
-    return () => { alive = false; };
+    if (!enabled || !available) return;
+    const onState = (s: 'ready' | 'error') => setModelPhase(s);
+    _stateSubs.add(onState);
+    if (modelPhase === 'unloaded') getWorker().postMessage({ type: 'init' });
+    return () => { _stateSubs.delete(onState); };
   }, [enabled, available, modelPhase]);
 
   // Warm the AudioContext on the first user gesture when Kokoro is enabled. The
@@ -177,8 +178,9 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
       void _audioCtx.resume();
       setModelPhase((p) => p === 'error' ? 'unloaded' : p);
     } else {
-      sourceRef.current?.stop();
-      sourceRef.current = null;
+      _current = ++_seq; // invalidate any in-flight audio
+      _source?.stop();
+      _source = null;
     }
   }, []);
 
@@ -190,35 +192,21 @@ export function useKokoroSynthesis(): KokoroSynthesisApi {
   const speak = useCallback(
     (text: string) => {
       if (!enabled || !available || !text.trim()) return;
-      sourceRef.current?.stop();
-      sourceRef.current = null;
-
-      // generate() returns { audio: Float32Array, sampling_rate: number }
-      // Play via Web Audio API — bypasses HTMLAudioElement autoplay restrictions
-      // since the AudioContext was pre-warmed during the enable gesture.
-      getTTS().then((tts) =>
-        tts.generate(text.trim(), { voice }).then(
-          (result: { audio: Float32Array; sampling_rate: number }) => {
-            const ctx = _audioCtx;
-            if (!ctx) return;
-            const buffer = ctx.createBuffer(1, result.audio.length, result.sampling_rate);
-            buffer.getChannelData(0).set(result.audio);
-            const source = ctx.createBufferSource();
-            sourceRef.current = source;
-            source.buffer = buffer;
-            source.connect(ctx.destination);
-            source.onended = () => { sourceRef.current = null; };
-            source.start();
-          },
-        )
-      ).catch(() => { /* model error — stay silent */ });
+      // Claim this utterance's id, interrupt any current playback, and hand the text
+      // to the worker. Synthesis happens off the main thread; _playAudio plays the
+      // reply (and ignores it if a newer speak/cancel has since bumped _current).
+      _current = ++_seq;
+      _source?.stop();
+      _source = null;
+      getWorker().postMessage({ type: 'generate', id: _current, text: text.trim(), voice });
     },
     [enabled, available, voice],
   );
 
   const cancel = useCallback(() => {
-    sourceRef.current?.stop();
-    sourceRef.current = null;
+    _current = ++_seq; // drop any audio still in flight from the worker
+    _source?.stop();
+    _source = null;
   }, []);
 
   return { enabled, available, isolated, setEnabled, voice, setVoice, modelState, downloadProgress, speak, cancel };
