@@ -238,6 +238,11 @@ export async function executeLookupSchedule(
   const date = input.date && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : todayInWinnipeg();
   const { data: shiftRows, error } = await supabase.from('shifts').select('user_id, shift_type').eq('date', date);
   if (error) throw error;
+  // The asker's OWN shift, pulled before the self-filter below — so Effie can frame the
+  // roster around it ("you're on mids, with you today: …") instead of asking the operator
+  // what shift they're on. Undefined if they're not scheduled that day.
+  const yourShift = (shiftRows ?? []).find((r) => r.user_id === userId)?.shift_type;
+
   // "Who's on WITH me" — exclude the asker from their own roster (this tool is always
   // "with me" framed). Mirrors the cockpit's teammatesOnToday self-filter. If the asker
   // is the only one on a shift, that group is empty → "nobody else", which is correct.
@@ -257,8 +262,18 @@ export async function executeLookupSchedule(
     byType.set(r.shift_type, list);
   }
   const groups: ScheduleGroup[] = [...byType].map(([shiftType, people]) => ({ shiftType, people }));
+  // The teammates actually on the operator's OWN shift, computed from data (self already
+  // excluded from `rows`). Empty = literally nobody else shares their shift — so Effie
+  // states that from fact instead of grabbing an adjacent group to fill the gap.
+  const yourShiftMates = yourShift ? (byType.get(yourShift) ?? []) : [];
   const shiftType = typeof input.shift_type === 'string' ? input.shift_type : undefined;
-  return JSON.stringify({ date, groups, summary: formatSchedule(scheduleDateLabel(date), groups, shiftType) });
+  return JSON.stringify({
+    date,
+    yourShift,
+    yourShiftMates,
+    groups,
+    summary: formatSchedule(scheduleDateLabel(date), groups, shiftType),
+  });
 }
 
 

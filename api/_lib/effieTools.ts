@@ -83,7 +83,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'lookup_schedule',
     description:
-      'Look up who is on which shift for a date — e.g. "who\'s closing with me tonight?". Works from any screen. Defaults to today; pass shift_type to narrow (e.g. "closing").',
+      'Who ELSE is on shift — the roster of teammates the operator will work WITH on a date. This is the tool for ANY "who\'s on / who am I working with" question: "who am I working with today?", "who\'s on with me?", "who\'s closing tonight?", "who\'s on tomorrow?". Works from any screen. Defaults to today; pass shift_type to narrow (e.g. "closing"). Do NOT use lookup_my_shift for these — that one only knows the operator\'s own hours, not who else is on.',
     input_schema: {
       type: 'object',
       properties: {
@@ -100,7 +100,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'lookup_my_shift',
     description:
-      "The asking user's OWN upcoming shifts + rough scheduled hours (\"when am I working?\", \"am I closing this week?\"). Defaults to the next 7 days. This is NOT the dollar pay estimate — that lives on the My Shift card.",
+      "ONLY the asking user's OWN shift days + rough hours — \"when am I working?\", \"am I closing this week?\", \"what days am I on?\". It does NOT know who ELSE is on; for \"who am I working WITH\" or \"who's on with me\", use lookup_schedule instead. Defaults to the next 7 days. This is NOT the dollar pay estimate — that lives on the My Shift card.",
     input_schema: {
       type: 'object',
       properties: { days: { type: 'integer', description: 'Days ahead to include (default 7).' } },

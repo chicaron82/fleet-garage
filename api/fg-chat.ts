@@ -59,7 +59,12 @@ interface FgResponse {
   end(chunk?: string): void;
 }
 
-const MODEL = 'claude-haiku-4-5'; // fast + cheap; a plate lookup needs no more.
+// Effie outgrew "just a plate lookup" — she now routes ~18 tools, interprets inventory
+// sheets, chains keytag→class→register, and reasons over schedule/overflow/memory. Sonnet
+// handles that multi-step routing + narration far more reliably than Haiku (see the
+// 2026-07-06 schedule-routing saga). The system prompt is cached (below), so at single-
+// operator volume the cost delta is small.
+const MODEL = 'claude-sonnet-4-6';
 // Tier 3: a damage photo gets stronger eyes. Vision turns route to Opus (ticket
 // specced Opus 4.7+); text turns stay on Haiku. Cost is trivial — a handful of
 // photos a shift — and a suggest-then-confirm read is worth the better model.
@@ -149,7 +154,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     if (memories.length > 0) {
       contextBits.push(`Standing notes the operator asked you to remember (use them naturally; don't recite the list): ${memories.map((m) => `• ${m}`).join(' ')}`);
     }
-    const system = `${SYSTEM_PROMPT}\n\nContext: ${contextBits.join(' ')}`;
+    // The system prompt is large + static; the Context tail (screen + saved memories) is small
+    // + per-request. cache_control on the static block caches tools + prompt across turns, so
+    // only the tiny Context tail and the messages are re-billed at full rate each call.
+    const system: Anthropic.TextBlockParam[] = [
+      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: `Context: ${contextBits.join(' ')}` },
+    ];
 
     // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
     // Attach it to the latest user message as an image block, and give that request
