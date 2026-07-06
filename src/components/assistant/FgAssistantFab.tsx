@@ -18,6 +18,7 @@ import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
 import { photoCaptionFor, photoButtonLabel, type PhotoContext } from '../../../api/_lib/photoRequest';
+import { isAffirmation } from '../../lib/affirmation';
 import {
   SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
 } from './AssistantIcons';
@@ -113,6 +114,16 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const submit = () => {
     const text = draft.trim();
     if ((!text && !image) || loading) return;
+    // Typed-confirmation fallback: if Effie's last turn drafted a proposal and the user
+    // types a bare "confirm/yes" (no photo), execute it — same as tapping the card. On
+    // success the card is cleared; on failure it's left so the operator can retry by tap.
+    const lastIdx = messages.length - 1;
+    const pending = messages[lastIdx]?.role === 'assistant' ? messages[lastIdx].proposal : null;
+    if (pending && !image && isAffirmation(text)) {
+      setDraft('');
+      void confirmProposal(pending).then(() => clearProposal(lastIdx)).catch(() => { /* keep card for tap-retry */ });
+      return;
+    }
     speech.stop();
     ttsCancel();
     const img = image ?? undefined;
