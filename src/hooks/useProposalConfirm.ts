@@ -14,7 +14,7 @@ import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { useLostFoundContext } from '../context/LostFoundContext';
 import type { useEffieMemory } from './useEffieMemory';
-import type { Proposal } from '../../api/_lib/holdProposal';
+import type { Proposal, RegisterAssetChoice } from '../../api/_lib/holdProposal';
 import type { NavDestination } from '../../api/_lib/navProposal';
 import type { HoldType, Screen } from '../types';
 
@@ -52,7 +52,7 @@ interface ProposalConfirmDeps {
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
   const { user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
   return useCallback(
-    async (proposal: Proposal) => {
+    async (proposal: Proposal, extra?: RegisterAssetChoice) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
       if (proposal.kind === 'navigate') {
         onNavigate?.(navDestinationToScreen(proposal.destination));
@@ -108,6 +108,9 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       // failure, which the card turns into its error state.
       if (proposal.kind === 'register_vehicle') {
         const nv = proposal.newVehicle;
+        // For a Tesla, the card captured cable/adapter presence at intake — store them
+        // (present by default if a typed "confirm" skipped the toggles). Non-Tesla stays
+        // null (unknown), exactly as before.
         await addVehicle({
           unitNumber: nv.unitNumber,
           licensePlate: nv.plate,
@@ -116,9 +119,9 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           year: nv.year,
           color: nv.color,
           branchId: user.branchId,
-          isTesla: nv.make === 'Tesla',
-          hasMobileCable: null,
-          hasJ1772Adapter: null,
+          isTesla: proposal.isTesla,
+          hasMobileCable: proposal.isTesla ? (extra?.cable ?? true) : null,
+          hasJ1772Adapter: proposal.isTesla ? (extra?.adapter ?? true) : null,
           // No hold is added here, so override addVehicle's HELD default — a clean
           // new-to-fleet car is CLEAR, not falsely held (matches RegisterVehicleForm's
           // returnTo:'fleet' path). Without this it shows "Held" until the detail

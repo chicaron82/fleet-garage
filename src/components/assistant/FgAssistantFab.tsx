@@ -242,7 +242,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                 {m.role === 'assistant' && m.proposal && (
                   <HoldProposalCard
                     proposal={m.proposal}
-                    onConfirm={() => confirmProposal(m.proposal!)}
+                    onConfirm={(extra) => confirmProposal(m.proposal!, extra)}
                     onDismiss={() => clearProposal(i)}
                   />
                 )}

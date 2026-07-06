@@ -61,11 +61,34 @@ describe('useProposalConfirm — register_vehicle branch', () => {
     );
     await result.current({
       kind: 'register_vehicle',
+      isTesla: false,
       newVehicle: { unitNumber: '5427620', plate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', year: 2026, color: 'Gray' },
     });
     expect(addVehicle).toHaveBeenCalledWith(
       // status CLEAR is load-bearing: no hold is added, so it must NOT default to HELD.
-      expect.objectContaining({ licensePlate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', isTesla: false, status: 'CLEAR' }),
+      // A non-Tesla leaves the EV-asset fields null (unknown) — the card never asked.
+      expect.objectContaining({ licensePlate: 'LJF723', make: 'Kia', model: 'Sportage Hybrid', isTesla: false, status: 'CLEAR', hasMobileCable: null, hasJ1772Adapter: null }),
+    );
+    expect(addHold).not.toHaveBeenCalled();
+  });
+
+  it('threads the tapped Tesla asset choice into addVehicle', async () => {
+    const addVehicle = vi.fn().mockResolvedValue('veh-2');
+    const addHold = vi.fn();
+    const { result } = renderHook(() =>
+      useProposalConfirm({ ...deps, addVehicle, addHold } as unknown as Parameters<typeof useProposalConfirm>[0]),
+    );
+    // Cable present, adapter missing — the presence the operator tapped on the card.
+    await result.current(
+      {
+        kind: 'register_vehicle',
+        isTesla: true,
+        newVehicle: { unitNumber: '5421', plate: 'HFE872', make: 'Tesla', model: 'Model 3', year: 2024, color: 'White' },
+      },
+      { cable: true, adapter: false },
+    );
+    expect(addVehicle).toHaveBeenCalledWith(
+      expect.objectContaining({ licensePlate: 'HFE872', isTesla: true, status: 'CLEAR', hasMobileCable: true, hasJ1772Adapter: false }),
     );
     expect(addHold).not.toHaveBeenCalled();
   });

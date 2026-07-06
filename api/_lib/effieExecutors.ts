@@ -210,14 +210,20 @@ export async function executeProposeRegisterVehicle(
       toolResult: JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. Read them off the key tag or ask the user before proposing.` }),
     };
   }
-  const proposal = buildRegisterVehicleProposal({
-    unitNumber: `${input.unit_number}`.trim(),
-    plate: `${input.plate}`.trim().toUpperCase(),
-    make: `${input.make}`.trim(),
-    model: `${input.model}`.trim(),
-    year: Number(input.year),
-    color: `${input.color}`.trim(),
-  });
+  // Tesla → the confirm card asks for cable/adapter at intake. Lowercase compare so
+  // "TESLA"/"tesla" from a class-code lookup all resolve (mirrors ev-detection's isTeslaMake).
+  const isTesla = `${input.make ?? ''}`.trim().toLowerCase() === 'tesla';
+  const proposal = buildRegisterVehicleProposal(
+    {
+      unitNumber: `${input.unit_number}`.trim(),
+      plate: `${input.plate}`.trim().toUpperCase(),
+      make: `${input.make}`.trim(),
+      model: `${input.model}`.trim(),
+      year: Number(input.year),
+      color: `${input.color}`.trim(),
+    },
+    isTesla,
+  );
   return {
     proposal,
     toolResult: JSON.stringify({

@@ -8,12 +8,13 @@
 // proposal kind is a body + two labels, not another hand-rolled card. Tones: amber =
 // an ops write (hold, lost & found), blue = personal/no-write (memory, navigate).
 import { useState } from 'react';
-import { describeNewVehicle, type Proposal } from '../../../api/_lib/holdProposal';
+import { describeNewVehicle, type Proposal, type RegisterAssetChoice } from '../../../api/_lib/holdProposal';
 import { lostItemLocationLabel } from '../../../api/_lib/lostItemProposal';
 
 interface Props {
   proposal: Proposal;
-  onConfirm: () => Promise<void>;
+  // A Tesla register passes the tapped cable/adapter presence; other kinds ignore the arg.
+  onConfirm: (extra?: RegisterAssetChoice) => Promise<void>;
   onDismiss: () => void;
 }
 
@@ -89,11 +90,15 @@ function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismi
 export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
   const [status, setStatus] = useState<Status>('idle');
   const [errMsg, setErrMsg] = useState('');
+  // Tesla-register asset toggles — present by default (the common case). Declared here
+  // (not conditionally) for rules-of-hooks; only read by the register_vehicle Tesla body.
+  const [cable, setCable] = useState(true);
+  const [adapter, setAdapter] = useState(true);
 
-  const confirm = async () => {
+  const confirm = async (extra?: RegisterAssetChoice) => {
     setStatus('submitting');
     try {
-      await onConfirm();
+      await onConfirm(extra);
       setStatus('done');
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : 'Could not complete that.');
@@ -192,8 +197,19 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
     return (
       <Shell tone="amber" kicker="Confirm — register (new to fleet)">
         <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">Register {describeNewVehicle(proposal.newVehicle)}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">New to the fleet — no hold, just added so FG knows it.</p>
-        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={confirm} />
+        {proposal.isTesla ? (
+          <>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Tesla — mark its charge assets, then register.</p>
+            <AssetToggle icon="🔌" label="Charge cable" present={cable} onChange={setCable} />
+            <AssetToggle icon="🔗" label="J1772 adapter" present={adapter} onChange={setAdapter} />
+            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={() => void confirm({ cable, adapter })} />
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-gray-500 dark:text-gray-400">New to the fleet — no hold, just added so FG knows it.</p>
+            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={confirm} />
+          </>
+        )}
       </Shell>
     );
   }
@@ -235,6 +251,21 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
         onConfirm={confirm}
       />
     </Shell>
+  );
+}
+
+/** A present/missing pair for one Tesla charge asset (cable or adapter) on the register card. */
+function AssetToggle({ icon, label, present, onChange }: { icon: string; label: string; present: boolean; onChange: (v: boolean) => void }) {
+  const pill = (active: boolean, activeCls: string) =>
+    `rounded-md px-2.5 py-1 text-xs font-medium cursor-pointer ${active ? activeCls : 'border border-gray-300 text-gray-500 dark:border-gray-700 dark:text-gray-400'}`;
+  return (
+    <div className="mt-2 flex items-center justify-between gap-2">
+      <span className="text-xs text-gray-700 dark:text-gray-300">{icon} {label}</span>
+      <div className="flex gap-1">
+        <button type="button" onClick={() => onChange(true)} className={pill(present, 'bg-amber-500 text-white')}>Present</button>
+        <button type="button" onClick={() => onChange(false)} className={pill(!present, 'bg-gray-500 text-white')}>Missing</button>
+      </div>
+    </div>
   );
 }
 

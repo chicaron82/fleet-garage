@@ -49,6 +49,17 @@ export interface RegisterHoldProposal {
 export interface RegisterVehicleProposal {
   kind: 'register_vehicle';
   newVehicle: NewVehicle;
+  /** Tesla → the confirm card also asks whether the charge cable + J1772 adapter are
+   *  present, captured at intake (the natural moment) rather than a later EV-assets edit. */
+  isTesla: boolean;
+}
+
+/** The cable/adapter presence the operator taps on a Tesla register card — passed through
+ *  the confirm handler into addVehicle's EV-asset fields. Present-by-default (the common
+ *  case: a Tesla arrives with both), so a plain confirm logs both present. */
+export interface RegisterAssetChoice {
+  cable: boolean;
+  adapter: boolean;
 }
 
 export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
@@ -72,8 +83,8 @@ export function buildRegisterHoldProposal(
 }
 
 /** Build a register-only proposal (new to fleet, no hold). Pure — no write. */
-export function buildRegisterVehicleProposal(newVehicle: NewVehicle): RegisterVehicleProposal {
-  return { kind: 'register_vehicle', newVehicle };
+export function buildRegisterVehicleProposal(newVehicle: NewVehicle, isTesla: boolean): RegisterVehicleProposal {
+  return { kind: 'register_vehicle', newVehicle, isTesla };
 }
 
 /** "Unit 1234 · 2025 Hyundai Tucson (Gray)" — for a not-yet-registered vehicle. */
