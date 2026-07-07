@@ -14,6 +14,7 @@ import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
 import { FuelPumpReadings } from './FuelPumpReadings';
+import { PendingWritesSection } from '../pending/PendingWritesSection';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
@@ -212,6 +213,9 @@ export function MyShiftView() {
           </button>
         ))}
       </div>
+
+      {/* Effie's staged writes — review/approve when you have a minute (self-hides when empty) */}
+      <PendingWritesSection />
 
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (

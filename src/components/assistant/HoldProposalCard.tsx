@@ -16,6 +16,9 @@ interface Props {
   // A Tesla register passes the tapped cable/adapter presence; other kinds ignore the arg.
   onConfirm: (extra?: RegisterAssetChoice) => Promise<void>;
   onDismiss: () => void;
+  // When provided (the chat), a "Later" action stages the proposal to the pending queue
+  // instead of writing now. Omitted in the queue itself (already staged) → no button.
+  onStage?: (proposal: Proposal) => void;
 }
 
 type Tone = 'amber' | 'blue';
@@ -55,7 +58,7 @@ function Receipt({ children }: { children: React.ReactNode }) {
 }
 
 /** Error line + Cancel/Confirm pair with the shared submitting/retry behavior. */
-function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismiss, onConfirm }: {
+function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismiss, onConfirm, onStage }: {
   tone: Tone;
   status: Status;
   errMsg: string;
@@ -63,6 +66,7 @@ function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismi
   workingLabel: string;
   onDismiss: () => void;
   onConfirm: () => void;
+  onStage?: () => void; // "Later" — stage to the pending queue instead of writing now
 }) {
   return (
     <>
@@ -75,6 +79,15 @@ function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismi
         >
           Cancel
         </button>
+        {onStage && (
+          <button
+            onClick={onStage}
+            disabled={status === 'submitting'}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer"
+          >
+            Later
+          </button>
+        )}
         <button
           onClick={onConfirm}
           disabled={status === 'submitting'}
@@ -87,9 +100,11 @@ function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, onDismi
   );
 }
 
-export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
+export function HoldProposalCard({ proposal, onConfirm, onDismiss, onStage }: Props) {
   const [status, setStatus] = useState<Status>('idle');
   const [errMsg, setErrMsg] = useState('');
+  // "Later" → stage this proposal to the pending queue (only offered when onStage is wired).
+  const stage = onStage ? () => onStage(proposal) : undefined;
   // Tesla-register asset toggles — present by default (the common case). Declared here
   // (not conditionally) for rules-of-hooks; only read by the register_vehicle Tesla body.
   const [cable, setCable] = useState(true);
@@ -143,7 +158,7 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
         <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.description}</p>
         {meta.length > 0 && <p className="text-xs text-gray-500 dark:text-gray-400">{meta.join(' · ')}</p>}
         {proposal.notes && <p className="text-sm text-gray-600 dark:text-gray-300">{proposal.notes}</p>}
-        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log item" workingLabel="Working…" onDismiss={onDismiss} onConfirm={confirm} />
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log item" workingLabel="Working…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} />
       </Shell>
     );
   }
@@ -154,7 +169,7 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
     return (
       <Shell tone="blue" kicker="Remember this?">
         <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.content}</p>
-        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Remember" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} />
+        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Remember" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} />
       </Shell>
     );
   }
@@ -166,7 +181,7 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
     return (
       <Shell tone="blue" kicker="Reminder — next shift">
         <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.text}</p>
-        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Leave note" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} />
+        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Leave note" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} />
       </Shell>
     );
   }
@@ -185,7 +200,7 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
         {proposal.vehicles.some((v) => v.unresolved) && (
           <p className="text-xs text-amber-700 dark:text-amber-400">Some plates aren&apos;t in the fleet — they&apos;ll be logged as entered.</p>
         )}
-        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log sends" workingLabel="Logging…" onDismiss={onDismiss} onConfirm={confirm} />
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log sends" workingLabel="Logging…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} />
       </Shell>
     );
   }
@@ -202,12 +217,12 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
             <p className="text-xs text-gray-500 dark:text-gray-400">Tesla — mark its charge assets, then register.</p>
             <AssetToggle icon="🔌" label="Charge cable" present={cable} onChange={setCable} />
             <AssetToggle icon="🔗" label="J1772 adapter" present={adapter} onChange={setAdapter} />
-            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={() => void confirm({ cable, adapter })} />
+            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={() => void confirm({ cable, adapter })} onStage={stage} />
           </>
         ) : (
           <>
             <p className="text-xs text-gray-500 dark:text-gray-400">New to the fleet — no hold, just added so FG knows it.</p>
-            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={confirm} />
+            <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Register" workingLabel="Registering…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} />
           </>
         )}
       </Shell>
@@ -249,6 +264,7 @@ export function HoldProposalCard({ proposal, onConfirm, onDismiss }: Props) {
         workingLabel="Working…"
         onDismiss={onDismiss}
         onConfirm={confirm}
+        onStage={stage}
       />
     </Shell>
   );

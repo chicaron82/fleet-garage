@@ -12,6 +12,7 @@ import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
 import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
+import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { HoldProposalCard } from './HoldProposalCard';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
@@ -93,6 +94,8 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const confirmProposal = useProposalConfirm({
     user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen,
   });
+  // "Later" on a card → stage the proposal to the pending queue (reviewed on My Shift).
+  const { stage: stagePendingWrite } = usePendingWrites();
 
   // Only show the FAB to allowlisted accounts (the assistant runs on a personal
   // API key). Mirrors the server's isAllowed gate in api/_lib/assistantAccess —
@@ -244,6 +247,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                     proposal={m.proposal}
                     onConfirm={(extra) => confirmProposal(m.proposal!, extra)}
                     onDismiss={() => clearProposal(i)}
+                    onStage={(p) => { void stagePendingWrite(p); clearProposal(i); }}
                   />
                 )}
                 {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && !image && (
