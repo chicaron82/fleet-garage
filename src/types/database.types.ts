@@ -424,6 +424,7 @@ export type Database = {
           flagged_by_employee_id: string | null
           flagged_by_id: string
           flagged_by_name: string | null
+          flagged_source: string | null
           hold_type: string
           hold_types: string[] | null
           id: string
@@ -446,6 +447,7 @@ export type Database = {
           flagged_by_employee_id?: string | null
           flagged_by_id: string
           flagged_by_name?: string | null
+          flagged_source?: string | null
           hold_type?: string
           hold_types?: string[] | null
           id: string
@@ -468,6 +470,7 @@ export type Database = {
           flagged_by_employee_id?: string | null
           flagged_by_id?: string
           flagged_by_name?: string | null
+          flagged_source?: string | null
           hold_type?: string
           hold_types?: string[] | null
           id?: string

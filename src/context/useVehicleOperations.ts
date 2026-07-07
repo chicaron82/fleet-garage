@@ -82,6 +82,7 @@ export function useVehicleOperations({
     detailReason?: DetailReason,
     mechanicalSubType?: MechanicalSubType | null,
     linkedHoldId?: string,
+    flaggedSource?: string | null, // null = hand-flagged; 'effie' when written through Effie
   ) => {
     // Double-submit guard at the convergence point: every addHold caller (six and
     // counting) is protected here, not per-form. Keyed per vehicle — a re-entrant
@@ -107,6 +108,7 @@ export function useVehicleOperations({
           flagged_by_id:          flaggedById,
           flagged_by_name:        userName,
           flagged_by_employee_id: userEmployeeId,
+          flagged_source:         flaggedSource ?? null,
           flagged_at:             flaggedAt,
           notes, photos: photoUrls, status: 'ACTIVE',
           linked_hold_id: linkedHoldId ?? null,

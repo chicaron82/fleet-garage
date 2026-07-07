@@ -225,6 +225,7 @@ export interface Hold {
   flaggedById: string;         // User.id (auth UUID)
   flaggedByName: string;
   flaggedByEmployeeId: string;
+  flaggedSource?: string | null; // null = hand-flagged; 'effie' = written through Effie (shown "· via Effie")
   flaggedAt: string;           // ISO timestamp
   notes: string;
   photos?: string[];

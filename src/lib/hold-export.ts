@@ -67,7 +67,7 @@ function renderHoldCard(
       <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">
         Flagged by <strong style="color:#374151;">${getName(hold.flaggedById, hold.flaggedByName)}</strong>
         · ${getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)}
-        · ${fmtTs(hold.flaggedAt)}
+        · ${fmtTs(hold.flaggedAt)}${hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
       </div>
       ${hold.notes ? `<div style="font-size:13px;color:#6b7280;font-style:italic;margin-top:6px;">"${hold.notes}"</div>` : ''}
       ${photosHtml}

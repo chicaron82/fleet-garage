@@ -28,7 +28,7 @@ export interface VehicleHoldContextValue {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;

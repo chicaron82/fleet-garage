@@ -89,7 +89,7 @@ export function HoldContextPanel({ vehicle, holds, user, onReHold, autoExpand, r
             {hold.damageDescription}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-            Flagged {fmtDate(hold.flaggedAt)} · {getName(hold.flaggedById, hold.flaggedByName)} ({getEmpId(hold.flaggedById, hold.flaggedByEmployeeId) || '—'} · {getRole(hold.flaggedById) || '—'})
+            Flagged {fmtDate(hold.flaggedAt)} · {getName(hold.flaggedById, hold.flaggedByName)} ({getEmpId(hold.flaggedById, hold.flaggedByEmployeeId) || '—'} · {getRole(hold.flaggedById) || '—'}){hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
           </p>
           {hold.notes && (
             <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">"{hold.notes}"</p>

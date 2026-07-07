@@ -9,6 +9,7 @@ vi.mock('../../src/lib/addWhiteboardReminder', () => ({ addWhiteboardReminder: v
 import { useProposalConfirm } from '../../src/hooks/useProposalConfirm';
 import { writeOrEnqueue } from '../../src/lib/vsaTripWrite';
 import type { OverflowLogProposal } from '../../api/_lib/overflowProposal';
+import type { HoldProposal } from '../../api/_lib/holdProposal';
 
 const mockWrite = vi.mocked(writeOrEnqueue);
 
@@ -91,5 +92,23 @@ describe('useProposalConfirm — register_vehicle branch', () => {
       expect.objectContaining({ licensePlate: 'HFE872', isTesla: true, status: 'CLEAR', hasMobileCable: true, hasJ1772Adapter: false }),
     );
     expect(addHold).not.toHaveBeenCalled();
+  });
+});
+
+describe('useProposalConfirm — hold provenance', () => {
+  it('stamps an Effie-written hold with flaggedSource "effie"', async () => {
+    const addHold = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useProposalConfirm({ ...deps, addHold } as unknown as Parameters<typeof useProposalConfirm>[0]),
+    );
+    const hold: HoldProposal = {
+      kind: 'hold',
+      vehicle: { vehicleId: 'veh-1', plate: 'LUR187', label: 'Unit 1234' },
+      holdType: 'damage',
+      damageDescription: 'bumper scuff',
+    };
+    await result.current(hold);
+    // 10th positional arg = flaggedSource — Effie-origin so the record shows "· via Effie".
+    expect(addHold).toHaveBeenCalledWith('veh-1', 'bumper scuff', '', 'u1', undefined, ['damage'], undefined, undefined, undefined, 'effie');
   });
 });

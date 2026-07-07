@@ -157,6 +157,7 @@ export function mapHold(row: Row): Hold {
     flaggedById:          reqStr(row, 'flagged_by_id',          'mapHold'),
     flaggedByName:        optStr(row, 'flagged_by_name')        ?? '',
     flaggedByEmployeeId:  optStr(row, 'flagged_by_employee_id') ?? '',
+    flaggedSource:        optStr(row, 'flagged_source')         ?? null,
     flaggedAt:            reqStr(row, 'flagged_at',             'mapHold'),
     notes:              reqStr(row, 'notes',              'mapHold'),
     photos:             optStrArray(row, 'photos'),

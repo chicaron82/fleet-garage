@@ -219,6 +219,7 @@ export function HoldHistorySection({
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Flagged by <span className="font-medium text-gray-700 dark:text-gray-300">{getName(hold.flaggedById, hold.flaggedByName)}</span>
                   {' '}· {getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)} · {fmt(hold.flaggedAt)}
+                  {hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
                 </p>
                 {hold.notes && (
                   <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>

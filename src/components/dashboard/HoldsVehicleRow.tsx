@@ -69,6 +69,7 @@ export function HoldsVehicleRow({
             {latestHold && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
                 Flagged by {getName(latestHold.flaggedById, latestHold.flaggedByName)}
+                {latestHold.flaggedSource === 'effie' ? ' · via Effie' : ''}
               </p>
             )}
           </div>

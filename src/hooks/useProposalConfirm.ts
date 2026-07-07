@@ -152,11 +152,12 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           hasMobileCable: null,
           hasJ1772Adapter: null,
         });
-        const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+        // flaggedSource 'effie' — this hold is written through Effie, so it shows "· via Effie".
+        const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
         if (result && result.photoUrls.length > 0) await setCoverPhoto(vehicleId, result.photoUrls[0]);
         return;
       }
-      const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes);
+      const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },
     [user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
