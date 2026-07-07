@@ -181,6 +181,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     let photoRequest: PhotoContext | null = null; // an inline upload button to show, if Effie asked for a photo
+    const debugTools: string[] = []; // TEMP instrument — which tools ran this request
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model,
@@ -205,6 +206,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
+        debugTools.push(tu.name); // TEMP instrument
         let content: string;
         try {
           if (tu.name === 'propose_hold') {
@@ -288,7 +290,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // Envelope: text answer + an optional drafted hold the client renders as a
     // confirm card. The proxy never writes — the write happens on the user's tap.
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ text: answer || '(no answer)', proposal, photoRequest });
+    const dbg = `\n\n⟨debug: tools=[${debugTools.join(', ')}] proposal=${proposal ? proposal.kind : 'null'}⟩`;
+    res.status(200).json({ text: (answer || '(no answer)') + dbg, proposal, photoRequest });
   } catch (err) {
     console.error('[fg-chat] handler error:', err);
     res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });
