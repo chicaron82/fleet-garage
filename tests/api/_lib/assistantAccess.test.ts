@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAllowlist, isAllowed } from './assistantAccess';
+import { parseAllowlist, isAllowed } from '../../../api/_lib/assistantAccess';
 
 describe('parseAllowlist', () => {
   it('splits, trims, lower-cases, and drops blanks', () => {

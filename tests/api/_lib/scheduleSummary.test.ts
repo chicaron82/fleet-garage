@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSchedule, describeShiftType, type ScheduleGroup } from './scheduleSummary';
+import { formatSchedule, describeShiftType, type ScheduleGroup } from '../../../api/_lib/scheduleSummary';
 
 const groups: ScheduleGroup[] = [
   { shiftType: 'opening', people: ['Marycel'] },

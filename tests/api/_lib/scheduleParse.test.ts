@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchStaffName, matchSchedule, type RosterProfile, type ParsedStaffRow } from './scheduleParse';
+import { matchStaffName, matchSchedule, type RosterProfile, type ParsedStaffRow } from '../../../api/_lib/scheduleParse';
 
 const roster: RosterProfile[] = [
   { id: 'u1', name: 'Aaron Sauddin' },

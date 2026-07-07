@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeVehicle, summarizeLookup, type VehicleFact, type HoldFact } from './vehicleSummary';
+import { describeVehicle, summarizeLookup, type VehicleFact, type HoldFact } from '../../../api/_lib/vehicleSummary';
 
 const camry: VehicleFact = {
   plate: 'LUR187',

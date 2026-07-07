@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lookupVehicleClass } from './vehicleClassCodex';
+import { lookupVehicleClass } from '../../../api/_lib/vehicleClassCodex';
 
 describe('lookupVehicleClass', () => {
   it('maps a known class code to make/model (the tag that prompted this feature)', () => {

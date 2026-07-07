@@ -6,6 +6,7 @@ import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { TripStartForm, type TripStartInfo } from './TripStartForm';
 import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { TripList } from './TripList';
+import { ModuleHeader } from '../shared/ModuleHeader';
 import type { TripRun } from '../../data/trips';
 import type { OffStandardEntry, User } from '../../types';
 
@@ -79,10 +80,7 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Movement Log</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{today}</p>
-      </div>
+      <ModuleHeader title="Movement Log" subtitle={today} />
 
       {/* Tab strip */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">

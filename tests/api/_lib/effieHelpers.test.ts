@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { normalizePlate, resolveVehicleRow, toVehicleFact, type VehicleRow } from './effieHelpers.js';
+import { normalizePlate, resolveVehicleRow, toVehicleFact, type VehicleRow } from '../../../api/_lib/effieHelpers.js';
 
 function row(overrides: Partial<VehicleRow> = {}): VehicleRow {
   return {

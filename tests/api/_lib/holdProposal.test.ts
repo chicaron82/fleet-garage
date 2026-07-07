@@ -4,7 +4,7 @@ import {
   buildRegisterHoldProposal,
   describeProposal,
   describeNewVehicle,
-} from './holdProposal';
+} from '../../../api/_lib/holdProposal';
 
 const vehicle = { vehicleId: 'v1', plate: 'LFJ438', label: 'Unit 1234 · 2025 Hyundai Tucson (Gray)' };
 const newVehicle = {

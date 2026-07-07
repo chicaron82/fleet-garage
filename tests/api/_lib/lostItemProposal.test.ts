@@ -5,7 +5,7 @@ import {
   normalizeLostItemLocation,
   lostItemLocationLabel,
   LOST_ITEM_LOCATIONS,
-} from './lostItemProposal';
+} from '../../../api/_lib/lostItemProposal';
 
 describe('buildLostItemProposal', () => {
   it('trims + normalizes a full proposal', () => {

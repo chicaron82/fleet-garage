@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImageDataUrl, parseDocumentDataUrl } from './imageData';
+import { parseImageDataUrl, parseDocumentDataUrl } from '../../../api/_lib/imageData';
 
 const B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA',  // long-enough dummy base64
   jpegUrl = `data:image/jpeg;base64,${B64}`;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatMyShifts, formatLostFound, formatIssues } from './moduleReads';
+import { formatMyShifts, formatLostFound, formatIssues } from '../../../api/_lib/moduleReads';
 
 describe('formatMyShifts', () => {
   it('lists working shifts with a rough hours total, skipping off/pto', () => {

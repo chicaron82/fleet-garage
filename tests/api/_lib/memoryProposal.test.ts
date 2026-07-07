@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMemoryProposal, describeMemoryProposal, MEMORY_MAX_LEN } from './memoryProposal';
+import { buildMemoryProposal, describeMemoryProposal, MEMORY_MAX_LEN } from '../../../api/_lib/memoryProposal';
 
 describe('buildMemoryProposal', () => {
   it('builds a memory from usable content, collapsing whitespace', () => {

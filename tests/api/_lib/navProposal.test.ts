@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNavigateProposal, describeNavigate, NAV_DESTINATIONS } from './navProposal';
+import { buildNavigateProposal, describeNavigate, NAV_DESTINATIONS } from '../../../api/_lib/navProposal';
 
 describe('buildNavigateProposal', () => {
   it('builds a labelled proposal for the flagship schedule-import', () => {
