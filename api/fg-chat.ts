@@ -70,7 +70,15 @@ const MODEL = 'claude-sonnet-4-6';
 // photos a shift — and a suggest-then-confirm read is worth the better model.
 const VISION_MODEL = 'claude-opus-4-8';
 const MAX_TOKENS = 1024;
-const MAX_TOOL_TURNS = 4; // a lookup answer is one tool call; cap the loop defensively.
+const MAX_TOOL_TURNS = 6; // a lookup is one tool call; the draft-claim recovery can add ~2 turns.
+
+// Backstop for the vision path: the model sometimes NARRATES a draft ("Drafted below —
+// confirm on the card") without emitting the propose_* tool, so no proposal/card exists.
+// If a turn ends claiming a draft but no proposal was captured, we force one recovery turn
+// (below) instead of shipping a card-less claim. Prompts are hope; this is the guarantee.
+const DRAFT_CLAIM = /\b(drafted|confirm below|on the (confirm )?card|before you tap|tap to confirm)\b/i;
+const RECOVERY_INSTRUCTION =
+  'You told the user you drafted an action and to confirm it on the card, but you did NOT call a propose_* tool this turn — so no card exists and nothing is actually drafted. If you intended to draft an action, call the correct propose_* tool NOW using the details already gathered in this conversation. Do not describe it again — call the tool.';
 
 export default async function handler(req: FgRequest, res: FgResponse): Promise<void> {
   if (req.method !== 'POST') {
@@ -181,7 +189,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     let photoRequest: PhotoContext | null = null; // an inline upload button to show, if Effie asked for a photo
-    const debugTools: string[] = []; // TEMP instrument — which tools ran this request
+    let recoveryUsed = false; // the draft-claim backstop fires at most once
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model,
@@ -196,6 +204,14 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
           .filter((b): b is Anthropic.TextBlock => b.type === 'text')
           .map((b) => b.text)
           .join('');
+        // Draft-claim backstop: she said she drafted something but never called the
+        // propose_* tool (no proposal). Force one recovery turn to actually emit it.
+        if (proposal === null && !recoveryUsed && DRAFT_CLAIM.test(answer)) {
+          recoveryUsed = true;
+          convo.push({ role: 'assistant', content: message.content });
+          convo.push({ role: 'user', content: RECOVERY_INSTRUCTION });
+          continue;
+        }
         break;
       }
 
@@ -206,7 +222,6 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
-        debugTools.push(tu.name); // TEMP instrument
         let content: string;
         try {
           if (tu.name === 'propose_hold') {
@@ -290,8 +305,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // Envelope: text answer + an optional drafted hold the client renders as a
     // confirm card. The proxy never writes — the write happens on the user's tap.
     res.setHeader('Cache-Control', 'no-store');
-    const dbg = `\n\n⟨debug: tools=[${debugTools.join(', ')}] proposal=${proposal ? proposal.kind : 'null'}⟩`;
-    res.status(200).json({ text: (answer || '(no answer)') + dbg, proposal, photoRequest });
+    res.status(200).json({ text: answer || '(no answer)', proposal, photoRequest });
   } catch (err) {
     console.error('[fg-chat] handler error:', err);
     res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });
