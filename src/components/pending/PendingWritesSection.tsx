@@ -59,6 +59,7 @@ export function PendingWritesSection() {
                 await markResolved(pw.id, 'approved');     // then record the outcome
               }}
               onDismiss={() => void markResolved(pw.id, 'rejected')}
+              dismissLabel="Reject"
             />
           ))}
         </div>
