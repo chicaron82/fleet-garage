@@ -152,9 +152,10 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           hasMobileCable: null,
           hasJ1772Adapter: null,
         });
-        // flaggedSource 'effie' — this hold is written through Effie, so it shows "· via Effie".
-        const result = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
-        if (result && result.photoUrls.length > 0) await setCoverPhoto(vehicleId, result.photoUrls[0]);
+        // No photo on a register-and-hold: the chat image here is a KEY TAG (only there to
+        // read the vehicle's details), not damage evidence — attaching/pinning it would
+        // decorate the hold with a registration artifact. flaggedSource 'effie' → "· via Effie".
+        await addHold(vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes, undefined, undefined, undefined, 'effie');
         return;
       }
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');

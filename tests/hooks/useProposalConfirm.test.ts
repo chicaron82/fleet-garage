@@ -9,7 +9,7 @@ vi.mock('../../src/lib/addWhiteboardReminder', () => ({ addWhiteboardReminder: v
 import { useProposalConfirm } from '../../src/hooks/useProposalConfirm';
 import { writeOrEnqueue } from '../../src/lib/vsaTripWrite';
 import type { OverflowLogProposal } from '../../api/_lib/overflowProposal';
-import type { HoldProposal } from '../../api/_lib/holdProposal';
+import type { HoldProposal, RegisterHoldProposal } from '../../api/_lib/holdProposal';
 
 const mockWrite = vi.mocked(writeOrEnqueue);
 
@@ -110,5 +110,27 @@ describe('useProposalConfirm — hold provenance', () => {
     await result.current(hold);
     // 10th positional arg = flaggedSource — Effie-origin so the record shows "· via Effie".
     expect(addHold).toHaveBeenCalledWith('veh-1', 'bumper scuff', '', 'u1', undefined, ['damage'], undefined, undefined, undefined, 'effie');
+  });
+
+  it('does not attach the key-tag photo on a register-and-hold', async () => {
+    const addHold = vi.fn().mockResolvedValue(undefined);
+    const addVehicle = vi.fn().mockResolvedValue('veh-9');
+    const { result } = renderHook(() =>
+      useProposalConfirm({
+        ...deps,
+        messages: [{ image: 'data:image/jpeg;base64,KEYTAG' }],
+        addVehicle,
+        addHold,
+      } as unknown as Parameters<typeof useProposalConfirm>[0]),
+    );
+    const proposal: RegisterHoldProposal = {
+      kind: 'register_and_hold',
+      newVehicle: { unitNumber: '5424460', plate: 'LUR195', make: 'Nissan', model: 'Kicks', year: 2025, color: 'Black' },
+      holdType: 'mechanical',
+      damageDescription: 'PM (preventive maintenance)',
+    };
+    await result.current(proposal);
+    // 5th arg (photos) MUST be undefined — the key tag is not attached to the hold.
+    expect(addHold).toHaveBeenCalledWith('veh-9', 'PM (preventive maintenance)', '', 'u1', undefined, ['mechanical'], undefined, undefined, undefined, 'effie');
   });
 });
