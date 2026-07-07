@@ -100,6 +100,25 @@ the "don't narrate an action" leash) FAILED or are unverifiable. **So: reach for
 deterministic guardrail FIRST; if a fix can only be a prompt, call it mitigation, not a
 fix, and pair it with a code backstop.** Never claim a prompt-only change is "fixed."
 
+**2026-07-06 continuation:** the vision-draft backstop (`269d9a4`) is the same move — if a
+turn ends *claiming* a draft ("Drafted below") but no `propose_*` tool fired, the loop
+injects one recovery instruction forcing the call (validated 8/8 by seeding the flaked
+state). Two sharper verify lessons from that day:
+
+- **Validate the path the operator ACTUALLY uses — not an adjacent one.** Effie runs TWO
+  model paths: **text → Sonnet**, **image → Opus** (`VISION_MODEL`). The Tesla-asset feature
+  was "validated on Sonnet" (a *text* register) and shipped — then broke live on the real
+  path (a keytag *photo* → Opus vision narrated the draft without calling the tool). For
+  anything photo-driven, the validation must exercise the **Opus vision turn**, not a text
+  proxy. An adjacent-path pass is not a validation, and "validated" in a commit means the
+  real path or it's a lie.
+- **Post-deploy verify = hard-refresh FIRST.** FG is a PWA; its service worker serves cached
+  chunks until a hard refresh, so a fresh deploy can render OLD behavior even with the new
+  footer commit (bit twice 2026-07-06 — the Tesla card and the "via Effie" marker both read
+  as "missing" until Aaron cleared storage; the code was correct and in the shipped bundle
+  the whole time). Every "here's what to verify" instruction after a deploy must open with
+  hard-refresh / clear-storage, or you'll debug a ghost.
+
 > Convention note: lib tests now live **only** under `tests/`, mirroring `src/` —
 > the 6 stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
 > (`gas-sheet` + `garage-mappers` were merges — each `src/lib` copy covered cases
