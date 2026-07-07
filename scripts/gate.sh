@@ -5,6 +5,19 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+echo "── test placement ─────────────────────────────"
+# Tests live ONLY under tests/ (mirroring src/ + api/). vitest's default glob runs
+# *.test.ts from ANYWHERE, so a co-located test still passes green — invisible to the
+# tests station below, and it misreads the tests/ tree as a coverage gap. A cold
+# line-check (2026-07-04) found 12 api/_lib tests drifted beside their source exactly
+# this way. This turns the convention into a mechanism instead of a memory.
+stray=$(find src api \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.ts' -o -name '*.spec.tsx' \) 2>/dev/null || true)
+if [ -n "$stray" ]; then
+  echo "✗ test file(s) outside tests/ — move them under tests/ mirroring their path:"
+  echo "$stray" | sed 's/^/    /'
+  exit 1
+fi
+
 echo "── lint ───────────────────────────────────────"
 npx eslint .
 
