@@ -52,7 +52,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const ttsCancel = kokoroActive ? kokoro.cancel : webTts.cancel;
   const ttsSupportedOrEnabled = kokoro.enabled || webTts.supported;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Seed to the RESTORED thread's tail (thread continuity restores messages at
   // mount) so a reload never re-speaks a stale answer aloud — only turns that land
@@ -286,7 +286,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                 <span className="truncate">{speech.interim || 'Listening…'}</span>
               </div>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-end gap-2">
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} className="hidden" />
               <button
                 onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
@@ -312,15 +312,17 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                   <MicIcon />
                 </button>
               )}
-              <input
+              <textarea
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') submit();
+                  // Enter sends; Shift+Enter drops a newline (standard chat composer).
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
                 }}
+                rows={2}
                 placeholder="Ask, speak, or attach a photo…"
-                className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
+                className="flex-1 resize-none rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
               />
               <button
                 onClick={submit}
