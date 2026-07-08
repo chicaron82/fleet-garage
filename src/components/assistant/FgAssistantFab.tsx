@@ -9,8 +9,6 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useEffie } from '../../context/EffieContext';
 import { useEffieMemory } from '../../hooks/useEffieMemory';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
-import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { HoldProposalCard } from './HoldProposalCard';
@@ -37,27 +35,11 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const [pendingPhotoContext, setPendingPhotoContext] = useState<PhotoContext | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const { messages, loading, error, send, clearProposal } = useEffie();
+  const { messages, loading, error, send, clearProposal, tts } = useEffie();
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
-  const webTts = useSpeechSynthesis();
-  const kokoro = useKokoroSynthesis();
-  // Kokoro takes priority when it can actually run (needs cross-origin isolation
-  // for SharedArrayBuffer). If the user turned it on but this context can't run it
-  // — e.g. a deploy missing the COOP/COEP headers — fall back to Web Speech so
-  // Effie still talks instead of failing silently.
-  const kokoroActive = kokoro.enabled && kokoro.available;
-  const kokoroFellBack = kokoro.enabled && !kokoro.available && webTts.supported;
-  const ttsEnabled = kokoroActive || webTts.enabled || kokoroFellBack;
-  const ttsSpeak = kokoroActive ? kokoro.speak : webTts.speak;
-  const ttsCancel = kokoroActive ? kokoro.cancel : webTts.cancel;
-  const ttsSupportedOrEnabled = kokoro.enabled || webTts.supported;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // Seed to the RESTORED thread's tail (thread continuity restores messages at
-  // mount) so a reload never re-speaks a stale answer aloud — only turns that land
-  // after mount are read. Empty thread → -1, the original behavior.
-  const spokenRef = useRef(messages.length - 1);
 
   // The login id = the part before @fleet-garage.internal in the auth email —
   // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
@@ -77,17 +59,6 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
-
-  // Read the assistant's answer aloud once it lands, if read-back is on (each turn once).
-  useEffect(() => {
-    if (loading) return;
-    const i = messages.length - 1;
-    const m = messages[i];
-    if (m && m.role === 'assistant' && m.text && ttsEnabled && spokenRef.current !== i) {
-      spokenRef.current = i;
-      ttsSpeak(stripForSpeech(m.text)); // no "asterisk asterisk" from stray markdown
-    }
-  }, [messages, loading, ttsEnabled, ttsSpeak]);
 
   // The confirm handler → the only write path for an AI-drafted proposal (the proxy
   // never wrote). The per-kind write dispatch lives in useProposalConfirm; shared
@@ -131,7 +102,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       return;
     }
     speech.stop();
-    ttsCancel();
+    tts.cancel();
     const imgs = images.length ? images : undefined;
     // A typed caption always wins. Photos attached via a contextual upload button get
     // the context caption ("Here's a photo of the key tag."); plain photos go
@@ -167,16 +138,16 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {ttsSupportedOrEnabled && (
+              {tts.supportedOrEnabled && (
                 <button
-                  onClick={() => kokoro.enabled ? kokoro.setEnabled(false) : webTts.setEnabled(!webTts.enabled)}
-                  aria-label={ttsEnabled ? 'Turn off read-back' : 'Read answers aloud'}
-                  title={ttsEnabled ? 'Read-back on' : 'Read-back off'}
+                  onClick={() => tts.kokoro.enabled ? tts.kokoro.setEnabled(false) : tts.webTts.setEnabled(!tts.webTts.enabled)}
+                  aria-label={tts.enabled ? 'Turn off read-back' : 'Read answers aloud'}
+                  title={tts.enabled ? 'Read-back on' : 'Read-back off'}
                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition cursor-pointer ${
-                    ttsEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                    tts.enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
-                  {ttsEnabled ? <SpeakerIcon /> : <SpeakerOffIcon />}
+                  {tts.enabled ? <SpeakerIcon /> : <SpeakerOffIcon />}
                 </button>
               )}
               <button
@@ -192,7 +163,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
 
           {showSettings && (
             <EffieSettingsPanel
-              kokoro={kokoro}
+              kokoro={tts.kokoro}
               memories={effieMemory.memories}
               onForget={effieMemory.remove}
               onClose={() => setShowSettings(false)}
@@ -200,18 +171,18 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
           )}
 
           {/* Kokoro download progress — visible while the model is loading */}
-          {kokoro.modelState === 'loading' && (
+          {tts.kokoro.modelState === 'loading' && (
             <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] text-blue-500">Downloading Effie's voice…</span>
-                {kokoro.downloadProgress !== null && (
-                  <span className="text-[11px] tabular-nums text-blue-500">{kokoro.downloadProgress}%</span>
+                {tts.kokoro.downloadProgress !== null && (
+                  <span className="text-[11px] tabular-nums text-blue-500">{tts.kokoro.downloadProgress}%</span>
                 )}
               </div>
               <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                 <div
                   className="h-full rounded-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${kokoro.downloadProgress ?? 0}%` }}
+                  style={{ width: `${tts.kokoro.downloadProgress ?? 0}%` }}
                 />
               </div>
             </div>
@@ -298,7 +269,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               {speech.supported && (
                 <button
                   onClick={() => {
-                    ttsCancel();
+                    tts.cancel();
                     if (speech.listening) speech.stop();
                     else speech.start();
                   }}
