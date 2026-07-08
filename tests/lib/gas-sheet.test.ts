@@ -103,28 +103,35 @@ describe('latestGasSheetReading', () => {
       .toEqual({ fullPages: 2, lastPageEntries: 18 });
   });
 
-  // ── Timestamp-aware path (production data) ────────────────────────────────
+  // ── The furthest-along reading of the day wins (highest count) ────────────
+  // The gas sheet only grows through the day, so the highest count is always the
+  // most advanced position — regardless of when each reading was typed into the
+  // app. loggedAt is deliberately NOT a tie-break (it's data-entry time, not the
+  // gas-sheet clock time).
 
-  it('picks the most recently logged reading when timestamps are present', () => {
-    // Morning preseed carries yesterday's closing total (high count, logged early).
-    // Afternoon check-in is logged later with a lower count — it's authoritative.
+  it('picks the highest count, not the most recently logged', () => {
+    // Aaron's real workflow: a handoff read off the timestamped card gets typed in
+    // LATE — after a higher departure count is already logged. The stale, lower
+    // handoff must NOT win just because its loggedAt is more recent.
     const result = latestGasSheetReading([
-      { fullPages: 2, lastPageEntries: 5, loggedAt: '2026-06-16T06:00:00.000Z' }, // morning preseed — 43 cars
-      { fullPages: 1, lastPageEntries: 0, loggedAt: '2026-06-16T14:30:00.000Z' }, // afternoon check-in — 19 cars
+      { fullPages: 2, lastPageEntries: 8, loggedAt: '2026-07-07T23:10:00.000Z' }, // departure, 46 — logged first
+      { fullPages: 1, lastPageEntries: 13, loggedAt: '2026-07-07T23:40:00.000Z' }, // handoff, 32 — entered LATE
     ]);
-    expect(result).toMatchObject({ fullPages: 1, lastPageEntries: 0 });
+    expect(result).toMatchObject({ fullPages: 2, lastPageEntries: 8 }); // 46 wins
   });
 
-  it('most-recent wins even with three candidates of varying counts', () => {
+  it('highest count wins across three same-day readings whatever the log order', () => {
+    // Aaron's worked example: arrival 15 → handoff 32 → departure 46, cleanly
+    // increasing, but suppose they were keyed in out of order.
     const result = latestGasSheetReading([
-      { fullPages: 0, lastPageEntries: 5,  loggedAt: '2026-06-16T06:00:00.000Z' }, // earliest
-      { fullPages: 3, lastPageEntries: 10, loggedAt: '2026-06-16T15:00:00.000Z' }, // highest count but not latest
-      { fullPages: 1, lastPageEntries: 7,  loggedAt: '2026-06-16T17:00:00.000Z' }, // latest ← should win
+      { fullPages: 2, lastPageEntries: 8,  loggedAt: '2026-07-07T20:00:00.000Z' }, // departure 46 ← highest, logged earliest
+      { fullPages: 0, lastPageEntries: 15, loggedAt: '2026-07-07T21:00:00.000Z' }, // arrival 15, logged later
+      { fullPages: 1, lastPageEntries: 13, loggedAt: '2026-07-07T22:00:00.000Z' }, // handoff 32, logged latest
     ]);
-    expect(result).toMatchObject({ fullPages: 1, lastPageEntries: 7 });
+    expect(result).toMatchObject({ fullPages: 2, lastPageEntries: 8 }); // 46 wins
   });
 
-  it('falls back to highest count when no candidates have timestamps', () => {
+  it('picks the highest count when no candidates have timestamps', () => {
     const result = latestGasSheetReading([
       { fullPages: 3, lastPageEntries: 10 }, // 67
       { fullPages: 2, lastPageEntries: 18 }, // 56
@@ -133,7 +140,7 @@ describe('latestGasSheetReading', () => {
     expect(result).toEqual({ fullPages: 3, lastPageEntries: 10 });
   });
 
-  it('fallback ignores lower readings regardless of list order', () => {
+  it('ignores lower readings regardless of list order', () => {
     const result = latestGasSheetReading([
       { fullPages: 4, lastPageEntries: 2 },  // 78
       { fullPages: 2, lastPageEntries: 0 },  // 38

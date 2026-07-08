@@ -45,24 +45,27 @@ export function hasGasSheetData(
 export interface GasSheetReading {
   fullPages: number;
   lastPageEntries: number;
-  /** ISO timestamp of when this reading was logged. When present, the most-recently
-   *  logged reading wins — a later check-in is authoritative over an earlier preseed
-   *  even if the preseed has a higher count (e.g. morning crew carrying forward
-   *  yesterday's closing total). */
+  /** ISO timestamp of when this reading was logged into the app (data-entry time,
+   *  NOT the gas-sheet clock time). Used elsewhere to bucket a reading to its
+   *  business date; it is deliberately NOT used to pick the furthest-along reading
+   *  — see latestGasSheetReading. */
   loggedAt?: string;
 }
 
 /**
- * The most recently logged reading wins when timestamps are available. Without
- * timestamps (test / legacy data), falls back to the highest count — the gas
- * sheet is one continuous document that only grows through the day.
+ * The furthest-along reading of the day wins — the one with the highest gas-sheet
+ * count. The gas sheet is one continuous document that only grows through the day,
+ * so the highest count is always the most advanced position, regardless of when
+ * each reading happened to be typed into the app.
+ *
+ * We deliberately do NOT tie-break on `loggedAt`: a checkpoint entered LATE but
+ * anchored to an earlier gas-sheet moment (Aaron's real workflow — he reads the
+ * correct count off the timestamped card whenever he gets a chance) must not
+ * regress the seed below a higher count already logged. Callers are responsible
+ * for scoping candidates to a single business day (the only caller already
+ * same-day-filters), so cross-day leakage can't occur here.
  */
 export function latestGasSheetReading(candidates: GasSheetReading[]): GasSheetReading | null {
-  if (candidates.length === 0) return null;
-  const withTs = candidates.filter(c => c.loggedAt);
-  if (withTs.length > 0) {
-    return withTs.reduce((best, c) => (c.loggedAt! > best.loggedAt! ? c : best));
-  }
   let best: GasSheetReading | null = null;
   let bestCount = -1;
   for (const c of candidates) {
