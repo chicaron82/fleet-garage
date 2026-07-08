@@ -15,6 +15,11 @@ export interface ChatMessage {
   text: string;
   /** A drafted hold awaiting the user's confirm tap (assistant turns only). */
   proposal?: Proposal | null;
+  /** True once the proposal's write EXECUTED (tap-confirm success). Lives on the message —
+   *  not just in the card's local state — so a remounted card (panel closed/reopened)
+   *  renders its receipt instead of resurrecting a confirmable card for a write that
+   *  already ran (the duplicate-registration gun). */
+  proposalDone?: boolean;
   /** A photo the assistant is asking for — renders an inline upload button (assistant turns). */
   photoRequest?: PhotoContext | null;
   /** Photos the user attached to this turn (base64 data URLs, user turns). One or
@@ -95,9 +100,16 @@ export function useFgAssistant() {
     [messages, loading],
   );
 
-  // Clear a proposal once it's been confirmed or dismissed (so the card disappears).
+  // Clear a proposal once it's been dismissed/staged/typed-confirmed (the card disappears).
   const clearProposal = useCallback((index: number) => {
     setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, proposal: null } : m)));
+  }, []);
+
+  // Record that a proposal's write executed (tap-confirm success). Keeps the proposal on
+  // the message — the receipt renders from it — but flags it done so a remount can't offer
+  // the confirm again.
+  const markProposalDone = useCallback((index: number) => {
+    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, proposalDone: true } : m)));
   }, []);
 
   const reset = useCallback(() => {
@@ -106,7 +118,7 @@ export function useFgAssistant() {
     clearThread();
   }, []);
 
-  return { messages, loading, error, send, reset, clearProposal };
+  return { messages, loading, error, send, reset, clearProposal, markProposalDone };
 }
 
 /** Replace the trailing assistant bubble's text + proposal. */

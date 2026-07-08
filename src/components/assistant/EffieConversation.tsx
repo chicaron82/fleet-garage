@@ -36,7 +36,7 @@ export function EffieConversation({ module, onNavigate, onClose }: {
   const { user } = useAuth();
   const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
-  const { messages, loading, error, send, clearProposal, tts, memory, composer } = useEffie();
+  const { messages, loading, error, send, clearProposal, markProposalDone, tts, memory, composer } = useEffie();
   const { draft, setDraft, images, setImages, pendingPhotoContext, setPendingPhotoContext } = composer;
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -135,7 +135,11 @@ export function EffieConversation({ module, onNavigate, onClose }: {
             {m.role === 'assistant' && m.proposal && (
               <HoldProposalCard
                 proposal={m.proposal}
-                onConfirm={(extra) => confirmProposal(m.proposal!, extra)}
+                done={!!m.proposalDone}
+                onConfirm={async (extra) => {
+                  await confirmProposal(m.proposal!, extra); // throws → the card shows its error state
+                  markProposalDone(i); // recorded on the MESSAGE so a remount renders the receipt, not a re-confirmable card
+                }}
                 onDismiss={() => clearProposal(i)}
                 onStage={(p) => { void stagePendingWrite(p, 'effie-chat', messages.flatMap((mm) => mm.images ?? [])); clearProposal(i); }}
               />

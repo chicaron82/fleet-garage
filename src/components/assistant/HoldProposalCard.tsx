@@ -13,6 +13,10 @@ import { lostItemLocationLabel } from '../../../api/_lib/lostItemProposal';
 
 interface Props {
   proposal: Proposal;
+  // The proposal's write already executed in an earlier mount (resolution is recorded on
+  // the chat message, not just card-local state). Seeds the card straight to its receipt,
+  // so closing/reopening the panel can't resurrect a confirmable card for a done write.
+  done?: boolean;
   // A Tesla register passes the tapped cable/adapter presence; other kinds ignore the arg.
   onConfirm: (extra?: RegisterAssetChoice) => Promise<void>;
   onDismiss: () => void;
@@ -104,8 +108,8 @@ function CardActions({ tone, status, errMsg, confirmLabel, workingLabel, dismiss
   );
 }
 
-export function HoldProposalCard({ proposal, onConfirm, onDismiss, onStage, dismissLabel = 'Cancel' }: Props) {
-  const [status, setStatus] = useState<Status>('idle');
+export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss, onStage, dismissLabel = 'Cancel' }: Props) {
+  const [status, setStatus] = useState<Status>(done ? 'done' : 'idle');
   const [errMsg, setErrMsg] = useState('');
   // "Later" → stage this proposal to the pending queue (only offered when onStage is wired).
   const stage = onStage ? () => onStage(proposal) : undefined;
