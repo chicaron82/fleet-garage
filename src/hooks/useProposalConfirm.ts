@@ -52,7 +52,7 @@ interface ProposalConfirmDeps {
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
   const { user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
   return useCallback(
-    async (proposal: Proposal, extra?: RegisterAssetChoice) => {
+    async (proposal: Proposal, extra?: RegisterAssetChoice, photosOverride?: string[]) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
       if (proposal.kind === 'navigate') {
         onNavigate?.(navDestinationToScreen(proposal.destination));
@@ -136,7 +136,9 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       // path, so without this the damage photo never lands on the record. addHold
       // uploads them and returns their URLs; auto-pin the first as the vehicle cover
       // so it shows as the holds-list thumbnail ("one photo → pin it").
-      const photos = messages.flatMap((m) => m.images ?? []);
+      // Chat confirm reads them from the conversation; the pending queue has no chat
+      // context, so it passes the photos it captured at stage time as photosOverride.
+      const photos = photosOverride ?? messages.flatMap((m) => m.images ?? []);
       const attach = photos.length > 0 ? photos : undefined;
       if (proposal.kind === 'register_and_hold') {
         const nv = proposal.newVehicle;

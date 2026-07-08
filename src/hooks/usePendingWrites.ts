@@ -17,6 +17,9 @@ export interface PendingWrite {
   proposal: Proposal;
   source: string;
   createdAt: string;
+  /** Damage photos (base64 data URLs) captured when a hold was staged, so they survive
+   *  stage→approve. Undefined for staged writes with no attached photos. */
+  photos?: string[];
 }
 
 export function usePendingWrites() {
@@ -29,7 +32,7 @@ export function usePendingWrites() {
     if (!user) return;
     const { data } = await supabase
       .from('effie_pending_writes')
-      .select('id, kind, proposal, source, created_at')
+      .select('id, kind, proposal, source, created_at, photos')
       .eq('proposed_by', user.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -39,6 +42,7 @@ export function usePendingWrites() {
       proposal: r.proposal as unknown as Proposal, // jsonb round-trips to the Proposal object
       source: r.source,
       createdAt: r.created_at,
+      photos: (r.photos as string[] | null) ?? undefined,
     })));
   }, [user]);
 
@@ -46,12 +50,19 @@ export function usePendingWrites() {
 
   /** Persist an inferred proposal for later review. Nothing is written to the real
    *  tables here — that only happens on approve (via useProposalConfirm). */
-  const stage = useCallback(async (proposal: Proposal, source = 'effie-chat'): Promise<boolean> => {
+  const stage = useCallback(async (proposal: Proposal, source = 'effie-chat', photos?: string[]): Promise<boolean> => {
     if (!user) return false;
     const { error } = await supabase
       .from('effie_pending_writes')
       // Proposal is a typed union, not a structural Json — cast at the jsonb boundary.
-      .insert({ proposed_by: user.id, kind: proposal.kind, proposal: proposal as unknown as Json, source });
+      // photos: only a damage `hold` carries them; everything else stages null.
+      .insert({
+        proposed_by: user.id,
+        kind: proposal.kind,
+        proposal: proposal as unknown as Json,
+        source,
+        photos: photos && photos.length > 0 ? photos : null,
+      });
     if (!error) await reload();
     return !error;
   }, [user, reload]);

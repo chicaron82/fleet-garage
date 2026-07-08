@@ -254,7 +254,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                     proposal={m.proposal}
                     onConfirm={(extra) => confirmProposal(m.proposal!, extra)}
                     onDismiss={() => clearProposal(i)}
-                    onStage={(p) => { void stagePendingWrite(p); clearProposal(i); }}
+                    onStage={(p) => { void stagePendingWrite(p, 'effie-chat', messages.flatMap((mm) => mm.images ?? [])); clearProposal(i); }}
                   />
                 )}
                 {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && images.length === 0 && (

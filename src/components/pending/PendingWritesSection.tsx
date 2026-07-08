@@ -70,7 +70,7 @@ export function PendingWritesSection() {
                   // Skip the real write if a prior attempt already landed it (only its
                   // markResolved failed) — retry ONLY the bookkeeping so we never write twice.
                   if (!writtenRef.current.has(pw.id)) {
-                    await confirmProposal(pw.proposal, extra); // the real write
+                    await confirmProposal(pw.proposal, extra, pw.photos ?? []); // the real write, with any staged damage photos
                     writtenRef.current.add(pw.id);
                   }
                   await markResolved(pw.id, 'approved');       // then record the outcome

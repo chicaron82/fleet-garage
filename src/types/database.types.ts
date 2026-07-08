@@ -111,6 +111,7 @@ export type Database = {
           created_at: string
           id: string
           kind: string
+          photos: Json | null
           proposal: Json
           proposed_by: string
           resolved_at: string | null
@@ -122,6 +123,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind: string
+          photos?: Json | null
           proposal: Json
           proposed_by: string
           resolved_at?: string | null
@@ -133,6 +135,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string
+          photos?: Json | null
           proposal?: Json
           proposed_by?: string
           resolved_at?: string | null
