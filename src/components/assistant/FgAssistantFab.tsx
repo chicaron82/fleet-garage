@@ -1,45 +1,22 @@
-// Effie (PerZeePhone) — the floating action button + chat panel for the Fleet
-// Garage shop assistant. All model/key work lives in the proxy (api/fg-chat.ts)
-// + hooks; this is the surface: FAB, chat panel, proposal cards.
-import { useEffect, useRef, useState } from 'react';
+// Effie (PerZeePhone) — the floating action button + chat panel SHELL. The conversation
+// itself (transcript + composer + confirm path) lives in EffieConversation, and all its
+// state (thread, voice, draft) in EffieContext — shared with Effie's full-screen module
+// (docs/ticket-misc-effie-module.md). This file owns only the FAB affordance: the
+// button, the corner panel chrome (header / read-back toggle / settings), and the
+// client-side allowlist gate.
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useEffie } from '../../context/EffieContext';
-import { useEffieMemory } from '../../hooks/useEffieMemory';
-import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import { useProposalConfirm } from '../../hooks/useProposalConfirm';
-import { usePendingWrites } from '../../hooks/usePendingWrites';
-import { HoldProposalCard } from './HoldProposalCard';
-import { EffieImageStrip } from './EffieImageStrip';
+import { EffieConversation } from './EffieConversation';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
-import { moduleGreeting } from '../../lib/assistantGreeting';
-import { compressImage } from '../../lib/image';
-import { stripForSpeech } from '../../lib/speechText';
-import { photoCaptionFor, photoButtonLabel, type PhotoContext } from '../../../api/_lib/photoRequest';
-import { isAffirmation } from '../../lib/affirmation';
-import {
-  SparkleIcon, CloseIcon, SendIcon, CameraIcon, MicIcon, SpeakerIcon, SpeakerOffIcon, TypingDots,
-} from './AssistantIcons';
+import { SparkleIcon, CloseIcon, SpeakerIcon, SpeakerOffIcon } from './AssistantIcons';
 import type { Screen } from '../../types';
 
 export function FgAssistantFab({ module, onNavigate }: { module: string; onNavigate?: (screen: Screen) => void }) {
-  const { user } = useAuth();
-  const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
-  const { addLostFoundItem } = useLostFoundContext();
-  const effieMemory = useEffieMemory();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  const [pendingPhotoContext, setPendingPhotoContext] = useState<PhotoContext | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const { messages, loading, error, send, clearProposal, tts } = useEffie();
-  const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const { tts, memory } = useEffie();
 
   // The login id = the part before @fleet-garage.internal in the auth email —
   // the SAME identifier the server gate checks (api/fg-chat getUser → email). Gate
@@ -49,25 +26,6 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
       setLoginId((data.session?.user.email ?? '').split('@')[0].toLowerCase());
     });
   }, []);
-
-  // Keep the latest turn in view as the answer streams in.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages]);
-
-  // Focus the input when the panel opens.
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-
-  // The confirm handler → the only write path for an AI-drafted proposal (the proxy
-  // never wrote). The per-kind write dispatch lives in useProposalConfirm; shared
-  // instances (auth user, effie-memory store) are passed so they don't fork.
-  const confirmProposal = useProposalConfirm({
-    user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen,
-  });
-  // "Later" on a card → stage the proposal to the pending queue (reviewed on My Shift).
-  const { stage: stagePendingWrite } = usePendingWrites();
 
   // Only show the FAB to allowlisted accounts (the assistant runs on a personal
   // API key). Mirrors the server's isAllowed gate in api/_lib/assistantAccess —
@@ -79,40 +37,6 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     .filter(Boolean);
   const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
-
-  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = ''; // let the same file(s) be picked again
-    if (files.length === 0) return;
-    const compressed = await Promise.all(files.map(compressImage));
-    setImages((prev) => [...prev, ...compressed]); // append — a second attach adds, not replaces
-  };
-
-  const submit = () => {
-    const text = draft.trim();
-    if ((!text && images.length === 0) || loading) return;
-    // Typed-confirmation fallback: if Effie's last turn drafted a proposal and the user
-    // types a bare "confirm/yes" (no photo), execute it — same as tapping the card. On
-    // success the card is cleared; on failure it's left so the operator can retry by tap.
-    const lastIdx = messages.length - 1;
-    const pending = messages[lastIdx]?.role === 'assistant' ? messages[lastIdx].proposal : null;
-    if (pending && images.length === 0 && isAffirmation(text)) {
-      setDraft('');
-      void confirmProposal(pending).then(() => clearProposal(lastIdx)).catch(() => { /* keep card for tap-retry */ });
-      return;
-    }
-    speech.stop();
-    tts.cancel();
-    const imgs = images.length ? images : undefined;
-    // A typed caption always wins. Photos attached via a contextual upload button get
-    // the context caption ("Here's a photo of the key tag."); plain photos go
-    // captionless (empty → image-only bubble, neutral text to the API).
-    const caption = text || (imgs && pendingPhotoContext ? photoCaptionFor(pendingPhotoContext) : '');
-    setDraft('');
-    setImages([]);
-    setPendingPhotoContext(null);
-    void send(caption, module, imgs);
-  };
 
   return (
     <>
@@ -164,8 +88,8 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
           {showSettings && (
             <EffieSettingsPanel
               kokoro={tts.kokoro}
-              memories={effieMemory.memories}
-              onForget={effieMemory.remove}
+              memories={memory.memories}
+              onForget={memory.remove}
               onClose={() => setShowSettings(false)}
             />
           )}
@@ -188,123 +112,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
             </div>
           )}
 
-          {/* Transcript */}
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-            {messages.length === 0 && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100">
-                  {moduleGreeting(module, (user?.name ?? '').split(' ')[0])}
-                </div>
-              </div>
-            )}
-            {messages.map((m, i) => (
-              <div key={i} className="space-y-2">
-                <div className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                  <div
-                    className={
-                      m.role === 'user'
-                        ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-blue-600 px-3 py-2 text-sm text-white'
-                        : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100'
-                    }
-                  >
-                    {m.images && m.images.length > 0 && (
-                      <div className="mb-1.5 flex flex-wrap gap-1.5">
-                        {m.images.map((src, k) => (
-                          <img key={k} src={src} alt={`Attached photo ${k + 1}`} className="max-h-40 rounded-lg object-cover" />
-                        ))}
-                      </div>
-                    )}
-                    {/* Strip markdown for DISPLAY too (not just TTS) — the prompt asks
-                        Effie to write plain, but she sometimes slips **bold**; this is the
-                        deterministic guarantee that the bubble never shows literal asterisks. */}
-                    {stripForSpeech(m.text) || (loading && i === messages.length - 1 ? <TypingDots /> : '')}
-                  </div>
-                </div>
-                {m.role === 'assistant' && m.proposal && (
-                  <HoldProposalCard
-                    proposal={m.proposal}
-                    onConfirm={(extra) => confirmProposal(m.proposal!, extra)}
-                    onDismiss={() => clearProposal(i)}
-                    onStage={(p) => { void stagePendingWrite(p, 'effie-chat', messages.flatMap((mm) => mm.images ?? [])); clearProposal(i); }}
-                  />
-                )}
-                {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && images.length === 0 && (
-                  <button
-                    onClick={() => { setPendingPhotoContext(m.photoRequest!); fileRef.current?.click(); }}
-                    className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 cursor-pointer"
-                  >
-                    <CameraIcon />
-                    {photoButtonLabel(m.photoRequest)}
-                  </button>
-                )}
-              </div>
-            ))}
-            {error && <p className="text-center text-xs text-red-500">{error}</p>}
-          </div>
-
-          {/* Composer */}
-          <div className="border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
-            <EffieImageStrip
-              images={images}
-              onRemove={(idx) => setImages((prev) => prev.filter((_, i) => i !== idx))}
-            />
-            {speech.listening && (
-              <div className="mb-2 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-500 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
-                </span>
-                <span className="truncate">{speech.interim || 'Listening…'}</span>
-              </div>
-            )}
-            <div className="flex items-end gap-2">
-              <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} className="hidden" />
-              <button
-                onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
-                aria-label="Attach a photo — camera or gallery"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
-              >
-                <CameraIcon />
-              </button>
-              {speech.supported && (
-                <button
-                  onClick={() => {
-                    tts.cancel();
-                    if (speech.listening) speech.stop();
-                    else speech.start();
-                  }}
-                  aria-label={speech.listening ? 'Stop listening' : 'Speak'}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition cursor-pointer ${
-                    speech.listening
-                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
-                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300'
-                  }`}
-                >
-                  <MicIcon />
-                </button>
-              )}
-              <textarea
-                ref={inputRef}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  // Enter sends; Shift+Enter drops a newline (standard chat composer).
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
-                }}
-                rows={2}
-                placeholder="Ask, speak, or attach a photo…"
-                className="flex-1 resize-none rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-gray-100"
-              />
-              <button
-                onClick={submit}
-                disabled={(!draft.trim() && images.length === 0) || loading}
-                aria-label="Send"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-              >
-                <SendIcon />
-              </button>
-            </div>
-          </div>
+          <EffieConversation module={module} onNavigate={onNavigate} onClose={() => setOpen(false)} />
         </div>
       )}
     </>
