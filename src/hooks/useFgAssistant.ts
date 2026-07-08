@@ -17,8 +17,9 @@ export interface ChatMessage {
   proposal?: Proposal | null;
   /** A photo the assistant is asking for — renders an inline upload button (assistant turns). */
   photoRequest?: PhotoContext | null;
-  /** A photo the user attached to this turn (base64 data URL, user turns). */
-  image?: string;
+  /** Photos the user attached to this turn (base64 data URLs, user turns). One or
+   *  many — a batch of keytags or several damage angles read together. */
+  images?: string[];
 }
 
 interface ChatEnvelope {
@@ -41,9 +42,10 @@ export function useFgAssistant() {
   useEffect(() => { saveThread(messages); }, [messages]);
 
   const send = useCallback(
-    async (raw: string, module?: string, image?: string) => {
+    async (raw: string, module?: string, images?: string[]) => {
       const typed = raw.trim();
-      if ((!typed && !image) || loading) return;
+      const imgs = images ?? [];
+      if ((!typed && imgs.length === 0) || loading) return;
       // The caller passes the caption in `raw` — a context caption ("Here's a photo of
       // the key tag."), typed text, or empty for a plain photo. Keep the bubble text as
       // given (empty → image-only bubble); the API can't take empty content, so the
@@ -51,8 +53,8 @@ export function useFgAssistant() {
       const text = typed;
       setError(null);
 
-      // Append the user turn (with any attached photo) + an empty assistant bubble.
-      const history: ChatMessage[] = [...messages, { role: 'user', text, image }];
+      // Append the user turn (with any attached photos) + an empty assistant bubble.
+      const history: ChatMessage[] = [...messages, { role: 'user', text, images: imgs.length ? imgs : undefined }];
       setMessages([...history, { role: 'assistant', text: '' }]);
       setLoading(true);
 
@@ -70,7 +72,7 @@ export function useFgAssistant() {
             // placeholder (the actual image rides in `image`).
             messages: history.map((m) => ({ role: m.role, content: m.text.trim() || 'Here\'s a photo.' })),
             module, // the screen the user is on, for context-aware answers
-            image, // a damage photo for THIS turn only (not resent in history)
+            images: imgs, // photos for THIS turn only (not resent in history)
             callSign: localStorage.getItem('fg_effie_callsign') || undefined,
           }),
         });

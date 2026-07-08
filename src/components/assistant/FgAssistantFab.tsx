@@ -14,6 +14,7 @@ import { useKokoroSynthesis } from '../../hooks/useKokoroSynthesis';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { HoldProposalCard } from './HoldProposalCard';
+import { EffieImageStrip } from './EffieImageStrip';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { compressImage } from '../../lib/image';
@@ -32,7 +33,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const effieMemory = useEffieMemory();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [pendingPhotoContext, setPendingPhotoContext] = useState<PhotoContext | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -109,35 +110,37 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   if (!allowed) return null;
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setImage(await compressImage(file));
-    e.target.value = ''; // let the same file be picked again
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ''; // let the same file(s) be picked again
+    if (files.length === 0) return;
+    const compressed = await Promise.all(files.map(compressImage));
+    setImages((prev) => [...prev, ...compressed]); // append — a second attach adds, not replaces
   };
 
   const submit = () => {
     const text = draft.trim();
-    if ((!text && !image) || loading) return;
+    if ((!text && images.length === 0) || loading) return;
     // Typed-confirmation fallback: if Effie's last turn drafted a proposal and the user
     // types a bare "confirm/yes" (no photo), execute it — same as tapping the card. On
     // success the card is cleared; on failure it's left so the operator can retry by tap.
     const lastIdx = messages.length - 1;
     const pending = messages[lastIdx]?.role === 'assistant' ? messages[lastIdx].proposal : null;
-    if (pending && !image && isAffirmation(text)) {
+    if (pending && images.length === 0 && isAffirmation(text)) {
       setDraft('');
       void confirmProposal(pending).then(() => clearProposal(lastIdx)).catch(() => { /* keep card for tap-retry */ });
       return;
     }
     speech.stop();
     ttsCancel();
-    const img = image ?? undefined;
-    // A typed caption always wins. A photo attached via a contextual upload button gets
-    // its context caption ("Here's a photo of the key tag."); a plain photo goes
+    const imgs = images.length ? images : undefined;
+    // A typed caption always wins. Photos attached via a contextual upload button get
+    // the context caption ("Here's a photo of the key tag."); plain photos go
     // captionless (empty → image-only bubble, neutral text to the API).
-    const caption = text || (img && pendingPhotoContext ? photoCaptionFor(pendingPhotoContext) : '');
+    const caption = text || (imgs && pendingPhotoContext ? photoCaptionFor(pendingPhotoContext) : '');
     setDraft('');
-    setImage(null);
+    setImages([]);
     setPendingPhotoContext(null);
-    void send(caption, module, img);
+    void send(caption, module, imgs);
   };
 
   return (
@@ -233,8 +236,12 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                         : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100'
                     }
                   >
-                    {m.image && (
-                      <img src={m.image} alt="Attached damage photo" className="mb-1.5 max-h-40 rounded-lg object-cover" />
+                    {m.images && m.images.length > 0 && (
+                      <div className="mb-1.5 flex flex-wrap gap-1.5">
+                        {m.images.map((src, k) => (
+                          <img key={k} src={src} alt={`Attached photo ${k + 1}`} className="max-h-40 rounded-lg object-cover" />
+                        ))}
+                      </div>
                     )}
                     {/* Strip markdown for DISPLAY too (not just TTS) — the prompt asks
                         Effie to write plain, but she sometimes slips **bold**; this is the
@@ -250,7 +257,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
                     onStage={(p) => { void stagePendingWrite(p); clearProposal(i); }}
                   />
                 )}
-                {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && !image && (
+                {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && images.length === 0 && (
                   <button
                     onClick={() => { setPendingPhotoContext(m.photoRequest!); fileRef.current?.click(); }}
                     className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 cursor-pointer"
@@ -266,17 +273,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
 
           {/* Composer */}
           <div className="border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
-            {image && (
-              <div className="mb-2 flex items-center gap-2">
-                <img src={image} alt="Attached" className="h-12 w-12 rounded-lg border border-gray-200 object-cover dark:border-gray-700" />
-                <button
-                  onClick={() => setImage(null)}
-                  className="text-xs text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                >
-                  Remove photo
-                </button>
-              </div>
-            )}
+            <EffieImageStrip
+              images={images}
+              onRemove={(idx) => setImages((prev) => prev.filter((_, i) => i !== idx))}
+            />
             {speech.listening && (
               <div className="mb-2 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
                 <span className="relative flex h-2 w-2">
@@ -287,7 +287,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               </div>
             )}
             <div className="flex items-center gap-2">
-              <input ref={fileRef} type="file" accept="image/*" onChange={onPickImage} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} className="hidden" />
               <button
                 onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
                 aria-label="Attach a photo — camera or gallery"
@@ -324,7 +324,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               />
               <button
                 onClick={submit}
-                disabled={(!draft.trim() && !image) || loading}
+                disabled={(!draft.trim() && images.length === 0) || loading}
                 aria-label="Send"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >

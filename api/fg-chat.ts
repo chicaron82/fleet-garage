@@ -48,7 +48,7 @@ import {
 interface FgRequest {
   method?: string;
   headers: { authorization?: string };
-  body?: { messages?: unknown; module?: unknown; image?: unknown; callSign?: unknown };
+  body?: { messages?: unknown; module?: unknown; image?: unknown; images?: unknown; callSign?: unknown };
 }
 interface FgResponse {
   headersSent: boolean;
@@ -170,21 +170,31 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       { type: 'text', text: `Context: ${contextBits.join(' ')}` },
     ];
 
-    // Tier 3 vision: a damage photo (base64 data URL) rides alongside the turns.
-    // Attach it to the latest user message as an image block, and give that request
-    // the vision model. Parsed defensively — a bad value is just ignored.
-    const image = parseImageDataUrl(req.body?.image);
-    if (image && convo.length > 0) {
+    // Tier 3 vision: one or more photos (base64 data URLs) ride alongside the turns —
+    // a batch of keytags, or several damage angles read together. Attach them all to the
+    // latest user message as image blocks, and give that request the vision model. Accepts
+    // `images` (array) or a legacy single `image`; each is parsed defensively — a bad value
+    // is just dropped.
+    const rawImages: unknown[] = Array.isArray(req.body?.images)
+      ? req.body!.images as unknown[]
+      : req.body?.image != null ? [req.body.image] : [];
+    const images = rawImages
+      .map((v) => parseImageDataUrl(v))
+      .filter((img): img is NonNullable<typeof img> => img !== null);
+    if (images.length > 0 && convo.length > 0) {
       const last = convo[convo.length - 1];
       if (last.role === 'user' && typeof last.content === 'string') {
         const text = last.content.trim();
         last.content = [
           ...(text ? [{ type: 'text', text } as Anthropic.TextBlockParam] : []),
-          { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
+          ...images.map((img) => ({
+            type: 'image' as const,
+            source: { type: 'base64' as const, media_type: img.mediaType, data: img.data },
+          })),
         ];
       }
     }
-    const model = image ? VISION_MODEL : MODEL;
+    const model = images.length > 0 ? VISION_MODEL : MODEL;
 
     let answer = '';
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any

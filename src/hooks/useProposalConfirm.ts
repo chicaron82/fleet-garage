@@ -136,7 +136,7 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       // path, so without this the damage photo never lands on the record. addHold
       // uploads them and returns their URLs; auto-pin the first as the vehicle cover
       // so it shows as the holds-list thumbnail ("one photo → pin it").
-      const photos = messages.filter((m) => m.image).map((m) => m.image!);
+      const photos = messages.flatMap((m) => m.images ?? []);
       const attach = photos.length > 0 ? photos : undefined;
       if (proposal.kind === 'register_and_hold') {
         const nv = proposal.newVehicle;
