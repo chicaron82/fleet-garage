@@ -1,6 +1,6 @@
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'my-day' | 'holds' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master';
+export type Module = 'my-day' | 'holds' | 'movement-log' | 'check-in' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master' | 'effie';
 
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
@@ -328,7 +328,8 @@ export type Screen =
   | { name: 'schedule'; openImport?: boolean }
   | { name: 'issue-log' }
   | { name: 'manifest' }
-  | { name: 'fleet-master' };
+  | { name: 'fleet-master' }
+  | { name: 'effie' };
 
 // ── Audits ───────────────────────────────────────────────────────────────────
 

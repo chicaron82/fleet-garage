@@ -25,6 +25,13 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'fleet-master',   label: 'Fleet',             icon: '🚘', defaultScreen: { name: 'fleet-master' } },
 ];
 
+// Effie's home is NOT a role/branch module — she's the assistant, gated by the allowlist at
+// the surface (the FAB/module hide for non-allowlisted accounts; the server 403s regardless).
+// So her nav item is appended to every role's nav rather than sprinkled through ROLE_MODULES /
+// BRANCH_CONFIGS, and canAccessScreen always permits it (a non-allowlisted user reaching it
+// just can't send). See docs/ticket-misc-effie-module.md.
+const EFFIE_NAV_ITEM: NavItem = { module: 'effie', label: 'Effie', icon: '✨', defaultScreen: { name: 'effie' } };
+
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
   'VSA':                 ['my-day', 'holds', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
@@ -47,11 +54,12 @@ export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG
   const roleModules = ROLE_MODULES[role] || [];
   const branchModules = BRANCH_CONFIGS[activeBranch]?.enabledModules || [];
 
-  return ALL_NAV_ITEMS.filter(item =>
+  const items = ALL_NAV_ITEMS.filter(item =>
     roleModules.includes(item.module) &&
     branchModules.includes(item.module) &&
     (canDemo || !DEMO_ONLY_MODULES.has(item.module))
   );
+  return [...items, EFFIE_NAV_ITEM]; // Effie's home rides along for everyone (allowlist-gated at the surface)
 }
 
 // ── Screen → Module mapping ─────────────────────────────────────────────────
@@ -96,6 +104,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
  * would otherwise bypass the role gate that hides Audits from the sidebar.
  */
 export function canAccessScreen(screen: Screen, role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): boolean {
+  if (screen.name === 'effie') return true; // assistant home — gated by the allowlist at the surface, not by role
   const allowed = new Set(getNavItemsForRole(role, activeBranch, canDemo).map(i => i.module));
   return allowed.has(getActiveModule(screen));
 }

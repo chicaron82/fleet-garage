@@ -36,6 +36,7 @@ const AnalyticsView      = lazy(() => import('./components/analytics/AnalyticsVi
 const IssueLogView       = lazy(() => import('./components/issue-log/IssueLogView').then(m => ({ default: m.IssueLogView })));
 const ManifestView       = lazy(() => import('./components/manifest/ManifestView').then(m => ({ default: m.ManifestView })));
 const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
+const EffieModule        = lazy(() => import('./components/assistant/EffieModule').then(m => ({ default: m.EffieModule })));
 
 export default function App() {
   const { user, loading, logout } = useAuth();
@@ -198,6 +199,8 @@ export default function App() {
             refreshKey={fleetRefreshKey}
           />
         );
+      case 'effie':
+        return <EffieModule onNavigate={navigate} />;
       default:
         return (
           <HoldsView

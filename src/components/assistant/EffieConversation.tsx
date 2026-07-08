@@ -26,12 +26,15 @@ import { isAffirmation } from '../../lib/affirmation';
 import { SendIcon, CameraIcon, MicIcon, TypingDots } from './AssistantIcons';
 import type { Screen } from '../../types';
 
-export function EffieConversation({ module, onNavigate, onClose }: {
+export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }: {
   module: string;
   onNavigate?: (screen: Screen) => void;
   /** Called when a confirmed proposal wants the surface dismissed (e.g. a navigate).
    *  The FAB closes its panel; the module can pass nothing. */
   onClose?: () => void;
+  /** The empty-thread greeting. Defaults to the module-context greeting (the FAB); Effie's
+   *  home passes a warmer welcome. Only shown when there's no conversation yet. */
+  emptyGreeting?: string;
 }) {
   const { user } = useAuth();
   const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
@@ -115,7 +118,7 @@ export function EffieConversation({ module, onNavigate, onClose }: {
         {messages.length === 0 && (
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100">
-              {moduleGreeting(module, (user?.name ?? '').split(' ')[0])}
+              {emptyGreeting ?? moduleGreeting(module, (user?.name ?? '').split(' ')[0])}
             </div>
           </div>
         )}

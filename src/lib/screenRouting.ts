@@ -15,6 +15,7 @@ export function screenToPath(screen: Screen): string {
     case 'analytics':       return '/analytics';
     case 'issue-log':       return '/issue-log';
     case 'manifest':        return '/manifest';
+    case 'effie':           return '/effie';
     // Wizard screens carry context that doesn't survive a fresh load — no stable URL.
     case 'new-hold':
     case 'register-vehicle':
@@ -39,6 +40,7 @@ export function pathToScreen(path: string): Screen | null {
     case '/analytics':      return { name: 'analytics' };
     case '/issue-log':      return { name: 'issue-log' };
     case '/manifest':       return { name: 'manifest' };
+    case '/effie':          return { name: 'effie' };
     default:                return null;
   }
 }

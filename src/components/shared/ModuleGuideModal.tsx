@@ -65,6 +65,11 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
     mockNote: 'Live data — status reflects active holds and today\'s inventory session entries for this branch.',
   },
+  'effie': {
+    what: 'Effie — your lot concierge, full-screen. The same assistant as the corner button, given room to breathe: ask anything, snap a key tag to register or check a vehicle, log a found item, or draft a hold — she reads photos, talks back if you want, and stages her inferred writes for your approval. The conversation is shared with the corner button; the button hides while you\'re here.',
+    roles: ['All roles'],
+    mockNote: 'Runs on a personal API key, so she\'s enabled for allowlisted accounts only. Her writes are drafts you confirm — nothing lands on the fleet without your tap.',
+  },
 };
 
 interface Props {

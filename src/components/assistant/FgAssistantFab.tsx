@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { useEffie } from '../../context/EffieContext';
 import { EffieConversation } from './EffieConversation';
 import { EffieSettingsPanel } from './EffieSettingsPanel';
-import { SparkleIcon, CloseIcon, SpeakerIcon, SpeakerOffIcon } from './AssistantIcons';
+import { SparkleIcon, CloseIcon, SpeakerIcon, SpeakerOffIcon, ExpandIcon } from './AssistantIcons';
 import type { Screen } from '../../types';
 
 export function FgAssistantFab({ module, onNavigate }: { module: string; onNavigate?: (screen: Screen) => void }) {
@@ -37,6 +37,9 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
     .filter(Boolean);
   const allowed = allowIds.length === 0 || (loginId !== null && allowIds.includes(loginId));
   if (!allowed) return null;
+  // On Effie's own home tab the FAB is redundant clutter — the full module owns the
+  // conversation there. Hide it; the shared thread lives on regardless (EffieContext).
+  if (module === 'effie') return null;
 
   return (
     <>
@@ -62,6 +65,16 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {onNavigate && (
+                <button
+                  onClick={() => { setOpen(false); onNavigate({ name: 'effie' }); }}
+                  aria-label="Open Effie's full screen"
+                  title="Expand to Effie's home"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                >
+                  <ExpandIcon />
+                </button>
+              )}
               {tts.supportedOrEnabled && (
                 <button
                   onClick={() => tts.kokoro.enabled ? tts.kokoro.setEnabled(false) : tts.webTts.setEnabled(!tts.webTts.enabled)}
