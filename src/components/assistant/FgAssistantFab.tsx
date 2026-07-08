@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useLostFoundContext } from '../../context/LostFoundContext';
-import { useFgAssistant } from '../../hooks/useFgAssistant';
+import { useEffie } from '../../context/EffieContext';
 import { useEffieMemory } from '../../hooks/useEffieMemory';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
@@ -37,7 +37,7 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   const [pendingPhotoContext, setPendingPhotoContext] = useState<PhotoContext | null>(null);
   const [loginId, setLoginId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const { messages, loading, error, send, clearProposal } = useFgAssistant();
+  const { messages, loading, error, send, clearProposal } = useEffie();
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
   const webTts = useSpeechSynthesis();
   const kokoro = useKokoroSynthesis();

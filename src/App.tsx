@@ -7,6 +7,7 @@ import { LostFoundProvider } from './context/LostFoundContext';
 import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
+import { EffieProvider } from './context/EffieContext';
 import { AppShell } from './components/layout/AppShell';
 import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
@@ -208,7 +209,8 @@ export default function App() {
   };
 
   return (
-    <ScheduleProvider>
+    <EffieProvider>
+      <ScheduleProvider>
       <VehicleHoldProvider>
         <WashbayProvider>
           <IssueProvider>
@@ -235,6 +237,7 @@ export default function App() {
           </IssueProvider>
         </WashbayProvider>
       </VehicleHoldProvider>
-    </ScheduleProvider>
+      </ScheduleProvider>
+    </EffieProvider>
   );
 }
