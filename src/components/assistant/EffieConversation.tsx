@@ -42,6 +42,11 @@ export function EffieConversation({ module, onNavigate, onClose }: {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // In-flight guard for the TYPED confirm ("yes" ↵). The card's buttons disable
+  // themselves while submitting, but the typed path has no button — without this, a
+  // second "yes" during the write's flight fires the proposal's write twice (the same
+  // double-write class as the card-resurrection and queue-approve bugs).
+  const typedConfirmInFlightRef = useRef(false);
 
   // Keep the latest turn in view as the answer streams in.
   useEffect(() => {
@@ -81,8 +86,13 @@ export function EffieConversation({ module, onNavigate, onClose }: {
     const lastIdx = messages.length - 1;
     const pending = messages[lastIdx]?.role === 'assistant' ? messages[lastIdx].proposal : null;
     if (pending && images.length === 0 && isAffirmation(text)) {
+      if (typedConfirmInFlightRef.current || messages[lastIdx].proposalDone) return; // no double-fire
+      typedConfirmInFlightRef.current = true;
       setDraft('');
-      void confirmProposal(pending).then(() => clearProposal(lastIdx)).catch(() => { /* keep card for tap-retry */ });
+      void confirmProposal(pending)
+        .then(() => clearProposal(lastIdx))
+        .catch(() => { /* keep card for tap-retry */ })
+        .finally(() => { typedConfirmInFlightRef.current = false; });
       return;
     }
     speech.stop();
