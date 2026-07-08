@@ -4,7 +4,7 @@
 // tap would) and Cancel = REJECT (discard the staged draft). Out of the FAB, on My Shift:
 // the place you clear when you have a minute. Self-hides when empty.
 // See migrations/090 + docs/ticket-misc-effie-pending-writes.md.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { HoldProposalCard } from '../assistant/HoldProposalCard';
@@ -20,6 +20,15 @@ export function PendingWritesSection() {
   const { addLostFoundItem } = useLostFoundContext();
   const effieMemory = useEffieMemory();
   const [collapsed, setCollapsed] = useState(false);
+
+  // Idempotency guards for approve. An approval is TWO writes with no transaction
+  // spanning them — the REAL write (confirmProposal) then the queue bookkeeping
+  // (markResolved). If the real write lands but markResolved fails, the row stays
+  // `pending` and re-appears on the next reload; tapping Confirm again must NOT run
+  // the real write a second time (a double-registered car). Refs, not state, so a
+  // fast double-tap is caught synchronously — before any re-render sees the change.
+  const inFlightRef = useRef<Set<string>>(new Set()); // an approve currently running
+  const writtenRef = useRef<Set<string>>(new Set());  // real write already landed this session
 
   // The exact write dispatch the confirm card uses. No chat photos in the queue
   // (messages: []), so photo-bearing holds are out of scope for staging — register/log
@@ -55,8 +64,19 @@ export function PendingWritesSection() {
               key={pw.id}
               proposal={pw.proposal}
               onConfirm={async (extra) => {
-                await confirmProposal(pw.proposal, extra); // the real write
-                await markResolved(pw.id, 'approved');     // then record the outcome
+                if (inFlightRef.current.has(pw.id)) return; // no re-entrant double-tap
+                inFlightRef.current.add(pw.id);
+                try {
+                  // Skip the real write if a prior attempt already landed it (only its
+                  // markResolved failed) — retry ONLY the bookkeeping so we never write twice.
+                  if (!writtenRef.current.has(pw.id)) {
+                    await confirmProposal(pw.proposal, extra); // the real write
+                    writtenRef.current.add(pw.id);
+                  }
+                  await markResolved(pw.id, 'approved');       // then record the outcome
+                } finally {
+                  inFlightRef.current.delete(pw.id);
+                }
               }}
               onDismiss={() => void markResolved(pw.id, 'rejected')}
               dismissLabel="Reject"
