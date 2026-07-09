@@ -7,7 +7,7 @@
 // full serialized Proposal by kind, never special-casing one.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { enqueueOfflineAction } from '../lib/offlineQueue';
+import { enqueueOfflineAction, getOfflineQueue } from '../lib/offlineQueue';
 import { useAuth } from '../context/AuthContext';
 import type { Proposal } from '../../api/_lib/holdProposal';
 import type { Json } from '../types/database.types';
@@ -37,6 +37,20 @@ export interface PendingWrite {
   photos?: string[];
 }
 
+/** Stages captured OFFLINE and still in the local queue (not yet synced to the DB) — so the
+ *  pending list shows them even without signal. Read from the same offline queue the drain
+ *  replays; a queued insert is always still `pending` by definition. Exported for testing. */
+export function offlineStagedPending(userId: string): PendingWrite[] {
+  return getOfflineQueue()
+    .filter((a) => a.table === 'effie_pending_writes' && a.action === 'insert')
+    .map((a) => a.payload as { id: string; proposed_by?: string; kind: string; proposal: unknown; source: string; photos?: string[] | null; created_at?: string })
+    .filter((p) => p.proposed_by === userId)
+    .map((p) => ({
+      id: p.id, kind: p.kind, proposal: p.proposal as Proposal, source: p.source,
+      createdAt: p.created_at ?? new Date().toISOString(), photos: p.photos ?? undefined,
+    }));
+}
+
 export function usePendingWrites() {
   const { user } = useAuth();
   const [pending, setPending] = useState<PendingWrite[]>([]);
@@ -45,20 +59,28 @@ export function usePendingWrites() {
   // useEffieMemory / ActiveSessionsContext.
   const reload = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('effie_pending_writes')
-      .select('id, kind, proposal, source, created_at, photos')
-      .eq('proposed_by', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-    setPending((data ?? []).map((r) => ({
-      id: r.id,
-      kind: r.kind,
-      proposal: r.proposal as unknown as Proposal, // jsonb round-trips to the Proposal object
-      source: r.source,
-      createdAt: r.created_at,
-      photos: (r.photos as string[] | null) ?? undefined,
-    })));
+    let dbRows: PendingWrite[] = [];
+    try {
+      const { data } = await supabase
+        .from('effie_pending_writes')
+        .select('id, kind, proposal, source, created_at, photos')
+        .eq('proposed_by', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      dbRows = (data ?? []).map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        proposal: r.proposal as unknown as Proposal, // jsonb round-trips to the Proposal object
+        source: r.source,
+        createdAt: r.created_at,
+        photos: (r.photos as string[] | null) ?? undefined,
+      }));
+    } catch { /* offline — fall back to the locally-queued stages below */ }
+    // Merge stages captured offline (queued, not yet synced) so the queue shows them even
+    // without signal; dedup by id against the DB rows once a sync has landed them.
+    const seen = new Set(dbRows.map((r) => r.id));
+    const queued = offlineStagedPending(user.id).filter((q) => !seen.has(q.id));
+    setPending([...queued, ...dbRows]);
   }, [user]);
 
   useEffect(() => { void reload(); }, [reload]); // eslint-disable-line react-hooks/set-state-in-effect
@@ -70,15 +92,14 @@ export function usePendingWrites() {
     // Client-generated id: lets the write survive an offline enqueue (the drain upserts on id).
     const id = crypto.randomUUID();
     const photoList = photos && photos.length > 0 ? photos : null;
-    // Proposal is a typed union, not structural Json — cast at the jsonb boundary.
-    const payload = { id, proposed_by: user.id, kind: proposal.kind, proposal: proposal as unknown as Json, source, photos: photoList };
-    // Optimistic: show it in the queue immediately — log-and-go works even offline.
-    const optimistic: PendingWrite = { id, kind: proposal.kind, proposal, source, createdAt: new Date().toISOString(), photos: photoList ?? undefined };
-    setPending(prev => [optimistic, ...prev]);
-    const { ok, queued } = await insertOrEnqueueStage(payload);
-    if (!ok) { setPending(prev => prev.filter(p => p.id !== id)); return false; } // real failure → roll back
-    if (!queued) await reload(); // online write → reconcile with server truth (idempotent: same id)
-    return true;
+    // Proposal is a typed union, not structural Json — cast at the jsonb boundary. created_at
+    // is client-set so an offline-queued row carries a real timestamp (matches the DB default).
+    const payload = { id, proposed_by: user.id, kind: proposal.kind, proposal: proposal as unknown as Json, source, photos: photoList, created_at: new Date().toISOString() };
+    const { ok } = await insertOrEnqueueStage(payload);
+    // reload merges the DB + the local offline queue, so the staged row shows whether it landed
+    // online or is buffered offline — no separate optimistic path to drift.
+    if (ok) await reload();
+    return ok;
   }, [user, reload]);
 
   /** Record a staged write's outcome. For an approval the caller runs the REAL write
