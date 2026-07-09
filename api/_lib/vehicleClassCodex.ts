@@ -85,6 +85,8 @@ const CODEX: Record<string, VehicleClass> = {
   CPCL: { make: 'Chrysler', model: 'Pacifica' },
   CDR8: { make: 'Dodge', model: 'Durango' },
   C300: { make: 'Chrysler', model: '300' },
+  // Buick
+  CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
 };
 
 /** Resolve a Hertz class code (e.g. "CCVL", "ccvl 25") to its make/model, or null. */
