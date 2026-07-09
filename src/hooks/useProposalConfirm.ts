@@ -9,7 +9,6 @@ import { useCallback } from 'react';
 import { addWhiteboardReminder } from '../lib/addWhiteboardReminder';
 import { buildOverflowTrip } from '../lib/overflowTrip';
 import { writeOrEnqueue } from '../lib/vsaTripWrite';
-import type { ChatMessage } from './useFgAssistant';
 import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { useLostFoundContext } from '../context/LostFoundContext';
@@ -32,7 +31,6 @@ function navDestinationToScreen(dest: NavDestination): Screen {
 
 interface ProposalConfirmDeps {
   user: ReturnType<typeof useAuth>['user'];
-  messages: ChatMessage[];
   addHold: ReturnType<typeof useVehicleHoldContext>['addHold'];
   addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
   setCoverPhoto: ReturnType<typeof useVehicleHoldContext>['setCoverPhoto'];
@@ -50,7 +48,7 @@ interface ProposalConfirmDeps {
  * dedup) for free. Throws on failure so the card surfaces its error state.
  */
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
-  const { user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
+  const { user, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
   return useCallback(
     async (proposal: Proposal, extra?: RegisterAssetChoice, photosOverride?: string[]) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
@@ -136,9 +134,11 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       // path, so without this the damage photo never lands on the record. addHold
       // uploads them and returns their URLs; auto-pin the first as the vehicle cover
       // so it shows as the holds-list thumbnail ("one photo → pin it").
-      // Chat confirm reads them from the conversation; the pending queue has no chat
-      // context, so it passes the photos it captured at stage time as photosOverride.
-      const photos = photosOverride ?? messages.flatMap((m) => m.images ?? []);
+      // Callers ALWAYS pass the scoped photos: chat via photosForProposal (the damage
+      // turn only — never the whole conversation), the queue via what it captured at
+      // stage time. No conversation-wide flatMap here — that swept up keytag photos onto
+      // holds (docs/bug-misc-effie-hold-attaches-all-photos.md).
+      const photos = photosOverride ?? [];
       const attach = photos.length > 0 ? photos : undefined;
       if (proposal.kind === 'register_and_hold') {
         const nv = proposal.newVehicle;
@@ -163,6 +163,6 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },
-    [user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
+    [user, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
   );
 }

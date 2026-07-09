@@ -19,6 +19,7 @@ import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { HoldProposalCard } from './HoldProposalCard';
 import { EffieImageStrip } from './EffieImageStrip';
 import { moduleGreeting } from '../../lib/assistantGreeting';
+import { photosForProposal } from '../../lib/photosForProposal';
 import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
 import { photoCaptionFor, photoButtonLabel } from '../../../api/_lib/photoRequest';
@@ -65,7 +66,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   // never wrote). The per-kind write dispatch lives in useProposalConfirm; shared
   // instances (auth user, effie-memory store) are passed so they don't fork.
   const confirmProposal = useProposalConfirm({
-    user, messages, addHold, addVehicle, setCoverPhoto, addLostFoundItem,
+    user, addHold, addVehicle, setCoverPhoto, addLostFoundItem,
     effieMemory: memory, onNavigate,
     setOpen: (open) => { if (!open) onClose?.(); },
   });
@@ -150,7 +151,9 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
                 proposal={m.proposal}
                 done={!!m.proposalDone}
                 onConfirm={async (extra) => {
-                  await confirmProposal(m.proposal!, extra); // throws → the card shows its error state
+                  // Scope photos to the turn(s) that prompted THIS proposal — never the
+                  // whole conversation (a hold must not attach earlier keytag photos).
+                  await confirmProposal(m.proposal!, extra, photosForProposal(messages, i)); // throws → card shows its error state
                   markProposalDone(i); // recorded on the MESSAGE so a remount renders the receipt, not a re-confirmable card
                 }}
                 onDismiss={() => clearProposal(i)}

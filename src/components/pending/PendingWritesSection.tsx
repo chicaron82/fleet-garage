@@ -30,11 +30,11 @@ export function PendingWritesSection() {
   const inFlightRef = useRef<Set<string>>(new Set()); // an approve currently running
   const writtenRef = useRef<Set<string>>(new Set());  // real write already landed this session
 
-  // The exact write dispatch the confirm card uses. No chat photos in the queue
-  // (messages: []), so photo-bearing holds are out of scope for staging — register/log
-  // are the proven path (the ticket's deferral). setOpen is a no-op (no panel to close).
+  // The exact write dispatch the confirm card uses. Photos come from the staged row
+  // (passed as photosOverride on approve, below), not from any chat context. setOpen is
+  // a no-op (no panel to close).
   const confirmProposal = useProposalConfirm({
-    user, messages: [], addHold, addVehicle, setCoverPhoto, addLostFoundItem,
+    user, addHold, addVehicle, setCoverPhoto, addLostFoundItem,
     effieMemory, setOpen: () => {},
   });
 
