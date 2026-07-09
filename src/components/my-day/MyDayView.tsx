@@ -2,6 +2,7 @@ import { useMyDay } from '../../hooks/useMyDay';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
+import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import { nextAttendance } from '../../lib/myDay';
 import type { Screen } from '../../types';
 
@@ -114,6 +115,10 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
 
       {/* ── What you walked into (opening shift) ─────────────────────────── */}
       {day.working && day.myShift?.shiftType === 'opening' && <OpeningLotCard />}
+
+      {/* ── Opening fuel pump readings — same place as OpeningLotCard, so an
+          opener never has to switch to My Shift to log them ────────────── */}
+      {day.working && day.myShift?.shiftType === 'opening' && <FuelPumpReadings user={day.user} />}
 
       {/* ── Washbay throughput glance ────────────────────────────────────── */}
       {day.working && (
