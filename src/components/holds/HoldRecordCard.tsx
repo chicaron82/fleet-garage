@@ -11,16 +11,16 @@ import type { Hold, Vehicle } from '../../types';
 
 const MAX_PHOTOS = 4;
 
-/** An armed destructive action awaiting confirm — kept minimal so one banner covers all three. */
+/** An armed destructive action awaiting confirm — one banner covers all three. Photos are
+ *  batched: mark several (grey), then one 'commit-photos' confirm deletes them all. */
 type Pending =
   | { type: 'delete-hold' }
   | { type: 'void-hold' }
-  | { type: 'delete-photo'; url: string };
+  | { type: 'commit-photos' };
 
-const PENDING_LABEL: Record<Pending['type'], string> = {
+const HOLD_LABEL: Record<'delete-hold' | 'void-hold', string> = {
   'delete-hold': 'Permanently delete this hold and its photos? This can’t be undone.',
   'void-hold': 'Void this hold? It stays on record, marked Voided.',
-  'delete-photo': 'Remove this photo from the hold?',
 };
 
 interface Props {
@@ -52,8 +52,20 @@ export function HoldRecordCard({
   const { voidHold, deleteHold, deleteHoldPhoto } = useVehicleHoldContext();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [marked, setMarked] = useState<Set<string>>(new Set()); // photos staged for deletion
   const [busy, setBusy] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+
+  const exitEdit = () => { setEditing(false); setPending(null); setMarked(new Set()); setErrMsg(''); };
+  const toggleMark = (url: string) => setMarked(prev => {
+    const next = new Set(prev);
+    if (next.has(url)) next.delete(url); else next.add(url);
+    return next;
+  });
+
+  const pendingLabel = pending?.type === 'commit-photos'
+    ? `Delete ${marked.size} photo${marked.size === 1 ? '' : 's'} from this hold?`
+    : pending ? HOLD_LABEL[pending.type] : '';
 
   const runPending = async () => {
     if (!pending) return;
@@ -62,9 +74,8 @@ export function HoldRecordCard({
     try {
       if (pending.type === 'delete-hold') await deleteHold(hold.id);
       else if (pending.type === 'void-hold') await voidHold(hold.id);
-      else await deleteHoldPhoto(hold.id, pending.url);
-      setPending(null);
-      setEditing(false);
+      else for (const url of marked) await deleteHoldPhoto(hold.id, url); // commit-photos batch
+      exitEdit();
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : 'Could not complete that.');
     } finally {
@@ -109,7 +120,7 @@ export function HoldRecordCard({
             <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} />
             <button
               type="button"
-              onClick={() => { setEditing(e => !e); setPending(null); setErrMsg(''); }}
+              onClick={() => (editing ? exitEdit() : setEditing(true))}
               aria-label={editing ? 'Done editing' : 'Edit this hold'}
               title={editing ? 'Done' : 'Edit'}
               className="text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 text-sm leading-none cursor-pointer"
@@ -130,10 +141,11 @@ export function HoldRecordCard({
         <div className="flex flex-wrap gap-1.5 mt-2 items-center">
           {(hold.photos ?? []).map((src, i) => {
             const isCover = vehicle.coverPhotoUrl === src;
+            const isMarked = marked.has(src);
             return (
               <div key={i} className="relative">
                 <button type="button" onClick={() => openLightbox(hold.photos ?? [], i)} className="cursor-pointer block">
-                  <img src={src} alt={`Damage photo ${i + 1}`} className="w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-gray-800 hover:opacity-80 transition" />
+                  <img src={src} alt={`Damage photo ${i + 1}`} className={`w-14 h-14 object-cover rounded-lg border transition ${isMarked ? 'opacity-30 grayscale border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-800 hover:opacity-80'}`} />
                 </button>
                 <button
                   type="button"
@@ -148,12 +160,12 @@ export function HoldRecordCard({
                 {editing && (
                   <button
                     type="button"
-                    aria-label="Remove this photo"
-                    title="Remove this photo"
-                    onClick={() => setPending({ type: 'delete-photo', url: src })}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white text-[10px] leading-none flex items-center justify-center shadow hover:bg-red-700 cursor-pointer"
+                    aria-label={isMarked ? 'Undo remove' : 'Remove this photo'}
+                    title={isMarked ? 'Undo' : 'Remove this photo'}
+                    onClick={() => toggleMark(src)}
+                    className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-[10px] leading-none flex items-center justify-center shadow cursor-pointer ${isMarked ? 'bg-gray-500 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
                   >
-                    ✕
+                    {isMarked ? '↺' : '✕'}
                   </button>
                 )}
               </div>
@@ -194,7 +206,7 @@ export function HoldRecordCard({
           <div className="mt-3 border-t border-gray-100 dark:border-gray-800 pt-2.5">
             {pending ? (
               <>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">⚠️ {PENDING_LABEL[pending.type]}</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">⚠️ {pendingLabel}</p>
                 {errMsg && <p className="text-xs text-red-500 mb-2">{errMsg}</p>}
                 <div className="flex gap-2">
                   <button type="button" disabled={busy} onClick={() => { setPending(null); setErrMsg(''); }} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 cursor-pointer">Cancel</button>
@@ -202,9 +214,16 @@ export function HoldRecordCard({
                 </div>
               </>
             ) : (
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setPending({ type: 'void-hold' })} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">Void hold</button>
-                <button type="button" onClick={() => setPending({ type: 'delete-hold' })} className="flex-1 rounded-lg border border-red-300 dark:border-red-800 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">Delete hold</button>
+              <div className="space-y-2">
+                {marked.size > 0 && (
+                  <button type="button" onClick={() => setPending({ type: 'commit-photos' })} className="w-full rounded-lg bg-red-600 hover:bg-red-500 py-1.5 text-xs font-semibold text-white cursor-pointer">
+                    Delete {marked.size} photo{marked.size === 1 ? '' : 's'}
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setPending({ type: 'void-hold' })} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">Void hold</button>
+                  <button type="button" onClick={() => setPending({ type: 'delete-hold' })} className="flex-1 rounded-lg border border-red-300 dark:border-red-800 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">Delete hold</button>
+                </div>
               </div>
             )}
           </div>

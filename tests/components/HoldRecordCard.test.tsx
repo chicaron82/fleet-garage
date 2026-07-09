@@ -79,13 +79,24 @@ describe('HoldRecordCard — destructive edits', () => {
     await waitFor(() => expect(voidHold).toHaveBeenCalledWith('hold-1'));
   });
 
-  it('a per-photo ✕ confirm fires deleteHoldPhoto with that url', async () => {
+  it('marks a photo (no delete yet), then a single confirm batch-deletes it', async () => {
     render(<HoldRecordCard hold={HOLD} {...passthrough} />);
     fireEvent.click(screen.getByRole('button', { name: 'Edit this hold' }));
-    const removeButtons = screen.getAllByRole('button', { name: 'Remove this photo' });
-    fireEvent.click(removeButtons[0]); // the keytag photo
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove this photo' })[0]); // mark keytag — grey
+    expect(deleteHoldPhoto).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Delete 1 photo')); // commit → confirm
     fireEvent.click(screen.getByText('Confirm'));
     await waitFor(() =>
       expect(deleteHoldPhoto).toHaveBeenCalledWith('hold-1', 'https://x/damage-photos/hold-1/keytag.jpg'));
+  });
+
+  it('tapping a marked photo again un-marks it (undo before commit)', () => {
+    render(<HoldRecordCard hold={HOLD} {...passthrough} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this hold' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove this photo' })[0]);
+    expect(screen.getByText('Delete 1 photo')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo remove' }));
+    expect(screen.queryByText(/Delete 1 photo/)).not.toBeInTheDocument();
+    expect(deleteHoldPhoto).not.toHaveBeenCalled();
   });
 });
