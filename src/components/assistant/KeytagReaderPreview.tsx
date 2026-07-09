@@ -10,6 +10,8 @@ const FIELD_LABELS = [
   ['plate', 'Plate'],
   ['unitNumber', 'Unit #'],
   ['classCode', 'Class'],
+  ['make', 'Make'],
+  ['model', 'Model'],
   ['year', 'Year'],
   ['color', 'Colour'],
   ['bodyStyle', 'Body'],

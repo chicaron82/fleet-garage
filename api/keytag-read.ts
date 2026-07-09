@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
+import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
 
 interface FgRequest {
@@ -64,10 +65,16 @@ function toKeytagRead(input: unknown): KeytagRead {
   const s = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
   let year: number | undefined;
   if (typeof r.year === 'number' && r.year > 0) year = r.year < 100 ? 2000 + r.year : r.year;
+  const classCode = s(r.classCode);
+  // Resolve the class code → make/model here (the codex is server-side). An unknown code
+  // leaves make/model empty — the caller then asks, exactly as Effie does in chat.
+  const vc = lookupVehicleClass(classCode);
   return {
     plate: s(r.plate),
     unitNumber: s(r.unitNumber),
-    classCode: s(r.classCode),
+    classCode,
+    make: vc?.make,
+    model: vc?.model,
     year,
     color: s(r.color),
     bodyStyle: s(r.bodyStyle),
