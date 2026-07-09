@@ -1,0 +1,50 @@
+// "Scan Key Tag" for the Holds search — snap the printed tag, read the plate, drop it into the
+// search. Replaces the hit-or-miss camera barcode scan (docs/ticket-holds-keytag-replaces-barcode.md):
+// the tag is always on the car, and this is the trigger point for the Geotab watchlist check.
+// Thin: reuses the shipped keytag read (useKeytagRead) + the MB-prefix safety net; resolving the
+// vehicle from the plate is the caller's job (onPlate → search).
+import { useRef } from 'react';
+import { useKeytagRead } from '../../hooks/useKeytagRead';
+import { compressImage } from '../../lib/image';
+import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
+
+export function KeytagSearchScan({ onPlate, disabled = false }: {
+  /** The read + MB-corrected plate — the caller feeds it into the search. */
+  onPlate: (plate: string) => void;
+  disabled?: boolean;
+}) {
+  const { readKeytag, status, error } = useKeytagRead();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const reading = status === 'reading';
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    const base64 = await compressImage(file);
+    const read = await readKeytag(base64);
+    const plate = correctManitobaPrefix(read?.plate ?? '');
+    if (plate) onPlate(plate);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
+      />
+      <button
+        type="button"
+        disabled={disabled || reading}
+        onClick={() => fileRef.current?.click()}
+        className="flex items-center gap-2 px-4 py-2.5 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer"
+      >
+        <span className="text-base leading-none">📷</span>
+        {reading ? 'Reading…' : 'Scan Key Tag'}
+      </button>
+      {status === 'error' && <span className="text-[11px] text-red-500">{error ?? 'Could not read the tag'}</span>}
+    </div>
+  );
+}

@@ -6,10 +6,9 @@ import { hapticLight } from '../../lib/haptics';
 import type { Hold, Vehicle, VehicleStatus } from '../../types';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
-import { CameraBarcodeScanner } from '../shared/CameraBarcodeScanner';
+import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
-import { parseFleetBarcode } from '../../lib/barcode';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
 import { StaleHoldsAlert } from './StaleHoldsAlert';
@@ -91,14 +90,19 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
     showToast('Unrecognized barcode — enter unit number manually', 'error');
   }, [showToast]);
 
-  const handleCameraDecode = useCallback((raw: string) => {
-    const result = parseFleetBarcode(raw);
-    if (result.ok) {
-      handleBarcodeUnit(result.unit);
+  // Keytag scan → plate (MB-corrected upstream): fill the search + surface the vehicle,
+  // mirroring the old barcode-by-unit path but keyed on plate (what the tag reads).
+  const handleKeytagPlate = useCallback((plate: string) => {
+    setSearch(plate.toUpperCase());
+    setCurrentPage(1);
+    const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate.toUpperCase());
+    if (vehicle) {
+      showToast(`✨ ${vehicle.unitNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`, 'success');
+      onSelectVehicle(vehicle.id);
     } else {
-      handleBarcodeUnrecognized();
+      showToast(`${plate} not in system`, 'error');
     }
-  }, [handleBarcodeUnit, handleBarcodeUnrecognized]);
+  }, [vehicles, onSelectVehicle, showToast]);
 
   useBarcodeInterceptor({
     inputRef: searchRef,
@@ -257,7 +261,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           </div>
           {noMatch
             ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
-            : <CameraBarcodeScanner onDecode={handleCameraDecode} />}
+            : <KeytagSearchScan onPlate={handleKeytagPlate} />}
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
