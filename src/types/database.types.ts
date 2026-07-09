@@ -114,6 +114,7 @@ export type Database = {
           photos: Json | null
           proposal: Json
           proposed_by: string
+          reject_reason: string | null
           resolved_at: string | null
           resolved_by: string | null
           source: string
@@ -126,6 +127,7 @@ export type Database = {
           photos?: Json | null
           proposal: Json
           proposed_by: string
+          reject_reason?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           source?: string
@@ -138,6 +140,7 @@ export type Database = {
           photos?: Json | null
           proposal?: Json
           proposed_by?: string
+          reject_reason?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           source?: string

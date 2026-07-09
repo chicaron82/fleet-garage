@@ -103,12 +103,19 @@ export function usePendingWrites() {
   }, [user, reload]);
 
   /** Record a staged write's outcome. For an approval the caller runs the REAL write
-   *  (useProposalConfirm) BEFORE calling this; for a rejection it's called alone. */
-  const markResolved = useCallback(async (id: string, status: 'approved' | 'rejected'): Promise<boolean> => {
+   *  (useProposalConfirm) BEFORE calling this; for a rejection it's called alone. A
+   *  reject can carry a REASON (the correction-loop signal) — stored only on rejects. */
+  const markResolved = useCallback(async (id: string, status: 'approved' | 'rejected', reason?: string): Promise<boolean> => {
     if (!user) return false;
     const { error } = await supabase
       .from('effie_pending_writes')
-      .update({ status, resolved_by: user.id, resolved_at: new Date().toISOString() })
+      .update({
+        status,
+        resolved_by: user.id,
+        resolved_at: new Date().toISOString(),
+        // Reason belongs only to a reject; never stamp one on an approval.
+        reject_reason: status === 'rejected' ? (reason ?? null) : null,
+      })
       .eq('id', id);
     if (!error) await reload();
     return !error;

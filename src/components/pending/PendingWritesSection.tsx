@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { usePendingWrites } from '../../hooks/usePendingWrites';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { HoldProposalCard } from '../assistant/HoldProposalCard';
+import { RejectReasonPicker } from './RejectReasonPicker';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useLostFoundContext } from '../../context/LostFoundContext';
@@ -29,6 +30,9 @@ export function PendingWritesSection() {
   // fast double-tap is caught synchronously — before any re-render sees the change.
   const inFlightRef = useRef<Set<string>>(new Set()); // an approve currently running
   const writtenRef = useRef<Set<string>>(new Set());  // real write already landed this session
+  // Which row is mid-reject — its card swaps to the reason picker (the correction-loop
+  // signal) until a reason is picked or the reject is skipped/cancelled.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // The exact write dispatch the confirm card uses. Photos come from the staged row
   // (passed as photosOverride on approve, below), not from any chat context. setOpen is
@@ -60,27 +64,35 @@ export function PendingWritesSection() {
       {open && (
         <div className="border-t border-orange-200 dark:border-orange-800/40 p-3 space-y-3">
           {pending.map(pw => (
-            <HoldProposalCard
-              key={pw.id}
-              proposal={pw.proposal}
-              onConfirm={async (extra) => {
-                if (inFlightRef.current.has(pw.id)) return; // no re-entrant double-tap
-                inFlightRef.current.add(pw.id);
-                try {
-                  // Skip the real write if a prior attempt already landed it (only its
-                  // markResolved failed) — retry ONLY the bookkeeping so we never write twice.
-                  if (!writtenRef.current.has(pw.id)) {
-                    await confirmProposal(pw.proposal, extra, pw.photos ?? []); // the real write, with any staged damage photos
-                    writtenRef.current.add(pw.id);
+            rejectingId === pw.id ? (
+              <RejectReasonPicker
+                key={pw.id}
+                onPick={(reasonId) => { void markResolved(pw.id, 'rejected', reasonId); setRejectingId(null); }}
+                onCancel={() => setRejectingId(null)}
+              />
+            ) : (
+              <HoldProposalCard
+                key={pw.id}
+                proposal={pw.proposal}
+                onConfirm={async (extra) => {
+                  if (inFlightRef.current.has(pw.id)) return; // no re-entrant double-tap
+                  inFlightRef.current.add(pw.id);
+                  try {
+                    // Skip the real write if a prior attempt already landed it (only its
+                    // markResolved failed) — retry ONLY the bookkeeping so we never write twice.
+                    if (!writtenRef.current.has(pw.id)) {
+                      await confirmProposal(pw.proposal, extra, pw.photos ?? []); // the real write, with any staged damage photos
+                      writtenRef.current.add(pw.id);
+                    }
+                    await markResolved(pw.id, 'approved');       // then record the outcome
+                  } finally {
+                    inFlightRef.current.delete(pw.id);
                   }
-                  await markResolved(pw.id, 'approved');       // then record the outcome
-                } finally {
-                  inFlightRef.current.delete(pw.id);
-                }
-              }}
-              onDismiss={() => void markResolved(pw.id, 'rejected')}
-              dismissLabel="Reject"
-            />
+                }}
+                onDismiss={() => setRejectingId(pw.id)}
+                dismissLabel="Reject"
+              />
+            )
           ))}
         </div>
       )}
