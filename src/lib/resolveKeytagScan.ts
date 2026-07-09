@@ -6,7 +6,16 @@
 import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
 import { resolveKeytag, type KeytagResolution } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
+import type { NewVehicle } from '../../api/_lib/holdProposal';
 import type { Vehicle } from '../types';
+
+/** A read complete enough to register from (the identity essentials) → a NewVehicle, else
+ *  null. Lives here (the keytag resolve lib) so both the single-scan hook and the batch
+ *  planner share one definition. */
+export function newVehicleFromRead(read: KeytagRead, plate: string): NewVehicle | null {
+  if (!read.make || !read.model || !read.unitNumber || !read.year) return null;
+  return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '' };
+}
 
 export interface KeytagScanResult {
   /** Exactly what the tag read (pre-normalize) — shown when the prefix was corrected. */

@@ -8,15 +8,9 @@ import { useCallback, useState } from 'react';
 import { useKeytagRead } from './useKeytagRead';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { usePendingWrites } from './usePendingWrites';
-import { resolveKeytagScan, type KeytagScanResult } from '../lib/resolveKeytagScan';
-import { buildRegisterVehicleProposal, buildUpdateVehicleProposal, type NewVehicle } from '../../api/_lib/holdProposal';
+import { resolveKeytagScan, newVehicleFromRead, type KeytagScanResult } from '../lib/resolveKeytagScan';
+import { buildRegisterVehicleProposal, buildUpdateVehicleProposal } from '../../api/_lib/holdProposal';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
-
-/** A read complete enough to register from (the identity essentials) → a NewVehicle, else null. */
-export function newVehicleFromRead(read: KeytagRead, plate: string): NewVehicle | null {
-  if (!read.make || !read.model || !read.unitNumber || !read.year) return null;
-  return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '' };
-}
 
 export interface KeytagScanState {
   scan: { read: KeytagRead; result: KeytagScanResult } | null;

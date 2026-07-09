@@ -5,8 +5,7 @@
 // show-your-work first. Pure props — the read/resolve/stage lives in useKeytagScan.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { describeNewVehicle } from '../../../api/_lib/holdProposal';
-import { newVehicleFromRead } from '../../hooks/useKeytagScan';
-import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
+import { newVehicleFromRead, type KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
 export function ScanBranch({ scan, staged, onRegister, onBackfill }: {
