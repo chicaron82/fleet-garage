@@ -9,10 +9,11 @@ import { newVehicleFromRead } from '../../hooks/useKeytagScan';
 import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
-export function ScanBranch({ scan, staged, onRegister }: {
+export function ScanBranch({ scan, staged, onRegister, onBackfill }: {
   scan: { read: KeytagRead; result: KeytagScanResult };
   staged: boolean;
   onRegister: () => void;
+  onBackfill: () => void;
 }) {
   const { read, result } = scan;
   const { plate, wasCorrected, rawPlate, vehicle, resolution } = result;
@@ -49,14 +50,23 @@ export function ScanBranch({ scan, staged, onRegister }: {
       )}
 
       {resolution.kind === 'partial' && vehicle && (
-        <div className="space-y-0.5">
+        <div className="space-y-1.5">
           <p className="text-gray-700 dark:text-gray-200">
             <span className="font-mono font-semibold">{plate}</span> — Unit {vehicle.unitNumber}, in the fleet.
           </p>
           {resolution.fills.length > 0 && (
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              The tag adds: {resolution.fills.map(f => `${f.field} ${f.value}`).join(', ')}.
-            </p>
+            staged ? (
+              <p className="text-green-700 dark:text-green-400">✓ Staged the backfill — approve on My Shift.</p>
+            ) : (
+              <>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  The tag adds: {resolution.fills.map(f => `${f.field} ${f.value}`).join(', ')}.
+                </p>
+                <button type="button" onClick={onBackfill} className="rounded-lg bg-amber-500 hover:bg-amber-400 px-3 py-1.5 text-xs font-semibold text-white cursor-pointer">
+                  Fill in {resolution.fills.map(f => f.field).join(', ')}
+                </button>
+              </>
+            )
           )}
           {resolution.conflicts.length > 0 && (
             <p className="text-[11px] text-amber-700 dark:text-amber-400">

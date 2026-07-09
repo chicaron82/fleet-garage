@@ -9,7 +9,7 @@ import { useKeytagRead } from './useKeytagRead';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { usePendingWrites } from './usePendingWrites';
 import { resolveKeytagScan, type KeytagScanResult } from '../lib/resolveKeytagScan';
-import { buildRegisterVehicleProposal, type NewVehicle } from '../../api/_lib/holdProposal';
+import { buildRegisterVehicleProposal, buildUpdateVehicleProposal, type NewVehicle } from '../../api/_lib/holdProposal';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
 /** A read complete enough to register from (the identity essentials) → a NewVehicle, else null. */
@@ -26,6 +26,7 @@ export interface KeytagScanState {
   /** Read + resolve a key-tag photo; `onPlate` fills the plate field with the corrected plate. */
   scanPhoto: (base64: string, onPlate?: (plate: string) => void) => Promise<void>;
   register: () => Promise<void>;
+  backfill: () => Promise<void>;
   reset: () => void;
 }
 
@@ -55,7 +56,15 @@ export function useKeytagScan(): KeytagScanState {
     if (ok) setStaged(true); else setErr('Could not stage — try again.');
   }, [scan, stage]);
 
+  const backfill = useCallback(async () => {
+    if (!scan || scan.result.resolution.kind !== 'partial' || !scan.result.vehicle) return;
+    setErr('');
+    const proposal = buildUpdateVehicleProposal(scan.result.vehicle.id, scan.result.plate, scan.result.resolution.fills);
+    const ok = await stage(proposal, 'keytag-scan');
+    if (ok) setStaged(true); else setErr('Could not stage — try again.');
+  }, [scan, stage]);
+
   const reset = useCallback(() => { setScan(null); setStaged(false); setErr(''); }, []);
 
-  return { scan, staged, err, reading: status === 'reading', scanPhoto, register, reset };
+  return { scan, staged, err, reading: status === 'reading', scanPhoto, register, backfill, reset };
 }

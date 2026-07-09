@@ -7,6 +7,7 @@ import { useVehicleOperations } from './useVehicleOperations';
 import { isStaleHold } from '../lib/holdFilters';
 import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
 import { makeEvAssetLoanOps, loadOpenLoans } from './evAssetLoanWrite';
+import type { KeytagFill } from '../lib/resolveKeytag';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -27,6 +28,7 @@ export interface VehicleHoldContextValue {
   returnEvAssetLoan: (loan: EvAssetLoan) => Promise<void>;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
+  updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;

@@ -33,6 +33,7 @@ interface ProposalConfirmDeps {
   user: ReturnType<typeof useAuth>['user'];
   addHold: ReturnType<typeof useVehicleHoldContext>['addHold'];
   addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
+  updateVehicleFields: ReturnType<typeof useVehicleHoldContext>['updateVehicleFields'];
   setCoverPhoto: ReturnType<typeof useVehicleHoldContext>['setCoverPhoto'];
   addLostFoundItem: ReturnType<typeof useLostFoundContext>['addLostFoundItem'];
   effieMemory: Pick<ReturnType<typeof useEffieMemory>, 'add'>;
@@ -48,7 +49,7 @@ interface ProposalConfirmDeps {
  * dedup) for free. Throws on failure so the card surfaces its error state.
  */
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
-  const { user, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
+  const { user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
   return useCallback(
     async (proposal: Proposal, extra?: RegisterAssetChoice, photosOverride?: string[]) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
@@ -128,6 +129,12 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         });
         return;
       }
+      // Backfill — the keytag-scan partial branch. Only ever FILLS (resolveKeytag never
+      // proposes a conflicting field), so this is a plain field update, no status change.
+      if (proposal.kind === 'update_vehicle') {
+        await updateVehicleFields(proposal.vehicleId, proposal.fills);
+        return;
+      }
       const holdTypes: HoldType[] = [proposal.holdType as HoldType];
       // Save the photo(s) the user attached in this conversation onto the hold. The
       // proxy only *analysed* them for the AI draft; this confirm is the only write
@@ -163,6 +170,6 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },
-    [user, addHold, addVehicle, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
+    [user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
   );
 }

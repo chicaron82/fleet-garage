@@ -18,6 +18,13 @@ const registerProposal: Proposal = {
   damageDescription: 'bumper dent',
 };
 
+const updateVehicleProposal: Proposal = {
+  kind: 'update_vehicle',
+  vehicleId: 'v1',
+  plate: 'LUR554',
+  fills: [{ field: 'color', value: 'Gray' }, { field: 'year', value: 2026 }],
+};
+
 const lostItemProposal: Proposal = {
   kind: 'lost_item',
   description: 'black leather wallet',
@@ -80,6 +87,25 @@ describe('HoldProposalCard', () => {
     fireEvent.click(screen.getByText('Register + hold'));
     await waitFor(() => expect(screen.getByText(/Registered \+ held/)).toBeInTheDocument());
     expect(screen.getByText('LUR187')).toBeInTheDocument();
+  });
+
+  it('renders a backfill draft and confirms to a filled-in receipt', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    render(<HoldProposalCard proposal={updateVehicleProposal} onConfirm={onConfirm} onDismiss={vi.fn()} />);
+    expect(screen.getByText('Confirm — backfill from key tag')).toBeInTheDocument();
+    expect(screen.getByText('LUR554')).toBeInTheDocument();
+    expect(screen.getByText(/color → Gray, year → 2026/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Fill in'));
+    await waitFor(() => expect(screen.getByText(/Filled in 2 fields on/)).toBeInTheDocument());
+  });
+
+  it('a backfill draft can be cancelled without writing', () => {
+    const onConfirm = vi.fn();
+    const onDismiss = vi.fn();
+    render(<HoldProposalCard proposal={updateVehicleProposal} onConfirm={onConfirm} onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('renders a lost-item draft and confirms to a logged receipt', async () => {

@@ -237,6 +237,23 @@ export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss,
     );
   }
 
+  // Backfill — an existing vehicle's blank fields, filled from a keytag read (never a
+  // conflicting field — resolveKeytag's backfill principle). Amber, no hold involved.
+  if (proposal.kind === 'update_vehicle') {
+    if (status === 'done') {
+      return <Receipt>Filled in {proposal.fills.length} field{proposal.fills.length === 1 ? '' : 's'} on <span className="font-semibold">{proposal.plate}</span>.</Receipt>;
+    }
+    return (
+      <Shell tone="amber" kicker="Confirm — backfill from key tag">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.plate}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Fills in: {proposal.fills.map((f) => `${f.field} → ${f.value}`).join(', ')}
+        </p>
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Fill in" workingLabel="Updating…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} dismissLabel={dismissLabel} />
+      </Shell>
+    );
+  }
+
   const isRegister = proposal.kind === 'register_and_hold';
   const plate = isRegister ? proposal.newVehicle.plate : proposal.vehicle.plate;
   const vehicleLabel = isRegister ? describeNewVehicle(proposal.newVehicle) : proposal.vehicle.label;

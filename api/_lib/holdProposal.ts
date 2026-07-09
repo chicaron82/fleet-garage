@@ -10,6 +10,15 @@ import { describeMemoryProposal, type MemoryProposal } from './memoryProposal.js
 import { describeReminderProposal, type ReminderProposal } from './reminderProposal.js';
 import { describeOverflowProposal, type OverflowLogProposal } from './overflowProposal.js';
 
+/** A single backfilled identity field from a keytag read — mirrors src/lib/resolveKeytag's
+ *  KeytagFill shape. Duplicated (not imported) on purpose: this file is part of the deployed
+ *  fg-chat function's graph, and Vercel transpiles api/ in isolation rather than bundling
+ *  across into src/ — a cross-import here builds fine locally but silently fails at deploy. */
+export interface VehicleFieldFill {
+  field: 'unitNumber' | 'make' | 'model' | 'year' | 'color';
+  value: string | number;
+}
+
 /** The vehicle a 'hold' proposal targets — already resolved to a real fleet row. */
 export interface ProposalVehicle {
   vehicleId: string;
@@ -62,7 +71,17 @@ export interface RegisterAssetChoice {
   adapter: boolean;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
+/** Backfill a KNOWN vehicle's blank identity fields from a keytag read — never a
+ *  conflicting field (resolveKeytag's backfill principle: fill blanks, flag disagreements,
+ *  never silently overwrite). The keytag-scan partial branch. */
+export interface UpdateVehicleProposal {
+  kind: 'update_vehicle';
+  vehicleId: string;
+  plate: string;
+  fills: VehicleFieldFill[];
+}
+
+export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | UpdateVehicleProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -87,6 +106,11 @@ export function buildRegisterVehicleProposal(newVehicle: NewVehicle, isTesla: bo
   return { kind: 'register_vehicle', newVehicle, isTesla };
 }
 
+/** Build a backfill proposal for an existing vehicle's blank fields. Pure — no write. */
+export function buildUpdateVehicleProposal(vehicleId: string, plate: string, fills: VehicleFieldFill[]): UpdateVehicleProposal {
+  return { kind: 'update_vehicle', vehicleId, plate, fills };
+}
+
 /** "Unit 1234 · 2025 Hyundai Tucson (Gray)" — for a not-yet-registered vehicle. */
 export function describeNewVehicle(v: NewVehicle): string {
   const veh = [v.year, v.make, v.model].filter(Boolean).join(' ');
@@ -104,6 +128,9 @@ export function describeProposal(p: Proposal): string {
   if (p.kind === 'overflow_log') return describeOverflowProposal(p);
   if (p.kind === 'register_vehicle') {
     return `register ${describeNewVehicle(p.newVehicle)} (new to fleet, no hold)`;
+  }
+  if (p.kind === 'update_vehicle') {
+    return `backfill ${p.plate}: ${p.fills.map(f => `${f.field} ${f.value}`).join(', ')}`;
   }
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
   if (p.kind === 'register_and_hold') {

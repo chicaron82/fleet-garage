@@ -4,6 +4,7 @@ import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto } from './holdEditing';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
+import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type {
@@ -68,6 +69,10 @@ export function useVehicleOperations({
   // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite
   // to keep this file under the line cap.
   const updateVehicleEVAssets = makeUpdateVehicleEVAssets({ userId, setAllVehicles });
+
+  // Keytag-backfill write (the partial→backfill half of keytag-scan): applies FILLS
+  // only, never conflicts. See ./vehicleFieldsWrite.
+  const updateVehicleFields = makeUpdateVehicleFields({ setAllVehicles });
 
   // Reconcile a unit# conflict at registration: release the number from the
   // record it was on so it can land on the one being added. See ./identityReconcile.
@@ -354,6 +359,7 @@ export function useVehicleOperations({
   return {
     addVehicle,
     updateVehicleEVAssets,
+    updateVehicleFields,
     releaseUnitNumber,
     addHold,
     addRelease,

@@ -269,7 +269,7 @@ export function LogLostFoundItemModal({
                 />
                 {/* The Step-1 key-tag photo already read the tag → plate filled above, branch here. */}
                 {keytag.err && <p className="text-xs text-red-500 mt-2">{keytag.err}</p>}
-                {keytag.scan && <div className="mt-2"><ScanBranch scan={keytag.scan} staged={keytag.staged} onRegister={keytag.register} /></div>}
+                {keytag.scan && <div className="mt-2"><ScanBranch scan={keytag.scan} staged={keytag.staged} onRegister={keytag.register} onBackfill={keytag.backfill} /></div>}
                 {licensePlate.trim().length >= 4 ? (
                   plateMatch ? (
                     <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">

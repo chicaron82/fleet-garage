@@ -16,7 +16,7 @@ import { useEffieMemory } from '../../hooks/useEffieMemory';
 export function PendingWritesSection() {
   const { pending, markResolved } = usePendingWrites();
   const { user } = useAuth();
-  const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const effieMemory = useEffieMemory();
   const [collapsed, setCollapsed] = useState(false);
@@ -34,7 +34,7 @@ export function PendingWritesSection() {
   // (passed as photosOverride on approve, below), not from any chat context. setOpen is
   // a no-op (no panel to close).
   const confirmProposal = useProposalConfirm({
-    user, addHold, addVehicle, setCoverPhoto, addLostFoundItem,
+    user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem,
     effieMemory, setOpen: () => {},
   });
 

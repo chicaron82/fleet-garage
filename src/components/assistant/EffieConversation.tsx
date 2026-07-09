@@ -38,7 +38,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   emptyGreeting?: string;
 }) {
   const { user } = useAuth();
-  const { addHold, addVehicle, setCoverPhoto } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const { messages, loading, error, send, clearProposal, markProposalDone, tts, memory, composer } = useEffie();
   const { draft, setDraft, images, setImages, pendingPhotoContext, setPendingPhotoContext } = composer;
@@ -66,7 +66,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   // never wrote). The per-kind write dispatch lives in useProposalConfirm; shared
   // instances (auth user, effie-memory store) are passed so they don't fork.
   const confirmProposal = useProposalConfirm({
-    user, addHold, addVehicle, setCoverPhoto, addLostFoundItem,
+    user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem,
     effieMemory: memory, onNavigate,
     setOpen: (open) => { if (!open) onClose?.(); },
   });
