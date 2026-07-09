@@ -2,6 +2,7 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification, NOTIFY_MGMT, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
+import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto } from './holdEditing';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
@@ -212,6 +213,9 @@ export function useVehicleOperations({
   const markRepaired  = makeMarkRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markReturned   = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
   const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const voidHold        = makeVoidHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const deleteHold      = makeDeleteHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const deleteHoldPhoto = makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles });
   const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markRepairedBatch = makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markIssueRepaired = makeMarkIssueRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
@@ -359,6 +363,9 @@ export function useVehicleOperations({
     markIssueRepaired,
     markReturned,
     clearSaleHold,
+    voidHold,
+    deleteHold,
+    deleteHoldPhoto,
     closeException,
     archiveVehicle,
     restoreVehicle,

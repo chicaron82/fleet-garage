@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from './supabase';
+import { storagePathFromPublicUrl } from './storagePath';
 import type { UserRole } from '../types';
 import type { NotificationSeverity } from '../data/notifications';
 import type { Json } from '../types/database.types';
@@ -31,6 +32,17 @@ export async function uploadPhoto(base64: string, holdId: string): Promise<strin
   );
   if (error) return null;
   return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
+}
+
+/** Delete damage photos from the bucket by their public URLs. Best-effort: a failed storage
+ *  remove does NOT throw — an orphaned file is recoverable, a blocked hold/photo edit isn't.
+ *  Callers do the DB change (the source of truth) and call this for the storage cleanup. */
+export async function deleteDamagePhotos(urls: string[]): Promise<void> {
+  const paths = urls
+    .map(u => storagePathFromPublicUrl(u, 'damage-photos'))
+    .filter((p): p is string => !!p);
+  if (paths.length === 0) return;
+  try { await supabase.storage.from('damage-photos').remove(paths); } catch { /* orphan, not a blocker */ }
 }
 
 export async function uploadIssuePhoto(base64: string, issueId: string): Promise<string | null> {

@@ -36,6 +36,10 @@ export interface VehicleHoldContextValue {
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
   clearSaleHold: (holdId: string, clearedByName: string) => Promise<void>;
+  // Destructive hold-history edits — corrections, not lifecycle. See holdEditing.ts.
+  voidHold: (holdId: string) => Promise<void>;
+  deleteHold: (holdId: string) => Promise<void>;
+  deleteHoldPhoto: (holdId: string, photoUrl: string) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;
