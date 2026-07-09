@@ -8,7 +8,8 @@ import { PhotoSlot } from '../shared/PhotoSlot';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { PlateInput } from '../shared/VehicleFields';
-import { KeytagScan } from '../holds/KeytagScan';
+import { ScanBranch } from '../holds/KeytagScan';
+import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../../lib/lostFoundSourcePills';
 import type { SourceTag } from '../../lib/lostFoundSourcePills';
 
@@ -52,6 +53,7 @@ export function LogLostFoundItemModal({
   const [submitError, setSubmitError] = useState(false);
   // Recognize the typed plate live, so the logger sees whose car it is before submitting.
   const plateMatch = usePlateRecognition(licensePlate);
+  const keytag = useKeytagScan(); // reads the Step-1 key-tag photo → fills the plate + register offer
 
   const keyTagCamRef   = useRef<HTMLInputElement>(null);
   const itemCamRef     = useRef<HTMLInputElement>(null);
@@ -76,12 +78,16 @@ export function LogLostFoundItemModal({
     }
   };
 
-  const handlePhotoCapture = (setter: (v: string) => void) =>
+  // `after` lets the Step-1 key-tag photo do double duty: attached to the record AND read to
+  // fill the plate (so Step 2 arrives pre-filled with the register offer waiting).
+  const handlePhotoCapture = (setter: (v: string) => void, after?: (photo: string) => void) =>
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      setter(await compressImage(file));
+      const photo = await compressImage(file);
+      setter(photo);
       e.target.value = '';
+      after?.(photo);
     };
 
   const handleSubmit = async () => {
@@ -136,7 +142,7 @@ export function LogLostFoundItemModal({
                 <PhotoSlot
                   label="Key tag"
                   photo={keyTagPhoto}
-                  onCapture={handlePhotoCapture(setKeyTagPhoto)}
+                  onCapture={handlePhotoCapture(setKeyTagPhoto, (p) => void keytag.scanPhoto(p, setLicensePlate))}
                   onClear={() => setKeyTagPhoto(null)}
                   cameraRef={keyTagCamRef}
                 />
@@ -261,11 +267,9 @@ export function LogLostFoundItemModal({
                   onValueChange={setLicensePlate}
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
                 />
-                {/* Snap the key tag → reads it, fills the plate above, and offers to register a
-                    new vehicle (staged) — no typing, no chat. */}
-                <div className="mt-2">
-                  <KeytagScan onPlate={setLicensePlate} />
-                </div>
+                {/* The Step-1 key-tag photo already read the tag → plate filled above, branch here. */}
+                {keytag.err && <p className="text-xs text-red-500 mt-2">{keytag.err}</p>}
+                {keytag.scan && <div className="mt-2"><ScanBranch scan={keytag.scan} staged={keytag.staged} onRegister={keytag.register} /></div>}
                 {licensePlate.trim().length >= 4 ? (
                   plateMatch ? (
                     <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">
