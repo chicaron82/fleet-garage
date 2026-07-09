@@ -8,6 +8,7 @@ import { PhotoSlot } from '../shared/PhotoSlot';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { PlateInput } from '../shared/VehicleFields';
+import { KeytagScan } from '../holds/KeytagScan';
 import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../../lib/lostFoundSourcePills';
 import type { SourceTag } from '../../lib/lostFoundSourcePills';
 
@@ -260,6 +261,11 @@ export function LogLostFoundItemModal({
                   onValueChange={setLicensePlate}
                   className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
                 />
+                {/* Snap the key tag → reads it, fills the plate above, and offers to register a
+                    new vehicle (staged) — no typing, no chat. */}
+                <div className="mt-2">
+                  <KeytagScan onPlate={setLicensePlate} />
+                </div>
                 {licensePlate.trim().length >= 4 ? (
                   plateMatch ? (
                     <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">

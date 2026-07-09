@@ -12,7 +12,7 @@ export function useKeytagRead() {
   const [read, setRead] = useState<KeytagRead | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const readKeytag = useCallback(async (image: string) => {
+  const readKeytag = useCallback(async (image: string): Promise<KeytagRead | null> => {
     setStatus('reading');
     setError(null);
     setRead(null);
@@ -27,11 +27,14 @@ export function useKeytagRead() {
       });
       const data = (await res.json().catch(() => null)) as { read?: KeytagRead; error?: string } | null;
       if (!res.ok) throw new Error(data?.error || `Read failed (${res.status})`);
-      setRead(data?.read ?? {});
+      const read = data?.read ?? {};
+      setRead(read);
       setStatus('done');
+      return read; // also returned so a caller can chain (resolve/stage) without waiting on state
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read the key tag.');
       setStatus('error');
+      return null;
     }
   }, []);
 
