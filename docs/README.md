@@ -4,7 +4,7 @@
 > from the computer, Aaron collects ideas and fixes from the crew (Zee, ZeeRah, Belle, DiZee)
 > and drops them here so they're easy to reference instead of pasting into chat.
 >
-> **The month archives are already implemented** — nothing in `April/`, `May/`, or `June/` is open work.
+> **The month archives are already implemented** — nothing in `April/`, `May/`, `June/`, or `July/` is open work.
 > The only open work lives in the top-level **open tickets** (they carry `status: open`).
 >
 > ⚠️ **The archives are history, not documentation.** Each ticket was validated before cooking
@@ -59,6 +59,7 @@ for specifics — this README doesn't re-list them.
 - `April/` (53 files) — genesis era: the original ops-platform concept through early feature specs.
 - `May/` (90 files) — the main build-out: holds, movement log, OTH, schedule, analytics, and more.
 - `June/` — EV assets, washbay carry-over lineage, the storm-night batch (hail type, dup-flag race), payday-anchored pay card, multi-issue resolution, the submit-lock sweep.
+- `July/` — the Effie arc: multi-image, staged-hold photos, the keytag brain + read endpoint, the pending-writes spine + polish + module, the confirmed-card double-write class, and the gas-sheet seed fix.
 
 ---
 
