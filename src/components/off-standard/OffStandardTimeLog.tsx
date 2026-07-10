@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { QUICK_TAPS } from '../../hooks/useOffStandardSession';
+import { shouldStartAutoFlip } from '../../lib/autoFlipSignal';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -21,9 +23,11 @@ import { EDVNoMatchFields } from './EDVNoMatchFields';
 interface Props {
   user: User;
   refreshTrigger?: number;
+  /** Bumped when a VSA ends an airport run "staying here" — auto-start the flipping timer. */
+  autoFlipTrigger?: number;
 }
 
-export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
+export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Props) {
   const { holds, vehicles } = useVehicleHoldContext();
   const { shifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
@@ -77,6 +81,19 @@ export function OffStandardTimeLog({ user, refreshTrigger }: Props) {
     shifts,
     resolveName,
   });
+
+  // Auto-start the flipping timer when a VSA ends an airport run "staying here" (autoFlipTrigger
+  // bumps from MovementLogVsaView). One-shot: only a NEW trigger fires (the ref), and only if the
+  // timer is idle — never clobber one the operator has running. Nothing fires on the initial 0.
+  const lastFlipRef = useRef(autoFlipTrigger ?? 0);
+  useEffect(() => {
+    const t = autoFlipTrigger ?? 0;
+    if (t === lastFlipRef.current) return; // not a new signal
+    lastFlipRef.current = t;               // consume it — no late re-fire when the timer frees up
+    if (!shouldStartAutoFlip(t, timerState)) return;
+    const flipTap = QUICK_TAPS.find(tap => tap.id === 'airport_flip');
+    if (flipTap) void handleQuickTap(flipTap);
+  }, [autoFlipTrigger, timerState, handleQuickTap]);
 
   const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 

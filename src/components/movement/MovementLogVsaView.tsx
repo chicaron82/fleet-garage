@@ -22,6 +22,9 @@ interface Props {
  *  off-standard-refresh state — separate from the driver/management view. */
 export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Props) {
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
+  // One-way ("staying here") end of an airport run = the VSA stayed to flip returns. Bumping this
+  // signals OffStandardTimeLog to auto-start the flipping timer (see lib/autoFlipSignal).
+  const [autoFlipSignal, setAutoFlipSignal] = useState(0);
   // Tab is context-owned so a pill tap (from anywhere in the shell) selects it as
   // controlled state — no consume-and-clear signal, no effect.
   const { refresh: refreshActiveSessions, movementTab: activeTab, setMovementTab: setActiveTab } = useActiveSessions();
@@ -58,6 +61,13 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
   const handleTripComplete = (trip: TripRun) => {
     refreshActiveSessions(); // trip ended — drop the pill
     setLiveTrips(prev => [trip, ...prev.filter(t => t.id !== trip.id)]);
+
+    // "Staying here" (one-way): stayed at the airport to flip returns. Auto-start the flipping
+    // timer AND switch to the off-standard tab so the running timer is visible, not a silent start.
+    if (trip.oneWay) {
+      setAutoFlipSignal(n => n + 1);
+      setActiveTab('off-standard');
+    }
 
     if (trip.isVsaInterruption) {
       const minutes = Math.round(
@@ -111,7 +121,7 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
         )}
       </div>
       <div className={activeTab === 'off-standard' ? undefined : 'hidden'}>
-        <OffStandardTimeLog user={user} refreshTrigger={offStandardRefresh} />
+        <OffStandardTimeLog user={user} refreshTrigger={offStandardRefresh} autoFlipTrigger={autoFlipSignal} />
       </div>
     </div>
   );
