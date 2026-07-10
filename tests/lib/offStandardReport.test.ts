@@ -27,6 +27,11 @@ describe('fmtMinutes', () => {
     expect(fmtMinutes(90)).toBe('1h 30m');
     expect(fmtMinutes(125)).toBe('2h 5m');
   });
+
+  it('rounds float artifacts instead of rendering "51.99999999999994m"', () => {
+    expect(fmtMinutes(411.99999999999994)).toBe('6h 52m'); // 8.2h*60 - offset, the reported bug
+    expect(fmtMinutes(59.9999999)).toBe('1h');
+  });
 });
 
 // ── fmtTime ───────────────────────────────────────────────────────────────────

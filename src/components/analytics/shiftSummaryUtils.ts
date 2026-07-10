@@ -4,10 +4,13 @@
 import type { Pump2Status } from '../../lib/fuelReadings';
 
 export function fmtMinutes(mins: number): string {
-  if (mins === 0) return '0m';
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
+  // Round first: callers pass float-derived minutes (e.g. hours*60 = 491.99999999999994),
+  // and a raw `% 60` would render "51.99999999999994m".
+  const total = Math.round(mins);
+  if (total === 0) return '0m';
+  if (total < 60) return `${total}m`;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 

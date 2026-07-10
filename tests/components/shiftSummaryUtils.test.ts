@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { decomposeOffStandard } from '../../src/components/analytics/shiftSummaryUtils';
+import { decomposeOffStandard, fmtMinutes } from '../../src/components/analytics/shiftSummaryUtils';
+
+describe('fmtMinutes', () => {
+  it('formats minutes, whole hours, and mixed', () => {
+    expect(fmtMinutes(0)).toBe('0m');
+    expect(fmtMinutes(45)).toBe('45m');
+    expect(fmtMinutes(60)).toBe('1h');
+    expect(fmtMinutes(125)).toBe('2h 5m');
+  });
+
+  it('rounds float artifacts instead of rendering "51.99999999999994m"', () => {
+    // The reported bug: Active cleaning = 8.2h*60 - offTotal → 411.99999999999994.
+    expect(fmtMinutes(411.99999999999994)).toBe('6h 52m');
+    expect(fmtMinutes(59.9999999)).toBe('1h');
+  });
+});
 
 // A day with both auto-logged airport runs (auto_from_trip) and manually-logged
 // off-standard, mirroring the bug report: the airport time must land in exactly

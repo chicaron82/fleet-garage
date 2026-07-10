@@ -18,6 +18,10 @@ describe('fmtMinutes', () => {
     expect(fmtMinutes(60)).toBe('1h');
     expect(fmtMinutes(125)).toBe('2h 5m');
   });
+
+  it('rounds float artifacts instead of rendering "51.99999999999994m"', () => {
+    expect(fmtMinutes(411.99999999999994)).toBe('6h 52m');
+  });
 });
 
 describe('formatDateStr', () => {

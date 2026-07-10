@@ -10,8 +10,9 @@ export interface TripRow {
 }
 
 export function fmtMinutes(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
+  const mins = Math.round(totalMinutes); // guard float artifacts (hours*60 = 491.99999999999994)
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
