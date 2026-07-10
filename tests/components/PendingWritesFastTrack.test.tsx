@@ -21,8 +21,8 @@ const register: PendingWrite = {
   proposal: { kind: 'register_vehicle', newVehicle: { unitNumber: '9001', plate: 'LUR187', make: 'Ford', model: 'Escape', year: 2024, color: 'Blue' }, isTesla: false },
 };
 
-vi.mock('../../src/hooks/usePendingWrites', () => ({
-  usePendingWrites: () => ({ pending: [backfill, register], markResolved, stage: vi.fn(), reload: vi.fn() }),
+vi.mock('../../src/context/PendingWritesContext', () => ({
+  usePendingWritesContext: () => ({ pending: [backfill, register], markResolved, stage: vi.fn(), reload: vi.fn() }),
 }));
 vi.mock('../../src/hooks/useProposalConfirm', () => ({ useProposalConfirm: () => confirmProposal }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', name: 'Aaron' } }) }));

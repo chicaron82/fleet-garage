@@ -79,6 +79,10 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
   }),
 }));
 
+vi.mock('../../src/context/PendingWritesContext', () => ({
+  usePendingWritesContext: () => ({ pending: [], stage: vi.fn(), markResolved: vi.fn(), reload: vi.fn() }),
+}));
+
 vi.mock('../../src/context/LostFoundContext', () => ({
   useLostFoundContext: () => ({
     items: [], addItem: vi.fn(), updateItem: vi.fn(), markReturned: vi.fn(), deleteItem: vi.fn(),

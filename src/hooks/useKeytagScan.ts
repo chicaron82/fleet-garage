@@ -7,7 +7,7 @@
 import { useCallback, useState } from 'react';
 import { useKeytagRead } from './useKeytagRead';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
-import { usePendingWrites } from './usePendingWrites';
+import { usePendingWritesContext } from '../context/PendingWritesContext';
 import { resolveKeytagScan, newVehicleFromRead, type KeytagScanResult } from '../lib/resolveKeytagScan';
 import { buildRegisterVehicleProposal, buildUpdateVehicleProposal } from '../../api/_lib/holdProposal';
 import { passesDeterministicAutoClear } from '../lib/autoClearGate';
@@ -28,7 +28,7 @@ export interface KeytagScanState {
 export function useKeytagScan(): KeytagScanState {
   const { readKeytag, status } = useKeytagRead();
   const { vehicles } = useVehicleHoldContext();
-  const { stage } = usePendingWrites();
+  const { stage } = usePendingWritesContext();
   const [scan, setScan] = useState<{ read: KeytagRead; result: KeytagScanResult } | null>(null);
   const [staged, setStaged] = useState(false);
   const [err, setErr] = useState('');

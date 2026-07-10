@@ -5,7 +5,8 @@
 // the place you clear when you have a minute. Self-hides when empty.
 // See migrations/090 + docs/ticket-misc-effie-pending-writes.md.
 import { useCallback, useRef, useState } from 'react';
-import { usePendingWrites, type PendingWrite } from '../../hooks/usePendingWrites';
+import { type PendingWrite } from '../../hooks/usePendingWrites';
+import { usePendingWritesContext } from '../../context/PendingWritesContext';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
 import { HoldProposalCard } from '../assistant/HoldProposalCard';
 import { RejectReasonPicker } from './RejectReasonPicker';
@@ -17,7 +18,7 @@ import { useEffieMemory } from '../../hooks/useEffieMemory';
 import type { RegisterAssetChoice } from '../../../api/_lib/holdProposal';
 
 export function PendingWritesSection() {
-  const { pending, markResolved } = usePendingWrites();
+  const { pending, markResolved } = usePendingWritesContext();
   const { user } = useAuth();
   const { addHold, addVehicle, updateVehicleFields, setCoverPhoto } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();

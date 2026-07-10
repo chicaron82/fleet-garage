@@ -8,6 +8,7 @@ import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
 import { EffieProvider } from './context/EffieContext';
+import { PendingWritesProvider } from './context/PendingWritesContext';
 import { AppShell } from './components/layout/AppShell';
 import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
@@ -218,6 +219,9 @@ export default function App() {
         <WashbayProvider>
           <IssueProvider>
             <LostFoundProvider>
+              {/* One shared pending-writes instance: the review section, every stage producer,
+                  and the My-Shift sidebar badge all read the same live count. */}
+              <PendingWritesProvider>
               <FleetBalanceProvider>
                 <ActiveSessionsProvider>
                   <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
@@ -236,6 +240,7 @@ export default function App() {
                 />
               )}
               <FgAssistantFab module={activeModule} onNavigate={navigate} />
+              </PendingWritesProvider>
             </LostFoundProvider>
           </IssueProvider>
         </WashbayProvider>

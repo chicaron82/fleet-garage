@@ -6,7 +6,7 @@
 import { useCallback, useState } from 'react';
 import { useKeytagRead } from './useKeytagRead';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
-import { usePendingWrites } from './usePendingWrites';
+import { usePendingWritesContext } from '../context/PendingWritesContext';
 import { resolveKeytagScan } from '../lib/resolveKeytagScan';
 import { planBatchStage, type BatchStagePlan } from '../lib/planBatchStage';
 import { passesDeterministicAutoClear } from '../lib/autoClearGate';
@@ -34,7 +34,7 @@ export interface BatchKeytagState {
 export function useBatchKeytagStage(): BatchKeytagState {
   const { readKeytag } = useKeytagRead();
   const { vehicles } = useVehicleHoldContext();
-  const { stage } = usePendingWrites();
+  const { stage } = usePendingWritesContext();
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [results, setResults] = useState<BatchResult[]>([]);

@@ -15,7 +15,7 @@ import { useLostFoundContext } from '../../context/LostFoundContext';
 import { useEffie } from '../../context/EffieContext';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useProposalConfirm } from '../../hooks/useProposalConfirm';
-import { usePendingWrites } from '../../hooks/usePendingWrites';
+import { usePendingWritesContext } from '../../context/PendingWritesContext';
 import { HoldProposalCard } from './HoldProposalCard';
 import { EffieImageStrip } from './EffieImageStrip';
 import { moduleGreeting } from '../../lib/assistantGreeting';
@@ -72,7 +72,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
     setOpen: (open) => { if (!open) onClose?.(); },
   });
   // "Later" on a card → stage the proposal to the pending queue (reviewed on My Shift).
-  const { stage: stagePendingWrite } = usePendingWrites();
+  const { stage: stagePendingWrite } = usePendingWritesContext();
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);

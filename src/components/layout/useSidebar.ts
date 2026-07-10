@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useIssueContext } from '../../context/IssueContext';
+import { usePendingWritesContext } from '../../context/PendingWritesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
@@ -27,6 +28,7 @@ export function useSidebar() {
   const { facilityIssues } = useIssueContext();
   const { isPeakSeason } = useSchedule();
   const { getTodayEntry, getProjection } = useFleetBalanceContext();
+  const { pending } = usePendingWritesContext();
 
   const todayFleetEntry  = getTodayEntry();
   const fleetProjection  = getProjection();
@@ -35,6 +37,8 @@ export function useSidebar() {
   const MODULE_BADGES: Partial<Record<Module, number>> = {
     'holds': heldVehicles,
     'issue-log':    openHighIssues,
+    // Effie's staged writes waiting for review (mirrors the "Pending — Effie" section on My Shift).
+    'my-shift':     pending.length,
   };
 
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
