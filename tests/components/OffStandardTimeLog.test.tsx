@@ -78,6 +78,7 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
 vi.mock('../../src/context/ScheduleContext', () => ({
   useSchedule: () => ({
     shifts: [],
+    todayShifts: [],
   }),
 }));
 

@@ -20,12 +20,13 @@ export function userShiftTypeOn(
  * - **Base order:** a saved custom order from the customizer is used as-is
  *   (presets missing from it — e.g. one added in a later release — are appended
  *   so nothing silently disappears); with no saved order, the default array order.
- * - **Schedule-aware promotion (always on top):** on an opening/closing shift the
- *   rostered duty (Opening/Closing Duties) is floated to the FRONT of the base —
- *   even over a saved custom order, deduped so it leads exactly once. This is the
- *   point of the context feature: a customized user still gets today's duty
- *   leading, with their own favorites right behind it. Mid / day-off / not-
- *   rostered has no duty to float, so the base is returned untouched.
+ * - **Schedule-aware SWAP (always on top):** on an opening/closing shift the rostered
+ *   duty (Opening/Closing Duties) is floated to the FRONT of the base — even over a
+ *   saved custom order, deduped so it leads exactly once — AND the OPPOSITE duty is
+ *   demoted past the visible fold, so the pill genuinely *swaps* to today's duty
+ *   instead of showing both (a customized user still gets today's duty leading, their
+ *   favorites right behind it, and the off-shift duty tucked into "more"). Mid /
+ *   day-off / not-rostered has no duty to float, so the base is returned untouched.
  */
 export function orderQuickTaps(
   taps: QuickTap[],
@@ -45,11 +46,17 @@ export function orderQuickTaps(
     base = [...taps];
   }
 
-  // Float today's rostered duty to the front, on top of whatever the base is.
+  // Float today's rostered duty to the front; demote the opposite duty to the tail so
+  // exactly one duty shows in the visible pills — the "swap", not "show both".
   const promoteId = shiftType === 'opening' ? 'opening_duties'
     : shiftType === 'closing' ? 'closing_duties'
     : null;
+  const demoteId = shiftType === 'opening' ? 'closing_duties'
+    : shiftType === 'closing' ? 'opening_duties'
+    : null;
   const promoted = promoteId ? base.find(t => t.id === promoteId) : undefined;
   if (!promoted) return base;
-  return [promoted, ...base.filter(t => t.id !== promoted.id)];
+  const demoted = demoteId ? base.find(t => t.id === demoteId) : undefined;
+  const middle = base.filter(t => t.id !== promoted.id && t.id !== demoted?.id);
+  return demoted ? [promoted, ...middle, demoted] : [promoted, ...middle];
 }

@@ -29,7 +29,7 @@ interface Props {
 
 export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Props) {
   const { holds, vehicles } = useVehicleHoldContext();
-  const { shifts } = useSchedule();
+  const { shifts, todayShifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
   const { trip, setMovementTab } = useActiveSessions();
   const collision = useStartCollisionGuard(trip); // speed-bump: OTH-start while a trip runs
@@ -107,10 +107,11 @@ export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Pr
           onGoEnd={() => { collision.dismiss(); setMovementTab('movement-log'); }} />
       )}
 
-      {/* Quick Start */}
+      {/* Quick Start — todayShifts (not the navigable window) so the shift-aware duty swap
+          reflects today even if the Schedule screen was left on another week (bug 2026-07-10). */}
       <OffStdQuickStart
         user={user}
-        shifts={shifts}
+        shifts={todayShifts}
         timerState={timerState}
         isRecovering={isRecovering}
         handleQuickTap={(tap) => collision.guard(() => handleQuickTap(tap))}

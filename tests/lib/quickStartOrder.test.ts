@@ -66,6 +66,24 @@ describe('orderQuickTaps', () => {
     expect(out.filter(id => id === 'opening_duties')).toHaveLength(1);
   });
 
+  // The swap: the OPPOSITE duty must drop out of the visible pills, not just sit behind the
+  // promoted one — the "showing both Opening and Closing on an opening shift" bug (2026-07-10).
+  const many = [tap('opening_duties'), tap('closing_duties'), tap('a'), tap('b'), tap('c'), tap('d')];
+
+  it('demotes closing duties past the visible fold on an opening shift', () => {
+    const out = ids(orderQuickTaps(many, null, 'opening'));
+    expect(out[0]).toBe('opening_duties');
+    expect(out.indexOf('closing_duties')).toBe(out.length - 1);            // tucked into "more"
+    expect(out.indexOf('closing_duties')).toBeGreaterThanOrEqual(QUICK_START_VISIBLE);
+  });
+
+  it('demotes opening duties past the visible fold on a closing shift', () => {
+    const out = ids(orderQuickTaps(many, null, 'closing'));
+    expect(out[0]).toBe('closing_duties');
+    expect(out.indexOf('opening_duties')).toBe(out.length - 1);
+    expect(out.indexOf('opening_duties')).toBeGreaterThanOrEqual(QUICK_START_VISIBLE);
+  });
+
   it('leaves a saved order untouched on a mid shift (no duty to float)', () => {
     expect(ids(orderQuickTaps(taps, ['b', 'a'], 'mid')))
       .toEqual(['b', 'a', 'opening_duties', 'closing_duties']);
