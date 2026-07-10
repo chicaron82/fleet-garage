@@ -29,7 +29,9 @@ export interface UseMyDay extends MyDayModel {
 
 export function useMyDay(): UseMyDay {
   const { user } = useAuth();
-  const { shifts, setShiftAttendance } = useSchedule();
+  // todayShifts (NOT the navigable `shifts`): My Day must reflect today even if the
+  // Schedule screen was last swiped to another week (bug 2026-07-10).
+  const { todayShifts, setShiftAttendance } = useSchedule();
   const { staleHolds, vehicles } = useVehicleHoldContext();
   const { latestHandoff } = useWashbayContext();
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
@@ -39,7 +41,7 @@ export function useMyDay(): UseMyDay {
   const handoffIsToday = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
 
   const model = deriveMyDay({
-    shifts,
+    shifts: todayShifts,
     userId: user!.id,
     userName: user!.name,
     todayISO: toISO(now),

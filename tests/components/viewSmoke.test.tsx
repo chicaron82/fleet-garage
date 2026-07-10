@@ -52,7 +52,7 @@ vi.mock('../../src/context/ScheduleContext', async (importOriginal) => {
   return {
     ...actual, // keep pure exports like toISO
     useSchedule: () => ({
-      shifts: [], myShifts: [], blockedDays: [], isPeakSeason: false,
+      shifts: [], todayShifts: [], myShifts: [], blockedDays: [], isPeakSeason: false,
       getShiftsForDate: () => [], addShift: vi.fn(), updateShift: vi.fn(), removeShift: vi.fn(),
     }),
   };

@@ -9,6 +9,7 @@ import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
 import { rowToShiftBase } from '../lib/rowToShift';
 import { withSubmitLock } from '../lib/submitLock';
 import { resolveShiftNames } from '../lib/resolveShiftNames';
+import { useTodayShifts } from '../hooks/useTodayShifts';
 import { canManageSchedule } from '../types';
 import type { Attendance, BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
 
@@ -69,6 +70,8 @@ interface ScheduleContextValue {
   // be silently partial. For period spans (e.g. a pay period), fetch your own range
   // with rowToShiftBase, as PayEstimateCard does.
   shifts: ShiftWithUser[];
+  /** TODAY's shifts, decoupled from the navigable `shifts` window — My Day / quick-start reflect today. */
+  todayShifts: ShiftWithUser[];
   loading: boolean;
   viewMode: 'week' | 'calendar';
   currentDate: Date;
@@ -115,6 +118,18 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // coworker as "Unknown", 2026-07-03). Deriving here re-resolves the moment
   // profiles arrive, with no refetch and no setState-in-effect.
   const resolvedShifts = useMemo(() => resolveShiftNames(shifts, getProfile), [shifts, getProfile]);
+  // TODAY's shifts on their own — decoupled from the navigable `shifts` window (see useTodayShifts),
+  // so My Day + the shift-aware quick-start reflect today even if the Schedule screen was left on
+  // another week (bug 2026-07-10). `todayStr` recomputes each render → reloads across midnight.
+  const { todayShifts, setTodayShifts } = useTodayShifts(toISO(new Date()), activeBranch, rowToShiftRef);
+  const resolvedTodayShifts = useMemo(() => resolveShiftNames(todayShifts, getProfile), [todayShifts, getProfile]);
+
+  // Reflect a re-mapped shift into BOTH windows — the navigable `shifts` and today's —
+  // so an edit (attendance tapped from My Day, a schedule tweak) shows wherever it's displayed.
+  const patchShift = (id: string, updated: ShiftWithUser) => {
+    setShifts(prev => prev.map(s => s.id === id ? updated : s));
+    setTodayShifts(prev => prev.map(s => s.id === id ? updated : s));
+  };
 
   const { isPeakSeason, togglePeakSeason }                                          = usePeakSeason();
   const { ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement, adjustPTO, adjustSick } = usePTOStats(user);
@@ -169,6 +184,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       const created = rowToShift(data as Record<string, unknown>);
       setShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
+      // A shift created for today must also land in today's window (My Day).
+      if (created.date === toISO(new Date())) setTodayShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
       applyTally(shift.userId, null, { shiftType: shift.shiftType, date: shift.date });
       if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
         const target = getProfile(shift.userId);
@@ -250,7 +267,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         .single()
     );
     if (error) throw error;
-    setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+    patchShift(id, rowToShift(data as Record<string, unknown>));
     if (existing) {
       applyTally(
         existing.userId,
@@ -289,7 +306,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         .single()
     );
     if (error) throw error;
-    setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+    patchShift(id, rowToShift(data as Record<string, unknown>));
   };
 
   const deleteShift = async (id: string) => {
@@ -297,6 +314,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const { error } = await writeWithRefresh(() => supabase.from('shifts').delete().eq('id', id));
     if (error) throw error;
     setShifts(prev => prev.filter(s => s.id !== id));
+    setTodayShifts(prev => prev.filter(s => s.id !== id));
     if (deleted) applyTally(deleted.userId, { shiftType: deleted.shiftType, date: deleted.date }, null);
     if (user && deleted && isManagerEditingOtherUser(user.role, user.id, deleted.userId)) {
       const target = getProfile(deleted.userId);
@@ -316,7 +334,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       supabase.from('shifts').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select().single()
     );
     if (error) throw error;
-    setShifts(prev => prev.map(s => s.id === id ? rowToShift(data as Record<string, unknown>) : s));
+    patchShift(id, rowToShift(data as Record<string, unknown>));
   };
 
   const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) =>
@@ -381,7 +399,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ScheduleContext.Provider value={{
-      shifts: resolvedShifts, loading, viewMode, currentDate, isPeakSeason,
+      shifts: resolvedShifts, todayShifts: resolvedTodayShifts, loading, viewMode, currentDate, isPeakSeason,
       ptoEntitlement, ptoUsed, sickDaysUsed,
       setViewMode, setCurrentDate,
       goToPrev, goToNext, goToToday, togglePeakSeason, updatePtoEntitlement,
