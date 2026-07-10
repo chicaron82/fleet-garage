@@ -27,9 +27,10 @@
 
 ## 📥 Open tickets
 
-- [ticket-chicharon-council-concept.md](ticket-chicharon-council-concept.md) — the Council of Z: a multi-agent roundtable hub for the UV7 crew (parked concept; revisit on a weekend).
+- [ticket-geotab-watchlist.md](ticket-geotab-watchlist.md) — FG absorbs the "PLEASE HOLD FOR GEOTAB INSTALLATION" pegboard list (77 plates) so a scan knows to ask "installed? → capture / hold." Store-not-feed decision made; 3 slices (store+load / scan-branch / geotab hold reason). Unbuilt.
+- [ticket-misc-effie-graduated-autonomy.md](ticket-misc-effie-graduated-autonomy.md) — the pending-queue leash. **L1 fast-track SHIPPED** (`389e7fd`: "Approve all safe" bulk-clears backfills; holds always wait). L2 (true no-tap auto-clear, backfill-only, gated on stored read-confidence + misfire rate) is the pending next level — Aaron's go.
 
-_The whole "Hey FG" assistant arc (riffed 2026-06-26/27) is shipped — voice, key-tag scan, schedule import (parse → preview → write) + the FAB navigation bridge. See `June/` + the chicharons blog._
+_The whole "Hey FG" / Effie assistant arc (riffed 2026-06-26/27) is shipped — voice, key-tag scan + L&F wiring + batch, the pending-writes spine + correction-loop + module. See `June/` + `July/` + the chicharons blog._
 
 ## 🗄️ archive/ (non-ticket artifacts)
 
@@ -59,7 +60,7 @@ for specifics — this README doesn't re-list them.
 - `April/` (53 files) — genesis era: the original ops-platform concept through early feature specs.
 - `May/` (90 files) — the main build-out: holds, movement log, OTH, schedule, analytics, and more.
 - `June/` — EV assets, washbay carry-over lineage, the storm-night batch (hail type, dup-flag race), payday-anchored pay card, multi-issue resolution, the submit-lock sweep.
-- `July/` — the Effie arc: multi-image, staged-hold photos, the keytag brain + read endpoint, the pending-writes spine + polish + module, the confirmed-card double-write class, and the gas-sheet seed fix.
+- `July/` — the Effie arc: multi-image, staged-hold photos, the keytag brain + read endpoint + L&F wiring + partial-backfill + batch scan, the pending-writes spine + correction-loop (capture + misfire surface) + graduated-autonomy L1 + module, hold-history in-app edits, the confirmed-card double-write class, keytag-replaces-barcode, My-Day fuel, and the gas-sheet seed fix.
 
 ---
 
