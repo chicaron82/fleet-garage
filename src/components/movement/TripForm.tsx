@@ -11,6 +11,7 @@ import type { EvDispatchWarning } from '../../lib/evDispatch';
 import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 import { PlateInput } from '../shared/VehicleFields';
+import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 
 const MISSING_LABEL: Record<'cable' | 'adapter', string> = { cable: 'charge cable', adapter: 'J1772 adapter' };
 const fmtMissing = (m: ('cable' | 'adapter')[]) => m.map(x => MISSING_LABEL[x]).join(' & ');
@@ -19,7 +20,7 @@ export interface TripFormProps {
   isShuttle: boolean;
   shuttlePlate: string;                setShuttlePlate: (v: string) => void;
   vehiclePlate: string;                setVehiclePlate: (v: string) => void;
-  onPlateBlur?: () => void;
+  onPlateBlur?: (plate?: string) => void;
   topClasses: string[];
   flaggedClasses: string[];
   isDemoMode?: boolean;
@@ -124,11 +125,18 @@ export function TripForm({
         )}
       </div>
 
-      {/* Vehicle plate (optional — for registry tracking) */}
+      {/* Vehicle plate (optional — for registry tracking). Snap the key tag to fill it (or type). */}
       <div className="relative z-10">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-          Vehicle Plate <span className="text-gray-400 dark:text-gray-600 normal-case font-normal">optional</span>
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+            Vehicle Plate <span className="text-gray-400 dark:text-gray-600 normal-case font-normal">optional</span>
+          </label>
+          <KeytagSearchScan onPlate={(plate) => {
+            setVehiclePlate(plate);
+            if (shuttlePlate) onShuttleToggle(plate.trim() === shuttlePlate.toUpperCase().trim());
+            void onPlateBlur?.(plate); // run Tesla detection on the freshly-scanned plate
+          }} />
+        </div>
         <PlateInput
           placeholder="e.g. LUR156"
           value={vehiclePlate}

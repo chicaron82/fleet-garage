@@ -127,8 +127,10 @@ export function TripStartForm({
     else if (!checked && shuttlePlate && vehiclePlate === shuttlePlate.toUpperCase()) setVehiclePlate('');
   };
 
-  const handlePlateBlur = async () => {
-    const result = await detectTeslaByPlate(vehiclePlate);
+  // `plate` lets a caller (the key-tag scan) run detection on a freshly-set value before
+  // React state catches up; a plain blur passes nothing and uses the current field.
+  const handlePlateBlur = async (plate?: string) => {
+    const result = await detectTeslaByPlate(plate ?? vehiclePlate);
     if (result.isTesla) {
       setIsTeslaRun(true);
       setEvCableStatus(result.lastCable);
