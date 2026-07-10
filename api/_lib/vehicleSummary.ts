@@ -44,6 +44,8 @@ export interface VehicleLookupResult {
   vehicle: VehicleFact | null;
   activeHolds: HoldFact[];
   releasedHolds: HoldFact[];
+  /** On the Geotab install watchlist (pending). Set by executeLookup; defaults false. */
+  geotabPending: boolean;
   /** Human summary the model can quote or paraphrase — the lot's-eye answer. */
   summary: string;
 }
@@ -112,6 +114,7 @@ export function summarizeLookup(
       vehicle: null,
       activeHolds: [],
       releasedHolds: [],
+      geotabPending: false,
       summary: `No record of ${plate} in the fleet.`,
     };
   }
@@ -119,7 +122,7 @@ export function summarizeLookup(
   const activeHolds = holds.filter((h) => h.status === 'ACTIVE');
   const releasedHolds = holds.filter((h) => h.status === 'RELEASED');
   const who = describeVehicle(vehicle);
-  const base = { found: true as const, plate, vehicle, activeHolds, releasedHolds };
+  const base = { found: true as const, plate, vehicle, activeHolds, releasedHolds, geotabPending: false };
 
   const activeNoun = activeHolds.length === 1 ? 'hold' : 'holds';
   const activeClause = `${activeHolds.length} active ${activeNoun}: ${activeHolds.map(describeHoldCore).join('; ')}`;

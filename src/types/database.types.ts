@@ -374,6 +374,35 @@ export type Database = {
         }
         Relationships: []
       }
+      geotab_watchlist: {
+        Row: {
+          added_at: string
+          installed_at: string | null
+          installed_by: string | null
+          plate: string
+        }
+        Insert: {
+          added_at?: string
+          installed_at?: string | null
+          installed_by?: string | null
+          plate: string
+        }
+        Update: {
+          added_at?: string
+          installed_at?: string | null
+          installed_by?: string | null
+          plate?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geotab_watchlist_installed_by_fkey"
+            columns: ["installed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       handoff_notes: {
         Row: {
           airport_flipping: boolean

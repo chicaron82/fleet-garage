@@ -10,6 +10,7 @@ import {
   type VehicleLookupResult,
 } from './vehicleSummary.js';
 import { shiftBusinessDate } from './shiftDay.js';
+import { correctManitobaPrefix } from './platePrefix.js';
 import {
   normalizePlate,
   resolveVehicleRow,
@@ -54,10 +55,28 @@ import {
   type IssueRow,
 } from './moduleReads.js';
 
+/** Is this plate on the Geotab install watchlist and still pending? Keyed by the
+ *  MB-corrected plate, matching how the sheet plates are stored (see migration 095). */
+async function isGeotabPending(supabase: SupabaseClient, rawPlate: string): Promise<boolean> {
+  const plate = correctManitobaPrefix(rawPlate);
+  if (!plate) return false;
+  const { data } = await supabase
+    .from('geotab_watchlist')
+    .select('plate')
+    .eq('plate', plate)
+    .is('installed_at', null)
+    .maybeSingle();
+  return !!data;
+}
+
 /** Run the read-only vehicle lookup as the asking user (RLS-scoped via the JWT client). */
 export async function executeLookup(supabase: SupabaseClient, rawPlate: string): Promise<VehicleLookupResult> {
   const match = await resolveVehicleRow(supabase, rawPlate);
-  if (!match) return summarizeLookup(rawPlate, null, []);
+  const geotabPending = await isGeotabPending(supabase, rawPlate);
+  const withGeotab = (r: VehicleLookupResult): VehicleLookupResult => geotabPending
+    ? { ...r, geotabPending: true, summary: `${r.summary} ⚠️ ON THE GEOTAB INSTALL LIST — needs a Geotab unit installed.` }
+    : r;
+  if (!match) return withGeotab(summarizeLookup(rawPlate, null, []));
 
   // ACTIVE holds block; RELEASED holds are worth-knowing context (esp. verbal
   // overrides). Embed the release detail so the answer can name who authorized it.
@@ -84,7 +103,7 @@ export async function executeLookup(supabase: SupabaseClient, rawPlate: string):
     };
   });
 
-  return summarizeLookup(rawPlate, toVehicleFact(match), holds);
+  return withGeotab(summarizeLookup(rawPlate, toVehicleFact(match), holds));
 }
 
 /**
