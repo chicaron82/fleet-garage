@@ -24,7 +24,7 @@ import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
 import { photoCaptionFor, photoButtonLabel } from '../../../api/_lib/photoRequest';
 import { isAffirmation } from '../../lib/affirmation';
-import { SendIcon, CameraIcon, MicIcon, TypingDots } from './AssistantIcons';
+import { SendIcon, CameraIcon, PaperclipIcon, MicIcon, TypingDots } from './AssistantIcons';
 import type { Screen } from '../../types';
 
 export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }: {
@@ -45,7 +45,8 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);     // gallery / files — multi-select attach
+  const cameraRef = useRef<HTMLInputElement>(null);   // live camera — one shot, direct (no chooser)
   // In-flight guard for the TYPED confirm ("yes" ↵). The card's buttons disable
   // themselves while submitting, but the typed path has no button — without this, a
   // second "yes" during the write's flight fires the proposal's write twice (the same
@@ -190,13 +191,23 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
           </div>
         )}
         <div className="flex items-end gap-2">
+          {/* Gallery/files (multi) and live camera (direct, single) — split so each modality is one
+              tap. Both feed onPickImage, which appends, so live snaps + gallery picks accumulate. */}
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} className="hidden" />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
           <button
-            onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
-            aria-label="Attach a photo — camera or gallery"
+            onClick={() => { setPendingPhotoContext(null); cameraRef.current?.click(); }}
+            aria-label="Take a live photo"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
           >
             <CameraIcon />
+          </button>
+          <button
+            onClick={() => { setPendingPhotoContext(null); fileRef.current?.click(); }}
+            aria-label="Attach a photo from the gallery"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 cursor-pointer"
+          >
+            <PaperclipIcon />
           </button>
           {speech.supported && (
             <button
