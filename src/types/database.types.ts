@@ -119,6 +119,7 @@ export type Database = {
           resolved_by: string | null
           source: string
           status: string
+          would_auto_clear: boolean | null
         }
         Insert: {
           created_at?: string
@@ -132,6 +133,7 @@ export type Database = {
           resolved_by?: string | null
           source?: string
           status?: string
+          would_auto_clear?: boolean | null
         }
         Update: {
           created_at?: string
@@ -145,6 +147,7 @@ export type Database = {
           resolved_by?: string | null
           source?: string
           status?: string
+          would_auto_clear?: boolean | null
         }
         Relationships: [
           {

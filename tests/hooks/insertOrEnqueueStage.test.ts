@@ -81,7 +81,7 @@ describe('offlineStagedPending', () => {
   it('maps a queued effie stage for the user to a PendingWrite', () => {
     getOfflineQueue.mockReturnValue([staged]);
     expect(offlineStagedPending('u1')).toEqual([
-      { id: 'q1', kind: 'register_vehicle', proposal: { kind: 'register_vehicle' }, source: 'keytag-scan', createdAt: '2026-07-09T00:00:00.000Z', photos: undefined },
+      { id: 'q1', kind: 'register_vehicle', proposal: { kind: 'register_vehicle' }, source: 'keytag-scan', createdAt: '2026-07-09T00:00:00.000Z', photos: undefined, wouldAutoClear: null },
     ]);
   });
 

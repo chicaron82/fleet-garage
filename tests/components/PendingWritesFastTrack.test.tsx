@@ -14,6 +14,7 @@ const confirmProposal = vi.fn().mockResolvedValue(undefined);
 const backfill: PendingWrite = {
   id: 'pw-backfill', kind: 'update_vehicle', source: 'keytag-scan', createdAt: '2026-07-09T00:00:00Z',
   proposal: { kind: 'update_vehicle', vehicleId: 'v1', plate: 'LUR554', fills: [{ field: 'color', value: 'Gray' }] },
+  wouldAutoClear: true, // a clean backfill — the shadow gate would fire it
 };
 const register: PendingWrite = {
   id: 'pw-register', kind: 'register_vehicle', source: 'keytag-scan', createdAt: '2026-07-09T00:00:00Z',
@@ -49,5 +50,11 @@ describe('PendingWritesSection — fast-track', () => {
     expect(markResolved).not.toHaveBeenCalledWith('pw-register', 'approved');
     expect(confirmProposal).toHaveBeenCalledTimes(1);
     expect(confirmProposal).toHaveBeenCalledWith(backfill.proposal, undefined, []);
+  });
+
+  it('shows the shadow "would auto-clear" marker only on the row whose gate verdict is true', () => {
+    // The clean backfill (wouldAutoClear: true) shows it; the register (null) does not.
+    render(<PendingWritesSection />);
+    expect(screen.getAllByText(/Would auto-clear \(shadow\)/)).toHaveLength(1);
   });
 });

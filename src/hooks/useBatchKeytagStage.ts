@@ -9,6 +9,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { usePendingWrites } from './usePendingWrites';
 import { resolveKeytagScan } from '../lib/resolveKeytagScan';
 import { planBatchStage, type BatchStagePlan } from '../lib/planBatchStage';
+import { passesDeterministicAutoClear } from '../lib/autoClearGate';
 
 export interface BatchResult {
   /** Position in the submitted stack (stable key + "tag 3 of 5"). */
@@ -55,7 +56,10 @@ export function useBatchKeytagStage(): BatchKeytagState {
         if (plan.action === 'skip' || !plan.proposal) {
           out.push({ index: i, plan, staged: false, stageError: false });
         } else {
-          const ok = await stage(plan.proposal, 'keytag-batch');
+          // Shadow-mode auto-clear verdict (L2, observe-only) — false for a register (kind), the
+          // real verdict for a backfill. Recorded on the row; nothing fires.
+          const wouldAutoClear = passesDeterministicAutoClear(plan.proposal, { plateCorrected: plan.wasCorrected });
+          const ok = await stage(plan.proposal, 'keytag-batch', undefined, wouldAutoClear);
           out.push({ index: i, plan, staged: ok, stageError: !ok });
         }
       }

@@ -10,6 +10,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { usePendingWrites } from './usePendingWrites';
 import { resolveKeytagScan, newVehicleFromRead, type KeytagScanResult } from '../lib/resolveKeytagScan';
 import { buildRegisterVehicleProposal, buildUpdateVehicleProposal } from '../../api/_lib/holdProposal';
+import { passesDeterministicAutoClear } from '../lib/autoClearGate';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
 export interface KeytagScanState {
@@ -54,7 +55,9 @@ export function useKeytagScan(): KeytagScanState {
     if (!scan || scan.result.resolution.kind !== 'partial' || !scan.result.vehicle) return;
     setErr('');
     const proposal = buildUpdateVehicleProposal(scan.result.vehicle.id, scan.result.plate, scan.result.resolution.fills);
-    const ok = await stage(proposal, 'keytag-scan');
+    // Shadow-mode auto-clear verdict (L2, observe-only) — recorded, never fires.
+    const wouldAutoClear = passesDeterministicAutoClear(proposal, { plateCorrected: scan.result.wasCorrected });
+    const ok = await stage(proposal, 'keytag-scan', undefined, wouldAutoClear);
     if (ok) setStaged(true); else setErr('Could not stage — try again.');
   }, [scan, stage]);
 

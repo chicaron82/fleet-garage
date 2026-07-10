@@ -35,6 +35,10 @@ export interface PendingWrite {
   /** Damage photos (base64 data URLs) captured when a hold was staged, so they survive
    *  stage→approve. Undefined for staged writes with no attached photos. */
   photos?: string[];
+  /** Shadow-mode auto-clear verdict (graduated autonomy L2): true = the deterministic gate
+   *  would auto-clear this backfill; false = it wouldn't; null/undefined = not evaluated.
+   *  Observe-only — nothing fires. See src/lib/autoClearGate. */
+  wouldAutoClear?: boolean | null;
 }
 
 /** Stages captured OFFLINE and still in the local queue (not yet synced to the DB) — so the
@@ -43,11 +47,12 @@ export interface PendingWrite {
 export function offlineStagedPending(userId: string): PendingWrite[] {
   return getOfflineQueue()
     .filter((a) => a.table === 'effie_pending_writes' && a.action === 'insert')
-    .map((a) => a.payload as { id: string; proposed_by?: string; kind: string; proposal: unknown; source: string; photos?: string[] | null; created_at?: string })
+    .map((a) => a.payload as { id: string; proposed_by?: string; kind: string; proposal: unknown; source: string; photos?: string[] | null; created_at?: string; would_auto_clear?: boolean | null })
     .filter((p) => p.proposed_by === userId)
     .map((p) => ({
       id: p.id, kind: p.kind, proposal: p.proposal as Proposal, source: p.source,
       createdAt: p.created_at ?? new Date().toISOString(), photos: p.photos ?? undefined,
+      wouldAutoClear: p.would_auto_clear ?? null,
     }));
 }
 
@@ -63,7 +68,7 @@ export function usePendingWrites() {
     try {
       const { data } = await supabase
         .from('effie_pending_writes')
-        .select('id, kind, proposal, source, created_at, photos')
+        .select('id, kind, proposal, source, created_at, photos, would_auto_clear')
         .eq('proposed_by', user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -74,6 +79,7 @@ export function usePendingWrites() {
         source: r.source,
         createdAt: r.created_at,
         photos: (r.photos as string[] | null) ?? undefined,
+        wouldAutoClear: r.would_auto_clear ?? null,
       }));
     } catch { /* offline — fall back to the locally-queued stages below */ }
     // Merge stages captured offline (queued, not yet synced) so the queue shows them even
@@ -87,14 +93,16 @@ export function usePendingWrites() {
 
   /** Persist an inferred proposal for later review. Nothing is written to the real
    *  tables here — that only happens on approve (via useProposalConfirm). */
-  const stage = useCallback(async (proposal: Proposal, source = 'effie-chat', photos?: string[]): Promise<boolean> => {
+  const stage = useCallback(async (proposal: Proposal, source = 'effie-chat', photos?: string[], wouldAutoClear?: boolean | null): Promise<boolean> => {
     if (!user) return false;
     // Client-generated id: lets the write survive an offline enqueue (the drain upserts on id).
     const id = crypto.randomUUID();
     const photoList = photos && photos.length > 0 ? photos : null;
     // Proposal is a typed union, not structural Json — cast at the jsonb boundary. created_at
     // is client-set so an offline-queued row carries a real timestamp (matches the DB default).
-    const payload = { id, proposed_by: user.id, kind: proposal.kind, proposal: proposal as unknown as Json, source, photos: photoList, created_at: new Date().toISOString() };
+    // would_auto_clear is the SHADOW verdict (L2, observe-only) — null unless a backfill producer
+    // evaluated the deterministic gate. Nothing fires from it; see src/lib/autoClearGate.
+    const payload = { id, proposed_by: user.id, kind: proposal.kind, proposal: proposal as unknown as Json, source, photos: photoList, created_at: new Date().toISOString(), would_auto_clear: wouldAutoClear ?? null };
     const { ok } = await insertOrEnqueueStage(payload);
     // reload merges the DB + the local offline queue, so the staged row shows whether it landed
     // online or is buffered offline — no separate optimistic path to drift.

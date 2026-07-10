@@ -122,6 +122,9 @@ export function PendingWritesSection() {
                 {isFastTrackSafe(pw.proposal) && (
                   <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-green-700 dark:text-green-400">✓ Safe to fast-track</p>
                 )}
+                {pw.wouldAutoClear === true && (
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400" title="The auto-clear gate would fire this once live (L2 shadow mode — nothing fires yet)">⚡ Would auto-clear (shadow)</p>
+                )}
                 <HoldProposalCard
                   proposal={pw.proposal}
                   onConfirm={(extra) => approve(pw, extra)}
