@@ -333,6 +333,10 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         vehicleId={vehicleId}
         initialUnitNumber={vehicle.unitNumber}
         initialLicensePlate={vehicle.licensePlate}
+        initialMake={vehicle.make}
+        initialModel={vehicle.model}
+        initialYear={vehicle.year}
+        initialColor={vehicle.color}
         onClose={() => setShowDirectEdit(false)}
         directEditVehicleIdentity={directEditVehicleIdentity}
       />

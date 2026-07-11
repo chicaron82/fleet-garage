@@ -50,7 +50,7 @@ export interface VehicleHoldContextValue {
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   markVehicleEditPending: (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => void;
   applyVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
-  directEditVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
+  directEditVehicleIdentity: (vehicleId: string, unit: string | null, plate: string, identity?: { make: string; model: string; year: number; color: string }) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
 }

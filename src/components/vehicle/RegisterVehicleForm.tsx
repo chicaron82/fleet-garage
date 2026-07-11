@@ -7,6 +7,8 @@ import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { useUnitConflict } from '../../hooks/useUnitConflict';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
+import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
+import { INPUT } from '../shared/vehicleCatalogue';
 import { UnitConflictNotice } from './UnitConflictNotice';
 
 interface Props {
@@ -15,36 +17,6 @@ interface Props {
   onSuccess: (vehicleId: string) => void;
   returnTo?: 'fleet' | 'hold';
 }
-
-const COLORS = ['White', 'Black', 'Silver', 'Gray', 'Red', 'Blue', 'Green', 'Brown', 'Gold', 'Other'];
-
-const MAKES_MODELS: Record<string, string[]> = {
-  Chevrolet:       ['Blazer', 'Colorado', 'Equinox', 'Malibu', 'Malibu LT', 'Silverado', 'Suburban', 'Tahoe', 'Trailblazer', 'Trax', 'Traverse'],
-  Ford:            ['Bronco Sport', 'Edge', 'Escape', 'Escape Hybrid', 'Expedition', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
-  Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Corolla', 'Corolla Cross', 'Corolla Hybrid', 'Highlander', 'Prius', 'RAV4', 'Sienna', 'Tacoma'],
-  Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
-  Nissan:          ['Altima', 'Frontier', 'Kicks', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
-  Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson', 'Venue'],
-  Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
-  Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
-  Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
-  Chrysler:        ['300', 'Pacifica'],
-  Buick:           ['Encore', 'Encore GX', 'Enclave', 'Envision', 'Envista'],
-  GMC:             ['Acadia', 'Canyon', 'Sierra', 'Terrain', 'Yukon'],
-  Cadillac:        ['CT4', 'CT5', 'Escalade', 'XT4', 'XT5', 'XT6'],
-  BMW:             ['2 Series', '3 Series', '5 Series', 'X1', 'X3', 'X5'],
-  'Mercedes-Benz': ['C-Class', 'E-Class', 'GLC', 'GLE', 'GLS'],
-  Audi:            ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
-  Mazda:           ['CX-30', 'CX-5'],
-  Volkswagen:      ['Atlas', 'Jetta', 'Passat', 'Taos', 'Tiguan'],
-  Volvo:           ['XC40', 'XC60', 'XC90'],
-  Tesla:           ['Model 3', 'Model S', 'Model X', 'Model Y'],
-  Other:           ['Other'],
-};
-
-const MAKES = Object.keys(MAKES_MODELS).sort();
-
-const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition bg-white dark:bg-gray-900 transition-colors';
 
 function classifyPrefill(value?: string): { unit: string; plate: string } {
   if (!value) return { unit: '', plate: '' };
@@ -88,14 +60,6 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
   const { conflict: unitConflict, armed, arm, disarm } = useUnitConflict(unit, allVehicles);
 
   const canSubmit = unit.trim() && plate.trim() && make && model && year > 1999 && color && !submitting;
-
-  const handleYearDecrement = () => {
-    if (year > 2000) setYear(year - 1);
-  };
-
-  const handleYearIncrement = () => {
-    if (year < 2030) setYear(year + 1);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,71 +181,16 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
               <UnitConflictNotice conflict={unitConflict} armed={armed} onArm={arm} onDisarm={disarm} />
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Make</label>
-                <select
-                  value={make}
-                  onChange={e => { setMake(e.target.value); setModel(''); }}
-                  className={INPUT}
-                >
-                  <option value="">Select…</option>
-                  {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Model</label>
-                <select
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  disabled={!make}
-                  className={`${INPUT} disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <option value="">Select…</option>
-                  {(MAKES_MODELS[make] ?? []).map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Year</label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleYearDecrement}
-                    disabled={year <= 2000}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    −
-                  </button>
-                  <div className="flex-1 text-center">
-                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                      {year}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleYearIncrement}
-                    disabled={year >= 2030}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Color</label>
-                <select
-                  value={color}
-                  onChange={e => setColor(e.target.value)}
-                  className={INPUT}
-                >
-                  <option value="">Select…</option>
-                  {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
+            <VehicleIdentityFields
+              make={make}
+              model={model}
+              year={year}
+              color={color}
+              onMake={setMake}
+              onModel={setModel}
+              onYear={setYear}
+              onColor={setColor}
+            />
           </div>
 
           {/* Teslas register with EV assets unassessed — assessment is a logged

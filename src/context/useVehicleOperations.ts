@@ -317,11 +317,21 @@ export function useVehicleOperations({
     }));
   };
 
-  const directEditVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
+  const directEditVehicleIdentity = async (
+    vehicleId: string,
+    unit: string | null,
+    plate: string,
+    // Optional: a human correcting the make/model/year/colour they mis-selected at
+    // registration. This is a deliberate OVERWRITE (unlike the keytag backfill, which only
+    // fills blanks) — a person typing the right value is exactly the "human resolves it"
+    // path the backfill rule defers to. Omitted → unit/plate-only edit, as before.
+    identity?: { make: string; model: string; year: number; color: string },
+  ) => {
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({
         unit_number:          unit,
         license_plate:        plate,
+        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color } : {}),
         edit_status:          null,
         edit_suggested_unit:  null,
         edit_suggested_plate: null,
@@ -335,6 +345,7 @@ export function useVehicleOperations({
     if (error) return;
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
       ...v, unitNumber: unit, licensePlate: plate, editStatus: null,
+      ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color } : {}),
     }));
   };
 
