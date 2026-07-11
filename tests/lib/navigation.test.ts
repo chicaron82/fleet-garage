@@ -59,21 +59,14 @@ describe('getNavItemsForRole', () => {
   });
 });
 
-// ── check-in demo gating ──────────────────────────────────────────────────────
+// ── check-in nav (removed with the demo-side) ─────────────────────────────────
 
-describe('check-in demo gating', () => {
-  it('hides check-in from real accounts by default', () => {
+describe('check-in nav', () => {
+  it('check-in is no longer a nav module for any role', () => {
     expect(getNavItemsForRole('VSA').map(n => n.module)).not.toContain('check-in');
     expect(getNavItemsForRole('Branch Manager').map(n => n.module)).not.toContain('check-in');
-  });
-
-  it('shows check-in to demo personas', () => {
-    expect(getNavItemsForRole('VSA', 'YWG', true).map(n => n.module)).toContain('check-in');
-    expect(getNavItemsForRole('Branch Manager', 'YWG', true).map(n => n.module)).toContain('check-in');
-  });
-
-  it('does not grant check-in to roles that never had it, even in demo', () => {
-    expect(getNavItemsForRole('Driver', 'YWG', true).map(n => n.module)).not.toContain('check-in');
+    expect(getNavItemsForRole('HIR').map(n => n.module)).not.toContain('check-in');
+    expect(getNavItemsForRole('Driver').map(n => n.module)).not.toContain('check-in');
   });
 });
 
@@ -123,12 +116,8 @@ describe('getDefaultScreenForRole', () => {
     expect(getDefaultScreenForRole('Driver')).toEqual({ name: 'movement-log' });
   });
 
-  it('HIR (real account) falls back to holds dashboard — check-in is demo-gated', () => {
+  it('HIR falls back to holds dashboard — check-in was removed with the demo-side', () => {
     expect(getDefaultScreenForRole('HIR')).toEqual({ name: 'dashboard' });
-  });
-
-  it('HIR (demo persona) lands on check-in', () => {
-    expect(getDefaultScreenForRole('HIR', 'YWG', true)).toEqual({ name: 'check-in' });
   });
 
   it('CSR lands on manifest', () => {

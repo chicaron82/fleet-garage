@@ -1,5 +1,5 @@
 import type { Profile, UserRole } from '../types';
-import { isMockPersona } from './demo-accounts';
+import { isMockPersona } from './accountClassification';
 
 const FLOOR_ROLES: UserRole[] = ['VSA', 'Lead VSA'];
 

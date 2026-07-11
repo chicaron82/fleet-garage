@@ -13,7 +13,6 @@ export interface NavItem {
 const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'my-day',  label: 'My Day',        icon: '🌅', defaultScreen: { name: 'my-day' } },
   { module: 'holds',   label: 'Holds',         icon: '🔧', defaultScreen: { name: 'dashboard' } },
-  { module: 'check-in',       label: 'Check-in',      icon: '📸', defaultScreen: { name: 'check-in' } },
   { module: 'audits',         label: 'Audits',        icon: '✅', defaultScreen: { name: 'audits' } },
   { module: 'analytics',      label: 'Analytics',     icon: '📊', defaultScreen: { name: 'analytics' } },
   { module: 'movement-log',   label: 'Movement Log',  icon: '🚗', defaultScreen: { name: 'movement-log' } },
@@ -45,19 +44,13 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'GM':                  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
 };
 
-// Modules kept only for demo personas — present as a showcase, hidden from real
-// production accounts. Check-in was built for an HIR role nobody fills today; its
-// one live workflow (exception re-hold) now lives in the holds module.
-const DEMO_ONLY_MODULES = new Set<Module>(['check-in']);
-
-export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): NavItem[] {
+export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {
   const roleModules = ROLE_MODULES[role] || [];
   const branchModules = BRANCH_CONFIGS[activeBranch]?.enabledModules || [];
 
   const items = ALL_NAV_ITEMS.filter(item =>
     roleModules.includes(item.module) &&
-    branchModules.includes(item.module) &&
-    (canDemo || !DEMO_ONLY_MODULES.has(item.module))
+    branchModules.includes(item.module)
   );
   return [...items, EFFIE_NAV_ITEM]; // Effie's home rides along for everyone (allowlist-gated at the surface)
 }
@@ -75,14 +68,13 @@ export function getActiveModule(screen: Screen): Module {
 
 // ── Default screen per role ─────────────────────────────────────────────────
 
-export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): Screen {
-  const navItems = getNavItemsForRole(role, activeBranch, canDemo);
-  
+export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId = 'YWG'): Screen {
+  const navItems = getNavItemsForRole(role, activeBranch);
+
   // Preferred default based on role
   let preferred: Screen = { name: 'dashboard' };
   if (role === 'VSA' || role === 'Lead VSA') preferred = { name: 'my-day' };
   if (role === 'Driver') preferred = { name: 'movement-log' };
-  if (role === 'HIR') preferred = { name: 'check-in' };
   if (role === 'CSR') preferred = { name: 'manifest' };
   if (role === 'Branch Manager' || role === 'Operations Manager' || role === 'City Manager' || role === 'AGM' || role === 'GM') preferred = { name: 'analytics' };
 
@@ -103,8 +95,8 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
  * e.g. a leftover `/audits` URL after switching accounts in the same browser tab
  * would otherwise bypass the role gate that hides Audits from the sidebar.
  */
-export function canAccessScreen(screen: Screen, role: UserRole, activeBranch: BranchId = 'YWG', canDemo = false): boolean {
+export function canAccessScreen(screen: Screen, role: UserRole, activeBranch: BranchId = 'YWG'): boolean {
   if (screen.name === 'effie') return true; // assistant home — gated by the allowlist at the surface, not by role
-  const allowed = new Set(getNavItemsForRole(role, activeBranch, canDemo).map(i => i.module));
+  const allowed = new Set(getNavItemsForRole(role, activeBranch).map(i => i.module));
   return allowed.has(getActiveModule(screen));
 }

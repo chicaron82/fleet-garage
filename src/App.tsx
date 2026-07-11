@@ -15,7 +15,6 @@ import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole, canAccessScreen } from './lib/navigation';
 import { screenToPath, pathToScreen } from './lib/screenRouting';
-import { isRealAccount } from './lib/demo-accounts';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
 import type { Screen } from './types';
@@ -42,7 +41,7 @@ const EffieModule        = lazy(() => import('./components/assistant/EffieModule
 export default function App() {
   const { user, loading, logout } = useAuth();
   const [screen, setScreen] = useState<Screen>(() =>
-    user ? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId)) : { name: 'dashboard' }
+    user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' }
   );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [prevUserId, setPrevUserId] = useState(user?.id);
@@ -60,20 +59,20 @@ export default function App() {
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (user) {
-      const navItems = getNavItemsForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+      const navItems = getNavItemsForRole(user.role, user.branchId);
       const rawDeepLink = window.location.pathname !== '/'
         ? pathToScreen(window.location.pathname)
         : null;
       // Reject a deep-link this user can't access (e.g. a leftover /audits URL from a
       // different account in the same tab) — it would otherwise bypass the role gate.
-      const deepLinkScreen = rawDeepLink && canAccessScreen(rawDeepLink, user.role, user.branchId, !isRealAccount(user.employeeId))
+      const deepLinkScreen = rawDeepLink && canAccessScreen(rawDeepLink, user.role, user.branchId)
         ? rawDeepLink
         : null;
       const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
       const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
       const targetScreen = deepLinkScreen
         ?? savedNavItem?.defaultScreen
-        ?? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+        ?? getDefaultScreenForRole(user.role, user.branchId);
       window.history.replaceState({ appRoot: true }, '', '/');
       window.history.pushState(targetScreen, '', screenToPath(targetScreen));
       setScreen(targetScreen);
@@ -90,7 +89,7 @@ export default function App() {
     const handlePop = (e: PopStateEvent) => {
       const state = e.state as (Screen & { appRoot?: boolean }) | null;
       if (!state || state.appRoot) {
-        const def = user ? getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId)) : { name: 'dashboard' as const };
+        const def = user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' as const };
         window.history.pushState(def, '', screenToPath(def));
         setScreen(def);
         setShowLogoutConfirm(true);
@@ -110,8 +109,8 @@ export default function App() {
   // the login-restore validates the deep-link, the nav menu only shows accessible
   // items — but this is the catch-all net for any future programmatic nav or stale
   // route. Snaps to the role's default and re-renders before painting gated content.
-  if (!canAccessScreen(screen, user.role, user.branchId, !isRealAccount(user.employeeId))) {
-    const def = getDefaultScreenForRole(user.role, user.branchId, !isRealAccount(user.employeeId));
+  if (!canAccessScreen(screen, user.role, user.branchId)) {
+    const def = getDefaultScreenForRole(user.role, user.branchId);
     if (screen.name !== def.name) {
       window.history.replaceState(def, '', screenToPath(def));
       setScreen(def);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isRealAccount, isMockPersona } from '../../src/lib/demo-accounts';
+import { isRealAccount, isMockPersona } from '../../src/lib/accountClassification';
 
 describe('isRealAccount', () => {
   it('is true only for the three real production employee ids', () => {

@@ -14,7 +14,7 @@ import { ScheduleImportModal } from './ScheduleImportModal';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
-import { isMockPersona } from '../../lib/demo-accounts';
+import { isMockPersona } from '../../lib/accountClassification';
 import { PtoRequestActionSheet } from './PtoRequestActionSheet';
 import { canManageSchedule } from '../../types';
 

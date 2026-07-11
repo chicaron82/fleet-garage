@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
-import { isMockPersona } from '../../lib/demo-accounts';
+import { isMockPersona } from '../../lib/accountClassification';
 import { useShiftSwap } from './useShiftSwap';
 import { isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';

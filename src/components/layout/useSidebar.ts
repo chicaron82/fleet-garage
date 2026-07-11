@@ -10,7 +10,6 @@ import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { shiftDayStartISO, shiftDayWindow } from '../../lib/shiftDay';
 import { resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, type BackfillLog } from '../../lib/sidebarProductivity';
 import { getNavItemsForRole } from '../../lib/navigation';
-import { isRealAccount } from '../../lib/demo-accounts';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
@@ -200,7 +199,7 @@ export function useSidebar() {
   }, [user?.id, recentLogDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Nav prefs loader ─────────────────────────────────────────────────────────
-  const defaultNavItems = getNavItemsForRole(user?.role ?? 'Driver', activeBranch, !isRealAccount(user?.employeeId));
+  const defaultNavItems = getNavItemsForRole(user?.role ?? 'Driver', activeBranch);
   const defaultOrder    = defaultNavItems.map(i => i.module);
 
   useEffect(() => {

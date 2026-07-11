@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { isFullDayShift } from '../../types';
-import { isMockPersona } from '../../lib/demo-accounts';
+import { isMockPersona } from '../../lib/accountClassification';
 import { overlapMinutes } from '../../lib/shiftOverlap';
 import type { ShiftWithUser, User } from '../../types';
 
