@@ -31,9 +31,6 @@ describe('screenToPath', () => {
     expect(screenToPath({ name: 'movement-log' })).toBe('/movement-log');
   });
 
-  it('check-in → /check-in', () => {
-    expect(screenToPath({ name: 'check-in' })).toBe('/check-in');
-  });
 
   it('audits → /audits', () => {
     expect(screenToPath({ name: 'audits' })).toBe('/audits');
@@ -97,9 +94,6 @@ describe('pathToScreen', () => {
     expect(pathToScreen('/movement-log')).toEqual({ name: 'movement-log' });
   });
 
-  it('/check-in → check-in', () => {
-    expect(pathToScreen('/check-in')).toEqual({ name: 'check-in' });
-  });
 
   it('/audits → audits', () => {
     expect(pathToScreen('/audits')).toEqual({ name: 'audits' });
@@ -134,7 +128,6 @@ describe('round-trip: pathToScreen(screenToPath(screen))', () => {
     { name: 'lost-and-found' },
     { name: 'fleet-master' },
     { name: 'movement-log' },
-    { name: 'check-in' },
     { name: 'audits' },
     { name: 'analytics' },
     { name: 'issue-log' },

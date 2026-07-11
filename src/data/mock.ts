@@ -3,11 +3,11 @@ import type { Vehicle, Hold, BranchConfig, BranchId } from '../types';
 
 // ── Branch Configs ────────────────────────────────────────────────────────────
 export const BRANCH_CONFIGS: Record<BranchId, BranchConfig> = {
-  'YWG':       { id: 'YWG',       name: 'Airport (YWG)',          enabledModules: ['my-day', 'holds', 'movement-log', 'check-in', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
-  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)',    enabledModules: ['holds', 'check-in', 'movement-log', 'manifest'] },
-  'YYC':       { id: 'YYC',       name: 'Calgary (YYC)',           enabledModules: ['holds', 'movement-log', 'check-in', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
-  'YVR':       { id: 'YVR',       name: 'Vancouver (YVR)',         enabledModules: ['holds', 'movement-log', 'check-in', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
-  'ALL':       { id: 'ALL',       name: 'All Branches',            enabledModules: ['holds', 'movement-log', 'check-in', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] }
+  'YWG':       { id: 'YWG',       name: 'Airport (YWG)',          enabledModules: ['my-day', 'holds', 'movement-log', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
+  'YWG-South': { id: 'YWG-South', name: 'Neighborhood (South)',    enabledModules: ['holds', 'movement-log', 'manifest'] },
+  'YYC':       { id: 'YYC',       name: 'Calgary (YYC)',           enabledModules: ['holds', 'movement-log', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
+  'YVR':       { id: 'YVR',       name: 'Vancouver (YVR)',         enabledModules: ['holds', 'movement-log', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] },
+  'ALL':       { id: 'ALL',       name: 'All Branches',            enabledModules: ['holds', 'movement-log', 'my-shift', 'lost-and-found', 'audits', 'analytics', 'schedule', 'issue-log', 'manifest', 'fleet-master'] }
 };
 
 

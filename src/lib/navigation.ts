@@ -33,15 +33,15 @@ const EFFIE_NAV_ITEM: NavItem = { module: 'effie', label: 'Effie', icon: '✨', 
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['my-day', 'holds', 'check-in', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'Lead VSA':            ['my-day', 'holds', 'check-in', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'CSR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'HIR':                 ['holds', 'check-in', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
-  'Branch Manager':      ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'Operations Manager':  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'City Manager':        ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'AGM':                 ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'GM':                  ['holds', 'check-in', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'VSA':                 ['my-day', 'holds', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'Lead VSA':            ['my-day', 'holds', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'CSR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'HIR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'Branch Manager':      ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'Operations Manager':  ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'City Manager':        ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'AGM':                 ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'GM':                  ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
 };
 
 export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG'): NavItem[] {

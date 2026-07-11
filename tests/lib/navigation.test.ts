@@ -39,10 +39,10 @@ describe('getNavItemsForRole', () => {
     expect(modules).toContain('manifest');
   });
 
-  it('Branch Manager sees all modules including holds (check-in is demo-gated)', () => {
+  it('Branch Manager sees all modules including holds (check-in removed)', () => {
     const modules = getNavItemsForRole('Branch Manager').map(n => n.module);
     expect(modules).toContain('holds');
-    expect(modules).not.toContain('check-in'); // demo-only — hidden from real accounts
+    expect(modules).not.toContain('check-in'); // removed with the demo-side
     expect(modules).toContain('analytics');
     expect(modules).toContain('fleet-master');
     expect(modules).toContain('lost-and-found');
@@ -91,10 +91,6 @@ describe('getActiveModule', () => {
 
   it('movement-log screen → movement-log module', () => {
     expect(getActiveModule({ name: 'movement-log' })).toBe('movement-log');
-  });
-
-  it('check-in screen → check-in module', () => {
-    expect(getActiveModule({ name: 'check-in' })).toBe('check-in');
   });
 
   it('fleet-master screen → fleet-master module', () => {

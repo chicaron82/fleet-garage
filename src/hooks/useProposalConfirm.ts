@@ -24,7 +24,6 @@ function navDestinationToScreen(dest: NavDestination): Screen {
     case 'lost-found': return { name: 'lost-and-found' };
     case 'issue-log': return { name: 'issue-log' };
     case 'my-shift': return { name: 'my-shift' };
-    case 'check-in': return { name: 'check-in' };
     case 'movement-log': return { name: 'movement-log' };
   }
 }

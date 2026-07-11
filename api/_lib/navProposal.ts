@@ -8,7 +8,6 @@ export const NAV_DESTINATIONS = [
   'lost-found',
   'issue-log',
   'my-shift',
-  'check-in',
   'movement-log',
 ] as const;
 export type NavDestination = (typeof NAV_DESTINATIONS)[number];
@@ -18,7 +17,6 @@ const LABELS: Record<NavDestination, string> = {
   'lost-found': 'Lost & Found',
   'issue-log': 'Issue Log',
   'my-shift': 'My Shift',
-  'check-in': 'Check-in',
   'movement-log': 'Movement Log',
 };
 

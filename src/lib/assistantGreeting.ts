@@ -8,7 +8,6 @@ const PROMPTS: Record<string, string> = {
   schedule: "you're on the Schedule — who's closing with you tonight, or what does your week look like?",
   'lost-and-found': "you're in Lost & Found — logging something new?",
   'issue-log': "you're on the Issue Log — reporting something?",
-  'check-in': "you're at Check-in — need a hand with a vehicle or a checkpoint?",
   'movement-log': "you're on the Movement Log — looking up where a unit's been?",
   audits: "you're on Audits — want to run one, or look a unit up?",
   analytics: "you're on Analytics — hold lookup or who's closing with you tonight?",

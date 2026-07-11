@@ -14,11 +14,6 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: str
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
     mockNote: 'Demo data includes the Tesla LJF684 — a real Winnipeg lot vehicle with 3 holds on the same rear bumper dent going back to September 2025. The streak counter and pre-existing suggestion are both live on this vehicle.',
   },
-  'check-in': {
-    what: 'HIR vehicle return flow. Document interior and exterior condition with photos at the counter. Flag anything questionable for washbay review. Escalate damage directly to a Fleet Garage hold without leaving the screen.',
-    roles: ['HIR', 'VSA', 'Lead VSA', 'Manager'],
-    mockNote: 'Seeded with 8 check-in records across all statuses — clean returns, pending washbay review, escalated holds, and one management-pinned record for a customer dispute.',
-  },
   'audits': {
     what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered. Completed audits are saved to the live dashboard for 7 days — use Export & Send on each form for your permanent records.",
     roles: ['Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],

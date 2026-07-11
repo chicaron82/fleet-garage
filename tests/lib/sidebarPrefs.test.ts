@@ -5,7 +5,7 @@ import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, type SidebarPref
 
 beforeEach(() => localStorage.clear());
 
-const prefs: SidebarPrefs = { order: ['holds', 'check-in'], hidden: ['audits'] };
+const prefs: SidebarPrefs = { order: ['holds', 'movement-log'], hidden: ['audits'] };
 
 describe('sidebarPrefs (localStorage)', () => {
   it('returns null before anything is saved', () => {
