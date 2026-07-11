@@ -34,10 +34,11 @@ export function packThread(messages: StoredMessage[], now: number): string {
 /** Validate + age-check an already-parsed thread wrapper — the JSONB shape stored server-side
  *  (effieThreadSync) hands the parsed object straight in, no re-stringify. Returns the storable
  *  messages, or null if missing/malformed/stale/empty. */
-export function unpackWrapped(parsed: Partial<Wrapped> | null | undefined, now: number, maxAge = THREAD_MAX_AGE_MS): StoredMessage[] | null {
-  if (!parsed || typeof parsed.at !== 'number' || !Array.isArray(parsed.messages)) return null;
-  if (now - parsed.at > maxAge) return null;
-  const msgs = parsed.messages.filter(isStorable);
+export function unpackWrapped(parsed: unknown, now: number, maxAge = THREAD_MAX_AGE_MS): StoredMessage[] | null {
+  const w = parsed as Partial<Wrapped> | null | undefined;
+  if (!w || typeof w.at !== 'number' || !Array.isArray(w.messages)) return null;
+  if (now - w.at > maxAge) return null;
+  const msgs = w.messages.filter(isStorable);
   return msgs.length > 0 ? msgs : null;
 }
 
@@ -45,7 +46,7 @@ export function unpackWrapped(parsed: Partial<Wrapped> | null | undefined, now: 
 export function unpackThread(raw: string | null, now: number, maxAge = THREAD_MAX_AGE_MS): StoredMessage[] | null {
   if (!raw) return null;
   try {
-    return unpackWrapped(JSON.parse(raw) as Partial<Wrapped>, now, maxAge);
+    return unpackWrapped(JSON.parse(raw), now, maxAge);
   } catch {
     return null;
   }
@@ -54,7 +55,7 @@ export function unpackThread(raw: string | null, now: number, maxAge = THREAD_MA
 /** Like unpackWrapped, but keeps the `at` alongside the messages — live-sync needs the timestamp
  *  to decide whether an incoming thread is newer than the one on screen. `at` is a validated number
  *  whenever unpackWrapped returns non-null. */
-export function unpackWrappedStamped(parsed: Partial<Wrapped> | null | undefined, now: number, maxAge = THREAD_MAX_AGE_MS): StampedThread | null {
+export function unpackWrappedStamped(parsed: unknown, now: number, maxAge = THREAD_MAX_AGE_MS): StampedThread | null {
   const messages = unpackWrapped(parsed, now, maxAge);
   if (!messages) return null;
   return { at: (parsed as Wrapped).at, messages };

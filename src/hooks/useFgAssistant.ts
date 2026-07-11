@@ -6,7 +6,7 @@
 // reads are RLS-scoped to this user — see api/fg-chat.ts.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { loadThread, loadThreadStamped, saveThread, clearThread, shouldAdoptThread, type StampedThread } from '../lib/effieThread';
+import { loadThread, loadThreadStamped, saveThread, clearThread, shouldAdoptThread, unpackWrappedStamped, type StampedThread } from '../lib/effieThread';
 import { loadServerThreadStamped, saveServerThread } from '../lib/effieThreadSync';
 import type { Proposal } from '../../api/_lib/holdProposal';
 import type { PhotoContext } from '../../api/_lib/photoRequest';
@@ -87,6 +87,28 @@ export function useFgAssistant() {
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
     };
+  }, [adoptIfNewer]);
+
+  // Layer B — realtime push: a change to THIS user's thread row on another open device lands here
+  // live (migration 097 publishes effie_threads). adoptIfNewer handles the newer-check, self-echo
+  // (our own save returns the same `at`), and the mid-turn guard. Filtered to the user's row; a
+  // DELETE (a clear elsewhere) carries no new thread, so it's a no-op. Mirrors the notifications
+  // realtime pattern (useSidebar / NotificationBell).
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    void supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user.id;
+      if (cancelled || !uid) return;
+      channel = supabase
+        .channel('effie-thread-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'effie_threads', filter: `user_id=eq.${uid}` }, (payload) => {
+          const row = payload.new as { thread?: unknown };
+          if (row?.thread) adoptIfNewer(unpackWrappedStamped(row.thread, Date.now()));
+        })
+        .subscribe();
+    });
+    return () => { cancelled = true; if (channel) void supabase.removeChannel(channel); };
   }, [adoptIfNewer]);
 
   // Persist whenever the thread settles from a USER turn: localStorage always (instant + offline),

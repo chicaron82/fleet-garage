@@ -31,7 +31,7 @@ export async function loadServerThread(): Promise<StoredMessage[] | null> {
       .eq('user_id', uid)
       .maybeSingle();
     if (error || !data) return null;
-    return unpackWrapped(data.thread as unknown as Partial<Wrapped>, Date.now());
+    return unpackWrapped(data.thread, Date.now());
   } catch {
     return null;
   }
@@ -49,7 +49,7 @@ export async function loadServerThreadStamped(): Promise<StampedThread | null> {
       .eq('user_id', uid)
       .maybeSingle();
     if (error || !data) return null;
-    return unpackWrappedStamped(data.thread as unknown as Partial<Wrapped>, Date.now());
+    return unpackWrappedStamped(data.thread, Date.now());
   } catch {
     return null;
   }
