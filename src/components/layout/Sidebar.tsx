@@ -7,7 +7,6 @@ import { useAuth } from '../../context/AuthContext';
 import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { hapticLight } from '../../lib/haptics';
 import type { Module, BranchId } from '../../types';
-import type { MockNotification } from '../../data/notifications';
 import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
 import { BRANCH_CONFIGS } from '../../data/mock';
 import { SortableNavItem } from './SortableNavItem';
@@ -20,12 +19,9 @@ interface Props {
   onNavigate: (screen: import('../../types').Screen) => void;
   onClose?: () => void;
   onShowGuide?: (module: Module) => void;
-  notifications: MockNotification[];
-  unreadCount: number;
-  onMarkAllRead: () => void;
 }
 
-export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifications, unreadCount, onMarkAllRead }: Props) {
+export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Props) {
   const { setActiveBranch } = useAuth();
   const isOnline = useNavigatorOnLine();
   const s = useSidebar();
@@ -277,15 +273,10 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
       <div className="hidden md:block border-t border-green-800 px-3 py-3">
         <SidebarNotificationPopover
           user={s.user}
-          unreadCount={unreadCount}
-          notifications={notifications}
           liveNotifs={s.liveNotifs}
           offShiftNotifIds={s.offShiftNotifIds}
-          notifMode={s.notifMode}
-          setNotifMode={s.setNotifMode}
           desktopInboxOpen={s.desktopInboxOpen}
           setDesktopInboxOpen={s.setDesktopInboxOpen}
-          onMarkAllRead={onMarkAllRead}
           handleMarkLiveAllRead={s.handleMarkLiveAllRead}
           popoverRef={s.popoverRef}
         />

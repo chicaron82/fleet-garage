@@ -42,7 +42,6 @@ export function useSidebar() {
   };
 
   const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
-  const [notifMode, setNotifMode]               = useState<'demo' | 'live'>('live');
   const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
   const [userShifts, setUserShifts]             = useState<{ userId: string; date: string; shiftType: ShiftType }[]>([]);
   const [editMode, setEditMode]                 = useState(false);
@@ -69,7 +68,7 @@ export function useSidebar() {
 
   // ── Live notifications loader ────────────────────────────────────────────────
   useEffect(() => {
-    if (notifMode !== 'live' || !user) return;
+    if (!user) return;
     const role = user.role;
     const userId = user.id;
     async function load() {
@@ -84,11 +83,11 @@ export function useSidebar() {
       setLiveNotifs((data ?? []) as LiveNotification[]);
     }
     load();
-  }, [notifMode, user, activeBranch]);
+  }, [user, activeBranch]);
 
   // ── Live notifications realtime subscription ─────────────────────────────────
   useEffect(() => {
-    if (notifMode !== 'live' || !user) return;
+    if (!user) return;
     const channel = supabase
       .channel('notifications-sidebar-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
@@ -103,7 +102,7 @@ export function useSidebar() {
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [notifMode, user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── User's recent roster — to de-prioritize alerts that fired on a day off ───
   useEffect(() => {
@@ -295,7 +294,6 @@ export function useSidebar() {
     user, activeBranch,
     todayFleetEntry, fleetProjection, MODULE_BADGES,
     desktopInboxOpen, setDesktopInboxOpen,
-    notifMode, setNotifMode,
     liveNotifs, offShiftNotifIds,
     editMode, setEditMode,
     localOrder, hidden,

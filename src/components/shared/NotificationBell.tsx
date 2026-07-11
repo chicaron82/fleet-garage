@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
-import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase, writeWithRefresh } from '../../lib/supabase';
-import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
-import type { MockNotification, NotificationSeverity } from '../../data/notifications';
+import type { NotificationSeverity } from '../../data/notifications';
 import type { UserRole, Screen } from '../../types';
 
 interface LiveNotification {
@@ -29,16 +27,13 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
   onVehicleEditApproval?: (vehicleId: string) => void;
 }) {
   const { user, activeBranch } = useAuth();
-  const [mode, setMode] = useState<'demo' | 'live'>('live');
-  const canDemo = useCanDemo();
-  const [mockNotifications, setMockNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
   const closeInbox = useCallback(() => setInboxOpen(false), []);
   useEscapeKey(closeInbox);
 
   useEffect(() => {
-    if (mode !== 'live' || !user) return;
+    if (!user) return;
     async function load() {
       let query = supabase
         .from('notifications')
@@ -65,29 +60,23 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [mode, user, activeBranch]);
+  }, [user, activeBranch]);
 
   if (!user) return null;
 
-  const isDemo = mode === 'demo';
-  const visibleDemo = getVisibleNotifications(mockNotifications, user, activeBranch);
   const unreadCount = liveNotifications.filter(n => !n.read_by.includes(user.id)).length;
 
   const handleMarkAllRead = async () => {
-    if (isDemo) {
-      setMockNotifications(prev => markNotificationsRead(prev, visibleDemo.map(n => n.id)));
-    } else {
-      const unread = liveNotifications.filter(n => !n.read_by.includes(user.id));
-      await Promise.all(unread.map(n =>
-        writeWithRefresh(() =>
-          supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id })
-        )
-      ));
-      setLiveNotifications(prev => prev.map(n => ({
-        ...n,
-        read_by: n.read_by.includes(user.id) ? n.read_by : [...n.read_by, user.id],
-      })));
-    }
+    const unread = liveNotifications.filter(n => !n.read_by.includes(user.id));
+    await Promise.all(unread.map(n =>
+      writeWithRefresh(() =>
+        supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id })
+      )
+    ));
+    setLiveNotifications(prev => prev.map(n => ({
+      ...n,
+      read_by: n.read_by.includes(user.id) ? n.read_by : [...n.read_by, user.id],
+    })));
   };
 
   const handleMarkOneRead = async (n: LiveNotification) => {
@@ -154,92 +143,44 @@ export function NotificationBell({ onNavigate, onOffStdEditApproval, onBackdateA
             <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
               <div className="flex items-start justify-between">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Notifications</p>
-                <div className="flex flex-col items-end gap-1.5">
-                  {canDemo && (
-                    <div className="flex rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 text-[10px]">
-                      <button
-                        onClick={() => setMode('demo')}
-                        className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                      >
-                        Demo
-                      </button>
-                      <button
-                        onClick={() => setMode('live')}
-                        className={`px-2 py-0.5 font-semibold transition-colors cursor-pointer ${!isDemo ? 'bg-amber-400 text-black' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                      >
-                        Live
-                      </button>
-                    </div>
-                  )}
-                  {unreadCount > 0 && (
-                    <button onClick={handleMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
+                {unreadCount > 0 && (
+                  <button onClick={handleMarkAllRead} className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer">
+                    Mark all as read
+                  </button>
+                )}
               </div>
             </div>
 
             {/* List */}
             <div className="max-h-80 overflow-y-auto">
-              {isDemo ? (
-                visibleDemo.length === 0 ? (
-                  <div className="px-4 py-6 text-center">
-                    <p className="text-xs text-gray-400 dark:text-gray-500">No notifications for this role.</p>
-                  </div>
-                ) : (
-                  visibleDemo.map((n, i) => (
-                    <div
+              {liveNotifications.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">No live notifications yet.</p>
+                </div>
+              ) : (
+                liveNotifications.map((n, i) => {
+                  const isUnread = !n.read_by.includes(user.id);
+                  return (
+                    <button
                       key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 ${!n.isRead ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < visibleDemo.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''}`}
+                      onClick={() => handleTap(n)}
+                      className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${isUnread ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < liveNotifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''} hover:bg-gray-50 dark:hover:bg-gray-800/40`}
                     >
                       <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">
                         {n.icon}
                       </span>
-                      <p className={`text-xs leading-relaxed flex-1 ${!n.isRead ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {n.text}
-                      </p>
-                      {!n.isRead && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
-                    </div>
-                  ))
-                )
-              ) : (
-                liveNotifications.length === 0 ? (
-                  <div className="px-4 py-6 text-center">
-                    <p className="text-xs text-gray-400 dark:text-gray-500">No live notifications yet.</p>
-                  </div>
-                ) : (
-                  liveNotifications.map((n, i) => {
-                    const isUnread = !n.read_by.includes(user.id);
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => handleTap(n)}
-                        className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${isUnread ? 'bg-amber-50/70 dark:bg-amber-900/10' : ''} ${i < liveNotifications.length - 1 ? 'border-b border-gray-100 dark:border-gray-800/60' : ''} hover:bg-gray-50 dark:hover:bg-gray-800/40`}
-                      >
-                        <span className="text-[10px] leading-none mt-0.5 shrink-0 min-w-6 px-1.5 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold text-center">
-                          {n.icon}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs leading-relaxed ${isUnread ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                            {n.text}
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{formatTime(n.created_at)}</p>
-                        </div>
-                        {isUnread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
-                      </button>
-                    );
-                  })
-                )
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs leading-relaxed ${isUnread ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {n.text}
+                        </p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{formatTime(n.created_at)}</p>
+                      </div>
+                      {isUnread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />}
+                    </button>
+                  );
+                })
               )}
             </div>
-
-            {/* Demo footer note */}
-            {isDemo && (
-              <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-[10px] text-gray-400 dark:text-gray-500">Sample data · Switch to Live to see real notifications</p>
-              </div>
-            )}
           </div>
         </>
       )}

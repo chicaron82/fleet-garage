@@ -9,11 +9,8 @@ import { ActiveSessionPill } from './ActiveSessionPill';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
 import { VehicleEditApprovalSheet } from '../vehicle/VehicleEditApprovalSheet';
-import { useAuth } from '../../context/AuthContext';
-import { getVisibleNotifications, markNotificationsRead, MOCK_NOTIFICATIONS } from '../../data/notifications';
 import { hapticLight } from '../../lib/haptics';
 import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
-import type { MockNotification } from '../../data/notifications';
 import type { Module, Screen } from '../../types';
 
 interface Props {
@@ -25,7 +22,6 @@ interface Props {
 }
 
 export function AppShell({ activeModule, screenKey, onNavigate, children }: Props) {
-  const { user, activeBranch } = useAuth();
   const isOnline = useNavigatorOnLine();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -40,14 +36,6 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
   const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
   const [pendingBackdateId, setPendingBackdateId]           = useState<string | null>(null);
   const [pendingVehicleEditId, setPendingVehicleEditId]     = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<MockNotification[]>(MOCK_NOTIFICATIONS);
-
-  const visibleNotifications = getVisibleNotifications(notifications, user, activeBranch);
-  const unreadCount = visibleNotifications.filter(n => !n.isRead).length;
-
-  const markVisibleRead = () => {
-    setNotifications(prev => markNotificationsRead(prev, visibleNotifications.map(n => n.id)));
-  };
 
   const handleNavigate = (screen: Screen) => {
     onNavigate(screen);
@@ -73,9 +61,6 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           onNavigate={handleNavigate}
           onClose={() => setSidebarOpen(false)}
           onShowGuide={setGuideModule}
-          notifications={visibleNotifications}
-          unreadCount={unreadCount}
-          onMarkAllRead={markVisibleRead}
         />
       </div>
 
