@@ -11,6 +11,10 @@
 
 export interface StoredMessage { role: 'user' | 'assistant'; text: string; }
 
+/** A thread plus the epoch-ms `at` it was stamped with — the basis for "adopt if newer"
+ *  reconciliation across the mount/focus/realtime layers (live-sync). */
+export interface StampedThread { at: number; messages: StoredMessage[]; }
+
 const THREAD_KEY = 'fg_effie_thread';
 export const THREAD_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12h — a shift's worth
 export const THREAD_MAX_MESSAGES = 40;
@@ -47,6 +51,23 @@ export function unpackThread(raw: string | null, now: number, maxAge = THREAD_MA
   }
 }
 
+/** Like unpackWrapped, but keeps the `at` alongside the messages — live-sync needs the timestamp
+ *  to decide whether an incoming thread is newer than the one on screen. `at` is a validated number
+ *  whenever unpackWrapped returns non-null. */
+export function unpackWrappedStamped(parsed: Partial<Wrapped> | null | undefined, now: number, maxAge = THREAD_MAX_AGE_MS): StampedThread | null {
+  const messages = unpackWrapped(parsed, now, maxAge);
+  if (!messages) return null;
+  return { at: (parsed as Wrapped).at, messages };
+}
+
+/** The rule that unifies live-sync: adopt an incoming thread only if it's strictly newer than the
+ *  one on screen (`>` — an equal `at` is this device's own echo and is ignored), and never mid-turn
+ *  (don't yank the thread out from under an in-flight Effie response). Pure so it's locked by tests. */
+export function shouldAdoptThread(incomingAt: number, currentAt: number, isLoading: boolean): boolean {
+  if (isLoading) return false;
+  return incomingAt > currentAt;
+}
+
 // ── localStorage IO (thin wrappers around the pure pack/unpack) ───────────────
 
 export function loadThread(): StoredMessage[] | null {
@@ -54,10 +75,21 @@ export function loadThread(): StoredMessage[] | null {
   catch { return null; }
 }
 
-export function saveThread(messages: StoredMessage[]): void {
+/** The local cache thread WITH its `at` — used to seed the live-sync timestamp on mount. */
+export function loadThreadStamped(): StampedThread | null {
+  try {
+    const raw = localStorage.getItem(THREAD_KEY);
+    if (!raw) return null;
+    return unpackWrappedStamped(JSON.parse(raw) as Partial<Wrapped>, Date.now());
+  } catch { return null; }
+}
+
+/** Persist to localStorage. `at` is caller-supplied so the local write, the server write, and the
+ *  in-memory `threadAtRef` all share ONE timestamp (live-sync compares them). */
+export function saveThread(messages: StoredMessage[], at: number = Date.now()): void {
   try {
     if (!messages.some(isStorable)) { localStorage.removeItem(THREAD_KEY); return; }
-    localStorage.setItem(THREAD_KEY, packThread(messages, Date.now()));
+    localStorage.setItem(THREAD_KEY, packThread(messages, at));
   } catch { /* private mode / quota — non-fatal, thread just won't persist */ }
 }
 

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  packThread, unpackThread, unpackWrapped, THREAD_MAX_AGE_MS, THREAD_MAX_MESSAGES,
+  packThread, unpackThread, unpackWrapped, unpackWrappedStamped,
+  loadThreadStamped, saveThread, clearThread, shouldAdoptThread,
+  THREAD_MAX_AGE_MS, THREAD_MAX_MESSAGES,
 } from '../../src/lib/effieThread';
 
 const NOW = 1_800_000_000_000;
@@ -88,5 +90,46 @@ describe('unpackWrapped', () => {
 
   it('drops empty turns and returns null if nothing storable remains', () => {
     expect(unpackWrapped(wrapped([{ role: 'user', text: '   ' }]), NOW)).toBeNull();
+  });
+});
+
+// Live-sync (docs/ticket-effie-thread-live-sync.md) reconciliation primitives.
+describe('unpackWrappedStamped', () => {
+  it('keeps the `at` alongside the messages', () => {
+    const parsed = { at: NOW, messages: [{ role: 'user' as const, text: 'hi' }] };
+    expect(unpackWrappedStamped(parsed, NOW + 1000)).toEqual({ at: NOW, messages: [{ role: 'user', text: 'hi' }] });
+  });
+  it('is null for a stale/empty/malformed wrapper (same rules as unpackWrapped)', () => {
+    expect(unpackWrappedStamped({ at: NOW, messages: [{ role: 'user', text: 'hi' }] }, NOW + THREAD_MAX_AGE_MS + 1)).toBeNull();
+    expect(unpackWrappedStamped(null, NOW)).toBeNull();
+    expect(unpackWrappedStamped({ at: NOW, messages: [{ role: 'user', text: ' ' }] }, NOW)).toBeNull();
+  });
+});
+
+describe('shouldAdoptThread (the one live-sync rule)', () => {
+  it('adopts a strictly newer thread', () => {
+    expect(shouldAdoptThread(NOW + 1, NOW, false)).toBe(true);
+  });
+  it('ignores an equal `at` — that is this device\'s own echo, not a remote update', () => {
+    expect(shouldAdoptThread(NOW, NOW, false)).toBe(false);
+  });
+  it('ignores an older thread', () => {
+    expect(shouldAdoptThread(NOW - 1, NOW, false)).toBe(false);
+  });
+  it('never adopts mid-turn (loading), even if newer — don\'t yank the thread out from under a response', () => {
+    expect(shouldAdoptThread(NOW + 10_000, NOW, true)).toBe(false);
+  });
+});
+
+describe('saveThread + loadThreadStamped round-trip (shared `at`)', () => {
+  it('round-trips the caller-supplied `at` so local/server/threadAtRef stay in lockstep', () => {
+    clearThread();
+    saveThread([{ role: 'user', text: 'ping' }], NOW);
+    expect(loadThreadStamped()).toEqual({ at: NOW, messages: [{ role: 'user', text: 'ping' }] });
+  });
+  it('an emptied thread clears the cache (loadThreadStamped → null)', () => {
+    saveThread([{ role: 'user', text: 'ping' }], NOW);
+    saveThread([], NOW);
+    expect(loadThreadStamped()).toBeNull();
   });
 });

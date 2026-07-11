@@ -6,8 +6,8 @@
 // reads are RLS-scoped to this user — see api/fg-chat.ts.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { loadThread, saveThread, clearThread } from '../lib/effieThread';
-import { loadServerThread, saveServerThread } from '../lib/effieThreadSync';
+import { loadThread, loadThreadStamped, saveThread, clearThread, shouldAdoptThread, type StampedThread } from '../lib/effieThread';
+import { loadServerThreadStamped, saveServerThread } from '../lib/effieThreadSync';
 import type { Proposal } from '../../api/_lib/holdProposal';
 import type { PhotoContext } from '../../api/_lib/photoRequest';
 
@@ -44,31 +44,60 @@ export function useFgAssistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cross-device continuity (docs/ticket-effie-thread-cross-device.md). The server thread is the
-  // shared source of truth; localStorage is the instant/offline cache. hydratedRef gates server
-  // SAVES so the instant local paint can't clobber the server before we've read it; interactedRef
-  // stops a late-arriving hydration from overwriting a thread the user already started on THIS
-  // device. Server wins on hydration (sequential handoff) — matches the user_preferences pattern.
+  // Live-sync (docs/ticket-effie-thread-live-sync.md). The server thread is the shared source of
+  // truth; localStorage is the instant/offline cache. The whole choreography reduces to ONE rule —
+  // adopt an incoming thread only if its `at` is newer than the one on screen (threadAtRef) — which
+  // covers mount hydration, focus re-hydrate, realtime push, AND self-echo (`==` is not `>`) with a
+  // single comparison. hydratedRef gates the initial server SAVE (so the mount local-paint can't
+  // overwrite a newer server thread before we've read it); skipSaveRef keeps an ADOPTED/restored
+  // thread from being re-stamped + re-saved (which would echo-loop); loadingRef blocks adopting
+  // mid-Effie-turn.
   const hydratedRef = useRef(false);
-  const interactedRef = useRef(false);
+  const threadAtRef = useRef<number>(loadThreadStamped()?.at ?? 0);
+  const loadingRef = useRef(false);
+  const skipSaveRef = useRef(true); // the mount-restore render is already persisted — don't re-stamp it
 
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+
+  const adoptIfNewer = useCallback((incoming: StampedThread | null) => {
+    if (!incoming || !shouldAdoptThread(incoming.at, threadAtRef.current, loadingRef.current)) return;
+    threadAtRef.current = incoming.at;
+    saveThread(incoming.messages, incoming.at); // keep the local cache in lockstep, same `at`
+    skipSaveRef.current = true;                 // the resulting messages-effect must NOT re-save/re-stamp
+    setMessages(incoming.messages.map((m) => ({ role: m.role, text: m.text })));
+  }, []);
+
+  // Mount hydration — adopt the server thread if it's newer than the local cache.
   useEffect(() => {
     let cancelled = false;
-    void loadServerThread().then((server) => {
+    void loadServerThreadStamped().then((server) => {
       if (cancelled) return;
-      if (server && server.length > 0 && !interactedRef.current) {
-        setMessages(server.map((m) => ({ role: m.role, text: m.text })));
-      }
+      adoptIfNewer(server);
       hydratedRef.current = true;
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [adoptIfNewer]);
 
-  // Persist whenever the thread settles: localStorage always (instant + offline fast-path); the
-  // server only AFTER hydration, so the initial local paint can't overwrite the shared thread.
+  // Layer A — re-pull on focus/visibility so returning to a device makes it current without a reload.
   useEffect(() => {
-    saveThread(messages);
-    if (hydratedRef.current) void saveServerThread(messages);
+    const refresh = () => { if (document.visibilityState === 'visible') void loadServerThreadStamped().then(adoptIfNewer); };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [adoptIfNewer]);
+
+  // Persist whenever the thread settles from a USER turn: localStorage always (instant + offline),
+  // server after hydration — sharing ONE `at` with threadAtRef. Adopted/restored threads skip this
+  // (skipSaveRef), so an incoming update never boomerangs back out as a fresh save.
+  useEffect(() => {
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    const at = Date.now();
+    saveThread(messages, at);
+    threadAtRef.current = at;
+    if (hydratedRef.current) void saveServerThread(messages, at);
   }, [messages]);
 
   const send = useCallback(
@@ -76,9 +105,6 @@ export function useFgAssistant() {
       const typed = raw.trim();
       const imgs = images ?? [];
       if ((!typed && imgs.length === 0) || loading) return;
-      // The user is driving THIS device's thread now — a hydration that resolves late must not
-      // overwrite it with the server copy.
-      interactedRef.current = true;
       // The caller passes the caption in `raw` — a context caption ("Here's a photo of
       // the key tag."), typed text, or empty for a plain photo. Keep the bubble text as
       // given (empty → image-only bubble); the API can't take empty content, so the
@@ -141,7 +167,7 @@ export function useFgAssistant() {
   }, []);
 
   const reset = useCallback(() => {
-    interactedRef.current = true;
+    threadAtRef.current = Date.now(); // the clear is the newest action — a stale server thread must not re-adopt
     setMessages([]);
     setError(null);
     clearThread();
