@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useCanDemo } from '../../hooks/useCanDemo';
 import { supabase } from '../../lib/supabase';
-import { MOCK_AUDITS } from '../../data/mock-audits';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { AUDIT_POSITION_LABELS } from '../../types';
 import type { AuditRecord, AuditCrewMember } from '../../types';
@@ -44,12 +42,10 @@ function rowToAudit(row: Record<string, unknown>): AuditRecord {
 
 export function AuditView({ onNewAudit }: Props) {
   const { user } = useAuth();
-  const [mode, setMode] = useState<'demo' | 'live'>('live');
-  const canDemo = useCanDemo();
   const [liveAudits, setLiveAudits] = useState<AuditRecord[]>([]);
 
   useEffect(() => {
-    if (mode !== 'live' || !user) return;
+    if (!user) return;
     async function loadLive() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 6);
@@ -63,9 +59,9 @@ export function AuditView({ onNewAudit }: Props) {
       if (data) setLiveAudits((data as Record<string, unknown>[]).map(rowToAudit));
     }
     loadLive();
-  }, [mode, user]);
+  }, [user]);
 
-  const audits = mode === 'demo' ? MOCK_AUDITS : liveAudits;
+  const audits = liveAudits;
   const passed   = audits.filter(a => a.status === 'PASSED').length;
   const failed   = audits.filter(a => a.status === 'FAILED').length;
   const total    = audits.length;
@@ -78,25 +74,6 @@ export function AuditView({ onNewAudit }: Props) {
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Audits</h1>
-            {/* Demo / Live toggle */}
-            {canDemo && (
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-                {(['demo', 'live'] as const).map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                      mode === m
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {total > 0 ? (
@@ -117,20 +94,18 @@ export function AuditView({ onNewAudit }: Props) {
             </>
           ) : (
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-              {mode === 'live' ? 'No audits in the last 7 days.' : 'No audits.'}
+              No audits in the last 7 days.
             </p>
           )}
         </div>
         <PrimaryAction label="Audit" aria-label="New audit" onClick={onNewAudit} />
       </div>
 
-      {/* Live mode notice */}
-      {mode === 'live' && (
-        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
-          <span className="shrink-0">ℹ️</span>
-          <p>Showing the last 7 days. Use <strong>Export & Send</strong> on each audit form for your permanent records.</p>
-        </div>
-      )}
+      {/* Notice */}
+      <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
+        <span className="shrink-0">ℹ️</span>
+        <p>Showing the last 7 days. Use <strong>Export & Send</strong> on each audit form for your permanent records.</p>
+      </div>
 
       {/* List */}
       <div className="space-y-2">
