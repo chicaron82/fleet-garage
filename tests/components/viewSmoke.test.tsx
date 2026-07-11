@@ -103,12 +103,6 @@ describe('view smoke renders', () => {
     expect(container.firstChild).not.toBeNull();
   });
 
-  it('CheckInView mounts', async () => {
-    const { CheckInView } = await import('../../src/components/check-in/CheckInView');
-    const { container } = render(<CheckInView onFlagIssue={vi.fn()} />);
-    expect(container.firstChild).not.toBeNull();
-  });
-
   it('ManifestView mounts', async () => {
     const { ManifestView } = await import('../../src/components/manifest/ManifestView');
     const { container } = render(<ManifestView />);

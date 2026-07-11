@@ -29,7 +29,6 @@ const MovementLogView    = lazy(() => import('./components/movement/MovementLogV
 const ScheduleScreen    = lazy(() => import('./components/schedule/ScheduleScreen').then(m => ({ default: m.ScheduleScreen })));
 const MyShiftView        = lazy(() => import('./components/my-shift/MyShiftView').then(m => ({ default: m.MyShiftView })));
 const LostAndFoundView   = lazy(() => import('./components/lost-and-found/LostAndFoundView').then(m => ({ default: m.LostAndFoundView })));
-const CheckInView        = lazy(() => import('./components/check-in/CheckInView').then(m => ({ default: m.CheckInView })));
 const AuditView          = lazy(() => import('./components/audit/AuditView').then(m => ({ default: m.AuditView })));
 const AuditForm          = lazy(() => import('./components/audit/AuditForm').then(m => ({ default: m.AuditForm })));
 const AnalyticsView      = lazy(() => import('./components/analytics/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
@@ -171,8 +170,6 @@ export default function App() {
         );
       case 'my-day':
         return <MyDayView onNavigate={navigate} />;
-      case 'check-in':
-        return <CheckInView onFlagIssue={(vehicleId) => navigate({ name: 'new-hold', vehicleId })} />;
       case 'movement-log':
         return <MovementLogView />;
       case 'schedule':

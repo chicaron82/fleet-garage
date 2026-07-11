@@ -9,4 +9,3 @@ export * from './VehicleEditSuggestionSheet';
 export * from './VehicleEVAssets';
 export * from './VehicleHistory';
 export * from './VehicleMergePrompt';
-export * from './VehicleScanAndMatch';

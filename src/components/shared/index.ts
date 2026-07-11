@@ -12,7 +12,6 @@ export * from './NotificationBell';
 export * from './PendingVehicleSheet';
 export * from './PhotoLightbox';
 export * from './PhotoSlot';
-export * from './PlateArrivalSection';
 export * from './PrimaryAction';
 export * from './ShareAction';
 export * from './ShareTextButton';
