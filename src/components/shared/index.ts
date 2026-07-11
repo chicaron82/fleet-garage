@@ -6,7 +6,6 @@ export * from './CameraBarcodeScanner';
 export * from './ElapsedTicker';
 export * from './LoginScreen';
 export * from './LogoutConfirm';
-export * from './MockBarcodeScanner';
 export * from './ModuleGuideModal';
 export * from './ModuleHeader';
 export * from './NotificationBell';

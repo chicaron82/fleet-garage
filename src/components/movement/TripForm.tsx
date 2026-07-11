@@ -21,9 +21,7 @@ export interface TripFormProps {
   shuttlePlate: string;                setShuttlePlate: (v: string) => void;
   vehiclePlate: string;                setVehiclePlate: (v: string) => void;
   onPlateBlur?: (plate?: string) => void;
-  topClasses: string[];
   flaggedClasses: string[];
-  isDemoMode?: boolean;
   onShuttleToggle: (checked: boolean) => void;
   onCodeRedDispatch?: () => void;
   onQuickStart: (reason: Reason) => void;
@@ -38,7 +36,7 @@ export interface TripFormProps {
 export function TripForm({
   isShuttle, shuttlePlate, setShuttlePlate,
   vehiclePlate, setVehiclePlate, onPlateBlur,
-  topClasses, flaggedClasses, isDemoMode,
+  flaggedClasses,
   onShuttleToggle, onCodeRedDispatch, onQuickStart,
   isTeslaRun, setIsTeslaRun,
   evCableStatus, evAdapterStatus, setEvCableStatus, setEvAdapterStatus,
@@ -94,7 +92,7 @@ export function TripForm({
         </button>
       )}
 
-      <PriorityHint flaggedClasses={flaggedClasses} topClasses={topClasses} isDemoMode={isDemoMode} />
+      <PriorityHint flaggedClasses={flaggedClasses} />
 
       {/* Lot Shuttle + Tesla */}
       <div className="flex items-center justify-between">

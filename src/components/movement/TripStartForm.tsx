@@ -9,7 +9,7 @@ import { useStartCollisionGuard } from '../../hooks/useStartCollisionGuard';
 import { SessionCollisionGuard } from '../shared/SessionCollisionGuard';
 import { useInProgressRecovery } from '../../hooks/useInProgressRecovery';
 import type { TripRun } from '../../data/trips';
-import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
+import { generateDayManifest } from '../../data/manifest';
 import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
 import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate, parseRecoveredQueue } from '../../lib/vsa-trip';
@@ -68,16 +68,12 @@ export function TripStartForm({
   const [starting, setStarting]               = useState(false);
   const [startError, setStartError]           = useState(false);
 
-  const { topClasses, flaggedClasses } = useMemo(() => {
+  const flaggedClasses = useMemo(() => {
     const manifest  = generateDayManifest();
     const flags     = loadFlags();
     const overrides = loadOverrides();
-    const next5     = getNextFiveNeeded(manifest);
     const manifestFlagged = [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))];
-    return {
-      topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
-      flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
-    };
+    return [...new Set([...overrides, ...manifestFlagged])];
   }, []);
 
   // Dispatch guard — flags a Tesla with known-missing EV kit before the run (see hook).
@@ -334,7 +330,7 @@ export function TripStartForm({
             <TripForm
               isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
               vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
-              topClasses={topClasses} flaggedClasses={flaggedClasses}
+              flaggedClasses={flaggedClasses}
               onShuttleToggle={handleShuttleToggle}
               onCodeRedDispatch={handleCodeRedDispatch}
               onQuickStart={handleQuickStart}

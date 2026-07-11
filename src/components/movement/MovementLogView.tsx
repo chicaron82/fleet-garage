@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
-import { useCanDemo } from '../../hooks/useCanDemo';
 import { canRelease } from '../../types';
-import { MOCK_TRIPS } from '../../data/trips';
 import type { TripRun } from '../../data/trips';
 import { supabase } from '../../lib/supabase';
 import { ShareAction } from '../shared/ShareAction';
@@ -11,10 +9,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayStartISO } from '../../lib/shiftDay';
 import { DriverLiveForm } from './DriverLiveForm';
 import { getTripDurationMinutes } from '../../lib/trip-utils';
-import { generateDayManifest, getNextFiveNeeded } from '../../data/manifest';
-import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
-import { DriverDemoForm } from './DriverDemoForm';
 import { TripList, SummaryCard } from './TripList';
 import { MovementLogVsaView } from './MovementLogVsaView';
 
@@ -54,23 +49,9 @@ export function MovementLogView() {
 
   // All hooks unconditional — declare before early returns
   const [liveTrips, setLiveTrips] = useState<TripRun[]>([]);
-  const [driverMode, setDriverMode] = useState<'demo' | 'live'>('live');
-  const canDemo = useCanDemo();
 
-
-
-  const { topClasses, flaggedClasses, overrideClasses } = useMemo(() => {
-    const manifest  = generateDayManifest();
-    const flags     = loadFlags();
-    const overrides = loadOverrides();
-    const next5     = getNextFiveNeeded(manifest);
-    const manifestFlagged = [...new Set(manifest.filter(r => flags.has(r.id)).map(r => r.rentalClass))];
-    return {
-      topClasses:     [...new Set(next5.map(r => r.rentalClass))].slice(0, 3),
-      flaggedClasses: [...new Set([...overrides, ...manifestFlagged])],
-      overrideClasses: [...overrides],
-    };
-  }, []);
+  // Class overrides the operator flagged as priority — surfaced in the live trip form.
+  const overrideClasses = useMemo(() => [...loadOverrides()], []);
 
   useEffect(() => {
     async function loadTrips() {
@@ -120,19 +101,6 @@ export function MovementLogView() {
   const isVSA = user.role === 'VSA' || user.role === 'Lead VSA';
   const isManagement = canRelease(user.role);
 
-  const myTrips = [
-    ...MOCK_TRIPS.filter(t => t.driverId === user.id),
-    ...liveTrips.filter(t => t.driverId === user.id),
-  ];
-  const allLiveAndMock = [...MOCK_TRIPS, ...liveTrips];
-  const displayTrips = isManagement ? allLiveAndMock : myTrips;
-
-  const cleanCount    = displayTrips.filter(t => t.tripType === 'clean').length;
-  const dirtyCount    = displayTrips.filter(t => t.tripType === 'dirty').length;
-  const customerCount = displayTrips.filter(t => t.tripType === 'customer').length;
-  const transferCount = displayTrips.filter(t => t.tripType === 'transfer').length;
-  const totalRuns     = displayTrips.length;
-
   const today = new Date().toLocaleDateString('en-CA', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -174,28 +142,10 @@ export function MovementLogView() {
         align="start"
         title={isManagement ? 'All Trips Today' : "Today's Runs"}
         subtitle={today}
-        action={!isVSA && !isManagement && canDemo ? (
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            {(['live', 'demo'] as const).map(mode => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setDriverMode(mode)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                  driverMode === mode
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
-              </button>
-            ))}
-          </div>
-        ) : undefined}
       />
 
-      {/* Log trip — Live or Demo */}
-      {!isManagement && driverMode === 'live' ? (
+      {/* Log trip */}
+      {!isManagement && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Log Trip</p>
@@ -207,12 +157,10 @@ export function MovementLogView() {
             />
           </div>
         </div>
-      ) : !isManagement && (
-        <DriverDemoForm flaggedClasses={flaggedClasses} topClasses={topClasses} />
       )}
 
       {/* Summary */}
-      {driverMode === 'live' ? (() => {
+      {(() => {
         const liveOnly = liveTrips.filter(t => t.driverId === user.id);
         const liveOther = liveOnly.filter(t => t.tripType !== 'clean' && t.tripType !== 'dirty').length;
         return (
@@ -223,18 +171,10 @@ export function MovementLogView() {
             <SummaryCard value={liveOther}                                                label="Other"  color="text-gray-500 dark:text-gray-400" />
           </div>
         );
-      })() : (
-        <div className="grid grid-cols-5 gap-3">
-          <SummaryCard value={totalRuns}     label="Total"    color="text-gray-900 dark:text-gray-100" />
-          <SummaryCard value={cleanCount}    label="Clean"    color="text-green-600 dark:text-green-500" />
-          <SummaryCard value={dirtyCount}    label="Dirty"    color="text-amber-500" />
-          <SummaryCard value={customerCount} label="Customer" color="text-blue-600 dark:text-blue-500" />
-          <SummaryCard value={transferCount} label="Transfer" color="text-purple-600 dark:text-purple-500" />
-        </div>
-      )}
+      })()}
 
       {/* Trip list */}
-      {driverMode === 'live' ? (() => {
+      {(() => {
         const liveOnly = liveTrips.filter(t => t.driverId === user.id);
         return liveOnly.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">
@@ -249,22 +189,7 @@ export function MovementLogView() {
             <TripList trips={liveOnly} isManagement={false} />
           </div>
         );
-      })() : (
-        <>
-          {myTrips.length > 0 && (
-            <div className="flex items-center justify-between px-1">
-              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
-              <ShareAction label="Share log" build={() => buildTripShare(myTrips)} />
-            </div>
-          )}
-          <TripList trips={myTrips} isManagement={false} />
-          {myTrips.length === 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 text-center transition-colors">
-              <p className="text-gray-400 dark:text-gray-500 text-sm">No runs logged today.</p>
-            </div>
-          )}
-        </>
-      )}
+      })()}
     </div>
   );
 }

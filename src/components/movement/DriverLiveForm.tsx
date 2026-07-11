@@ -46,7 +46,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
 
     return (
       <div className="space-y-4">
-        <PriorityHint flaggedClasses={flaggedClasses} topClasses={[]} />
+        <PriorityHint flaggedClasses={flaggedClasses} />
 
         {/* Route picker */}
         <div className="space-y-2">
