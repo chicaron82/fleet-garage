@@ -27,15 +27,21 @@ export function packThread(messages: StoredMessage[], now: number): string {
   return JSON.stringify({ at: now, messages: clean } satisfies Wrapped);
 }
 
+/** Validate + age-check an already-parsed thread wrapper — the JSONB shape stored server-side
+ *  (effieThreadSync) hands the parsed object straight in, no re-stringify. Returns the storable
+ *  messages, or null if missing/malformed/stale/empty. */
+export function unpackWrapped(parsed: Partial<Wrapped> | null | undefined, now: number, maxAge = THREAD_MAX_AGE_MS): StoredMessage[] | null {
+  if (!parsed || typeof parsed.at !== 'number' || !Array.isArray(parsed.messages)) return null;
+  if (now - parsed.at > maxAge) return null;
+  const msgs = parsed.messages.filter(isStorable);
+  return msgs.length > 0 ? msgs : null;
+}
+
 /** Parse a stored thread; null if missing, malformed, empty, or older than maxAge. */
 export function unpackThread(raw: string | null, now: number, maxAge = THREAD_MAX_AGE_MS): StoredMessage[] | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<Wrapped>;
-    if (typeof parsed?.at !== 'number' || !Array.isArray(parsed.messages)) return null;
-    if (now - parsed.at > maxAge) return null;
-    const msgs = parsed.messages.filter(isStorable);
-    return msgs.length > 0 ? msgs : null;
+    return unpackWrapped(JSON.parse(raw) as Partial<Wrapped>, now, maxAge);
   } catch {
     return null;
   }

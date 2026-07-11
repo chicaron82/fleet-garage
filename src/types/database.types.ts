@@ -166,6 +166,24 @@ export type Database = {
           },
         ]
       }
+      effie_threads: {
+        Row: {
+          thread: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          thread: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          thread?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ev_asset_loans: {
         Row: {
           asset_type: string

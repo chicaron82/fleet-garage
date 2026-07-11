@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  packThread, unpackThread, THREAD_MAX_AGE_MS, THREAD_MAX_MESSAGES,
+  packThread, unpackThread, unpackWrapped, THREAD_MAX_AGE_MS, THREAD_MAX_MESSAGES,
 } from '../../src/lib/effieThread';
 
 const NOW = 1_800_000_000_000;
@@ -62,5 +62,31 @@ describe('unpackThread', () => {
 
   it('returns null when every stored message is empty', () => {
     expect(unpackThread(JSON.stringify({ at: NOW, messages: [{ role: 'user', text: '  ' }] }), NOW)).toBeNull();
+  });
+});
+
+// The server (effie_threads JSONB) hands the ALREADY-parsed wrapper straight in — same TTL +
+// validation rules as unpackThread, just skipping the JSON.parse. This is the cross-device path.
+describe('unpackWrapped', () => {
+  const wrapped = (msgs: { role: 'user' | 'assistant'; text: string }[], at = NOW) => ({ at, messages: msgs });
+
+  it('accepts a fresh parsed wrapper', () => {
+    expect(unpackWrapped(wrapped([{ role: 'user', text: 'hi' }]), NOW + 1000)).toEqual([{ role: 'user', text: 'hi' }]);
+  });
+
+  it('enforces the same 12h TTL as the localStorage path', () => {
+    expect(unpackWrapped(wrapped([{ role: 'user', text: 'hi' }]), NOW + THREAD_MAX_AGE_MS + 1)).toBeNull();
+    expect(unpackWrapped(wrapped([{ role: 'user', text: 'hi' }]), NOW + THREAD_MAX_AGE_MS)).not.toBeNull();
+  });
+
+  it('returns null for null/undefined or a shapeless object (jsonb could be anything)', () => {
+    expect(unpackWrapped(null, NOW)).toBeNull();
+    expect(unpackWrapped(undefined, NOW)).toBeNull();
+    expect(unpackWrapped({ at: 'nope' } as never, NOW)).toBeNull();
+    expect(unpackWrapped({ at: NOW, messages: 'nope' } as never, NOW)).toBeNull();
+  });
+
+  it('drops empty turns and returns null if nothing storable remains', () => {
+    expect(unpackWrapped(wrapped([{ role: 'user', text: '   ' }]), NOW)).toBeNull();
   });
 });

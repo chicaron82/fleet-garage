@@ -4,9 +4,10 @@
 // proposal is a drafted hold the FAB renders as a confirm card — the proxy never
 // writes; the write happens on the user's tap. Token in the header so the proxy's
 // reads are RLS-scoped to this user — see api/fg-chat.ts.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { loadThread, saveThread, clearThread } from '../lib/effieThread';
+import { loadServerThread, saveServerThread } from '../lib/effieThreadSync';
 import type { Proposal } from '../../api/_lib/holdProposal';
 import type { PhotoContext } from '../../api/_lib/photoRequest';
 
@@ -43,14 +44,41 @@ export function useFgAssistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Persist the thread whenever it settles so a reload doesn't wipe the chat.
-  useEffect(() => { saveThread(messages); }, [messages]);
+  // Cross-device continuity (docs/ticket-effie-thread-cross-device.md). The server thread is the
+  // shared source of truth; localStorage is the instant/offline cache. hydratedRef gates server
+  // SAVES so the instant local paint can't clobber the server before we've read it; interactedRef
+  // stops a late-arriving hydration from overwriting a thread the user already started on THIS
+  // device. Server wins on hydration (sequential handoff) — matches the user_preferences pattern.
+  const hydratedRef = useRef(false);
+  const interactedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadServerThread().then((server) => {
+      if (cancelled) return;
+      if (server && server.length > 0 && !interactedRef.current) {
+        setMessages(server.map((m) => ({ role: m.role, text: m.text })));
+      }
+      hydratedRef.current = true;
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Persist whenever the thread settles: localStorage always (instant + offline fast-path); the
+  // server only AFTER hydration, so the initial local paint can't overwrite the shared thread.
+  useEffect(() => {
+    saveThread(messages);
+    if (hydratedRef.current) void saveServerThread(messages);
+  }, [messages]);
 
   const send = useCallback(
     async (raw: string, module?: string, images?: string[]) => {
       const typed = raw.trim();
       const imgs = images ?? [];
       if ((!typed && imgs.length === 0) || loading) return;
+      // The user is driving THIS device's thread now — a hydration that resolves late must not
+      // overwrite it with the server copy.
+      interactedRef.current = true;
       // The caller passes the caption in `raw` — a context caption ("Here's a photo of
       // the key tag."), typed text, or empty for a plain photo. Keep the bubble text as
       // given (empty → image-only bubble); the API can't take empty content, so the
@@ -113,9 +141,11 @@ export function useFgAssistant() {
   }, []);
 
   const reset = useCallback(() => {
+    interactedRef.current = true;
     setMessages([]);
     setError(null);
     clearThread();
+    void saveServerThread([]); // clearing the chat on one device clears it everywhere
   }, []);
 
   return { messages, loading, error, send, reset, clearProposal, markProposalDone };
