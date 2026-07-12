@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease } from '../../types';
+import type { LandingTab } from '../../types';
 import { AboutModal } from './AboutModal';
 import { ModuleGuideModal } from './ModuleGuideModal';
 
@@ -193,12 +194,12 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Where you land after login</p>
                     </div>
                     <select
-                      defaultValue="holds"
+                      value={prefs.landingTab}
+                      onChange={e => updatePref('landingTab', e.target.value as LandingTab)}
                       className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer"
                     >
-                      <option value="holds">Holds</option>
-                      <option value="audits">Audits</option>
-                      <option value="analytics">Analytics</option>
+                      <option value="last-visited">Last visited</option>
+                      <option value="my-shift">My Shift</option>
                     </select>
                   </div>
                 </div>

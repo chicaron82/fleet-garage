@@ -4,6 +4,7 @@ import {
   getActiveModule,
   getDefaultScreenForRole,
   canAccessScreen,
+  resolveLandingScreen,
 } from '../../src/lib/navigation';
 import type { UserRole } from '../../src/types';
 
@@ -155,5 +156,70 @@ describe('canAccessScreen', () => {
     expect(canAccessScreen({ name: 'analytics' }, 'VSA')).toBe(false);
     expect(canAccessScreen({ name: 'fleet-master' }, 'VSA')).toBe(true); // opened for register-only
     expect(canAccessScreen({ name: 'analytics' }, 'GM')).toBe(true);
+  });
+});
+
+// ── resolveLandingScreen ──────────────────────────────────────────────────────
+
+describe('resolveLandingScreen', () => {
+  it('a deep-link always wins, over both the pref and the saved module', () => {
+    const screen = resolveLandingScreen({
+      deepLink: { name: 'audits' },
+      savedModule: 'holds',
+      landingPref: 'my-shift',
+      role: 'GM',
+    });
+    expect(screen).toEqual({ name: 'audits' });
+  });
+
+  it("'my-shift' pref pins My Shift when the role can reach it", () => {
+    const screen = resolveLandingScreen({
+      deepLink: null,
+      savedModule: 'holds',
+      landingPref: 'my-shift',
+      role: 'VSA',
+    });
+    expect(screen).toEqual({ name: 'my-shift' });
+  });
+
+  it("'my-shift' pref falls back to the role default when the role has no My Shift (Driver)", () => {
+    const screen = resolveLandingScreen({
+      deepLink: null,
+      savedModule: null,
+      landingPref: 'my-shift',
+      role: 'Driver',
+    });
+    expect(screen).toEqual(getDefaultScreenForRole('Driver'));
+  });
+
+  it("'last-visited' resumes the saved module", () => {
+    const screen = resolveLandingScreen({
+      deepLink: null,
+      savedModule: 'lost-and-found',
+      landingPref: 'last-visited',
+      role: 'VSA',
+    });
+    expect(screen).toEqual({ name: 'lost-and-found' });
+  });
+
+  it("'last-visited' with no saved module falls back to the role default", () => {
+    const screen = resolveLandingScreen({
+      deepLink: null,
+      savedModule: null,
+      landingPref: 'last-visited',
+      role: 'VSA',
+    });
+    expect(screen).toEqual(getDefaultScreenForRole('VSA'));
+  });
+
+  it("'last-visited' ignores a saved module the role can no longer reach", () => {
+    // e.g. a stale 'analytics' from a manager session, now a VSA — snap to the role default
+    const screen = resolveLandingScreen({
+      deepLink: null,
+      savedModule: 'analytics',
+      landingPref: 'last-visited',
+      role: 'VSA',
+    });
+    expect(screen).toEqual(getDefaultScreenForRole('VSA'));
   });
 });

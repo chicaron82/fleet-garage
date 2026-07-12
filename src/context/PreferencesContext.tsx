@@ -2,11 +2,13 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Json } from '../types/database.types';
+import type { LandingTab } from '../types';
 
 interface Preferences {
   darkMode: boolean;
   notifyNewFlags: boolean;
   notifyReleases: boolean;
+  landingTab: LandingTab;
 }
 
 interface PreferencesContextValue {
@@ -18,7 +20,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true };
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited' };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
   void writeWithRefresh(() => supabase.from('user_preferences').upsert(
@@ -47,7 +49,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       setAvatarState(null);
     } else {
       const savedPrefs = localStorage.getItem(`fg_prefs_${user.id}`);
-      setPrefs(savedPrefs ? JSON.parse(savedPrefs) : DEFAULT_PREFS);
+      // Merge over defaults so a pref added later (e.g. landingTab) is present even
+      // when the stored blob predates it.
+      setPrefs(savedPrefs ? { ...DEFAULT_PREFS, ...JSON.parse(savedPrefs) } : DEFAULT_PREFS);
       setAvatarState(localStorage.getItem(`fg_avatar_${user.id}`) || null);
     }
   }
@@ -68,7 +72,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           localStorage.setItem(`fg_avatar_${user.id}`, av);
         }
         if (data.prefs) {
-          const p = data.prefs as unknown as Preferences;
+          const p = { ...DEFAULT_PREFS, ...(data.prefs as unknown as Partial<Preferences>) };
           setPrefs(p);
           localStorage.setItem(`fg_prefs_${user.id}`, JSON.stringify(p));
         }

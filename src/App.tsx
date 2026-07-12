@@ -13,11 +13,12 @@ import { AppShell } from './components/layout/AppShell';
 import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
-import { getActiveModule, getDefaultScreenForRole, getNavItemsForRole, canAccessScreen } from './lib/navigation';
+import { getActiveModule, getDefaultScreenForRole, canAccessScreen, resolveLandingScreen } from './lib/navigation';
 import { screenToPath, pathToScreen } from './lib/screenRouting';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
-import type { Screen } from './types';
+import { usePreferences } from './context/PreferencesContext';
+import type { Screen, Module } from './types';
 
 // Lazy-loaded screen components — each becomes its own chunk
 const HoldsView          = lazy(() => import('./components/dashboard/HoldsView').then(m => ({ default: m.HoldsView })));
@@ -39,6 +40,7 @@ const EffieModule        = lazy(() => import('./components/assistant/EffieModule
 
 export default function App() {
   const { user, loading, logout } = useAuth();
+  const { prefs } = usePreferences();
   const [screen, setScreen] = useState<Screen>(() =>
     user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' }
   );
@@ -58,7 +60,6 @@ export default function App() {
   if (user?.id !== prevUserId) {
     setPrevUserId(user?.id);
     if (user) {
-      const navItems = getNavItemsForRole(user.role, user.branchId);
       const rawDeepLink = window.location.pathname !== '/'
         ? pathToScreen(window.location.pathname)
         : null;
@@ -67,11 +68,17 @@ export default function App() {
       const deepLinkScreen = rawDeepLink && canAccessScreen(rawDeepLink, user.role, user.branchId)
         ? rawDeepLink
         : null;
-      const savedModule = sessionStorage.getItem('fg_last_module') === 'fleet-garage' ? 'holds' : sessionStorage.getItem('fg_last_module');
-      const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
-      const targetScreen = deepLinkScreen
-        ?? savedNavItem?.defaultScreen
-        ?? getDefaultScreenForRole(user.role, user.branchId);
+      // 'fleet-garage' is the legacy id for the Holds module — remap before resolving.
+      const lastModule = sessionStorage.getItem('fg_last_module');
+      const savedModule = (lastModule === 'fleet-garage' ? 'holds' : lastModule) as Module | null;
+      // Deep-link wins; else the landing-tab pref decides (pin My Shift vs resume last-visited).
+      const targetScreen = resolveLandingScreen({
+        deepLink: deepLinkScreen,
+        savedModule,
+        landingPref: prefs.landingTab,
+        role: user.role,
+        activeBranch: user.branchId,
+      });
       window.history.replaceState({ appRoot: true }, '', '/');
       window.history.pushState(targetScreen, '', screenToPath(targetScreen));
       setScreen(targetScreen);

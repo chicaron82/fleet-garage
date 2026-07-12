@@ -2,6 +2,9 @@
 
 export type Module = 'my-day' | 'holds' | 'movement-log' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master' | 'effie';
 
+// Where the app lands after login: pin My Shift, or resume the last-visited module.
+export type LandingTab = 'my-shift' | 'last-visited';
+
 export type BranchId = 'YWG' | 'YWG-South' | 'YYC' | 'YVR' | 'ALL';
 
 export interface BranchConfig {

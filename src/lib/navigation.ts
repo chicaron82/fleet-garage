@@ -1,4 +1,4 @@
-import type { UserRole, Screen, Module, BranchId } from '../types';
+import type { UserRole, Screen, Module, BranchId, LandingTab } from '../types';
 import { BRANCH_CONFIGS } from '../data/mock';
 
 // ── Nav items ────────────────────────────────────────────────────────────────
@@ -85,6 +85,41 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   }
 
   return navItems[0]?.defaultScreen || { name: 'dashboard' };
+}
+
+// ── Landing screen at login ──────────────────────────────────────────────────
+
+/**
+ * Resolve the screen to land on at login. An explicit deep-link URL always wins.
+ * Otherwise the user's landing preference decides:
+ *   - 'my-shift'      → pin My Shift (falls back to the role default if the role
+ *                       can't reach it — Driver/CSR/HIR have no My Shift).
+ *   - 'last-visited'  → resume the last module (`fg_last_module`), falling back to
+ *                       the role default when there's no saved/reachable module.
+ * The `savedModule` caller passes the (already legacy-remapped) last-visited module.
+ */
+export function resolveLandingScreen(opts: {
+  deepLink: Screen | null;
+  savedModule: Module | null;
+  landingPref: LandingTab;
+  role: UserRole;
+  activeBranch?: BranchId;
+}): Screen {
+  const { deepLink, savedModule, landingPref, role, activeBranch = 'YWG' } = opts;
+  if (deepLink) return deepLink;
+
+  const navItems = getNavItemsForRole(role, activeBranch);
+
+  if (landingPref === 'my-shift') {
+    const myShift = navItems.find(i => i.module === 'my-shift');
+    if (myShift) return myShift.defaultScreen;
+    // Role can't reach My Shift — fall through to the role default below.
+  } else {
+    const savedNavItem = savedModule ? navItems.find(i => i.module === savedModule) : null;
+    if (savedNavItem) return savedNavItem.defaultScreen;
+  }
+
+  return getDefaultScreenForRole(role, activeBranch);
 }
 
 // ── Access guard ─────────────────────────────────────────────────────────────
