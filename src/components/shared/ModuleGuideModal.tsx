@@ -3,66 +3,66 @@ import { type Module } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { getNavItemsForRole } from '../../lib/navigation';
 
-const MODULE_INFO: Record<Module, { what: string; roles: string[]; mockNote: string }> = {
+const MODULE_INFO: Record<Module, { what: string; roles: string[]; dataNote: string }> = {
   'my-day': {
     what: 'Your at-a-glance cockpit. Leads with today\'s shift and who\'s on with you, then your first action — log the fleet balance if it\'s available, otherwise your afternoon check-in — followed by a throughput glance and anything that needs attention. It doesn\'t replace the deep screens; it points you at the right one fast.',
     roles: ['VSA', 'Lead VSA'],
-    mockNote: 'Assembles live data from your schedule, fleet balance, and holds — nothing seeded of its own. What you see is your real day.',
+    dataNote: 'Assembles live data from your schedule, fleet balance, and holds — nothing of its own. What you see is your real day.',
   },
   'holds': {
     what: 'The core of Fleet Garage. Log damage holds, mechanical issues, and detail flags. Every hold is timestamped and tied to the person who created it. Managers approve releases — their Employee ID is permanently attached to every decision. A release streak counter flags vehicles being sent out repeatedly without repair.',
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
-    mockNote: 'Demo data includes the Tesla LJF684 — a real Winnipeg lot vehicle with 3 holds on the same rear bumper dent going back to September 2025. The streak counter and pre-existing suggestion are both live on this vehicle.',
+    dataNote: 'The release streak counter and pre-existing-damage suggestion run live on every vehicle — a car sent out repeatedly without repair gets flagged, and damage that recurs on the same panel surfaces as pre-existing.',
   },
   'audits': {
     what: "Washbay quality audits. Lead VSAs and managers assess vehicle condition across standardized checklist sections. Crew members are logged by Employee ID — type your ID and your name resolves automatically if you're registered. Completed audits are saved to the live dashboard for 7 days — use Export & Send on each form for your permanent records.",
     roles: ['Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
-    mockNote: 'Switch to Demo mode to browse 7 seeded audit records. Live mode shows today\'s audits for this branch — empty until one is completed and exported.',
+    dataNote: 'Shows today\'s audits for this branch — empty until one is completed and exported. Completed audits stay on the dashboard for 7 days.',
   },
   'analytics': {
     what: 'Fleet health metrics for management. Exception approval rates, hold durations, repeat offender vehicles, VSA interruption frequency, and daily in/out counts. Branch managers see their location; AGM, GM, and City Manager see across all branches.',
     roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
-    mockNote: 'Charts use seeded trend data to demonstrate the analytics layer with real data flowing in. All numbers are illustrative of the reporting capability.',
+    dataNote: 'Charts read live from holds, releases, and inventory sessions for your branch — every number reflects real activity as it lands.',
   },
   'movement-log': {
     what: 'VSA Movement Log — captures every vehicle run with a fingerprint. Route, reason, authorization level, washbay queue at departure, and fuel level on arrival. Logs shift interruptions separately from routine driver runs. Two-tap: Start Trip → Arrived. Includes Off-Standard Time tracking.',
     roles: ['VSA', 'Lead VSA', 'Driver'],
-    mockNote: 'Seeded with example runs showing the full trip card format including VSA Interruption and Proactive Run badges.',
+    dataNote: 'Every run logs live with its full fingerprint — route, reason, authorization, washbay queue at departure, and fuel on arrival. VSA Interruption and Proactive Run badges tag the trip type.',
   },
   'my-shift': {
     what: 'My Shift — personal productivity summary and shift duties. Shift Summary shows your throughput rate, cars cleaned in your shift window, and your effort score adjusted for off-standard time. Save Summary snapshots your shift for the 7-day history. Management sees Team Today — all saved summaries for the branch in one view. Shift Duties covers the washbay closing log: cars in, cars cleaned, throughput rate, and pipeline breakdown.',
     roles: ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'AGM', 'GM'],
-    mockNote: 'Shift Summary pulls live OTH and washbay data for today. Save Summary to capture a snapshot — saving again updates it rather than creating a duplicate. Management\'s Team Today view shows all saved summaries for the branch.',
+    dataNote: 'Shift Summary pulls live OTH and washbay data for today. Save Summary to capture a snapshot — saving again updates it rather than creating a duplicate. Management\'s Team Today view shows all saved summaries for the branch.',
   },
   'lost-and-found': {
     what: 'Log items found in returned vehicles. Scan or enter the unit number, photograph the item, and the record is timestamped to your Employee ID. Creates a clear chain of custody from discovery through resolution.',
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
-    mockNote: 'Demo records show the full item lifecycle — found, logged with photos, matched to vehicle history, and resolved.',
+    dataNote: 'Every found item logs live — timestamped to your Employee ID, photographed, and tracked from discovery through match to resolution.',
   },
   'schedule': {
     what: 'Shift scheduling and actual hours tracking. Log your scheduled shifts, record actual start and end times, and track PTO and sick days for the year. Stat holiday flagging included.',
     roles: ['All roles'],
-    mockNote: 'Seeded with a realistic schedule for the pilot crew showing opens, closes, mids, and a PTO day.',
+    dataNote: 'Your logged shifts, actual hours, PTO, and sick days for the year — all live. Stat holidays flag automatically.',
   },
   'issue-log': {
     what: 'Facility and equipment issue tracker. Log broken equipment, facility problems, or anything affecting operations. Issues stay open until manually cleared — every entry gets a timestamp, severity, and a resolution path.',
     roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Branch Manager', 'Operations Manager', 'City Manager'],
-    mockNote: 'No seeded issues — log a test issue and clear it to see the full flow.',
+    dataNote: 'Every entry is a real issue you log — timestamped with severity and a resolution path, staying open until you clear it.',
   },
   'manifest': {
     what: 'Today\'s reservation manifest with seasonal priority intelligence. Shows what classes are needed for upcoming pickups — so trippers grab the right car before moving. Priority order shifts automatically by season: summer favours sedans, winter favours AWD SUVs.',
     roles: ['All roles'],
-    mockNote: 'Generated fresh each day from a seeded algorithm. Same date always produces the same manifest — consistent across devices during a demo.',
+    dataNote: 'Generated fresh each day from the reservation manifest and seasonal priority rules. The same date always produces the same order — consistent across every device.',
   },
   'fleet-master': {
     what: 'Full fleet inventory for management. Every registered vehicle in one screen with its derived operational status — held, pre-existing, on exception, dirty, available, or clear. Pulled live from holds, releases, and inventory sessions. Search by plate or unit to quickly locate a vehicle, or register a new one directly if it\'s not in the system.',
     roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
-    mockNote: 'Live data — status reflects active holds and today\'s inventory session entries for this branch.',
+    dataNote: 'Live data — status reflects active holds and today\'s inventory session entries for this branch.',
   },
   'effie': {
     what: 'Effie — your lot concierge, full-screen. The same assistant as the corner button, given room to breathe: ask anything, snap a key tag to register or check a vehicle, log a found item, or draft a hold — she reads photos, talks back if you want, and stages her inferred writes for your approval. The conversation is shared with the corner button; the button hides while you\'re here.',
     roles: ['All roles'],
-    mockNote: 'Runs on a personal API key, so she\'s enabled for allowlisted accounts only. Her writes are drafts you confirm — nothing lands on the fleet without your tap.',
+    dataNote: 'Runs on a personal API key, so she\'s enabled for allowlisted accounts only. Her writes are drafts you confirm — nothing lands on the fleet without your tap.',
   },
 };
 
@@ -162,9 +162,9 @@ export function ModuleGuideModal({ onClose, initialModule }: Props) {
 
                     <div>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold mb-1.5">
-                        About the demo data
+                        About the data
                       </p>
-                      <p className="text-xs text-amber-600 dark:text-amber-500 leading-relaxed">{info.mockNote}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-500 leading-relaxed">{info.dataNote}</p>
                     </div>
                   </div>
                 )}

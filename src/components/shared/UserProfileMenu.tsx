@@ -197,7 +197,6 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                       className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition cursor-pointer"
                     >
                       <option value="holds">Holds</option>
-                      <option value="check-in">Check-in</option>
                       <option value="audits">Audits</option>
                       <option value="analytics">Analytics</option>
                     </select>
