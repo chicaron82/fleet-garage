@@ -1,49 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveRouting, canRelease, canLogHandoff, canVsaClear, isFullDayShift } from '../../src/types/index';
-import type { ConditionRating } from '../../src/types/index';
-
-describe('deriveRouting', () => {
-  it('escalated interior → escalated', () => {
-    expect(deriveRouting('escalated', 'clean')).toBe('escalated');
-  });
-  it('escalated exterior → escalated', () => {
-    expect(deriveRouting('clean', 'escalated')).toBe('escalated');
-  });
-  it('both escalated → escalated', () => {
-    expect(deriveRouting('escalated', 'escalated')).toBe('escalated');
-  });
-  it('questionable interior → review', () => {
-    expect(deriveRouting('questionable', 'clean')).toBe('review');
-  });
-  it('questionable exterior → review', () => {
-    expect(deriveRouting('good', 'questionable')).toBe('review');
-  });
-  it('escalated beats questionable', () => {
-    expect(deriveRouting('escalated', 'questionable')).toBe('escalated');
-  });
-  it('both clean → flip', () => {
-    expect(deriveRouting('clean', 'clean')).toBe('flip');
-  });
-  it('good interior + clean exterior → washbay', () => {
-    expect(deriveRouting('good', 'clean')).toBe('washbay');
-  });
-  it('clean interior + good exterior → washbay', () => {
-    expect(deriveRouting('clean', 'good')).toBe('washbay');
-  });
-  it('both good → washbay', () => {
-    expect(deriveRouting('good', 'good')).toBe('washbay');
-  });
-
-  const ratings: ConditionRating[] = ['clean', 'good', 'questionable', 'escalated'];
-  for (const interior of ratings) {
-    for (const exterior of ratings) {
-      it(`deriveRouting('${interior}', '${exterior}') returns a valid routing`, () => {
-        const result = deriveRouting(interior, exterior);
-        expect(['flip', 'washbay', 'review', 'escalated']).toContain(result);
-      });
-    }
-  }
-});
+import { canRelease, canLogHandoff, canVsaClear, isFullDayShift } from '../../src/types/index';
 
 describe('canRelease', () => {
   it('Branch Manager can release', () => expect(canRelease('Branch Manager')).toBe(true));

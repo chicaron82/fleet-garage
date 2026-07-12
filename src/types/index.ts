@@ -486,19 +486,6 @@ export interface ShiftCheckpoint {
   loggedAt: string;       // ISO timestamp
 }
 
-// ── Check-in Condition ────────────────────────────────────────────────────────
-
-export type ConditionRating = 'clean' | 'good' | 'questionable' | 'escalated';
-
-export type CheckInRouting = 'flip' | 'washbay' | 'review' | 'escalated';
-
-export function deriveRouting(interior: ConditionRating, exterior: ConditionRating): CheckInRouting {
-  if (interior === 'escalated' || exterior === 'escalated') return 'escalated';
-  if (interior === 'questionable' || exterior === 'questionable') return 'review';
-  if (interior === 'clean' && exterior === 'clean') return 'flip';
-  return 'washbay';
-}
-
 // ── Lost & Found ─────────────────────────────────────────────────────────────
 
 export type LostFoundStatus = 'holding' | 'customer_contacted' | 'returned' | 'disposed';
