@@ -105,10 +105,19 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           <button
             type="button"
             onClick={() => onNavigate({ name: 'my-shift' })}
-            className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
+            className={
+              day.checkInDoneToday
+                ? 'w-full py-3 rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/20 text-sm font-semibold text-green-700 dark:text-green-400 hover:border-green-300 dark:hover:border-green-800 transition cursor-pointer'
+                : 'w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer'
+            }
           >
-            {day.balanceLogged ? 'Next: ' : 'Not available yet? '}
-            {day.isMid ? 'Log mid-shift check-in' : 'Log afternoon check-in'} →
+            {day.checkInDoneToday ? (
+              <>✓ {day.isMid ? 'Mid-shift check-in' : 'Afternoon check-in'} logged
+                {day.checkInCarsToday != null && ` · ${day.checkInCarsToday} cars`} →</>
+            ) : (
+              <>{day.balanceLogged ? 'Next: ' : 'Not available yet? '}
+                {day.isMid ? 'Log mid-shift check-in' : 'Log afternoon check-in'} →</>
+            )}
           </button>
         </section>
       )}

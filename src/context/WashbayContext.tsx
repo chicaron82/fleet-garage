@@ -59,6 +59,27 @@ export function WashbayProvider({ children }: { children: React.ReactNode }) {
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Realtime handoff subscription ────────────────────────────────────────────
+  // Mirrors the checkpoint channel above (see migration 098) so a handoff logged on
+  // one device/tab propagates live to every other view — My Day's throughput glance,
+  // My Shift's handoff banner — instead of only surfacing after a reload. Dedup by id
+  // so the logger's own optimistic insert (useWashbayHandoff.submitHandoff) doesn't
+  // double up. handoffNotes stays newest-first, so a fresh insert prepends to [0].
+  useEffect(() => {
+    const channel = supabase
+      .channel('washbay-handoffs-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'handoff_notes' }, (payload) => {
+        const note = mapHandoffNote(payload.new as Record<string, unknown>);
+        setHandoffNotes(prev =>
+          prev.some(n => n.id === note.id)
+            ? prev.map(n => n.id === note.id ? note : n)
+            : [note, ...prev]
+        );
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const getLatestGasSheetReading = (): GasSheetReading | null => {
     const today = localDateStr(0);
     const candidates: GasSheetReading[] = [];

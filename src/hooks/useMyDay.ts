@@ -11,7 +11,7 @@ import { useWashbayContext } from '../context/WashbayContext';
 import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
 import { businessDateOf } from '../lib/shiftDay';
-import { deriveMyDay, type MyDayModel } from '../lib/myDay';
+import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
 import { staleHeldVehicleCount } from '../lib/holdFilters';
 import type { HandoffNote, Attendance, User } from '../types';
 
@@ -19,6 +19,10 @@ export interface UseMyDay extends MyDayModel {
   dateLabel: string;
   staleCount: number;
   handoffToday: HandoffNote | null;
+  /** The afternoon (or, on a mid shift, the mid-arrival) check-in was logged today. */
+  checkInDoneToday: boolean;
+  /** Cars counted at that check-in, or null when none logged today. */
+  checkInCarsToday: number | null;
   balanceLogged: boolean;
   todayEntry: FleetBalanceEntry | undefined;
   projection: FleetBalanceProjection | null;
@@ -33,7 +37,7 @@ export function useMyDay(): UseMyDay {
   // Schedule screen was last swiped to another week (bug 2026-07-10).
   const { todayShifts, setShiftAttendance } = useSchedule();
   const { staleHolds, vehicles } = useVehicleHoldContext();
-  const { latestHandoff } = useWashbayContext();
+  const { latestHandoff, getTodayCheckpoint, getMidArrival } = useWashbayContext();
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
   const now = new Date();
@@ -52,9 +56,15 @@ export function useMyDay(): UseMyDay {
 
   const todayEntry = getTodayEntry();
 
+  // The check-in the My Day button refers to: mid shifts log a mid-arrival, everyone
+  // else the closing (afternoon) arrival. Mirrors the button's own mid/afternoon copy.
+  const checkInToday = model.isMid ? getMidArrival() : getTodayCheckpoint();
+
   return {
     ...model,
     dateLabel,
+    checkInDoneToday: !!checkInToday,
+    checkInCarsToday: checkInToday ? carsCleaned(checkInToday) : null,
     // "Held too long" = distinct HELD vehicles (the sidebar badge's population) that
     // carry a stale hold — so sale_car holds and dangling holds on archived units
     // don't masquerade as bay holds, and it never exceeds the badge.
