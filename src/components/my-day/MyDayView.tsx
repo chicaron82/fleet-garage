@@ -84,6 +84,24 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
         )}
       </section>
 
+      {/* ── Schedule heads-ups (clopen, solo floor) — only when today has one ─ */}
+      {day.insights.length > 0 && (
+        <section className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-4 space-y-2.5 transition-colors">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700/80 dark:text-amber-500/80">Heads up today</p>
+          <ul className="space-y-2.5">
+            {day.insights.map(ins => (
+              <li key={ins.kind} className="flex items-start gap-2.5">
+                <span aria-hidden className="text-base leading-none mt-0.5">{ins.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{ins.label}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{ins.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ── First action — the ritual: fleet balance, else check-in ──────── */}
       {day.working && (
         <section className="space-y-2">

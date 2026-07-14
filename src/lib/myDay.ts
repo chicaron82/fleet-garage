@@ -1,9 +1,10 @@
 // Pure derivations for the "My Day" cockpit. Kept out of the component + hook so
 // the shift/team/greeting logic is testable without React or context. The hook
 // (useMyDay) assembles the live inputs; the view just renders this model.
-import type { ShiftWithUser, HandoffNote, Attendance } from '../types';
+import type { ShiftWithUser, HandoffNote, Attendance, ShiftType } from '../types';
 import { isFullDayShift } from '../types';
 import { SHIFT_TYPE_LABEL, fmtTime24, shiftTimeRange } from './shiftTypeMeta';
+import { deriveScheduleInsights, type ScheduleInsight } from './scheduleInsights';
 
 /** Time-of-day greeting from a 0–23 hour. */
 export function greeting(hour: number): string {
@@ -47,6 +48,8 @@ export interface MyDayModel {
   team: TeamMate[];
   /** Cars cleaned this shift, or null when no handoff was logged today. */
   carsCleanedThisShift: number | null;
+  /** Today's schedule heads-ups (clopen, solo floor). Empty when the day is clean. */
+  insights: ScheduleInsight[];
 }
 
 export function deriveMyDay(input: {
@@ -57,8 +60,10 @@ export function deriveMyDay(input: {
   hour: number;
   handoff?: HandoffNote;
   handoffIsToday: boolean;
+  /** My own shift type yesterday — the one cross-day input the clopen insight needs. */
+  myYesterdayShiftType?: ShiftType;
 }): MyDayModel {
-  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday } = input;
+  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType } = input;
   const myShift = shifts.find(s => s.userId === userId && s.date === todayISO);
   const working = !!myShift && !isFullDayShift(myShift.shiftType);
   return {
@@ -71,5 +76,6 @@ export function deriveMyDay(input: {
     shiftTime: myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
     team: teammatesOnToday(shifts, userId, todayISO),
     carsCleanedThisShift: handoff && handoffIsToday ? carsCleaned(handoff) : null,
+    insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, userId }),
   };
 }
