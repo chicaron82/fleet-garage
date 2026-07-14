@@ -81,7 +81,20 @@ export interface UpdateVehicleProposal {
   fills: VehicleFieldFill[];
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | UpdateVehicleProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
+/** Backfill a KNOWN-but-partial vehicle's blank fields AND place a damage hold — the
+ *  log-damage drop-n-go partial branch, in one confirm. `fills` is blanks-only (same
+ *  contract as UpdateVehicleProposal: fill blanks, never overwrite a known field). On
+ *  approve the client backfills then holds the same vehicleId. */
+export interface UpdateAndHoldProposal {
+  kind: 'update_and_hold';
+  vehicleId: string;
+  plate: string;
+  fills: VehicleFieldFill[];
+  holdType: string;
+  damageDescription: string;
+}
+
+export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | UpdateVehicleProposal | UpdateAndHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | OverflowLogProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -111,6 +124,17 @@ export function buildUpdateVehicleProposal(vehicleId: string, plate: string, fil
   return { kind: 'update_vehicle', vehicleId, plate, fills };
 }
 
+/** Build a combined backfill-and-hold proposal (partial vehicle + damage). Pure — no write. */
+export function buildUpdateAndHoldProposal(
+  vehicleId: string,
+  plate: string,
+  fills: VehicleFieldFill[],
+  holdType: string,
+  damageDescription: string,
+): UpdateAndHoldProposal {
+  return { kind: 'update_and_hold', vehicleId, plate, fills, holdType, damageDescription };
+}
+
 /** "Unit 1234 · 2025 Hyundai Tucson (Gray)" — for a not-yet-registered vehicle. */
 export function describeNewVehicle(v: NewVehicle): string {
   const veh = [v.year, v.make, v.model].filter(Boolean).join(' ');
@@ -133,6 +157,10 @@ export function describeProposal(p: Proposal): string {
     return `backfill ${p.plate}: ${p.fills.map(f => `${f.field} ${f.value}`).join(', ')}`;
   }
   const desc = p.damageDescription.trim() ? ` — ${p.damageDescription.trim()}` : '';
+  if (p.kind === 'update_and_hold') {
+    const fills = p.fills.length ? `backfill ${p.fills.map(f => `${f.field} ${f.value}`).join(', ')} + ` : '';
+    return `${fills}${p.holdType} hold on ${p.plate}${desc}`;
+  }
   if (p.kind === 'register_and_hold') {
     return `register ${describeNewVehicle(p.newVehicle)} + ${p.holdType} hold${desc}`;
   }

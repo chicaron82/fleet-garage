@@ -7,6 +7,7 @@ import type { Hold, Vehicle, VehicleStatus } from '../../types';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
+import { LogDamageButton } from '../holds/LogDamageButton';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
@@ -262,6 +263,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           {noMatch
             ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
             : <KeytagSearchScan onPlate={handleKeytagPlate} />}
+          <LogDamageButton user={user} />
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}

@@ -254,6 +254,30 @@ export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss,
     );
   }
 
+  // Partial vehicle + damage → backfill the blanks AND open a hold in one confirm (the
+  // log-damage drop-n-go partial branch). Amber, like the other confirm cards.
+  if (proposal.kind === 'update_and_hold') {
+    if (status === 'done') {
+      return <Receipt>{proposal.holdType} hold{proposal.fills.length > 0 ? ' + backfill' : ''} on <span className="font-semibold">{proposal.plate}</span>.</Receipt>;
+    }
+    return (
+      <Shell tone="amber" kicker="Confirm — backfill + hold">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+          {proposal.holdType} hold — {proposal.plate}
+        </p>
+        {proposal.fills.length > 0 && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Also fills in: {proposal.fills.map((f) => `${f.field} → ${f.value}`).join(', ')}
+          </p>
+        )}
+        {proposal.damageDescription && (
+          <p className="text-sm text-gray-600 dark:text-gray-300">{proposal.damageDescription}</p>
+        )}
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Backfill + hold" workingLabel="Working…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} dismissLabel={dismissLabel} />
+      </Shell>
+    );
+  }
+
   const isRegister = proposal.kind === 'register_and_hold';
   const plate = isRegister ? proposal.newVehicle.plate : proposal.vehicle.plate;
   const vehicleLabel = isRegister ? describeNewVehicle(proposal.newVehicle) : proposal.vehicle.label;

@@ -166,6 +166,15 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         await addHold(vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes, undefined, undefined, undefined, 'effie');
         return;
       }
+      // Partial vehicle + damage → backfill the blanks first (blanks-only, same contract as
+      // update_vehicle — resolveKeytag never proposes a conflicting field), then hold the SAME
+      // vehicle with the damage photo attached + pinned, exactly like the plain-hold path.
+      if (proposal.kind === 'update_and_hold') {
+        if (proposal.fills.length > 0) await updateVehicleFields(proposal.vehicleId, proposal.fills);
+        const held = await addHold(proposal.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
+        if (held && held.photoUrls.length > 0) await setCoverPhoto(proposal.vehicleId, held.photoUrls[0]);
+        return;
+      }
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },

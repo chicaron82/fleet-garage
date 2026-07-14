@@ -12,6 +12,8 @@ const KIND_LABELS: Record<string, string> = {
   register_vehicle: 'Register',
   register_and_hold: 'Register + hold',
   hold: 'Hold',
+  update_vehicle: 'Backfill',
+  update_and_hold: 'Backfill + hold',
   lost_item: 'Lost & found',
   memory: 'Memory',
   reminder: 'Reminder',
@@ -22,6 +24,7 @@ const KIND_LABELS: Record<string, string> = {
 function targetLabel(p: Proposal): string {
   if (p.kind === 'register_vehicle' || p.kind === 'register_and_hold') return p.newVehicle.plate;
   if (p.kind === 'hold') return p.vehicle.plate;
+  if (p.kind === 'update_vehicle' || p.kind === 'update_and_hold') return p.plate;
   if (p.kind === 'lost_item') return p.licensePlate ?? p.description.slice(0, 28);
   return '';
 }
