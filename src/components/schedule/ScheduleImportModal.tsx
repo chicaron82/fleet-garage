@@ -4,6 +4,7 @@
 // write REPLACES the parsed date span for the imported people (wipe-then-create via
 // importWeekShifts); the parse never writes — only this confirm tap does.
 import { useState, useMemo, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useProfiles } from '../../context/ProfilesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useScheduleImport } from '../../hooks/useScheduleImport';
@@ -13,12 +14,20 @@ import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
 import { buildImportShifts, dateRange, nextType, type ImportRow } from '../../lib/scheduleImportBuild';
+import { findClopens } from '../../lib/scheduleClopens';
 import { ScheduleImportGrid } from './ScheduleImportGrid';
+
+// ISO YYYY-MM-DD → "Jul 15" (built from parts so the date never tz-shifts).
+const fmtDay = (iso: string): string => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+};
 
 export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   useEscapeKey(onClose);
   const profiles = useProfiles();
   const { importWeekShifts, isPeakSeason } = useSchedule();
+  const { user } = useAuth();
   const roster: RosterProfile[] = useMemo(
     () => [...profiles.values()].map((p) => ({ id: p.id, name: p.name })),
     [profiles],
@@ -42,6 +51,13 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   const typeAt = (ri: number, ci: number): ParsedShiftType =>
     cellOverrides[`${ri}-${ci}`] ?? schedule!.staff[ri].cells[ci].type;
   const typesGrid = (schedule?.staff ?? []).map((row, ri) => row.cells.map((_, ci) => typeAt(ri, ci)));
+
+  // My own clopens in the parsed block — the row assigned to me, swept for closing→opening
+  // back-to-backs. Runs on the preview, BEFORE the write, so I can push back while it's fixable.
+  const myRow = user ? assignments.findIndex((a) => a === user.id) : -1;
+  const myClopens = myRow >= 0 && schedule
+    ? findClopens(schedule.staff[myRow].cells.map((c, ci) => ({ date: c.date ?? '', type: typesGrid[myRow][ci] })).filter((x) => x.date))
+    : [];
 
   const assignedCount = assignments.filter(Boolean).length;
   const unmatchedCount = (schedule?.staff.length ?? 0) - assignedCount;
@@ -175,6 +191,23 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
                     : <>Parsed <b>{schedule.staff.length}</b> staff{span ? <> · <b>{span}</b></> : ''}. Check each row against the photo; tap a cell to fix its type. On confirm, each assigned person's existing shifts in that range are <b>deleted and replaced</b>.{unmatchedCount > 0 && <span className="text-rose-600 dark:text-rose-400"> {unmatchedCount} unassigned (skipped).</span>}</>}
                 </p>
               </div>
+              {myRow >= 0 && (
+                myClopens.length > 0 ? (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 dark:border-amber-900/60 dark:bg-amber-900/15">
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      🔁 Heads up — this schedule gives you {myClopens.length} clopen{myClopens.length === 1 ? '' : 's'}:
+                    </p>
+                    <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                      {myClopens.map((c) => `${fmtDay(c.closeDate)} → ${fmtDay(c.openDate)}`).join('  ·  ')}
+                    </p>
+                    <p className="mt-1 text-[11px] text-amber-600/80 dark:text-amber-500/70">Closing then opening the next day — flag it with the boss or brace for it.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-900/15 dark:text-green-400">
+                    ✓ No clopens for you in this block.
+                  </div>
+                )
+              )}
               {schedule.staff.length > 0 && (
                 <ScheduleImportGrid
                   schedule={schedule}
