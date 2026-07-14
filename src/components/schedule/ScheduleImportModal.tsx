@@ -14,14 +14,8 @@ import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
 import { buildImportShifts, dateRange, nextType, type ImportRow } from '../../lib/scheduleImportBuild';
-import { findClopens } from '../../lib/scheduleClopens';
+import { findClopens, formatClopen } from '../../lib/scheduleClopens';
 import { ScheduleImportGrid } from './ScheduleImportGrid';
-
-// ISO YYYY-MM-DD → "Jul 15" (built from parts so the date never tz-shifts).
-const fmtDay = (iso: string): string => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-};
 
 export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   useEscapeKey(onClose);
@@ -198,7 +192,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
                       🔁 Heads up — this schedule gives you {myClopens.length} clopen{myClopens.length === 1 ? '' : 's'}:
                     </p>
                     <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                      {myClopens.map((c) => `${fmtDay(c.closeDate)} → ${fmtDay(c.openDate)}`).join('  ·  ')}
+                      {myClopens.map(formatClopen).join('  ·  ')}
                     </p>
                     <p className="mt-1 text-[11px] text-amber-600/80 dark:text-amber-500/70">Closing then opening the next day — flag it with the boss or brace for it.</p>
                   </div>

@@ -44,3 +44,14 @@ export function findClopens(days: DayShift[]): Clopen[] {
   }
   return out;
 }
+
+/** How a clopen reads on screen — "Jul 15 → Jul 16". Shared so the import banner and the
+ *  standing Schedule-screen strip are identical. Dates built from parts so they never
+ *  tz-shift. (Display glue, not logic — the detection above is what's tested.) */
+export function formatClopen(c: Clopen): string {
+  const day = (iso: string): string => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+  };
+  return `${day(c.closeDate)} → ${day(c.openDate)}`;
+}

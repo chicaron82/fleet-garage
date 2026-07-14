@@ -11,6 +11,7 @@ import { ScheduleFilterBar } from './ScheduleFilterBar';
 import { useMyShiftFilter } from './useMyShiftFilter';
 import { FillScheduleModal } from './FillScheduleModal';
 import { ScheduleImportModal } from './ScheduleImportModal';
+import { UpcomingClopensBanner } from './UpcomingClopensBanner';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
@@ -140,6 +141,9 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
           </div>
         }
       />
+
+      {/* Your upcoming clopens — read from the stored schedule, no re-upload. Null when none. */}
+      <UpcomingClopensBanner userId={user?.id} />
 
       {/* Peak season banner — managers only */}
       {isManager && (
