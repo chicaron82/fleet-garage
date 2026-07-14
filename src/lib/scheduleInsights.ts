@@ -55,6 +55,15 @@ export function deriveScheduleInsights(input: {
 
   // ⚠️ Solo floor — you're the only VSA / Lead VSA working the floor today. Only fires
   // when YOU are floor + working; another floor member on any working shift clears it.
+  //
+  // Deliberately SCHEDULE-based, NOT attendance-adjusted — do NOT "improve" this to count
+  // only present/arrived staff. FG attendance marks are observation-boundary-biased: the
+  // sole operator only verifies people who arrive during HIS window, so everyone on a later
+  // shift stays `scheduled` (UNOBSERVED, not absent — he left before he could check).
+  // Counting present-only would read every unverified coworker as a no-show and flag
+  // solo-floor nearly every day. The only reliable negative is an explicit `absent` mark —
+  // and by the time he's marked it, he already knows he's solo, so attendance adds ~zero
+  // signal. (2026-07-14 — see the FG attendance-observation-boundary memory.)
   if (myToday && isWorking(myToday) && isFloor(myToday.user.role)) {
     const anotherFloorMember = todayShifts.some(
       s => s.userId !== userId && isWorking(s) && isFloor(s.user.role),
