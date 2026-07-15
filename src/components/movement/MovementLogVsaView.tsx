@@ -4,6 +4,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { TripStartForm, type TripStartInfo } from './TripStartForm';
+import { OverflowSendForm } from './OverflowSendForm';
 import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { TripList } from './TripList';
 import { ModuleHeader } from '../shared/ModuleHeader';
@@ -111,8 +112,9 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
       </div>
 
       {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
-      <div className={activeTab === 'movement-log' ? undefined : 'hidden'}>
+      <div className={activeTab === 'movement-log' ? 'space-y-5' : 'hidden'}>
         <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
+        <OverflowSendForm onLogged={refreshActiveSessions} />
         {myLiveTrips.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>
