@@ -26,6 +26,7 @@ import {
   executeLookup,
   executeProposeHold,
   executeProposeRegisterHold,
+  executeProposeUpdateAndHold,
   executeProposeRegisterVehicle,
   executeLookupSchedule,
   executeLookupMyShift,
@@ -245,6 +246,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             const out = await executeProposeRegisterHold(
               supabase,
               tu.input as Parameters<typeof executeProposeRegisterHold>[1],
+            );
+            if (out.proposal) proposal = out.proposal;
+            content = out.toolResult;
+          } else if (tu.name === 'propose_update_and_hold') {
+            const out = await executeProposeUpdateAndHold(
+              supabase,
+              tu.input as Parameters<typeof executeProposeUpdateAndHold>[1],
             );
             if (out.proposal) proposal = out.proposal;
             content = out.toolResult;

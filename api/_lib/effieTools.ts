@@ -64,6 +64,25 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'propose_update_and_hold',
+    description:
+      'Draft BACKFILL + hold in ONE confirm for a vehicle ALREADY ON RECORD but with missing identity fields (blank make/model/year/colour/unit), when there is damage to flag. The drop-n-go case: the operator drops a KEY TAG photo + a DAMAGE photo on a car that is on record but only partially filled in. Pass every identity field you read off the key tag AND the damage — the system fills ONLY the blanks (never overwrites a known field) and opens the hold together. Use propose_hold instead if the vehicle identity is already complete; use propose_register_and_hold if the plate is NOT on record. Does NOT write — returns a draft the user taps to confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        plate: { type: 'string', description: 'License plate — the vehicle to look up (must be on record).' },
+        unit_number: { type: 'string', description: 'Unit number read from the key tag (fills if blank on record).' },
+        make: { type: 'string', description: 'Make read from the key tag / class code (fills if blank).' },
+        model: { type: 'string', description: 'Model from lookup_vehicle_class (fills if blank).' },
+        year: { type: 'integer', description: 'Model year read from the key tag (fills if blank).' },
+        color: { type: 'string', description: 'Colour read from the key tag (fills if blank).' },
+        hold_type: { type: 'string', enum: ['damage', 'mechanical', 'detail', 'hail'], description: 'Default "damage".' },
+        damage_description: { type: 'string', description: 'What is wrong, e.g. "scrape on the rear driver-side quarter panel".' },
+      },
+      required: ['plate', 'damage_description'],
+    },
+  },
+  {
     name: 'propose_register_vehicle',
     description:
       'Register a NEW-TO-FLEET vehicle with NO hold — the car is clean, nothing wrong, the operator just wants FG to know it exists (so it later resolves in "where\'s X?", overflow logging, and inventory reads). Read the fields off the KEY TAG (Veh # → unit, Lic Plate, class code → call lookup_vehicle_class for make+model, colour/body line). Use THIS (not propose_register_and_hold) when there is no damage to flag. Does NOT write — returns a draft the user taps to confirm; if the plate is already on record, say so.',
