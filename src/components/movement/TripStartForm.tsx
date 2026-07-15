@@ -20,6 +20,8 @@ import { useEvDispatchWarning } from '../../hooks/useEvDispatchWarning';
 import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
+import { Toast } from '../shared/Toast';
+import { useRegisterOnScan } from '../../hooks/useRegisterOnScan';
 import type { EvAssetStatus } from '../../types';
 
 export type { TripState };
@@ -44,7 +46,9 @@ export function TripStartForm({
   onTripStarted?: (info: TripStartInfo) => void;
 }) {
   const { user } = useAuth();
-  const { shuttlePlate, setShuttlePlate } = useVehicleHoldContext();
+  const { shuttlePlate, setShuttlePlate, addVehicle, vehicles } = useVehicleHoldContext();
+  // Scanning a key tag to start a trip auto-registers a new vehicle so the trip isn't an orphan.
+  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, user });
   const { oth, setMovementTab, refresh: refreshActiveSessions } = useActiveSessions();
   const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 
@@ -329,7 +333,7 @@ export function TripStartForm({
           <>
             <TripForm
               isShuttle={isShuttle}   shuttlePlate={shuttlePlate} setShuttlePlate={setShuttlePlate}
-              vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur}
+              vehiclePlate={vehiclePlate} setVehiclePlate={setVehiclePlate} onPlateBlur={handlePlateBlur} onScanRead={handleScanRead}
               flaggedClasses={flaggedClasses}
               onShuttleToggle={handleShuttleToggle}
               onCodeRedDispatch={handleCodeRedDispatch}
@@ -371,6 +375,7 @@ export function TripStartForm({
           />
         )}
       </div>
+      {registerToast && <Toast message={registerToast} />}
     </div>
   );
 }

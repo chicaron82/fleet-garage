@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveKeytagScan } from '../../src/lib/resolveKeytagScan';
+import { resolveKeytagScan, newVehicleToRegisterOnScan } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
 
@@ -56,5 +56,34 @@ describe('resolveKeytagScan', () => {
     expect(r.wasCorrected).toBe(false);
     expect(r.vehicle).toBeNull();
     expect(r.resolution.kind).toBe('new');
+  });
+});
+
+describe('newVehicleToRegisterOnScan', () => {
+  it('new plate + full read → the NewVehicle to register (movement scan adds it)', () => {
+    const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
+    expect(newVehicleToRegisterOnScan(read, FLEET)).toEqual({
+      unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White',
+    });
+  });
+
+  it('already in the fleet → null (nothing to register)', () => {
+    const read: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
+    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
+  });
+
+  it('a misread MB prefix that matches the fleet after correction → null (known, not new)', () => {
+    const read: KeytagRead = { plate: 'LMR554', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
+    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
+  });
+
+  it('new plate but too partial to register (no make/model) → null', () => {
+    const read: KeytagRead = { plate: 'LZM999', unitNumber: '5424999' };
+    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
+  });
+
+  it('no plate on the read → null', () => {
+    const read: KeytagRead = { make: 'Kia', model: 'Seltos', year: 2026 };
+    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
   });
 });

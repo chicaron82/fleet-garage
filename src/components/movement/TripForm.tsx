@@ -8,6 +8,7 @@ import type { Reason } from '../../lib/vsa-trip';
 import { searchVehicles, detectTeslaByPlate } from '../../lib/ev-detection';
 import type { VehicleSearchResult } from '../../lib/ev-detection';
 import type { EvDispatchWarning } from '../../lib/evDispatch';
+import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 import { PlateInput } from '../shared/VehicleFields';
@@ -21,6 +22,8 @@ export interface TripFormProps {
   shuttlePlate: string;                setShuttlePlate: (v: string) => void;
   vehiclePlate: string;                setVehiclePlate: (v: string) => void;
   onPlateBlur?: (plate?: string) => void;
+  /** Full key-tag read from the scan — the container auto-registers a new vehicle from it. */
+  onScanRead?: (read: KeytagRead) => void;
   flaggedClasses: string[];
   onShuttleToggle: (checked: boolean) => void;
   onCodeRedDispatch?: () => void;
@@ -35,7 +38,7 @@ export interface TripFormProps {
 
 export function TripForm({
   isShuttle, shuttlePlate, setShuttlePlate,
-  vehiclePlate, setVehiclePlate, onPlateBlur,
+  vehiclePlate, setVehiclePlate, onPlateBlur, onScanRead,
   flaggedClasses,
   onShuttleToggle, onCodeRedDispatch, onQuickStart,
   isTeslaRun, setIsTeslaRun,
@@ -129,7 +132,7 @@ export function TripForm({
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
             Vehicle Plate <span className="text-gray-400 dark:text-gray-600 normal-case font-normal">optional</span>
           </label>
-          <KeytagSearchScan onPlate={(plate) => {
+          <KeytagSearchScan onRead={onScanRead} onPlate={(plate) => {
             setVehiclePlate(plate);
             if (shuttlePlate) onShuttleToggle(plate.trim() === shuttlePlate.toUpperCase().trim());
             void onPlateBlur?.(plate); // run Tesla detection on the freshly-scanned plate

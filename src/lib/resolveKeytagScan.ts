@@ -30,6 +30,17 @@ export interface KeytagScanResult {
   resolution: KeytagResolution;
 }
 
+/** The vehicle to AUTO-REGISTER when a key tag is scanned to start a movement/trip and the car
+ *  is new to the fleet — else null (already on record, or the read is too partial to register).
+ *  A scanned keytag carries the full identity, so a movement of an unknown car should add it
+ *  rather than log an orphan trip against a plate FG doesn't know (LUR315, 2026-07-15). Pure:
+ *  the fleet is passed in. */
+export function newVehicleToRegisterOnScan(read: KeytagRead, vehicles: Vehicle[]): NewVehicle | null {
+  const { resolution, plate } = resolveKeytagScan(read, vehicles);
+  if (resolution.kind !== 'new') return null; // complete/partial → already on record
+  return newVehicleFromRead(read, plate); // null if the read lacks make/model/unit/year
+}
+
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {
   const raw = (read.plate ?? '').trim().toUpperCase().replace(/\s+/g, '');
   const plate = correctManitobaPrefix(read.plate ?? '');

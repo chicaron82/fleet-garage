@@ -7,10 +7,14 @@ import { useRef } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { compressImage } from '../../lib/image';
 import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
+import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
-export function KeytagSearchScan({ onPlate, disabled = false }: {
+export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
   /** The read + MB-corrected plate — the caller feeds it into the search. */
   onPlate: (plate: string) => void;
+  /** The FULL read — for a caller that wants the identity, not just the plate (the movement
+   *  trip-start uses it to auto-register an unknown vehicle so its trip isn't an orphan). */
+  onRead?: (read: KeytagRead) => void;
   disabled?: boolean;
 }) {
   const { readKeytag, status, error } = useKeytagRead();
@@ -23,6 +27,7 @@ export function KeytagSearchScan({ onPlate, disabled = false }: {
     const read = await readKeytag(base64);
     const plate = correctManitobaPrefix(read?.plate ?? '');
     if (plate) onPlate(plate);
+    if (read) onRead?.(read);
   };
 
   return (
