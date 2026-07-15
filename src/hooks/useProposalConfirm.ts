@@ -160,10 +160,14 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           hasMobileCable: null,
           hasJ1772Adapter: null,
         });
-        // No photo on a register-and-hold: the chat image here is a KEY TAG (only there to
-        // read the vehicle's details), not damage evidence — attaching/pinning it would
-        // decorate the hold with a registration artifact. flaggedSource 'effie' → "· via Effie".
-        await addHold(vehicleId, proposal.damageDescription, '', user.id, undefined, holdTypes, undefined, undefined, undefined, 'effie');
+        // Attach + pin the scoped damage photo — SAME as the plain-hold path. (This used to
+        // hardcode `undefined` on the assumption the chat image was a KEY TAG only there to
+        // read the vehicle's details. That held when register_and_hold came from a keytag
+        // registration; the log-damage DROP-N-GO inverted it — the scoped photo IS the damage
+        // evidence. photosForProposal already excludes an earlier keytag turn, so `attach`
+        // here is the damage the user dropped.) flaggedSource 'effie' → "· via Effie".
+        const held = await addHold(vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
+        if (held && held.photoUrls.length > 0) await setCoverPhoto(vehicleId, held.photoUrls[0]);
         return;
       }
       // Partial vehicle + damage → backfill the blanks first (blanks-only, same contract as

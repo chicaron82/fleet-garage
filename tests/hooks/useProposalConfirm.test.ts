@@ -112,15 +112,45 @@ describe('useProposalConfirm — hold provenance', () => {
     expect(addHold).toHaveBeenCalledWith('veh-1', 'bumper scuff', '', 'u1', undefined, ['damage'], undefined, undefined, undefined, 'effie');
   });
 
-  it('does not attach the key-tag photo on a register-and-hold', async () => {
-    const addHold = vi.fn().mockResolvedValue(undefined);
+  it('attaches + pins the scoped damage photo on a register-and-hold (drop-n-go)', async () => {
+    // The scoped photo the caller passes IS the damage evidence (photosForProposal already
+    // dropped any earlier keytag turn). It must land on the new vehicle's hold + be pinned as
+    // the cover — same as the plain-hold path. Regression guard for the log-damage drop-n-go
+    // (the Camry LUR318 registered via Effie whose scrape photo never attached, 2026-07-15).
+    const addHold = vi.fn().mockResolvedValue({ photoUrls: ['https://cdn/damage.jpg'] });
     const addVehicle = vi.fn().mockResolvedValue('veh-9');
+    const setCoverPhoto = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useProposalConfirm({
         ...deps,
-        messages: [{ image: 'data:image/jpeg;base64,KEYTAG' }],
         addVehicle,
         addHold,
+        setCoverPhoto,
+      } as unknown as Parameters<typeof useProposalConfirm>[0]),
+    );
+    const proposal: RegisterHoldProposal = {
+      kind: 'register_and_hold',
+      newVehicle: { unitNumber: '5422183', plate: 'LUR318', make: 'Toyota', model: 'Camry SE', year: 2026, color: 'White' },
+      holdType: 'damage',
+      damageDescription: 'Scrape/scuff on the rear driver-side quarter panel',
+    };
+    await result.current(proposal, undefined, ['data:image/jpeg;base64,DAMAGE']);
+    // 5th arg (photos) = the scoped damage photo — attached to the hold on the new vehicle.
+    expect(addHold).toHaveBeenCalledWith('veh-9', 'Scrape/scuff on the rear driver-side quarter panel', '', 'u1', ['data:image/jpeg;base64,DAMAGE'], ['damage'], undefined, undefined, undefined, 'effie');
+    // And the returned upload URL is pinned as the new vehicle's cover.
+    expect(setCoverPhoto).toHaveBeenCalledWith('veh-9', 'https://cdn/damage.jpg');
+  });
+
+  it('attaches no photo on a register-and-hold when none was dropped', async () => {
+    const addHold = vi.fn().mockResolvedValue(undefined);
+    const addVehicle = vi.fn().mockResolvedValue('veh-9');
+    const setCoverPhoto = vi.fn();
+    const { result } = renderHook(() =>
+      useProposalConfirm({
+        ...deps,
+        addVehicle,
+        addHold,
+        setCoverPhoto,
       } as unknown as Parameters<typeof useProposalConfirm>[0]),
     );
     const proposal: RegisterHoldProposal = {
@@ -130,7 +160,8 @@ describe('useProposalConfirm — hold provenance', () => {
       damageDescription: 'PM (preventive maintenance)',
     };
     await result.current(proposal);
-    // 5th arg (photos) MUST be undefined — the key tag is not attached to the hold.
+    // No dropped photo → 5th arg undefined, and nothing pinned.
     expect(addHold).toHaveBeenCalledWith('veh-9', 'PM (preventive maintenance)', '', 'u1', undefined, ['mechanical'], undefined, undefined, undefined, 'effie');
+    expect(setCoverPhoto).not.toHaveBeenCalled();
   });
 });
