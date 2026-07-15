@@ -206,7 +206,7 @@ export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss,
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{proposal.vehicles.map((v) => v.label).join(', ')}</p>
         {proposal.vehicles.some((v) => v.unresolved) && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">Some plates aren&apos;t in the fleet — they&apos;ll be logged as entered.</p>
+          <p className="text-xs text-amber-700 dark:text-amber-400">⚠️ Not in the fleet: {proposal.vehicles.filter((v) => v.unresolved).map((v) => v.label).join(', ')} — these log but stay unregistered (scan the key tag to add them).</p>
         )}
         <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Log sends" workingLabel="Logging…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} dismissLabel={dismissLabel} />
       </Shell>
