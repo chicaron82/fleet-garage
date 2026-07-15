@@ -4,7 +4,7 @@
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
-import { resolveKeytag, type KeytagResolution } from './resolveKeytag';
+import { resolveKeytag, type KeytagResolution, type KeytagFill } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
 import type { Vehicle } from '../types';
@@ -39,6 +39,19 @@ export function newVehicleToRegisterOnScan(read: KeytagRead, vehicles: Vehicle[]
   const { resolution, plate } = resolveKeytagScan(read, vehicles);
   if (resolution.kind !== 'new') return null; // complete/partial → already on record
   return newVehicleFromRead(read, plate); // null if the read lacks make/model/unit/year
+}
+
+/** When a scanned key tag matches an ON-RECORD but PARTIAL vehicle, the blank fields to backfill
+ *  (blanks-only — resolveKeytag never proposes a conflicting field) + which vehicle. Null when the
+ *  car is new, complete, or the tag adds nothing. Lets a movement scan top up a thin fleet record
+ *  the same way the drop-n-go does. Pure. */
+export function backfillFieldsOnScan(
+  read: KeytagRead,
+  vehicles: Vehicle[],
+): { vehicleId: string; plate: string; fills: KeytagFill[] } | null {
+  const { resolution, vehicle, plate } = resolveKeytagScan(read, vehicles);
+  if (resolution.kind !== 'partial' || !vehicle || resolution.fills.length === 0) return null;
+  return { vehicleId: vehicle.id, plate, fills: resolution.fills };
 }
 
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {

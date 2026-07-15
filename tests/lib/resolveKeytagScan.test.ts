@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveKeytagScan, newVehicleToRegisterOnScan } from '../../src/lib/resolveKeytagScan';
+import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
 
@@ -85,5 +85,35 @@ describe('newVehicleToRegisterOnScan', () => {
   it('no plate on the read → null', () => {
     const read: KeytagRead = { make: 'Kia', model: 'Seltos', year: 2026 };
     expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
+  });
+});
+
+describe('backfillFieldsOnScan', () => {
+  // A thin fleet record: on file, but its colour was never captured (blank). Canonical LUR
+  // plate so the MB-prefix snap leaves it unchanged and it matches by plate.
+  const PARTIAL_FLEET = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: '' })];
+
+  it('on-record but partial (blank colour) + the tag has it → the fill for that vehicle', () => {
+    const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
+    expect(backfillFieldsOnScan(read, PARTIAL_FLEET)).toEqual({
+      vehicleId: 'v-2', plate: 'LUR200', fills: [{ field: 'color', value: 'Silver' }],
+    });
+  });
+
+  it('new vehicle → null (registration handles it, not backfill)', () => {
+    const read: KeytagRead = { plate: 'LUR777', make: 'Ford', model: 'Escape', year: 2025, color: 'Blue' };
+    expect(backfillFieldsOnScan(read, PARTIAL_FLEET)).toBeNull();
+  });
+
+  it('complete record (the tag adds nothing) → null', () => {
+    const read: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
+    expect(backfillFieldsOnScan(read, FLEET)).toBeNull();
+  });
+
+  it('a conflict-only read (tag disagrees, nothing blank) → null (never overwrites)', () => {
+    const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
+    // vehicle already HAS a colour that disagrees → conflict, not a fill → no silent backfill
+    const conflictFleet = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Black' })];
+    expect(backfillFieldsOnScan(read, conflictFleet)).toBeNull();
   });
 });
