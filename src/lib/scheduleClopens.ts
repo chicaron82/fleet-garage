@@ -55,3 +55,10 @@ export function formatClopen(c: Clopen): string {
   };
   return `${day(c.closeDate)} → ${day(c.openDate)}`;
 }
+
+/** Today-aware label: "Today → tomorrow" when the clopen closes today, else the absolute
+ *  "Jul 15 → Jul 16". `todayISO` is the caller's local YYYY-MM-DD. Keeps a clopen that's
+ *  happening now from reading as "upcoming". */
+export function clopenLabel(c: Clopen, todayISO: string): string {
+  return c.closeDate === todayISO ? 'Today → tomorrow' : formatClopen(c);
+}

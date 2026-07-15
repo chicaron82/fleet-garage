@@ -36,20 +36,30 @@ const isWorking = (s: ShiftWithUser): boolean => !isFullDayShift(s.shiftType);
 export function deriveScheduleInsights(input: {
   todayShifts: ShiftWithUser[];
   myYesterdayShiftType: ShiftType | undefined;
+  myTomorrowShiftType: ShiftType | undefined;
   userId: string;
 }): ScheduleInsight[] {
-  const { todayShifts, myYesterdayShiftType, userId } = input;
+  const { todayShifts, myYesterdayShiftType, myTomorrowShiftType, userId } = input;
   const insights: ScheduleInsight[] = [];
   const myToday = todayShifts.find(s => s.userId === userId);
 
-  // 🔁 Clopen — close day N, open day N+1. The shift TYPE is the signal (no hour
-  // threshold): a 'closing' yesterday followed by an 'opening' today, same person.
-  if (myToday?.shiftType === 'opening' && myYesterdayShiftType === 'closing') {
+  // 🔁 Clopen — today is either END of a close→open back-to-back (shift TYPE is the signal,
+  // no hour threshold). Fire on the CLOSING day (forward: the prep warning, a day before the
+  // short turnaround) AND on the OPENING day (backward: the morning-of). Both, so today's
+  // card is never blind to a clopen it's part of — a closing-day silence was the bug.
+  if (myToday?.shiftType === 'closing' && myTomorrowShiftType === 'opening') {
     insights.push({
       kind: 'clopen',
       icon: '🔁',
       label: 'Clopen',
-      detail: 'Opening today right after closing yesterday — short turnaround.',
+      detail: 'You close today and open tomorrow — short turnaround, plan your rest.',
+    });
+  } else if (myToday?.shiftType === 'opening' && myYesterdayShiftType === 'closing') {
+    insights.push({
+      kind: 'clopen',
+      icon: '🔁',
+      label: 'Clopen',
+      detail: 'You opened today after closing last night — short turnaround.',
     });
   }
 

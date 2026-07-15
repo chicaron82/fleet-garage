@@ -16,8 +16,8 @@ const mk = (userId: string, shiftType: ShiftType, role: UserRole = 'VSA'): Shift
     user: { name: userId, role },
   } as unknown as ShiftWithUser);
 
-const kinds = (shifts: ShiftWithUser[], y: ShiftType | undefined, userId = 'me') =>
-  deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType: y, userId }).map(i => i.kind);
+const kinds = (shifts: ShiftWithUser[], y: ShiftType | undefined, t: ShiftType | undefined = undefined, userId = 'me') =>
+  deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType: y, myTomorrowShiftType: t, userId }).map(i => i.kind);
 
 describe('deriveScheduleInsights — clopen', () => {
   it('fires: closing yesterday → opening today, plus a coworker so solo-floor stays quiet', () => {
@@ -35,6 +35,30 @@ describe('deriveScheduleInsights — clopen', () => {
 
   it('does NOT fire when there was no shift yesterday (undefined)', () => {
     expect(kinds([mk('me', 'opening'), mk('other', 'opening')], undefined)).not.toContain('clopen');
+  });
+});
+
+describe('deriveScheduleInsights — clopen (closing day, the prep warning)', () => {
+  it('fires on the closing day: today closing → tomorrow opening', () => {
+    // coworker on the floor so ONLY clopen fires
+    expect(kinds([mk('me', 'closing'), mk('other', 'mid')], undefined, 'opening')).toEqual(['clopen']);
+  });
+
+  it('does NOT fire closing → a non-opening tomorrow (or no shift tomorrow)', () => {
+    expect(kinds([mk('me', 'closing'), mk('other', 'mid')], undefined, 'mid')).not.toContain('clopen');
+    expect(kinds([mk('me', 'closing'), mk('other', 'mid')], undefined, undefined)).not.toContain('clopen');
+  });
+
+  it('carries the forward (prep) message, not the morning-after one', () => {
+    const ins = deriveScheduleInsights({
+      todayShifts: [mk('me', 'closing'), mk('o', 'mid')],
+      myYesterdayShiftType: undefined, myTomorrowShiftType: 'opening', userId: 'me',
+    });
+    expect(ins[0].detail).toContain('close today and open tomorrow');
+  });
+
+  it('a solo closing-day clopen surfaces both', () => {
+    expect(kinds([mk('me', 'closing', 'VSA')], undefined, 'opening')).toEqual(['clopen', 'solo-floor']);
   });
 });
 

@@ -13,7 +13,7 @@ import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } fro
 import { businessDateOf } from '../lib/shiftDay';
 import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
 import { staleHeldVehicleCount } from '../lib/holdFilters';
-import { useMyYesterdayShiftType } from './useMyYesterdayShiftType';
+import { useMyAdjacentShiftTypes } from './useMyAdjacentShiftTypes';
 import type { HandoffNote, Attendance, User } from '../types';
 
 export interface UseMyDay extends MyDayModel {
@@ -45,7 +45,7 @@ export function useMyDay(): UseMyDay {
   const dateLabel = now.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
   const handoffIsToday = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
 
-  const myYesterdayShiftType = useMyYesterdayShiftType(user?.id);
+  const adjacentShiftTypes = useMyAdjacentShiftTypes(user?.id);
 
   const model = deriveMyDay({
     shifts: todayShifts,
@@ -55,7 +55,8 @@ export function useMyDay(): UseMyDay {
     hour: now.getHours(),
     handoff: latestHandoff,
     handoffIsToday,
-    myYesterdayShiftType,
+    myYesterdayShiftType: adjacentShiftTypes.yesterday,
+    myTomorrowShiftType: adjacentShiftTypes.tomorrow,
   });
 
   const todayEntry = getTodayEntry();

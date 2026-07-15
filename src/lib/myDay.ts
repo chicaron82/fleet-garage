@@ -60,10 +60,12 @@ export function deriveMyDay(input: {
   hour: number;
   handoff?: HandoffNote;
   handoffIsToday: boolean;
-  /** My own shift type yesterday — the one cross-day input the clopen insight needs. */
+  /** My shift types either side of today — clopen fires on the closing day (tomorrow
+   *  opening) and the opening day (yesterday closing). */
   myYesterdayShiftType?: ShiftType;
+  myTomorrowShiftType?: ShiftType;
 }): MyDayModel {
-  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType } = input;
+  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType, myTomorrowShiftType } = input;
   const myShift = shifts.find(s => s.userId === userId && s.date === todayISO);
   const working = !!myShift && !isFullDayShift(myShift.shiftType);
   return {
@@ -76,6 +78,6 @@ export function deriveMyDay(input: {
     shiftTime: myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
     team: teammatesOnToday(shifts, userId, todayISO),
     carsCleanedThisShift: handoff && handoffIsToday ? carsCleaned(handoff) : null,
-    insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, userId }),
+    insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, myTomorrowShiftType, userId }),
   };
 }
