@@ -42,6 +42,7 @@ export interface VehicleHoldContextValue {
   voidHold: (holdId: string) => Promise<void>;
   deleteHold: (holdId: string) => Promise<void>;
   deleteHoldPhoto: (holdId: string, photoUrl: string) => Promise<void>;
+  editHoldDescription: (holdId: string, description: string) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;

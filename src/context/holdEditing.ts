@@ -78,6 +78,23 @@ export function makeDeleteHold({ holds, allVehicles, setAllHolds, setAllVehicles
   };
 }
 
+/** EDIT a hold's description text — correcting a wording mistake (e.g. an Effie misread of the
+ *  damage side/position: "driver-side" that was really passenger). Pure text: the description
+ *  never drives vehicle status, so no reconcile cascade. Trimmed + non-empty (a blank
+ *  description would erase the record's meaning — delete/void the hold instead). */
+export function makeEditHoldDescription({ holds, setAllHolds }: EditDeps) {
+  return async (holdId: string, description: string): Promise<void> => {
+    const text = description.trim();
+    if (!text) throw new Error('Description cannot be empty.');
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ damage_description: text }).eq('id', holdId));
+    if (error) throw new Error(`Failed to edit description: ${(error as { message?: string }).message}`);
+    setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, damageDescription: text })));
+  };
+}
+
 /** Remove ONE photo from a hold — the array, the storage file, and the cover if it was pinned. */
 export function makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles }: EditDeps) {
   return async (holdId: string, photoUrl: string): Promise<void> => {

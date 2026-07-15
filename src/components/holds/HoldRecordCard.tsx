@@ -48,15 +48,32 @@ export function HoldRecordCard({
   const unresolvedTypes = unresolvedHoldTypes(hold);
   const mechanicalOpen = unresolvedTypes.includes('mechanical');
 
-  // Destructive edits (delete/void/remove-photo) — pulled from context, not prop-drilled.
-  const { voidHold, deleteHold, deleteHoldPhoto } = useVehicleHoldContext();
+  // Hold-history edits (edit-description / delete / void / remove-photo) — from context.
+  const { voidHold, deleteHold, deleteHoldPhoto, editHoldDescription } = useVehicleHoldContext();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [marked, setMarked] = useState<Set<string>>(new Set()); // photos staged for deletion
   const [busy, setBusy] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+  const [descDraft, setDescDraft] = useState(hold.damageDescription); // reset on each edit open
+  const descChanged = descDraft.trim().length > 0 && descDraft.trim() !== hold.damageDescription;
 
+  const startEdit = () => { setDescDraft(hold.damageDescription); setEditing(true); };
   const exitEdit = () => { setEditing(false); setPending(null); setMarked(new Set()); setErrMsg(''); };
+
+  const saveDescription = async () => {
+    if (!descChanged) return;
+    setBusy(true);
+    setErrMsg('');
+    try {
+      await editHoldDescription(hold.id, descDraft);
+      exitEdit();
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : 'Could not save the description.');
+    } finally {
+      setBusy(false);
+    }
+  };
   const toggleMark = (url: string) => setMarked(prev => {
     const next = new Set(prev);
     if (next.has(url)) next.delete(url); else next.add(url);
@@ -89,8 +106,29 @@ export function HoldRecordCard({
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-start justify-between gap-3 mb-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
-            {(unresolvedTypes.length > 1 || unresolvedTypes[0] !== 'damage') && unresolvedTypes.map(type => (
+            {editing ? (
+              <div className="w-full min-w-0">
+                <textarea
+                  value={descDraft}
+                  onChange={e => setDescDraft(e.target.value)}
+                  rows={2}
+                  aria-label="Edit hold description"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-1 focus:ring-fg-yellow"
+                />
+                <button
+                  type="button"
+                  disabled={busy || !descChanged}
+                  onClick={saveDescription}
+                  className="mt-1 rounded-lg bg-fg-yellow px-3 py-1 text-xs font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {busy ? 'Saving…' : 'Save text'}
+                </button>
+                {errMsg && !pending && <p className="text-xs text-red-500 mt-1">{errMsg}</p>}
+              </div>
+            ) : (
+              <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
+            )}
+            {!editing && (unresolvedTypes.length > 1 || unresolvedTypes[0] !== 'damage') && unresolvedTypes.map(type => (
               <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </span>
@@ -120,7 +158,7 @@ export function HoldRecordCard({
             <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} />
             <button
               type="button"
-              onClick={() => (editing ? exitEdit() : setEditing(true))}
+              onClick={() => (editing ? exitEdit() : startEdit())}
               aria-label={editing ? 'Done editing' : 'Edit this hold'}
               title={editing ? 'Done' : 'Edit'}
               className="text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 text-sm leading-none cursor-pointer"
