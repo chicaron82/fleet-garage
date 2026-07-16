@@ -37,8 +37,10 @@ const REFERENCE_IMPLS: ReferenceImpl[] = [
     ],
   },
   {
-    file: 'src/components/movement/TripStartForm.tsx',
-    fn:   'handleStartTripWith',
+    // Was TripStartForm's handleStartTripWith — the lifecycle moved to this hook
+    // (near-cap extraction 2026-07-16); the contract follows the handler.
+    file: 'src/hooks/useTripLifecycle.ts',
+    fn:   'startTrip',
     liveStateSetters: [
       'setPendingTripId(',
       'setDepartureTime(',
