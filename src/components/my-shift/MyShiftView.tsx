@@ -79,56 +79,6 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
   );
 }
 
-// ── ClosingChecklist ───────────────────────────────────────────────────────────
-
-const CLOSING_STEPS: { step: string; note?: string }[] = [
-  { step: 'Get keys from inside safe',                              note: 'No need to write down Sale or Turnback cars' },
-  { step: 'Put clean cars on their designated row/ring',            note: 'Load from the back' },
-  { step: 'Inventory write-up' },
-  { step: 'Send inventory photo to counter' },
-  { step: 'Lock gas pump',                                          note: 'Make sure all drivers have returned before locking' },
-  { step: 'Record gas meter numbers and initial' },
-  { step: 'Send gas sheets to airport' },
-  { step: 'Ensure car blocker on both sides of storage container',  note: 'Use any car — dirty, driveable damage, maintenance, or available' },
-  { step: 'Turn off water and gas pump' },
-  { step: 'Lock doors' },
-  { step: 'Turn off bay entrance switch' },
-  { step: 'Move shuttle in front of gate entrance',                 note: "Once everyone's car is outside" },
-  { step: 'Lights off' },
-  { step: 'Arm alarm system' },
-  { step: 'Close shutters' },
-];
-
-function ClosingChecklist({ defaultOpen }: { defaultOpen: boolean }) {
-  // Follow the live `defaultOpen` (isScheduledToday resolves async) until the user
-  // explicitly toggles — seeding useState(defaultOpen) froze it collapsed when the
-  // schedule loaded after mount.
-  const [override, setOverride] = useState<boolean | null>(null);
-  const open = override ?? defaultOpen;
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-      <button type="button" onClick={() => setOverride(!open)}
-        className="w-full px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Closing Checklist</span>
-        <span className="text-gray-400 dark:text-gray-500 text-xs">{open ? '▼' : '▶'}</span>
-      </button>
-      {open && (
-        <ol className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
-          {CLOSING_STEPS.map(({ step, note }, i) => (
-            <li key={i} className="px-4 py-3 flex gap-3">
-              <span className="shrink-0 text-xs font-semibold text-gray-400 dark:text-gray-500 w-5 text-right tabular-nums mt-0.5">{i + 1}.</span>
-              <div className="min-w-0">
-                <p className="text-base text-gray-800 dark:text-gray-200">{step}</p>
-                {note && <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{note}</p>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
 // ── StepSection ───────────────────────────────────────────────────────────────
 // Collapsed: dashed placeholder row (tappable to jump ahead). Expanded: children.
 
@@ -245,7 +195,6 @@ export function MyShiftView() {
             <WashbayClosingLog />
           </StepSection>
           <FuelPumpReadings user={user!} />
-          <ClosingChecklist defaultOpen={isScheduledToday} />
         </>
       )}
 
