@@ -68,7 +68,7 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
     setSubmitting(true);
     try {
       const isTesla = make === 'Tesla';
-      const id = await addVehicle({
+      const maybeId = await addVehicle({
         unitNumber:     unit.trim(),
         licensePlate:   plate.trim().toUpperCase(),
         make,
@@ -86,6 +86,10 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
         // addVehicle default to HELD, then addHold overwrites it immediately.
         status: returnTo === 'fleet' ? 'CLEAR' : undefined,
       });
+      // Dropped re-entrant submit (same plate already in flight) — the first
+      // submission owns the success path; this one just stands down.
+      if (!maybeId) return;
+      const id = maybeId;
       hapticMedium();
       // Reconcile a confirmed unit# conflict: the new vehicle now carries the
       // number, so release it from the record it was stapled to in error. The

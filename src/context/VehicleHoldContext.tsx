@@ -26,7 +26,8 @@ export interface VehicleHoldContextValue {
   evAssetLoans: EvAssetLoan[];
   createEvAssetLoan: (lenderVehicleId: string, assetType: EvLoanAsset, borrowerUnit: string, notes: string | null) => Promise<void>;
   returnEvAssetLoan: (loan: EvAssetLoan) => Promise<void>;
-  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string>;
+  /** Resolves the new vehicle id — or `undefined` when a same-plate call was in flight (dropped re-entrant, see submit lock). */
+  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;

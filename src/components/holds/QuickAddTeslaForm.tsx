@@ -54,6 +54,8 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
         hasMobileCable:  cable === 'present',
         hasJ1772Adapter: adapter === 'present',
       });
+      // Dropped re-entrant submit (same plate in flight) — the first call owns the follow-ups.
+      if (!id) { setSaving(false); return; }
       // Attribution + the unified EV timeline row (source: vsa_washbay).
       await updateVehicleEVAssets(id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined);
       if (bothMissing) {

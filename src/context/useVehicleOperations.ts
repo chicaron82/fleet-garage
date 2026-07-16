@@ -36,34 +36,41 @@ export function useVehicleOperations({
 
   const addVehicle = async (
     vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus },
-  ): Promise<string> => {
-    const id = crypto.randomUUID();
-    const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
-    // Registration defaults to HELD (register-to-flag flow); a caller can pass a
-    // status explicitly — e.g. the EV quick-add lands a transfer Tesla as CLEAR.
-    const status = vehicle.status ?? 'HELD';
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').insert({
-        id,
-        unit_number:       vehicle.unitNumber,
-        license_plate:     vehicle.licensePlate,
-        make:              vehicle.make,
-        model:             vehicle.model,
-        year:              vehicle.year,
-        color:             vehicle.color,
-        branch_id:         branchId,
-        status,
-        is_tesla:          vehicle.isTesla ?? false,
-        has_mobile_cable:  vehicle.hasMobileCable ?? null,
-        has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
-      })
-    );
-    if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
-    await pushNotification(branchId, NOTIFY_MGMT_WIDE, '🚗',
-      `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
-    const newVehicle: Vehicle = { ...vehicle, id, status, branchId };
-    setAllVehicles(prev => [newVehicle, ...prev]);
-    return id;
+  ): Promise<string | undefined> => {
+    // Double-submit guard at the convergence point, keyed on the plate — the scan
+    // flows (trip-scan auto-register, overflow stack-scan) can fire a same-plate
+    // register twice before React re-renders the vehicles list, and each insert
+    // would mint its own UUID. A dropped re-entrant call resolves undefined (the
+    // first call is doing the work) — same contract as addHold/addRelease.
+    return withSubmitLock(`vehicle:${vehicle.licensePlate.trim().toUpperCase()}`, async () => {
+      const id = crypto.randomUUID();
+      const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
+      // Registration defaults to HELD (register-to-flag flow); a caller can pass a
+      // status explicitly — e.g. the EV quick-add lands a transfer Tesla as CLEAR.
+      const status = vehicle.status ?? 'HELD';
+      const { error } = await writeWithRefresh(() =>
+        supabase.from('vehicles').insert({
+          id,
+          unit_number:       vehicle.unitNumber,
+          license_plate:     vehicle.licensePlate,
+          make:              vehicle.make,
+          model:             vehicle.model,
+          year:              vehicle.year,
+          color:             vehicle.color,
+          branch_id:         branchId,
+          status,
+          is_tesla:          vehicle.isTesla ?? false,
+          has_mobile_cable:  vehicle.hasMobileCable ?? null,
+          has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
+        })
+      );
+      if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
+      await pushNotification(branchId, NOTIFY_MGMT_WIDE, '🚗',
+        `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
+      const newVehicle: Vehicle = { ...vehicle, id, status, branchId };
+      setAllVehicles(prev => [newVehicle, ...prev]);
+      return id;
+    });
   };
 
   // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite

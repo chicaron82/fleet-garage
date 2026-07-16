@@ -59,7 +59,8 @@ export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onReg
         hasMobileCable:  null,
         hasJ1772Adapter: null,
       });
-      h.selectVehicle(vehicleId);
+      // undefined = dropped re-entrant tap (same plate in flight) — first tap selects.
+      if (vehicleId) h.selectVehicle(vehicleId);
     } finally {
       setCreatingPlateOnly(false);
     }

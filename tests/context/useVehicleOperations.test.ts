@@ -126,6 +126,45 @@ describe('addVehicle', () => {
     await expect(ops.addVehicle(NEW_VEHICLE)).rejects.toThrow('Failed to add vehicle');
     expect(setAllVehicles).not.toHaveBeenCalled();
   });
+
+  it('double-submit of the same plate inserts exactly one vehicle (shared lock)', async () => {
+    // The scan flows (trip-scan auto-register, overflow stack-scan) can fire a
+    // same-plate register twice before the vehicles list re-renders — the lock
+    // (keyed on the plate) drops the second, so one row instead of two UUIDs.
+    const { ops, setAllVehicles } = makeOps();
+
+    const p1 = ops.addVehicle(NEW_VEHICLE);
+    const p2 = ops.addVehicle(NEW_VEHICLE); // same plate, lock held → dropped
+    const [id1, id2] = await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'vehicles')).toHaveLength(1);
+    expect(setAllVehicles).toHaveBeenCalledTimes(1);
+    expect(id1).toBeTruthy();
+    expect(id2).toBeUndefined();
+  });
+
+  it('keys the lock on the normalized plate — case/whitespace variants still dedupe', async () => {
+    const { ops } = makeOps();
+
+    const p1 = ops.addVehicle(NEW_VEHICLE);                                   // 'ABC 123'
+    const p2 = ops.addVehicle({ ...NEW_VEHICLE, licensePlate: ' abc 123 ' }); // same car, messier read
+    await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'vehicles')).toHaveLength(1);
+  });
+
+  it('different plates register concurrently — the lock never serializes distinct cars', async () => {
+    const { ops, setAllVehicles } = makeOps();
+
+    const p1 = ops.addVehicle(NEW_VEHICLE);
+    const p2 = ops.addVehicle({ ...NEW_VEHICLE, licensePlate: 'XYZ 789', unitNumber: '4916467' });
+    const [id1, id2] = await Promise.all([p1, p2]);
+
+    expect(fromCalls.filter(t => t === 'vehicles')).toHaveLength(2);
+    expect(setAllVehicles).toHaveBeenCalledTimes(2);
+    expect(id1).toBeTruthy();
+    expect(id2).toBeTruthy();
+  });
 });
 
 // ── addHold ───────────────────────────────────────────────────────────────────

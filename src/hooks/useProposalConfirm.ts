@@ -160,6 +160,8 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           hasMobileCable: null,
           hasJ1772Adapter: null,
         });
+        // Dropped re-entrant confirm (same plate in flight) — the first confirm owns the hold.
+        if (!vehicleId) return;
         // Attach + pin the scoped damage photo — SAME as the plain-hold path. (This used to
         // hardcode `undefined` on the assumption the chat image was a KEY TAG only there to
         // read the vehicle's details. That held when register_and_hold came from a keytag
