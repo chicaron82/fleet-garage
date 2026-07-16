@@ -321,9 +321,9 @@ export type Screen =
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
-  | { name: 'movement-log' }
+  | { name: 'movement-log'; prefillPlate?: string }
   | { name: 'my-shift' }
-  | { name: 'lost-and-found' }
+  | { name: 'lost-and-found'; prefillPlate?: string }
   | { name: 'audits' }
   | { name: 'audit-form' }
   | { name: 'analytics' }
