@@ -26,7 +26,7 @@ interface Props {
 export function MovementLogVsaView({ user, today, prefillPlate, liveTrips, setLiveTrips }: Props) {
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
   // One-way ("staying here") end of an airport run = the VSA stayed to flip returns. Bumping this
-  // signals OffStandardTimeLog to auto-start the flipping timer (see lib/autoFlipSignal).
+  // signals OffStandardTimeLog to auto-start the flipping timer (see lib/autoStartSignal).
   const [autoFlipSignal, setAutoFlipSignal] = useState(0);
   // Tab is context-owned so a pill tap (from anywhere in the shell) selects it as
   // controlled state — no consume-and-clear signal, no effect.

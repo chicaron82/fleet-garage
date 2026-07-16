@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { QUICK_TAPS } from '../../hooks/useOffStandardSession';
-import { shouldStartAutoFlip } from '../../lib/autoFlipSignal';
+import { shouldAutoStartTimer } from '../../lib/autoStartSignal';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -31,7 +31,7 @@ export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Pr
   const { holds, vehicles } = useVehicleHoldContext();
   const { shifts, todayShifts } = useSchedule();
   const { getName: resolveName } = useUserResolver();
-  const { trip, setMovementTab } = useActiveSessions();
+  const { trip, setMovementTab, openingDutiesTrigger } = useActiveSessions();
   const collision = useStartCollisionGuard(trip); // speed-bump: OTH-start while a trip runs
   const [showBackdate, setShowBackdate] = useState(false);
 
@@ -90,10 +90,22 @@ export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Pr
     const t = autoFlipTrigger ?? 0;
     if (t === lastFlipRef.current) return; // not a new signal
     lastFlipRef.current = t;               // consume it — no late re-fire when the timer frees up
-    if (!shouldStartAutoFlip(t, timerState)) return;
+    if (!shouldAutoStartTimer(t, timerState)) return;
     const flipTap = QUICK_TAPS.find(tap => tap.id === 'airport_flip');
     if (flipTap) void handleQuickTap(flipTap);
   }, [autoFlipTrigger, timerState, handleQuickTap]);
+
+  // Same shape for the My Day "Start opening duties" quick-start (openingDutiesTrigger bumps
+  // from the ActiveSessions context, since it crosses screens). Identical one-shot + idle gate:
+  // if he's already timing something, the tap is ignored rather than clobbering it.
+  const lastOpeningRef = useRef(openingDutiesTrigger);
+  useEffect(() => {
+    if (openingDutiesTrigger === lastOpeningRef.current) return;
+    lastOpeningRef.current = openingDutiesTrigger;
+    if (!shouldAutoStartTimer(openingDutiesTrigger, timerState)) return;
+    const openingTap = QUICK_TAPS.find(tap => tap.id === 'opening_duties');
+    if (openingTap) void handleQuickTap(openingTap);
+  }, [openingDutiesTrigger, timerState, handleQuickTap]);
 
   const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 

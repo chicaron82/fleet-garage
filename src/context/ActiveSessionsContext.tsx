@@ -25,6 +25,12 @@ interface ActiveSessionsValue {
   refresh:        () => void;
   movementTab:    FocusTab;
   setMovementTab: (tab: FocusTab) => void;
+  /** Bumped to auto-start the Opening Duties timer from outside the module (the My Day
+   *  quick-start). Lives here because it must cross screens — the same reason movementTab does.
+   *  OffStandardTimeLog consumes it through the shared shouldAutoStartTimer gate, so it can
+   *  never clobber a timer already running. */
+  openingDutiesTrigger: number;
+  signalOpeningDuties:  () => void;
 }
 
 const ActiveSessionsContext = createContext<ActiveSessionsValue | null>(null);
@@ -48,6 +54,8 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   const [trip, setTrip]               = useState<ActiveSession | null>(null);
   const [oth, setOth]                 = useState<ActiveSession | null>(null);
   const [movementTab, setMovementTab] = useState<FocusTab>('movement-log');
+  const [openingDutiesTrigger, setOpeningDutiesTrigger] = useState(0);
+  const signalOpeningDuties = useCallback(() => setOpeningDutiesTrigger(n => n + 1), []);
   const [nowMs, setNowMs]             = useState(() => Date.now());
 
   // One elapsed-time tick shared across all pill consumers — no duplicate intervals.
@@ -93,7 +101,7 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
 
   return (
     <ActiveSessionsContext.Provider
-      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab }}
+      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab, openingDutiesTrigger, signalOpeningDuties }}
     >
       {children}
     </ActiveSessionsContext.Provider>

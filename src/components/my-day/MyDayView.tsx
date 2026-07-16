@@ -1,5 +1,6 @@
 import { useMyDay } from '../../hooks/useMyDay';
 import { useScanRouter } from '../../context/scanRouter';
+import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
@@ -20,6 +21,15 @@ const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white da
 export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const day = useMyDay();
   const scanRouter = useScanRouter();
+  const { signalOpeningDuties, setMovementTab } = useActiveSessions();
+
+  // Punch in → one tap starts the Opening Duties timer, no trip to the Off-Standard tab to
+  // hunt the quick-tap. Signal + land him on the running timer; the module still does the work.
+  const startOpeningDuties = () => {
+    signalOpeningDuties();
+    setMovementTab('off-standard');
+    onNavigate({ name: 'movement-log' });
+  };
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -41,6 +51,25 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
         </span>
         <span className="text-gray-300 dark:text-gray-600">→</span>
       </button>
+
+      {/* ── Opening quick-start ──────────────────────────────────────────────
+          Opening shifts only: the first thing he does after punching in. One tap
+          starts the Opening Duties timer (the off-standard module owns the write —
+          this just signals + routes). Never clobbers a timer already running. */}
+      {day.working && day.myShift?.shiftType === 'opening' && (
+        <button
+          type="button"
+          onClick={startOpeningDuties}
+          className={`${CARD} w-full px-4 py-3.5 flex items-center gap-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition`}
+        >
+          <span className="text-xl leading-none">🌅</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">Start opening duties</span>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">Starts the timer — gas, keys, boards</span>
+          </span>
+          <span className="text-gray-300 dark:text-gray-600">→</span>
+        </button>
+      )}
 
       {/* ── Your shift today ─────────────────────────────────────────────── */}
       <section className={`${CARD} px-4 py-4 space-y-3`}>
