@@ -44,7 +44,7 @@ function rowToTrip(row: Record<string, unknown>): TripRun {
 
 
 
-export function MovementLogView() {
+export function MovementLogView({ prefillPlate }: { prefillPlate?: string } = {}) {
   const { user } = useAuth();
 
   // All hooks unconditional — declare before early returns
@@ -132,7 +132,7 @@ export function MovementLogView() {
 
   // ── VSA view — Movement Log + Off-Standard Time tabs ─────────────────────
   if (isVSA) {
-    return <MovementLogVsaView user={user} today={today} liveTrips={liveTrips} setLiveTrips={setLiveTrips} />;
+    return <MovementLogVsaView user={user} today={today} prefillPlate={prefillPlate} liveTrips={liveTrips} setLiveTrips={setLiveTrips} />;
   }
 
   // ── Driver / CSR / HIR / Management ──────────────────────────────────────

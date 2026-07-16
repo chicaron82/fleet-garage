@@ -122,3 +122,48 @@ export function buildArrivalUpdate(input: ArrivalInput, arrivedAt: string): Reco
     status:             'complete',
   };
 }
+
+/** The fields a trip-start insert needs from the form — everything else is derived here. */
+export interface TripStartInput {
+  tripId: string;
+  vehiclePlate: string;
+  isShuttle: boolean;
+  driverId: string;
+  branchId: string | null;
+  auth: Authorization | null;
+  reason: Reason;
+  queue: QueueSnapshot | null;
+  notes: string;
+  isTeslaRun: boolean;
+  evCableStatus: EvAssetStatus | null;
+  evAdapterStatus: EvAssetStatus | null;
+}
+
+/**
+ * Build the vsa_trips insert for a VSA starting an airport run — the departure sibling of
+ * buildArrivalUpdate. Pure (takes `now`), so the plate normalization, the shuttle→trip_type
+ * mapping, and the "EV fields only on a Tesla run" rule are testable without the form.
+ */
+export function buildTripStartInsert(input: TripStartInput, now: string): Record<string, unknown> {
+  return {
+    id:                  input.tripId,
+    vehicle_plate:       input.vehiclePlate.trim().toUpperCase() || null,
+    vehicle_unit:        '',
+    trip_type:           input.isShuttle ? 'transfer' : 'clean',
+    depart_location:     'Airport Run',
+    arrive_location:     null,
+    depart_time:         now,
+    arrive_time:         null,
+    driver_id:           input.driverId,
+    branch_id:           input.branchId,
+    is_vsa_interruption: true,
+    is_shuttle:          input.isShuttle,
+    auth_type:           input.auth,
+    reason:              input.reason,
+    queue_at_departure:  input.queue,
+    notes:               input.notes.trim() || null,
+    ev_cable_status:     input.isTeslaRun ? (input.evCableStatus ?? null) : null,
+    ev_adapter_status:   input.isTeslaRun ? (input.evAdapterStatus ?? null) : null,
+    status:              'in_progress',
+  };
+}

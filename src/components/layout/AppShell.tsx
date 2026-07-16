@@ -6,6 +6,7 @@ import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { NotificationBell } from '../shared/NotificationBell';
 import { ActiveSessionPill } from './ActiveSessionPill';
+import { useScanRouter } from '../../context/scanRouter';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
 import { VehicleEditApprovalSheet } from '../vehicle/VehicleEditApprovalSheet';
@@ -24,6 +25,7 @@ interface Props {
 export function AppShell({ activeModule, screenKey, onNavigate, children }: Props) {
   const isOnline = useNavigatorOnLine();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const scanRouter = useScanRouter();
 
   // Reset the content scroll on navigation so a new screen starts at the top —
   // otherwise you land scrolled past the sticky nav (← Back off-screen) after,
@@ -96,6 +98,17 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           </div>
           <div className="flex items-center gap-2">
             <ActiveSessionPill variant="header" activeModule={activeModule} onNavigate={handleNavigate} />
+            {/* Universal scan-router — reachable from every module (the other door is the My Day
+                card). Always-visible icon, not tap-to-expand: scanning is one tap, not two. */}
+            <button
+              type="button"
+              onClick={scanRouter.open}
+              aria-label="Scan a key tag"
+              title="Scan a key tag"
+              className="text-lg leading-none px-1 cursor-pointer hover:opacity-70 transition"
+            >
+              📷
+            </button>
             <NotificationBell onNavigate={handleNavigate} onOffStdEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
             <UserProfileMenu />
           </div>

@@ -7,6 +7,7 @@ import { LostFoundProvider } from './context/LostFoundContext';
 import { FleetBalanceProvider } from './context/FleetBalanceContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { ActiveSessionsProvider } from './context/ActiveSessionsContext';
+import { ScanRouterProvider } from './context/ScanRouterContext';
 import { EffieProvider } from './context/EffieContext';
 import { PendingWritesProvider } from './context/PendingWritesContext';
 import { AppShell } from './components/layout/AppShell';
@@ -178,13 +179,13 @@ export default function App() {
       case 'my-day':
         return <MyDayView onNavigate={navigate} />;
       case 'movement-log':
-        return <MovementLogView />;
+        return <MovementLogView prefillPlate={screen.prefillPlate} />;
       case 'schedule':
         return <ScheduleScreen openImport={screen.openImport} />;
       case 'my-shift':
         return <MyShiftView />;
       case 'lost-and-found':
-        return <LostAndFoundView />;
+        return <LostAndFoundView prefillPlate={screen.prefillPlate} />;
       case 'audits':
         return <AuditView onNewAudit={() => navigate({ name: 'audit-form' })} />;
       case 'audit-form':
@@ -227,13 +228,18 @@ export default function App() {
               <PendingWritesProvider>
               <FleetBalanceProvider>
                 <ActiveSessionsProvider>
-                  <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
-                    <AppErrorBoundary>
-                      <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
-                        {renderScreen()}
-                      </Suspense>
-                    </AppErrorBoundary>
-                  </AppShell>
+                  {/* Inside VehicleHoldProvider (the router resolves against the fleet) and around
+                      AppShell, so BOTH entry points — the header icon and the My Day card — reach
+                      the one shared overlay. */}
+                  <ScanRouterProvider navigate={navigate}>
+                    <AppShell activeModule={activeModule} screenKey={JSON.stringify(screen)} onNavigate={navigate}>
+                      <AppErrorBoundary>
+                        <Suspense fallback={<div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading…</div>}>
+                          {renderScreen()}
+                        </Suspense>
+                      </AppErrorBoundary>
+                    </AppShell>
+                  </ScanRouterProvider>
                 </ActiveSessionsProvider>
               </FleetBalanceProvider>
               {showLogoutConfirm && (

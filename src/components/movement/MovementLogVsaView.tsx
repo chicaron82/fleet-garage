@@ -14,6 +14,8 @@ import type { OffStandardEntry, User } from '../../types';
 interface Props {
   user: User;
   today: string;
+  /** From the scan-router's "Start trip" — pre-fills the trip form's plate. */
+  prefillPlate?: string;
   liveTrips: TripRun[];
   setLiveTrips: Dispatch<SetStateAction<TripRun[]>>;
 }
@@ -21,7 +23,7 @@ interface Props {
 /** VSA / Lead-VSA movement screen: Movement Log + Off-Standard Time tabs. Both
  *  tabs stay mounted so the OTH timer survives switches. Owns its own tab +
  *  off-standard-refresh state — separate from the driver/management view. */
-export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Props) {
+export function MovementLogVsaView({ user, today, prefillPlate, liveTrips, setLiveTrips }: Props) {
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
   // One-way ("staying here") end of an airport run = the VSA stayed to flip returns. Bumping this
   // signals OffStandardTimeLog to auto-start the flipping timer (see lib/autoFlipSignal).
@@ -113,7 +115,7 @@ export function MovementLogVsaView({ user, today, liveTrips, setLiveTrips }: Pro
 
       {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
       <div className={activeTab === 'movement-log' ? 'space-y-5' : 'hidden'}>
-        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} />
+        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} initialPlate={prefillPlate} />
         <OverflowSendForm onLogged={refreshActiveSessions} />
         {myLiveTrips.length > 0 && (
           <div className="space-y-2">

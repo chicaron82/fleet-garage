@@ -10,13 +10,15 @@ import { LogLostFoundItemModal } from './LogLostFoundItemModal';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
 
-export function LostAndFoundView() {
+// `prefillPlate` arrives from the scan-router (scan a tag → "Log lost & found"): open the log
+// sheet straight away with the plate already filled, so the scan hands off mid-flow.
+export function LostAndFoundView({ prefillPlate }: { prefillPlate?: string } = {}) {
   const { user } = useAuth();
   const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem, loadError, reload } = useLostFoundContext();
 
   const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
-  const [showSheet, setShowSheet]           = useState(false);
+  const [showSheet, setShowSheet]           = useState(!!prefillPlate);
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
 
@@ -183,6 +185,7 @@ export function LostAndFoundView() {
       {showSheet && (
         <LogLostFoundItemModal
           user={user}
+          initialPlate={prefillPlate}
           onClose={() => setShowSheet(false)}
           onSubmit={addLostFoundItem}
         />

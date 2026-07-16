@@ -12,7 +12,7 @@ import type { TripRun } from '../../data/trips';
 import { generateDayManifest } from '../../data/manifest';
 import { loadFlags } from '../../lib/manifestFlags';
 import { loadOverrides } from '../../lib/classOverrides';
-import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate, parseRecoveredQueue } from '../../lib/vsa-trip';
+import { elapsedSince, TRIP_DURATION_THRESHOLDS, DEFAULT_AUTH, buildArrivalUpdate, buildTripStartInsert, parseRecoveredQueue } from '../../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../../lib/vsa-trip';
 import { pushNotification } from '../../lib/garage-uploads';
 import { detectTeslaByPlate } from '../../lib/ev-detection';
@@ -41,9 +41,12 @@ export type TripStartInfo = {
 export function TripStartForm({
   onTripComplete,
   onTripStarted,
+  initialPlate,
 }: {
   onTripComplete?: (trip: TripRun) => void;
   onTripStarted?: (info: TripStartInfo) => void;
+  /** Plate handed in by the scan-router ("Start trip" on a scanned tag) — starts the form filled. */
+  initialPlate?: string;
 }) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles } = useVehicleHoldContext();
@@ -65,7 +68,7 @@ export function TripStartForm({
   const [elapsed, setElapsed]               = useState('');
   const [completedOneWay, setCompletedOneWay] = useState(false);
 
-  const [vehiclePlate, setVehiclePlate]       = useState('');
+  const [vehiclePlate, setVehiclePlate]       = useState(initialPlate ?? '');
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
   const [evCableStatus, setEvCableStatus]     = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
@@ -154,27 +157,10 @@ export function TripStartForm({
     const now = new Date().toISOString();
     const tripId = `trip-${Date.now()}`;
 
-    const { ok } = await writeOrEnqueue('insert', {
-      id:                  tripId,
-      vehicle_plate:       vehiclePlate.trim().toUpperCase() || null,
-      vehicle_unit:        '',
-      trip_type:           isShuttle ? 'transfer' : 'clean',
-      depart_location:     'Airport Run',
-      arrive_location:     null,
-      depart_time:         now,
-      arrive_time:         null,
-      driver_id:           user.id,
-      branch_id:           user.branchId,
-      is_vsa_interruption: true,
-      is_shuttle:          isShuttle,
-      auth_type:           auth,
-      reason:              r,
-      queue_at_departure:  queue,
-      notes:               tripNotes.trim() || null,
-      ev_cable_status:     isTeslaRun ? (evCableStatus ?? null) : null,
-      ev_adapter_status:   isTeslaRun ? (evAdapterStatus ?? null) : null,
-      status:              'in_progress',
-    });
+    const { ok } = await writeOrEnqueue('insert', buildTripStartInsert({
+      tripId, vehiclePlate, isShuttle, driverId: user.id, branchId: user.branchId,
+      auth, reason: r, queue, notes: tripNotes, isTeslaRun, evCableStatus, evAdapterStatus,
+    }, now));
 
     if (!ok) {
       console.error('[TripStartForm] trip start write failed');

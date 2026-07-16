@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { buildLostFoundItemInput } from '../../lib/lostFoundItem';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
@@ -24,6 +25,8 @@ const LOCATION_ORDER: LostFoundLocation[] = [
 
 interface LogLostFoundItemModalProps {
   user: User | null;
+  /** Plate to start with — the scan-router hands the scanned tag's plate straight in. */
+  initialPlate?: string;
   onClose: () => void;
   onSubmit: (item: {
     keyTagPhoto?: string;
@@ -37,6 +40,7 @@ interface LogLostFoundItemModalProps {
 
 export function LogLostFoundItemModal({
   user,
+  initialPlate,
   onClose,
   onSubmit,
 }: LogLostFoundItemModalProps) {
@@ -46,7 +50,7 @@ export function LogLostFoundItemModal({
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState<LostFoundLocation | null>(null);
-  const [licensePlate, setLicensePlate] = useState('');
+  const [licensePlate, setLicensePlate] = useState(initialPlate ?? '');
   const [notes, setNotes] = useState('');
   const [sourceTag, setSourceTag] = useState<SourceTag | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -94,14 +98,9 @@ export function LogLostFoundItemModal({
     hapticMedium();
     setSubmitting(true);
     setSubmitError(false);
-    const ok = await onSubmit({
-      keyTagPhoto: keyTagPhoto ?? undefined,
-      itemPhoto: itemPhoto ?? undefined,
-      description: description.trim() || undefined,
-      location: location ?? undefined,
-      licensePlate: licensePlate.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+    const ok = await onSubmit(buildLostFoundItemInput({
+      keyTagPhoto, itemPhoto, description, location, licensePlate, notes,
+    }));
     setSubmitting(false);
     if (!ok) {
       setSubmitError(true);
