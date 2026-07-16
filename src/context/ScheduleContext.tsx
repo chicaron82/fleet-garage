@@ -6,60 +6,15 @@ import { useUserResolver } from '../hooks/useUserResolver';
 import { usePeakSeason } from '../hooks/usePeakSeason';
 import { usePTOStats } from '../hooks/usePTOStats';
 import { ownedTallyDelta, type TallyShift } from '../lib/ptoTally';
-import { rowToShiftBase } from '../lib/rowToShift';
 import { withSubmitLock } from '../lib/submitLock';
 import { resolveShiftNames } from '../lib/resolveShiftNames';
 import { useTodayShifts } from '../hooks/useTodayShifts';
+// Pure helpers (toISO, getWeekBounds, formatShiftLabel, buildRowToShift,
+// isManagerEditingOtherUser) live in lib/schedule-helpers — extracted at the
+// 330-cap wall; import them from there, not from this context.
+import { toISO, getWeekBounds, formatShiftLabel, isManagerEditingOtherUser, buildRowToShift } from '../lib/schedule-helpers';
 import { canManageSchedule } from '../types';
-import type { Attendance, BranchId, Profile, Shift, ShiftWithUser, ShiftType, UserRole } from '../types';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function toISO(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function getWeekBounds(date: Date): { start: Date; end: Date } {
-  const d = new Date(date);
-  const dow = d.getDay(); // 0=Sun
-  const toMon = dow === 0 ? -6 : 1 - dow;
-  d.setDate(d.getDate() + toMon);
-  const start = new Date(d);
-  const end = new Date(d);
-  end.setDate(end.getDate() + 6);
-  return { start, end };
-}
-
-function formatShiftLabel(shiftType: ShiftType, date: string): string {
-  const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-CA', {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-  const typeLabel = shiftType === 'day-off' ? 'Day Off'
-    : shiftType === 'pto'  ? 'PTO'
-    : shiftType === 'sick' ? 'Sick Day'
-    : `${shiftType.charAt(0).toUpperCase() + shiftType.slice(1)} shift`;
-  return `${typeLabel} on ${dayLabel}`;
-}
-
-function isManagerEditingOtherUser(role: UserRole, actingId: string, targetUserId: string): boolean {
-  return canManageSchedule(role) && actingId !== targetUserId;
-}
-
-function buildRowToShift(resolveUser: (id: string) => Profile | null) {
-  return function rowToShift(row: Record<string, unknown>): ShiftWithUser {
-    const u = resolveUser(row.user_id as string);
-    return {
-      ...rowToShiftBase(row),
-      branchId: (u?.branchId ?? 'YWG') as BranchId,
-      user: { name: u?.name ?? 'Unknown', role: (u?.role ?? 'VSA') as UserRole },
-    };
-  };
-}
+import type { Attendance, Shift, ShiftWithUser } from '../types';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 

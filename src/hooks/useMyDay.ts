@@ -5,7 +5,8 @@
 // heavy, firing notifications + pref-sync; the throughput glance uses the
 // lightweight washbay handoff instead. See lib/myDay.ts.)
 import { useAuth } from '../context/AuthContext';
-import { useSchedule, toISO } from '../context/ScheduleContext';
+import { useSchedule } from '../context/ScheduleContext';
+import { toISO } from '../lib/schedule-helpers';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { useWashbayContext } from '../context/WashbayContext';
 import { useFleetBalanceContext } from '../context/FleetBalanceContext';

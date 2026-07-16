@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { supabase } from '../../lib/supabase';

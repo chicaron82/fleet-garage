@@ -1,6 +1,6 @@
 import { useMyUpcomingClopens } from '../../hooks/useMyUpcomingClopens';
 import { clopenLabel } from '../../lib/scheduleClopens';
-import { toISO } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 
 // The standing clopen heads-up on the Schedule screen: every clopen coming up in your
 // loaded schedule, read from the stored shifts (no re-upload). Renders nothing when you

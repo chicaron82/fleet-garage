@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { useActualHours } from '../../hooks/useActualHours';
 import { isStatDay, getStatName } from '../../lib/stats';
 import { getTypeDefaults } from '../../lib/shiftDefaults';

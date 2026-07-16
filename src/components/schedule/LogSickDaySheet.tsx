@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
 

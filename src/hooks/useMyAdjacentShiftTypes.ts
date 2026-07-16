@@ -5,7 +5,7 @@
 // [yesterday, tomorrow] window. Branch-agnostic; My-Day-only.
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { toISO } from '../context/ScheduleContext';
+import { toISO } from '../lib/schedule-helpers';
 import type { ShiftType } from '../types';
 
 export interface AdjacentShiftTypes {

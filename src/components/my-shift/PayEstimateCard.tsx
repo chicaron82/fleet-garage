@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useSchedule, toISO } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { supabase } from '../../lib/supabase';
 import { rowToShiftBase } from '../../lib/rowToShift';
 import { calcPayEstimate, getPayPeriod, getActivePayPeriod, getPayday, periodConfidence, PAY_CONFIG, type PayEstimate, type PeriodConfidence } from '../../lib/payEstimate';

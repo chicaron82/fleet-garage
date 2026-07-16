@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useSchedule } from '../../context/ScheduleContext';
-import { toISO } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { WashbayClosingLog } from '../washbay/WashbayClosingLog';
 import { HandoffForm } from '../washbay/HandoffForm';
 import { AfternoonCheckIn } from '../check-in/AfternoonCheckIn';

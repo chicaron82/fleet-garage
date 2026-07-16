@@ -3,7 +3,7 @@
 // fresh parse; this reads what's already in FG. Same pure findClopens, different source.
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { toISO } from '../context/ScheduleContext';
+import { toISO } from '../lib/schedule-helpers';
 import { findClopens, type Clopen } from '../lib/scheduleClopens';
 
 // A VSA schedule block is 4 weeks; 6 weeks of scan covers the current block plus the start

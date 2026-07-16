@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
 import { ShareTextButton } from '../shared/ShareTextButton';
-import { toISO } from '../../context/ScheduleContext';
+import { toISO } from '../../lib/schedule-helpers';
 import { buildPtoRequest, ptoTaken, type StatInfo } from '../../lib/ptoRequest';
 import { isStatDay, getStatName } from '../../lib/stats';
 import type { User } from '../../types';

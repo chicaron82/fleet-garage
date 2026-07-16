@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { useSchedule, getWeekBounds, toISO } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { getWeekBounds, toISO } from '../../lib/schedule-helpers';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
