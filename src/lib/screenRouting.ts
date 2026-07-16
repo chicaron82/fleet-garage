@@ -29,6 +29,11 @@ export function pathToScreen(path: string): Screen | null {
   if (vehicleMatch) return { name: 'vehicle', vehicleId: vehicleMatch[1] };
   switch (path) {
     case '/my-day':         return { name: 'my-day' };
+    // '/my-shift' aliases the canonical '/shift' — the module is NAMED 'my-shift'
+    // and '/my-day' is a real path, so it's the natural guess (a 2026-07-16
+    // verify-fg run typed it, got a null deep-link, and read the last-visited
+    // fallback as a landing-pref bug). Canonical stays '/shift' (screenToPath).
+    case '/my-shift':
     case '/shift':          return { name: 'my-shift' };
     case '/schedule':       return { name: 'schedule' };
     case '/lost-and-found': return { name: 'lost-and-found' };

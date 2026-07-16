@@ -78,6 +78,10 @@ describe('pathToScreen', () => {
     expect(pathToScreen('/shift')).toEqual({ name: 'my-shift' });
   });
 
+  it('/my-shift alias → my-shift (the natural guess — module name, and /my-day exists)', () => {
+    expect(pathToScreen('/my-shift')).toEqual({ name: 'my-shift' });
+  });
+
   it('/schedule → schedule', () => {
     expect(pathToScreen('/schedule')).toEqual({ name: 'schedule' });
   });

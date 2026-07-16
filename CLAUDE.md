@@ -226,9 +226,13 @@ dev server up, `node scripts/verify-fg.mjs <path> <name> [clickText]` logs in as
 the verify bot (creds in gitignored `.env.local`: `VERIFY_EMPLOYEE_ID` /
 `VERIFY_PASSWORD`; the `DIZEE` / GM account), caches the session in `.verify/`
 (gitignored), optionally clicks `clickText`, and screenshots `<path>` to
-`.verify/<name>.png` for the Read tool. Paths: `/`, `/schedule`, `/shift`,
-`/lost-and-found`, `/analytics`, `/issue-log`. This is the standing cure for
-"shipped visual work unseen."
+`.verify/<name>.png` for the Read tool. Paths: `/`, `/my-day`, `/schedule`,
+`/shift` (alias `/my-shift`), `/lost-and-found`, `/movement-log`, `/audits`,
+`/analytics`, `/issue-log`, `/manifest`, `/fleet`, `/effie` — the full map is
+`src/lib/screenRouting.ts`. An UNMAPPED path never errors: the app silently
+falls back to the last-visited module, which reads as "wrong screen rendered"
+(bit 2026-07-16 — `/my-shift` pre-alias rendered My Day and got read as a
+landing-pref bug). This is the standing cure for "shipped visual work unseen."
 
 **Write boundary (DiZee is a mock account, scoped writes OK as of 2026-06-16):**
 self-scoped writes are free — anything affecting only DiZee's own numbers
