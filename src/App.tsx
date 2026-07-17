@@ -160,6 +160,7 @@ export default function App() {
         return (
           <RegisterVehicleForm
             prefill={screen.prefill}
+            scanned={screen.scanned}
             returnTo={screen.fromHold ? 'hold' : 'fleet'}
             onBack={() =>
               screen.fromHold

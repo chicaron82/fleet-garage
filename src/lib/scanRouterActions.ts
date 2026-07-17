@@ -46,9 +46,15 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult): S
 
   // New to the fleet → register (only if the tag read enough), else just Lost & Found.
   const actions: ScanAction[] = [];
-  if (newVehicleFromRead(read, plate)) {
-    actions.push({ kind: 'register', label: 'Register', icon: '➕', screen: { name: 'register-vehicle', prefill: plate } });
-    actions.push({ kind: 'register-and-flag', label: 'Register & flag', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate } });
+  // The tag was read completely enough to register — so carry EVERY field through, not just the
+  // plate. Passing `prefill` alone made the operator retype make/model/unit/year that FG had
+  // just read off the tag in his hand (found live 2026-07-17). `newVehicleFromRead` non-null IS
+  // the proof the fields exist; throwing them away here was the bug.
+  const nv = newVehicleFromRead(read, plate);
+  if (nv) {
+    const scanned = { unitNumber: nv.unitNumber, plate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color };
+    actions.push({ kind: 'register', label: 'Register', icon: '➕', screen: { name: 'register-vehicle', prefill: plate, scanned } });
+    actions.push({ kind: 'register-and-flag', label: 'Register & flag', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate, scanned } });
   }
   actions.push(logLostFound);
   return actions;

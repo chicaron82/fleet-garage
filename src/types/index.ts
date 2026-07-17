@@ -315,12 +315,24 @@ export interface ScannedPayload {
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 
+/** A key-tag read carried INTO the register form, so a scan never makes the operator retype
+ *  what FG just read off the tag. `prefill` (plate-or-unit) predates this and stays for the
+ *  hand-typed paths; a scan fills every field it actually read. */
+export interface ScannedIdentity {
+  unitNumber: string;
+  plate: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+}
+
 export type Screen =
   | { name: 'dashboard' }
   | { name: 'my-day' }
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
-  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string }
+  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity }
   | { name: 'movement-log'; prefillPlate?: string }
   | { name: 'my-shift' }
   | { name: 'lost-and-found'; prefillPlate?: string }

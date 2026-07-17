@@ -3,6 +3,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
+import type { ScannedIdentity } from '../../types';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { useUnitConflict } from '../../hooks/useUnitConflict';
@@ -13,6 +14,9 @@ import { UnitConflictNotice } from './UnitConflictNotice';
 
 interface Props {
   prefill?: string;
+  /** A key-tag scan's full read — seeds every field it captured, so a scan never asks the
+   *  operator to retype what FG just read. Falls back to `prefill` (plate-or-unit) when absent. */
+  scanned?: ScannedIdentity;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
   returnTo?: 'fleet' | 'hold';
@@ -26,7 +30,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
     : { unit: '', plate: value };
 }
 
-export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'hold' }: Props) {
+export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, returnTo = 'hold' }: Props) {
   const { addVehicle, allVehicles, releaseUnitNumber } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
@@ -34,12 +38,12 @@ export function RegisterVehicleForm({ prefill, onBack, onSuccess, returnTo = 'ho
 
   const currentYear = new Date().getFullYear();
 
-  const [unit, setUnit] = useState(seed.unit);
-  const [plate, setPlate] = useState(seed.plate);
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-  const [year, setYear] = useState(currentYear);
-  const [color, setColor] = useState('');
+  const [unit, setUnit] = useState(scanned?.unitNumber ?? seed.unit);
+  const [plate, setPlate] = useState(scanned?.plate ?? seed.plate);
+  const [make, setMake] = useState(scanned?.make ?? '');
+  const [model, setModel] = useState(scanned?.model ?? '');
+  const [year, setYear] = useState(scanned?.year ?? currentYear);
+  const [color, setColor] = useState(scanned?.color ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   // Set when the conflict reconciliation's release half failed — the new vehicle

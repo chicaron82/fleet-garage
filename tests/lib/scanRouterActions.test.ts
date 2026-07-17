@@ -32,12 +32,26 @@ describe('scanRouterActions', () => {
     expect(kinds(read)).not.toContain('register');
   });
 
-  it('new + readable → register / register-and-flag / lnf (register prefilled with the plate)', () => {
+  it('new + readable → register / register-and-flag / lnf, carrying the WHOLE read', () => {
+    // The bug this pins (found live 2026-07-17): passing only `prefill` made the operator retype
+    // make/model/unit/year that FG had just read off the tag in his hand. If the tag was readable
+    // enough to offer Register at all, every field it read must travel to the form.
     const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
+    const scanned = { unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
     const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET));
     expect(actions.map(a => a.kind)).toEqual(['register', 'register-and-flag', 'lnf']);
-    expect(actions.find(a => a.kind === 'register')!.screen).toEqual({ name: 'register-vehicle', prefill: 'LUR315' });
-    expect(actions.find(a => a.kind === 'register-and-flag')!.screen).toEqual({ name: 'register-vehicle', fromHold: true, prefill: 'LUR315' });
+    expect(actions.find(a => a.kind === 'register')!.screen).toEqual({ name: 'register-vehicle', prefill: 'LUR315', scanned });
+    expect(actions.find(a => a.kind === 'register-and-flag')!.screen).toEqual({ name: 'register-vehicle', fromHold: true, prefill: 'LUR315', scanned });
+  });
+
+  it('the scanned identity is never partial when Register is offered (no half-filled form)', () => {
+    const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET)).find(a => a.kind === 'register')!;
+    const s = (reg.screen as { scanned?: Record<string, unknown> }).scanned!;
+    // Every field the form asks for must have arrived — an empty one is a field the operator retypes.
+    for (const key of ['unitNumber', 'plate', 'make', 'model', 'year', 'color']) {
+      expect(s[key], `scanned.${key} must travel to the register form`).toBeTruthy();
+    }
   });
 
   it('new but too partial to register → Lost & Found only (never a broken register route)', () => {
