@@ -5,6 +5,7 @@ import {
   splitOffStandard,
   buildShiftPartition,
   computeShiftRates,
+  creditFlipsToRate,
   applyShiftWindow,
   resolveShiftRates,
   shiftRateWarning,
@@ -244,6 +245,29 @@ describe('computeShiftRates', () => {
     const r = computeShiftRates({ cleaned: 5, hours: 0, oth: 0 });
     expect(r.baseline).toBeNull();
     expect(r.yourEffort).toBeCloseTo(50, 5); // 5 / max(0.1, 0)
+  });
+});
+
+// ── creditFlipsToRate ─────────────────────────────────────────────────────────
+
+describe('creditFlipsToRate', () => {
+  it('adds the flip count into the numerator (Aaron 2026-07-17: 12 on the sheet + 17 flips)', () => {
+    const snap: ShiftSnapshot = { cleaned: 12, hours: 8, oth: 0 };
+    expect(creditFlipsToRate(snap, 17)).toEqual(computeShiftRates({ ...snap, cleaned: 29 }));
+  });
+
+  it('flips RAISE the rate — the whole point (an uncredited flip was dragging it down)', () => {
+    const snap: ShiftSnapshot = { cleaned: 12, hours: 8, oth: 0 };
+    expect(creditFlipsToRate(snap, 17).yourEffort!).toBeGreaterThan(computeShiftRates(snap).yourEffort!);
+  });
+
+  it('zero flips → base rates untouched (identity)', () => {
+    const snap: ShiftSnapshot = { cleaned: 12, hours: 8, oth: 60 };
+    expect(creditFlipsToRate(snap, 0)).toEqual(computeShiftRates(snap));
+  });
+
+  it('no cleaned baseline yet → nulls, never credits flips onto nothing', () => {
+    expect(creditFlipsToRate({ cleaned: null, hours: 8, oth: 0 }, 5)).toEqual({ baseline: null, yourEffort: null });
   });
 });
 

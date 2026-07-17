@@ -167,6 +167,18 @@ export function computeShiftRates(snapshot: ShiftSnapshot): ShiftRates {
   return { baseline, yourEffort };
 }
 
+// LIVE-ONLY flip credit (Aaron 2026-07-17). A return flipped at the airport is a rent-ready car —
+// the same output as a washbay clean, minus the ~27min round-trip transit. Its TIME already sits
+// in the rate denominator (airport_flip is non-reducing), so uncredited flips were dragging the
+// rate DOWN — charged time, zero credited output. Crediting the count into the numerator corrects
+// that. Returns the base rates untouched when there are no flips or no cleaned baseline yet — and
+// is DELIBERATELY not folded into resolveShiftRates, so the durable snapshot/PDF stays flip-free
+// (flips are ephemeral; only the live card reads them).
+export function creditFlipsToRate(snapshot: ShiftSnapshot, flipCount: number): ShiftRates {
+  if (snapshot.cleaned == null || flipCount <= 0) return computeShiftRates(snapshot);
+  return computeShiftRates({ ...snapshot, cleaned: snapshot.cleaned + flipCount });
+}
+
 // The standard unpaid lunch, subtracted from a clock window to get productive
 // hours — consistent with how morningHours is defined (06:45–15:15 = 8.5h clock,
 // 8.0h productive). Aaron treats a rare second break as a manual one-off.
