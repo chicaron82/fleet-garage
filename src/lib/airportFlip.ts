@@ -29,12 +29,32 @@ export interface FlipRow {
 
 /** One counter line: plate first (their search key), then only the fields that were filled. */
 export function flipRowLine(row: FlipRow): string {
-  const parts = [row.plate.trim()];
-  if (row.odo.trim()) parts.push(`odo ${row.odo.trim()}`);
-  if (row.fuel.trim()) parts.push(`fuel ${row.fuel.trim()}`);
+  // Nullish-guarded on every text field: a row hydrated from sessionStorage written by an OLDER
+  // build can lack a field added since (notes shipped after the first rows were saved → a bare
+  // `.trim()` crashed the whole My Shift render, 2026-07-17). Belt to normalizeFlipRow's suspenders.
+  const parts = [(row.plate ?? '').trim()];
+  if ((row.odo ?? '').trim()) parts.push(`odo ${(row.odo ?? '').trim()}`);
+  if ((row.fuel ?? '').trim()) parts.push(`fuel ${(row.fuel ?? '').trim()}`);
   if (row.damaged) parts.push('⚠️ damage');
-  if (row.notes.trim()) parts.push(row.notes.trim());
+  if ((row.notes ?? '').trim()) parts.push((row.notes ?? '').trim());
   return parts.join(' · ');
+}
+
+/** Heal a row hydrated from storage into the CURRENT shape — every field defaulted, so a row
+ *  saved by an older build (missing a field added since) can never crash a render. The real fix
+ *  for "added a field to a persisted shape"; the caller runs it on load. */
+export function normalizeFlipRow(r: Partial<FlipRow>): FlipRow {
+  return {
+    id: r.id ?? crypto.randomUUID(),
+    plate: r.plate ?? '',
+    unit: r.unit ?? null,
+    odo: r.odo ?? '',
+    fuel: r.fuel ?? '',
+    damaged: r.damaged ?? false,
+    notes: r.notes ?? '',
+    checked: r.checked ?? true,
+    sent: r.sent ?? false,
+  };
 }
 
 /** The copy-out text for a set of rows (the caller passes the checked-and-unsent ones). Empty

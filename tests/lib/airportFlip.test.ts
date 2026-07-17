@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flipRowLine, buildFlipReport, type FlipRow } from '../../src/lib/airportFlip';
+import { flipRowLine, buildFlipReport, normalizeFlipRow, type FlipRow } from '../../src/lib/airportFlip';
 
 const row = (over: Partial<FlipRow>): FlipRow => ({
   id: 'r1', plate: 'LFJ285', unit: '5427802', odo: '41230', fuel: '7/8',
@@ -46,5 +46,26 @@ describe('buildFlipReport', () => {
 
   it('empty set → empty string (caller skips the clipboard write)', () => {
     expect(buildFlipReport([])).toBe('');
+  });
+});
+
+describe('flipRowLine — resilience to rows saved before a field existed', () => {
+  it('does NOT throw on a row missing notes (persisted before the notes field shipped)', () => {
+    // A row hydrated from sessionStorage written by an older build has no `notes` key.
+    // The list re-renders it, so flipRowLine must survive the undefined (the 2026-07-17 crash).
+    const old = { id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', damaged: false, checked: true, sent: false } as unknown as FlipRow;
+    expect(() => flipRowLine(old)).not.toThrow();
+    expect(flipRowLine(old)).toBe('LFJ285 · odo 41230 · fuel 7/8');
+  });
+});
+
+describe('normalizeFlipRow', () => {
+  it('fills every missing field so an old persisted row can never crash a render', () => {
+    const healed = normalizeFlipRow({ id: 'r', plate: 'LFJ285', odo: '41230', fuel: '7/8' });
+    expect(healed).toEqual({ id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', damaged: false, notes: '', checked: true, sent: false });
+  });
+  it('preserves what is already there (a sent+unchecked row stays that way)', () => {
+    const row: FlipRow = { id: 'r', plate: 'LUR170', unit: '5427802', odo: '1', fuel: 'F', damaged: true, notes: 'weed smell', checked: false, sent: true };
+    expect(normalizeFlipRow(row)).toEqual(row);
   });
 });

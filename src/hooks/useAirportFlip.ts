@@ -4,7 +4,7 @@
 // migration: the "dies with the shift" guardrail is structural, not a discipline we have to keep.
 import { useCallback, useEffect, useState } from 'react';
 import { businessDateOf } from '../lib/shiftDay';
-import { buildFlipReport, type FlipRow } from '../lib/airportFlip';
+import { buildFlipReport, normalizeFlipRow, type FlipRow } from '../lib/airportFlip';
 
 const KEY = 'fg_airport_flip';
 
@@ -15,7 +15,7 @@ function read(today: string): FlipRow[] {
     const raw = sessionStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Stored;
-    return parsed.day === today ? parsed.rows : []; // a stale shift-day is simply gone
+    return parsed.day === today ? (parsed.rows ?? []).map(normalizeFlipRow) : []; // stale shift-day → gone; heal older shapes
   } catch { return []; }
 }
 
