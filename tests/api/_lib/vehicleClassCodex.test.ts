@@ -17,6 +17,7 @@ describe('lookupVehicleClass', () => {
     expect(lookupVehicleClass('CGCL')).toEqual({ make: 'Dodge', model: 'Grand Caravan' });
     expect(lookupVehicleClass('CELA')).toEqual({ make: 'Hyundai', model: 'Elantra' }); // C-prefix but Hyundai
     expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage Hybrid' }); // hybrid gets its own code (cf CSPT)
+    expect(lookupVehicleClass('CALE')).toEqual({ make: 'GMC', model: 'Acadia' }); // added 2026-07-17, the gap Aaron flagged
   });
 
   it('returns null for unknown / empty codes (assistant then asks for make/model)', () => {

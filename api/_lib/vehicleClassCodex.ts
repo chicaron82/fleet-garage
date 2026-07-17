@@ -87,6 +87,8 @@ const CODEX: Record<string, VehicleClass> = {
   C300: { make: 'Chrysler', model: '300' },
   // Buick
   CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
+  // GMC
+  CALE: { make: 'GMC', model: 'Acadia' }, // surfaced live 2026-07-17 — Aaron flagged the gap (a CALE tag couldn't resolve → Effie had to ask)
 };
 
 /** Resolve a Hertz class code (e.g. "CCVL", "ccvl 25") to its make/model, or null. */
