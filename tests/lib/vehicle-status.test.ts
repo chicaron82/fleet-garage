@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  deriveHoldStatus, toVehicleStatus, factsFromRow, factsFromHold, findLinkedOpenException,
+  deriveHoldStatus, toVehicleStatus, isOnExceptionStatus, factsFromRow, factsFromHold, findLinkedOpenException,
   type HoldFacts,
 } from '../../src/lib/vehicle-status';
 
@@ -90,6 +90,20 @@ describe('toVehicleStatus', () => {
     ['clear', 'CLEAR'],
   ] as const)('%s → %s', (input, expected) => {
     expect(toVehicleStatus(input)).toBe(expected);
+  });
+});
+
+describe('isOnExceptionStatus', () => {
+  it.each([
+    ['OUT_ON_EXCEPTION', true],
+    ['AUCTION_SHORT_TERM', true],
+    ['CLEAR', false],
+    ['HELD', false],
+    ['PRE_EXISTING', false],
+    ['SALE_CAR', false],
+    ['RETURNED', false],
+  ] as const)('%s → %s (the shared predicate the scanner/Exception-Returns/Airport-Flip agree on)', (status, expected) => {
+    expect(isOnExceptionStatus(status)).toBe(expected);
   });
 });
 

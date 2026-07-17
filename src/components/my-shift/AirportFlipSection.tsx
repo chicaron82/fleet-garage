@@ -13,12 +13,13 @@ import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { flipRowLine } from '../../lib/airportFlip';
+import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Vehicle } from '../../types';
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
-const onException = (v: Vehicle | null) => v?.status === 'OUT_ON_EXCEPTION' || v?.status === 'AUCTION_SHORT_TERM';
+const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();

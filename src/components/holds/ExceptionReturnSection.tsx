@@ -5,6 +5,7 @@ import { useReEval } from '../../hooks/useReEval';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { HoldContextPanel } from './HoldContextPanel';
 import { DetailReEvalCard } from './DetailReEvalCard';
+import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 
 function fmtDate(iso: string) {
@@ -46,7 +47,7 @@ export function ExceptionReturnSection({ search = '' }: Props) {
     // Damage / auction exception returns — non-detail exception holds on vehicles
     // still out (mirrors the prior ExceptionReturnSection behaviour)
     const damage: ExceptionItem[] = vehicles
-      .filter(v => v.status === 'OUT_ON_EXCEPTION' || v.status === 'AUCTION_SHORT_TERM')
+      .filter(v => isOnExceptionStatus(v.status))
       .flatMap(v => {
         const hold = getHoldsForVehicle(v.id).find(h =>
           h.status === 'RELEASED' &&

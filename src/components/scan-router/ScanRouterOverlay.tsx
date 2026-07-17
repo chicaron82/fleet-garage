@@ -9,6 +9,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { resolveKeytagScan, type KeytagScanResult } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
+import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -92,8 +93,14 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     <p className="text-xs text-gray-600 dark:text-gray-300">
                       {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.color ? ` · ${vehicle.color}` : ''}
                     </p>
-                    <p className={`text-xs font-semibold mt-0.5 ${activeHolds > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
-                      {activeHolds > 0 ? `🔧 On hold (${activeHolds})` : '✅ Clear'}
+                    <p className={`text-xs font-semibold mt-0.5 ${
+                      isOnExceptionStatus(vehicle.status) ? 'text-amber-700 dark:text-amber-400'
+                      : activeHolds > 0 ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-700 dark:text-green-400'
+                    }`}>
+                      {isOnExceptionStatus(vehicle.status) ? '⚠️ On exception'
+                        : activeHolds > 0 ? `🔧 On hold (${activeHolds})`
+                        : '✅ Clear'}
                     </p>
                   </>
                 ) : (

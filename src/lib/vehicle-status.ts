@@ -56,6 +56,17 @@ export function deriveHoldStatus(facts: HoldFacts[]): HoldDerivedStatus {
   return 'clear';
 }
 
+/**
+ * True for the "out on an override — scrutinize it on return" statuses: OUT_ON_EXCEPTION (a hold
+ * released on an open exception/mechanical, still circulating) or AUCTION_SHORT_TERM (a sale car
+ * out to auction as-is). The single predicate behind Exception Returns, the Airport Flip re-hold,
+ * AND the scan-router status pill — so those surfaces can never disagree on what "on exception"
+ * means (they did: the scanner read a released-hold car as "✅ Clear" while it was OUT_ON_EXCEPTION).
+ */
+export function isOnExceptionStatus(status: VehicleStatus): boolean {
+  return status === 'OUT_ON_EXCEPTION' || status === 'AUCTION_SHORT_TERM';
+}
+
 /** Map the shared status to the stored `VehicleStatus` enum (write path). */
 export function toVehicleStatus(status: HoldDerivedStatus): VehicleStatus {
   switch (status) {
