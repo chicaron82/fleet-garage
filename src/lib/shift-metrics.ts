@@ -64,12 +64,15 @@ export interface OffStandardMinutes {
 //   • 'fleeting_sent' — the cars went up to fleet and already count in sent-to-fleet.
 //   • 'edv' — extra-detail time IS cleaning (one slow car, already in the cleaned
 //     count); exempting it would double-credit and inflate the rate.
-//   Outside-the-washbay-rate entirely:
+//   Never-reduces (a flip is charged transit, not a shortcut):
 //   • 'airport_flip' — a fast interior turnaround done AT the airport (mats, garbage,
-//     quick wipe; rentable in <6min, never comes to the washbay). It's cleaning, but
-//     off-site: the flipped cars aren't in the numerator (no gas sheet), and the time
-//     isn't washbay time, so it sits outside the rate. Logged for visibility (shift
-//     summary, export); the closing/report context flag explains the light bay count.
+//     quick wipe; rentable in <6min, never comes to the washbay). Off-sheet: a flipped
+//     car isn't on the gas sheet, so it's never in the durable cleaned count. Its ~27min
+//     transit is real charged time and STAYS in the denominator — which is exactly why
+//     the LIVE card credits the flip count back into the numerator (creditFlipsToRate):
+//     charged time with no credited output was dragging the rate down. The DURABLE
+//     report/export deliberately stays flip-free (flips are ephemeral) — so this preset
+//     must keep NOT reducing the denominator, or the live credit would double-count.
 // Everything else (closing duties, lot org, etc.) is non-cleaning time and reduces it.
 export function reducesDenominator(e: { presetReason?: string | null }): boolean {
   return e.presetReason !== 'fleeting_sent'
