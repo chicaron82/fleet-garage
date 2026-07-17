@@ -14,6 +14,7 @@ import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { flipRowLine } from '../../lib/airportFlip';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
+import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Vehicle } from '../../types';
@@ -25,8 +26,10 @@ export function AirportFlipSection() {
   const { user } = useAuth();
   const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold } = useVehicleHoldContext();
   const flip = useAirportFlip();
+  const checkGeotab = useGeotabPending();
 
   const [capture, setCapture] = useState<{ plate: string; unit: string | null; vehicle: Vehicle | null } | null>(null);
+  const [geotabPending, setGeotabPending] = useState(false);
   const [odo, setOdo] = useState('');
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [damaged, setDamaged] = useState(false);
@@ -47,6 +50,7 @@ export function AirportFlipSection() {
       }
     } catch { /* fleet enrichment is best-effort — the flip capture still proceeds */ }
     setCapture({ plate, unit: vehicle?.unitNumber ?? read.unitNumber ?? null, vehicle });
+    setGeotabPending(await checkGeotab(plate));
     setOdo(''); setFuelLevel(null); setDamaged(false); setNotes('');
   };
 
@@ -54,6 +58,7 @@ export function AirportFlipSection() {
     if (!capture) return;
     flip.add({ plate: capture.plate, unit: capture.unit, odo, fuel: fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '', damaged, notes });
     setCapture(null);
+    setGeotabPending(false);
   };
 
   const copyForCounter = async () => {
@@ -83,6 +88,11 @@ export function AirportFlipSection() {
             {onException(capture.vehicle) && <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">On exception</span>}
           </p>
 
+          {/* Geotab install watchlist — a hold-until-installed condition, surfaced right where the tag lands. */}
+          {geotabPending && (
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">📡 On the Geotab install list — hold until a unit is installed.</p>
+          )}
+
           {/* On-exception return → make the re-hold / clear call in place, photos loaded. */}
           {user && capture.vehicle && onException(capture.vehicle) && (
             <HoldContextPanel
@@ -105,7 +115,7 @@ export function AirportFlipSection() {
             <span>⚠️ Damaged on return</span>
           </label>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setCapture(null)} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">Cancel</button>
+            <button type="button" onClick={() => { setCapture(null); setGeotabPending(false); }} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">Cancel</button>
             <button type="button" onClick={addToList} className="flex-1 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi py-2 text-xs font-semibold text-black cursor-pointer">Add to list</button>
           </div>
         </div>

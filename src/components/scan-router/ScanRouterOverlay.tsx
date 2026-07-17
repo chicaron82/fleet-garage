@@ -10,6 +10,7 @@ import { compressImage } from '../../lib/image';
 import { resolveKeytagScan, type KeytagScanResult } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
+import { useGeotabPending } from '../../hooks/useGeotabPending';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -21,8 +22,10 @@ interface Props {
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { vehicles, holds } = useVehicleHoldContext();
+  const checkGeotab = useGeotabPending();
   const fileRef = useRef<HTMLInputElement>(null);
   const [scan, setScan] = useState<{ read: KeytagRead; result: KeytagScanResult } | null>(null);
+  const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
   const reading = status === 'reading';
 
@@ -30,10 +33,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     if (!file) return;
     setErrMsg('');
     setScan(null);
+    setGeotabPending(false);
     const base64 = await compressImage(file);
     const read = await readKeytag(base64);
     if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
     setScan({ read, result: resolveKeytagScan(read, vehicles) });
+    setGeotabPending(await checkGeotab(read.plate));
   };
 
   const actions = scan ? scanRouterActions(scan.read, scan.result) : [];
@@ -107,6 +112,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   <p className="text-xs text-amber-700 dark:text-amber-400">
                     Not in the fleet{actions.some(a => a.kind === 'register') ? '' : ' — couldn’t read enough to register it'}
                   </p>
+                )}
+                {/* Geotab install watchlist — separate axis from holds/exception; must hold until installed. */}
+                {geotabPending && (
+                  <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">📡 On the Geotab install list — hold until a unit is installed</p>
                 )}
               </div>
 
