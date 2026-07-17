@@ -39,6 +39,7 @@ import {
 } from './lostItemProposal.js';
 import { buildMemoryProposal, describeMemoryProposal, type MemoryProposal } from './memoryProposal.js';
 import { buildReminderProposal, describeReminderProposal, type ReminderProposal } from './reminderProposal.js';
+import { buildEventProposal, type EventProposal } from './eventProposal.js';
 import {
   buildOverflowProposal,
   OVERFLOW_DESTINATIONS,
@@ -719,4 +720,30 @@ export function executeLookupVehicleClass(input: { code?: string }): string {
     });
   }
   return JSON.stringify({ ok: true, make: vc.make, model: vc.model });
+}
+
+
+/** Draft a dated note ("staff BBQ tomorrow at 12:30") for My Day to surface on the day.
+ *  The model resolves the date against the "Today is …" line the proxy injects, so this only
+ *  validates the shape — a bad/missing date is sent back rather than guessed at here. */
+export function executeProposeEvent(
+  input: { title?: string; date?: string; time?: string },
+): { toolResult: string; proposal: EventProposal | null } {
+  const title = (input.title ?? '').trim();
+  const date = (input.date ?? '').trim();
+  if (!title) {
+    return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: 'Need what the event IS — ask the operator.' }) };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: 'Need the date as YYYY-MM-DD (resolve "tomorrow" against the Today line).' }) };
+  }
+  const rawTime = (input.time ?? '').trim();
+  // Accept H:MM / HH:MM; anything else is treated as no time (an all-day note) rather than
+  // inventing a clock the operator never said.
+  const time = /^\d{1,2}:\d{2}$/.test(rawTime) ? rawTime.padStart(5, '0') : null;
+  const proposal = buildEventProposal(title, date, time);
+  return {
+    proposal,
+    toolResult: JSON.stringify({ ok: true, drafted: { title: proposal.title, date: proposal.date, time: proposal.time } }),
+  };
 }

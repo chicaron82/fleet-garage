@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { addWhiteboardReminder } from '../lib/addWhiteboardReminder';
 import { buildOverflowTrip } from '../lib/overflowTrip';
 import { writeOrEnqueue } from '../lib/vsaTripWrite';
+import { addPersonalEvent } from '../lib/addPersonalEvent';
 import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { useLostFoundContext } from '../context/LostFoundContext';
@@ -86,6 +87,17 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           user: { id: user.id, name: user.name, role: user.role },
         });
         if (!ok) throw new Error('Could not leave that reminder — check connection and try again.');
+        return;
+      }
+      // Event → a dated note in personal_events; My Day surfaces it in "Heads up today" ON the
+      // day (lib/eventInsights) and it's simply past afterwards. Distinct from a reminder (next
+      // shift, auto-clears) and a memory (durable, undated). The locked write lives in
+      // lib/addPersonalEvent — this stays a dispatcher, like every other kind here.
+      if (proposal.kind === 'event') {
+        const ok = await addPersonalEvent({
+          userId: user.id, title: proposal.title, date: proposal.date, time: proposal.time,
+        });
+        if (!ok) throw new Error('Could not save that date — check connection and try again.');
         return;
       }
       // Overflow log → one completed one-way vsa_trips row per vehicle, stamped with the

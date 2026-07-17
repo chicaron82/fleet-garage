@@ -264,6 +264,20 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'propose_event',
+    description:
+      'Remember an important DATE for the operator — a staff BBQ, a meeting, an appointment ("staff BBQ tomorrow at 12:30", "remember the manager meeting Friday at 9"). It surfaces on their My Day "Heads up today" ON that date, then is simply past. Resolve the date to YYYY-MM-DD against the "Today is" line; omit the time for an all-day note. DIFFERENT from propose_reminder (a transient NEXT-SHIFT task that auto-clears) and propose_memory (a durable FACT about them, no date) — use THIS whenever the thing happens on a specific day. Does NOT write — returns a draft the operator taps to confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'What it is, short — the chip title, e.g. "Staff BBQ".' },
+        date: { type: 'string', description: 'The date as YYYY-MM-DD, resolved against the "Today is" line.' },
+        time: { type: 'string', description: '24h HH:MM if they gave a time; omit for an all-day note.' },
+      },
+      required: ['title', 'date'],
+    },
+  },
+  {
     name: 'propose_reminder',
     description:
       'Draft a note to leave on the operator\'s SHIFT WHITEBOARD for their NEXT shift, for them to confirm — a one-off task or heads-up they want surfaced next shift ("remind me to pack the airport tomorrow", "remind me to check LFJ285", "note for next shift: overflow to AV Flight"). DIFFERENT from propose_memory: a reminder is a transient next-shift TASK that auto-clears after that shift; a memory is a durable FACT about the operator. Does NOT write — returns a confirm card the operator taps; it then lands on their My Shift whiteboard for the next shift and clears the shift after.',

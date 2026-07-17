@@ -11,7 +11,7 @@ import type { ShiftWithUser, ShiftType, UserRole } from '../types';
 import { isFullDayShift } from '../types';
 import { SCHEDULE_GROUPS } from './scheduleGroups';
 
-export type ScheduleInsightKind = 'clopen' | 'solo-floor';
+export type ScheduleInsightKind = 'clopen' | 'solo-floor' | 'event';
 
 export interface ScheduleInsight {
   kind: ScheduleInsightKind;

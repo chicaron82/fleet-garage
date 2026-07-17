@@ -38,6 +38,7 @@ import {
   executeProposeLostItem,
   executeProposeMemory,
   executeProposeReminder,
+  executeProposeEvent,
   executeProposeOverflowLog,
   executeProposeNavigation,
   executeLookupVehicleClass,
@@ -298,6 +299,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
             content = out.toolResult;
           } else if (tu.name === 'propose_memory') {
             const out = executeProposeMemory(tu.input as { content?: string });
+            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
+            content = out.toolResult;
+          } else if (tu.name === 'propose_event') {
+            const out = executeProposeEvent(tu.input as { title?: string; date?: string; time?: string });
             if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
             content = out.toolResult;
           } else if (tu.name === 'propose_reminder') {

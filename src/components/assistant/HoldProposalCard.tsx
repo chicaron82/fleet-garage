@@ -194,6 +194,19 @@ export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss,
     );
   }
 
+  // Dated note — an important date FG will surface on My Day that morning. Blue like the
+  // reminder (a personal note, not an ops write on the fleet).
+  if (proposal.kind === 'event') {
+    if (status === 'done') return <Receipt>Saved — it'll show on My Day that day.</Receipt>;
+    return (
+      <Shell tone="blue" kicker="Remember this date">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">{proposal.title}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{proposal.date}{proposal.time ? ` · ${proposal.time}` : ' · all day'}</p>
+        <CardActions tone="blue" status={status} errMsg={errMsg} confirmLabel="Remember it" workingLabel="Saving…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} dismissLabel={dismissLabel} />
+      </Shell>
+    );
+  }
+
   // Overflow log — where a batch of vehicles was sent (AV Flight / FastAir / Airport).
   // Amber: an ops write (one completed one-way trip each → Movement Log + "where's X?").
   if (proposal.kind === 'overflow_log') {

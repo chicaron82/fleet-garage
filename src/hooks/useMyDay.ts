@@ -13,6 +13,8 @@ import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
 import { businessDateOf } from '../lib/shiftDay';
 import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
+import { eventInsights } from '../lib/eventInsights';
+import { usePersonalEvents } from './usePersonalEvents';
 import { staleHeldVehicleCount } from '../lib/holdFilters';
 import { useMyAdjacentShiftTypes } from './useMyAdjacentShiftTypes';
 import type { HandoffNote, Attendance, User } from '../types';
@@ -66,8 +68,14 @@ export function useMyDay(): UseMyDay {
   // else the closing (afternoon) arrival. Mirrors the button's own mid/afternoon copy.
   const checkInToday = model.isMid ? getMidArrival() : getTodayCheckpoint();
 
+  // Dated personal notes (the staff BBQ) ride the SAME "Heads up today" card as clopen /
+  // solo-floor — it already means "things about today you should know". Events lead: a 12:30
+  // BBQ is a clock he has to meet, where a clopen is context for the day's shape.
+  const todayEvents = usePersonalEvents(user?.id, toISO(now));
+
   return {
     ...model,
+    insights: [...eventInsights(todayEvents, toISO(now)), ...model.insights],
     dateLabel,
     checkInDoneToday: !!checkInToday,
     checkInCarsToday: checkInToday ? carsCleaned(checkInToday) : null,
