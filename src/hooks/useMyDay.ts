@@ -15,6 +15,7 @@ import { businessDateOf } from '../lib/shiftDay';
 import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
 import { eventInsights } from '../lib/eventInsights';
 import { usePersonalEvents } from './usePersonalEvents';
+import { useScheduleAnomalies } from './useScheduleAnomalies';
 import { staleHeldVehicleCount } from '../lib/holdFilters';
 import { useMyAdjacentShiftTypes } from './useMyAdjacentShiftTypes';
 import type { HandoffNote, Attendance, User } from '../types';
@@ -72,10 +73,14 @@ export function useMyDay(): UseMyDay {
   // solo-floor — it already means "things about today you should know". Events lead: a 12:30
   // BBQ is a clock he has to meet, where a clopen is context for the day's shape.
   const todayEvents = usePersonalEvents(user?.id, toISO(now));
+  // Forward-looking: a day in the next few that breaks his own pattern (works a normally-off
+  // Sunday / off on a normally-worked Friday). Rides the same card — it's still "what you need
+  // to know", just about the days right ahead rather than today.
+  const anomalies = useScheduleAnomalies(user?.id, now);
 
   return {
     ...model,
-    insights: [...eventInsights(todayEvents, toISO(now)), ...model.insights],
+    insights: [...eventInsights(todayEvents, toISO(now)), ...anomalies, ...model.insights],
     dateLabel,
     checkInDoneToday: !!checkInToday,
     checkInCarsToday: checkInToday ? carsCleaned(checkInToday) : null,
