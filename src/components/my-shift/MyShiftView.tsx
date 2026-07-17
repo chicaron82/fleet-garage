@@ -14,6 +14,7 @@ import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
 import { FuelPumpReadings } from './FuelPumpReadings';
+import { AirportFlipSection } from './AirportFlipSection';
 import { PendingWritesSection } from '../pending/PendingWritesSection';
 import { EffieAuditSection } from '../pending/EffieAuditSection';
 import { EffieMisfiresSection } from '../pending/EffieMisfiresSection';
@@ -118,6 +119,7 @@ export function MyShiftView() {
   const [showHandoffForm, setShowHandoffForm] = useState(false);
   const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
   const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
+  const [airportFlipOpen, setAirportFlipOpen] = useState(false);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
@@ -193,6 +195,9 @@ export function MyShiftView() {
           </StepSection>
           <StepSection title="Closing Log" open={closingLogOpen} onToggle={() => setClosingLogOpen(o => !o)}>
             <WashbayClosingLog />
+          </StepSection>
+          <StepSection title="Airport Flip" open={airportFlipOpen} onToggle={() => setAirportFlipOpen(o => !o)}>
+            <AirportFlipSection />
           </StepSection>
           <FuelPumpReadings user={user!} />
         </>
