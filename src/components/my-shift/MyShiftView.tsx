@@ -119,7 +119,7 @@ export function MyShiftView() {
   const [showHandoffForm, setShowHandoffForm] = useState(false);
   const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
   const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
-  const [airportFlipOpen, setAirportFlipOpen] = useState(false);
+  const [airportFlipOpen, setAirportFlipOpen] = useState(true); // surfaced high + open: the no-HIR flip tool is what he opens My Shift for mid-shift
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
@@ -184,6 +184,9 @@ export function MyShiftView() {
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
         <>
+          <StepSection title="Airport Flip" open={airportFlipOpen} onToggle={() => setAirportFlipOpen(o => !o)}>
+            <AirportFlipSection />
+          </StepSection>
           <FleetBalanceEntryForm
             onSubmit={(out, inc) => upsertEntry(localDateStr(), out, inc, user!.id)}
             todayEntry={getTodayEntry()}
@@ -195,9 +198,6 @@ export function MyShiftView() {
           </StepSection>
           <StepSection title="Closing Log" open={closingLogOpen} onToggle={() => setClosingLogOpen(o => !o)}>
             <WashbayClosingLog />
-          </StepSection>
-          <StepSection title="Airport Flip" open={airportFlipOpen} onToggle={() => setAirportFlipOpen(o => !o)}>
-            <AirportFlipSection />
           </StepSection>
           <FuelPumpReadings user={user!} />
         </>

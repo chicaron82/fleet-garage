@@ -18,6 +18,9 @@ export interface FlipRow {
   /** Free text — "7/8", "F", "1/2" — whatever he reads off the gauge. */
   fuel: string;
   damaged: boolean;
+  /** Free-text condition note for the counter — the odd thing worth flagging ("weed smell",
+   *  "child seat left in back"). Blank by default; rides the copy-out only when filled. */
+  notes: string;
   /** Selected for the next copy-out. New rows start checked (flipped it → send it). */
   checked: boolean;
   /** Already copied for the counter — locked out of future copies so nothing double-sends. */
@@ -30,6 +33,7 @@ export function flipRowLine(row: FlipRow): string {
   if (row.odo.trim()) parts.push(`odo ${row.odo.trim()}`);
   if (row.fuel.trim()) parts.push(`fuel ${row.fuel.trim()}`);
   if (row.damaged) parts.push('⚠️ damage');
+  if (row.notes.trim()) parts.push(row.notes.trim());
   return parts.join(' · ');
 }
 

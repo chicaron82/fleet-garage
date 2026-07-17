@@ -3,7 +3,7 @@ import { flipRowLine, buildFlipReport, type FlipRow } from '../../src/lib/airpor
 
 const row = (over: Partial<FlipRow>): FlipRow => ({
   id: 'r1', plate: 'LFJ285', unit: '5427802', odo: '41230', fuel: '7/8',
-  damaged: false, checked: true, sent: false, ...over,
+  damaged: false, notes: '', checked: true, sent: false, ...over,
 });
 
 describe('flipRowLine', () => {
@@ -26,6 +26,12 @@ describe('flipRowLine', () => {
 
   it('trims whitespace out of the readings', () => {
     expect(flipRowLine(row({ odo: '  41230 ', fuel: ' F ' }))).toBe('LFJ285 · odo 41230 · fuel F');
+  });
+
+  it('a note rides the line only when filled (last, after the damage flag)', () => {
+    expect(flipRowLine(row({ notes: 'weed smell' }))).toBe('LFJ285 · odo 41230 · fuel 7/8 · weed smell');
+    expect(flipRowLine(row({ damaged: true, notes: 'weed smell' }))).toBe('LFJ285 · odo 41230 · fuel 7/8 · ⚠️ damage · weed smell');
+    expect(flipRowLine(row({ notes: '   ' }))).toBe('LFJ285 · odo 41230 · fuel 7/8');
   });
 });
 

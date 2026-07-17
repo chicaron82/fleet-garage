@@ -13,6 +13,7 @@ import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { flipRowLine } from '../../lib/airportFlip';
+import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Vehicle } from '../../types';
 
@@ -26,8 +27,9 @@ export function AirportFlipSection() {
 
   const [capture, setCapture] = useState<{ plate: string; unit: string | null; vehicle: Vehicle | null } | null>(null);
   const [odo, setOdo] = useState('');
-  const [fuel, setFuel] = useState('');
+  const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [damaged, setDamaged] = useState(false);
+  const [notes, setNotes] = useState('');
   const [toast, setToast] = useState('');
 
   // Scan a return → resolve + enrich the fleet from the WHOLE read (register new / backfill partial),
@@ -44,12 +46,12 @@ export function AirportFlipSection() {
       }
     } catch { /* fleet enrichment is best-effort — the flip capture still proceeds */ }
     setCapture({ plate, unit: vehicle?.unitNumber ?? read.unitNumber ?? null, vehicle });
-    setOdo(''); setFuel(''); setDamaged(false);
+    setOdo(''); setFuelLevel(null); setDamaged(false); setNotes('');
   };
 
   const addToList = () => {
     if (!capture) return;
-    flip.add({ plate: capture.plate, unit: capture.unit, odo, fuel, damaged });
+    flip.add({ plate: capture.plate, unit: capture.unit, odo, fuel: fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '', damaged, notes });
     setCapture(null);
   };
 
@@ -94,10 +96,9 @@ export function AirportFlipSection() {
             />
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
-            <input className={INPUT} placeholder="Fuel (e.g. 7/8)" value={fuel} onChange={e => setFuel(e.target.value)} />
-          </div>
+          <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
+          <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />
+          <input className={INPUT} placeholder="Notes (e.g. weed smell) — optional" value={notes} onChange={e => setNotes(e.target.value)} />
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={damaged} onChange={e => setDamaged(e.target.checked)} className="w-4 h-4 accent-red-500 cursor-pointer" />
             <span>⚠️ Damaged on return</span>

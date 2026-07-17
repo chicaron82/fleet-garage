@@ -22,7 +22,7 @@ function read(today: string): FlipRow[] {
 export interface AirportFlip {
   rows: FlipRow[];
   add: (row: Omit<FlipRow, 'id' | 'checked' | 'sent'>) => void;
-  update: (id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged'>>) => void;
+  update: (id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged' | 'notes'>>) => void;
   remove: (id: string) => void;
   toggleChecked: (id: string) => void;
   /** The text for the checked-and-unsent rows, or '' if none — the caller copies + calls markSent. */
@@ -45,7 +45,7 @@ export function useAirportFlip(): AirportFlip {
     setRows(prev => [...prev, { ...row, id: crypto.randomUUID(), checked: true, sent: false }]);
   }, []);
 
-  const update = useCallback((id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged'>>) => {
+  const update = useCallback((id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged' | 'notes'>>) => {
     setRows(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
   }, []);
 
