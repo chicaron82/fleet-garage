@@ -3,16 +3,20 @@
 // only have saturday off." He was doing the check in his head, repeatedly. FG already holds the
 // schedule; this makes it KNOW instead of him recalling.
 //
-// The baseline is HIS OWN HISTORY, not a declared config: over the last N weeks, how often was a
-// given weekday a day off? Self-maintaining (no setting to drift), and it lets the copy show its
-// work ("you've had 11 of the last 12 Sundays off") instead of asserting a "pattern" it guessed.
+// The baseline is his DECLARED work week (Aaron 2026-07-17: "mon-fri is my work week. deviations
+// from it i'd like surfaced"). It was ORIGINALLY inferred from his last-12-weeks history — but that
+// self-maintaining property is a LIABILITY under sustained coverage churn: enough boss-shuffled
+// Wednesdays and the history would quietly decide "Wednesday-off is normal now" and stop flagging
+// it, even though his contract never changed. A declared week can't erode — a deviation stays a
+// deviation forever. History is kept ONLY for the evidence line ("you've had 11 of 12 Suns off"),
+// never for the decision, so a thin/no-history weekday still fires correctly.
 //
 // Deliberately DAY-anomaly, never shift-TYPE anomaly. His shift types genuinely rotate — the boss
 // runs him opening/closing/clopen/double — so a "your pattern changed" alert keyed on type would
-// fire constantly and train him to ignore it. Days-off is his stable axis (12/12 Saturdays off,
-// 11/12 Sundays, over 12 weeks): a real signal that can't false-positive.
+// fire constantly and train him to ignore it (Aaron 2026-07-17: "my shift window keeps rotating so
+// i can't have FG tell me if something's off from the norm since its always up in the air").
 //
-// One detection, TWO TONES (Aaron's refinement — I'd framed it as pure risk; he was right that
+// One classification, TWO TONES (Aaron's refinement — I'd framed it as pure risk; he was right that
 // good news is worth knowing too):
 //   * working a normally-off day → ⚠️ he might not show up. Costly.
 //   * off on a normally-worked day → 🎉 don't set the alarm. A gift, not a warning.
@@ -20,7 +24,8 @@ import { isFullDayShift } from '../types';
 import type { ShiftType } from '../types';
 import type { ScheduleInsight } from './scheduleInsights';
 
-/** One day of the lookahead: what he's scheduled for, and what that weekday usually is. */
+/** One day of the lookahead: what he's scheduled for, whether that weekday is part of his
+ *  declared work week, and the history for the evidence copy. */
 export interface AnomalyDay {
   /** ISO date (YYYY-MM-DD). */
   date: string;
@@ -29,19 +34,17 @@ export interface AnomalyDay {
   /** How many days from today (1 = tomorrow). Drives "tomorrow" vs the day name. */
   daysAway: number;
   shiftType: ShiftType;
-  /** Baseline from his own history: days off / days seen for THIS weekday. */
+  /** From his DECLARED work week (Mon–Fri = true, weekend = false) — the anchor that decides
+   *  whether working/off is an anomaly. Set by the hook, never inferred here. */
+  normalWorkday: boolean;
+  /** History for the EVIDENCE copy only, never the decision: days off / days seen for THIS
+   *  weekday over the baseline window. */
   offCount: number;
   sampleSize: number;
 }
 
-/** A weekday counts as "normally off" when he's had it off in at least this share of the
- *  baseline window. 0.75 keeps Saturday (12/12) and Sunday (11/12) in, and keeps a Wednesday
- *  he's had off twice in twelve weeks OUT — so a one-off midweek day never reads as "normal". */
-const NORMALLY_OFF = 0.75;
-/** …and the mirror: a weekday he works at least this often is "normally worked". */
-const NORMALLY_WORKED = 0.75;
-/** Below this many observations a weekday has no trustworthy baseline — say nothing rather
- *  than claim a pattern from three data points. */
+/** Below this many observations, don't CITE the history in the copy — the decision is declared so
+ *  it still fires, we just won't claim "N of M" off a thin sample. */
 const MIN_SAMPLE = 6;
 
 const worked = (d: AnomalyDay) => !isFullDayShift(d.shiftType);
@@ -66,26 +69,26 @@ export function scheduleAnomalies(days: AnomalyDay[]): ScheduleInsight[] {
   const out: ScheduleInsight[] = [];
 
   days.forEach((d, i) => {
-    if (d.sampleSize < MIN_SAMPLE) return; // no trustworthy baseline — stay quiet
-    const offRate = d.offCount / d.sampleSize;
-
-    // ⚠️ Working a day he's normally off — the one that costs something if missed.
-    if (worked(d) && offRate >= NORMALLY_OFF) {
+    // ⚠️ Working a day he's normally OFF (a weekend) — the one that costs something if missed.
+    if (worked(d) && !d.normalWorkday) {
       out.push({
         kind: 'anomaly-working',
         icon: '⚠️',
         label: d.daysAway === 1 ? `You work tomorrow — ${d.dayName}` : `You work ${d.dayName}`,
-        detail: `You've had ${d.offCount} of the last ${d.sampleSize} ${d.dayName}s off.`,
+        // Cite the history when it's trustworthy; otherwise lean on the declared week.
+        detail: d.sampleSize >= MIN_SAMPLE
+          ? `You've had ${d.offCount} of the last ${d.sampleSize} ${d.dayName}s off.`
+          : `${d.dayName} isn't part of your usual Mon–Fri week.`,
       });
       return;
     }
 
-    // 🎉 Off on a day he normally works — don't set the alarm.
-    if (!worked(d) && offRate <= 1 - NORMALLY_WORKED) {
-      const block = offBlockLength(days, i);
+    // 🎉 Off on a day he normally works (Mon–Fri) — don't set the alarm.
+    if (!worked(d) && d.normalWorkday) {
       // Only the FIRST day of an off-block speaks, or a 3-day break would say it three times.
       const prevIsOff = i > 0 && !worked(days[i - 1]);
       if (prevIsOff) return;
+      const block = offBlockLength(days, i);
       out.push({
         kind: 'anomaly-off',
         icon: '🎉',

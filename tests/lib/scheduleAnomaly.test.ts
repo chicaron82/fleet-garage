@@ -14,9 +14,13 @@ const BASE: Record<string, { offCount: number; sampleSize: number }> = {
   Sat: { offCount: 12, sampleSize: 12 },
 };
 
+// His declared work week — the anchor the hook sets from the day-of-week (Mon–Fri worked).
+const WORKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+
 const day = (dayName: string, daysAway: number, shiftType: ShiftType, over: Partial<AnomalyDay> = {}): AnomalyDay => ({
   date: `2026-07-${String(18 + daysAway).padStart(2, '0')}`,
   dayName, daysAway, shiftType,
+  normalWorkday: WORKDAYS.has(dayName),
   ...BASE[dayName],
   ...over,
 });
@@ -97,10 +101,25 @@ describe('scheduleAnomalies — off on a normally-worked day', () => {
   });
 });
 
-describe('scheduleAnomalies — trust guards', () => {
-  it('too few observations → stays quiet rather than claiming a pattern', () => {
+describe('scheduleAnomalies — the declared anchor (erosion-proof)', () => {
+  it('a normally-worked day off STILL fires even when history has churned to 50% off', () => {
+    // The whole reason for the declared week: under the old empirical model, a Wednesday off 6/12
+    // (50%) would have gone silent ("Wednesday-off is normal now"). Declared Mon–Fri never erodes.
+    const out = scheduleAnomalies([day('Wed', 1, 'day-off', { offCount: 6, sampleSize: 12 })]);
+    expect(out).toEqual([{
+      kind: 'anomaly-off', icon: '🎉', label: 'No work tomorrow',
+      detail: 'Wed off — you usually work it.',
+    }]);
+  });
+
+  it('a weekend shift fires on the DECLARED week even with no trustworthy history', () => {
+    // Thin sample → the decision is still declared (Sunday isn't a workday), so it fires; the copy
+    // just leans on the declared week instead of claiming "N of M" off three data points.
     const out = scheduleAnomalies([day('Sun', 1, 'opening', { offCount: 3, sampleSize: 3 })]);
-    expect(out).toEqual([]);
+    expect(out).toEqual([{
+      kind: 'anomaly-working', icon: '⚠️', label: 'You work tomorrow — Sun',
+      detail: "Sun isn't part of your usual Mon–Fri week.",
+    }]);
   });
 
   it('both tones can fire in one window, in date order', () => {
