@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { localDateStr } from './useFleetBalance';
 import { fmtTime } from '../lib/offStandardReport';
@@ -28,7 +29,11 @@ export function useOffStandardEntryEdits({ user, setEntries }: UseOffStandardEnt
   ) => {
     const mins    = Math.round((new Date(endTime).getTime() - new Date(startTime).getTime()) / 60000);
     const entryId = crypto.randomUUID();
-    const { error } = await writeWithRefresh(() =>
+    // Submit-locked on the window being backdated — a double-tapped submit
+    // must not insert two entries (each would mint its own UUID). A dropped
+    // re-entrant call returns quietly; the first submission owns the follow-ups.
+    const res = await withSubmitLock(`oth-backdate:${user.id}:${startTime}:${endTime}`, () =>
+      writeWithRefresh(() =>
       supabase.from('off_standard_entries').insert({
         id:             entryId,
         user_id:        user.id,
@@ -44,7 +49,9 @@ export function useOffStandardEntryEdits({ user, setEntries }: UseOffStandardEnt
         is_backdated:   true,
         edit_status:    'pending',
       })
-    );
+    ));
+    if (!res) return; // dropped duplicate — the first submission owns it
+    const { error } = res;
     if (!error) {
       const label = OFF_STANDARD_LABELS[reason].short;
       await pushNotification(

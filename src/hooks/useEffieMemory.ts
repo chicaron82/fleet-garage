@@ -5,6 +5,7 @@
 // these into Effie's context each turn (see api/fg-chat.ts).
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import { useAuth } from '../context/AuthContext';
 
 export interface EffieMemory {
@@ -39,9 +40,15 @@ export function useEffieMemory() {
     // not a second row — both copies would otherwise inject into Effie's context.
     const norm = content.trim().toLowerCase();
     if (memories.some((m) => m.content.trim().toLowerCase() === norm)) return true;
-    const { error } = await supabase.from('effie_memory').insert({ user_id: user.id, content });
-    if (!error) await reload();
-    return !error;
+    // Submit-locked on the content: the state-based dedup above can't see a
+    // same-frame double-tap (memories only updates next render). A dropped
+    // re-entrant call reports success — the first call is inserting it.
+    const ok = await withSubmitLock(`effie-mem:${user.id}:${norm}`, async () => {
+      const { error } = await supabase.from('effie_memory').insert({ user_id: user.id, content });
+      if (!error) await reload();
+      return !error;
+    });
+    return ok ?? true;
   }, [user, memories, reload]);
 
   const remove = useCallback(async (id: string): Promise<boolean> => {

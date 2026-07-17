@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useState } from 'rea
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { buildRosterStaff } from '../lib/rosterStaff';
+import { withSubmitLock } from '../lib/submitLock';
 import { promoteRosterStaff as promoteRosterStaffRpc } from '../lib/rosterPromotion';
 import type { Profile, UserRole, BranchId } from '../types';
 
@@ -68,22 +69,32 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
 
   const addRosterStaff = useCallback(
     async (input: { name: string; role: UserRole; branchId: BranchId }): Promise<Profile> => {
-      const staff = buildRosterStaff(input);
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          id:          staff.id,
-          employee_id: staff.employeeId,
-          name:        staff.name,
-          role:        staff.role,
-          branch_id:   staff.branchId,
-          roster_only: true,
-        })
-        .select('id, employee_id, name, role, branch_id, roster_only, utility')
-        .single();
-      if (error) throw error;
-      const created = rowToProfile(data as Record<string, unknown>);
-      setProfiles(prev => new Map(prev).set(created.id, created));
+      // Double-submit guard keyed on the logical person — a re-tapped "add"
+      // must not mint two roster profiles. A dropped re-entrant call throws
+      // (callers await a Profile, so undefined isn't an option here).
+      const created = await withSubmitLock(
+        `roster:${input.name.trim().toLowerCase()}:${input.branchId}`,
+        async () => {
+          const staff = buildRosterStaff(input);
+          const { data, error } = await supabase
+            .from('profiles')
+            .insert({
+              id:          staff.id,
+              employee_id: staff.employeeId,
+              name:        staff.name,
+              role:        staff.role,
+              branch_id:   staff.branchId,
+              roster_only: true,
+            })
+            .select('id, employee_id, name, role, branch_id, roster_only, utility')
+            .single();
+          if (error) throw error;
+          const row = rowToProfile(data as Record<string, unknown>);
+          setProfiles(prev => new Map(prev).set(row.id, row));
+          return row;
+        },
+      );
+      if (!created) throw new Error('That staff member is already being added.');
       return created;
     },
     [],

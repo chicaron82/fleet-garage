@@ -169,8 +169,11 @@ export function makeMarkRepaired(deps: ResolutionDeps) {
   return async (holdId: string, repair: Omit<Repair, 'id'>) => {
     const hold = deps.holds.find(h => h.id === holdId);
     if (!hold) throw new Error(`Hold not found: ${holdId}`);
-    // Whole-hold repair: every issue resolved at once.
-    await finalizeRepairedHold(deps, hold, repair, hold.holdTypes);
+    // Whole-hold repair: every issue resolved at once. Same lock key as
+    // makeMarkIssueRepaired — a double-tap (or a race between the two repair
+    // paths on one hold) must not insert two repairs rows.
+    await withSubmitLock(`repair:${holdId}`, () =>
+      finalizeRepairedHold(deps, hold, repair, hold.holdTypes));
   };
 }
 
@@ -273,6 +276,10 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
     if (targets.some(t => t.vehicleId !== vehicleId)) {
       throw new Error('Batch repair must target holds on a single vehicle');
     }
+    // Double-submit guard for the whole batch (one vehicle per batch, enforced
+    // above) — a re-tapped "repair all" must not insert a second repairs row
+    // per hold. Keyed on the vehicle, mirroring the single-repair hold key.
+    await withSubmitLock(`repair-batch:${vehicleId}`, async () => {
     const repairsById = new Map<string, Repair>();
     for (const t of targets) {
       const repairId = crypto.randomUUID();
@@ -303,5 +310,6 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
       const r = repairsById.get(h.id);
       return r ? { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r } : h;
     }));
+    });
   };
 }

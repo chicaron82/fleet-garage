@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { withSubmitLock } from '../lib/submitLock';
 import type { AuditSection, AuditResult, AuditCrewMember, AuditPosition } from '../types';
 import type { Json } from '../types/database.types';
 
@@ -130,10 +131,12 @@ export function useAudit() {
   const handleDispatch = () => {
     setDispatchStatus('dispatching');
 
-    // Persist to Supabase (fire-and-forget)
+    // Persist to Supabase (fire-and-forget). Submit-locked: a double-tapped
+    // dispatch must not insert two audit rows (the status flag only gates the
+    // NEXT render; the lock closes the same-frame window).
     if (user) {
       const finalStatus = (overallStatus === 'IN_PROGRESS' ? 'FAILED' : overallStatus) as 'PASSED' | 'FAILED';
-      void writeWithRefresh(() => supabase.from('audits').insert({
+      void withSubmitLock(`audit-dispatch:${user.id}:${vehicleNumber}`, () => writeWithRefresh(() => supabase.from('audits').insert({
         branch_id:      user.branchId,
         date:           new Date().toISOString().split('T')[0],
         auditor_id:     user.id,
@@ -144,7 +147,7 @@ export function useAudit() {
         crew:           crewMembers as unknown as Json,
         sections:       sections    as unknown as Json,
         status:         finalStatus,
-      })).then(({ error }) => { if (error) console.error('[useAudit] insert failed:', error); });
+      }))).then(res => { if (res?.error) console.error('[useAudit] insert failed:', res.error); });
     }
 
     setTimeout(() => {
