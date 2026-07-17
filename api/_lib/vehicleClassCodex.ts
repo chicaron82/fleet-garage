@@ -69,6 +69,7 @@ const CODEX: Record<string, VehicleClass> = {
   CMBU: { make: 'Chevrolet', model: 'Malibu' },
   CMLT: { make: 'Chevrolet', model: 'Malibu LT' },
   CTAV: { make: 'Chevrolet', model: 'Trailblazer' },
+  CTLT: { make: 'Chevrolet', model: 'Traverse' }, // surfaced live 2026-07-17 (Aaron) — L2 class
   // Tesla
   CTM3: { make: 'Tesla', model: 'Model 3' },
   CM3L: { make: 'Tesla', model: 'Model 3' },
