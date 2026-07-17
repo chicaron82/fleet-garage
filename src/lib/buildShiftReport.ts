@@ -46,6 +46,13 @@ export interface ReportData {
   // run by people who don't use FG). Cars flipped at the airport never reach the
   // washbay, so the bay count reads light — this flag tells a report reader why.
   airportFlipping: boolean;
+  // How many returns were flipped, from the LIVE ephemeral Airport Flip session
+  // (sessionStorage, this shift + device). 0 when the report is built outside that
+  // session (a later day/device) — the durable `airportFlipping` flag above is the
+  // fallback signal then. When > 0 the note names the count and explains the rate is
+  // understated by that many rent-ready cars (see caef199: the live card credits
+  // them, the durable report deliberately does not — this line closes the gap).
+  airportFlipCount: number;
   // Every reading the paper Gasoline Pump Card carries, surfaced in FG. null when
   // no fuel was logged for the day. The Pump 2 status doubles as the theft tripwire.
   fuel: FuelReport | null;
@@ -230,7 +237,9 @@ export function buildReport(d: ReportData): string {
     }
     if (rateParts.length > 0) lines.push(rateParts.join('  |  '));
 
-    if (d.airportFlipping) {
+    if (d.airportFlipCount > 0) {
+      lines.push(`🔄 Flipping returns — rate excludes ${d.airportFlipCount} airport flip${d.airportFlipCount === 1 ? '' : 's'} (rent-ready, accepted condition: not re-cleaned/refueled)`);
+    } else if (d.airportFlipping) {
       lines.push('🔄 Flipping returns — bay count excludes cars turned around at the airport');
     }
 

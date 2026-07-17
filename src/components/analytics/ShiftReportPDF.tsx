@@ -42,7 +42,7 @@ export function ShiftReportPDF({ data }: { data: ReportData }) {
             t={t} fb={fb} offTotal={offTotal}
             branchRate={branchRate} shiftRate={shiftRate}
             windowCleaned={windowCleaned} personalRate={personalRate}
-            airportFlipping={data.airportFlipping}
+            airportFlipping={data.airportFlipping} airportFlipCount={data.airportFlipCount}
           />
         )}
         <OthSection

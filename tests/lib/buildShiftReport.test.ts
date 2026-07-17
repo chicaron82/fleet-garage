@@ -76,6 +76,7 @@ function baseData(over: Partial<ReportData> = {}): ReportData {
     fleetBalance: null,
     throughput: null,
     airportFlipping: false,
+    airportFlipCount: 0,
     fuel: null,
     ...over,
   };
@@ -165,6 +166,31 @@ describe('buildReport — throughput', () => {
       airportFlipping: false,
     }));
     expect(r).not.toContain('Flipping returns');
+  });
+
+  it('names the flip COUNT and explains the excluded rate when the live session has flips', () => {
+    const r = buildReport(baseData({
+      throughput: throughput({ closingCleaned: 20, fullDayCleaned: 40, branchOpHours: 8 }),
+      airportFlipping: true,
+      airportFlipCount: 2,
+    }));
+    expect(r).toContain('rate excludes 2 airport flips');
+    expect(r).toContain('accepted condition');
+  });
+
+  it('singularizes a lone flip', () => {
+    const r = buildReport(baseData({ throughput: throughput({ closingCleaned: 20 }), airportFlipCount: 1 }));
+    expect(r).toContain('rate excludes 1 airport flip (');
+  });
+
+  it('falls back to the count-free flag when flipping is durably recorded but the session is gone', () => {
+    const r = buildReport(baseData({
+      throughput: throughput({ closingCleaned: 20 }),
+      airportFlipping: true,
+      airportFlipCount: 0,
+    }));
+    expect(r).toContain('bay count excludes cars turned around');
+    expect(r).not.toContain('rate excludes');
   });
 
   it('shows the standard window range when no actual hours are logged', () => {

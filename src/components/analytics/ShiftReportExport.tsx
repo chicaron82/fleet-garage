@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
 import { ShareTextButton } from '../shared/ShareTextButton';
-import { shiftDayWindow } from '../../lib/shiftDay';
+import { shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
+import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { fmtTime24 } from '../../lib/shiftTypeMeta';
 import {
   buildShiftPartition,
@@ -27,6 +28,11 @@ import type { ShiftType } from '../../types';
 export function ShiftReportExport({ date }: { date: string }) {
   const { user } = useAuth();
   const { shifts } = useSchedule();
+  // Live flip count for the "rate excludes N airport flips" note — only attributed
+  // when this report is for the current shift day (the session self-scopes to it;
+  // a past-date report must not borrow today's flips). 0 → the durable flag carries.
+  const flipRows = useAirportFlip().rows.length;
+  const airportFlipCount = date === businessDateOf(new Date()) ? flipRows : 0;
   const [loading,    setLoading]    = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const { copied, share }           = useShareText();
@@ -309,6 +315,7 @@ export function ShiftReportExport({ date }: { date: string }) {
       airportFlipping: (othRes.data ?? []).some((r: Record<string, unknown>) => r.preset_reason === 'airport_flip')
         || (handoffRow?.airport_flipping ?? false)
         || (washbayRow?.airport_flipping ?? false),
+      airportFlipCount,
       fuel: buildFuelReport(fuelRes.data),
     };
   };

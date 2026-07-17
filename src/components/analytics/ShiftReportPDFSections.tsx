@@ -96,7 +96,7 @@ export function FleetDemandSection({ fb, gap, fullDayCleaned }: {
   );
 }
 
-export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, personalRate, airportFlipping }: {
+export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, windowCleaned, personalRate, airportFlipping, airportFlipCount }: {
   t: ReportThroughput;
   fb: ReportData['fleetBalance'];
   offTotal: number;
@@ -105,6 +105,7 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
   windowCleaned: number | null;
   personalRate: number | null;
   airportFlipping: boolean;
+  airportFlipCount: number;
 }) {
   return (
     <View style={s.section}>
@@ -164,7 +165,11 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
           : <Text style={s.rateNoOth}>Log off-standard time to see your personal rate</Text>
         }
       </View>
-      {airportFlipping && (
+      {airportFlipCount > 0 ? (
+        <View style={s.flipNote}>
+          <Text style={s.flipNoteText}>Flipping returns — rate excludes {airportFlipCount} airport flip{airportFlipCount === 1 ? '' : 's'} (rent-ready, accepted condition: not re-cleaned/refueled)</Text>
+        </View>
+      ) : airportFlipping && (
         <View style={s.flipNote}>
           <Text style={s.flipNoteText}>Flipping returns — bay count excludes cars turned around at the airport</Text>
         </View>
