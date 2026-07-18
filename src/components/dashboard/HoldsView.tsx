@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { canRelease, canManageVehicles } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import type { Hold, Vehicle, VehicleStatus } from '../../types';
@@ -27,7 +28,9 @@ interface Props {
 
 export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle } = useVehicleHoldContext();
+  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle, updateVehicleFields } = useVehicleHoldContext();
+  // A scanned tag fills an on-record car's blanks here, at the scan — see docs/ticket-backfill-at-scan.md.
+  const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<HoldsTab>('holds');
   const [currentPage, setCurrentPage] = useState(() => {
@@ -97,7 +100,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
     setCurrentPage(1);
     const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate.toUpperCase());
     if (vehicle) {
-      showToast(`✨ ${vehicle.unitNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`, 'success');
+      // A thin record (a geotab placeholder: no unit#, year 0, blank make/model) must degrade to
+      // the plate rather than render "✨ null — 0". The scan's backfill fills it a beat later.
+      const identity = [vehicle.year || null, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+      showToast(`✨ ${vehicle.unitNumber ?? plate.toUpperCase()}${identity ? ` — ${identity}` : ''}`, 'success');
       onSelectVehicle(vehicle.id);
     } else {
       showToast(`${plate} not in system`, 'error');
@@ -261,7 +267,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           </div>
           {noMatch
             ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
-            : <KeytagSearchScan onPlate={handleKeytagPlate} />}
+            : <KeytagSearchScan onPlate={handleKeytagPlate} onRead={(read) => void backfillFromRead(read)} />}
+          {/* Never fill silently — name what the tag just landed on the record. */}
+          {backfillToast && <p className="text-xs font-semibold text-green-700 dark:text-green-400">{backfillToast}</p>}
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}

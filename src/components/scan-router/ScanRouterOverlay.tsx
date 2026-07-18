@@ -7,10 +7,11 @@ import { useRef, useState } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
-import { resolveKeytagScan, type KeytagScanResult } from '../../lib/resolveKeytagScan';
+import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
+import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -21,10 +22,11 @@ interface Props {
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
-  const { vehicles, holds } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
+  const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const fileRef = useRef<HTMLInputElement>(null);
-  const [scan, setScan] = useState<{ read: KeytagRead; result: KeytagScanResult } | null>(null);
+  const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
   const reading = status === 'reading';
@@ -32,17 +34,24 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setErrMsg('');
-    setScan(null);
+    setScanRead(null);
     setGeotabPending(false);
     const base64 = await compressImage(file);
     const read = await readKeytag(base64);
     if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
-    setScan({ read, result: resolveKeytagScan(read, vehicles) });
+    setScanRead(read);
     setGeotabPending(await checkGeotab(read.plate));
+    // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
+    // he routes to below (hold / view / trip) already sees a complete record. Blanks-only.
+    void backfillFromRead(read);
   };
 
-  const actions = scan ? scanRouterActions(scan.read, scan.result) : [];
-  const vehicle = scan?.result.vehicle ?? null;
+  // Resolved against the LIVE fleet each render rather than snapshotted at scan time: the backfill
+  // above writes through context, so re-resolving is what makes the card show the now-filled
+  // identity instead of the blanks the tag was read against.
+  const result = scanRead ? resolveKeytagScan(scanRead, vehicles) : null;
+  const actions = scanRead && result ? scanRouterActions(scanRead, result) : [];
+  const vehicle = result?.vehicle ?? null;
   const activeHolds = vehicle ? holds.filter(h => h.vehicleId === vehicle.id && h.status === 'ACTIVE').length : 0;
 
   const go = (screen: Screen) => { navigate(screen); onClose(); };
@@ -65,7 +74,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
             onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
           />
 
-          {!scan && (
+          {!scanRead && (
             <>
               <p className="text-xs text-gray-500 dark:text-gray-400">Snap the tag — FG will tell you what the car is and what you can do with it.</p>
               <button
@@ -81,17 +90,17 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
 
-          {scan && (
+          {result && (
             <>
               {/* What the car IS + its state — resolve first, so the menu below is smart. */}
               <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
-                {scan.result.wasCorrected && scan.result.rawPlate && (
+                {result.wasCorrected && result.rawPlate && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                    Read <span className="font-mono">{scan.result.rawPlate}</span> → corrected to <span className="font-mono font-semibold">{scan.result.plate}</span>
+                    Read <span className="font-mono">{result.rawPlate}</span> → corrected to <span className="font-mono font-semibold">{result.plate}</span>
                   </p>
                 )}
                 <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-                  {scan.result.plate}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
+                  {result.plate}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
                 </p>
                 {vehicle ? (
                   <>
@@ -117,6 +126,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {geotabPending && (
                   <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">📡 On the Geotab install list — hold until a unit is installed</p>
                 )}
+                {/* Never fill silently — name exactly what the tag just landed on the record. */}
+                {backfillToast && (
+                  <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">{backfillToast}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -136,7 +149,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
               <button
                 type="button"
-                onClick={() => { setScan(null); setErrMsg(''); }}
+                onClick={() => { setScanRead(null); setErrMsg(''); }}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 Scan another
