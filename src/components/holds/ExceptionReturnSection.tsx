@@ -55,11 +55,15 @@ export function ExceptionReturnSection({ search = '' }: Props) {
     const damage: ExceptionItem[] = vehicles
       .filter(v => isOnExceptionStatus(v.status))
       .flatMap(v => {
-        const hold = getHoldsForVehicle(v.id).find(h =>
+        const matches = getHoldsForVehicle(v.id).filter(h =>
           h.status === 'RELEASED' &&
           h.release?.releaseType === 'EXCEPTION' &&
           h.holdType !== 'detail'
         );
+        // A car with BOTH real damage AND a geotab hold surfaces as a DAMAGE return — the
+        // old-vs-new comparison matters more than "installed?". Geotab only represents a car
+        // when it's the *only* exception on it (then it lands in the 📡 lens below).
+        const hold = matches.find(h => h.damageDescription !== GEOTAB_HOLD_DESC) ?? matches[0];
         return hold
           ? [{ kind: 'damage' as const, vehicle: v, hold, isAuction: v.status === 'AUCTION_SHORT_TERM' }]
           : [];
