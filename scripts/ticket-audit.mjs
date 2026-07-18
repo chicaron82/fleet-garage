@@ -32,7 +32,7 @@ function field(body, key) {
 
 const tickets = walk(docsDir).map(path => {
   const body = readFileSync(path, 'utf8');
-  const commitLine = field(body, 'commit');
+  const commitLine = field(body, 'commit') || field(body, 'commits'); // tolerate the plural typo
   return {
     file: path.replace(docsDir, ''),
     status: field(body, 'status').split(/\s+/)[0], // strip trailing template comment
@@ -62,8 +62,9 @@ const rows = log.map(line => {
 // ── Anomalies ─────────────────────────────────────────────────────────────────
 const gitHashes = log.map(l => l.split('\t')[0]);
 const shippedNoStamp = tickets.filter(t => t.status === 'shipped' && t.hashes.length === 0);
+// Only flag `open` — an `in-progress` ticket with landed commits is normal incremental delivery.
 const openButShipped = tickets.filter(t =>
-  (t.status === 'open' || t.status === 'in-progress') &&
+  t.status === 'open' &&
   t.hashes.some(h => gitHashes.some(g => g.startsWith(h))));
 
 // ── Report ────────────────────────────────────────────────────────────────────
