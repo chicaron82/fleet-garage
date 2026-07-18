@@ -12,6 +12,12 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Geotab-install exceptions ride the same OUT_ON_EXCEPTION machinery as damage returns, but they
+// ask a DIFFERENT question on return ("unit installed yet?" not "any new damage?"). They can also
+// outnumber the real damage/condition returns many-to-one, so they get their own lens below the
+// condition returns instead of burying them. Keyed on the hold description (the preset's label).
+const GEOTAB_HOLD_DESC = 'Geotab not installed';
+
 // One unified exception-return surface. Every vehicle let out on exception
 // surfaces here once, routed by the kind of hold that drove the exception:
 //   detail (cleaning) holds → re-evaluation actions (confirm / clear / re-hold / escalate)
@@ -71,6 +77,27 @@ export function ExceptionReturnSection({ search = '' }: Props) {
   };
 
   const visibleItems = search.trim() ? items.filter(item => matchesSearch(item.vehicle)) : items;
+  // Split the two populations: real condition returns vs geotab-install exceptions.
+  const visibleGeotab  = visibleItems.filter(i => i.hold.damageDescription === GEOTAB_HOLD_DESC);
+  const visibleReturns = visibleItems.filter(i => i.hold.damageDescription !== GEOTAB_HOLD_DESC);
+
+  const renderItem = (item: ExceptionItem) =>
+    item.kind === 'detail' ? (
+      <DetailReEvalCard key={item.hold.id} item={{ hold: item.hold, vehicle: item.vehicle }} re={re} />
+    ) : (
+      <DamageReturnCard
+        key={item.hold.id}
+        vehicle={item.vehicle}
+        hold={item.hold}
+        isAuction={item.isAuction}
+        allHolds={getHoldsForVehicle(item.vehicle.id)}
+        user={user}
+        onReHold={async (vehicleId, description, notes, photos, linkedHoldId, holdTypes) => {
+          if (!user) return;
+          await addHold(vehicleId, description, notes, user.id, photos, holdTypes, undefined, undefined, linkedHoldId);
+        }}
+      />
+    );
 
   // Auto-expand when search matches an exception vehicle
   useEffect(() => {
@@ -107,7 +134,7 @@ export function ExceptionReturnSection({ search = '' }: Props) {
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-3">
           <span className="bg-amber-200 dark:bg-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums">
-            {items.length}
+            {visibleReturns.length}{visibleGeotab.length > 0 ? ` +📡${visibleGeotab.length}` : ''}
           </span>
           <svg
             className={`w-4 h-4 text-amber-600 dark:text-amber-400 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -118,23 +145,18 @@ export function ExceptionReturnSection({ search = '' }: Props) {
         </div>
       </button>
 
-      {open && visibleItems.map(item =>
-        item.kind === 'detail' ? (
-          <DetailReEvalCard key={item.hold.id} item={{ hold: item.hold, vehicle: item.vehicle }} re={re} />
-        ) : (
-          <DamageReturnCard
-            key={item.hold.id}
-            vehicle={item.vehicle}
-            hold={item.hold}
-            isAuction={item.isAuction}
-            allHolds={getHoldsForVehicle(item.vehicle.id)}
-            user={user}
-            onReHold={async (vehicleId, description, notes, photos, linkedHoldId, holdTypes) => {
-              if (!user) return;
-              await addHold(vehicleId, description, notes, user.id, photos, holdTypes, undefined, undefined, linkedHoldId);
-            }}
-          />
-        )
+      {open && (
+        <>
+          {visibleReturns.map(renderItem)}
+          {visibleGeotab.length > 0 && (
+            <div className="space-y-3 pt-1">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 px-1">
+                📡 Geotab installs · hold until the unit&apos;s in ({visibleGeotab.length})
+              </p>
+              {visibleGeotab.map(renderItem)}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
