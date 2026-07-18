@@ -6,6 +6,7 @@ import { useUserResolver } from '../../hooks/useUserResolver';
 import { HoldContextPanel } from './HoldContextPanel';
 import { DetailReEvalCard } from './DetailReEvalCard';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
+import { markGeotabInstalled } from '../../hooks/useGeotabPending';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 
 function fmtDate(iso: string) {
@@ -162,7 +163,11 @@ export function ExceptionReturnSection({ search = '' }: Props) {
                   key={item.hold.id}
                   vehicle={item.vehicle}
                   hold={item.hold}
-                  onInstalled={async () => { if (user) await closeException(item.hold.id, user.name); }}
+                  onInstalled={async () => {
+                    if (!user) return;
+                    await closeException(item.hold.id, user.name);
+                    await markGeotabInstalled(item.vehicle.licensePlate, user.id); // keep the watchlist in lockstep
+                  }}
                 />
               ))}
             </div>

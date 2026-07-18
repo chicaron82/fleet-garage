@@ -24,3 +24,17 @@ export function useGeotabPending() {
     return !!data;
   }, []);
 }
+
+/** Stamp a plate as installed on the geotab watchlist. Called from the geotab burn-off (the
+ *  "✅ Geotab installed" action) alongside resolving the hold, so the watchlist table — and every
+ *  reader of it (Effie's `isGeotabPending`, the scanner badge) — stays in lockstep with the resolved
+ *  exception. Without this the two drift: the hold says done, the table still says pending. */
+export async function markGeotabInstalled(rawPlate: string, userId: string): Promise<void> {
+  const plate = correctManitobaPrefix(rawPlate);
+  if (!plate) return;
+  await supabase
+    .from('geotab_watchlist')
+    .update({ installed_at: new Date().toISOString(), installed_by: userId })
+    .eq('plate', plate)
+    .is('installed_at', null);
+}
