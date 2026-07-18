@@ -32,7 +32,7 @@ interface Props { search?: string; }
 
 export function ExceptionReturnSection({ search = '' }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, getHoldsForVehicle, addHold } = useVehicleHoldContext();
+  const { vehicles, holds, getHoldsForVehicle, addHold, closeException } = useVehicleHoldContext();
   const re = useReEval();
   const [open, setOpen] = useState(false);
 
@@ -153,7 +153,14 @@ export function ExceptionReturnSection({ search = '' }: Props) {
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 px-1">
                 📡 Geotab installs · hold until the unit&apos;s in ({visibleGeotab.length})
               </p>
-              {visibleGeotab.map(renderItem)}
+              {visibleGeotab.map(item => (
+                <GeotabReturnCard
+                  key={item.hold.id}
+                  vehicle={item.vehicle}
+                  hold={item.hold}
+                  onInstalled={async () => { if (user) await closeException(item.hold.id, user.name); }}
+                />
+              ))}
             </div>
           )}
         </>
@@ -226,6 +233,59 @@ function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold }
           />
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Geotab-install return card ────────────────────────────────────────────────
+// A geotab return asks one binary question — installed yet? — so it gets a simpler card than the
+// damage re-hold flow: mark it installed and it burns off the list (closeException resolves the
+// hold + re-derives the vehicle CLEAR). If it's NOT installed, leave it — it stays on the list.
+function GeotabReturnCard({ vehicle, hold, onInstalled }: {
+  vehicle: Vehicle;
+  hold: Hold;
+  onInstalled: () => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+
+  const markInstalled = async () => {
+    setBusy(true); setErr(false);
+    try { await onInstalled(); }
+    catch { setErr(true); setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 p-4 space-y-2 transition-colors">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
+          {vehicle.unitNumber ?? '—'} · {vehicle.licensePlate}
+        </p>
+        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">📡 Geotab</span>
+      </div>
+      <p className="text-xs text-gray-600 dark:text-gray-300">
+        {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.color ? ` · ${vehicle.color}` : ''}
+      </p>
+      <p className="text-xs text-amber-700 dark:text-amber-400">Held for Geotab install · circulating (flagged {fmtDate(hold.flaggedAt)})</p>
+      {!confirming ? (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="w-full rounded-lg bg-green-600 hover:bg-green-500 text-white py-2 text-xs font-semibold cursor-pointer transition"
+        >
+          ✅ Geotab installed — clear off the list
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-600 dark:text-gray-400">Confirm the unit is installed? This resolves the hold and drops the plate off the list.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 cursor-pointer disabled:opacity-50">Cancel</button>
+            <button type="button" onClick={() => void markInstalled()} disabled={busy} className="flex-1 rounded-lg bg-green-600 hover:bg-green-500 text-white py-2 text-xs font-semibold disabled:opacity-50 cursor-pointer">{busy ? 'Clearing…' : 'Confirm installed'}</button>
+          </div>
+          {err && <p className="text-[11px] text-red-500">Couldn&apos;t clear it — try again.</p>}
+        </div>
+      )}
     </div>
   );
 }
