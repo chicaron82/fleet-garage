@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useWashbayContext } from '../../context/WashbayContext';
+import { useAuth } from '../../context/AuthContext';
+import { useAirportFlip } from '../../hooks/useAirportFlip';
+import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { useSchedule } from '../../context/ScheduleContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasSheetCount } from '../../lib/gas-sheet';
@@ -24,6 +27,11 @@ const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-ce
 export function HandoffForm({ onClose }: Props) {
   const { submitHandoff, submitWashbayLog, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
   const { shifts } = useSchedule();
+  const { user } = useAuth();
+  // Two independent 'flipping happened' signals: the live shift-local flip list, and a
+  // durable OTH airport_flip entry logged today.
+  const flip = useAirportFlip();
+  const flippedOthToday = useTodayAirportFlip(user?.id, shiftDateStr(0));
 
   // The prior shift-day's close (cutover-aware), or undefined if nobody logged it.
   const priorLog = findPriorShiftLog(washbayLogs);
@@ -67,7 +75,15 @@ export function HandoffForm({ onClose }: Props) {
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,    setAdjustMorning]   = useState(false);
   const [morningHours,     setMorningHours]    = useState(8.0);
-  const [airportFlipping,  setAirportFlipping] = useState(false);
+  // Auto-derived, not asked. FG already knows whether flipping happened — the airport-flip list
+  // he's been adding to this shift, and/or a logged OTH `airport_flip` entry — so making him
+  // re-attest it by memory is a recall test the app is giving itself (Aaron, 2026-07-19).
+  // Same null-sentinel shape as userPages above: null = untouched, so it reads LIVE from the
+  // signal (useTodayAirportFlip resolves async — a plain useState seed would capture `false`
+  // forever, the seed-once trap from e86441b). Once he taps it, his choice wins permanently.
+  const flippingKnown = flip.rows.length > 0 || flippedOthToday;
+  const [userFlipping, setUserFlipping] = useState<boolean | null>(null);
+  const airportFlipping = userFlipping ?? flippingKnown;
   const [submitting,       setSubmitting]      = useState(false);
 
   // Backfill: when last night's close was never logged, the opener records how
@@ -266,13 +282,22 @@ export function HandoffForm({ onClose }: Props) {
           <div>
             <label className="flex items-center gap-2 cursor-pointer">
               <div
-                onClick={() => { setAirportFlipping(v => !v); hapticLight(); }}
+                onClick={() => { setUserFlipping(!airportFlipping); hapticLight(); }}
                 className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${airportFlipping ? 'bg-fg-yellow border-fg-yellow' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
               >
                 {airportFlipping && <span className="text-[10px] font-bold text-black leading-none">✓</span>}
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">🔄 Flipping returns done at the airport this morning</span>
             </label>
+            {/* Never auto-tick silently — name the evidence, same house style as the scan-router's
+                "Read X → corrected to Y". He can still untap it; this just says why it's on. */}
+            {userFlipping === null && flippingKnown && (
+              <p className="text-[11px] text-green-700 dark:text-green-400 mt-1 ml-6">
+                ✓ auto-checked — {flip.rows.length > 0
+                  ? `${flip.rows.length} car${flip.rows.length === 1 ? '' : 's'} on your airport flip list`
+                  : 'you logged airport flip time today'}
+              </p>
+            )}
           </div>
 
           {/* AM window adjust */}
