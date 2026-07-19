@@ -19,6 +19,14 @@ export function LostAndFoundView({ prefillPlate }: { prefillPlate?: string } = {
   const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
   const [showSheet, setShowSheet]           = useState(!!prefillPlate);
+  // Mount-only otherwise: scanning a tag while ALREADY on Lost & Found re-navigates to the same
+  // mounted component, so the sheet never opened and the button looked dead. Same class as the
+  // movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
+  const [lastPrefill, setLastPrefill] = useState(prefillPlate);
+  if (prefillPlate && prefillPlate !== lastPrefill) {
+    setLastPrefill(prefillPlate);
+    setShowSheet(true);
+  }
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
 

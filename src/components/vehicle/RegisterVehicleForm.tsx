@@ -45,6 +45,25 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
   const [year, setYear] = useState(scanned?.year ?? currentYear);
   const [color, setColor] = useState(scanned?.color ?? '');
   const [submitting, setSubmitting] = useState(false);
+
+  // THE DANGEROUS ONE. All six fields above are seeded by `useState`, which reads only on MOUNT —
+  // so scanning a second key tag from the header while this form was already open left every
+  // identity field holding the PREVIOUS car's values. That's not a stale UI, it's wrong data
+  // written to the fleet: register car B carrying car A's unit#, make, model and year.
+  // Re-seed whenever a new scan arrives. Render-time adjustment (the repo lints
+  // set-state-in-effect); `scanned` is a fresh object per navigation, so identity compare is right.
+  // Same class as the movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
+  const [lastScanned, setLastScanned] = useState(scanned);
+  if (scanned && scanned !== lastScanned) {
+    setLastScanned(scanned);
+    setUnit(scanned.unitNumber ?? seed.unit);
+    setPlate(scanned.plate ?? seed.plate);
+    setMake(scanned.make ?? '');
+    setModel(scanned.model ?? '');
+    setYear(scanned.year ?? currentYear);
+    setColor(scanned.color ?? '');
+  }
+
   const [successToast, setSuccessToast] = useState<string | null>(null);
   // Set when the conflict reconciliation's release half failed — the new vehicle
   // is registered, but the OLD record still carries the unit#. Non-blocking warning.
