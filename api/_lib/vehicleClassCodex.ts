@@ -93,6 +93,9 @@ const CODEX: Record<string, VehicleClass> = {
   CGCL: { make: 'Dodge', model: 'Grand Caravan' },
   CPCL: { make: 'Chrysler', model: 'Pacifica' },
   CDR8: { make: 'Dodge', model: 'Durango' },
+  // Newer Durango class — confirmed off a real tag at the car (LUR437, unit 5429949,
+  // "CDGT 26 BLA 4DR") by Aaron on the lot, 2026-07-19. Not a guess: he was standing at it.
+  CDGT: { make: 'Dodge', model: 'Durango' },
   C300: { make: 'Chrysler', model: '300' },
   // Buick
   CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
