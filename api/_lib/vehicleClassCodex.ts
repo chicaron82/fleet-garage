@@ -2,8 +2,14 @@
 // code (e.g. "CCVL 25") instead of the make/model; this maps it so the assistant can
 // fill a registration from a photo. Mirrors docs/May/ywg-vehicle-codex.md (the living
 // source of truth) — committed here because the proxy can't read the gitignored doc at
-// runtime. When a new code surfaces on a tag, add it in both places; an unknown code
+// runtime. When a new code surfaces on a tag, add it HERE and in the doc; an unknown code
 // returns null and the assistant asks for make/model instead of guessing.
+//
+// THIS FILE IS THE ONLY CODEX IN THE CODEBASE. A second copy lived at
+// src/data/ywgVehicleCodex.ts with zero importers and silently drifted out of sync (4 codes
+// missing, CM3L disagreeing) until a mis-filed CKVA exposed it on 2026-07-19 — deleted in
+// cc50536's follow-up. Client code imports from api/_lib directly (see platePrefix); do NOT
+// mirror this table again.
 //
 // The model/year on the tag are read separately (year follows the code, e.g. "25" →
 // 2025); this map is class → make + model only. Variant notes and years from the doc
