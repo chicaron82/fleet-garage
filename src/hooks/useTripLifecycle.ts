@@ -57,6 +57,24 @@ export function useTripLifecycle({
   const [completedOneWay, setCompletedOneWay] = useState(false);
 
   const [vehiclePlate, setVehiclePlate]       = useState(initialPlate ?? '');
+
+  // The header scan-router routes here with a freshly-scanned plate (Screen: movement-log +
+  // prefillPlate). `useState(initialPlate)` above only reads it on MOUNT — so scanning a tag
+  // while ALREADY on the Movement Log re-navigates to the same mounted component, the plate
+  // never lands, and "Start trip" looks like it did nothing (found live on the lot, 2026-07-19:
+  // Aaron scanned LJF691 from the header, got dropped on the Movement Log with an empty field,
+  // and had to re-scan in-page to actually start). Syncing on change makes the route keep its
+  // promise. Guarded on a truthy plate so it never blanks a plate the operator typed himself.
+  //
+  // Done as a render-time adjustment (React's documented "adjusting state when a prop changes"),
+  // NOT a useEffect — the repo lints `react-hooks/set-state-in-effect`, and an effect would also
+  // cost an extra render pass with a visible empty-field flash. Remounting via a `key` was the
+  // other option and was rejected: it would blow away in-flight trip state mid-shift.
+  const [lastPrefill, setLastPrefill] = useState(initialPlate);
+  if (initialPlate && initialPlate !== lastPrefill) {
+    setLastPrefill(initialPlate);
+    setVehiclePlate(initialPlate);
+  }
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
   const [evCableStatus, setEvCableStatus]     = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
