@@ -17,7 +17,6 @@ export const YWG_VEHICLE_CODEX: Record<string, CodexEntry> = {
 
   // Kia
   CKSE: { make: 'Kia',        model: 'Seltos' },
-  CKVA: { make: 'Kia',        model: 'Kicks' },
   CKNE: { make: 'Kia',        model: 'Niro EV' },
   CCVL: { make: 'Kia',        model: 'Carnival' },
   CFEX: { make: 'Kia',        model: 'Forte' },
@@ -28,6 +27,7 @@ export const YWG_VEHICLE_CODEX: Record<string, CodexEntry> = {
 
   // Nissan
   CKSV: { make: 'Nissan',     model: 'Kicks' },
+  CKVA: { make: 'Nissan',     model: 'Kicks' },
   CVSS: { make: 'Nissan',     model: 'Versa' },
   CVRS: { make: 'Nissan',     model: 'Versa' },
   CNSS: { make: 'Nissan',     model: 'Sentra' },

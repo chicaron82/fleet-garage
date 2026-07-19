@@ -33,7 +33,6 @@ const CODEX: Record<string, VehicleClass> = {
   CTAP: { make: 'Hyundai', model: 'Tucson' },
   // Kia
   CKSE: { make: 'Kia', model: 'Seltos' },
-  CKVA: { make: 'Kia', model: 'Kicks' },
   CKNE: { make: 'Kia', model: 'Niro EV' },
   CCVL: { make: 'Kia', model: 'Carnival' },
   CFEX: { make: 'Kia', model: 'Forte' },
@@ -44,6 +43,9 @@ const CODEX: Record<string, VehicleClass> = {
   CSEH: { make: 'Kia', model: 'Sportage Hybrid' },
   // Nissan
   CKSV: { make: 'Nissan', model: 'Kicks' },
+  // Kicks is a NISSAN. CKVA sat in the Kia block and shipped 2 vehicles as "Kia Kicks"
+  // (LUR331, LUR358 — found live on the lot 2026-07-19, both corrected in the DB).
+  CKVA: { make: 'Nissan', model: 'Kicks' },
   CVSS: { make: 'Nissan', model: 'Versa' },
   CVRS: { make: 'Nissan', model: 'Versa' },
   CNSS: { make: 'Nissan', model: 'Sentra' },
