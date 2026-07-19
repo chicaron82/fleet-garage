@@ -144,6 +144,35 @@ keyed upserts converge harmlessly and don't need it. *(This lesson recurred thre
 times — `useState(async)` sweep, the `addHold` shared guard, the app-wide sweep — each
 time the fix was "move it to where paths converge.")*
 
+## Routed props — derive or re-seed, never seed-once
+
+A prop that arrives across a module boundary (a `Screen` prop from `navigate`, a context
+value, an event payload) must be **derived from the prop each render**, or **explicitly
+re-seeded when it changes**. Never `useState(theProp)` and walk away: `useState` reads its
+argument **only at mount**, and navigating to a screen you are *already on* re-renders the
+same mounted component — React never remounts, so the new value is silently discarded and
+the button looks dead.
+
+**The safe shape** is derivation (`useVehicleHistory(vehicleId)` recomputes every render, so
+it cannot go stale). **The unsafe shape** is capture. When you genuinely need editable local
+state seeded from a prop, pair the seed with a render-time re-seed — *not* a `useEffect`,
+which this repo lints (`react-hooks/set-state-in-effect`) and which costs an extra render
+pass with a visible flash:
+
+```ts
+const [last, setLast] = useState(prop);
+if (prop && prop !== last) { setLast(prop); setLocal(prop); }   // truthy-guard: never blank typed input
+```
+
+**Why this rule exists (2026-07-19, `9d1535f` + `e86441b`):** `scanRouterActions` documented
+itself as routing "to the module pre-filled." **Five of its six destinations dropped the
+payload** — Start trip, Flag/hold, Log lost & found, Register, Register & flag. Only *View
+Unit* was safe, because it derives. Two were data-integrity bugs, not cosmetic: a stale
+`selectedVehicleId` could put a hold on the **previously scanned car**, and six captured
+identity fields could register a vehicle under the **previous car's** unit#, make, model and
+year. Every file passed tsc, eslint and 1706 tests — the defect lived only in the *seam*.
+**Any new scan/route destination inherits this trap; check it before wiring one up.**
+
 ## Design Language — One Header, One Action, One Accent
 
 Every module wears the same header and exposes one create-action, so neither
