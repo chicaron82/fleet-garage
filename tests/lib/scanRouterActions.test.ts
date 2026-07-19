@@ -54,8 +54,32 @@ describe('scanRouterActions', () => {
     }
   });
 
-  it('new but too partial to register → Lost & Found only (never a broken register route)', () => {
-    const read: KeytagRead = { plate: 'LUR777', unitNumber: '5424777' }; // no make/model
+  // The threshold for "too partial" MOVED on 2026-07-19 (LUR437, class code CDGT not yet in the
+  // codex). Previously any missing make/model collapsed the whole registration path and left the
+  // operator with Lost & Found on a car he needed to hold. The guard below still stands — never
+  // offer a register route that would write an empty record — but plate + unit# is no longer
+  // "nothing", it's a real car missing two fields. Degrade the offer; don't delete it.
+  it('unknown class code (plate + unit#, no make/model) → still offers register, pre-filled', () => {
+    const read: KeytagRead = { plate: 'LUR437', unitNumber: '5429949', classCode: 'CDGT', year: 2026, color: 'Black' };
+    const k = kinds(read);
+    expect(k).toContain('register');
+    expect(k).toContain('lnf');
+
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET)).find(a => a.kind === 'register')!;
+    // The label has to say what he must add — a silent partial prefill is a trap.
+    expect(reg.label).toMatch(/make\/model/i);
+    const s = (reg.screen as { scanned?: Record<string, unknown> }).scanned!;
+    // Everything the tag DID read must travel; only the unresolved pair is blank.
+    expect(s.unitNumber).toBe('5429949');
+    expect(s.plate).toBe('LUR437');
+    expect(s.year).toBe(2026);
+    expect(s.color).toBe('Black');
+    expect(s.make).toBe('');
+    expect(s.model).toBe('');
+  });
+
+  it('genuinely too partial (no unit#) → Lost & Found only (never a broken register route)', () => {
+    const read: KeytagRead = { plate: 'LUR777' }; // plate alone is not a car record
     expect(kinds(read)).toEqual(['lnf']);
   });
 

@@ -5,6 +5,7 @@
 // FG doesn't know. The routes reuse existing Screen prefill (register-vehicle/new-hold/vehicle)
 // plus the new prefillPlate on lost-and-found/movement-log.
 import { newVehicleFromRead } from './resolveKeytagScan';
+import { scannedFromRead, canRegisterPartially } from './partialRegister';
 import type { KeytagScanResult } from './resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Screen } from '../types';
@@ -55,6 +56,14 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult): S
     const scanned = { unitNumber: nv.unitNumber, plate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color };
     actions.push({ kind: 'register', label: 'Register', icon: '➕', screen: { name: 'register-vehicle', prefill: plate, scanned } });
     actions.push({ kind: 'register-and-flag', label: 'Register & flag', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate, scanned } });
+  } else if (canRegisterPartially(read, plate)) {
+    // The class code missed the codex (a new model — CDGT/Durango, 2026-07-19), so make/model are
+    // empty. Everything ELSE on the tag read fine, and discarding all of it left the operator with
+    // nothing but Lost & Found on a car he needed to hold. Offer the same routes, pre-filled with
+    // what was read, and say plainly which two fields he has to add. Degrade, never dead-end.
+    const scanned = scannedFromRead(read, plate);
+    actions.push({ kind: 'register', label: 'Register — add make/model', icon: '➕', screen: { name: 'register-vehicle', prefill: plate, scanned } });
+    actions.push({ kind: 'register-and-flag', label: 'Register & flag — add make/model', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate, scanned } });
   }
   actions.push(logLostFound);
   return actions;

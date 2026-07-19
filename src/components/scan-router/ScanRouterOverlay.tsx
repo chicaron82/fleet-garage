@@ -12,6 +12,8 @@ import { scanRouterActions } from '../../lib/scanRouterActions';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
+import { logUnknownClassCode } from '../../hooks/useUnknownClassCode';
+import { isUnknownClassCode } from '../../lib/partialRegister';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -44,6 +46,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
     // he routes to below (hold / view / trip) already sees a complete record. Blanks-only.
     void backfillFromRead(read);
+    // A class code the codex can't resolve is why registration degrades — record it so codes
+    // self-report instead of waiting for someone to get stuck at a car and ask.
+    if (isUnknownClassCode(read)) void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
   };
 
   // Resolved against the LIVE fleet each render rather than snapshotted at scan time: the backfill
@@ -129,6 +134,14 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {/* Never fill silently — name exactly what the tag just landed on the record. */}
                 {backfillToast && (
                   <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">{backfillToast}</p>
+                )}
+                {/* Say WHY registration degraded. Before this the scan just quietly offered less
+                    and the operator had to infer the cause from the shape of the failure. */}
+                {scanRead && isUnknownClassCode(scanRead) && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                    Class code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
+                    make/model need adding by hand. Logged for DiZee.
+                  </p>
                 )}
               </div>
 

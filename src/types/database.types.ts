@@ -1119,6 +1119,27 @@ export type Database = {
         }
         Relationships: []
       }
+      unknown_class_codes: {
+        Row: {
+          code: string
+          id: string
+          plate: string | null
+          seen_at: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          plate?: string | null
+          seen_at?: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          plate?: string | null
+          seen_at?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           avatar: string | null

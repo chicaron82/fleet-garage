@@ -36,6 +36,11 @@ import { resolve, join } from 'node:path';
 //    upserts on it, so a lost-ack retry converges instead of duplicating.
 //  - useIssues.ts: 2 of 4 sites are inside the locked addIssue; the other 2
 //    are issue_events appends behind converging status updates.
+//  - useUnknownClassCode.ts: append-only telemetry (a class code the codex
+//    couldn't resolve, logged so codes self-report). Every row is a sighting;
+//    a duplicate sighting is a true record of two scans, not corruption, and
+//    nothing reads it as a unique key. Fire-and-forget by design — a lock here
+//    would add a failure mode to a path that must never disturb a scan.
 
 const INSERT_CENSUS: Record<string, number> = {
   'src/context/ProfilesContext.tsx':    1, // addRosterStaff — locked
@@ -53,6 +58,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/hooks/useFuelPumpReadings.ts':   1, // locked (fuelreading day-key)
   'src/hooks/useOffStandardEntryEdits.ts': 1, // handleSubmitBackdate — locked
   'src/hooks/usePendingWrites.ts':      1, // EXEMPT: client-id keyed (see above)
+  'src/hooks/useUnknownClassCode.ts':   1, // EXEMPT: append-only sighting log (see above)
 };
 
 function walk(dir: string): string[] {
