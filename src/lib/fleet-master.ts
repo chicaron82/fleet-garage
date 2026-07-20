@@ -29,6 +29,27 @@ export interface FleetVehicle {
   isTesla: boolean;
   hasMobileCable: boolean | null;
   hasJ1772Adapter: boolean | null;
+  /** The boss's size/type group (Q4, P4, T…) off the keytag — filterable so FG can answer
+   *  a "send me the Q4s" dirties list. Null on manual/pre-existing rows. */
+  rentalClass: string | null;
+}
+
+/**
+ * Does a fleet vehicle match the search box term (already trimmed + upper-cased)? Plate and
+ * unit are SUBSTRING matches (partial typing narrows); rental class is an EXACT match so
+ * "Q4" pulls up every Q4 for the boss's dirties list without a single-char class like "T"
+ * sweeping in every plate that merely contains a T. Empty term → caller shows all.
+ */
+export function matchesFleetSearch(
+  v: Pick<FleetVehicle, 'licensePlate' | 'unitNumber' | 'rentalClass'>,
+  term: string,
+): boolean {
+  if (!term) return true;
+  return (
+    v.licensePlate.toUpperCase().includes(term) ||
+    (v.unitNumber?.toUpperCase() ?? '').includes(term) ||
+    (v.rentalClass?.toUpperCase() ?? '') === term
+  );
 }
 
 export const STATUS_ORDER: Record<FleetStatus, number> = {
@@ -56,6 +77,7 @@ export interface FleetVehicleRow {
   is_tesla: boolean;
   has_mobile_cable: boolean | null;
   has_j1772_adapter: boolean | null;
+  rental_class: string | null;
 }
 
 function fmtType(t: string): string {
@@ -167,6 +189,7 @@ export function buildFleetView(
       isTesla:         v.is_tesla,
       hasMobileCable:  v.has_mobile_cable,
       hasJ1772Adapter: v.has_j1772_adapter,
+      rentalClass:     v.rental_class,
     };
   });
 
@@ -182,7 +205,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter, rental_class')
       .eq('branch_id', branchId),
     supabase
       .from('holds')

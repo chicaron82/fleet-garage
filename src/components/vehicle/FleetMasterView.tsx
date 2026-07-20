@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
-import { loadFleet } from '../../lib/fleet-master';
+import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import type { Screen } from '../../types';
 
@@ -49,12 +49,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   }, [user?.branchId, refreshKey]);
 
   const term = search.trim().toUpperCase();
-  const filtered = term
-    ? vehicles.filter(v =>
-        v.licensePlate.toUpperCase().includes(term) ||
-        (v.unitNumber?.toUpperCase() ?? '').includes(term)
-      )
-    : vehicles;
+  const filtered = vehicles.filter(v => matchesFleetSearch(v, term));
 
   const toggleCollapsed = (status: FleetStatus) => {
     setCollapsed(prev => {
@@ -86,7 +81,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       <div className="flex gap-2">
         <input
           type="text"
-          placeholder="Search plate or unit…"
+          placeholder="Search plate, unit, or class (e.g. Q4)…"
           value={search}
           onChange={e => setSearch(e.target.value.toUpperCase())}
           className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
@@ -157,6 +152,11 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           <span className="text-base font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">·</span>
                           <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
+                          {v.rentalClass && (
+                            <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">
+                              {v.rentalClass}
+                            </span>
+                          )}
                           {isTesla && (
                             <span className={`text-[10px] font-bold shrink-0 ${evBothMissing ? 'text-red-500' : evOneMissing ? 'text-amber-500' : 'text-blue-400'}`}>
                               ⚡

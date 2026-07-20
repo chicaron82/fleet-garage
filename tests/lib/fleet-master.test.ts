@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFleetView, STATUS_ORDER, type FleetVehicleRow, type HoldRow } from '../../src/lib/fleet-master';
+import { buildFleetView, matchesFleetSearch, STATUS_ORDER, type FleetVehicleRow, type HoldRow } from '../../src/lib/fleet-master';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +16,7 @@ function vehicle(over: Partial<FleetVehicleRow> = {}): FleetVehicleRow {
     is_tesla: false,
     has_mobile_cable: null,
     has_j1772_adapter: null,
+    rental_class: null,
     ...over,
   };
 }
@@ -240,5 +241,53 @@ describe('buildFleetView — sort order', () => {
     const out = buildFleetView(vehicles, holds, noInventory);
     expect(out.map(v => v.licensePlate)).toEqual(['AAA111', 'BBB222', 'ZZZ999']);
     expect(STATUS_ORDER[out[0].status]).toBeLessThan(STATUS_ORDER[out[2].status]);
+  });
+});
+
+// ── Rental class: carried into the fleet view + the "show me all the Q4s" filter ──────
+describe('rental class in the fleet view', () => {
+  it('buildFleetView carries rental_class through as rentalClass', () => {
+    const [v] = buildFleetView([vehicle({ id: 'v1', rental_class: 'Q4' })], [], noInventory);
+    expect(v.rentalClass).toBe('Q4');
+  });
+
+  it('is null when the column is empty (manual / pre-existing rows)', () => {
+    const [v] = buildFleetView([vehicle({ id: 'v1', rental_class: null })], [], noInventory);
+    expect(v.rentalClass).toBeNull();
+  });
+});
+
+describe('matchesFleetSearch', () => {
+  const v = { licensePlate: 'LUR119', unitNumber: '5421433', rentalClass: 'Q4' };
+
+  it('empty term matches everything (caller shows all)', () => {
+    expect(matchesFleetSearch(v, '')).toBe(true);
+  });
+
+  it('SUBSTRING-matches plate and unit (partial typing narrows)', () => {
+    expect(matchesFleetSearch(v, 'LUR')).toBe(true);
+    expect(matchesFleetSearch(v, '4214')).toBe(true);
+  });
+
+  it('EXACT-matches the rental class — "Q4" pulls up the Q4', () => {
+    expect(matchesFleetSearch(v, 'Q4')).toBe(true);
+  });
+
+  it('does NOT substring-match the class — a bare "Q" does not sweep it in', () => {
+    // The reason class match is exact: a single-char class like "T" would otherwise pull in
+    // every plate/unit containing a T. "Q" is not the class "Q4".
+    expect(matchesFleetSearch({ licensePlate: 'ABC123', unitNumber: 'U9', rentalClass: 'Q4' }, 'Q')).toBe(false);
+  });
+
+  it('a single-char class matches only on the exact letter, not every plate with that letter', () => {
+    const durango = { licensePlate: 'ABC123', unitNumber: 'U9', rentalClass: 'T' };
+    expect(matchesFleetSearch(durango, 'T')).toBe(true);   // its class is exactly T
+    const noT = { licensePlate: 'ABC123', unitNumber: 'U9', rentalClass: 'Q4' };
+    expect(matchesFleetSearch(noT, 'T')).toBe(false);      // 'T' not in plate/unit, class ≠ T
+  });
+
+  it('tolerates a null rental class', () => {
+    expect(matchesFleetSearch({ licensePlate: 'ABC123', unitNumber: 'U9', rentalClass: null }, 'Q4')).toBe(false);
+    expect(matchesFleetSearch({ licensePlate: 'ABC123', unitNumber: 'U9', rentalClass: null }, 'ABC')).toBe(true);
   });
 });
