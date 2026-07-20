@@ -26,9 +26,10 @@ const VISION_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong v
 const PROMPT = `You are reading a photo of a printed Hertz vehicle KEY TAG. Read the fields printed on it and report them exactly as shown — do not guess or invent anything you cannot see.
 
 The tag shows fields like these:
+- The TOP line is the owning branch: a city name then a branch number and a RENTAL CLASS, e.g. "WINNIPEG / 08199  Q4". The short code AFTER the branch number (e.g. "Q4", "P4", "T", "L2") is the RENTAL CLASS — the car's size/type group, distinct from the class code below. Report it exactly. It is short (1–3 chars) and sits in the top corner next to the branch number.
 - "Veh #" → the UNIT NUMBER. Join the digit groups into one string (e.g. "542 0427" → "5420427").
 - "Lic Plate" → the LICENSE PLATE, exactly as printed.
-- A CLASS line such as "CCVL 25": the letters are the class code ("CCVL"); the trailing number is the model YEAR ("25" → 2025). Report the class code and the year separately. Do NOT try to name the make or model — that's looked up from the class code elsewhere.
+- A CLASS line such as "CCVL 25": the letters are the class code ("CCVL"); the trailing number is the model YEAR ("25" → 2025). Report the class code and the year separately. Do NOT try to name the make or model — that's looked up from the class code elsewhere. The class code (a 4-char code on its own line) and the rental class (the short code by the branch number up top) are DIFFERENT fields — report both.
 - A COLOUR / BODY line such as "WHI 4DR": map the colour code to a colour name (WHI→White, BLK→Black, SIL→Silver, GRY→Gray, BLU→Blue, RED→Red; if it's another code, give your best full-word reading). The body style is the rest ("4DR").
 
 Push through an angled, low-contrast, or partially-obscured tag and read what you can. Leave a field empty only if it genuinely isn't legible. If the image is NOT a vehicle key tag at all, call report_keytag with everything empty. Call report_keytag with what you read.`;
@@ -42,6 +43,7 @@ const REPORT_TOOL: Anthropic.Tool = {
       plate: { type: 'string', description: 'License plate ("Lic Plate"), exactly as printed. "" if not legible.' },
       unitNumber: { type: 'string', description: 'Unit number ("Veh #"), digit groups joined. "" if not legible.' },
       classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
+      rentalClass: { type: 'string', description: 'The rental class by the branch number up top, e.g. "Q4", "P4", "T". "" if not legible.' },
       year: { type: 'integer', description: 'Model year from the class line (e.g. 2025). 0 if not legible.' },
       color: { type: 'string', description: 'Colour name mapped from the code (WHI→White…). "" if not legible.' },
       bodyStyle: { type: 'string', description: 'Body style from the colour/body line (e.g. "4DR"). "" if none.' },
@@ -54,6 +56,7 @@ interface RawKeytag {
   plate?: string;
   unitNumber?: string;
   classCode?: string;
+  rentalClass?: string;
   year?: number;
   color?: string;
   bodyStyle?: string;
@@ -73,6 +76,7 @@ function toKeytagRead(input: unknown): KeytagRead {
     plate: s(r.plate),
     unitNumber: s(r.unitNumber),
     classCode,
+    rentalClass: s(r.rentalClass)?.toUpperCase(),
     make: vc?.make,
     model: vc?.model,
     year,

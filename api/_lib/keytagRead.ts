@@ -14,6 +14,11 @@ export interface KeytagRead {
    *  class lookup — they are not printed on the tag, so the raw read leaves them empty
    *  and a downstream class-resolution step fills them in. */
   classCode?: string;
+  /** The RENTAL CLASS — the short size/type group code printed by the branch number up top
+   *  (e.g. "Q4", "P4", "T", "L2"). Distinct from classCode: read straight off the tag (not
+   *  derived), a car GROUP many models share, and the shorthand the boss uses to request
+   *  returns. Upper-cased. Empty if not legible. */
+  rentalClass?: string;
   make?: string;
   model?: string;
   /** Model year — the trailing number on the class line ("CCVL 25" → 2025). */
