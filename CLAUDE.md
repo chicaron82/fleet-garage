@@ -119,6 +119,35 @@ state). Two sharper verify lessons from that day:
   the whole time). Every "here's what to verify" instruction after a deploy must open with
   hard-refresh / clear-storage, or you'll debug a ghost.
 
+**2026-07-20 — the gate is silent at the SDK boundary. `scripts/verify-schedule-vision.ts`
+exists because of this.** Two defects shipped in one day on `api/fg-schedule-parse.ts`, both
+gate-green, both found by Aaron on the lot:
+
+- `max_tokens` 8192 → 32000 crossed a **client-side SDK guard** (`3600 * max_tokens / 128000
+  > 600` ⇒ anything over **21,333** throws *"Streaming is required…"* **before the request is
+  sent**). Fix: `.stream(...).finalMessage()`, never `.create()`, above that line.
+- The timeout meant to bound it was set in the **per-request** options; the guard reads the
+  **client constructor's** timeout (`this._client._options.timeout`). Wrong object, no effect.
+
+**Neither was FG logic — both were the library contract, and the suite only covers code we
+wrote, not code we call.** 1,747 passing tests, zero touching the one line that broke; the size
+of that number actively created false confidence. **So: any change to a model request's shape
+(model, `max_tokens`, streaming mode, timeout placement, tool schema) is unverifiable by the
+gate and must be sent for real before it's called done** — `npx tsx scripts/verify-schedule-vision.ts
+<sheet>` (manual by design; it costs tokens, so it's out of `gate.sh` and the pre-push hook).
+The request lives in `api/_lib/scheduleVisionRequest.ts` so its shape is at least unit-testable,
+including the coupling that broke (`SCHEDULE_MAX_TOKENS > SDK_NONSTREAMING_MAX_TOKENS` ⇒ must
+stream). **Read `node_modules/@anthropic-ai/sdk/client.js` when an SDK call misbehaves** — both
+bugs were obvious in 30 seconds there, after hours of reasoning around them.
+
+Two meta-lessons worth keeping: **(1) sweep a newly-learned constraint BACKWARDS over code you
+already shipped, not just forward into what you're writing** — the "use streaming for large
+`max_tokens`" guidance was in the API docs read that same session, applied to the new code, and
+never checked against the `max_tokens` shipped an hour earlier. **(2) A correct diagnosis is not
+a verified fix.** The truncation estimate (10.5–11k) was right — actual `output_tokens` measured
+**11,433** — and being right about the *cause* is exactly what supplied the confidence to ship
+the *fix* twice without proving it.
+
 > Convention note: lib tests now live **only** under `tests/`, mirroring `src/` —
 > the 6 stragglers that were co-located in `src/lib/` were consolidated 2026-06-01
 > (`gas-sheet` + `garage-mappers` were merges — each `src/lib` copy covered cases
