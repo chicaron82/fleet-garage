@@ -170,6 +170,9 @@ export interface Vehicle {
   color: string;
   status: VehicleStatus;
   branchId: BranchId;
+  /** Rental class — the boss's size/type group code (Q4, P4, T, L2…), read off the keytag's
+   *  top corner. The shorthand the boss uses to request returns; null when unknown/manual. */
+  rentalClass?: string | null;
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;
@@ -325,6 +328,9 @@ export interface ScannedIdentity {
   model: string;
   year: number;
   color: string;
+  /** Rental class read off the tag's top corner (Q4, P4, T…), carried into registration
+   *  so it's stored on the vehicle. Empty when the tag's class corner wasn't legible. */
+  rentalClass: string;
 }
 
 export type Screen =

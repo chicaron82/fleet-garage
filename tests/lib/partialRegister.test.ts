@@ -11,14 +11,19 @@ const DURANGO: KeytagRead = {
 describe('scannedFromRead', () => {
   it('keeps every field the tag DID give, blanking only what it did not', () => {
     expect(scannedFromRead(DURANGO, 'LUR437')).toEqual({
-      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black',
+      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '',
     });
   });
 
   it('never returns null on an incomplete read — that was the whole bug', () => {
     expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111')).toEqual({
-      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '',
+      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '',
     });
+  });
+
+  it('carries the rental class read off the tag through to registration', () => {
+    const cx5: KeytagRead = { plate: 'LUR119', unitNumber: '5421433', classCode: 'CC5S', rentalClass: 'Q4', year: 2025, color: 'Red' };
+    expect(scannedFromRead(cx5, 'LUR119').rentalClass).toBe('Q4');
   });
 });
 

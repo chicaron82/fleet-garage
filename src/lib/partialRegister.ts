@@ -23,6 +23,7 @@ export function scannedFromRead(read: KeytagRead, plate: string): ScannedIdentit
     model: read.model ?? '',
     year:  read.year  ?? 0,
     color: read.color ?? '',
+    rentalClass: read.rentalClass ?? '',
   };
 }
 

@@ -49,6 +49,7 @@ export function mapVehicle(row: Row): Vehicle {
     model:        reqStr(row, 'model',         'mapVehicle'),
     year:         reqNum(row, 'year',          'mapVehicle'),
     color:        reqStr(row, 'color',         'mapVehicle'),
+    rentalClass:  nullableStr(row, 'rental_class'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
     isTesla:        (row['is_tesla'] as boolean)          ?? false,

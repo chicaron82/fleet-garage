@@ -55,6 +55,7 @@ export function useVehicleOperations({
           model:             vehicle.model,
           year:              vehicle.year,
           color:             vehicle.color,
+          rental_class:      vehicle.rentalClass ?? null,
           branch_id:         branchId,
           status,
           is_tesla:          vehicle.isTesla ?? false,

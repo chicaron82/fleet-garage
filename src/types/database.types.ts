@@ -1359,6 +1359,7 @@ export type Database = {
           license_plate: string
           make: string
           model: string
+          rental_class: string | null
           status: string
           unit_number: string | null
           year: number
@@ -1387,6 +1388,7 @@ export type Database = {
           license_plate: string
           make: string
           model: string
+          rental_class?: string | null
           status: string
           unit_number?: string | null
           year: number
@@ -1415,6 +1417,7 @@ export type Database = {
           license_plate?: string
           make?: string
           model?: string
+          rental_class?: string | null
           status?: string
           unit_number?: string | null
           year?: number

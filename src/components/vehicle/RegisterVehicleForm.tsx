@@ -45,6 +45,8 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
   const [model, setModel] = useState(scanned?.model ?? '');
   const [year, setYear] = useState(scanned?.year ?? currentYear);
   const [color, setColor] = useState(scanned?.color ?? '');
+  // Rental class is read off the tag, not operator-typed — carried through to the insert.
+  const [rentalClass, setRentalClass] = useState(scanned?.rentalClass ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   // THE DANGEROUS ONE. All six fields above are seeded by `useState`, which reads only on MOUNT —
@@ -61,6 +63,7 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
     setModel(s.model ?? '');
     setYear(s.year ?? currentYear);
     setColor(s.color ?? '');
+    setRentalClass(s.rentalClass ?? '');
   });
 
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -97,6 +100,7 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
         model,
         year:           year,
         color,
+        rentalClass:    rentalClass.trim() || null,
         branchId:       user?.branchId,
         isTesla,
         // EV assets register as "not assessed" (null) — never assume present.
@@ -217,6 +221,15 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
               onYear={setYear}
               onColor={setColor}
             />
+
+            {/* Rental class is READ off the tag, not typed — show what FG captured (show-your-work)
+                so the operator can confirm it before registering. Stored on the vehicle. */}
+            {rentalClass && (
+              <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Rental class read off the tag</span>
+                <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-gray-800 dark:text-gray-100">{rentalClass}</span>
+              </div>
+            )}
           </div>
 
           {/* Teslas register with EV assets unassessed — assessment is a logged

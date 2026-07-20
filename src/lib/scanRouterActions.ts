@@ -53,7 +53,9 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult): S
   // the proof the fields exist; throwing them away here was the bug.
   const nv = newVehicleFromRead(read, plate);
   if (nv) {
-    const scanned = { unitNumber: nv.unitNumber, plate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color };
+    // scannedFromRead builds the same identity object (it's what the partial path below uses)
+    // and carries every tag field including rentalClass — no hand-rolled subset to drift.
+    const scanned = scannedFromRead(read, plate);
     actions.push({ kind: 'register', label: 'Register', icon: '➕', screen: { name: 'register-vehicle', prefill: plate, scanned } });
     actions.push({ kind: 'register-and-flag', label: 'Register & flag', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate, scanned } });
   } else if (canRegisterPartially(read, plate)) {
