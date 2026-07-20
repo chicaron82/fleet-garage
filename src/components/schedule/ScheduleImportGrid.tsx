@@ -37,10 +37,10 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
 
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full border-collapse text-xs">
+      <table className="w-max min-w-full border-collapse text-xs">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-800">
-            <th className="sticky left-0 z-10 bg-gray-50 px-2 py-1.5 text-left font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <th className="sticky left-0 z-10 min-w-[8rem] bg-gray-50 px-2 py-1.5 text-left font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
               Staff
             </th>
             {dates.map((d, i) => (
@@ -53,7 +53,7 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
             const unmatched = !assignments[ri];
             return (
               <tr key={ri} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="sticky left-0 z-10 bg-white px-2 py-1.5 dark:bg-gray-900">
+                <td className="sticky left-0 z-10 min-w-[8rem] bg-white px-2 py-1.5 dark:bg-gray-900">
                   <select
                     value={assignments[ri] ?? ''}
                     onChange={(e) => onAssign(ri, e.target.value || null)}

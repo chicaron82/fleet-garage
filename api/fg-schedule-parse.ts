@@ -154,7 +154,9 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     const anthropic = new Anthropic({ apiKey });
     const message = await anthropic.messages.create({
       model: VISION_MODEL,
-      max_tokens: 8192, // a 4-week grid is large
+      // Sized off cell-count math, not feel: ~45-50 tokens/cell × a worst-realistic-case
+      // 4-week × 14-staff sheet (≈390 cells) ≈ 19.5k tokens. 32k leaves real headroom.
+      max_tokens: 32000,
       system: buildPrompt(iso, label),
       tools: [REPORT_TOOL],
       tool_choice: { type: 'tool', name: 'report_schedule' },
@@ -166,6 +168,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       ],
     });
 
+    if (message.stop_reason === 'max_tokens') {
+      res.status(502).json({ error: 'This schedule was too large to read in one pass — try a photo covering fewer weeks.' });
+      return;
+    }
     const toolUse = message.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (!toolUse) {
       res.status(502).json({ error: "Couldn't read a schedule from that photo." });
