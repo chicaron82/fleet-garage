@@ -19,6 +19,7 @@ describe('lookupVehicleClass', () => {
     expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage Hybrid' }); // hybrid gets its own code (cf CSPT)
     expect(lookupVehicleClass('CALE')).toEqual({ make: 'GMC', model: 'Acadia' }); // added 2026-07-17, the gap Aaron flagged
     expect(lookupVehicleClass('CTLT')).toEqual({ make: 'Chevrolet', model: 'Traverse' }); // added 2026-07-17 (L2 class)
+    expect(lookupVehicleClass('C6CU')).toEqual({ make: 'Volvo', model: 'XC60' }); // added 2026-07-20, Aaron visually confirmed on unit 5427752
   });
 
   it('returns null for unknown / empty codes (assistant then asks for make/model)', () => {
