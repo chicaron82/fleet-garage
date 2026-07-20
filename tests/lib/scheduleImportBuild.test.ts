@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addDaysISO, buildImportShifts, nextType, dateRange, type ImportRow } from '../../src/lib/scheduleImportBuild';
+import { addDaysISO, buildImportShifts, nextType, dateRange, dropProtectedDays, PROTECTED_IMPORT_TYPES, type ImportRow } from '../../src/lib/scheduleImportBuild';
 import type { ShiftType } from '../../src/types';
 
 const defaults: Record<ShiftType, { start: string; end: string }> = {
@@ -83,5 +83,48 @@ describe('nextType', () => {
   });
   it('an unknown cell cycles into the first real type', () => {
     expect(nextType('unknown')).toBe('opening');
+  });
+});
+
+// ── Protected days (2026-07-20) ─────────────────────────────────────────────────
+// A printed sheet routinely omits approved time off — Aaron's boss forgetting to mark his
+// PTO is the recurring case. The import used to trust the sheet and delete the booking; his
+// Aug 7 + Aug 10 vanished and only came back because he noticed.
+describe('dropProtectedDays', () => {
+  const preserved = [
+    { userId: 'aaron', date: '2026-08-07', shiftType: 'pto' as const },
+    { userId: 'aaron', date: '2026-08-10', shiftType: 'pto' as const },
+  ];
+
+  it('drops a sheet shift that would overwrite a preserved day', () => {
+    const incoming = [
+      { userId: 'aaron', date: '2026-08-07', shiftType: 'opening' as const }, // boss forgot the PTO
+      { userId: 'aaron', date: '2026-08-08', shiftType: 'mid' as const },
+    ];
+    expect(dropProtectedDays(incoming, preserved)).toEqual([
+      { userId: 'aaron', date: '2026-08-08', shiftType: 'mid' as const },
+    ]);
+  });
+
+  it('never double-books a preserved date (the duplicate-PTO trap)', () => {
+    // If the sheet DOES show the PTO, inserting it alongside the kept row would create two
+    // rows for one day — and count it twice in the PTO tally.
+    const incoming = [{ userId: 'aaron', date: '2026-08-07', shiftType: 'pto' as const }];
+    expect(dropProtectedDays(incoming, preserved)).toEqual([]);
+  });
+
+  it('only protects the OWNER of the booking, not the same date for everyone', () => {
+    const incoming = [{ userId: 'geoff', date: '2026-08-07', shiftType: 'opening' as const }];
+    expect(dropProtectedDays(incoming, preserved)).toEqual(incoming);
+  });
+
+  it('is a no-op when nothing was preserved', () => {
+    const incoming = [{ userId: 'aaron', date: '2026-08-07', shiftType: 'opening' as const }];
+    expect(dropProtectedDays(incoming, [])).toEqual(incoming);
+  });
+
+  it('protects sick days as well as pto', () => {
+    expect(PROTECTED_IMPORT_TYPES).toContain('pto');
+    expect(PROTECTED_IMPORT_TYPES).toContain('sick');
   });
 });

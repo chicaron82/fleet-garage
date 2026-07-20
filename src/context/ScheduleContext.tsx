@@ -13,8 +13,9 @@ import { useTodayShifts } from '../hooks/useTodayShifts';
 // isManagerEditingOtherUser) live in lib/schedule-helpers — extracted at the
 // 330-cap wall; import them from there, not from this context.
 import { toISO, getWeekBounds, formatShiftLabel, isManagerEditingOtherUser, buildRowToShift } from '../lib/schedule-helpers';
+import { PROTECTED_IMPORT_TYPES, dropProtectedDays, type ImportOutcome, type PreservedDay } from '../lib/scheduleImportBuild';
 import { canManageSchedule } from '../types';
-import type { Attendance, Shift, ShiftWithUser } from '../types';
+import type { Attendance, Shift, ShiftType, ShiftWithUser } from '../types';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,8 @@ interface ScheduleContextValue {
   updatePtoEntitlement: (days: number) => Promise<void>;
   createShift: (shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => Promise<void>;
   bulkCreateShifts: (shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
-  importWeekShifts: (userIds: string[], startDate: string, endDate: string, shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<void>;
+  /** Replaces the range for these staff, EXCEPT booked pto/sick. Returns what it wrote + kept. */
+  importWeekShifts: (userIds: string[], startDate: string, endDate: string, shifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[]) => Promise<ImportOutcome>;
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
   setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
@@ -87,7 +89,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const { isPeakSeason, togglePeakSeason }                                          = usePeakSeason();
-  const { ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement, adjustPTO, adjustSick } = usePTOStats(user);
+  const { ptoEntitlement, ptoUsed, sickDaysUsed, updatePtoEntitlement, adjustPTO, adjustSick, refreshTallies } = usePTOStats(user);
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
 
@@ -182,25 +184,57 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // Import a whole week from a photo: wipe the window for the imported people (a QUIET
   // range-delete — no per-row notifications) then create the parsed shifts via the proven
-  // bulk path. Replace semantics: re-importing a week overwrites it. Tally note:
-  // bulkCreateShifts adjusts the logged-in user's PTO/sick tally UP for created rows; the
-  // wipe's tally-DOWN isn't applied, so re-importing a week that already held the
-  // MANAGER'S OWN pto/sick can leave their own counter high until reload (cosmetic;
-  // teammates' tallies are never touched — the tally is per-user-self).
+  // Bulk path. Replace semantics: re-importing a week overwrites it — EXCEPT booked time off.
+  //
+  // BOOKED TIME OFF SURVIVES THE REPLACE. A printed sheet routinely omits approved PTO (the
+  // boss forgetting to mark Aaron's is the recurring case, not an edge case), so treating the
+  // sheet as authoritative silently destroyed real bookings — and with them the number he
+  // plans his year from. When FG holds a pto/sick day and the sheet disagrees, FG's record is
+  // the one more likely to be right: keep it, refuse to double-book that date, and report what
+  // was kept so it's never silent. A genuinely cancelled booking is still one tap to change.
+  //
+  // Tallies are RE-READ from the DB afterwards rather than nudged: the ±1 deltas only cover
+  // single-shift paths, so a bulk delete drifted the counter (it read 15/15 against a DB
+  // holding 13). See [bug-schedule-pto-counter-stale] + [ticket-schedule-preserve-pto-on-import].
   const importWeekShifts = async (
     userIds: string[],
     startDate: string,
     endDate: string,
     newShifts: Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>[],
-  ) => {
+  ): Promise<ImportOutcome> => {
+    let preserved: PreservedDay[] = [];
     if (userIds.length > 0) {
+      // Read the protected rows BEFORE deleting, so we know what to skip on the way back in.
+      const { data: keep, error: readErr } = await supabase
+        .from('shifts')
+        .select('user_id, date, shift_type')
+        .in('user_id', userIds)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .in('shift_type', PROTECTED_IMPORT_TYPES);
+      if (readErr) throw readErr;
+      preserved = (keep ?? []).map((r) => {
+        const row = r as { user_id: string; date: string; shift_type: string };
+        return { userId: row.user_id, date: row.date, shiftType: row.shift_type as ShiftType };
+      });
+
       const { error } = await writeWithRefresh(() =>
-        supabase.from('shifts').delete().in('user_id', userIds).gte('date', startDate).lte('date', endDate),
+        supabase
+          .from('shifts')
+          .delete()
+          .in('user_id', userIds)
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .not('shift_type', 'in', `(${PROTECTED_IMPORT_TYPES.join(',')})`),
       );
       if (error) throw error;
     }
-    if (newShifts.length > 0) await bulkCreateShifts(newShifts);
+    // Never write over a day we just protected — that would duplicate the date.
+    const toWrite = dropProtectedDays(newShifts, preserved);
+    if (toWrite.length > 0) await bulkCreateShifts(toWrite);
+    await refreshTallies(); // bulk writes bypass the ±1 deltas — re-read the truth
     refresh();
+    return { written: toWrite.length, preserved };
   };
 
   const updateShift = async (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => {

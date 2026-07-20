@@ -117,8 +117,16 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         setWriteState('error');
         return;
       }
-      await importWeekShifts(userIds, range.start, range.end, shifts);
-      setWriteMsg(`Wrote ${shifts.length} shifts for ${userIds.length} staff · ${range.start} → ${range.end}.`);
+      const outcome = await importWeekShifts(userIds, range.start, range.end, shifts);
+      // Name what was KEPT, not just what was written — a sheet that omits approved time off
+      // is the normal case, and silently keeping it would be as confusing as silently losing it.
+      const kept = outcome.preserved.length
+        ? ` Kept ${outcome.preserved.length} booked day${outcome.preserved.length === 1 ? '' : 's'} off the sheet didn't show (${outcome.preserved
+            .map((p) => p.date)
+            .sort()
+            .join(', ')}) — change any that were actually cancelled.`
+        : '';
+      setWriteMsg(`Wrote ${outcome.written} shifts for ${userIds.length} staff · ${range.start} → ${range.end}.${kept}`);
       setWriteState('done');
     } catch (e) {
       setWriteMsg(e instanceof Error ? e.message : 'Could not write the schedule.');

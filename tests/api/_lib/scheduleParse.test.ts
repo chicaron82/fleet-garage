@@ -83,3 +83,60 @@ describe('matchSchedule', () => {
     ]);
   });
 });
+
+// ── Fuzzy first-name matching (2026-07-20) ──────────────────────────────────────
+// Aaron had to hand-assign GEOFFREY and MOHAMMAD on a real VSA import: printed sheets use
+// the formal name where the roster carries a nickname, and real names have spelling variants.
+describe('fuzzy first-name matching', () => {
+  const crew: RosterProfile[] = [
+    { id: 'g', name: 'Geoff Taylor' },
+    { id: 'm', name: 'Mohammed Ali' },
+    { id: 'a', name: 'Aaron Sauddin' },
+  ];
+
+  it('resolves a formal name to a roster nickname (GEOFFREY → Geoff)', () => {
+    expect(matchStaffName('GEOFFREY', crew)).toEqual({ profileId: 'g', confidence: 'partial' });
+  });
+
+  it('resolves a one-letter spelling variant (MOHAMMAD → Mohammed)', () => {
+    expect(matchStaffName('MOHAMMAD', crew)).toEqual({ profileId: 'm', confidence: 'partial' });
+  });
+
+  it('still prefers an exact full-name hit', () => {
+    expect(matchStaffName('Aaron Sauddin', crew)).toEqual({ profileId: 'a', confidence: 'exact' });
+  });
+
+  it('NEVER breaks a tie between two similar real people', () => {
+    // The whole safety rule: widening the pool must not start guessing. Two staff whose names
+    // are accepted spellings of each other — a sheet reading either must stay unassigned, since
+    // the fuzzy rule reaches BOTH and no evidence picks one.
+    const twins: RosterProfile[] = [
+      { id: 'x', name: 'Jonathan Reyes' },
+      { id: 'y', name: 'Jonathon Diaz' },
+    ];
+    expect(matchStaffName('JONATHAN', twins)).toEqual({ profileId: null, confidence: 'none' });
+  });
+
+  it('an exact first name still wins when only one person can own it', () => {
+    // Counterpart to the above: "Jon" is not a fuzzy reach for "Jan" (blocked by the length
+    // gate), so exactly one candidate remains and resolving it is correct, not a guess.
+    const pair: RosterProfile[] = [
+      { id: 'x', name: 'Jon Smith' },
+      { id: 'y', name: 'Jan Smith' },
+    ];
+    expect(matchStaffName('Jon', pair)).toEqual({ profileId: 'x', confidence: 'partial' });
+  });
+
+  it('does not loosely match very short names', () => {
+    // "Jo" must not sweep up Jose/John — the prefix rule is length-gated at 3.
+    const shortish: RosterProfile[] = [
+      { id: 'j1', name: 'Jose Cruz' },
+      { id: 'j2', name: 'John Doe' },
+    ];
+    expect(matchStaffName('Jo', shortish)).toEqual({ profileId: null, confidence: 'none' });
+  });
+
+  it('leaves a genuinely unknown name unassigned', () => {
+    expect(matchStaffName('Krzysztof', crew)).toEqual({ profileId: null, confidence: 'none' });
+  });
+});

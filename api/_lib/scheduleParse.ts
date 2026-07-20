@@ -46,15 +46,51 @@ const norm = (s: string): string => s.trim().toLowerCase().replace(/\(.*?\)/g, '
  * name (or a clean partial) matches. Shared basis for both a single-row match and the
  * cross-row elimination pass below.
  */
+/**
+ * Levenshtein distance, capped — we only ever care about "≤ 1 edit apart", so bail as soon
+ * as the answer can't be 0 or 1. Handles the spelling-variant case (Mohammad / Mohammed).
+ */
+function within1Edit(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  // Walk both strings; allow exactly one substitution OR one insertion/deletion.
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length === b.length) { i++; j++; }        // substitution
+    else if (a.length > b.length) i++;              // deletion from a
+    else j++;                                        // insertion into a
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/**
+ * Does a sheet name plausibly refer to this roster first name? Printed schedules use the
+ * FORMAL name where the roster carries a nickname (GEOFFREY → Geoff), and real rosters carry
+ * names with more than one accepted spelling (MOHAMMAD / Mohammed). Prefix matching is
+ * length-gated at 3 so short names can't collide loosely (e.g. "Jo" ⇄ "John"/"Jose").
+ */
+function firstNameMatches(sheetFirst: string, rosterFirst: string): boolean {
+  if (sheetFirst === rosterFirst) return true;
+  const [shorter, longer] =
+    sheetFirst.length <= rosterFirst.length ? [sheetFirst, rosterFirst] : [rosterFirst, sheetFirst];
+  if (shorter.length >= 3 && longer.startsWith(shorter)) return true; // Geoff ⊂ Geoffrey
+  return shorter.length >= 4 && within1Edit(sheetFirst, rosterFirst); // Mohammad ≈ Mohammed
+}
+
 function candidatesFor(parsed: string, roster: RosterProfile[]): RosterProfile[] {
   const p = norm(parsed);
   if (!p) return [];
   const exact = roster.filter((r) => norm(r.name) === p);
   if (exact.length) return exact;
   const first = p.split(' ')[0];
+  // NOTE: this only WIDENS the candidate pool. matchStaffName still resolves a name only when
+  // the pool holds exactly one profile — fuzzy matching must never break a tie between two
+  // real people, so an ambiguous sheet name still lands on the human to assign.
   return roster.filter((r) => {
     const rn = norm(r.name);
-    return rn === first || rn.startsWith(`${first} `) || rn.split(' ')[0] === first || rn.includes(p);
+    return rn === first || rn.startsWith(`${first} `) || firstNameMatches(first, rn.split(' ')[0]) || rn.includes(p);
   });
 }
 
