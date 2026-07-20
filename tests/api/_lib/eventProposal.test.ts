@@ -25,6 +25,13 @@ describe('buildEventProposal', () => {
     expect(buildEventProposal('Payday', '2026-07-24', '').time).toBeNull();
     expect(buildEventProposal('Payday', '2026-07-24', '   ').time).toBeNull();
   });
+
+  it('trims a padded but valid time to clean HH:MM', () => {
+    // Pins the trim half of the same expression: without this, a refactor that
+    // only null-checks (e.g. `!time || !time.trim() ? null : time`) passes the
+    // suite while letting ' 12:30 ' through to render as "at  12:30 ".
+    expect(buildEventProposal('Payday', '2026-07-24', ' 12:30 ').time).toBe('12:30');
+  });
 });
 
 describe('describeEventProposal', () => {
