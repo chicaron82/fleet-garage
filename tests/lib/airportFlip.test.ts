@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { flipRowLine, buildFlipReport, normalizeFlipRow, type FlipRow } from '../../src/lib/airportFlip';
+import { flipRowLine, buildFlipReport, normalizeFlipRow, flipClassSummary, type FlipRow } from '../../src/lib/airportFlip';
 
 const row = (over: Partial<FlipRow>): FlipRow => ({
   id: 'r1', plate: 'LFJ285', unit: '5427802', odo: '41230', fuel: '7/8',
-  damaged: false, notes: '', checked: true, sent: false, ...over,
+  damaged: false, rentalClass: '', notes: '', checked: true, sent: false, ...over,
 });
 
 describe('flipRowLine', () => {
@@ -62,10 +62,57 @@ describe('flipRowLine — resilience to rows saved before a field existed', () =
 describe('normalizeFlipRow', () => {
   it('fills every missing field so an old persisted row can never crash a render', () => {
     const healed = normalizeFlipRow({ id: 'r', plate: 'LFJ285', odo: '41230', fuel: '7/8' });
-    expect(healed).toEqual({ id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', damaged: false, notes: '', checked: true, sent: false });
+    expect(healed).toEqual({ id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', damaged: false, rentalClass: '', notes: '', checked: true, sent: false });
   });
   it('preserves what is already there (a sent+unchecked row stays that way)', () => {
-    const row: FlipRow = { id: 'r', plate: 'LUR170', unit: '5427802', odo: '1', fuel: 'F', damaged: true, notes: 'weed smell', checked: false, sent: true };
+    const row: FlipRow = { id: 'r', plate: 'LUR170', unit: '5427802', odo: '1', fuel: 'F', damaged: true, rentalClass: 'Q4', notes: 'weed smell', checked: false, sent: true };
     expect(normalizeFlipRow(row)).toEqual(row);
+  });
+});
+
+// ── flipClassSummary: Aaron's own "what I turned around, by class" shift tally ──────────
+describe('flipClassSummary', () => {
+  it('counts flips by class, most-flipped first', () => {
+    const rows = [
+      row({ id: '1', rentalClass: 'Q4' }),
+      row({ id: '2', rentalClass: 'P4' }),
+      row({ id: '3', rentalClass: 'Q4' }),
+      row({ id: '4', rentalClass: 'Q4' }),
+      row({ id: '5', rentalClass: 'V' }),
+    ];
+    expect(flipClassSummary(rows)).toEqual({
+      byClass: [
+        { rentalClass: 'Q4', count: 3 },
+        { rentalClass: 'P4', count: 1 },
+        { rentalClass: 'V', count: 1 },
+      ],
+      unclassed: 0,
+    });
+  });
+
+  it('normalizes case and whitespace so "q4" and "Q4 " count together', () => {
+    const rows = [row({ id: '1', rentalClass: 'q4' }), row({ id: '2', rentalClass: 'Q4 ' })];
+    expect(flipClassSummary(rows)).toEqual({ byClass: [{ rentalClass: 'Q4', count: 2 }], unclassed: 0 });
+  });
+
+  it('counts rows with no legible class as unclassed — never implies all were classed', () => {
+    const rows = [row({ id: '1', rentalClass: 'Q4' }), row({ id: '2', rentalClass: '' }), row({ id: '3', rentalClass: '  ' })];
+    expect(flipClassSummary(rows)).toEqual({ byClass: [{ rentalClass: 'Q4', count: 1 }], unclassed: 2 });
+  });
+
+  it('ties break alphabetically by class', () => {
+    const rows = [row({ id: '1', rentalClass: 'V' }), row({ id: '2', rentalClass: 'P4' })];
+    expect(flipClassSummary(rows).byClass).toEqual([{ rentalClass: 'P4', count: 1 }, { rentalClass: 'V', count: 1 }]);
+  });
+
+  it('empty list → empty tally', () => {
+    expect(flipClassSummary([])).toEqual({ byClass: [], unclassed: 0 });
+  });
+});
+
+describe('normalizeFlipRow heals the added rentalClass field', () => {
+  it('an older stored row with no rentalClass defaults to blank, never crashes', () => {
+    const old = { id: 'x', plate: 'ABC123', odo: '100', fuel: 'F', damaged: false, checked: true, sent: false };
+    expect(normalizeFlipRow(old).rentalClass).toBe('');
   });
 });

@@ -18,6 +18,10 @@ export interface FlipRow {
   /** Free text — "7/8", "F", "1/2" — whatever he reads off the gauge. */
   fuel: string;
   damaged: boolean;
+  /** Rental class read off the tag (Q4, P4, V…). For AARON's own shift tally — how many of each
+   *  class he turned around — NOT the counter copy-out (they search by plate; class is internal).
+   *  Blank when the tag's class corner wasn't legible. */
+  rentalClass: string;
   /** Free-text condition note for the counter — the odd thing worth flagging ("weed smell",
    *  "child seat left in back"). Blank by default; rides the copy-out only when filled. */
   notes: string;
@@ -51,10 +55,30 @@ export function normalizeFlipRow(r: Partial<FlipRow>): FlipRow {
     odo: r.odo ?? '',
     fuel: r.fuel ?? '',
     damaged: r.damaged ?? false,
+    rentalClass: r.rentalClass ?? '',
     notes: r.notes ?? '',
     checked: r.checked ?? true,
     sent: r.sent ?? false,
   };
+}
+
+/**
+ * Aaron's own shift tally: how many of each rental class he turned around, most-flipped first.
+ * Only rows whose tag carried a class are counted; `unclassed` is the rest, so the tally never
+ * implies every flip was classed when some tags weren't legible (observation-boundary honesty).
+ */
+export function flipClassSummary(rows: FlipRow[]): { byClass: { rentalClass: string; count: number }[]; unclassed: number } {
+  const counts = new Map<string, number>();
+  let unclassed = 0;
+  for (const r of rows) {
+    const c = (r.rentalClass ?? '').trim().toUpperCase();
+    if (!c) { unclassed++; continue; }
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  const byClass = [...counts.entries()]
+    .map(([rentalClass, count]) => ({ rentalClass, count }))
+    .sort((a, b) => b.count - a.count || a.rentalClass.localeCompare(b.rentalClass));
+  return { byClass, unclassed };
 }
 
 /** The copy-out text for a set of rows (the caller passes the checked-and-unsent ones). Empty

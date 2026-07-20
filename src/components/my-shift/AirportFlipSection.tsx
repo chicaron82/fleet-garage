@@ -12,7 +12,7 @@ import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
-import { flipRowLine } from '../../lib/airportFlip';
+import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
@@ -28,7 +28,7 @@ export function AirportFlipSection() {
   const flip = useAirportFlip();
   const checkGeotab = useGeotabPending();
 
-  const [capture, setCapture] = useState<{ plate: string; unit: string | null; vehicle: Vehicle | null } | null>(null);
+  const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null } | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [odo, setOdo] = useState('');
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
@@ -49,14 +49,14 @@ export function AirportFlipSection() {
         if (bf) await updateVehicleFields(bf.vehicleId, bf.fills);
       }
     } catch { /* fleet enrichment is best-effort — the flip capture still proceeds */ }
-    setCapture({ plate, unit: vehicle?.unitNumber ?? read.unitNumber ?? null, vehicle });
+    setCapture({ plate, unit: vehicle?.unitNumber ?? read.unitNumber ?? null, rentalClass: read.rentalClass ?? '', vehicle });
     setGeotabPending(await checkGeotab(plate));
     setOdo(''); setFuelLevel(null); setDamaged(false); setNotes('');
   };
 
   const addToList = () => {
     if (!capture) return;
-    flip.add({ plate: capture.plate, unit: capture.unit, odo, fuel: fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '', damaged, notes });
+    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '', damaged, notes });
     setCapture(null);
     setGeotabPending(false);
   };
@@ -132,10 +132,31 @@ export function AirportFlipSection() {
               ) : (
                 <input type="checkbox" checked={r.checked} onChange={() => flip.toggleChecked(r.id)} className="w-4 h-4 accent-fg-yellow cursor-pointer shrink-0" />
               )}
+              {r.rentalClass && (
+                <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">{r.rentalClass}</span>
+              )}
               <span className="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-200">{flipRowLine(r)}</span>
               {!r.sent && <button type="button" aria-label="Remove" onClick={() => flip.remove(r.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 text-xs shrink-0 cursor-pointer">✕</button>}
             </div>
           ))}
+
+          {/* Aaron's own shift tally — what he turned around, by class. Not in the counter
+              copy-out (they search by plate). */}
+          {(() => {
+            const { byClass, unclassed } = flipClassSummary(flip.rows);
+            if (byClass.length === 0) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                <span className="font-medium">Turned around:</span>
+                {byClass.map(c => (
+                  <span key={c.rentalClass} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 font-semibold text-gray-700 dark:text-gray-300">
+                    {c.rentalClass} ×{c.count}
+                  </span>
+                ))}
+                {unclassed > 0 && <span className="text-gray-400 dark:text-gray-500">· {unclassed} unclassed</span>}
+              </div>
+            );
+          })()}
           <button
             type="button"
             onClick={() => void copyForCounter()}
