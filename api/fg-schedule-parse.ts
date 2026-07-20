@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseDocumentDataUrl } from './_lib/imageData.js';
+import { isAvailabilityError } from './_lib/modelFallback.js';
 import type { ParsedSchedule, ParsedShiftType } from './_lib/scheduleParse.js';
 
 interface FgRequest {
@@ -21,7 +22,19 @@ interface FgResponse {
 }
 
 const VISION_MODEL = 'claude-opus-4-8'; // dense, multi-week grid → the strong vision model.
+// Availability backup only. Sonnet is a real fidelity step down on a cramped, angled,
+// pen-marked grid — accepted because this endpoint WRITES NOTHING: every row is verified
+// against the photo in the preview before the operator confirms. A degraded read beats a
+// dead import; the client is told which model read it so rows get a harder look.
+const FALLBACK_VISION_MODEL = 'claude-sonnet-5';
 const TZ = 'America/Winnipeg';
+
+// The Vercel function ceiling here is 5m and the SDK's own default timeout is 10m — so an
+// Opus request that HANGS (rather than erroring) would blow the platform limit and surface
+// as an infrastructure error page, never as an app message. These budgets keep both
+// attempts inside the ceiling; the fallback IS the retry, hence maxRetries 0 on the primary.
+const PRIMARY_TIMEOUT_MS = 150_000;
+const FALLBACK_TIMEOUT_MS = 90_000;
 
 function todayParts(): { iso: string; label: string } {
   const iso = new Date().toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
@@ -152,10 +165,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
     const { iso, label } = todayParts();
     const anthropic = new Anthropic({ apiKey });
-    const message = await anthropic.messages.create({
+    // Sized off cell-count math, not feel: ~45-50 tokens/cell × a worst-realistic-case
+    // 4-week × 14-staff sheet (≈390 cells) ≈ 19.5k tokens. 32k leaves real headroom.
+    const request: Anthropic.MessageCreateParamsNonStreaming = {
       model: VISION_MODEL,
-      // Sized off cell-count math, not feel: ~45-50 tokens/cell × a worst-realistic-case
-      // 4-week × 14-staff sheet (≈390 cells) ≈ 19.5k tokens. 32k leaves real headroom.
       max_tokens: 32000,
       system: buildPrompt(iso, label),
       tools: [REPORT_TOOL],
@@ -166,7 +179,24 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
           content: [{ type: 'text', text: 'Parse this staff schedule.' }, docBlock],
         },
       ],
-    });
+    };
+
+    let message: Anthropic.Message;
+    let degraded = false;
+    try {
+      message = await anthropic.messages.create(request, {
+        timeout: PRIMARY_TIMEOUT_MS,
+        maxRetries: 0, // the fallback below is the retry — don't spend the budget twice over
+      });
+    } catch (err) {
+      if (!isAvailabilityError(err)) throw err; // config/request errors: fail loudly, don't burn a second call
+      console.warn('[fg-schedule-parse] primary model unavailable, falling back:', err);
+      degraded = true;
+      message = await anthropic.messages.create(
+        { ...request, model: FALLBACK_VISION_MODEL },
+        { timeout: FALLBACK_TIMEOUT_MS, maxRetries: 1 },
+      );
+    }
 
     if (message.stop_reason === 'max_tokens') {
       res.status(502).json({ error: 'This schedule was too large to read in one pass — try a photo covering fewer weeks.' });
@@ -178,7 +208,9 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       return;
     }
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ schedule: toSchedule(toolUse.input) });
+    // `degraded` tells the operator a backup model read this — silent degradation is worse
+    // than none when the whole safety net is him eyeballing rows against the photo.
+    res.status(200).json({ schedule: toSchedule(toolUse.input), degraded });
   } catch (err) {
     console.error('[fg-schedule-parse] handler error:', err);
     res.status(500).json({ error: `Parse error: ${err instanceof Error ? err.message : String(err)}` });

@@ -26,7 +26,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     () => [...profiles.values()].map((p) => ({ id: p.id, name: p.name })),
     [profiles],
   );
-  const { status, schedule, error, parse, reset } = useScheduleImport();
+  const { status, schedule, error, degraded, parse, reset } = useScheduleImport();
 
   const [image, setImage] = useState<string | null>(null);
   const [nameOverrides, setNameOverrides] = useState<Record<number, string | null>>({});
@@ -185,6 +185,17 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
                     : <>Parsed <b>{schedule.staff.length}</b> staff{span ? <> · <b>{span}</b></> : ''}. Check each row against the photo; tap a cell to fix its type. On confirm, each assigned person's existing shifts in that range are <b>deleted and replaced</b>.{unmatchedCount > 0 && <span className="text-rose-600 dark:text-rose-400"> {unmatchedCount} unassigned (skipped).</span>}</>}
                 </p>
               </div>
+              {degraded && (
+                <div className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-2.5 dark:border-orange-900/60 dark:bg-orange-900/15">
+                  <p className="text-xs font-semibold text-orange-800 dark:text-orange-300">
+                    ⚠ Read by the backup model
+                  </p>
+                  <p className="mt-0.5 text-xs text-orange-700 dark:text-orange-400">
+                    The usual reader was unavailable, so a backup one parsed this sheet. It&rsquo;s more likely to
+                    misread a cramped or angled cell — check the times against the photo a little harder than usual.
+                  </p>
+                </div>
+              )}
               {myRow >= 0 && (
                 myClopens.length > 0 ? (
                   <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 dark:border-amber-900/60 dark:bg-amber-900/15">

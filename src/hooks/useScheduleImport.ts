@@ -11,11 +11,15 @@ export function useScheduleImport() {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [schedule, setSchedule] = useState<ParsedSchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // True when a backup vision model read the sheet (primary was unavailable) — the preview
+  // warns so rows get a harder look before the write.
+  const [degraded, setDegraded] = useState(false);
 
   const parse = useCallback(async (image: string) => {
     setStatus('parsing');
     setError(null);
     setSchedule(null);
+    setDegraded(false);
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
@@ -25,9 +29,12 @@ export function useScheduleImport() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ image }),
       });
-      const data = (await res.json().catch(() => null)) as { schedule?: ParsedSchedule; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as
+        | { schedule?: ParsedSchedule; degraded?: boolean; error?: string }
+        | null;
       if (!res.ok) throw new Error(data?.error || `Parse failed (${res.status})`);
       setSchedule(data?.schedule ?? { staff: [] });
+      setDegraded(data?.degraded === true);
       setStatus('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not parse the schedule.');
@@ -39,7 +46,8 @@ export function useScheduleImport() {
     setStatus('idle');
     setSchedule(null);
     setError(null);
+    setDegraded(false);
   }, []);
 
-  return { status, schedule, error, parse, reset };
+  return { status, schedule, error, degraded, parse, reset };
 }
