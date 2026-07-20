@@ -84,6 +84,7 @@ const CODEX: Record<string, VehicleClass> = {
   // Volvo
   CX96: { make: 'Volvo', model: 'XC90' },
   C6CU: { make: 'Volvo', model: 'XC60' }, // surfaced live 2026-07-20 (Aaron, unit 5427752 / LJF700) — visually confirmed XC60
+  CX4U: { make: 'Volvo', model: 'XC40' }, // surfaced live 2026-07-20 (Aaron, unit 5429683 / LUR478, rental class W4) — confirmed XC40
   // Mazda
   CC5S: { make: 'Mazda', model: 'CX-5' },
   // Volkswagen
@@ -102,6 +103,8 @@ const CODEX: Record<string, VehicleClass> = {
   CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
   // GMC
   CALE: { make: 'GMC', model: 'Acadia' }, // surfaced live 2026-07-17 — Aaron flagged the gap (a CALE tag couldn't resolve → Effie had to ask)
+  // Jeep
+  CWUR: { make: 'Jeep', model: 'Wrangler' }, // surfaced live 2026-07-20 (Aaron, unit 5427331 / LUR573, rental class V) — the boss's "V class"; LUR573 was on his dirties list
 };
 
 /** Resolve a Hertz class code (e.g. "CCVL", "ccvl 25") to its make/model, or null. */
