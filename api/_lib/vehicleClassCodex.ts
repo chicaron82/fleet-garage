@@ -81,6 +81,7 @@ const CODEX: Record<string, VehicleClass> = {
   // Tesla
   CTM3: { make: 'Tesla', model: 'Model 3' },
   CM3L: { make: 'Tesla', model: 'Model 3' },
+  C3US: { make: 'Tesla', model: 'Model 3' }, // 3rd Model 3 code — Aaron confirmed at the car, 2026-07-20 (unit 5515358 / LJF689, VAN DTG, rental class B9)
   // Volvo
   CX96: { make: 'Volvo', model: 'XC90' },
   C6CU: { make: 'Volvo', model: 'XC60' }, // surfaced live 2026-07-20 (Aaron, unit 5427752 / LJF700) — visually confirmed XC60

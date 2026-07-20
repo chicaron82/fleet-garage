@@ -14,6 +14,7 @@ describe('lookupVehicleClass', () => {
   it('resolves a spread of makes', () => {
     expect(lookupVehicleClass('CUES')).toEqual({ make: 'Ford', model: 'Escape' });
     expect(lookupVehicleClass('CTM3')).toEqual({ make: 'Tesla', model: 'Model 3' });
+    expect(lookupVehicleClass('C3US')).toEqual({ make: 'Tesla', model: 'Model 3' }); // 3rd Model 3 code, Aaron confirmed at the car 2026-07-20
     expect(lookupVehicleClass('CGCL')).toEqual({ make: 'Dodge', model: 'Grand Caravan' });
     expect(lookupVehicleClass('CELA')).toEqual({ make: 'Hyundai', model: 'Elantra' }); // C-prefix but Hyundai
     expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage Hybrid' }); // hybrid gets its own code (cf CSPT)
