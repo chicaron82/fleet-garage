@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { buildLostFoundItemInput } from '../../lib/lostFoundItem';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
@@ -51,6 +52,11 @@ export function LogLostFoundItemModal({
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState<LostFoundLocation | null>(null);
   const [licensePlate, setLicensePlate] = useState(initialPlate ?? '');
+  // Routed prop → derive or re-seed, never seed-once (FG CLAUDE.md). The sheet stays MOUNTED while
+  // Lost & Found is open, so a second header scan changes `initialPlate` without remounting this
+  // modal — seeding once would leave the previous car's plate in the field. Missed by the e86441b
+  // sweep, which fixed the parent view and not the modal inside it; found at /reflect 45.
+  useRoutedProp(initialPlate, setLicensePlate);
   const [notes, setNotes] = useState('');
   const [sourceTag, setSourceTag] = useState<SourceTag | null>(null);
   const [submitting, setSubmitting] = useState(false);

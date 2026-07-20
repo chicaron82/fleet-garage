@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { useLostFoundContext } from '../../context/LostFoundContext';
 import { hapticLight } from '../../lib/haptics';
 import type { LostFoundStatus } from '../../types';
@@ -22,11 +23,7 @@ export function LostAndFoundView({ prefillPlate }: { prefillPlate?: string } = {
   // Mount-only otherwise: scanning a tag while ALREADY on Lost & Found re-navigates to the same
   // mounted component, so the sheet never opened and the button looked dead. Same class as the
   // movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
-  const [lastPrefill, setLastPrefill] = useState(prefillPlate);
-  if (prefillPlate && prefillPlate !== lastPrefill) {
-    setLastPrefill(prefillPlate);
-    setShowSheet(true);
-  }
+  useRoutedProp(prefillPlate, () => setShowSheet(true));
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
 

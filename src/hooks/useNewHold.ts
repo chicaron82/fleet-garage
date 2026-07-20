@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useRoutedProp } from './useRoutedProp';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
@@ -21,11 +22,7 @@ export function useNewHold(preselectedId?: string) {
   // silently ignored and the form stayed pointed at the PREVIOUS car — i.e. a hold could land on
   // the wrong vehicle. Render-time adjustment (not an effect: the repo lints set-state-in-effect).
   // Same class as the movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
-  const [lastPreselect, setLastPreselect] = useState(preselectedId);
-  if (preselectedId && preselectedId !== lastPreselect) {
-    setLastPreselect(preselectedId);
-    setSelectedVehicleId(preselectedId);
-  }
+  useRoutedProp(preselectedId, setSelectedVehicleId);
   const [holdTypes, setHoldTypes] = useState<HoldType[]>(['damage']);
   // The category most recently toggled ON — drives scroll-to-section so a newly
   // revealed sub-section comes into view (the tap otherwise looks like a no-op).

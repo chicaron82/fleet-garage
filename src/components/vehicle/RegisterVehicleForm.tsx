@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
+import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
 import type { ScannedIdentity } from '../../types';
@@ -53,16 +54,14 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
   // Re-seed whenever a new scan arrives. Render-time adjustment (the repo lints
   // set-state-in-effect); `scanned` is a fresh object per navigation, so identity compare is right.
   // Same class as the movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
-  const [lastScanned, setLastScanned] = useState(scanned);
-  if (scanned && scanned !== lastScanned) {
-    setLastScanned(scanned);
-    setUnit(scanned.unitNumber ?? seed.unit);
-    setPlate(scanned.plate ?? seed.plate);
-    setMake(scanned.make ?? '');
-    setModel(scanned.model ?? '');
-    setYear(scanned.year ?? currentYear);
-    setColor(scanned.color ?? '');
-  }
+  useRoutedProp(scanned, s => {
+    setUnit(s.unitNumber ?? seed.unit);
+    setPlate(s.plate ?? seed.plate);
+    setMake(s.make ?? '');
+    setModel(s.model ?? '');
+    setYear(s.year ?? currentYear);
+    setColor(s.color ?? '');
+  });
 
   const [successToast, setSuccessToast] = useState<string | null>(null);
   // Set when the conflict reconciliation's release half failed — the new vehicle
