@@ -55,7 +55,10 @@ export function LogLostFoundItemModal({
   // Routed prop → derive or re-seed, never seed-once (FG CLAUDE.md). The sheet stays MOUNTED while
   // Lost & Found is open, so a second header scan changes `initialPlate` without remounting this
   // modal — seeding once would leave the previous car's plate in the field. Missed by the e86441b
-  // sweep, which fixed the parent view and not the modal inside it; found at /reflect 45.
+  // sweep (parent view only); found /reflect 45. (A repeat scan of the SAME plate re-fills via the
+  // sheet REMOUNT — the view's nonce reopens it, 2026-07-21; this file is at the line cap, so the
+  // deep edge "same plate re-scanned while the sheet is still open after an edit" is deferred to
+  // the extraction on docs/ticket-near-cap-file-extractions.md.)
   useRoutedProp(initialPlate, setLicensePlate);
   const [notes, setNotes] = useState('');
   const [sourceTag, setSourceTag] = useState<SourceTag | null>(null);

@@ -22,6 +22,12 @@ interface Props {
   onClose: () => void;
 }
 
+// Monotonic across the whole app lifetime — NOT per-mount. The overlay unmounts on close, so a
+// per-mount counter would restart at the same value each open and two separate scans of the same
+// tag would collide (re-introducing the no-op re-seed). Module scope guarantees every scan, in any
+// open, gets a distinct nonce.
+let scanSeq = 0;
+
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { vehicles, holds, updateVehicleFields } = useVehicleHoldContext();
@@ -29,6 +35,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
+  const [scanNonce, setScanNonce] = useState(0);
   const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
   const reading = status === 'reading';
@@ -42,6 +49,8 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     const read = await readKeytag(base64);
     if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
     setScanRead(read);
+    setScanNonce(++scanSeq); // distinct per scan → each "Start trip"/"Log L&F" re-seeds the destination
+
     setGeotabPending(await checkGeotab(read.plate));
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
     // he routes to below (hold / view / trip) already sees a complete record. Blanks-only.
@@ -55,7 +64,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // above writes through context, so re-resolving is what makes the card show the now-filled
   // identity instead of the blanks the tag was read against.
   const result = scanRead ? resolveKeytagScan(scanRead, vehicles) : null;
-  const actions = scanRead && result ? scanRouterActions(scanRead, result) : [];
+  const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce) : [];
   const vehicle = result?.vehicle ?? null;
   const activeHolds = vehicle ? holds.filter(h => h.vehicleId === vehicle.id && h.status === 'ACTIVE').length : 0;
 

@@ -339,9 +339,14 @@ export type Screen =
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity }
-  | { name: 'movement-log'; prefillPlate?: string }
+  // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that
+  // compares equal across two scans of the same tag, so a value-keyed re-seed would fire only
+  // once and a repeat scan (after a reset/complete) would silently no-op — the plate field stays
+  // empty (found on the lot 2026-07-21). The nonce changes per scan, so the destination re-seeds
+  // every time. Absent for hand-typed nav (no re-seed needed).
+  | { name: 'movement-log'; prefillPlate?: string; prefillNonce?: number }
   | { name: 'my-shift' }
-  | { name: 'lost-and-found'; prefillPlate?: string }
+  | { name: 'lost-and-found'; prefillPlate?: string; prefillNonce?: number }
   | { name: 'audits' }
   | { name: 'audit-form' }
   | { name: 'analytics' }

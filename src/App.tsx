@@ -180,13 +180,13 @@ export default function App() {
       case 'my-day':
         return <MyDayView onNavigate={navigate} />;
       case 'movement-log':
-        return <MovementLogView prefillPlate={screen.prefillPlate} />;
+        return <MovementLogView prefillPlate={screen.prefillPlate} prefillNonce={screen.prefillNonce} />;
       case 'schedule':
         return <ScheduleScreen openImport={screen.openImport} />;
       case 'my-shift':
         return <MyShiftView />;
       case 'lost-and-found':
-        return <LostAndFoundView prefillPlate={screen.prefillPlate} />;
+        return <LostAndFoundView prefillPlate={screen.prefillPlate} prefillNonce={screen.prefillNonce} />;
       case 'audits':
         return <AuditView onNewAudit={() => navigate({ name: 'audit-form' })} />;
       case 'audit-form':

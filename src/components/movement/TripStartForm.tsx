@@ -32,11 +32,14 @@ export function TripStartForm({
   onTripComplete,
   onTripStarted,
   initialPlate,
+  initialPlateNonce,
 }: {
   onTripComplete?: (trip: TripRun) => void;
   onTripStarted?: (info: TripStartInfo) => void;
   /** Plate handed in by the scan-router ("Start trip" on a scanned tag) — starts the form filled. */
   initialPlate?: string;
+  /** Bumped per scan so re-scanning the same tag re-fills the plate (see Screen.prefillNonce). */
+  initialPlateNonce?: number;
 }) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles } = useVehicleHoldContext();
@@ -46,7 +49,7 @@ export function TripStartForm({
   const { oth, setMovementTab } = useActiveSessions();
   const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 
-  const t = useTripLifecycle({ initialPlate, onTripStarted, onTripComplete });
+  const t = useTripLifecycle({ initialPlate, initialPlateNonce, onTripStarted, onTripComplete });
 
   const flaggedClasses = useMemo(() => {
     const manifest  = generateDayManifest();

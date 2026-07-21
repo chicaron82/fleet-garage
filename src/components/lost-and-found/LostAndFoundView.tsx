@@ -13,7 +13,7 @@ import { PrimaryAction } from '../shared/PrimaryAction';
 
 // `prefillPlate` arrives from the scan-router (scan a tag → "Log lost & found"): open the log
 // sheet straight away with the plate already filled, so the scan hands off mid-flow.
-export function LostAndFoundView({ prefillPlate }: { prefillPlate?: string } = {}) {
+export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?: string; prefillNonce?: number } = {}) {
   const { user } = useAuth();
   const { lostFoundItems, addLostFoundItem, updateLostFoundStatus, updateLostFoundItem, loadError, reload } = useLostFoundContext();
 
@@ -21,9 +21,10 @@ export function LostAndFoundView({ prefillPlate }: { prefillPlate?: string } = {
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
   const [showSheet, setShowSheet]           = useState(!!prefillPlate);
   // Mount-only otherwise: scanning a tag while ALREADY on Lost & Found re-navigates to the same
-  // mounted component, so the sheet never opened and the button looked dead. Same class as the
-  // movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
-  useRoutedProp(prefillPlate, () => setShowSheet(true));
+  // mounted component, so the sheet never opened and the button looked dead. Keyed on the scan
+  // NONCE (not the plate value) so a repeat scan of the same tag re-opens the sheet — a value key
+  // no-ops the second scan. Same class as the movement-log prefill bug (9d1535f, then 2026-07-21).
+  useRoutedProp(prefillNonce, () => setShowSheet(true));
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
 

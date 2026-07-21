@@ -14,17 +14,30 @@ function vehicle(over: Partial<Vehicle>): Vehicle {
 }
 const FLEET = [vehicle({ id: 'v-1', licensePlate: 'LUR554' })];
 const kinds = (read: KeytagRead, fleet: Vehicle[] = FLEET) =>
-  scanRouterActions(read, resolveKeytagScan(read, fleet)).map(a => a.kind);
+  scanRouterActions(read, resolveKeytagScan(read, fleet), 1).map(a => a.kind);
 
 describe('scanRouterActions', () => {
   it('on-record vehicle → view / flag / lnf / trip, all routed to the right screen', () => {
     const read: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
-    const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET));
+    const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1);
     expect(actions.map(a => a.kind)).toEqual(['view', 'flag', 'lnf', 'trip']);
     expect(actions.find(a => a.kind === 'view')!.screen).toEqual({ name: 'vehicle', vehicleId: 'v-1' });
     expect(actions.find(a => a.kind === 'flag')!.screen).toEqual({ name: 'new-hold', vehicleId: 'v-1' });
-    expect(actions.find(a => a.kind === 'lnf')!.screen).toEqual({ name: 'lost-and-found', prefillPlate: 'LUR554' });
-    expect(actions.find(a => a.kind === 'trip')!.screen).toEqual({ name: 'movement-log', prefillPlate: 'LUR554' });
+    expect(actions.find(a => a.kind === 'lnf')!.screen).toEqual({ name: 'lost-and-found', prefillPlate: 'LUR554', prefillNonce: 1 });
+    expect(actions.find(a => a.kind === 'trip')!.screen).toEqual({ name: 'movement-log', prefillPlate: 'LUR554', prefillNonce: 1 });
+  });
+
+  it('stamps the scan nonce onto the plate-prefill routes so a repeat scan re-fills', () => {
+    const read: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
+    const first  = scanRouterActions(read, resolveKeytagScan(read, FLEET), 7);
+    const second = scanRouterActions(read, resolveKeytagScan(read, FLEET), 8);
+    const nonceOf = (as: typeof first, kind: string) =>
+      (as.find(a => a.kind === kind)!.screen as { prefillNonce?: number }).prefillNonce;
+    // Same tag, two scans → different nonce on both trip and lnf routes.
+    expect(nonceOf(first, 'trip')).toBe(7);
+    expect(nonceOf(second, 'trip')).toBe(8);
+    expect(nonceOf(first, 'lnf')).toBe(7);
+    expect(nonceOf(second, 'lnf')).toBe(8);
   });
 
   it('NEVER offers register for an on-record car', () => {
@@ -38,7 +51,7 @@ describe('scanRouterActions', () => {
     // enough to offer Register at all, every field it read must travel to the form.
     const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
     const scanned = { unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: '' };
-    const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET));
+    const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1);
     expect(actions.map(a => a.kind)).toEqual(['register', 'register-and-flag', 'lnf']);
     expect(actions.find(a => a.kind === 'register')!.screen).toEqual({ name: 'register-vehicle', prefill: 'LUR315', scanned });
     expect(actions.find(a => a.kind === 'register-and-flag')!.screen).toEqual({ name: 'register-vehicle', fromHold: true, prefill: 'LUR315', scanned });
@@ -46,7 +59,7 @@ describe('scanRouterActions', () => {
 
   it('the scanned identity is never partial when Register is offered (no half-filled form)', () => {
     const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
-    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET)).find(a => a.kind === 'register')!;
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1).find(a => a.kind === 'register')!;
     const s = (reg.screen as { scanned?: Record<string, unknown> }).scanned!;
     // Every field the form asks for must have arrived — an empty one is a field the operator retypes.
     for (const key of ['unitNumber', 'plate', 'make', 'model', 'year', 'color']) {
@@ -65,7 +78,7 @@ describe('scanRouterActions', () => {
     expect(k).toContain('register');
     expect(k).toContain('lnf');
 
-    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET)).find(a => a.kind === 'register')!;
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1).find(a => a.kind === 'register')!;
     // The label has to say what he must add — a silent partial prefill is a trap.
     expect(reg.label).toMatch(/make\/model/i);
     const s = (reg.screen as { scanned?: Record<string, unknown> }).scanned!;
@@ -93,7 +106,7 @@ describe('scanRouterActions', () => {
 
   it('unreadable tag (no plate) → no actions', () => {
     const read: KeytagRead = { make: 'Kia', model: 'Seltos' };
-    expect(scanRouterActions(read, resolveKeytagScan(read, FLEET))).toEqual([]);
+    expect(scanRouterActions(read, resolveKeytagScan(read, FLEET), 1)).toEqual([]);
   });
 
   it('lost & found is always offered (found an item in any car)', () => {

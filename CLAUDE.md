@@ -202,6 +202,22 @@ identity fields could register a vehicle under the **previous car's** unit#, mak
 year. Every file passed tsc, eslint and 1706 tests — the defect lived only in the *seam*.
 **Any new scan/route destination inherits this trap; check it before wiring one up.**
 
+**The sharper trap — a re-seed keyed on VALUE no-ops on a REPEAT (2026-07-21).** The re-seed
+above (`prop !== last`) fires once per distinct *value*. That's correct when the prop is a value
+to mirror — but a **scan is an EVENT**, and re-scanning the same tag produces an identical string.
+So the value-keyed re-seed fired on the first scan and silently no-opped the second: Aaron scanned
+LZM531 → Start trip → filled; reset; scanned LZM531 again → empty field (`handleReset` cleared the
+field but not the hook's `last`, desyncing them). Register never hit it — it routes a fresh
+`scanned` OBJECT (new identity per scan). The fix: a per-scan **`prefillNonce`** on the `Screen`
+(monotonic module counter in `ScanRouterOverlay`, NOT per-mount — the overlay unmounts on close),
+and the destination re-seeds keyed on the nonce, not the plate: `useRoutedProp(nonce, () =>
+setLocal(plate))`. **Rule: if a routed prop is a discrete event (a scan, a "log this now"), key its
+re-seed on a per-event nonce, not the payload value — or a repeat of the same payload dies silently.**
+*A value-keyed re-seed PASSES the seed-once grep and looks swept while still no-opping the repeat —
+the cross-module line-check station must ask not just "is there a re-seed?" but "does it fire on a
+REPEAT of the same value?"* (the R46 line-check cleared this seam on the first question and missed
+the second.)
+
 ## Design Language — One Header, One Action, One Accent
 
 Every module wears the same header and exposes one create-action, so neither

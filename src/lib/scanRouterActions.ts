@@ -25,13 +25,16 @@ export interface ScanAction {
  * completely enough to register (else only Lost & Found makes sense). Returns [] for an unreadable
  * tag (no plate) — the overlay shows the read error instead.
  */
-export function scanRouterActions(read: KeytagRead, result: KeytagScanResult): ScanAction[] {
+export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, scanNonce: number): ScanAction[] {
   const { plate, vehicle } = result;
   if (!plate) return [];
 
+  // scanNonce stamps the plate-prefill routes so a repeat scan of the SAME tag is a distinct
+  // routing event — without it the value-keyed re-seed at the destination fires once and a
+  // second scan silently no-ops (empty field / sheet won't reopen). See Screen.prefillNonce.
   const logLostFound: ScanAction = {
     kind: 'lnf', label: 'Log lost & found', icon: '📦',
-    screen: { name: 'lost-and-found', prefillPlate: plate },
+    screen: { name: 'lost-and-found', prefillPlate: plate, prefillNonce: scanNonce },
   };
 
   // On record → act on the known vehicle.
@@ -41,7 +44,7 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult): S
       { kind: 'view', label: `View ${who}`, icon: '🔎', screen: { name: 'vehicle', vehicleId: vehicle.id } },
       { kind: 'flag', label: 'Flag / hold', icon: '🔧', screen: { name: 'new-hold', vehicleId: vehicle.id } },
       logLostFound,
-      { kind: 'trip', label: 'Start trip', icon: '🚗', screen: { name: 'movement-log', prefillPlate: plate } },
+      { kind: 'trip', label: 'Start trip', icon: '🚗', screen: { name: 'movement-log', prefillPlate: plate, prefillNonce: scanNonce } },
     ];
   }
 

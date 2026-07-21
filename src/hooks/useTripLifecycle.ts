@@ -34,10 +34,12 @@ export type TripStartInfo = {
 
 export function useTripLifecycle({
   initialPlate,
+  initialPlateNonce,
   onTripStarted,
   onTripComplete,
 }: {
   initialPlate?: string;
+  initialPlateNonce?: number;
   onTripStarted?: (info: TripStartInfo) => void;
   onTripComplete?: (trip: TripRun) => void;
 }) {
@@ -59,19 +61,18 @@ export function useTripLifecycle({
 
   const [vehiclePlate, setVehiclePlate]       = useState(initialPlate ?? '');
 
-  // The header scan-router routes here with a freshly-scanned plate (Screen: movement-log +
-  // prefillPlate). `useState(initialPlate)` above only reads it on MOUNT — so scanning a tag
-  // while ALREADY on the Movement Log re-navigates to the same mounted component, the plate
-  // never lands, and "Start trip" looks like it did nothing (found live on the lot, 2026-07-19:
-  // Aaron scanned LJF691 from the header, got dropped on the Movement Log with an empty field,
-  // and had to re-scan in-page to actually start). Syncing on change makes the route keep its
-  // promise. Guarded on a truthy plate so it never blanks a plate the operator typed himself.
+  // The header scan-router routes here with a freshly-scanned plate. `useState(initialPlate)` above
+  // reads it only on MOUNT — so scanning a tag while ALREADY on the Movement Log re-navigates to the
+  // same mounted component and the plate must be re-seeded (found 2026-07-19: Aaron scanned LJF691,
+  // got dropped on an empty field). We re-seed keyed on the SCAN NONCE, not the plate value — because
+  // a repeat scan of the SAME tag is a distinct event but an identical string, and a value-keyed
+  // re-seed fires once then no-ops the second scan, leaving the field empty after a reset/complete
+  // (found 2026-07-21: Aaron scanned LZM531 twice, second scan didn't fill). The nonce bumps per scan.
   //
-  // Done as a render-time adjustment (React's documented "adjusting state when a prop changes"),
-  // NOT a useEffect — the repo lints `react-hooks/set-state-in-effect`, and an effect would also
-  // cost an extra render pass with a visible empty-field flash. Remounting via a `key` was the
-  // other option and was rejected: it would blow away in-flight trip state mid-shift.
-  useRoutedProp(initialPlate, setVehiclePlate);
+  // Render-time adjustment (React's "adjusting state when a prop changes"), NOT a useEffect — the repo
+  // lints `react-hooks/set-state-in-effect`, and an effect also costs a render pass with a stale flash.
+  // Truthy-guarded (no nonce = hand-typed nav = never blank a plate the operator typed himself).
+  useRoutedProp(initialPlateNonce, () => setVehiclePlate(initialPlate ?? ''));
   const [isTeslaRun, setIsTeslaRun]           = useState(false);
   const [evCableStatus, setEvCableStatus]     = useState<EvAssetStatus | null>(null);
   const [evAdapterStatus, setEvAdapterStatus] = useState<EvAssetStatus | null>(null);
