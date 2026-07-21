@@ -102,6 +102,8 @@ const CODEX: Record<string, VehicleClass> = {
   C300: { make: 'Chrysler', model: '300' },
   // Buick
   CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
+  CGXA: { make: 'Buick', model: 'Encore' }, // surfaced live 2026-07-20 (Aaron, unit 5427851 / LUR575, rental class B5) — confirmed Encore
+  CEGX: { make: 'Buick', model: 'Encore' }, // older Encore code — Aaron, 2026-07-20 (same model, earlier code)
   // GMC
   CALE: { make: 'GMC', model: 'Acadia' }, // surfaced live 2026-07-17 — Aaron flagged the gap (a CALE tag couldn't resolve → Effie had to ask)
   // Jeep
