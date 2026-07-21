@@ -20,11 +20,16 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
   const [query, setQuery]                   = useState('');
   const [lightboxUrl, setLightboxUrl]       = useState<string | null>(null);
   const [showSheet, setShowSheet]           = useState(!!prefillPlate);
+  // WHY the sheet opened, not just WHETHER a plate is around. The scanned plate lingers on the screen
+  // after a scan, so keying "open on item-entry" off the plate's presence leaked into the manual
+  // "+ Log" button — it inherited the stale plate and skipped Step 1 (found 2026-07-21). A scan-open
+  // sets this true (→ prefill + Step 2); "+ Log" sets it false (→ clean, full two-step from Step 1).
+  const [scanOpened, setScanOpened]         = useState(!!prefillPlate);
   // Mount-only otherwise: scanning a tag while ALREADY on Lost & Found re-navigates to the same
   // mounted component, so the sheet never opened and the button looked dead. Keyed on the scan
   // NONCE (not the plate value) so a repeat scan of the same tag re-opens the sheet — a value key
   // no-ops the second scan. Same class as the movement-log prefill bug (9d1535f, then 2026-07-21).
-  useRoutedProp(prefillNonce, () => setShowSheet(true));
+  useRoutedProp(prefillNonce, () => { setShowSheet(true); setScanOpened(true); });
   const [resolvedExpanded, setResolvedExpanded] = useState(false);
   const [updatingId, setUpdatingId]         = useState<string | null>(null);
 
@@ -88,7 +93,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
             </button>
           )}
         </div>
-        <PrimaryAction label="Log" aria-label="Log a found item" onClick={() => setShowSheet(true)} />
+        <PrimaryAction label="Log" aria-label="Log a found item" onClick={() => { setScanOpened(false); setShowSheet(true); }} />
       </div>
 
       {/* Holding items */}
@@ -191,8 +196,8 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
       {showSheet && (
         <LogLostFoundItemModal
           user={user}
-          initialPlate={prefillPlate}
-          initialPlateNonce={prefillNonce}
+          initialPlate={scanOpened ? prefillPlate : undefined}
+          initialPlateNonce={scanOpened ? prefillNonce : undefined}
           onClose={() => setShowSheet(false)}
           onSubmit={addLostFoundItem}
         />

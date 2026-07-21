@@ -35,7 +35,9 @@ export function LogLostFoundItemModal({ user, initialPlate, initialPlateNonce, o
         {/* Sheet header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10 transition-colors">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors">
-            Log Found Item — Step {form.step} of 2
+            {/* A scan-open lands on item-entry without the operator seeing Step 1, so drop the "Step
+                2 of 2" counter there — it reads as skipped. Manual "+ Log" keeps it (real two-step). */}
+            {initialPlate ? 'Log Found Item' : `Log Found Item — Step ${form.step} of 2`}
           </p>
           <button
             type="button"
