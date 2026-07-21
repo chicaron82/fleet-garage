@@ -15,8 +15,11 @@ export interface FlipRow {
   unit: string | null;
   /** Free text as read off the dash — no unit assumed (miles vs km is the counter's to know). */
   odo: string;
-  /** Free text — "7/8", "F", "1/2" — whatever he reads off the gauge. */
+  /** Free text — "7/8", "F", "1/2" off a gas gauge, or "67%" off an EV's dash (see isEv). */
   fuel: string;
+  /** True when this return is an EV — the capture read a battery PERCENTAGE, not a fuel fraction,
+   *  so the counter line says "charge 67%" instead of "fuel 67%". Same field, right word. */
+  isEv: boolean;
   damaged: boolean;
   /** Rental class read off the tag (Q4, P4, V…). For AARON's own shift tally — how many of each
    *  class he turned around — NOT the counter copy-out (they search by plate; class is internal).
@@ -38,7 +41,7 @@ export function flipRowLine(row: FlipRow): string {
   // `.trim()` crashed the whole My Shift render, 2026-07-17). Belt to normalizeFlipRow's suspenders.
   const parts = [(row.plate ?? '').trim()];
   if ((row.odo ?? '').trim()) parts.push(`odo ${(row.odo ?? '').trim()}`);
-  if ((row.fuel ?? '').trim()) parts.push(`fuel ${(row.fuel ?? '').trim()}`);
+  if ((row.fuel ?? '').trim()) parts.push(`${row.isEv ? 'charge' : 'fuel'} ${(row.fuel ?? '').trim()}`);
   if (row.damaged) parts.push('⚠️ damage');
   if ((row.notes ?? '').trim()) parts.push((row.notes ?? '').trim());
   return parts.join(' · ');
@@ -54,6 +57,7 @@ export function normalizeFlipRow(r: Partial<FlipRow>): FlipRow {
     unit: r.unit ?? null,
     odo: r.odo ?? '',
     fuel: r.fuel ?? '',
+    isEv: r.isEv ?? false,
     damaged: r.damaged ?? false,
     rentalClass: r.rentalClass ?? '',
     notes: r.notes ?? '',

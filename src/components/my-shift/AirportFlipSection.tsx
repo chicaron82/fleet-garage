@@ -16,6 +16,7 @@ import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
+import { BatteryLevelSelector } from '../shared/BatteryLevelSelector';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Vehicle } from '../../types';
 
@@ -24,14 +25,19 @@ const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();
-  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets } = useVehicleHoldContext();
   const flip = useAirportFlip();
   const checkGeotab = useGeotabPending();
 
-  const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null } | null>(null);
+  const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null; isTesla: boolean; vehicleId: string | null } | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [odo, setOdo] = useState('');
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
+  const [batteryPct, setBatteryPct] = useState<number | null>(null);
+  // EV assets stay NULL until the operator actually looks — recording an unobserved "present"
+  // would claim a check he didn't make (observation-boundary). Unset simply doesn't write.
+  const [cable, setCable] = useState<boolean | null>(null);
+  const [adapter, setAdapter] = useState<boolean | null>(null);
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
   const [toast, setToast] = useState('');
@@ -41,22 +47,43 @@ export function AirportFlipSection() {
   const onScan = async (read: KeytagRead) => {
     const { plate, vehicle } = resolveKeytagScan(read, vehicles);
     if (!plate) { setToast('Could not read that tag — try again.'); return; }
+    let registeredId: string | undefined;
     try {
       const nv = newVehicleToRegisterOnScan(read, vehicles);
-      if (nv) await addVehicle({ unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, isTesla: nv.make === 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR' });
+      if (nv) registeredId = await addVehicle({ unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, isTesla: nv.make === 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR' });
       else {
         const bf = backfillFieldsOnScan(read, vehicles);
         if (bf) await updateVehicleFields(bf.vehicleId, bf.fills);
       }
     } catch { /* fleet enrichment is best-effort — the flip capture still proceeds */ }
-    setCapture({ plate, unit: vehicle?.unitNumber ?? read.unitNumber ?? null, rentalClass: read.rentalClass ?? '', vehicle });
+    // EITHER signal marks it an EV: the fleet record (authoritative for a car on file) OR the tag's
+    // class code, which the codex resolves to a make server-side — so a Tesla FG has never seen
+    // still gets the charge gauge + asset check on its very first return.
+    const isTesla = !!vehicle?.isTesla || read.make === 'Tesla';
+    setCapture({
+      plate,
+      unit: vehicle?.unitNumber ?? read.unitNumber ?? null,
+      rentalClass: read.rentalClass ?? '',
+      vehicle,
+      isTesla,
+      vehicleId: vehicle?.id ?? registeredId ?? null,
+    });
     setGeotabPending(await checkGeotab(plate));
-    setOdo(''); setFuelLevel(null); setDamaged(false); setNotes('');
+    setOdo(''); setFuelLevel(null); setBatteryPct(null); setCable(null); setAdapter(null); setDamaged(false); setNotes('');
   };
 
   const addToList = () => {
     if (!capture) return;
-    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '', damaged, notes });
+    const level = capture.isTesla
+      ? (batteryPct !== null ? `${batteryPct}%` : '')
+      : (fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '');
+    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isTesla, damaged, notes });
+    // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
+    // still chargeable, where the same loss found later in the washbay is just gone. Written only
+    // when he actually set both (null = didn't look ≠ present). Best-effort: never blocks the list.
+    if (capture.isTesla && capture.vehicleId && cable !== null && adapter !== null) {
+      void updateVehicleEVAssets(capture.vehicleId, cable, adapter, 'check_in', notes.trim() || undefined);
+    }
     setCapture(null);
     setGeotabPending(false);
   };
@@ -108,7 +135,40 @@ export function AirportFlipSection() {
           )}
 
           <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
-          <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />
+
+          {/* The gauge mirrors the instrument: a gas dash reads eighths, a Tesla's reads a %. */}
+          {capture.isTesla
+            ? <BatteryLevelSelector batteryPct={batteryPct} setBatteryPct={setBatteryPct} />
+            : <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />}
+
+          {/* EV assets — part of the return's condition, same as odo/fuel/damage, because this
+              capture closes the contract. Unset until tapped; unset never writes. */}
+          {capture.isTesla && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 space-y-2">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">⚡ EV assets on return</p>
+              {([
+                ['Mobile cable', cable, setCable] as const,
+                ['J1772 adapter', adapter, setAdapter] as const,
+              ]).map(([label, value, set]) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => set(value === true ? null : true)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${value === true ? 'bg-green-100 border-green-400 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                      ✓ There
+                    </button>
+                    <button type="button" onClick={() => set(value === false ? null : false)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${value === false ? 'bg-red-100 border-red-400 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                      ✗ Missing
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {(cable === false || adapter === false) && (
+                <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">Flag it at the counter — chargeable while the contract is still open.</p>
+              )}
+            </div>
+          )}
           <input className={INPUT} placeholder="Notes (e.g. weed smell) — optional" value={notes} onChange={e => setNotes(e.target.value)} />
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={damaged} onChange={e => setDamaged(e.target.checked)} className="w-4 h-4 accent-red-500 cursor-pointer" />
