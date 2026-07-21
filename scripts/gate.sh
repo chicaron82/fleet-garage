@@ -31,4 +31,17 @@ echo "── tests ────────────────────�
 # NEVER flakes under load. Override with GATE_MAX_WORKERS if ever needed.
 npx vitest run --maxWorkers="${GATE_MAX_WORKERS:-2}"
 
+echo "── flow tests (e2e journeys) ──────────────────"
+# Browser-driven scan-router journeys — the seam vitest can't see (scan → route → screen).
+# They need the app running (Playwright auto-starts dev on :5199) + the live backend + a
+# browser, so they're the slow part of the gate. SKIP_FLOWS=1 opts out for offline work or a
+# docs-only push. They log in as the VSA verify bot; missing .env.local creds skips cleanly.
+if [ "${SKIP_FLOWS:-}" = "1" ]; then
+  echo "  skipped (SKIP_FLOWS=1)"
+elif [ ! -f .env.local ]; then
+  echo "  skipped (no .env.local — flow tests need the verify-bot creds)"
+else
+  npx playwright test
+fi
+
 echo "── gate: all green ────────────────────────────"

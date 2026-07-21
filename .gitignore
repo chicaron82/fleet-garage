@@ -32,3 +32,9 @@ supabase/.temp
 # Generated schema snapshot — contains pgsodium server key, regenerate with npm run gen:schema
 migrations/schema.sql
 .vercel
+
+# Playwright flow-test artifacts
+test-results/
+playwright-report/
+blob-report/
+.last-run.json

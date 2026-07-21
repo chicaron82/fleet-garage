@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:flows": "playwright test",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "gen:types": "supabase gen types typescript --project-id gugxedtqvuhlwllyqpec > /tmp/fg-dbtypes.ts && mv /tmp/fg-dbtypes.ts src/types/database.types.ts",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
