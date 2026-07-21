@@ -44,7 +44,7 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
       { kind: 'view', label: `View ${who}`, icon: '🔎', screen: { name: 'vehicle', vehicleId: vehicle.id } },
       { kind: 'flag', label: 'Flag / hold', icon: '🔧', screen: { name: 'new-hold', vehicleId: vehicle.id } },
       logLostFound,
-      { kind: 'trip', label: 'Start trip', icon: '🚗', screen: { name: 'movement-log', prefillPlate: plate, prefillNonce: scanNonce } },
+      { kind: 'trip', label: 'Start trip', icon: '🚗', screen: { name: 'movement-log', prefillPlate: plate, prefillNonce: scanNonce, autoStart: true } },
     ];
   }
 

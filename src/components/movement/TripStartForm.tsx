@@ -4,7 +4,7 @@
 // collision-guard UI flow, the scan-register wiring, and the flagged-classes
 // read; the three trip screens are their own sections (TripForm /
 // TripInTransit / TripComplete).
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -33,6 +33,7 @@ export function TripStartForm({
   onTripStarted,
   initialPlate,
   initialPlateNonce,
+  autoStart,
 }: {
   onTripComplete?: (trip: TripRun) => void;
   onTripStarted?: (info: TripStartInfo) => void;
@@ -40,6 +41,8 @@ export function TripStartForm({
   initialPlate?: string;
   /** Bumped per scan so re-scanning the same tag re-fills the plate (see Screen.prefillNonce). */
   initialPlateNonce?: number;
+  /** Scan-router "Start trip" → auto-fire a Routine Transport run on arrival (land on the timer). */
+  autoStart?: boolean;
 }) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles } = useVehicleHoldContext();
@@ -68,6 +71,24 @@ export function TripStartForm({
     // if an off-standard timer is already running, confirm before double-running.
     collision.guard(() => void t.startTrip(r, DEFAULT_AUTH[r] ?? null, ''));
   };
+
+  // Scan-router "Start trip" auto-fires a Routine Transport run so the operator lands on the live
+  // timer with the plate filled — one fewer tap than the old scan → land → quick-start route. Fired
+  // from an EFFECT (once per scan nonce), so it runs AFTER useTripLifecycle's plate re-seed has
+  // committed — startTrip reads the plate from state, so firing during render would grab the empty
+  // one. Runs through the same collision guard as a manual quick-start (a live off-standard timer
+  // still speed-bumps). Reason isn't editable in-transit, so it commits to ROUTINE; authorization
+  // still is, and Reset abandons — Coverage-Assist runs use the form's quick-start instead.
+  const autoStartedNonce = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!autoStart || !initialPlateNonce) return;
+    if (autoStartedNonce.current === initialPlateNonce) return;
+    autoStartedNonce.current = initialPlateNonce;
+    handleQuickStart('ROUTINE');
+    // handleQuickStart/collision intentionally omitted — the nonce ref makes this fire exactly once
+    // per scan; including the per-render handler identity would re-fire it every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, initialPlateNonce]);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">

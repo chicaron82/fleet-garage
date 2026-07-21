@@ -18,6 +18,8 @@ interface Props {
   prefillPlate?: string;
   /** Bumped per scan so a repeat scan of the same tag re-fills (see Screen.prefillNonce). */
   prefillNonce?: number;
+  /** Scan-router "Start trip" → fire a Routine Transport run on arrival (land on the live timer). */
+  autoStart?: boolean;
   liveTrips: TripRun[];
   setLiveTrips: Dispatch<SetStateAction<TripRun[]>>;
 }
@@ -25,7 +27,7 @@ interface Props {
 /** VSA / Lead-VSA movement screen: Movement Log + Off-Standard Time tabs. Both
  *  tabs stay mounted so the OTH timer survives switches. Owns its own tab +
  *  off-standard-refresh state — separate from the driver/management view. */
-export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, liveTrips, setLiveTrips }: Props) {
+export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, autoStart, liveTrips, setLiveTrips }: Props) {
   const [offStandardRefresh, setOffStandardRefresh] = useState(0);
   // One-way ("staying here") end of an airport run = the VSA stayed to flip returns. Bumping this
   // signals OffStandardTimeLog to auto-start the flipping timer (see lib/autoStartSignal).
@@ -117,7 +119,7 @@ export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, li
 
       {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
       <div className={activeTab === 'movement-log' ? 'space-y-5' : 'hidden'}>
-        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} initialPlate={prefillPlate} initialPlateNonce={prefillNonce} />
+        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} initialPlate={prefillPlate} initialPlateNonce={prefillNonce} autoStart={autoStart} />
         <OverflowSendForm onLogged={refreshActiveSessions} />
         {myLiveTrips.length > 0 && (
           <div className="space-y-2">

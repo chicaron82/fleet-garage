@@ -344,7 +344,9 @@ export type Screen =
   // once and a repeat scan (after a reset/complete) would silently no-op — the plate field stays
   // empty (found on the lot 2026-07-21). The nonce changes per scan, so the destination re-seeds
   // every time. Absent for hand-typed nav (no re-seed needed).
-  | { name: 'movement-log'; prefillPlate?: string; prefillNonce?: number }
+  // `autoStart` (scan-router "Start trip") fires a Routine Transport run on arrival so the operator
+  // lands on the live timer instead of tapping a quick-start — one fewer tap on the header route.
+  | { name: 'movement-log'; prefillPlate?: string; prefillNonce?: number; autoStart?: boolean }
   | { name: 'my-shift' }
   | { name: 'lost-and-found'; prefillPlate?: string; prefillNonce?: number }
   | { name: 'audits' }

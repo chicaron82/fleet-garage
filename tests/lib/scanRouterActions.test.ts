@@ -24,7 +24,7 @@ describe('scanRouterActions', () => {
     expect(actions.find(a => a.kind === 'view')!.screen).toEqual({ name: 'vehicle', vehicleId: 'v-1' });
     expect(actions.find(a => a.kind === 'flag')!.screen).toEqual({ name: 'new-hold', vehicleId: 'v-1' });
     expect(actions.find(a => a.kind === 'lnf')!.screen).toEqual({ name: 'lost-and-found', prefillPlate: 'LUR554', prefillNonce: 1 });
-    expect(actions.find(a => a.kind === 'trip')!.screen).toEqual({ name: 'movement-log', prefillPlate: 'LUR554', prefillNonce: 1 });
+    expect(actions.find(a => a.kind === 'trip')!.screen).toEqual({ name: 'movement-log', prefillPlate: 'LUR554', prefillNonce: 1, autoStart: true });
   });
 
   it('stamps the scan nonce onto the plate-prefill routes so a repeat scan re-fills', () => {

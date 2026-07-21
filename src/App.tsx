@@ -180,7 +180,7 @@ export default function App() {
       case 'my-day':
         return <MyDayView onNavigate={navigate} />;
       case 'movement-log':
-        return <MovementLogView prefillPlate={screen.prefillPlate} prefillNonce={screen.prefillNonce} />;
+        return <MovementLogView prefillPlate={screen.prefillPlate} prefillNonce={screen.prefillNonce} autoStart={screen.autoStart} />;
       case 'schedule':
         return <ScheduleScreen openImport={screen.openImport} />;
       case 'my-shift':
