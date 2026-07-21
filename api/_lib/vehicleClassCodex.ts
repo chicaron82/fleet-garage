@@ -78,6 +78,7 @@ const CODEX: Record<string, VehicleClass> = {
   CMLT: { make: 'Chevrolet', model: 'Malibu LT' },
   CTAV: { make: 'Chevrolet', model: 'Trailblazer' },
   CTLT: { make: 'Chevrolet', model: 'Traverse' }, // surfaced live 2026-07-17 (Aaron) — L2 class
+  CSBZ: { make: 'Chevrolet', model: 'Suburban' }, // surfaced live 2026-07-20 (Aaron, unit 5426945 / LUR375, rental class T6) — full-size SUV, T6 shares with Expedition
   // Tesla
   CTM3: { make: 'Tesla', model: 'Model 3' },
   CM3L: { make: 'Tesla', model: 'Model 3' },
