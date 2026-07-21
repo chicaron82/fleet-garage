@@ -9,6 +9,7 @@ const known: KeytagExistingVehicle = {
   model: 'Corolla',
   year: 2022,
   color: 'Silver',
+  rentalClass: null, // realistic: an existing fleet car with no class yet
 };
 
 const fullRead: KeytagRead = {
@@ -104,5 +105,28 @@ describe('resolveKeytag — partial (fills + conflicts together)', () => {
     if (res.kind !== 'partial') return;
     expect(res.fills).toEqual([{ field: 'unitNumber', value: '5-9999' }]);
     expect(res.conflicts).toEqual([{ field: 'color', existing: 'Silver', read: 'Blue' }]);
+  });
+});
+
+// ── Rental-class backfill (2026-07-20) — how the existing fleet gets classed as it's scanned ──
+describe('resolveKeytag — rentalClass backfill', () => {
+  it('fills the class onto an existing car that has none (the whole point)', () => {
+    const res = resolveKeytag({ ...fullRead, rentalClass: 'Q4' }, known); // known.rentalClass is null
+    expect(res).toEqual({ kind: 'partial', fills: [{ field: 'rentalClass', value: 'Q4' }], conflicts: [] });
+  });
+
+  it('a matching class is not a fill or a conflict → complete', () => {
+    const classed: KeytagExistingVehicle = { ...known, rentalClass: 'Q4' };
+    expect(resolveKeytag({ ...fullRead, rentalClass: 'Q4' }, classed)).toEqual({ kind: 'complete' });
+  });
+
+  it('NEVER clobbers a class already on the car — a disagreement is a conflict, not a fill', () => {
+    const classed: KeytagExistingVehicle = { ...known, rentalClass: 'Q4' };
+    const res = resolveKeytag({ ...fullRead, rentalClass: 'P4' }, classed);
+    expect(res).toEqual({ kind: 'partial', fills: [], conflicts: [{ field: 'rentalClass', existing: 'Q4', read: 'P4' }] });
+  });
+
+  it('a read with no class offers nothing — no fill on an unclassed car', () => {
+    expect(resolveKeytag(fullRead, known)).toEqual({ kind: 'complete' }); // fullRead has no rentalClass
   });
 });

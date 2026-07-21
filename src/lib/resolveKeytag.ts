@@ -19,10 +19,12 @@ export interface KeytagExistingVehicle {
   model: string;
   year: number;
   color: string;
+  rentalClass: string | null;
 }
 
-/** A backfillable identity field. Plate is the match key, never resolved here. */
-export type KeytagField = 'unitNumber' | 'make' | 'model' | 'year' | 'color';
+/** A backfillable field. Plate is the match key, never resolved here. rentalClass is read off
+ *  the tag's corner — backfilling it is how the existing fleet gets classed as cars are scanned. */
+export type KeytagField = 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass';
 
 /** A blank existing field the read can fill in. */
 export interface KeytagFill {
@@ -42,7 +44,7 @@ export type KeytagResolution =
   | { kind: 'complete' }
   | { kind: 'partial'; fills: KeytagFill[]; conflicts: KeytagConflict[] };
 
-const FIELDS: KeytagField[] = ['unitNumber', 'make', 'model', 'year', 'color'];
+const FIELDS: KeytagField[] = ['unitNumber', 'make', 'model', 'year', 'color', 'rentalClass'];
 
 /** A value is "blank" (unknown) if it's null/undefined, an empty/whitespace string, or a
  *  non-positive year (0 is FG's unknown-year sentinel). */

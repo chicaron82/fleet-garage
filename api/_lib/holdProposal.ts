@@ -16,7 +16,7 @@ import { describeOverflowProposal, type OverflowLogProposal } from './overflowPr
  *  fg-chat function's graph, and Vercel transpiles api/ in isolation rather than bundling
  *  across into src/ — a cross-import here builds fine locally but silently fails at deploy. */
 export interface VehicleFieldFill {
-  field: 'unitNumber' | 'make' | 'model' | 'year' | 'color';
+  field: 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass';
   value: string | number;
 }
 
@@ -36,6 +36,9 @@ export interface NewVehicle {
   model: string;
   year: number;
   color: string;
+  /** Rental class off the tag (Q4, P4…), so a car auto-registered from a scan is stored WITH
+   *  its class — not just the manual Register form. Optional: absent when the tag lacked it. */
+  rentalClass?: string;
 }
 
 /** A hold on an existing vehicle the user is being asked to confirm. */

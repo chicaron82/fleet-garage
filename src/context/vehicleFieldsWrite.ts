@@ -10,6 +10,7 @@ interface VehicleFieldsUpdate {
   model?: string;
   year?: number;
   color?: string;
+  rental_class?: string;
 }
 
 /** Applies keytag-read FILLS (blanks-only — resolveKeytag's backfill principle never
@@ -24,11 +25,12 @@ export function makeUpdateVehicleFields(deps: {
   return async (vehicleId: string, fills: KeytagFill[]): Promise<void> => {
     if (fills.length === 0) return;
     const payload: VehicleFieldsUpdate = {};
-    const patch: Partial<Pick<Vehicle, 'unitNumber' | 'make' | 'model' | 'year' | 'color'>> = {};
+    const patch: Partial<Pick<Vehicle, 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass'>> = {};
     for (const f of fills) {
-      if (f.field === 'unitNumber') { payload.unit_number = f.value as string; patch.unitNumber = f.value as string; }
-      else if (f.field === 'year')  { payload.year = f.value as number; patch.year = f.value as number; }
-      else                          { payload[f.field] = f.value as string; patch[f.field] = f.value as string; }
+      if (f.field === 'unitNumber')       { payload.unit_number = f.value as string; patch.unitNumber = f.value as string; }
+      else if (f.field === 'year')        { payload.year = f.value as number; patch.year = f.value as number; }
+      else if (f.field === 'rentalClass') { payload.rental_class = f.value as string; patch.rentalClass = f.value as string; }
+      else                                { payload[f.field] = f.value as string; patch[f.field] = f.value as string; }
     }
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update(payload).eq('id', vehicleId)

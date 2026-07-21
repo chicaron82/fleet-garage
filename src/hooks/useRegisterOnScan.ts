@@ -30,7 +30,7 @@ export function useRegisterOnScan(deps: {
       try {
         await addVehicle({
           unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model,
-          year: nv.year, color: nv.color, branchId: user.branchId, isTesla: nv.make === 'Tesla',
+          year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
         });
         flash(`✨ Registered ${nv.plate} · ${nv.year} ${nv.make} ${nv.model}`);

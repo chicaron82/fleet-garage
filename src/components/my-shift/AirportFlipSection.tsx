@@ -43,7 +43,7 @@ export function AirportFlipSection() {
     if (!plate) { setToast('Could not read that tag — try again.'); return; }
     try {
       const nv = newVehicleToRegisterOnScan(read, vehicles);
-      if (nv) await addVehicle({ unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color, isTesla: nv.make === 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR' });
+      if (nv) await addVehicle({ unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, isTesla: nv.make === 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR' });
       else {
         const bf = backfillFieldsOnScan(read, vehicles);
         if (bf) await updateVehicleFields(bf.vehicleId, bf.fills);

@@ -14,7 +14,7 @@ import type { Vehicle } from '../types';
  *  planner share one definition. */
 export function newVehicleFromRead(read: KeytagRead, plate: string): NewVehicle | null {
   if (!read.make || !read.model || !read.unitNumber || !read.year) return null;
-  return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '' };
+  return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '', rentalClass: read.rentalClass };
 }
 
 export interface KeytagScanResult {
@@ -61,7 +61,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     ? vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null
     : null;
   const existing = vehicle
-    ? { unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color }
+    ? { unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null }
     : null;
   return {
     rawPlate: read.plate,
