@@ -16,6 +16,8 @@ import type { SourceTag } from '../lib/lostFoundSourcePills';
 
 interface Options {
   initialPlate?: string;
+  /** Bumped per scan so re-scanning the same tag re-seeds the plate (see Screen.prefillNonce). */
+  initialPlateNonce?: number;
   onSubmit: (item: {
     keyTagPhoto?: string;
     itemPhoto?: string;
@@ -27,17 +29,19 @@ interface Options {
   onClose: () => void;
 }
 
-export function useLostFoundItemForm({ initialPlate, onSubmit, onClose }: Options) {
-  const [step, setStep] = useState<1 | 2>(1);
+export function useLostFoundItemForm({ initialPlate, initialPlateNonce, onSubmit, onClose }: Options) {
+  // A scan-routed open (initialPlate present) already did Step 1's job — identify the vehicle — so
+  // it lands straight on Step 2 (item details + photo). A manual "+ Log" starts at Step 1 (photos).
+  const [step, setStep] = useState<1 | 2>(initialPlate ? 2 : 1);
   const [keyTagPhoto, setKeyTagPhoto] = useState<string | null>(null);
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState<LostFoundLocation | null>(null);
   const [licensePlate, setLicensePlate] = useState(initialPlate ?? '');
-  // Routed prop → derive or re-seed, never seed-once (FG CLAUDE.md). The sheet stays MOUNTED while
-  // Lost & Found is open, so a second header scan changes `initialPlate` without remounting this
-  // modal — seeding once would leave the previous car's plate in the field (found /reflect 45).
-  useRoutedProp(initialPlate, setLicensePlate);
+  // Routed prop → derive or re-seed, never seed-once (FG CLAUDE.md). Keyed on the scan NONCE (not the
+  // plate value) so a repeat scan of the SAME tag re-seeds the plate even while the sheet stays open
+  // — the value-keyed version no-opped the repeat (2026-07-21, the edge deferred at extraction).
+  useRoutedProp(initialPlateNonce, () => setLicensePlate(initialPlate ?? ''));
   const [notes, setNotes] = useState('');
   const [sourceTag, setSourceTag] = useState<SourceTag | null>(null);
   const [submitting, setSubmitting] = useState(false);

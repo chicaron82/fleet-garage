@@ -6,6 +6,7 @@ import { hapticLight } from '../../lib/haptics';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundLocation, User } from '../../types';
 import { PlateInput } from '../shared/VehicleFields';
+import { PhotoSlot } from '../shared/PhotoSlot';
 import { ScanBranch } from '../holds/KeytagScan';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { SOURCE_PILLS } from '../../lib/lostFoundSourcePills';
@@ -21,9 +22,11 @@ const LOCATION_ORDER: LostFoundLocation[] = [
 ];
 
 export function LostFoundDetailsStep({ form, user }: { form: LostFoundForm; user: User | null }) {
-  // Ref lives here, not on the form object (react-hooks/refs). handleSourcePill returns true for
+  // Refs live here, not on the form object (react-hooks/refs). handleSourcePill returns true for
   // the free-text pill so we focus the notes field it just armed.
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const itemCamRef = useRef<HTMLInputElement>(null);
+  const itemGalleryRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <button
@@ -37,25 +40,30 @@ export function LostFoundDetailsStep({ form, user }: { form: LostFoundForm; user
         ← Back to photos
       </button>
 
-      {/* Photo preview row */}
-      {(form.keyTagPhoto || form.itemPhoto) && (
-        <div className="flex gap-2">
-          {form.keyTagPhoto && (
+      {/* Item photo — capturable HERE so a scan-routed log (which lands straight on this step) can
+          add the found-item image without going back to Step 1. The Step-1 key-tag photo, if taken,
+          previews alongside. */}
+      <div className="flex items-start gap-3">
+        {form.keyTagPhoto && (
+          <div className="shrink-0">
+            <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-wide">Key tag</p>
             <img
               src={form.keyTagPhoto}
               alt="Key tag"
-              className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
+              className="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
             />
-          )}
-          {form.itemPhoto && (
-            <img
-              src={form.itemPhoto}
-              alt="Item"
-              className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
-            />
-          )}
-        </div>
-      )}
+          </div>
+        )}
+        <PhotoSlot
+          label="Item photo"
+          photo={form.itemPhoto}
+          onCapture={form.handlePhotoCapture(form.setItemPhoto)}
+          onGallery={form.handlePhotoCapture(form.setItemPhoto)}
+          onClear={() => form.setItemPhoto(null)}
+          cameraRef={itemCamRef}
+          galleryRef={itemGalleryRef}
+        />
+      </div>
 
       {/* Description */}
       <div>

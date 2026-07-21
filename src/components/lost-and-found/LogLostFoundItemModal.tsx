@@ -11,6 +11,8 @@ interface LogLostFoundItemModalProps {
   user: User | null;
   /** Plate to start with — the scan-router hands the scanned tag's plate straight in. */
   initialPlate?: string;
+  /** Bumped per scan so re-scanning the same tag re-seeds the plate (see Screen.prefillNonce). */
+  initialPlateNonce?: number;
   onClose: () => void;
   onSubmit: (item: {
     keyTagPhoto?: string;
@@ -22,9 +24,9 @@ interface LogLostFoundItemModalProps {
   }) => Promise<boolean>;
 }
 
-export function LogLostFoundItemModal({ user, initialPlate, onClose, onSubmit }: LogLostFoundItemModalProps) {
+export function LogLostFoundItemModal({ user, initialPlate, initialPlateNonce, onClose, onSubmit }: LogLostFoundItemModalProps) {
   useEscapeKey(onClose);
-  const form = useLostFoundItemForm({ initialPlate, onSubmit, onClose });
+  const form = useLostFoundItemForm({ initialPlate, initialPlateNonce, onSubmit, onClose });
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">

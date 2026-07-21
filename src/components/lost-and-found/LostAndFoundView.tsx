@@ -192,6 +192,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
         <LogLostFoundItemModal
           user={user}
           initialPlate={prefillPlate}
+          initialPlateNonce={prefillNonce}
           onClose={() => setShowSheet(false)}
           onSubmit={addLostFoundItem}
         />
