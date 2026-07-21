@@ -92,6 +92,7 @@ const CODEX: Record<string, VehicleClass> = {
   CJCL: { make: 'Volkswagen', model: 'Jetta' },
   CTVA: { make: 'Volkswagen', model: 'Taos' },
   CATL: { make: 'Volkswagen', model: 'Atlas' },
+  CTCF: { make: 'Volkswagen', model: 'Tiguan' }, // surfaced live 2026-07-20 (Aaron, unit 5429832 / LUR466, rental class Q4) — rare on the lot, confirmed Tiguan
   // Chrysler / Dodge
   CGCL: { make: 'Dodge', model: 'Grand Caravan' },
   CPCL: { make: 'Chrysler', model: 'Pacifica' },

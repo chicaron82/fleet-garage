@@ -25,6 +25,7 @@ describe('lookupVehicleClass', () => {
     expect(lookupVehicleClass('CWUR')).toEqual({ make: 'Jeep', model: 'Wrangler' }); // added 2026-07-20, the boss's "V class" (unit 5427331 / LUR573)
     expect(lookupVehicleClass('CGXA')).toEqual({ make: 'Buick', model: 'Encore' }); // added 2026-07-20, Aaron confirmed (unit 5427851 / LUR575)
     expect(lookupVehicleClass('CEGX')).toEqual({ make: 'Buick', model: 'Encore' }); // added 2026-07-20, older Encore code
+    expect(lookupVehicleClass('CTCF')).toEqual({ make: 'Volkswagen', model: 'Tiguan' }); // added 2026-07-20, Aaron confirmed (unit 5429832 / LUR466)
   });
 
   it('returns null for unknown / empty codes (assistant then asks for make/model)', () => {
