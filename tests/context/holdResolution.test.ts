@@ -10,6 +10,7 @@ const chain = {
   insert: vi.fn(() => chain),
   update: vi.fn(() => chain),
   eq:     vi.fn(() => chain),
+  is:     vi.fn(() => chain),
 };
 
 vi.mock('../../src/lib/supabase', () => ({
@@ -29,7 +30,8 @@ vi.mock('../../src/lib/garage-uploads', () => ({
   pushNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { makeMarkRepairedBatch, makeMarkIssueRepaired } = await import('../../src/context/holdResolution');
+const { makeMarkRepairedBatch, makeMarkIssueRepaired, makeMarkRepaired } = await import('../../src/context/holdResolution');
+const { GEOTAB_HOLD_DESC } = await import('../../src/lib/hold-presets');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -50,9 +52,10 @@ const REPAIR: Omit<Repair, 'id'> = {
   notes: 'fixed', outcome: 'clean',
 };
 
-function deps(holds: Hold[]) {
+function deps(holds: Hold[], allVehicles: { id: string; licensePlate: string }[] = []) {
   return {
     holds,
+    allVehicles: allVehicles as never,
     setAllHolds: vi.fn(),
     setAllVehicles: vi.fn(),
   };
@@ -192,5 +195,23 @@ describe('makeMarkIssueRepaired (per-issue resolution)', () => {
     const reHoldNext = { ...reHold, resolvedTypes: ['mechanical'] as HoldType[] };
     await makeMarkIssueRepaired(deps([reHoldNext, linked]))('h-1', 'damage', REPAIR);
     expect(fromCalls).toContain('releases');
+  });
+});
+
+// ── Geotab watchlist stays in lockstep on the GENERIC repair path ─────────────
+// The dedicated GeotabReturnCard stamps the watchlist; the whole-hold repair used
+// to forget to, so clearing the geotab hold from a car's history left it flagged
+// "on the install list" forever (found 2026-07-21, LZM531).
+describe('geotab watchlist sync on repair', () => {
+  it('repairing the geotab hold stamps the install watchlist', async () => {
+    const hold = makeHold('h-1', 'v-1', { damageDescription: GEOTAB_HOLD_DESC });
+    await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
+    expect(fromCalls).toContain('geotab_watchlist');
+  });
+
+  it('repairing a NON-geotab hold never touches the watchlist', async () => {
+    const hold = makeHold('h-1', 'v-1', { damageDescription: 'scrape' });
+    await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
+    expect(fromCalls).not.toContain('geotab_watchlist');
   });
 });

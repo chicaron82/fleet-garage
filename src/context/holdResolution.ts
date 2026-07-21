@@ -2,6 +2,8 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, findLinkedOpenException } from '../lib/vehicle-status';
 import { withSubmitLock } from '../lib/submitLock';
+import { markGeotabInstalled } from '../hooks/useGeotabPending';
+import { GEOTAB_HOLD_DESC } from '../lib/hold-presets';
 import type { Hold, HoldType, Vehicle, Repair } from '../types';
 
 // Hold-resolution ops that move a hold out of ACTIVE and reconcile the vehicle
@@ -103,7 +105,7 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
 // issues at once) and the per-issue `markIssueRepaired` final flip — one path, so
 // the linked-close + derivation can't drift between them.
 async function finalizeRepairedHold(
-  { holds, setAllHolds, setAllVehicles }: ResolutionDeps,
+  { holds, allVehicles, setAllHolds, setAllVehicles }: ResolutionDeps,
   hold: Hold,
   repair: Omit<Repair, 'id'>,
   resolvedTypes: HoldType[],
@@ -163,6 +165,16 @@ async function finalizeRepairedHold(
     };
     return h;
   }));
+
+  // Repairing the "Geotab not installed" hold MEANS the unit got installed — so drop the car off
+  // the install watchlist too, keeping the scanners + Effie in lockstep. The dedicated
+  // GeotabReturnCard already stamps the watchlist; the GENERIC repair path (this one) forgot to, so
+  // clearing the hold from the vehicle's history left the car flagged "on the install list" forever
+  // (found 2026-07-21: Aaron cleared LZM531's geotab hold, the scanner still said pending).
+  if (hold.damageDescription === GEOTAB_HOLD_DESC) {
+    const plate = allVehicles.find(v => v.id === hold.vehicleId)?.licensePlate;
+    if (plate) void markGeotabInstalled(plate, repair.repairedById);
+  }
 }
 
 export function makeMarkRepaired(deps: ResolutionDeps) {

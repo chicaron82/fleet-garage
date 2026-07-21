@@ -7,6 +7,7 @@ import { HoldContextPanel } from './HoldContextPanel';
 import { DetailReEvalCard } from './DetailReEvalCard';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { markGeotabInstalled } from '../../hooks/useGeotabPending';
+import { GEOTAB_HOLD_DESC } from '../../lib/hold-presets';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 
 function fmtDate(iso: string) {
@@ -16,8 +17,7 @@ function fmtDate(iso: string) {
 // Geotab-install exceptions ride the same OUT_ON_EXCEPTION machinery as damage returns, but they
 // ask a DIFFERENT question on return ("unit installed yet?" not "any new damage?"). They can also
 // outnumber the real damage/condition returns many-to-one, so they get their own lens below the
-// condition returns instead of burying them. Keyed on the hold description (the preset's label).
-const GEOTAB_HOLD_DESC = 'Geotab not installed';
+// condition returns instead of burying them. Keyed on the hold description (GEOTAB_HOLD_DESC).
 
 // One unified exception-return surface. Every vehicle let out on exception
 // surfaces here once, routed by the kind of hold that drove the exception:

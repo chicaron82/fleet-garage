@@ -36,3 +36,7 @@ export const MECHANICAL_PRESET_META: Record<string, MechanicalPresetMeta> = {
 };
 
 export const MECHANICAL_PRESETS = Object.keys(MECHANICAL_PRESET_META);
+
+/** The hold description that marks a car as "held until a Geotab unit is installed". Shared so the
+ *  geotab-watchlist sync (on resolve) and the return-card filter key off ONE string, not two copies. */
+export const GEOTAB_HOLD_DESC = 'Geotab not installed';
