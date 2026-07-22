@@ -30,6 +30,8 @@ export interface VehicleHoldContextValue {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
+  /** Record the keys-on-ring count observed at a check-in (deliberate overwrite — latest is truth). */
+  recordKeyCount: (vehicleId: string, keyCount: number) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;

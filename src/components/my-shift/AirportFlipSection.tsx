@@ -13,6 +13,7 @@ import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
+import { checkKeys, keyShortNote } from '../../lib/keyCount';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
@@ -25,7 +26,7 @@ const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();
-  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount } = useVehicleHoldContext();
   const flip = useAirportFlip();
   const checkGeotab = useGeotabPending();
 
@@ -38,9 +39,14 @@ export function AirportFlipSection() {
   // would claim a check he didn't make (observation-boundary). Unset simply doesn't write.
   const [cable, setCable] = useState<boolean | null>(null);
   const [adapter, setAdapter] = useState<boolean | null>(null);
+  const [keys, setKeys] = useState<number | null>(null);
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
   const [toast, setToast] = useState('');
+
+  // Diffed against what the car is SUPPOSED to carry, so FG says "a key short" instead of just
+  // storing a number. Null keys = not counted; a car with no baseline seeds it from this count.
+  const keyCheck = keys !== null ? checkKeys(capture?.vehicle?.keyCount ?? null, keys) : null;
 
   // Scan a return → resolve + enrich the fleet from the WHOLE read (register new / backfill partial),
   // then open the capture card. New cars / too-partial reads no-op the fleet write; never blocks.
@@ -69,7 +75,7 @@ export function AirportFlipSection() {
       vehicleId: vehicle?.id ?? registeredId ?? null,
     });
     setGeotabPending(await checkGeotab(plate));
-    setOdo(''); setFuelLevel(null); setBatteryPct(null); setCable(null); setAdapter(null); setDamaged(false); setNotes('');
+    setOdo(''); setFuelLevel(null); setBatteryPct(null); setCable(null); setAdapter(null); setKeys(null); setDamaged(false); setNotes('');
   };
 
   const addToList = () => {
@@ -77,7 +83,12 @@ export function AirportFlipSection() {
     const level = capture.isTesla
       ? (batteryPct !== null ? `${batteryPct}%` : '')
       : (fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '');
-    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isTesla, damaged, notes });
+    // A short ring rides the counter copy-out — actionable while the rental is still open.
+    const shortNote = keyCheck ? keyShortNote(keyCheck) : '';
+    const counterNotes = [notes.trim(), shortNote].filter(Boolean).join(' · ');
+    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isTesla, damaged, notes: counterNotes });
+    // Latest count is the new truth (and seeds the baseline the first time a car is counted).
+    if (keys !== null && capture.vehicleId) void recordKeyCount(capture.vehicleId, keys);
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
     // still chargeable, where the same loss found later in the washbay is just gone. Written only
     // when he actually set both (null = didn't look ≠ present). Best-effort: never blocks the list.
@@ -169,6 +180,32 @@ export function AirportFlipSection() {
               )}
             </div>
           )}
+          {/* Keys on the ring — a countable asset like the EV kit, and a smart key is a few hundred
+              dollars. Counted HERE because this closes the contract; FG diffs it against what the
+              car went out with so a short return is caught while it's still chargeable. */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                🔑 Keys on ring
+                {capture.vehicle?.keyCount ? <span className="ml-1.5 normal-case font-normal text-gray-400">went out with {capture.vehicle.keyCount}</span> : null}
+              </span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map(n => (
+                  <button key={n} type="button" onClick={() => setKeys(keys === n ? null : n)}
+                    className={`w-8 h-8 rounded-lg text-sm font-semibold border transition cursor-pointer ${keys === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {keyCheck && keyCheck.short > 0 && (
+              <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">{keyShortNote(keyCheck)} — flag it at the counter while the contract is open.</p>
+            )}
+            {keyCheck?.seedsBaseline && (
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">First count for this car — saving {keys} as its baseline.</p>
+            )}
+          </div>
+
           <input className={INPUT} placeholder="Notes (e.g. weed smell) — optional" value={notes} onChange={e => setNotes(e.target.value)} />
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
             <input type="checkbox" checked={damaged} onChange={e => setDamaged(e.target.checked)} className="w-4 h-4 accent-red-500 cursor-pointer" />

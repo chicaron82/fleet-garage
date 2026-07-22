@@ -6,6 +6,7 @@ import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescript
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
+import { makeRecordKeyCount } from './keyCountWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus } from '../types';
@@ -56,6 +57,7 @@ export function useVehicleOperations({
           year:              vehicle.year,
           color:             vehicle.color,
           rental_class:      vehicle.rentalClass ?? null,
+          key_count:         vehicle.keyCount ?? null,
           branch_id:         branchId,
           status,
           is_tesla:          vehicle.isTesla ?? false,
@@ -79,6 +81,7 @@ export function useVehicleOperations({
   // Keytag-backfill write (the partial→backfill half of keytag-scan): applies FILLS
   // only, never conflicts. See ./vehicleFieldsWrite.
   const updateVehicleFields = makeUpdateVehicleFields({ setAllVehicles });
+  const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
 
   // Reconcile a unit# conflict at registration: release the number from the
   // record it was on so it can land on the one being added. See ./identityReconcile.
@@ -248,6 +251,7 @@ export function useVehicleOperations({
     addVehicle,
     updateVehicleEVAssets,
     updateVehicleFields,
+    recordKeyCount,
     releaseUnitNumber,
     addHold,
     addRelease,

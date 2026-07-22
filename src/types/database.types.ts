@@ -1356,6 +1356,7 @@ export type Database = {
           has_mobile_cable: boolean | null
           id: string
           is_tesla: boolean
+          key_count: number | null
           license_plate: string
           make: string
           model: string
@@ -1385,6 +1386,7 @@ export type Database = {
           has_mobile_cable?: boolean | null
           id: string
           is_tesla?: boolean
+          key_count?: number | null
           license_plate: string
           make: string
           model: string
@@ -1414,6 +1416,7 @@ export type Database = {
           has_mobile_cable?: boolean | null
           id?: string
           is_tesla?: boolean
+          key_count?: number | null
           license_plate?: string
           make?: string
           model?: string

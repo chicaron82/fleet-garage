@@ -173,6 +173,9 @@ export interface Vehicle {
   /** Rental class — the boss's size/type group code (Q4, P4, T, L2…), read off the keytag's
    *  top corner. The shorthand the boss uses to request returns; null when unknown/manual. */
   rentalClass?: string | null;
+  /** How many keys are on the ring. The EXPECTED count — what the car should come back with —
+   *  so the check-in can diff it instead of the operator remembering. Null until first observed. */
+  keyCount?: number | null;
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;
