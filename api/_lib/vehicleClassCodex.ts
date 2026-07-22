@@ -117,6 +117,10 @@ const CODEX: Record<string, VehicleClass> = {
  *  is the leading token. Shared because the lookup, the unknown-code log, the teach-back and the
  *  register hand-off must all key on the SAME string, or a code gets taught under one spelling and
  *  looked up under another (caught by a test, 2026-07-22). */
+/** Every mapping, for the contract test that pins the codex to the register form's catalogue —
+ *  a code that resolves to a model the dropdown can't offer strands the operator mid-registration. */
+export const CODEX_ENTRIES = Object.entries(CODEX);
+
 export function normalizeClassCode(code: string | undefined | null): string {
   return (code ?? '').trim().toUpperCase().split(/\s+/)[0] ?? '';
 }
