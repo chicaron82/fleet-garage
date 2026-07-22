@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { hapticLight } from '../../lib/haptics';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -9,21 +11,33 @@ import { useState } from 'react';
 // there's no way to check a suspect record short of finding the physical car. Tap to enlarge, then
 // use the ✏️ identity edit beside it to fix.
 //
-// The keys: the EXPECTED count the check-in diffs against, shown here so it can be confirmed (and
-// corrected) on the record instead of only being visible at a flip.
-export function VehicleRecordFacts({ keytagPhotoUrl, keyCount }: {
+// The keys: the EXPECTED count the check-in diffs against — and EDITABLE here, because it was
+// see-only and a flip count overwrites it. Without a correction path, one miscount at a return
+// silently becomes the car's new truth and there's no way back (and no way to rehearse a shortfall
+// without permanently lowering a baseline). Same principle as the tag: see it, and be able to fix it.
+const KEY_OPTIONS = [1, 2, 3, 4];
+
+export function VehicleRecordFacts({ vehicleId, keytagPhotoUrl, keyCount }: {
+  vehicleId: string;
   keytagPhotoUrl?: string | null;
   keyCount?: number | null;
 }) {
-  const [open, setOpen] = useState(false);
-  if (!keytagPhotoUrl && !keyCount) return null;
+  const { recordKeyCount } = useVehicleHoldContext();
+  const [zoom, setZoom] = useState(false);
+  const [editingKeys, setEditingKeys] = useState(false);
+
+  const setCount = (n: number) => {
+    hapticLight();
+    setEditingKeys(false);
+    void recordKeyCount(vehicleId, n);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       {keytagPhotoUrl && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setZoom(true)}
           className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
         >
           <img src={keytagPhotoUrl} alt="Key tag" className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
@@ -31,20 +45,39 @@ export function VehicleRecordFacts({ keytagPhotoUrl, keyCount }: {
         </button>
       )}
 
-      {!!keyCount && (
-        <span className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400">
-          🔑 {keyCount} {keyCount === 1 ? 'key' : 'keys'} on the ring
-        </span>
+      {editingKeys ? (
+        <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5">
+          <span className="text-xs text-gray-500 dark:text-gray-400">🔑</span>
+          {KEY_OPTIONS.map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setCount(n)}
+              className={`w-7 h-7 rounded-lg text-xs font-semibold border transition cursor-pointer ${keyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
+            >
+              {n}
+            </button>
+          ))}
+          <button type="button" onClick={() => setEditingKeys(false)} className="ml-0.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => { hapticLight(); setEditingKeys(true); }}
+          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+        >
+          🔑 {keyCount ? `${keyCount} ${keyCount === 1 ? 'key' : 'keys'} on the ring` : 'Keys — set'} ✏️
+        </button>
       )}
 
-      {open && keytagPhotoUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+      {zoom && keytagPhotoUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
           <div className="absolute inset-0 bg-black/80" />
           <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[85dvh] max-w-full rounded-lg object-contain" />
           <button
             type="button"
             aria-label="Close"
-            onClick={() => setOpen(false)}
+            onClick={() => setZoom(false)}
             className="absolute top-4 right-4 text-white/80 hover:text-white text-2xl cursor-pointer"
           >
             ×

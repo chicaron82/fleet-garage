@@ -1,7 +1,8 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle } from '../types';
 
-/** Records the keys-on-ring count observed at a check-in. Unlike `updateVehicleFields` (which is
+/** Sets the keys-on-ring count — an observation at a check-in, or a correction from the
+ *  vehicle record (a miscount at a return would otherwise become the car's truth with no way back). Unlike `updateVehicleFields` (which is
  *  blanks-only keytag BACKFILL and must never overwrite), this is a deliberate overwrite: the
  *  latest count IS the new truth, and the shortfall against the previous value was already
  *  surfaced to the operator at the moment of capture. Single-purpose sibling write, same shape as
