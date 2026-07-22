@@ -18,8 +18,11 @@ import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
 import { BatteryLevelSelector } from '../shared/BatteryLevelSelector';
+import { EVAssetCheck } from '../movement/EVAssetCheck';
+import { toEvStatus } from '../../lib/ev-detection';
+import { useUserResolver } from '../../hooks/useUserResolver';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
-import type { Vehicle } from '../../types';
+import type { EvAssetStatus, Vehicle } from '../../types';
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition';
 const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
@@ -28,6 +31,7 @@ export function AirportFlipSection() {
   const { user } = useAuth();
   const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhoto } = useVehicleHoldContext();
   const flip = useAirportFlip();
+  const { getName } = useUserResolver();
   const checkGeotab = useGeotabPending();
 
   const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null; isTesla: boolean; vehicleId: string | null } | null>(null);
@@ -35,10 +39,14 @@ export function AirportFlipSection() {
   const [odo, setOdo] = useState('');
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [batteryPct, setBatteryPct] = useState<number | null>(null);
-  // EV assets stay NULL until the operator actually looks — recording an unobserved "present"
-  // would claim a check he didn't make (observation-boundary). Unset simply doesn't write.
-  const [cable, setCable] = useState<boolean | null>(null);
-  const [adapter, setAdapter] = useState<boolean | null>(null);
+  // SEEDED from what the record already believes, then corrected — not blank-until-tapped.
+  // Aaron's call (2026-07-21): the flip uses the same EVAssetCheck as trip-start and the EV Assets
+  // tab, so one concept has one interaction everywhere. Checked = there, unchecked = missing; the
+  // cost is that "didn't look" now reads as "re-affirmed", which is the trade a two-state control
+  // makes. Seeding from the record (rather than blank) is what keeps that re-affirmation honest —
+  // an untouched card repeats the last known truth instead of inventing one.
+  const [cable, setCable] = useState<EvAssetStatus | null>(null);
+  const [adapter, setAdapter] = useState<EvAssetStatus | null>(null);
   const [keys, setKeys] = useState<number | null>(null);
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
@@ -79,7 +87,11 @@ export function AirportFlipSection() {
     const scannedVehicleId = vehicle?.id ?? registeredId ?? null;
     if (scannedVehicleId) void attachKeytagPhoto(scannedVehicleId, photo);
     setGeotabPending(await checkGeotab(plate));
-    setOdo(''); setFuelLevel(null); setBatteryPct(null); setCable(null); setAdapter(null); setKeys(null); setDamaged(false); setNotes('');
+    // Seed the asset boxes from the record: last known, or present for a car never assessed
+    // (same `?? present` default the EV Assets tab uses — absence of a check isn't a loss).
+    setCable(toEvStatus(vehicle?.hasMobileCable) ?? 'present');
+    setAdapter(toEvStatus(vehicle?.hasJ1772Adapter) ?? 'present');
+    setOdo(''); setFuelLevel(null); setBatteryPct(null); setKeys(null); setDamaged(false); setNotes('');
   };
 
   const addToList = () => {
@@ -94,10 +106,11 @@ export function AirportFlipSection() {
     // Latest count is the new truth (and seeds the baseline the first time a car is counted).
     if (keys !== null && capture.vehicleId) void recordKeyCount(capture.vehicleId, keys);
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
-    // still chargeable, where the same loss found later in the washbay is just gone. Written only
-    // when he actually set both (null = didn't look ≠ present). Best-effort: never blocks the list.
-    if (capture.isTesla && capture.vehicleId && cable !== null && adapter !== null) {
-      void updateVehicleEVAssets(capture.vehicleId, cable, adapter, 'check_in', notes.trim() || undefined);
+    // still chargeable, where the same loss found later in the washbay is just gone. Seeded boxes
+    // mean this always writes for a Tesla: a re-affirmation is itself worth recording, since it's
+    // what keeps "last checked" current instead of aging out. Best-effort: never blocks the list.
+    if (capture.isTesla && capture.vehicleId && cable && adapter) {
+      void updateVehicleEVAssets(capture.vehicleId, cable === 'present', adapter === 'present', 'check_in', notes.trim() || undefined);
     }
     setCapture(null);
     setGeotabPending(false);
@@ -157,32 +170,24 @@ export function AirportFlipSection() {
             : <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />}
 
           {/* EV assets — part of the return's condition, same as odo/fuel/damage, because this
-              capture closes the contract. Unset until tapped; unset never writes. */}
+              capture closes the contract. The SAME control as trip-start and the EV Assets tab:
+              a cable is a cable whichever screen you're standing on. */}
           {capture.isTesla && (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 space-y-2">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">⚡ EV assets on return</p>
-              {([
-                ['Mobile cable', cable, setCable] as const,
-                ['J1772 adapter', adapter, setAdapter] as const,
-              ]).map(([label, value, set]) => (
-                <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-                  <div className="flex gap-1.5">
-                    <button type="button" onClick={() => set(value === true ? null : true)}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${value === true ? 'bg-green-100 border-green-400 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                      ✓ There
-                    </button>
-                    <button type="button" onClick={() => set(value === false ? null : false)}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${value === false ? 'bg-red-100 border-red-400 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                      ✗ Missing
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {(cable === false || adapter === false) && (
+            <>
+              <EVAssetCheck
+                cableStatus={cable} adapterStatus={adapter}
+                onCableChange={setCable} onAdapterChange={setAdapter}
+                lastCheck={capture.vehicle?.evLastUpdatedAt ? {
+                  cableStatus: toEvStatus(capture.vehicle.hasMobileCable),
+                  adapterStatus: toEvStatus(capture.vehicle.hasJ1772Adapter),
+                  when: capture.vehicle.evLastUpdatedAt,
+                  byName: capture.vehicle.evLastUpdatedBy ? getName(capture.vehicle.evLastUpdatedBy) : 'Unknown',
+                } : null}
+              />
+              {(cable === 'missing' || adapter === 'missing') && (
                 <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">Flag it at the counter — chargeable while the contract is still open.</p>
               )}
-            </div>
+            </>
           )}
           {/* Keys on the ring — a countable asset like the EV kit, and a smart key is a few hundred
               dollars. Counted HERE because this closes the contract; FG diffs it against what the

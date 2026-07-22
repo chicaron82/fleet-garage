@@ -7,7 +7,7 @@ import { EVAssetHistoryPanel } from '../vehicle/EVAssetHistoryPanel';
 import { EvLoanSection } from '../vehicle/EvLoanSection';
 import { QuickAddTeslaForm } from './QuickAddTeslaForm';
 import { PrimaryAction } from '../shared/PrimaryAction';
-import { isTeslaMake } from '../../lib/ev-detection';
+import { isTeslaMake, toEvStatus } from '../../lib/ev-detection';
 import { isAssetLentOut, lentOutBy } from '../../lib/evAssetLoans';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
@@ -16,7 +16,6 @@ const BOTH_MISSING_DESCRIPTION =
   'Both EV assets missing — Mobile Charge Cable and J1772 Adapter not present. ' +
   'Vehicle should not be dispatched until assets are located or management approves.';
 
-const toStatus = (b: boolean | null): EvAssetStatus | null => b == null ? null : b ? 'present' : 'missing';
 const isTeslaVehicle = (v: Vehicle) => v.isTesla || isTeslaMake(v.make);
 const fmtWhen = (iso: string) => new Date(iso).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -69,8 +68,8 @@ export function EVAssetsTab() {
 
   const selectVehicle = (v: Vehicle) => {
     setSelectedId(v.id);
-    setCable(toStatus(v.hasMobileCable));
-    setAdapter(toStatus(v.hasJ1772Adapter));
+    setCable(toEvStatus(v.hasMobileCable));
+    setAdapter(toEvStatus(v.hasJ1772Adapter));
     setCableLentUnit('');
     setAdapterLentUnit('');
     setNotes('');
@@ -127,8 +126,8 @@ export function EVAssetsTab() {
           onCableChange={s => { setCable(s); setConfirming(false); }}
           onAdapterChange={s => { setAdapter(s); setConfirming(false); }}
           lastCheck={selected.evLastUpdatedAt ? {
-            cableStatus: toStatus(selected.hasMobileCable),
-            adapterStatus: toStatus(selected.hasJ1772Adapter),
+            cableStatus: toEvStatus(selected.hasMobileCable),
+            adapterStatus: toEvStatus(selected.hasJ1772Adapter),
             when: selected.evLastUpdatedAt,
             byName: selected.evLastUpdatedBy ? getName(selected.evLastUpdatedBy) : 'Unknown',
           } : null}

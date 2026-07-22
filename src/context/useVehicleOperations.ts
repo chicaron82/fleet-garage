@@ -1,6 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
+import { isTeslaMake } from '../lib/ev-detection';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription } from './holdEditing';
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
@@ -48,6 +49,12 @@ export function useVehicleOperations({
       // Registration defaults to HELD (register-to-flag flow); a caller can pass a
       // status explicitly — e.g. the EV quick-add lands a transfer Tesla as CLEAR.
       const status = vehicle.status ?? 'HELD';
+      // A Tesla carries exactly one key CARD — no ring, no variants — so the count is a property of
+      // the make, not an observation. Applied HERE rather than in each form because eight different
+      // paths mint a vehicle (quick-add, flip auto-register, proposal confirm, overflow send…) and a
+      // rule spread across eight call sites is a rule the ninth one forgets. An explicit count still
+      // wins; this only fills the blank.
+      const keyCount = vehicle.keyCount ?? (isTeslaMake(vehicle.make) ? 1 : null);
       const { error } = await writeWithRefresh(() =>
         supabase.from('vehicles').insert({
           id,
@@ -58,7 +65,7 @@ export function useVehicleOperations({
           year:              vehicle.year,
           color:             vehicle.color,
           rental_class:      vehicle.rentalClass ?? null,
-          key_count:         vehicle.keyCount ?? null,
+          key_count:         keyCount,
           keytag_photo_url:  vehicle.keytagPhotoUrl ?? null,
           branch_id:         branchId,
           status,
@@ -70,7 +77,7 @@ export function useVehicleOperations({
       if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
       await pushNotification(branchId, NOTIFY_MGMT_WIDE, '🚗',
         `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
-      const newVehicle: Vehicle = { ...vehicle, id, status, branchId };
+      const newVehicle: Vehicle = { ...vehicle, id, status, branchId, keyCount };
       setAllVehicles(prev => [newVehicle, ...prev]);
       return id;
     });

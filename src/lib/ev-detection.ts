@@ -31,6 +31,12 @@ export function isTeslaMake(make: string | null | undefined): boolean {
   return (make ?? '').toLowerCase() === 'tesla';
 }
 
+/** The vehicle record stores each EV asset as a nullable boolean; every UI that edits one speaks
+ *  `EvAssetStatus`. Shared rather than re-declared per screen — two copies of a converter is how
+ *  two screens end up disagreeing about what `null` means. `null` stays null: never assessed. */
+export const toEvStatus = (b: boolean | null | undefined): EvAssetStatus | null =>
+  b == null ? null : b ? 'present' : 'missing';
+
 /**
  * Pure resolution of a Tesla detection result from a vehicle row and (when the
  * vehicle is a Tesla) the latest EV-status trip row. No I/O — `detectTeslaByPlate`

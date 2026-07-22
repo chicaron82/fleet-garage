@@ -1,8 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { isTeslaMake, classifyTesla, type TeslaVehicleRow, type EvStatusRow } from '../../src/lib/ev-detection';
+import { isTeslaMake, toEvStatus, classifyTesla, type TeslaVehicleRow, type EvStatusRow } from '../../src/lib/ev-detection';
 
 const tesla: TeslaVehicleRow  = { make: 'Tesla',  model: 'Model 3', year: 2025, color: 'Red' };
 const toyota: TeslaVehicleRow = { make: 'Toyota', model: 'Corolla', year: 2024, color: 'White' };
+
+// ── toEvStatus ───────────────────────────────────────────────────────────────
+
+describe('toEvStatus', () => {
+  it('maps the stored boolean to the status the asset controls speak', () => {
+    expect(toEvStatus(true)).toBe('present');
+    expect(toEvStatus(false)).toBe('missing');
+  });
+
+  // The whole reason this is shared: null means NEVER ASSESSED, not missing. A screen that
+  // collapsed it to 'missing' would report a loss on every car nobody has looked at yet.
+  it('keeps never-assessed null — it is not a loss', () => {
+    expect(toEvStatus(null)).toBeNull();
+    expect(toEvStatus(undefined)).toBeNull();
+  });
+});
 
 // ── isTeslaMake ───────────────────────────────────────────────────────────────
 
