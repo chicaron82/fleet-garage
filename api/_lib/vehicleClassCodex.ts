@@ -30,6 +30,10 @@ const CODEX: Record<string, VehicleClass> = {
   CCRH: { make: 'Toyota', model: 'Corolla Hatchback' },
   CCLH: { make: 'Toyota', model: 'Corolla Hybrid' },
   CRVB: { make: 'Toyota', model: 'RAV4' },
+  CRHX: { make: 'Toyota', model: 'RAV4 Hybrid' }, // surfaced live 2026-07-22 (Aaron, keytag photo) —
+  // the boss's #1 poach target. Tag prints correct CRHX but the rental class is mislabeled Q4 (gas
+  // RAV4's class); the real class is E6 (powertrain-hybrid group, per the Hertz chart he photographed
+  // 2026-07-20). First live test of the field-provenance ladder shipped same session (8a60f43).
   CSLE: { make: 'Toyota', model: 'Sienna' },
   // Hyundai
   CELA: { make: 'Hyundai', model: 'Elantra' },
