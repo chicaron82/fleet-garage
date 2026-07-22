@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canRelease, CAN_RELEASE, canMarkRepaired, CAN_MARK_REPAIRED } from '../../src/types';
+import { canRelease, CAN_RELEASE, canMarkRepaired, CAN_MARK_REPAIRED, canManageVehicles } from '../../src/types';
 import type { UserRole } from '../../src/types';
 
 // Every role in the system
@@ -102,6 +102,34 @@ describe('canMarkRepaired', () => {
   it('all roles return a defined boolean — no role silently missing', () => {
     for (const role of ALL_ROLES) {
       expect(typeof canMarkRepaired(role)).toBe('boolean');
+    }
+  });
+});
+
+describe('canManageVehicles', () => {
+  it('returns true for VSA and Lead VSA — the floor role gets direct identity edits', () => {
+    // The bug this pins (found live 2026-07-22): Lead VSA was missing while every OTHER
+    // role-gate in this file pairs VSA with Lead VSA — it silently routed a Lead VSA to
+    // the suggest-and-wait-for-approval sheet instead of the direct edit modal.
+    expect(canManageVehicles('VSA')).toBe(true);
+    expect(canManageVehicles('Lead VSA')).toBe(true);
+  });
+
+  it('returns true for every management role', () => {
+    expect(canManageVehicles('Branch Manager')).toBe(true);
+    expect(canManageVehicles('Operations Manager')).toBe(true);
+    expect(canManageVehicles('City Manager')).toBe(true);
+  });
+
+  it('returns false for CSR, HIR, and Driver — they suggest, they do not directly edit', () => {
+    expect(canManageVehicles('CSR')).toBe(false);
+    expect(canManageVehicles('HIR')).toBe(false);
+    expect(canManageVehicles('Driver')).toBe(false);
+  });
+
+  it('all roles return a defined boolean — no role silently missing', () => {
+    for (const role of ALL_ROLES) {
+      expect(typeof canManageVehicles(role)).toBe('boolean');
     }
   });
 });

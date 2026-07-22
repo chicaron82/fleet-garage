@@ -212,8 +212,13 @@ export interface Vehicle {
 export function canManageVehicles(role: UserRole): boolean {
   // VSA is included for FG's personal-first mode: Aaron is the sole operator, so the
   // floor role gets full vehicle management — archive/restore, direct identity edits
-  // (suggest→review has no reviewer when solo), and EV asset editing.
-  return ['VSA', 'Branch Manager', 'Operations Manager', 'City Manager'].includes(role);
+  // (suggest→review has no reviewer when solo), and EV asset editing. Lead VSA belongs
+  // here too — every OTHER role-gate in this file pairs 'VSA' with 'Lead VSA'
+  // (CAN_MARK_REPAIRED, CAN_MARK_PRE_EXISTING, schedule, handoff, sale-flag…); this was
+  // the one outlier, and it silently routed Lead VSA to the suggest-and-wait-for-approval
+  // sheet instead of the direct edit — found live 2026-07-22 when Aaron (Lead VSA) hit
+  // the field-provenance ladder's own edit modal and couldn't reach make/model/class.
+  return ['VSA', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager'].includes(role);
 }
 
 // ── Holds ────────────────────────────────────────────────────────────────────
