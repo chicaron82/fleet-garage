@@ -4,7 +4,7 @@
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
-import { resolveKeytag, type KeytagResolution, type KeytagFill } from './resolveKeytag';
+import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagConflict } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
 import type { Vehicle } from '../types';
@@ -52,6 +52,41 @@ export function backfillFieldsOnScan(
   const { resolution, vehicle, plate } = resolveKeytagScan(read, vehicles);
   if (resolution.kind !== 'partial' || !vehicle || resolution.fills.length === 0) return null;
   return { vehicleId: vehicle.id, plate, fills: resolution.fills };
+}
+
+/** The OTHER half of a partial resolution: the fields where the tag DISAGREES with the record.
+ *
+ *  `backfillFieldsOnScan` deliberately drops these — fill blanks, flag conflicts, never clobber a
+ *  value a human confirmed. But "flag" only happened on the Holds scanner; every other surface
+ *  called the backfill, got `null` for a conflict-only read, and showed the operator nothing. So a
+ *  tag that plainly disagrees with the record was SILENT on the scan-router — the surface that
+ *  replaced the barcode and gets the most tags.
+ *
+ *  That's the wrong kind of quiet for a tool whose whole job is removing ambiguity: the physical
+ *  tag in his hand is the best evidence FG will ever get about a car, and disagreeing with the
+ *  record is exactly the moment worth saying out loud. This reports; it never writes. Correcting
+ *  stays a deliberate act on the vehicle record (the ✏️ identity edit).
+ *
+ *  Sibling function rather than a new field on the backfill return: four call sites consume that
+ *  shape and none of them want conflicts. Pure. */
+export function keytagConflictsOnScan(
+  read: KeytagRead,
+  vehicles: Vehicle[],
+): { vehicleId: string; plate: string; conflicts: KeytagConflict[] } | null {
+  const { resolution, vehicle, plate } = resolveKeytagScan(read, vehicles);
+  if (resolution.kind !== 'partial' || !vehicle || resolution.conflicts.length === 0) return null;
+  return { vehicleId: vehicle.id, plate, conflicts: resolution.conflicts };
+}
+
+/** One human line for a disagreement: "⚠️ tag says class C, record says Q4". Separate from the
+ *  detection so the wording is testable and the same everywhere it's shown. */
+export function conflictNote(conflicts: KeytagConflict[]): string {
+  if (conflicts.length === 0) return '';
+  const label: Record<string, string> = {
+    unitNumber: 'unit', make: 'make', model: 'model', year: 'year', color: 'colour', rentalClass: 'class',
+  };
+  const parts = conflicts.map(c => `${label[c.field] ?? c.field} ${c.read} (record says ${c.existing})`);
+  return `⚠️ Tag says ${parts.join(' · ')} — open the record to correct it.`;
 }
 
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {

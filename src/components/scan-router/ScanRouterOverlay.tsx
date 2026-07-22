@@ -32,7 +32,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { vehicles, holds, updateVehicleFields, attachKeytagPhoto } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
-  const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
+  const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
@@ -146,6 +146,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {/* Never fill silently — name exactly what the tag just landed on the record. */}
                 {backfillToast && (
                   <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">{backfillToast}</p>
+                )}
+                {/* ...and never DISAGREE silently either. The tag in his hand is the best evidence
+                    FG gets; a record that contradicts it is worth a line, not a shrug. */}
+                {conflictToast && (
+                  <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">{conflictToast}</p>
                 )}
                 {/* Say WHY registration degraded. Before this the scan just quietly offered less
                     and the operator had to infer the cause from the shape of the failure. */}

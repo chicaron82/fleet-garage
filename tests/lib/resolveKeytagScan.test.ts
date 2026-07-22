@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../src/lib/resolveKeytagScan';
+import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
 
@@ -115,5 +115,49 @@ describe('backfillFieldsOnScan', () => {
     // vehicle already HAS a colour that disagrees → conflict, not a fill → no silent backfill
     const conflictFleet = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Black' })];
     expect(backfillFieldsOnScan(read, conflictFleet)).toBeNull();
+  });
+});
+
+// ── keytagConflictsOnScan + conflictNote ─────────────────────────────────────
+//
+// The gap this closes (found by /reflect 47): every surface except the Holds scanner called
+// backfillFieldsOnScan, which returns null for a conflict-only read — so a tag that plainly
+// disagreed with the record showed the operator NOTHING. Acute for `rentalClass`, where 156
+// rows were backfilled from inference and only a tag can prove one wrong.
+describe('keytagConflictsOnScan', () => {
+  const CLASSED: Vehicle[] = [{ ...FLEET[0], rentalClass: 'Q4' } as Vehicle];
+
+  it('reports a field where the tag disagrees with the record', () => {
+    const read = { plate: CLASSED[0].licensePlate, rentalClass: 'C' } as KeytagRead;
+    const out = keytagConflictsOnScan(read, CLASSED);
+    expect(out?.conflicts).toEqual([{ field: 'rentalClass', existing: 'Q4', read: 'C' }]);
+  });
+
+  it('is null when the tag agrees — no noise on the normal scan', () => {
+    const read = { plate: CLASSED[0].licensePlate, rentalClass: 'Q4' } as KeytagRead;
+    expect(keytagConflictsOnScan(read, CLASSED)).toBeNull();
+  });
+
+  it('is null for a car the fleet does not have', () => {
+    expect(keytagConflictsOnScan({ plate: 'ZZZ999', rentalClass: 'C' } as KeytagRead, CLASSED)).toBeNull();
+  });
+
+  // The two halves are independent: a read can fill a blank AND contradict another field.
+  it('reports the conflict even when there is also something to fill', () => {
+    const partial: Vehicle[] = [{ ...FLEET[0], color: '', rentalClass: 'Q4' } as Vehicle];
+    const read = { plate: partial[0].licensePlate, color: 'Red', rentalClass: 'C' } as KeytagRead;
+    expect(backfillFieldsOnScan(read, partial)?.fills).toEqual([{ field: 'color', value: 'Red' }]);
+    expect(keytagConflictsOnScan(read, partial)?.conflicts).toHaveLength(1);
+  });
+});
+
+describe('conflictNote', () => {
+  it('says which side is which, in words', () => {
+    expect(conflictNote([{ field: 'rentalClass', existing: 'Q4', read: 'C' }]))
+      .toBe('⚠️ Tag says class C (record says Q4) — open the record to correct it.');
+  });
+
+  it('is empty for no conflicts', () => {
+    expect(conflictNote([])).toBe('');
   });
 });

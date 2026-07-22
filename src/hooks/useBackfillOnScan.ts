@@ -15,7 +15,7 @@
 // logged against a car FG doesn't know. This one deliberately never creates a fleet row — the
 // scan-router keeps offering "Register" as the operator's choice. See docs/ticket-backfill-at-scan.md.
 import { useCallback, useState } from 'react';
-import { backfillFieldsOnScan } from '../lib/resolveKeytagScan';
+import { backfillFieldsOnScan, keytagConflictsOnScan, conflictNote } from '../lib/resolveKeytagScan';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
@@ -25,11 +25,20 @@ export function useBackfillOnScan(deps: {
 }) {
   const { vehicles, updateVehicleFields } = deps;
   const [backfillToast, setBackfillToast] = useState<string | null>(null);
+  // The disagreement half. Deliberately NOT auto-cleared like the fill toast: a fill is
+  // good news that can flash by, a conflict is something he has to decide about, and it
+  // dies with the scan card anyway.
+  const [conflictToast, setConflictToast] = useState<string | null>(null);
 
   /** Given a key-tag read: if it matches an on-record car with blank fields, fill them. No-ops for
    *  a new plate, a complete record, or a read that adds nothing. Never throws — a failed write
    *  must not block what the operator came here to do. */
   const backfillFromRead = useCallback(async (read: KeytagRead) => {
+    // Say the disagreement out loud BEFORE the write — it's independent of whether there
+    // was anything to fill, and it used to be swallowed entirely on this surface.
+    const cf = keytagConflictsOnScan(read, vehicles);
+    setConflictToast(cf ? conflictNote(cf.conflicts) : null);
+
     const bf = backfillFieldsOnScan(read, vehicles); // partial-with-fills, else null
     if (!bf) return;
     try {
@@ -40,5 +49,5 @@ export function useBackfillOnScan(deps: {
     } catch { /* non-blocking */ }
   }, [vehicles, updateVehicleFields]);
 
-  return { backfillToast, backfillFromRead };
+  return { backfillToast, conflictToast, backfillFromRead };
 }
