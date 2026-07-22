@@ -26,7 +26,7 @@ const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();
-  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhoto } = useVehicleHoldContext();
   const flip = useAirportFlip();
   const checkGeotab = useGeotabPending();
 
@@ -50,7 +50,7 @@ export function AirportFlipSection() {
 
   // Scan a return → resolve + enrich the fleet from the WHOLE read (register new / backfill partial),
   // then open the capture card. New cars / too-partial reads no-op the fleet write; never blocks.
-  const onScan = async (read: KeytagRead) => {
+  const onScan = async (read: KeytagRead, photo: string) => {
     const { plate, vehicle } = resolveKeytagScan(read, vehicles);
     if (!plate) { setToast('Could not read that tag — try again.'); return; }
     let registeredId: string | undefined;
@@ -74,6 +74,10 @@ export function AirportFlipSection() {
       isTesla,
       vehicleId: vehicle?.id ?? registeredId ?? null,
     });
+    // Keep the tag itself on the record — the evidence a misread can be audited against.
+    // Best-effort and fire-and-forget: never delays the capture card.
+    const scannedVehicleId = vehicle?.id ?? registeredId ?? null;
+    if (scannedVehicleId) void attachKeytagPhoto(scannedVehicleId, photo);
     setGeotabPending(await checkGeotab(plate));
     setOdo(''); setFuelLevel(null); setBatteryPct(null); setCable(null); setAdapter(null); setKeys(null); setDamaged(false); setNotes('');
   };
@@ -118,7 +122,7 @@ export function AirportFlipSection() {
       </div>
 
       {!capture ? (
-        <KeytagSearchScan onPlate={() => {}} onRead={(read) => void onScan(read)} />
+        <KeytagSearchScan onPlate={() => {}} onRead={(read, photo) => void onScan(read, photo)} />
       ) : (
         <div className="rounded-lg border border-fg-yellow/50 bg-yellow-50/40 dark:bg-yellow-900/10 p-3 space-y-2.5">
           <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">

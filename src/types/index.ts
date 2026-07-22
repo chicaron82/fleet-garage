@@ -176,6 +176,9 @@ export interface Vehicle {
   /** How many keys are on the ring. The EXPECTED count — what the car should come back with —
    *  so the check-in can diff it instead of the operator remembering. Null until first observed. */
   keyCount?: number | null;
+  /** The key tag photo the vision read was made FROM — evidence for auditing/correcting a
+   *  misread, and the provenance for teaching the codex a new class code. Latest tag wins. */
+  keytagPhotoUrl?: string | null;
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;

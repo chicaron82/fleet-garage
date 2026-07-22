@@ -1357,6 +1357,7 @@ export type Database = {
           id: string
           is_tesla: boolean
           key_count: number | null
+          keytag_photo_url: string | null
           license_plate: string
           make: string
           model: string
@@ -1387,6 +1388,7 @@ export type Database = {
           id: string
           is_tesla?: boolean
           key_count?: number | null
+          keytag_photo_url?: string | null
           license_plate: string
           make: string
           model: string
@@ -1417,6 +1419,7 @@ export type Database = {
           id?: string
           is_tesla?: boolean
           key_count?: number | null
+          keytag_photo_url?: string | null
           license_plate?: string
           make?: string
           model?: string

@@ -14,7 +14,8 @@ export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
   onPlate: (plate: string) => void;
   /** The FULL read — for a caller that wants the identity, not just the plate (the movement
    *  trip-start uses it to auto-register an unknown vehicle so its trip isn't an orphan). */
-  onRead?: (read: KeytagRead) => void;
+  /** The parsed read AND the image it came from — the photo is kept as the read's evidence. */
+  onRead?: (read: KeytagRead, photo: string) => void;
   disabled?: boolean;
 }) {
   const { readKeytag, status, error } = useKeytagRead();
@@ -27,7 +28,7 @@ export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
     const read = await readKeytag(base64);
     const plate = correctManitobaPrefix(read?.plate ?? '');
     if (plate) onPlate(plate);
-    if (read) onRead?.(read);
+    if (read) onRead?.(read, base64);
   };
 
   return (
