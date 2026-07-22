@@ -337,6 +337,10 @@ export interface ScannedIdentity {
   /** Rental class read off the tag's top corner (Q4, P4, T…), carried into registration
    *  so it's stored on the vehicle. Empty when the tag's class corner wasn't legible. */
   rentalClass: string;
+  /** The tag's class code, set ONLY when the codex couldn't resolve it. Its presence means
+   *  "registering this car also teaches FG what this code is" — the operator holding the tag
+   *  is the authority. Absent for codes the codex already knows (nothing to learn). */
+  teachClassCode?: string;
 }
 
 export type Screen =

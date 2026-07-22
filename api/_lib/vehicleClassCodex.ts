@@ -113,9 +113,15 @@ const CODEX: Record<string, VehicleClass> = {
 };
 
 /** Resolve a Hertz class code (e.g. "CCVL", "ccvl 25") to its make/model, or null. */
+/** The one place a class code is normalised. Tags print "CCVL 25" / "ccvl" / " CCVL " — the code
+ *  is the leading token. Shared because the lookup, the unknown-code log, the teach-back and the
+ *  register hand-off must all key on the SAME string, or a code gets taught under one spelling and
+ *  looked up under another (caught by a test, 2026-07-22). */
+export function normalizeClassCode(code: string | undefined | null): string {
+  return (code ?? '').trim().toUpperCase().split(/\s+/)[0] ?? '';
+}
+
 export function lookupVehicleClass(code: string | undefined | null): VehicleClass | null {
-  if (!code) return null;
-  // Tolerate "CCVL 25" / "ccvl" / " CCVL " — take the leading letter+digit token.
-  const key = code.trim().toUpperCase().split(/\s+/)[0];
-  return CODEX[key] ?? null;
+  const key = normalizeClassCode(code);
+  return key ? (CODEX[key] ?? null) : null;
 }

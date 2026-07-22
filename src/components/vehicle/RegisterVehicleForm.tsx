@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
+import { teachClassCode } from '../../hooks/useUnknownClassCode';
 import type { ScannedIdentity } from '../../types';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
@@ -133,6 +134,9 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
       // Promotion bookkeeping: point any remembered registry sighting for this
       // plate at the now-canonical vehicle (best-effort).
       void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
+      // The tag printed a code the codex couldn't resolve, and he just told us what the car IS —
+      // so learn it. Next scan of this code fills make/model on its own. Best-effort by design.
+      if (scanned?.teachClassCode) void teachClassCode(scanned.teachClassCode, make, model, user?.id);
       if (releaseFailed && unitConflict) {
         // Registration succeeded; only the old record's cleanup failed. Warn and
         // auto-proceed — non-blocking (the new vehicle is already correct).

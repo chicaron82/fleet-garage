@@ -11,6 +11,7 @@
 // fleet, the incomplete read is the NORMAL case, not the edge case. Nothing here guesses a make
 // or model (the codex's no-guessing rule stands); it just refuses to discard what was read.
 import type { KeytagRead } from '../../api/_lib/keytagRead';
+import { normalizeClassCode } from '../../api/_lib/vehicleClassCodex';
 import type { ScannedIdentity } from '../types';
 
 /** Everything the tag actually gave us, blanks where it didn't — never null-on-incomplete.
@@ -24,6 +25,8 @@ export function scannedFromRead(read: KeytagRead, plate: string): ScannedIdentit
     year:  read.year  ?? 0,
     color: read.color ?? '',
     rentalClass: read.rentalClass ?? '',
+    // Only when the codex missed — registering then teaches the mapping (see isUnknownClassCode).
+    teachClassCode: isUnknownClassCode(read) ? normalizeClassCode(read.classCode) : undefined,
   };
 }
 

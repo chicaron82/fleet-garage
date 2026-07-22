@@ -11,13 +11,13 @@ const DURANGO: KeytagRead = {
 describe('scannedFromRead', () => {
   it('keeps every field the tag DID give, blanking only what it did not', () => {
     expect(scannedFromRead(DURANGO, 'LUR437')).toEqual({
-      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '',
+      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '', teachClassCode: 'CDGT',
     });
   });
 
   it('never returns null on an incomplete read — that was the whole bug', () => {
     expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111')).toEqual({
-      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '',
+      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '', teachClassCode: undefined,
     });
   });
 
@@ -54,5 +54,27 @@ describe('isUnknownClassCode', () => {
   it('does not flag an unreadable class line — nothing to report', () => {
     expect(isUnknownClassCode({ plate: 'LUR437' })).toBe(false);
     expect(isUnknownClassCode({ plate: 'LUR437', classCode: '  ' })).toBe(false);
+  });
+});
+
+// Registering a car whose code the codex missed is what TEACHES the codex — so the code has to
+// ride along, and ONLY when there's something to learn.
+describe('scannedFromRead — the teach signal', () => {
+  it('carries the unresolved code, so registering the car teaches it', () => {
+    expect(scannedFromRead(DURANGO, 'LUR437').teachClassCode).toBe('CDGT');
+  });
+
+  it('carries NOTHING when the codex already resolved the code — nothing to learn', () => {
+    const known: KeytagRead = { plate: 'MCN133', unitNumber: '5423587', classCode: 'CCVL', make: 'Kia', model: 'Carnival' };
+    expect(scannedFromRead(known, 'MCN133').teachClassCode).toBeUndefined();
+  });
+
+  it('normalises the code it teaches (tags print "CDGT 26", casing varies)', () => {
+    const messy: KeytagRead = { plate: 'LUR437', unitNumber: '5429949', classCode: ' cdgt 26 ' };
+    expect(scannedFromRead(messy, 'LUR437').teachClassCode).toBe('CDGT');
+  });
+
+  it('teaches nothing when the tag had no code at all', () => {
+    expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111').teachClassCode).toBeUndefined();
   });
 });

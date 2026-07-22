@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
-import { lookupVehicleClass } from './_lib/vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
 
 interface FgRequest {
@@ -148,8 +148,21 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       res.status(502).json({ error: "Couldn't read a key tag from that photo." });
       return;
     }
+    const read = toKeytagRead(toolUse.input);
+    // The curated codex is tried first (in toKeytagRead). Only when it MISSES do we consult the
+    // codes Aaron has taught — so a taught row fills a gap and can never silently override a
+    // vetted mapping. One cheap keyed lookup, and only on the codes that would otherwise fail.
+    if (!read.make && read.classCode) {
+      const key = normalizeClassCode(read.classCode);
+      const { data: taught } = await supabase
+        .from('vehicle_class_codex')
+        .select('make, model')
+        .eq('code', key)
+        .maybeSingle();
+      if (taught?.make) { read.make = taught.make; read.model = taught.model; }
+    }
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ read: toKeytagRead(toolUse.input) });
+    res.status(200).json({ read });
   } catch (err) {
     console.error('[keytag-read] handler error:', err);
     res.status(500).json({ error: `Read error: ${err instanceof Error ? err.message : String(err)}` });

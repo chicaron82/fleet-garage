@@ -1245,6 +1245,33 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_class_codex: {
+        Row: {
+          code: string
+          make: string
+          model: string
+          taught_at: string
+          taught_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          make: string
+          model: string
+          taught_at?: string
+          taught_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          make?: string
+          model?: string
+          taught_at?: string
+          taught_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vehicle_identifiers: {
         Row: {
           confirmed: boolean
