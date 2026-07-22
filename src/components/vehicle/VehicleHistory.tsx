@@ -13,7 +13,7 @@ import { VehicleEVAssets } from './VehicleEVAssets';
 import { VehicleLostFoundSection } from './VehicleLostFoundSection';
 import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
-import { VehicleKeytagPhoto } from './VehicleKeytagPhoto';
+import { VehicleRecordFacts } from './VehicleRecordFacts';
 import { RepairResolution } from '../holds/RepairResolution';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
@@ -90,7 +90,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
               </div>
               <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
               <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
-              <div className="mt-2"><VehicleKeytagPhoto url={vehicle.keytagPhotoUrl} /></div>
+              <div className="mt-2"><VehicleRecordFacts keytagPhotoUrl={vehicle.keytagPhotoUrl} keyCount={vehicle.keyCount} /></div>
               {vehicle.editStatus === 'pending' && (
                 <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   Edit pending approval
