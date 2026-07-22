@@ -1379,6 +1379,7 @@ export type Database = {
           edit_suggestion_note: string | null
           ev_last_updated_at: string | null
           ev_last_updated_by: string | null
+          field_sources: Json
           has_j1772_adapter: boolean | null
           has_mobile_cable: boolean | null
           id: string
@@ -1410,6 +1411,7 @@ export type Database = {
           edit_suggestion_note?: string | null
           ev_last_updated_at?: string | null
           ev_last_updated_by?: string | null
+          field_sources?: Json
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id: string
@@ -1441,6 +1443,7 @@ export type Database = {
           edit_suggestion_note?: string | null
           ev_last_updated_at?: string | null
           ev_last_updated_by?: string | null
+          field_sources?: Json
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id?: string

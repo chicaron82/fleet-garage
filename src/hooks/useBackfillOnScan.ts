@@ -15,7 +15,7 @@
 // logged against a car FG doesn't know. This one deliberately never creates a fleet row — the
 // scan-router keeps offering "Register" as the operator's choice. See docs/ticket-backfill-at-scan.md.
 import { useCallback, useState } from 'react';
-import { backfillFieldsOnScan, keytagConflictsOnScan, conflictNote } from '../lib/resolveKeytagScan';
+import { backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../lib/resolveKeytagScan';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
@@ -39,12 +39,15 @@ export function useBackfillOnScan(deps: {
     const cf = keytagConflictsOnScan(read, vehicles);
     setConflictToast(cf ? conflictNote(cf.conflicts) : null);
 
-    const bf = backfillFieldsOnScan(read, vehicles); // partial-with-fills, else null
+    const bf = backfillFieldsOnScan(read, vehicles); // partial with fills and/or changes, else null
     if (!bf) return;
     try {
-      await updateVehicleFields(bf.vehicleId, bf.fills);
-      // Show the work — never fill silently, same house style as the plate-correction note.
-      setBackfillToast(`✨ Updated ${bf.plate} · filled ${bf.fills.map(f => f.field).join(', ')}`);
+      await updateVehicleFields(bf.vehicleId, bf.applies); // fills + non-locked corrections, stamped 'tag'
+      // Show the work — never write silently. A fill is new info; a change OVERRODE a stale value
+      // (an inferred guess or older tag read self-healing), which is worth saying more loudly.
+      const filled = bf.fills.length ? `filled ${bf.fills.map(f => f.field).join(', ')}` : '';
+      const changed = changeNote(bf.changes);
+      setBackfillToast(`✨ ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
       setTimeout(() => setBackfillToast(null), 3000);
     } catch { /* non-blocking */ }
   }, [vehicles, updateVehicleFields]);

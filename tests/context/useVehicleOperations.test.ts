@@ -22,6 +22,9 @@ const chain = {
   insert: vi.fn(() => chain),
   update: vi.fn(() => chain),
   eq:     vi.fn(() => chain),
+  // The provenance write paths read current field_sources before merging their stamps.
+  select:      vi.fn(() => chain),
+  maybeSingle: vi.fn(() => ({ data: null, error: null })),
 };
 
 vi.mock('../../src/lib/supabase', () => ({

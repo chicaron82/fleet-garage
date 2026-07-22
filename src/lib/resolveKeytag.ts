@@ -5,10 +5,17 @@
 // Pure + decoupled: the caller does the plate lookup FIRST (normalize → find the vehicle,
 // or null) and passes the result in. This function never writes and never touches the DB.
 //
-// Backfill principle (the load-bearing rule): FILL blanks freely, FLAG conflicts. A key-tag
-// read must never silently overwrite a good existing value — an OCR misread of the color
-// shouldn't clobber a color a human already confirmed. Blanks it fills automatically;
-// disagreements it surfaces for a human to resolve.
+// Provenance ladder (the load-bearing rule, reworked 2026-07-22 — docs/ticket-keytag-field-
+// provenance.md): inferred < tag < manual. A field's value is only as trustworthy as its source,
+// so rank sources by how much they actually know.
+//   • blank existing            → FILL   (the tag supplies what FG didn't have)
+//   • non-blank, NOT locked      → CHANGE (the tag overrides an inferred/older-tag value — applied,
+//                                          and warned, because a good value can also be misread)
+//   • non-blank, LOCKED (manual) → CONFLICT (Aaron edited it; the tag is blocked, and warned)
+// This replaces the old "fill blanks / flag conflicts" contract: a tag now CORRECTS a stale value
+// instead of only reporting it — which is how DiZee's 156 inferred rental classes self-heal — but
+// a value the operator manually set outranks any scan. `locked` comes from the vehicle's
+// field_sources (a field marked 'manual'). Pure: never writes, never touches the DB.
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
 /** The identity fields of an existing fleet vehicle a read can backfill — a subset of
@@ -32,7 +39,16 @@ export interface KeytagFill {
   value: string | number;
 }
 
-/** A field where the read disagrees with a good existing value — flagged, never applied. */
+/** A non-blank existing field the read OVERRIDES because it isn't locked — the value IS applied
+ *  (an inferred guess or an older tag read yielding to a fresh tag), and warned about. */
+export interface KeytagChange {
+  field: KeytagField;
+  from: string | number;   // the value being replaced
+  value: string | number;  // the tag's value, now applied
+}
+
+/** A field where the read disagrees with a LOCKED (manually-set) value — blocked, never applied,
+ *  surfaced so the operator sees the tag disagrees with his own edit. */
 export interface KeytagConflict {
   field: KeytagField;
   existing: string | number;
@@ -42,7 +58,7 @@ export interface KeytagConflict {
 export type KeytagResolution =
   | { kind: 'new' }
   | { kind: 'complete' }
-  | { kind: 'partial'; fills: KeytagFill[]; conflicts: KeytagConflict[] };
+  | { kind: 'partial'; fills: KeytagFill[]; changes: KeytagChange[]; conflicts: KeytagConflict[] };
 
 const FIELDS: KeytagField[] = ['unitNumber', 'make', 'model', 'year', 'color', 'rentalClass'];
 
@@ -64,11 +80,15 @@ function sameValue(a: string | number, b: string | number): boolean {
 export function resolveKeytag(
   read: KeytagRead,
   existing: KeytagExistingVehicle | null,
+  /** Fields the operator has manually set (from the vehicle's field_sources === 'manual'). A locked
+   *  field disagreeing with the tag is a CONFLICT (blocked); an unlocked one is a CHANGE (applied). */
+  locked: Partial<Record<KeytagField, boolean>> = {},
 ): KeytagResolution {
   // Plate not in the fleet → this is a brand-new car; register it from the read.
   if (!existing) return { kind: 'new' };
 
   const fills: KeytagFill[] = [];
+  const changes: KeytagChange[] = [];
   const conflicts: KeytagConflict[] = [];
   for (const field of FIELDS) {
     const readVal = read[field];
@@ -77,10 +97,14 @@ export function resolveKeytag(
     if (isBlank(existingVal)) {
       fills.push({ field, value: readVal as string | number });
     } else if (!sameValue(existingVal as string | number, readVal as string | number)) {
-      conflicts.push({ field, existing: existingVal as string | number, read: readVal as string | number });
+      if (locked[field]) {
+        conflicts.push({ field, existing: existingVal as string | number, read: readVal as string | number });
+      } else {
+        changes.push({ field, from: existingVal as string | number, value: readVal as string | number });
+      }
     }
   }
 
-  if (fills.length === 0 && conflicts.length === 0) return { kind: 'complete' };
-  return { kind: 'partial', fills, conflicts };
+  if (fills.length === 0 && changes.length === 0 && conflicts.length === 0) return { kind: 'complete' };
+  return { kind: 'partial', fills, changes, conflicts };
 }

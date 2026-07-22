@@ -11,7 +11,7 @@ import { makeRecordKeyCount } from './keyCountWrite';
 import { makeAttachKeytagPhoto } from './keytagPhotoWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
-import type { Vehicle, Hold, BranchId, VehicleStatus } from '../types';
+import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
 
 interface VehicleOperationsProps {
   allVehicles: Vehicle[];
@@ -211,17 +211,33 @@ export function useVehicleOperations({
     vehicleId: string,
     unit: string | null,
     plate: string,
-    // Optional: a human correcting the make/model/year/colour they mis-selected at
-    // registration. This is a deliberate OVERWRITE (unlike the keytag backfill, which only
-    // fills blanks) — a person typing the right value is exactly the "human resolves it"
-    // path the backfill rule defers to. Omitted → unit/plate-only edit, as before.
-    identity?: { make: string; model: string; year: number; color: string },
+    // Optional: a human correcting the make/model/year/colour/CLASS they mis-selected at
+    // registration, or fixing what a wrong tag mapped to. This is a deliberate OVERWRITE and it
+    // LOCKS those fields (field_sources 'manual') — the operator standing at the car outranks any
+    // scan, so no future tag read overrides his edit (the CCLH-should-be-CCMH case). Omitted →
+    // unit/plate-only edit, as before.
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null },
   ) => {
+    // Manual edit = the operator's confirmed truth → stamp 'manual' on every field he set, so the
+    // provenance ladder (inferred < tag < manual) blocks a later scan from clobbering it. Merge into
+    // the existing sources (read-modify-write; single-operator tool, no concurrent writers).
+    const stamps: Record<string, FieldSource> = {};
+    if (unit) stamps.unitNumber = 'manual';
+    if (identity) {
+      stamps.make = 'manual'; stamps.model = 'manual'; stamps.year = 'manual'; stamps.color = 'manual';
+      if (identity.rentalClass && identity.rentalClass.trim() !== '') stamps.rentalClass = 'manual';
+    }
+    const { data: cur } = await supabase.from('vehicles').select('field_sources').eq('id', vehicleId).maybeSingle();
+    const existingSources = (cur && typeof cur.field_sources === 'object' && cur.field_sources)
+      ? (cur.field_sources as Record<string, FieldSource>) : {};
+    const mergedSources = { ...existingSources, ...stamps };
+
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({
         unit_number:          unit,
         license_plate:        plate,
-        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color } : {}),
+        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass } : {}),
+        field_sources:        mergedSources,
         edit_status:          null,
         edit_suggested_unit:  null,
         edit_suggested_plate: null,
@@ -234,8 +250,8 @@ export function useVehicleOperations({
     );
     if (error) return;
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
-      ...v, unitNumber: unit, licensePlate: plate, editStatus: null,
-      ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color } : {}),
+      ...v, unitNumber: unit, licensePlate: plate, editStatus: null, fieldSources: mergedSources,
+      ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rentalClass: identity.rentalClass } : {}),
     }));
   };
 

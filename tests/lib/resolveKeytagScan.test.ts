@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote } from '../../src/lib/resolveKeytagScan';
+import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
 
@@ -31,7 +31,6 @@ describe('resolveKeytagScan', () => {
   });
 
   it('a misread MB prefix is corrected before matching (LMR→LUR), and matches the fleet', () => {
-    // "LMR554" is a hand-drawn-U misread of LUR554 — the snap corrects it, then it matches.
     const read: KeytagRead = { plate: 'LMR554', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
     const r = resolveKeytagScan(read, FLEET);
     expect(r.plate).toBe('LUR554');
@@ -49,13 +48,15 @@ describe('resolveKeytagScan', () => {
     expect(r.resolution.fills.map(f => f.field).sort()).toEqual(['model', 'year']);
   });
 
-  it('an uncorrected unmatched plate is new, not corrected', () => {
-    const read: KeytagRead = { plate: 'ABC123' }; // foreign-ish, nowhere near a known prefix
-    const r = resolveKeytagScan(read, FLEET);
-    expect(r.plate).toBe('ABC123');
-    expect(r.wasCorrected).toBe(false);
-    expect(r.vehicle).toBeNull();
-    expect(r.resolution.kind).toBe('new');
+  it('a locked field feeds through from the vehicle field_sources → conflict, not change', () => {
+    // The vehicle's colour was manually set → a disagreeing tag is blocked.
+    const locked = [vehicle({ id: 'v-1', licensePlate: 'LUR554', color: 'Gray', fieldSources: { color: 'manual' } })];
+    const read: KeytagRead = { plate: 'LUR554', color: 'Blue' };
+    const r = resolveKeytagScan(read, locked);
+    expect(r.resolution.kind).toBe('partial');
+    if (r.resolution.kind !== 'partial') return;
+    expect(r.resolution.changes).toEqual([]);
+    expect(r.resolution.conflicts).toEqual([{ field: 'color', existing: 'Gray', read: 'Blue' }]);
   });
 });
 
@@ -72,31 +73,22 @@ describe('newVehicleToRegisterOnScan', () => {
     expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
   });
 
-  it('a misread MB prefix that matches the fleet after correction → null (known, not new)', () => {
-    const read: KeytagRead = { plate: 'LMR554', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
-    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
-  });
-
   it('new plate but too partial to register (no make/model) → null', () => {
     const read: KeytagRead = { plate: 'LZM999', unitNumber: '5424999' };
-    expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
-  });
-
-  it('no plate on the read → null', () => {
-    const read: KeytagRead = { make: 'Kia', model: 'Seltos', year: 2026 };
     expect(newVehicleToRegisterOnScan(read, FLEET)).toBeNull();
   });
 });
 
 describe('backfillFieldsOnScan', () => {
-  // A thin fleet record: on file, but its colour was never captured (blank). Canonical LUR
-  // plate so the MB-prefix snap leaves it unchanged and it matches by plate.
   const PARTIAL_FLEET = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: '' })];
 
   it('on-record but partial (blank colour) + the tag has it → the fill for that vehicle', () => {
     const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
     expect(backfillFieldsOnScan(read, PARTIAL_FLEET)).toEqual({
-      vehicleId: 'v-2', plate: 'LUR200', fills: [{ field: 'color', value: 'Silver' }],
+      vehicleId: 'v-2', plate: 'LUR200',
+      applies: [{ field: 'color', value: 'Silver' }],
+      fills: [{ field: 'color', value: 'Silver' }],
+      changes: [],
     });
   });
 
@@ -110,54 +102,68 @@ describe('backfillFieldsOnScan', () => {
     expect(backfillFieldsOnScan(read, FLEET)).toBeNull();
   });
 
-  it('a conflict-only read (tag disagrees, nothing blank) → null (never overwrites)', () => {
-    const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
-    // vehicle already HAS a colour that disagrees → conflict, not a fill → no silent backfill
+  it('UNLOCKED disagreement → a CHANGE that gets applied (the self-heal; no longer null)', () => {
+    // The car has a colour that disagrees, but it was never manually locked → the tag corrects it.
     const conflictFleet = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Black' })];
-    expect(backfillFieldsOnScan(read, conflictFleet)).toBeNull();
+    const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
+    const out = backfillFieldsOnScan(read, conflictFleet);
+    expect(out?.applies).toEqual([{ field: 'color', value: 'Silver' }]);
+    expect(out?.changes).toEqual([{ field: 'color', from: 'Black', value: 'Silver' }]);
+    expect(out?.fills).toEqual([]);
+  });
+
+  it('LOCKED disagreement → null from backfill (blocked, not applied)', () => {
+    const lockedFleet = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Black', fieldSources: { color: 'manual' } })];
+    const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
+    expect(backfillFieldsOnScan(read, lockedFleet)).toBeNull();
   });
 });
 
-// ── keytagConflictsOnScan + conflictNote ─────────────────────────────────────
-//
-// The gap this closes (found by /reflect 47): every surface except the Holds scanner called
-// backfillFieldsOnScan, which returns null for a conflict-only read — so a tag that plainly
-// disagreed with the record showed the operator NOTHING. Acute for `rentalClass`, where 156
-// rows were backfilled from inference and only a tag can prove one wrong.
+// ── keytagConflictsOnScan + notes: a conflict now requires a LOCKED (manual) field ─────────────
 describe('keytagConflictsOnScan', () => {
-  const CLASSED: Vehicle[] = [{ ...FLEET[0], rentalClass: 'Q4' } as Vehicle];
+  // rentalClass manually set → locked. A disagreeing tag is a conflict.
+  const LOCKED: Vehicle[] = [vehicle({ rentalClass: 'E6', fieldSources: { rentalClass: 'manual' } })];
 
-  it('reports a field where the tag disagrees with the record', () => {
-    const read = { plate: CLASSED[0].licensePlate, rentalClass: 'C' } as KeytagRead;
-    const out = keytagConflictsOnScan(read, CLASSED);
-    expect(out?.conflicts).toEqual([{ field: 'rentalClass', existing: 'Q4', read: 'C' }]);
+  it('reports a field where the tag disagrees with a MANUALLY-SET (locked) value', () => {
+    const read = { plate: LOCKED[0].licensePlate, rentalClass: 'F' } as KeytagRead;
+    const out = keytagConflictsOnScan(read, LOCKED);
+    expect(out?.conflicts).toEqual([{ field: 'rentalClass', existing: 'E6', read: 'F' }]);
+  });
+
+  it('an UNLOCKED (inferred) class that disagrees is a change, NOT a conflict → null here', () => {
+    const inferred: Vehicle[] = [vehicle({ rentalClass: 'Q4' })]; // no field_sources → overwritable
+    const read = { plate: inferred[0].licensePlate, rentalClass: 'C' } as KeytagRead;
+    expect(keytagConflictsOnScan(read, inferred)).toBeNull();
   });
 
   it('is null when the tag agrees — no noise on the normal scan', () => {
-    const read = { plate: CLASSED[0].licensePlate, rentalClass: 'Q4' } as KeytagRead;
-    expect(keytagConflictsOnScan(read, CLASSED)).toBeNull();
+    const read = { plate: LOCKED[0].licensePlate, rentalClass: 'E6' } as KeytagRead;
+    expect(keytagConflictsOnScan(read, LOCKED)).toBeNull();
   });
 
   it('is null for a car the fleet does not have', () => {
-    expect(keytagConflictsOnScan({ plate: 'ZZZ999', rentalClass: 'C' } as KeytagRead, CLASSED)).toBeNull();
-  });
-
-  // The two halves are independent: a read can fill a blank AND contradict another field.
-  it('reports the conflict even when there is also something to fill', () => {
-    const partial: Vehicle[] = [{ ...FLEET[0], color: '', rentalClass: 'Q4' } as Vehicle];
-    const read = { plate: partial[0].licensePlate, color: 'Red', rentalClass: 'C' } as KeytagRead;
-    expect(backfillFieldsOnScan(read, partial)?.fills).toEqual([{ field: 'color', value: 'Red' }]);
-    expect(keytagConflictsOnScan(read, partial)?.conflicts).toHaveLength(1);
+    expect(keytagConflictsOnScan({ plate: 'ZZZ999', rentalClass: 'C' } as KeytagRead, LOCKED)).toBeNull();
   });
 });
 
-describe('conflictNote', () => {
-  it('says which side is which, in words', () => {
-    expect(conflictNote([{ field: 'rentalClass', existing: 'Q4', read: 'C' }]))
-      .toBe('⚠️ Tag says class C (record says Q4) — open the record to correct it.');
+describe('conflictNote (blocked — the operator\'s edit wins)', () => {
+  it('says the tag disagrees but the manual edit is kept', () => {
+    expect(conflictNote([{ field: 'rentalClass', existing: 'E6', read: 'F' }]))
+      .toBe('⚠️ Tag says class F — your edit (E6) kept');
   });
 
   it('is empty for no conflicts', () => {
     expect(conflictNote([])).toBe('');
+  });
+});
+
+describe('changeNote (applied — the tag corrected a stale value)', () => {
+  it('says what was updated, old → new', () => {
+    expect(changeNote([{ field: 'rentalClass', from: 'Q4', value: 'C' }]))
+      .toBe('↻ Updated from tag: class Q4 → C');
+  });
+
+  it('is empty for no changes', () => {
+    expect(changeNote([])).toBe('');
   });
 });

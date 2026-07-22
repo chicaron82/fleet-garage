@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation, ShiftCheckpoint } from '../types';
+import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation, ShiftCheckpoint, FieldSource } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -50,6 +50,7 @@ export function mapVehicle(row: Row): Vehicle {
     year:         reqNum(row, 'year',          'mapVehicle'),
     color:        reqStr(row, 'color',         'mapVehicle'),
     rentalClass:  nullableStr(row, 'rental_class'),
+    fieldSources: (row['field_sources'] as Record<string, FieldSource>) ?? {},
     keyCount:     (row['key_count'] as number | null) ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,

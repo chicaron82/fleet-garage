@@ -45,7 +45,7 @@ describe('planOverflowScan', () => {
     const partialFleet = [vehicle({ id: 'v-2', licensePlate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: '' })];
     const read: KeytagRead = { plate: 'LUR200', unitNumber: '5424200', make: 'Kia', model: 'Seltos', year: 2026, color: 'Silver' };
     const r = planOverflowScan(read, partialFleet);
-    expect(r?.backfill).toEqual({ vehicleId: 'v-2', fills: [{ field: 'color', value: 'Silver' }] });
+    expect(r?.backfill).toEqual({ vehicleId: 'v-2', applies: [{ field: 'color', value: 'Silver' }] });
     expect(r?.register).toBeNull();
     expect(r?.send).toEqual({ plate: 'LUR200', unit: '5424200', label: 'Unit 5424200' });
   });

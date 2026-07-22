@@ -76,18 +76,31 @@ describe('useBackfillOnScan', () => {
     expect(result.current.backfillToast).toBeNull();
   });
 
-  it('never overwrites a good existing value — a conflicting read is not a fill', async () => {
-    // Same car, but the tag disagrees on make. resolveKeytag flags conflicts, never applies them;
-    // only the genuinely blank unit# may land.
-    const partiallyKnown: Vehicle = { ...PLACEHOLDER, make: 'Toyota', model: 'Corolla', year: 2024 };
-    const { result } = mount([partiallyKnown]);
+  it('never overwrites a MANUALLY-LOCKED value — a locked field blocks the tag', async () => {
+    // make was manually set (field_sources 'manual') → the disagreeing tag is BLOCKED for make, and
+    // surfaced on the conflict toast. The genuinely blank fields still fill.
+    const locked: Vehicle = { ...PLACEHOLDER, make: 'Toyota', fieldSources: { make: 'manual' } };
+    const { result } = mount([locked]);
 
     await act(async () => { await result.current.backfillFromRead(READ); });
 
-    const fills = updateVehicleFields.mock.calls[0][1] as { field: string }[];
-    expect(fills.map(f => f.field)).not.toContain('make');
-    expect(fills.map(f => f.field)).not.toContain('year');
-    expect(fills.map(f => f.field)).toContain('unitNumber');
+    const applies = updateVehicleFields.mock.calls[0][1] as { field: string }[];
+    expect(applies.map(f => f.field)).not.toContain('make'); // locked → blocked
+    expect(applies.map(f => f.field)).toContain('unitNumber'); // blank → filled
+    expect(result.current.conflictToast).toContain('make'); // the block is said out loud
+  });
+
+  it('CORRECTS an unlocked (inferred) value — the tag self-heals it, and says so', async () => {
+    // make was never locked → the tag overrides the stale value (this is how the 156 inferred
+    // classes self-heal). The override is applied AND named on the backfill toast.
+    const inferred: Vehicle = { ...COMPLETE, id: 'v-inf', licensePlate: 'LZM534', make: 'Kia' };
+    const { result } = mount([inferred]);
+
+    await act(async () => { await result.current.backfillFromRead(READ); });
+
+    const applies = updateVehicleFields.mock.calls[0][1] as { field: string }[];
+    expect(applies.map(f => f.field)).toContain('make'); // unlocked → corrected
+    expect(result.current.backfillToast).toMatch(/Kia → Hyundai/);
   });
 
   it('swallows a failed write — a backfill must never block what the operator came to do', async () => {

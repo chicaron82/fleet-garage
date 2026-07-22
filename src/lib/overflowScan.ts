@@ -15,8 +15,9 @@ export interface OverflowScanResult {
   send: { plate: string; unit: string | null; label: string };
   /** Non-null → register this new car before logging the send. */
   register: NewVehicle | null;
-  /** Non-null → backfill these blank fields on the on-record vehicle before the send. */
-  backfill: { vehicleId: string; fills: KeytagFill[] } | null;
+  /** Non-null → apply these fields (blank fills + non-locked tag corrections) on the on-record
+   *  vehicle before the send. `applies` is what the write sets, stamped 'tag'. */
+  backfill: { vehicleId: string; applies: KeytagFill[] } | null;
   /** True = new to the fleet but the tag was too partial to register — the send is an orphan. */
   unregistered: boolean;
 }
@@ -40,7 +41,7 @@ export function planOverflowScan(read: KeytagRead, vehicles: Vehicle[]): Overflo
   return {
     send: { plate, unit, label: labelFor(unit, plate) },
     register: null,
-    backfill: bf ? { vehicleId: bf.vehicleId, fills: bf.fills } : null,
+    backfill: bf ? { vehicleId: bf.vehicleId, applies: bf.applies } : null,
     unregistered: false,
   };
 }

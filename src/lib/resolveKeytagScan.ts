@@ -4,10 +4,18 @@
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
-import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagConflict } from './resolveKeytag';
+import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
-import type { Vehicle } from '../types';
+import type { Vehicle, FieldSource } from '../types';
+
+/** A vehicle's field_sources → the fields the operator has LOCKED (source 'manual'). A locked
+ *  field disagreeing with the tag becomes a conflict (blocked); everything else is fill/change. */
+function lockedFromSources(fs: Record<string, FieldSource> | undefined): Partial<Record<KeytagField, boolean>> {
+  const locked: Partial<Record<KeytagField, boolean>> = {};
+  if (fs) for (const [k, v] of Object.entries(fs)) if (v === 'manual') locked[k as KeytagField] = true;
+  return locked;
+}
 
 /** A read complete enough to register from (the identity essentials) → a NewVehicle, else
  *  null. Lives here (the keytag resolve lib) so both the single-scan hook and the batch
@@ -48,10 +56,16 @@ export function newVehicleToRegisterOnScan(read: KeytagRead, vehicles: Vehicle[]
 export function backfillFieldsOnScan(
   read: KeytagRead,
   vehicles: Vehicle[],
-): { vehicleId: string; plate: string; fills: KeytagFill[] } | null {
+): { vehicleId: string; plate: string; applies: KeytagFill[]; fills: KeytagFill[]; changes: KeytagChange[] } | null {
   const { resolution, vehicle, plate } = resolveKeytagScan(read, vehicles);
-  if (resolution.kind !== 'partial' || !vehicle || resolution.fills.length === 0) return null;
-  return { vehicleId: vehicle.id, plate, fills: resolution.fills };
+  if (resolution.kind !== 'partial' || !vehicle) return null;
+  const { fills, changes } = resolution;
+  if (fills.length === 0 && changes.length === 0) return null;
+  // `applies` is what the write sets: blanks filled + non-locked disagreements corrected. The
+  // caller stamps every applied field's source as 'tag'. `fills`/`changes` stay separate so the
+  // toast can say which were NEW vs which OVERRODE a stale value.
+  const applies: KeytagFill[] = [...fills, ...changes.map(c => ({ field: c.field, value: c.value }))];
+  return { vehicleId: vehicle.id, plate, applies, fills, changes };
 }
 
 /** The OTHER half of a partial resolution: the fields where the tag DISAGREES with the record.
@@ -78,15 +92,24 @@ export function keytagConflictsOnScan(
   return { vehicleId: vehicle.id, plate, conflicts: resolution.conflicts };
 }
 
-/** One human line for a disagreement: "⚠️ tag says class C, record says Q4". Separate from the
- *  detection so the wording is testable and the same everywhere it's shown. */
+const FIELD_LABEL: Record<string, string> = {
+  unitNumber: 'unit', make: 'make', model: 'model', year: 'year', color: 'colour', rentalClass: 'class',
+};
+
+/** One human line for a BLOCKED disagreement — the tag disagrees with a value Aaron manually set,
+ *  so his edit wins and the tag is not applied: "⚠️ Tag says class F — your edit (E6) kept". */
 export function conflictNote(conflicts: KeytagConflict[]): string {
   if (conflicts.length === 0) return '';
-  const label: Record<string, string> = {
-    unitNumber: 'unit', make: 'make', model: 'model', year: 'year', color: 'colour', rentalClass: 'class',
-  };
-  const parts = conflicts.map(c => `${label[c.field] ?? c.field} ${c.read} (record says ${c.existing})`);
-  return `⚠️ Tag says ${parts.join(' · ')} — open the record to correct it.`;
+  const parts = conflicts.map(c => `${FIELD_LABEL[c.field] ?? c.field} ${c.read} — your edit (${c.existing}) kept`);
+  return `⚠️ Tag says ${parts.join(' · ')}`;
+}
+
+/** One human line for an APPLIED change — the tag corrected a stale (inferred / older-tag) value
+ *  that wasn't locked: "↻ Updated from tag: class Q4 → C". Says the override out loud; never silent. */
+export function changeNote(changes: KeytagChange[]): string {
+  if (changes.length === 0) return '';
+  const parts = changes.map(c => `${FIELD_LABEL[c.field] ?? c.field} ${c.from} → ${c.value}`);
+  return `↻ Updated from tag: ${parts.join(' · ')}`;
 }
 
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {
@@ -103,6 +126,6 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     plate,
     wasCorrected: plate !== raw,
     vehicle,
-    resolution: resolveKeytag(read, existing),
+    resolution: resolveKeytag(read, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
   };
 }

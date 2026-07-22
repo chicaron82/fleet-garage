@@ -49,7 +49,7 @@ export function useOverflowSend(onLogged?: () => void) {
         sendStatus = 'registered';
       } catch { sendStatus = 'unregistered'; }
     } else if (plan.backfill) {
-      try { await updateVehicleFields(plan.backfill.vehicleId, plan.backfill.fills); sendStatus = 'backfilled'; }
+      try { await updateVehicleFields(plan.backfill.vehicleId, plan.backfill.applies); sendStatus = 'backfilled'; }
       catch { sendStatus = 'known'; }
     } else if (plan.unregistered) {
       sendStatus = 'unregistered';

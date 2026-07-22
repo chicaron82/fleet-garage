@@ -160,6 +160,10 @@ export interface EvAssetLoan {
 
 export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
+/** How an identity field's current value was set — provenance for the key-tag ladder
+ *  (inferred < tag < manual). Absent from a vehicle's `fieldSources` means inferred/unknown. */
+export type FieldSource = 'tag' | 'manual';
+
 export interface Vehicle {
   id: string;
   unitNumber: string | null;
@@ -173,6 +177,12 @@ export interface Vehicle {
   /** Rental class — the boss's size/type group code (Q4, P4, T, L2…), read off the keytag's
    *  top corner. The shorthand the boss uses to request returns; null when unknown/manual. */
   rentalClass?: string | null;
+  /** Per-field provenance for the key-tag identity fields (make/model/year/color/rentalClass/
+   *  unitNumber): which source last set each value. Absent key = inferred/unknown (freely
+   *  overwritten); 'tag' = read off a key tag; 'manual' = Aaron edited it (LOCKED — no scan
+   *  overrides it). The provenance ladder inferred < tag < manual — migration 105 /
+   *  docs/ticket-keytag-field-provenance.md. */
+  fieldSources?: Record<string, FieldSource>;
   /** How many keys are on the ring. The EXPECTED count — what the car should come back with —
    *  so the check-in can diff it instead of the operator remembering. Null until first observed. */
   keyCount?: number | null;

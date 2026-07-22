@@ -41,8 +41,10 @@ export function useRegisterOnScan(deps: {
     const bf = backfillFieldsOnScan(read, vehicles);
     if (bf) {
       try {
-        await updateVehicleFields(bf.vehicleId, bf.fills);
-        flash(`✨ Updated ${bf.plate} · filled ${bf.fills.map(f => f.field).join(', ')}`);
+        await updateVehicleFields(bf.vehicleId, bf.applies);
+        const filled = bf.fills.length ? `filled ${bf.fills.map(f => f.field).join(', ')}` : '';
+        const changed = bf.changes.length ? `corrected ${bf.changes.map(c => c.field).join(', ')}` : '';
+        flash(`✨ Updated ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
       } catch { /* non-blocking */ }
     }
   }, [vehicles, addVehicle, updateVehicleFields, user]);

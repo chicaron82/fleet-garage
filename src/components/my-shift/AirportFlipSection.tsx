@@ -67,7 +67,7 @@ export function AirportFlipSection() {
       if (nv) registeredId = await addVehicle({ unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model, year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, isTesla: nv.make === 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR' });
       else {
         const bf = backfillFieldsOnScan(read, vehicles);
-        if (bf) await updateVehicleFields(bf.vehicleId, bf.fills);
+        if (bf) await updateVehicleFields(bf.vehicleId, bf.applies);
       }
     } catch { /* fleet enrichment is best-effort — the flip capture still proceeds */ }
     // EITHER signal marks it an EV: the fleet record (authoritative for a car on file) OR the tag's

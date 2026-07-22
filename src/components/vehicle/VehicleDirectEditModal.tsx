@@ -11,12 +11,13 @@ interface VehicleDirectEditModalProps {
   initialModel: string;
   initialYear: number;
   initialColor: string;
+  initialRentalClass: string | null;
   onClose: () => void;
   directEditVehicleIdentity: (
     vehicleId: string,
     unitNumber: string | null,
     licensePlate: string,
-    identity?: { make: string; model: string; year: number; color: string },
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null },
   ) => Promise<void>;
 }
 
@@ -28,6 +29,7 @@ export function VehicleDirectEditModal({
   initialModel,
   initialYear,
   initialColor,
+  initialRentalClass,
   onClose,
   directEditVehicleIdentity,
 }: VehicleDirectEditModalProps) {
@@ -38,6 +40,10 @@ export function VehicleDirectEditModal({
   // Seed a blank/unknown year (0 sentinel) to the current year so the stepper starts in range.
   const [editYear, setEditYear] = useState(initialYear >= 2000 ? initialYear : new Date().getFullYear());
   const [editColor, setEditColor] = useState(initialColor);
+  // Rental class (Q4, E6, P4, R…). Editing it here LOCKS it against future tag reads — the fix for
+  // a tag that maps to the wrong class (CCLH→Corolla when the car's really a Camry, or class F where
+  // it should be E6). Freeform short code, upper-cased on save.
+  const [editClass, setEditClass] = useState(initialRentalClass ?? '');
   const [editSaving, setEditSaving] = useState(false);
 
   const canSave = !!editPlate.trim() && !!editMake && !!editModel && editYear > 1999 && !!editColor && !editSaving;
@@ -91,6 +97,18 @@ export function VehicleDirectEditModal({
             onYear={setEditYear}
             onColor={setEditColor}
           />
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+              Rental Class <span className="normal-case font-normal text-gray-400">(locks against tag reads)</span>
+            </label>
+            <input
+              value={editClass}
+              onChange={e => setEditClass(e.target.value.toUpperCase())}
+              placeholder="e.g. E6, Q4, R"
+              maxLength={5}
+              className={INPUT}
+            />
+          </div>
         </div>
         <div className="flex gap-3 pt-1">
           <button
@@ -109,7 +127,7 @@ export function VehicleDirectEditModal({
                 vehicleId,
                 editUnit.trim() || null,
                 editPlate.trim().toUpperCase(),
-                { make: editMake, model: editModel, year: editYear, color: editColor },
+                { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null },
               );
               setEditSaving(false);
               onClose();
