@@ -141,6 +141,7 @@ export default function App() {
         return (
           <NewHoldForm
             vehicleId={screen.vehicleId}
+            prefillNonce={screen.prefillNonce}
             onBack={() => navigate({ name: 'dashboard' })}
             onSuccess={(vehicleId) => {
               // If this hold came from a fresh registration, clean the history stack

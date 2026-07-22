@@ -10,7 +10,7 @@ import { DETAIL_REASON_LABELS } from '../types';
 
 const MAX_PHOTOS = 4;
 
-export function useNewHold(preselectedId?: string) {
+export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   const { user } = useAuth();
   const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto } = useVehicleHoldContext();
 
@@ -23,6 +23,13 @@ export function useNewHold(preselectedId?: string) {
   // the wrong vehicle. Render-time adjustment (not an effect: the repo lints set-state-in-effect).
   // Same class as the movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
   useRoutedProp(preselectedId, setSelectedVehicleId);
+  // ...but a value-keyed re-seed only fires once per distinct id, and a SCAN is an EVENT: after
+  // `clearVehicle` blanks the selection, re-scanning the SAME tag routes the identical vehicleId,
+  // so the line above no-ops and the form stays empty — the scan looks dead. (Exactly the LZM531
+  // bug fixed for Start-trip / Lost-&-found on 2026-07-21; new-hold was the route left unstamped.)
+  // Keyed on the per-scan nonce so a repeat re-selects. Both are needed: the value re-seed covers
+  // non-scan navigations (vehicle screen → Flag, register → hold), which carry no nonce.
+  useRoutedProp(preselectedNonce, () => setSelectedVehicleId(preselectedId ?? null));
   const [holdTypes, setHoldTypes] = useState<HoldType[]>(['damage']);
   // The category most recently toggled ON — drives scroll-to-section so a newly
   // revealed sub-section comes into view (the tap otherwise looks like a no-op).

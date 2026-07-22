@@ -42,7 +42,7 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
     const who = vehicle.unitNumber ? `Unit ${vehicle.unitNumber}` : plate;
     return [
       { kind: 'view', label: `View ${who}`, icon: '🔎', screen: { name: 'vehicle', vehicleId: vehicle.id } },
-      { kind: 'flag', label: 'Flag / hold', icon: '🔧', screen: { name: 'new-hold', vehicleId: vehicle.id } },
+      { kind: 'flag', label: 'Flag / hold', icon: '🔧', screen: { name: 'new-hold', vehicleId: vehicle.id, prefillNonce: scanNonce } },
       logLostFound,
       { kind: 'trip', label: 'Start trip', icon: '🚗', screen: { name: 'movement-log', prefillPlate: plate, prefillNonce: scanNonce, autoStart: true } },
     ];

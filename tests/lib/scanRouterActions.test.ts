@@ -22,7 +22,7 @@ describe('scanRouterActions', () => {
     const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1);
     expect(actions.map(a => a.kind)).toEqual(['view', 'flag', 'lnf', 'trip']);
     expect(actions.find(a => a.kind === 'view')!.screen).toEqual({ name: 'vehicle', vehicleId: 'v-1' });
-    expect(actions.find(a => a.kind === 'flag')!.screen).toEqual({ name: 'new-hold', vehicleId: 'v-1' });
+    expect(actions.find(a => a.kind === 'flag')!.screen).toEqual({ name: 'new-hold', vehicleId: 'v-1', prefillNonce: 1 });
     expect(actions.find(a => a.kind === 'lnf')!.screen).toEqual({ name: 'lost-and-found', prefillPlate: 'LUR554', prefillNonce: 1 });
     expect(actions.find(a => a.kind === 'trip')!.screen).toEqual({ name: 'movement-log', prefillPlate: 'LUR554', prefillNonce: 1, autoStart: true });
   });
@@ -33,11 +33,15 @@ describe('scanRouterActions', () => {
     const second = scanRouterActions(read, resolveKeytagScan(read, FLEET), 8);
     const nonceOf = (as: typeof first, kind: string) =>
       (as.find(a => a.kind === kind)!.screen as { prefillNonce?: number }).prefillNonce;
-    // Same tag, two scans → different nonce on both trip and lnf routes.
+    // Same tag, two scans → different nonce on EVERY prefill route. `flag` joined trip+lnf on
+    // 2026-07-22: new-hold re-seeds from a value, so without a per-scan nonce a repeat scan of the
+    // same car no-opped after `clearVehicle` and the form sat empty (caught by the line-check).
     expect(nonceOf(first, 'trip')).toBe(7);
     expect(nonceOf(second, 'trip')).toBe(8);
     expect(nonceOf(first, 'lnf')).toBe(7);
     expect(nonceOf(second, 'lnf')).toBe(8);
+    expect(nonceOf(first, 'flag')).toBe(7);
+    expect(nonceOf(second, 'flag')).toBe(8);
   });
 
   it('NEVER offers register for an on-record car', () => {

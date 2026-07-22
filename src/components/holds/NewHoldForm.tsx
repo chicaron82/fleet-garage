@@ -14,13 +14,15 @@ import { NewHoldDetailsSection } from './NewHoldDetailsSection';
 
 interface Props {
   vehicleId?: string;
+  /** Bumped per scan so re-scanning the SAME tag re-selects the car (see Screen.prefillNonce). */
+  prefillNonce?: number;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
   onRegisterNew?: (prefill?: string) => void;
 }
 
-export function NewHoldForm({ vehicleId: preselectedId, onBack, onSuccess, onRegisterNew }: Props) {
-  const h = useNewHold(preselectedId);
+export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, onSuccess, onRegisterNew }: Props) {
+  const h = useNewHold(preselectedId, prefillNonce);
   const { getVehicleByUnit, vehicles, addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
 
