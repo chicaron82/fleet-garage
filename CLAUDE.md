@@ -279,7 +279,9 @@ bash /home/ronnie/Kitchen/fleet-garage/scripts/gate.sh
 # Or individually:
 npx tsc -b           # type check — use -b, NOT --noEmit. The root tsconfig is a
                      # solution file (`files: []`); --noEmit checks zero files and
-                     # exits clean, missing real errors. -b follows the references.
+                     # exits clean, missing real errors. -b follows the references
+                     # (src, api, node, AND tests/ as of tsconfig.test.json, 2026-07-22 —
+                     # a broken test fixture used to be invisible to this gate entirely).
 npx eslint .         # lint — enforces the line cap (0 errors, 0 warnings expected)
 npx vitest run       # tests
 npm run dev          # dev server

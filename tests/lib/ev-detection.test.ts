@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { isTeslaMake, toEvStatus, classifyTesla, type TeslaVehicleRow, type EvStatusRow } from '../../src/lib/ev-detection';
 
-const tesla: TeslaVehicleRow  = { make: 'Tesla',  model: 'Model 3', year: 2025, color: 'Red' };
-const toyota: TeslaVehicleRow = { make: 'Toyota', model: 'Corolla', year: 2024, color: 'White' };
+// `id` was missing here until tests/ got type-checked (reflect 48, 2026-07-22) — the fixtures
+// silently omitted a REQUIRED field, and vitest's `toEqual` treats `{id: undefined}` as equal to
+// `{}`, so the `classifyTesla` assertions below (which DO include `id: vehicle.id` in real output)
+// passed without ever actually checking the id field. Real values now flow through both.
+const tesla: TeslaVehicleRow  = { id: 'v-tesla',  make: 'Tesla',  model: 'Model 3', year: 2025, color: 'Red' };
+const toyota: TeslaVehicleRow = { id: 'v-toyota', make: 'Toyota', model: 'Corolla', year: 2024, color: 'White' };
 
 // ── toEvStatus ───────────────────────────────────────────────────────────────
 
@@ -49,7 +53,7 @@ describe('classifyTesla', () => {
     expect(r.isTesla).toBe(false);
     expect(r.lastCable).toBeNull();
     expect(r.lastAdapter).toBeNull();
-    expect(r.vehicle).toEqual({ make: 'Toyota', model: 'Corolla', year: 2024, color: 'White' });
+    expect(r.vehicle).toEqual({ id: 'v-toyota', make: 'Toyota', model: 'Corolla', year: 2024, color: 'White' });
   });
 
   it('Tesla with no prior EV-status trip → Tesla with null statuses', () => {
@@ -57,7 +61,7 @@ describe('classifyTesla', () => {
     expect(r.isTesla).toBe(true);
     expect(r.lastCable).toBeNull();
     expect(r.lastAdapter).toBeNull();
-    expect(r.vehicle).toEqual({ make: 'Tesla', model: 'Model 3', year: 2025, color: 'Red' });
+    expect(r.vehicle).toEqual({ id: 'v-tesla', make: 'Tesla', model: 'Model 3', year: 2025, color: 'Red' });
   });
 
   it('Tesla with a prior trip → carries the recorded cable/adapter statuses', () => {

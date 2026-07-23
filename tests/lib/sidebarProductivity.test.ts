@@ -23,7 +23,7 @@ function handoff(over: Partial<HandoffNote> = {}): HandoffNote {
     id: 'h-1', branchId: 'YWG', loggedById: 'u-1', loggedByName: 'Opener',
     loggedAt: '2026-06-12T11:30:00', fullPages: 1, lastPageEntries: 5,
     teamSize: 3, lotStatus: 'manageable' as HandoffNote['lotStatus'],
-    morningHours: 8.0, carryOverCleared: 0, ...over,
+    morningHours: 8.0, carryOverCleared: 0, airportFlipping: false, ...over,
   };
 }
 

@@ -37,6 +37,8 @@ function makeHandoff(over: Partial<HandoffNote> = {}): HandoffNote {
     teamSize: 4,
     lotStatus: 'manageable',
     morningHours: 8,
+    carryOverCleared: 0,
+    airportFlipping: false,
     ...over,
   };
 }

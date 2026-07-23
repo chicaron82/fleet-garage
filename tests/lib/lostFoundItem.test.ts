@@ -33,11 +33,11 @@ describe('buildLostFoundItemInput', () => {
 
   it('passes photos + location through', () => {
     const out = buildLostFoundItemInput({
-      ...draft, keyTagPhoto: 'data:tag', itemPhoto: 'data:item', location: 'back-seat', description: 'sunglasses',
+      ...draft, keyTagPhoto: 'data:tag', itemPhoto: 'data:item', location: 'back_seat', description: 'sunglasses',
     });
     expect(out).toEqual({
       keyTagPhoto: 'data:tag', itemPhoto: 'data:item', description: 'sunglasses',
-      location: 'back-seat', licensePlate: undefined, notes: undefined,
+      location: 'back_seat', licensePlate: undefined, notes: undefined,
     });
   });
 });

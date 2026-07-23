@@ -12,7 +12,7 @@ beforeEach(() => {
   __resetAirportFlipStore();
 });
 
-const ROW = { plate: 'LUR441', odo: '5513', fuel: '5/8', damaged: false, notes: '' };
+const ROW = { plate: 'LUR441', unit: null, odo: '5513', fuel: '5/8', isEv: false, damaged: false, rentalClass: '', notes: '' };
 
 describe('useAirportFlip — durability', () => {
   it('survives the app being KILLED (the live bug: ~7 recorded, 2 shown)', () => {

@@ -24,7 +24,7 @@ function hold(holdTypes: HoldType[], resolvedTypes: HoldType[]): Hold {
 }
 
 const PROPS = {
-  vehicle: { id: 'v-1', unitNumber: '5421433', branchId: 'YWG', coverPhotoUrl: null },
+  vehicle: { id: 'v-1', unitNumber: '5421433', branchId: 'YWG' as const, coverPhotoUrl: undefined },
   showHoldPicker: false, repairableHolds: [], closeHoldPicker: vi.fn(),
   toggleRepairPick: vi.fn(), pickedForRepair: [], confirmRepairSelection: vi.fn(),
   showReleasePicker: false, activeHolds: [], closeReleasePicker: vi.fn(),

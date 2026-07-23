@@ -96,6 +96,7 @@ function throughput(over: Partial<ReportThroughput> = {}): ReportThroughput {
     yourEffort: null,
     actualWindowLabel: null,
     carryOver: 0,
+    queueAtClose: null,
     ...over,
   };
 }
@@ -227,7 +228,7 @@ describe('buildReport — throughput', () => {
     // yourEffort is computed upstream via computeShiftRates (16 / (8h − 2h) = 2.7);
     // buildReport just renders it once off-standard exists.
     const withOth = buildReport(baseData({
-      offStandard: [{ startTime: '', stopTime: '', minutes: 120, reason: 'OTH', explanation: null, autoFromTrip: false }],
+      offStandard: [{ startTime: '', stopTime: '', minutes: 120, reason: 'OTH', explanation: null, autoFromTrip: false, presetReason: null }],
       throughput: throughput({ shiftType: 'closing', closingCleaned: 16, yourEffort: 16 / 6 }),
     }));
     expect(withOth).toContain('Personal: 2.7/hr');
@@ -242,9 +243,9 @@ describe('buildReport — off-standard summary', () => {
   it('breaks down manual OTH / WFW / auto and counts trips + interruptions', () => {
     const r = buildReport(baseData({
       offStandard: [
-        { startTime: '', stopTime: '', minutes: 30, reason: 'OTH', explanation: null, autoFromTrip: false },
-        { startTime: '', stopTime: '', minutes: 15, reason: 'WFW', explanation: null, autoFromTrip: false },
-        { startTime: '', stopTime: '', minutes: 10, reason: 'OTH', explanation: null, autoFromTrip: true },
+        { startTime: '', stopTime: '', minutes: 30, reason: 'OTH', explanation: null, autoFromTrip: false, presetReason: null },
+        { startTime: '', stopTime: '', minutes: 15, reason: 'WFW', explanation: null, autoFromTrip: false, presetReason: null },
+        { startTime: '', stopTime: '', minutes: 10, reason: 'OTH', explanation: null, autoFromTrip: true, presetReason: null },
       ],
       trips: [
         { departTime: '2026-05-22T14:00:00Z', arriveTime: '2026-05-22T14:20:00Z', isShuffle: null, reason: null, isVsaInterruption: true, queueAtDeparture: null },

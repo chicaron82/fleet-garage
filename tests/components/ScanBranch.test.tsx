@@ -53,7 +53,7 @@ describe('ScanBranch', () => {
   it('partial → shows the fields the tag adds, and click fires onBackfill', () => {
     const v = vehicle({ licensePlate: 'LUR554', model: '', year: 0 });
     const onBackfill = vi.fn();
-    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Envista', year: 2026 }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }, { field: 'year', value: 2026 }], conflicts: [] } }) }} staged={false} onRegister={vi.fn()} onBackfill={onBackfill} />);
+    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Envista', year: 2026 }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }, { field: 'year', value: 2026 }], changes: [], conflicts: [] } }) }} staged={false} onRegister={vi.fn()} onBackfill={onBackfill} />);
     expect(screen.getByText(/in the fleet/)).toBeInTheDocument();
     expect(screen.getByText(/The tag adds/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Fill in/ }));
@@ -62,14 +62,14 @@ describe('ScanBranch', () => {
 
   it('partial + staged → shows the receipt, not the fill-in button', () => {
     const v = vehicle({ licensePlate: 'LUR554', model: '', year: 0 });
-    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Envista', year: 2026 }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }], conflicts: [] } }) }} staged onRegister={vi.fn()} onBackfill={vi.fn()} />);
+    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Envista', year: 2026 }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }], changes: [], conflicts: [] } }) }} staged onRegister={vi.fn()} onBackfill={vi.fn()} />);
     expect(screen.getByText(/✓ Staged the backfill/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Fill in/ })).not.toBeInTheDocument();
   });
 
   it('partial with only conflicts (no fills) → no fill-in button', () => {
     const v = vehicle({ licensePlate: 'LUR554' });
-    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Sorento' }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [], conflicts: [{ field: 'model', existing: 'Envista', read: 'Sorento' }] } }) }} staged={false} onRegister={vi.fn()} onBackfill={vi.fn()} />);
+    render(<ScanBranch scan={{ read: { plate: 'LUR554', model: 'Sorento' }, result: result({ plate: 'LUR554', vehicle: v, resolution: { kind: 'partial', fills: [], changes: [], conflicts: [{ field: 'model', existing: 'Envista', read: 'Sorento' }] } }) }} staged={false} onRegister={vi.fn()} onBackfill={vi.fn()} />);
     expect(screen.getByText(/Disagrees on/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Fill in/ })).not.toBeInTheDocument();
   });

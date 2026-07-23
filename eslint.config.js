@@ -73,6 +73,17 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Test mocks often need a param purely for its TYPE (so a real caller's args type-check and
+    // `.mock.calls` infers correctly), with no use for the value itself — e.g. a Supabase chain
+    // mock typed to accept a payload it never reads. Standard `_`-prefix convention, scoped to
+    // tests/ only so src/'s own unused-vars discipline is untouched. (2026-07-22, reflect 48's
+    // tests/-type-check gate: `vi.fn((_payload: Record<string, unknown>) => chain)`.)
+    files: ['tests/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
   // Grandfather list fully burned down (2026-05-31): every logic file is now under
   // the 330 cap. The cap is a hard error for all of src/ except the exemptions above.
 ])

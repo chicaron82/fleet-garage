@@ -25,10 +25,10 @@ const VEHICLE_CLEAR: Vehicle = {
 
 const TEST_HOLD: Hold = {
   id: 'hold-1', vehicleId: 'v-1', status: 'ACTIVE',
-  holdType: 'damage', holdTypes: ['damage'],
+  holdType: 'damage', holdTypes: ['damage'], resolvedTypes: [],
   damageDescription: 'Front bumper damage',
-  flaggedById: 'user-1', flaggedByName: 'Test VSA',
-  flaggedAt: '2026-05-01T10:00:00.000Z',
+  flaggedById: 'user-1', flaggedByName: 'Test VSA', flaggedByEmployeeId: 'E001',
+  flaggedAt: '2026-05-01T10:00:00.000Z', notes: '', branchId: 'YWG',
 };
 
 const ALL_VEHICLES = [VEHICLE_HELD, VEHICLE_CLEAR];

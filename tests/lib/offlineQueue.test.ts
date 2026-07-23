@@ -9,7 +9,7 @@ import {
   retryDeadLetter,
   clearDeadLetter,
   subscribeOfflineQueue,
-  OfflineAction
+  type OfflineAction
 } from '../../src/lib/offlineQueue';
 
 // Mock Supabase
@@ -133,7 +133,7 @@ describe('offlineQueue', () => {
         id: '3',
         table: 'test_table',
         action: 'delete',
-        payload: null,
+        payload: {},   // payload is required even for delete (unused by that branch, but non-null)
         eqField: 'id',
         eqValue: 'val-2'
       };

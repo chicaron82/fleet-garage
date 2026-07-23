@@ -95,13 +95,13 @@ describe('route picker', () => {
 
     expect(result.current.routeStep).toBe('origin');
 
-    act(() => result.current.handleLocationTap('Airport'));
+    act(() => { if (result.current.phase === 'form') result.current.handleLocationTap('Airport'); });
     if (result.current.phase === 'form') {
       expect(result.current.from).toBe('Airport');
       expect(result.current.routeStep).toBe('destination');
     }
 
-    act(() => result.current.handleLocationTap('Washbay'));
+    act(() => { if (result.current.phase === 'form') result.current.handleLocationTap('Washbay'); });
     if (result.current.phase === 'form') {
       expect(result.current.to).toBe('Washbay');
       expect(result.current.routeStep).toBe('confirmed');

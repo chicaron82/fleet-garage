@@ -15,7 +15,7 @@ const car = { licensePlate: 'ABC123', unitNumber: '101' };
 
 describe('lostFoundForVehicle', () => {
   it('matches an unresolved item by plate', () => {
-    const items = [item({ id: 'a', licensePlate: 'ABC123', unitNumber: null })];
+    const items = [item({ id: 'a', licensePlate: 'ABC123', unitNumber: undefined })];
     expect(lostFoundForVehicle(items, car).map(i => i.id)).toEqual(['a']);
   });
 
@@ -25,7 +25,7 @@ describe('lostFoundForVehicle', () => {
   });
 
   it('matches case-insensitively with whitespace tolerance', () => {
-    const items = [item({ id: 'a', licensePlate: ' abc123 ', unitNumber: null })];
+    const items = [item({ id: 'a', licensePlate: ' abc123 ', unitNumber: undefined })];
     expect(lostFoundForVehicle(items, car).map(i => i.id)).toEqual(['a']);
   });
 

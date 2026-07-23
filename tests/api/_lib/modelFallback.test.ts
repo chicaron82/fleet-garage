@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { type APIError } from '@anthropic-ai/sdk';
 import { isAvailabilityError } from '../../../api/_lib/modelFallback';
 
 // The fallback path can only be proven by a real outage of the primary model, so the
 // classification is pinned here instead. If an SDK upgrade renames or re-parents one of
 // these error classes, the fallback would silently stop firing — these tests fail first.
+//
+// `Anthropic.APIError` is only a VALUE on the client class (`static APIError: typeof
+// Errors.APIError`) — the SDK's actual TYPE for an instance is the top-level `APIError` export
+// (`export { APIError } from "./core/error.js"`). Using the namespaced form as a type annotation
+// doesn't compile once tests/ is type-checked.
 
 /** Build a real SDK error the way the SDK itself does — from a status + error body. */
-function apiError(status: number, type: string): Anthropic.APIError {
+function apiError(status: number, type: string): APIError {
   return Anthropic.APIError.generate(
     status,
     { type: 'error', error: { type, message: 'boom' } },

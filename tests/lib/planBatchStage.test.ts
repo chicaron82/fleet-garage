@@ -51,7 +51,7 @@ describe('planBatchStage', () => {
     const v = vehicle({ model: '', year: 0 });
     const p = planBatchStage({ plate: 'LUR554', model: 'Envista', year: 2026 }, result({
       plate: 'LUR554', vehicle: v,
-      resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }, { field: 'year', value: 2026 }], conflicts: [] },
+      resolution: { kind: 'partial', fills: [{ field: 'model', value: 'Envista' }, { field: 'year', value: 2026 }], changes: [], conflicts: [] },
     }));
     expect(p.action).toBe('backfill');
     expect(p.proposal).toEqual({
@@ -64,7 +64,7 @@ describe('planBatchStage', () => {
     const v = vehicle();
     const p = planBatchStage({ plate: 'LUR554', model: 'Sorento' }, result({
       plate: 'LUR554', vehicle: v,
-      resolution: { kind: 'partial', fills: [], conflicts: [{ field: 'model', existing: 'Envista', read: 'Sorento' }] },
+      resolution: { kind: 'partial', fills: [], changes: [], conflicts: [{ field: 'model', existing: 'Envista', read: 'Sorento' }] },
     }));
     expect(p.action).toBe('skip');
     expect(p.detail).toMatch(/only disagrees/);

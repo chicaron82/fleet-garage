@@ -1,0 +1,34 @@
+{
+  // The gap `tsc -b` used to have: tests/ was invisible to the type gate (only src/ and api/ were
+  // referenced), so a broken/mismatched test fixture passed the type check and only failed at
+  // vitest RUNTIME — and only if an assertion happened to touch the bad field. Bit twice in one
+  // session 2026-07-20 (broken ScannedIdentity fixtures, a missing rental_class fixture field).
+  // src + api ARE listed here (not just pulled in transitively): src/vite-env.d.ts declares the
+  // PWA virtual-module ambient types, and ambient .d.ts declarations only apply within a project
+  // whose own "include" covers them — a transitive import doesn't pull in a sibling project's
+  // ambient files. The cost is src/api getting type-checked twice (once here, once under their
+  // own project); accepted for correctness over a cleverer, more fragile transitive-only setup.
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client", "node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["tests", "src", "api"]
+}

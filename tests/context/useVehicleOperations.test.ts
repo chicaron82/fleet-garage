@@ -19,11 +19,17 @@ const { writeWithRefreshMock, uploadPhotoMock, pushNotificationMock } = vi.hoist
 
 const fromCalls: string[] = [];
 const chain = {
-  insert: vi.fn(() => chain),
-  update: vi.fn(() => chain),
-  eq:     vi.fn(() => chain),
+  // Typed to accept the args real callers pass (payload/predicate) — the mocks were inferred as
+  // ZERO-arg from `() => chain`, so `.mock.calls` came out as `[][]` and `c[0]` on a real call's
+  // recorded args tripped "tuple has no element at index 0" once tests/ finally got type-checked.
+  // A payload-shaped param (not bare `unknown`) so tests can read `c[0]?.status` etc. typed; the
+  // leading underscore is a real, configured eslint convention for a type-only mock param (see
+  // eslint.config.js's tests/ override), not a workaround.
+  insert: vi.fn((_payload: Record<string, unknown>) => chain),
+  update: vi.fn((_payload: Record<string, unknown>) => chain),
+  eq:     vi.fn((..._args: unknown[]) => chain),
   // The provenance write paths read current field_sources before merging their stamps.
-  select:      vi.fn(() => chain),
+  select:      vi.fn((..._args: unknown[]) => chain),
   maybeSingle: vi.fn(() => ({ data: null, error: null })),
 };
 
@@ -61,7 +67,7 @@ function makeVehicle(id = 'v-1'): Vehicle {
 function makeHold(id = 'h-1', vehicleId = 'v-1', overrides: Partial<Hold> = {}): Hold {
   return {
     id, vehicleId,
-    holdTypes: ['damage'], holdType: 'damage',
+    holdTypes: ['damage'], holdType: 'damage', resolvedTypes: [],
     damageDescription: 'scrape', notes: '',
     flaggedById: 'u-1', flaggedByName: 'Test VSA', flaggedByEmployeeId: 'E001',
     flaggedAt: '2026-06-11T08:00:00.000Z',

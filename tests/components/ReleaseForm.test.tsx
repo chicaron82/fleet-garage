@@ -18,10 +18,10 @@ const VEHICLE: Vehicle = {
 
 const HOLD: Hold = {
   id: 'hold-1', vehicleId: 'v-1', status: 'ACTIVE',
-  holdType: 'damage', holdTypes: ['damage'],
+  holdType: 'damage', holdTypes: ['damage'], resolvedTypes: [],
   damageDescription: 'Front bumper scratched near the headlight.',
-  flaggedById: 'user-1', flaggedByName: 'Test VSA',
-  flaggedAt: '2026-05-01T10:00:00.000Z',
+  flaggedById: 'user-1', flaggedByName: 'Test VSA', flaggedByEmployeeId: 'E001',
+  flaggedAt: '2026-05-01T10:00:00.000Z', notes: '', branchId: 'YWG',
 };
 
 // ── Mocks ────────────────────────────────────────────────────────────────────

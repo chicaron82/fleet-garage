@@ -16,7 +16,7 @@ function makeHandoff(loggedAt: string): HandoffNote {
   return {
     id: 'h1', branchId: 'YWG', loggedById: 'u1', loggedByName: 'Aaron',
     loggedAt, fullPages: 5, lastPageEntries: 0, teamSize: 2,
-    lotStatus: 'manageable', morningHours: 8, carryOverCleared: 0,
+    lotStatus: 'manageable', morningHours: 8, carryOverCleared: 0, airportFlipping: false,
   };
 }
 

@@ -34,6 +34,8 @@ const mockContext = (overrides: {
   refresh: vi.fn(),
   movementTab: overrides.movementTab ?? 'movement-log',
   setMovementTab: vi.fn(),
+  openingDutiesTrigger: 0,
+  signalOpeningDuties: vi.fn(),
 });
 
 vi.mock('../../src/context/ActiveSessionsContext', async (importOriginal) => {
@@ -51,7 +53,7 @@ describe('ActiveSessionPill — suppression logic', () => {
   it('renders nothing when no session is active', () => {
     mockUseActiveSessions.mockReturnValue(mockContext({}));
     const { container } = render(
-      <ActiveSessionPill activeModule="dashboard" onNavigate={vi.fn()} />
+      <ActiveSessionPill activeModule="my-day" onNavigate={vi.fn()} />
     );
     expect(container.firstChild).toBeNull();
   });

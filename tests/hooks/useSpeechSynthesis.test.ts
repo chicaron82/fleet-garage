@@ -8,7 +8,11 @@ const w = window as unknown as { speechSynthesis?: unknown; SpeechSynthesisUtter
 
 class FakeUtterance {
   rate = 1;
-  constructor(public text: string) {}
+  text: string;
+  // Not a constructor parameter property (`public text: string`) — that syntax needs the
+  // compiler to EMIT the assignment, which `erasableSyntaxOnly` forbids; explicit field + assign
+  // erases cleanly to plain JS instead.
+  constructor(text: string) { this.text = text; }
 }
 
 describe('useSpeechSynthesis', () => {
