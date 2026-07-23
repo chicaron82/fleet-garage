@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
+import type { FieldSource } from '../../types';
 
 interface VehicleDirectEditModalProps {
   vehicleId: string;
@@ -12,6 +13,9 @@ interface VehicleDirectEditModalProps {
   initialYear: number;
   initialColor: string;
   initialRentalClass: string | null;
+  /** Per-field provenance — a 'manual' entry LOCKS that field against future tag reads. Undefined/
+   *  absent-key fields render with no lock indicator (inferred/tag-sourced, freely overwritable). */
+  fieldSources?: Record<string, FieldSource>;
   onClose: () => void;
   directEditVehicleIdentity: (
     vehicleId: string,
@@ -19,6 +23,28 @@ interface VehicleDirectEditModalProps {
     licensePlate: string,
     identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null },
   ) => Promise<void>;
+  /** Release a manual lock on one field, WITHOUT touching its value — a future scan can update it
+   *  again. A separate action from Save on purpose: unlocking and editing are different decisions. */
+  onUnlockField: (field: string) => Promise<void>;
+}
+
+/** A small 🔒 + "Unlock" pair, shown only when this field is manually locked. Tapping it releases
+ *  the lock immediately (its own write) — it does not require Save. */
+function LockBadge({ field, locked, onUnlock, unlocking }: {
+  field: string; locked: boolean; onUnlock: () => void; unlocking: boolean;
+}) {
+  if (!locked) return null;
+  return (
+    <button
+      type="button"
+      onClick={onUnlock}
+      disabled={unlocking}
+      title={`Locked by your edit — no scan overrides ${field}. Tap to let tags update it again.`}
+      className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 disabled:opacity-50 cursor-pointer normal-case"
+    >
+      🔒 {unlocking ? 'Unlocking…' : 'Unlock'}
+    </button>
+  );
 }
 
 export function VehicleDirectEditModal({
@@ -30,8 +56,10 @@ export function VehicleDirectEditModal({
   initialYear,
   initialColor,
   initialRentalClass,
+  fieldSources,
   onClose,
   directEditVehicleIdentity,
+  onUnlockField,
 }: VehicleDirectEditModalProps) {
   const [editUnit, setEditUnit] = useState(initialUnitNumber ?? '');
   const [editPlate, setEditPlate] = useState(initialLicensePlate);
@@ -45,8 +73,31 @@ export function VehicleDirectEditModal({
   // it should be E6). Freeform short code, upper-cased on save.
   const [editClass, setEditClass] = useState(initialRentalClass ?? '');
   const [editSaving, setEditSaving] = useState(false);
+  // Which field's unlock is in flight — disables just that badge, not the whole modal.
+  const [unlockingField, setUnlockingField] = useState<string | null>(null);
 
   const canSave = !!editPlate.trim() && !!editMake && !!editModel && editYear > 1999 && !!editColor && !editSaving;
+
+  const unlock = async (field: string) => {
+    setUnlockingField(field);
+    try { await onUnlockField(field); } finally { setUnlockingField(null); }
+  };
+  // The combined badge covers 4 real field_sources keys (make/model/year/color lock together at
+  // save-time) — 'identity' isn't itself a key, so release each of the four underlying ones.
+  // SEQUENTIAL, not Promise.all: onUnlockField is read-modify-write (reads current field_sources,
+  // drops one key, writes back), so firing all four concurrently would have them all read the SAME
+  // stale snapshot and clobber each other — only the last write landing, the other three keys
+  // still locked. Awaiting one at a time means each read sees the previous unlock's write.
+  const unlockIdentity = async () => {
+    setUnlockingField('identity');
+    try { for (const f of ['make', 'model', 'year', 'color']) await onUnlockField(f); }
+    finally { setUnlockingField(null); }
+  };
+  // Save stamps make/model/year/color as ONE bundle (directEditVehicleIdentity), so they show a
+  // single combined lock rather than four independent ones that don't reflect how locking actually
+  // happens today.
+  const identityLocked = fieldSources?.make === 'manual' || fieldSources?.model === 'manual'
+    || fieldSources?.year === 'manual' || fieldSources?.color === 'manual';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4 bg-black/40">
@@ -68,6 +119,8 @@ export function VehicleDirectEditModal({
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
                 Unit Number
+                <LockBadge field="unit number" locked={fieldSources?.unitNumber === 'manual'}
+                  onUnlock={() => unlock('unitNumber')} unlocking={unlockingField === 'unitNumber'} />
               </label>
               <UnitNumberInput
                 value={editUnit}
@@ -87,6 +140,13 @@ export function VehicleDirectEditModal({
               />
             </div>
           </div>
+          <div>
+            <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              Vehicle Identity
+              <LockBadge field="make/model/year/color" locked={identityLocked}
+                onUnlock={unlockIdentity} unlocking={unlockingField === 'identity'} />
+            </span>
+          </div>
           <VehicleIdentityFields
             make={editMake}
             model={editModel}
@@ -100,6 +160,8 @@ export function VehicleDirectEditModal({
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
               Rental Class <span className="normal-case font-normal text-gray-400">(locks against tag reads)</span>
+              <LockBadge field="rental class" locked={fieldSources?.rentalClass === 'manual'}
+                onUnlock={() => unlock('rentalClass')} unlocking={unlockingField === 'rentalClass'} />
             </label>
             <input
               value={editClass}

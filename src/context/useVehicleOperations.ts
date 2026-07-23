@@ -7,6 +7,7 @@ import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescript
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
+import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
 import { makeAttachKeytagPhoto } from './keytagPhotoWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
@@ -90,6 +91,9 @@ export function useVehicleOperations({
   // Keytag-backfill write (the partial→backfill half of keytag-scan): applies FILLS
   // only, never conflicts. See ./vehicleFieldsWrite.
   const updateVehicleFields = makeUpdateVehicleFields({ setAllVehicles });
+  // Release a manual lock on one identity field — the un-lock half of the provenance ladder.
+  // See ./fieldUnlockWrite.
+  const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });
   const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
   const attachKeytagPhoto = makeAttachKeytagPhoto({ setAllVehicles });
 
@@ -277,6 +281,7 @@ export function useVehicleOperations({
     addVehicle,
     updateVehicleEVAssets,
     updateVehicleFields,
+    unlockVehicleField,
     recordKeyCount,
     attachKeytagPhoto,
     releaseUnitNumber,

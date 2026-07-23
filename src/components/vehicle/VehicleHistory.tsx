@@ -33,7 +33,7 @@ function holdActionLabel(holdTypes: string[]): string {
 
 export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
-  const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity } = useVehicleHoldContext();
+  const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity, unlockVehicleField } = useVehicleHoldContext();
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showEditSuggestion, setShowEditSuggestion] = useState(false);
   const [showDirectEdit, setShowDirectEdit]   = useState(false);
@@ -340,8 +340,10 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         initialYear={vehicle.year}
         initialColor={vehicle.color}
         initialRentalClass={vehicle.rentalClass ?? null}
+        fieldSources={vehicle.fieldSources}
         onClose={() => setShowDirectEdit(false)}
         directEditVehicleIdentity={directEditVehicleIdentity}
+        onUnlockField={(field) => unlockVehicleField(vehicleId, field)}
       />
     )}
     </>

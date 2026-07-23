@@ -30,6 +30,9 @@ export interface VehicleHoldContextValue {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
+  /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
+   *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
+  unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;
   /** Record the keys-on-ring count observed at a check-in (deliberate overwrite — latest is truth). */
   recordKeyCount: (vehicleId: string, keyCount: number) => Promise<void>;
   /** Upload the scanned key tag and keep it on the vehicle as the read's evidence. */

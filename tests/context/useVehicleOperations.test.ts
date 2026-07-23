@@ -30,7 +30,10 @@ const chain = {
   eq:     vi.fn((..._args: unknown[]) => chain),
   // The provenance write paths read current field_sources before merging their stamps.
   select:      vi.fn((..._args: unknown[]) => chain),
-  maybeSingle: vi.fn(() => ({ data: null, error: null })),
+  // Typed to accept the field_sources shape a per-test mockReturnValueOnce needs (unlockVehicleField
+  // reads current field_sources before dropping a key) — the bare `{data: null}` inference otherwise
+  // rejects any richer override, exactly like insert/update's zero-arg trap above.
+  maybeSingle: vi.fn((): { data: { field_sources?: Record<string, string> } | null; error: null } => ({ data: null, error: null })),
 };
 
 vi.mock('../../src/lib/supabase', () => ({
@@ -408,6 +411,34 @@ describe('directEditVehicleIdentity', () => {
     expect(updated.unitNumber).toBe('9999');
     expect(updated.licensePlate).toBe('ZZZ 999');
     expect(updated.editStatus).toBeNull();
+  });
+});
+
+describe('unlockVehicleField', () => {
+  it('drops the locked field from field_sources, leaving other locks and the value untouched', async () => {
+    const v = { ...makeVehicle(), rentalClass: 'E6' };
+    const { ops, setAllVehicles } = makeOps([], [v]);
+    chain.maybeSingle.mockReturnValueOnce({
+      data: { field_sources: { rentalClass: 'manual', make: 'manual' } }, error: null,
+    });
+
+    await ops.unlockVehicleField(v.id, 'rentalClass');
+
+    expect(fromCalls).toContain('vehicles');
+    const updater = setAllVehicles.mock.calls[0][0] as (prev: Vehicle[]) => Vehicle[];
+    const updated = updater([v])[0];
+    expect(updated.fieldSources).toEqual({ make: 'manual' }); // rentalClass gone, make's lock survives
+    expect(updated.rentalClass).toBe('E6'); // the VALUE is untouched — only provenance changed
+  });
+
+  it('is a no-op when the field was never locked — no write, no state update', async () => {
+    const v = makeVehicle();
+    const { ops, setAllVehicles } = makeOps([], [v]);
+    chain.maybeSingle.mockReturnValueOnce({ data: { field_sources: { make: 'manual' } }, error: null });
+
+    await ops.unlockVehicleField(v.id, 'rentalClass'); // rentalClass isn't in field_sources at all
+
+    expect(setAllVehicles).not.toHaveBeenCalled();
   });
 });
 
