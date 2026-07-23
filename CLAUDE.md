@@ -285,6 +285,16 @@ npx vitest run       # tests
 npm run dev          # dev server
 ```
 
+### `docs/` is gitignored — it never ships
+
+The `docs/` folder (tickets, specs, the ideas inbox) is entirely gitignored. It's a real,
+useful working convention — but a commit message must never say a ticket file "ships with"
+or "is part of" a commit, because `git add -A` silently drops it and `git status` shows
+nothing. (Caught R48, 2026-07-22: two commit messages referenced
+`docs/ticket-keytag-field-provenance.md` as shipped; it was never tracked, in any commit.)
+If a ticket needs to be durable/shared, that's a signal it belongs in a memory file or this
+CLAUDE.md, not an assumption that `docs/` persists to the remote.
+
 ### Visual changes — pre-ship checklist
 
 `tsc`/`eslint`/`vitest` are blind to layout. Before committing any visual change:
