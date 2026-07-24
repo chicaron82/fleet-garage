@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { holdGroup, isClosedHold, groupHolds } from '../../src/lib/holdGrouping';
+import { holdGroup, isClosedHold, groupHolds, isClearableSaleFlag } from '../../src/lib/holdGrouping';
 import type { GroupableHold } from '../../src/lib/holdGrouping';
 
 // The live case this was built from (unit 5423777, 2026-07-23): a geotab hold went out on
@@ -52,6 +52,36 @@ describe('isClosedHold', () => {
     expect(isClosedHold(returned, 'HELD')).toBe(true);
     expect(isClosedHold(returned, 'RETURNED')).toBe(false);
     expect(isClosedHold(active, 'HELD')).toBe(false);
+  });
+});
+
+// Unit 5424395 (2026-07-23): plates were pulled off the fence on an assumption, the sale flag went
+// on, the car went out on short term and came BACK — and only then was the mistake noticed. The
+// old gate (ACTIVE or still-out EXCEPTION) had already hidden the undo button by that point.
+describe('isClearableSaleFlag', () => {
+  const sale = (status: string) => ({ status, holdTypes: ['sale_car'] } as never);
+
+  it('offers the undo for a RETURNED sale flag — the live 5424395 gap', () => {
+    expect(isClearableSaleFlag(sale('RETURNED'))).toBe(true);
+  });
+
+  it('still offers it while ACTIVE or out on a release (no regression)', () => {
+    expect(isClearableSaleFlag(sale('ACTIVE'))).toBe(true);
+    expect(isClearableSaleFlag(sale('RELEASED'))).toBe(true);
+  });
+
+  it('does not offer it once resolved — VOIDED is already cleared, REPAIRED is a real resolution', () => {
+    expect(isClearableSaleFlag(sale('VOIDED'))).toBe(false);
+    expect(isClearableSaleFlag(sale('REPAIRED'))).toBe(false);
+  });
+
+  it('never offers it for a non-sale hold', () => {
+    expect(isClearableSaleFlag({ status: 'ACTIVE', holdTypes: ['damage'] } as never)).toBe(false);
+    expect(isClearableSaleFlag({ status: 'ACTIVE', holdTypes: ['damage', 'mechanical'] } as never)).toBe(false);
+  });
+
+  it('offers it for a multi-type hold that includes sale_car', () => {
+    expect(isClearableSaleFlag({ status: 'RETURNED', holdTypes: ['damage', 'sale_car'] } as never)).toBe(true);
   });
 });
 

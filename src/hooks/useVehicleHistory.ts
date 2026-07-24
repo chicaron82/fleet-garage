@@ -4,6 +4,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { compressImage } from '../lib/image';
 import { useUserResolver } from './useUserResolver';
 import { hapticMedium } from '../lib/haptics';
+import { isClearableSaleFlag } from '../lib/holdGrouping';
 import type { Hold, RepairOutcome } from '../types';
 
 export function useVehicleHistory(vehicleId: string) {
@@ -37,14 +38,18 @@ export function useVehicleHistory(vehicleId: string) {
   const activeHold = getActiveHold(vehicleId);
   const activeHolds = getActiveHolds(vehicleId);
 
-  // The sale_car hold currently flagging this vehicle — whether still active
-  // (sale-car) or already released short-term (auction-short-term). Target of
-  // the "clear logged in error" action.
+  // The sale_car hold on this vehicle that a "clear logged in error" could still undo.
+  //
+  // Any UNRESOLVED state qualifies. v1 matched only ACTIVE or a still-out EXCEPTION, which meant
+  // the affordance vanished the moment a short-term rental came back (`RETURNED`) — exactly when
+  // someone finally notices the flag was wrong, so the mistake stuck to the record permanently
+  // (unit 5424395, 2026-07-23: plates pulled off the fence on an assumption, flag correct-able
+  // only until the car returned). Sale cars legitimately go back out on short term when fleet is
+  // tight, so returning is normal, not a resolution.
+  //
+  // VOIDED is already cleared and REPAIRED is a genuine resolution — neither needs the button.
   const saleHold = holds.find(
-    h => h.vehicleId === vehicle?.id &&
-      h.holdTypes.includes('sale_car') &&
-      (h.status === 'ACTIVE' ||
-        (h.status === 'RELEASED' && h.release?.releaseType === 'EXCEPTION' && !h.release?.actualReturn))
+    h => h.vehicleId === vehicle?.id && isClearableSaleFlag(h)
   ) ?? null;
   const [confirmClearSale, setConfirmClearSale] = useState(false);
   const [clearingSale, setClearingSale] = useState(false);

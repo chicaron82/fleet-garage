@@ -37,6 +37,20 @@ export function holdGroup(hold: GroupableHold, vehicleStatus: VehicleStatus): Ho
   return 'closed';   // REPAIRED, VOIDED, returned-and-reviewed, released-and-back
 }
 
+/**
+ * A sale/auction flag that "clear logged in error" can still undo.
+ *
+ * Any UNRESOLVED state qualifies. The gate used to be ACTIVE-or-still-out-on-EXCEPTION, so the
+ * affordance vanished the moment a short-term rental came back (`RETURNED`) — which is exactly
+ * when someone notices the flag was wrong, so the mistake stuck to the record permanently (unit
+ * 5424395, 2026-07-23). Sale cars legitimately go back out on short term when fleet is tight, so
+ * a return is normal traffic, not a resolution. VOIDED is already cleared and REPAIRED is a real
+ * resolution — neither needs the button.
+ */
+export function isClearableSaleFlag(hold: Pick<Hold, 'status' | 'holdTypes'>): boolean {
+  return hold.holdTypes.includes('sale_car') && hold.status !== 'VOIDED' && hold.status !== 'REPAIRED';
+}
+
 /** True when the hold stays on the record but no longer acts on the vehicle. */
 export function isClosedHold(hold: GroupableHold, vehicleStatus: VehicleStatus): boolean {
   return holdGroup(hold, vehicleStatus) === 'closed';
