@@ -1,6 +1,6 @@
 // The Geotab install watchlist check, for the client scan surfaces (My Day scan-router + Airport
 // Flip). A plate on the list must be HELD until a Geotab telematics unit is installed — the same
-// condition Effie surfaces server-side (api/_lib/effieExecutors → isGeotabPending). Until now that
+// condition Effie surfaces server-side (api/_lib/effie/vehicleExecutors → isGeotabPending). Until now that
 // check lived ONLY in Effie's lookup, so a geotab-pending car scanned at either visual scanner
 // read as clear. This exposes the same query (geotab_watchlist, MB-corrected plate, not yet
 // installed) to the client so the scanners catch it too. RLS-scoped client — reads what the crew

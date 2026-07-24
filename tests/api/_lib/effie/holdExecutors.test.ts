@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBlankFills } from '../../../api/_lib/effieExecutors';
+import { computeBlankFills } from '../../../../api/_lib/effie/holdExecutors';
 
 // The blanks-only backfill rule behind propose_update_and_hold: fill a field ONLY when the
 // existing fleet row is blank AND the key tag read a value. Never overwrite a known field.
