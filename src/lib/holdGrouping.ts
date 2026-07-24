@@ -10,7 +10,7 @@
 //
 // This is the record-level twin of `unresolvedHoldTypes` ("a resolved type stays in holdTypes but
 // shouldn't read as active") — same principle, applied to the whole hold instead of one pill.
-import type { Hold, Release, VehicleStatus } from '../types';
+import type { Hold, HoldType, Release, VehicleStatus } from '../types';
 
 export type HoldGroup = 'open' | 're-eval' | 'closed';
 
@@ -18,7 +18,10 @@ export type HoldGroup = 'open' | 're-eval' | 'closed';
 const AWAITING_REEVAL: VehicleStatus[] = ['OUT_ON_EXCEPTION', 'RETURNED'];
 
 /** The parts of a hold that decide its bucket — narrow so callers/tests need no full fixture. */
-export type GroupableHold = Pick<Hold, 'status'> & { release?: Pick<Release, 'actualReturn'> };
+export type GroupableHold = Pick<Hold, 'status'> & {
+  holdTypes?: HoldType[];
+  release?: Pick<Release, 'releaseType' | 'actualReturn'>;
+};
 
 /**
  * Bucket one hold against the vehicle's current derived status.
@@ -30,8 +33,18 @@ export type GroupableHold = Pick<Hold, 'status'> & { release?: Pick<Release, 'ac
  * returned hold on an otherwise-moved-on vehicle is genuinely past and may recede.
  */
 export function holdGroup(hold: GroupableHold, vehicleStatus: VehicleStatus): HoldGroup {
+  // A sale/auction flag is a CLASSIFICATION, never work anyone can do — deriveHoldStatus makes the
+  // same carve-out (`isActive && !isSaleCar → 'held'`) and gives sale-car its own branch. Nothing
+  // is lost by receding: the VEHICLE badge still reads Sale Car / Auction.
+  if (hold.holdTypes?.includes('sale_car')) return 'closed';
+  // A PRE_EXISTING release is a settled decision — damage accepted, vehicle stays in circulation.
+  // It must be tested BEFORE the actualReturn rule below, because such a release never gets an
+  // actualReturn (the car never comes back — it never left), which made a settled acceptance
+  // indistinguishable from a car still out on an exception.
+  if (hold.release?.releaseType === 'PRE_EXISTING') return 'closed';
+
   if (hold.status === 'ACTIVE') return 'open';                       // still flagging the car
-  // Released on an override with no return recorded — the car is out and the issue is unresolved.
+  // Released on a real override with no return recorded — the car is out and the issue is unresolved.
   if (hold.status === 'RELEASED' && !hold.release?.actualReturn) return 'open';
   if (hold.status === 'RETURNED' && AWAITING_REEVAL.includes(vehicleStatus)) return 're-eval';
   return 'closed';   // REPAIRED, VOIDED, returned-and-reviewed, released-and-back

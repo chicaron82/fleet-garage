@@ -64,7 +64,7 @@ describe('HoldHistorySection — resolution-aware badge & pills', () => {
 
 // Aaron, reading unit 5423777 on the lot: "I read it as if it still needs a geotab... it should
 // make it clear that it's done and the only hold it has is the cracked windshield."
-describe('HoldHistorySection — still-open vs closed grouping', () => {
+describe('HoldHistorySection — action vs no-action grouping', () => {
   function namedHold(id: string, description: string, status: Hold['status']): Hold {
     return { ...hold(['damage'], []), id, damageDescription: description, status };
   }
@@ -74,17 +74,26 @@ describe('HoldHistorySection — still-open vs closed grouping', () => {
       namedHold('h-glass', 'Cracked windshield', 'ACTIVE'),
       namedHold('h-geotab', 'Geotab not installed', 'RETURNED'),
     ]} />);
-    expect(screen.getByText('Still open · 1')).toBeTruthy();
-    expect(screen.getByText('Closed · 1')).toBeTruthy();
+    expect(screen.getByText('Needs action · 1')).toBeTruthy();
+    expect(screen.getByText('No action needed · 1')).toBeTruthy();
     // both records remain on the page — closed recedes, it never disappears
     expect(screen.getByText('Cracked windshield')).toBeTruthy();
     expect(screen.getByText('Geotab not installed')).toBeTruthy();
   });
 
-  it('shows no "Still open" group when every hold is closed', () => {
+  it('shows no action group when every hold is resolved', () => {
     render(<HoldHistorySection {...PROPS} holds={[namedHold('h1', 'Old damage', 'REPAIRED')]} />);
-    expect(screen.queryByText(/Still open/)).toBeNull();
-    expect(screen.getByText('Closed · 1')).toBeTruthy();
+    expect(screen.queryByText(/Needs action/)).toBeNull();
+    expect(screen.getByText('No action needed · 1')).toBeTruthy();
+  });
+
+  // Aaron on unit 5424395: "not counting pre-existing and sale flags as part of the open count."
+  it('keeps an ACTIVE sale flag out of the action group — it is a classification, not work', () => {
+    const sale = { ...hold(['sale_car'], []), id: 'h-sale', damageDescription: 'Sale car' };
+    render(<HoldHistorySection {...PROPS} holds={[sale]} />);
+    expect(screen.queryByText(/Needs action/)).toBeNull();
+    expect(screen.getByText('No action needed · 1')).toBeTruthy();
+    expect(screen.getByText('Sale car')).toBeTruthy();   // still on the record
   });
 
   // A returned hold is only past once the vehicle has moved on; while it is still RETURNED the
@@ -92,14 +101,14 @@ describe('HoldHistorySection — still-open vs closed grouping', () => {
   it('keeps a RETURNED hold open while the vehicle still owes a re-eval', () => {
     const props = { ...PROPS, vehicle: { ...PROPS.vehicle, status: 'RETURNED' as const } };
     render(<HoldHistorySection {...props} holds={[namedHold('h1', 'Geotab not installed', 'RETURNED')]} />);
-    expect(screen.getByText('Still open · 1')).toBeTruthy();
-    expect(screen.queryByText(/Closed ·/)).toBeNull();
+    expect(screen.getByText('Needs action · 1')).toBeTruthy();
+    expect(screen.queryByText(/No action needed ·/)).toBeNull();
   });
 
   it('still shows the clean-history empty state with no holds', () => {
     render(<HoldHistorySection {...PROPS} holds={[]} />);
     expect(screen.getByText(/Clean history/)).toBeTruthy();
-    expect(screen.queryByText(/Still open/)).toBeNull();
-    expect(screen.queryByText(/Closed ·/)).toBeNull();
+    expect(screen.queryByText(/Needs action/)).toBeNull();
+    expect(screen.queryByText(/No action needed ·/)).toBeNull();
   });
 });

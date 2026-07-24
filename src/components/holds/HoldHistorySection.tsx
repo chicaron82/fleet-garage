@@ -199,7 +199,7 @@ export function HoldHistorySection({
         {openHolds.length > 0 && (
           <div className="mb-5">
             <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest mb-2">
-              Still open · {openHolds.length}
+              Needs action · {openHolds.length}
             </p>
             <div className="space-y-3">{openHolds.map(hold => renderCard(hold, false))}</div>
           </div>
@@ -208,7 +208,7 @@ export function HoldHistorySection({
         {closedHolds.length > 0 && (
           <div>
             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
-              Closed · {closedHolds.length}
+              No action needed · {closedHolds.length}
             </p>
             <div className="space-y-3">{closedHolds.map(hold => renderCard(hold, true))}</div>
           </div>

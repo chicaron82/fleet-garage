@@ -11,7 +11,10 @@ const returned: GroupableHold = { status: 'RETURNED' };
 const repaired: GroupableHold = { status: 'REPAIRED' };
 const voided: GroupableHold = { status: 'VOIDED' };
 const releasedOut: GroupableHold = { status: 'RELEASED' };
-const releasedBack: GroupableHold = { status: 'RELEASED', release: { actualReturn: '2026-07-23T12:00:00Z' } };
+const releasedBack: GroupableHold = {
+  status: 'RELEASED',
+  release: { releaseType: 'EXCEPTION', actualReturn: '2026-07-23T12:00:00Z' },
+};
 
 describe('holdGroup', () => {
   it('an ACTIVE hold is open — it is still flagging the car', () => {
@@ -44,6 +47,37 @@ describe('holdGroup', () => {
     expect(holdGroup(returned, 'HELD')).toBe('closed');
     expect(holdGroup(returned, 'CLEAR')).toBe('closed');
     expect(holdGroup(returned, 'PRE_EXISTING')).toBe('closed');
+  });
+});
+
+// Aaron on unit 5424395: "not counting pre-existing and sale flags as part of the open count."
+describe('holdGroup — flags and settled decisions are not action', () => {
+  it('a sale_car flag is never action, whatever its status', () => {
+    for (const status of ['ACTIVE', 'RELEASED', 'RETURNED'] as const) {
+      expect(holdGroup({ status, holdTypes: ['sale_car'] }, 'OUT_ON_EXCEPTION')).toBe('closed');
+    }
+  });
+
+  it('a multi-type hold including sale_car is still not action', () => {
+    expect(holdGroup({ status: 'ACTIVE', holdTypes: ['damage', 'sale_car'] }, 'HELD')).toBe('closed');
+  });
+
+  // A PRE_EXISTING release never gets an actualReturn — the car never comes back because it never
+  // left. Before the carve-out that made it indistinguishable from a car still out on exception.
+  it('a PRE_EXISTING release is settled, not an open exception', () => {
+    expect(holdGroup({ status: 'RELEASED', release: { releaseType: 'PRE_EXISTING' } }, 'PRE_EXISTING'))
+      .toBe('closed');
+  });
+
+  it('but a genuinely open EXCEPTION or MECHANICAL release is still action', () => {
+    expect(holdGroup({ status: 'RELEASED', release: { releaseType: 'EXCEPTION' } }, 'OUT_ON_EXCEPTION'))
+      .toBe('open');
+    expect(holdGroup({ status: 'RELEASED', release: { releaseType: 'MECHANICAL_RELEASE' } }, 'OUT_ON_EXCEPTION'))
+      .toBe('open');
+  });
+
+  it('a plain damage hold is unaffected by either carve-out', () => {
+    expect(holdGroup({ status: 'ACTIVE', holdTypes: ['damage'] }, 'HELD')).toBe('open');
   });
 });
 
