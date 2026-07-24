@@ -66,7 +66,13 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
       supabase.from('holds').update({ status: 'VOIDED' }).eq('id', holdId)
     );
     if (error) throw new Error(`Failed to clear sale flag: ${(error as { message?: string }).message}`);
-    if (hold.release) await writeWithRefresh(() =>
+    // Only stamp a return that hasn't happened yet. A RETURNED sale hold ALREADY carries a real
+    // actual_return — the moment the car physically came back, written by makeMarkReturned —
+    // and overwriting it with the clear time would destroy when the car actually returned.
+    // Previously unreachable (this action was gated to ACTIVE / still-out EXCEPTION, where
+    // actual_return is null by definition); reachable since the gate widened to returned holds
+    // so a mistaken flag stays fixable (2026-07-23).
+    if (hold.release && !hold.release.actualReturn) await writeWithRefresh(() =>
       supabase.from('releases').update({ actual_return: clearedAt }).eq('id', hold.release!.id)
     );
     // Derive the corrected vehicle status from the remaining holds (shared cascade)
@@ -74,7 +80,8 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
     const projectedHolds = holds
       .filter(h => h.vehicleId === hold.vehicleId)
       .map(h => h.id === holdId
-        ? { ...h, status: 'VOIDED' as const, release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined }
+        ? { ...h, status: 'VOIDED' as const,
+            release: h.release ? { ...h.release, actualReturn: h.release.actualReturn ?? clearedAt } : undefined }
         : h);
     const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
     const { error: vehErr } = await writeWithRefresh(() =>
@@ -85,7 +92,8 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
       `Sale/auction flag cleared on unit ${unit} (logged in error) by ${clearedByName}.`, 'info', { vehicleId: hold.vehicleId });
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
       ...h, status: 'VOIDED',
-      release: h.release ? { ...h.release, actualReturn: clearedAt } : undefined,
+      // Mirrors the write above — never clobber a real return that already happened.
+      release: h.release ? { ...h.release, actualReturn: h.release.actualReturn ?? clearedAt } : undefined,
     }));
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
   };

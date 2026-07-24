@@ -28,9 +28,11 @@ vi.mock('../../src/lib/supabase', () => ({
 
 vi.mock('../../src/lib/garage-uploads', () => ({
   pushNotification: vi.fn().mockResolvedValue(undefined),
+  // clearSaleHold notifies management; the constant must exist on the mock or the call throws.
+  NOTIFY_MGMT: ['Branch Manager', 'Operations Manager', 'City Manager'],
 }));
 
-const { makeMarkRepairedBatch, makeMarkIssueRepaired, makeMarkRepaired } = await import('../../src/context/holdResolution');
+const { makeMarkRepairedBatch, makeMarkIssueRepaired, makeMarkRepaired, makeClearSaleHold } = await import('../../src/context/holdResolution');
 const { GEOTAB_HOLD_DESC } = await import('../../src/lib/hold-presets');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -213,5 +215,49 @@ describe('geotab watchlist sync on repair', () => {
     const hold = makeHold('h-1', 'v-1', { damageDescription: 'scrape' });
     await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
     expect(fromCalls).not.toContain('geotab_watchlist');
+  });
+});
+
+// ── Clearing a mistaken sale flag must not rewrite history ───────────────────
+// The clear-in-error action was gated to ACTIVE / still-out EXCEPTION, where a release's
+// actual_return is null by definition — so stamping it was always correct. Once the gate widened
+// so a mistaken flag stays fixable after the car comes back (2026-07-23), a RETURNED hold could
+// reach this path carrying a REAL actual_return: the moment the car physically returned. Stamping
+// it again would silently overwrite when the car actually came back.
+
+describe('makeClearSaleHold — preserves a return that already happened', () => {
+  const saleHold = (overrides: Partial<Hold> = {}) =>
+    makeHold('h-sale', 'v-1', { holdTypes: ['sale_car'], holdType: 'sale_car', ...overrides });
+
+  it('does NOT touch releases when the car has already returned', async () => {
+    const hold = saleHold({
+      status: 'RETURNED',
+      release: {
+        id: 'r-1', holdId: 'h-sale', approvedById: 'mgr-1', approvedAt: '2026-05-27T19:11:00.000Z',
+        releaseType: 'EXCEPTION', releaseMethod: 'standard', reason: 'short term',
+        actualReturn: '2026-07-20T18:00:00.000Z', notes: '',
+      },
+    });
+    await makeClearSaleHold(deps([hold]))('h-sale', 'Aaron S.');
+    expect(fromCalls).toContain('holds');       // the flag is still voided
+    expect(fromCalls).not.toContain('releases'); // but the real return time is left alone
+  });
+
+  it('still stamps the return when the exception is genuinely still open', async () => {
+    const hold = saleHold({
+      status: 'RELEASED',
+      release: {
+        id: 'r-2', holdId: 'h-sale', approvedById: 'mgr-1', approvedAt: '2026-05-27T19:11:00.000Z',
+        releaseType: 'EXCEPTION', releaseMethod: 'standard', reason: 'short term', notes: '',
+      },
+    });
+    await makeClearSaleHold(deps([hold]))('h-sale', 'Aaron S.');
+    expect(fromCalls).toContain('releases');
+  });
+
+  it('voids the hold even with no release attached', async () => {
+    await makeClearSaleHold(deps([saleHold({ status: 'ACTIVE' })]))('h-sale', 'Aaron S.');
+    expect(fromCalls).toContain('holds');
+    expect(fromCalls).not.toContain('releases');
   });
 });
