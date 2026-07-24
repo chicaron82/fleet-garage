@@ -940,6 +940,27 @@ export type Database = {
           },
         ]
       }
+      rental_classes: {
+        Row: {
+          code: string
+          created_at: string
+          label: string | null
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          label?: string | null
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          label?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
       repairs: {
         Row: {
           created_at: string

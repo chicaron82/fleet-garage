@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
+import { ClassChipPicker } from './ClassChipPicker';
 import type { FieldSource } from '../../types';
 
 interface VehicleDirectEditModalProps {
@@ -163,13 +164,7 @@ export function VehicleDirectEditModal({
               <LockBadge field="rental class" locked={fieldSources?.rentalClass === 'manual'}
                 onUnlock={() => unlock('rentalClass')} unlocking={unlockingField === 'rentalClass'} />
             </label>
-            <input
-              value={editClass}
-              onChange={e => setEditClass(e.target.value.toUpperCase())}
-              placeholder="e.g. E6, Q4, R"
-              maxLength={5}
-              className={INPUT}
-            />
+            <ClassChipPicker value={editClass} onChange={setEditClass} />
           </div>
         </div>
         <div className="flex gap-3 pt-1">

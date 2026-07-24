@@ -41,6 +41,9 @@ import { resolve, join } from 'node:path';
 //    a duplicate sighting is a true record of two scans, not corruption, and
 //    nothing reads it as a unique key. Fire-and-forget by design — a lock here
 //    would add a failure mode to a path that must never disturb a scan.
+//  - useRentalClasses.ts: the chip "Other" add. `code` is the PK, so a double-tap
+//    can't mint two rows — it's a key conflict, and the hook swallows the
+//    duplicate. Keyed-and-converges like usePendingWrites; a lock adds nothing.
 
 const INSERT_CENSUS: Record<string, number> = {
   'src/context/ProfilesContext.tsx':    1, // addRosterStaff — locked
@@ -59,6 +62,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/hooks/useOffStandardEntryEdits.ts': 1, // handleSubmitBackdate — locked
   'src/hooks/usePendingWrites.ts':      1, // EXEMPT: client-id keyed (see above)
   'src/hooks/useUnknownClassCode.ts':   1, // EXEMPT: append-only sighting log (see above)
+  'src/hooks/useRentalClasses.ts':      1, // EXEMPT: chip "Other" add, PK-keyed on code (see above)
 };
 
 function walk(dir: string): string[] {
