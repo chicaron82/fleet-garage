@@ -37,11 +37,13 @@ interface Props {
   getRole: (id: string) => string;
   fmt: (iso: string) => string;
   fmtDate: (iso: string) => string;
+  /** Closed hold — stays fully on the record, but must not read as active (see holdGrouping). */
+  muted?: boolean;
 }
 
 export function HoldRecordCard({
   hold, vehicle, uploadingFor, addPhotoClick, cameraInputRef, galleryInputRef,
-  openLightbox, setCoverPhoto, getName, getEmpId, getRole, fmt, fmtDate,
+  openLightbox, setCoverPhoto, getName, getEmpId, getRole, fmt, fmtDate, muted = false,
 }: Props) {
   // Only the still-OPEN types drive the badge + pills — a resolved type stays in
   // holdTypes (the record) but shouldn't read as active.
@@ -101,7 +103,11 @@ export function HoldRecordCard({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 transition-colors rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+    <div className={`transition-colors rounded-xl border overflow-hidden ${
+      muted
+        ? 'bg-gray-50/70 dark:bg-gray-900/40 border-gray-200/70 dark:border-gray-800/60'
+        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'
+    }`}>
       {/* Hold Header */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-start justify-between gap-3 mb-1">
@@ -126,7 +132,9 @@ export function HoldRecordCard({
                 {errMsg && !pending && <p className="text-xs text-red-500 mt-1">{errMsg}</p>}
               </div>
             ) : (
-              <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
+              <p className={`text-base font-medium ${
+                muted ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+              }`}>{hold.damageDescription}</p>
             )}
             {!editing && (unresolvedTypes.length > 1 || unresolvedTypes[0] !== 'damage') && unresolvedTypes.map(type => (
               <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>

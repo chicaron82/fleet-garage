@@ -3,6 +3,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticHeavy } from '../../lib/haptics';
 import type { RefObject, ChangeEvent } from 'react';
 import { HoldRecordCard } from './HoldRecordCard';
+import { groupHolds } from '../../lib/holdGrouping';
 import type { Hold, Vehicle } from '../../types';
 
 function fmt(iso: string) {
@@ -19,7 +20,7 @@ function fmtDate(iso: string) {
 }
 
 interface Props {
-  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl'>;
+  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'status'>;
   holds: Hold[];
   showHoldPicker: boolean;
   repairableHolds: Hold[];
@@ -52,6 +53,31 @@ export function HoldHistorySection({
   const galleryInputRef = useRef<HTMLInputElement>(null);
   useEscapeKey(closeHoldPicker);
   useEscapeKey(closeReleasePicker);
+
+  // A finished hold stays on the record but must stop reading as active — the record-level twin of
+  // unresolvedHoldTypes. Grouping key is "is this still acting on the car?", never "is it done?":
+  // RETURNED means came-back-needs-re-eval, not repaired (see lib/holdGrouping).
+  const { open: openHolds, closed: closedHolds } = groupHolds(holds, vehicle.status);
+
+  const renderCard = (hold: Hold, muted: boolean) => (
+    <HoldRecordCard
+      key={hold.id}
+      hold={hold}
+      vehicle={vehicle}
+      muted={muted}
+      uploadingFor={uploadingFor}
+      addPhotoClick={addPhotoClick}
+      cameraInputRef={cameraInputRef}
+      galleryInputRef={galleryInputRef}
+      openLightbox={openLightbox}
+      setCoverPhoto={setCoverPhoto}
+      getName={getName}
+      getEmpId={getEmpId}
+      getRole={getRole}
+      fmt={fmt}
+      fmtDate={fmtDate}
+    />
+  );
 
   return (
     <>
@@ -170,26 +196,23 @@ export function HoldHistorySection({
           </div>
         )}
 
-        <div className="space-y-3">
-          {holds.map(hold => (
-            <HoldRecordCard
-              key={hold.id}
-              hold={hold}
-              vehicle={vehicle}
-              uploadingFor={uploadingFor}
-              addPhotoClick={addPhotoClick}
-              cameraInputRef={cameraInputRef}
-              galleryInputRef={galleryInputRef}
-              openLightbox={openLightbox}
-              setCoverPhoto={setCoverPhoto}
-              getName={getName}
-              getEmpId={getEmpId}
-              getRole={getRole}
-              fmt={fmt}
-              fmtDate={fmtDate}
-            />
-          ))}
-        </div>
+        {openHolds.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest mb-2">
+              Still open · {openHolds.length}
+            </p>
+            <div className="space-y-3">{openHolds.map(hold => renderCard(hold, false))}</div>
+          </div>
+        )}
+
+        {closedHolds.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+              Closed · {closedHolds.length}
+            </p>
+            <div className="space-y-3">{closedHolds.map(hold => renderCard(hold, true))}</div>
+          </div>
+        )}
       </div>
 
       {/* Hidden photo inputs */}

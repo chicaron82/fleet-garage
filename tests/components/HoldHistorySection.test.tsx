@@ -24,7 +24,12 @@ function hold(holdTypes: HoldType[], resolvedTypes: HoldType[]): Hold {
 }
 
 const PROPS = {
-  vehicle: { id: 'v-1', unitNumber: '5421433', branchId: 'YWG' as const, coverPhotoUrl: undefined },
+  vehicle: {
+    id: 'v-1', unitNumber: '5421433', branchId: 'YWG' as const, coverPhotoUrl: undefined,
+    // Vehicle status decides whether a RETURNED hold still reads as owing a re-eval — see
+    // the grouping suite below and lib/holdGrouping.
+    status: 'HELD' as const,
+  },
   showHoldPicker: false, repairableHolds: [], closeHoldPicker: vi.fn(),
   toggleRepairPick: vi.fn(), pickedForRepair: [], confirmRepairSelection: vi.fn(),
   showReleasePicker: false, activeHolds: [], closeReleasePicker: vi.fn(),
@@ -54,5 +59,47 @@ describe('HoldHistorySection — resolution-aware badge & pills', () => {
     const h = { ...hold(['damage', 'mechanical'], ['mechanical']), mechanicalSubType: 'tire-swap' as const };
     render(<HoldHistorySection {...PROPS} holds={[h]} />);
     expect(screen.queryByText(/Tire Swap/)).toBeNull();
+  });
+});
+
+// Aaron, reading unit 5423777 on the lot: "I read it as if it still needs a geotab... it should
+// make it clear that it's done and the only hold it has is the cracked windshield."
+describe('HoldHistorySection — still-open vs closed grouping', () => {
+  function namedHold(id: string, description: string, status: Hold['status']): Hold {
+    return { ...hold(['damage'], []), id, damageDescription: description, status };
+  }
+
+  it('splits the live 5423777 case — windshield still open, geotab closed', () => {
+    render(<HoldHistorySection {...PROPS} holds={[
+      namedHold('h-glass', 'Cracked windshield', 'ACTIVE'),
+      namedHold('h-geotab', 'Geotab not installed', 'RETURNED'),
+    ]} />);
+    expect(screen.getByText('Still open · 1')).toBeTruthy();
+    expect(screen.getByText('Closed · 1')).toBeTruthy();
+    // both records remain on the page — closed recedes, it never disappears
+    expect(screen.getByText('Cracked windshield')).toBeTruthy();
+    expect(screen.getByText('Geotab not installed')).toBeTruthy();
+  });
+
+  it('shows no "Still open" group when every hold is closed', () => {
+    render(<HoldHistorySection {...PROPS} holds={[namedHold('h1', 'Old damage', 'REPAIRED')]} />);
+    expect(screen.queryByText(/Still open/)).toBeNull();
+    expect(screen.getByText('Closed · 1')).toBeTruthy();
+  });
+
+  // A returned hold is only past once the vehicle has moved on; while it is still RETURNED the
+  // re-evaluation is owed, so the hold must stay surfaced.
+  it('keeps a RETURNED hold open while the vehicle still owes a re-eval', () => {
+    const props = { ...PROPS, vehicle: { ...PROPS.vehicle, status: 'RETURNED' as const } };
+    render(<HoldHistorySection {...props} holds={[namedHold('h1', 'Geotab not installed', 'RETURNED')]} />);
+    expect(screen.getByText('Still open · 1')).toBeTruthy();
+    expect(screen.queryByText(/Closed ·/)).toBeNull();
+  });
+
+  it('still shows the clean-history empty state with no holds', () => {
+    render(<HoldHistorySection {...PROPS} holds={[]} />);
+    expect(screen.getByText(/Clean history/)).toBeTruthy();
+    expect(screen.queryByText(/Still open/)).toBeNull();
+    expect(screen.queryByText(/Closed ·/)).toBeNull();
   });
 });
