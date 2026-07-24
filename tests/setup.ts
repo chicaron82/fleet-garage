@@ -26,3 +26,10 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// jsdom does not implement scrollIntoView. Panels that scroll themselves into view on reveal
+// (useRevealScroll) would otherwise throw the moment a test renders them.
+Object.defineProperty(Element.prototype, 'scrollIntoView', {
+  writable: true,
+  value: vi.fn(),
+});

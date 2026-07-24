@@ -6,15 +6,13 @@ import { VehicleEditSuggestionSheet } from './VehicleEditSuggestionSheet';
 import { CloseExceptionAction } from './CloseExceptionAction';
 import { hapticHeavy } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
-import { ReleaseForm } from '../holds/ReleaseForm';
-import { VerbalOverrideForm } from '../holds/VerbalOverrideForm';
+import { HoldActionPanels } from '../holds/HoldActionPanels';
 import { PhotoLightbox } from '../shared/PhotoLightbox';
 import { VehicleEVAssets } from './VehicleEVAssets';
 import { VehicleLostFoundSection } from './VehicleLostFoundSection';
 import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
 import { VehicleRecordFacts } from './VehicleRecordFacts';
-import { RepairResolution } from '../holds/RepairResolution';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
 
@@ -255,39 +253,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
             archiveVehicle={archiveVehicle}
           />
         )}
-        {h.showReleaseForm && (
-          <ReleaseForm
-            holdId={h.showReleaseForm}
-            vehicleId={vehicleId}
-            onClose={h.closeReleaseForm}
-            streak={streak}
-          />
-        )}
-
-        {h.showVerbalOverride && (
-          <VerbalOverrideForm
-            holdId={h.showVerbalOverride}
-            onClose={h.closeVerbalOverride}
-          />
-        )}
-
-        {h.showRepairConfirm && (
-          <RepairResolution
-            confirmHolds={h.holds.filter(hold => h.showRepairConfirm!.includes(hold.id))}
-            userId={h.user.id}
-            markIssueRepaired={h.markIssueRepaired}
-            confirm={{
-              repairNotes: h.repairNotes,
-              setRepairNotes: h.setRepairNotes,
-              repairOutcome: h.repairOutcome,
-              setRepairOutcome: h.setRepairOutcome,
-              repairing: h.repairing,
-              error: h.repairError,
-              onCancel: h.cancelRepair,
-              onConfirm: h.handleRepair,
-            }}
-          />
-        )}
+        <HoldActionPanels h={h} vehicleId={vehicleId} streak={streak} />
 
         <HoldHistorySection
           vehicle={vehicle}
