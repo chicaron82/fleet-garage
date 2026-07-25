@@ -1724,6 +1724,38 @@ export type Database = {
     }
     Functions: {
       get_my_branch_id: { Args: never; Returns: string }
+      give_away_shift: {
+        Args: {
+          p_giver_id: string
+          p_note?: string
+          p_taker_id: string
+          p_taker_shift_id?: string
+        }
+        Returns: {
+          actual_end_time: string | null
+          actual_start_time: string | null
+          attendance: string | null
+          branch_id: string | null
+          created_at: string
+          date: string
+          end_time: string | null
+          id: string
+          is_stat: boolean
+          notes: string | null
+          pto_alternate_date: string | null
+          pto_approved: boolean
+          shift_type: string
+          start_time: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shifts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       is_manager: { Args: never; Returns: boolean }
       mark_notification_read: {
         Args: { p_notification_id: string; p_user_id: string }
@@ -1747,6 +1779,33 @@ export type Database = {
           to: "profiles"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      swap_shift_content: {
+        Args: { p_a_id: string; p_b_id: string; p_note?: string }
+        Returns: {
+          actual_end_time: string | null
+          actual_start_time: string | null
+          attendance: string | null
+          branch_id: string | null
+          created_at: string
+          date: string
+          end_time: string | null
+          id: string
+          is_stat: boolean
+          notes: string | null
+          pto_alternate_date: string | null
+          pto_approved: boolean
+          shift_type: string
+          start_time: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shifts"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
     }

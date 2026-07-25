@@ -1,45 +1,34 @@
 import { useState } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
-import { swapPlan, giveAwayPlan } from '../../lib/shiftSwap';
+import { supabase, writeWithRefresh } from '../../lib/supabase';
 import type { ShiftWithUser } from '../../types';
 
 /**
- * Applies a swap or give-away as a single confirmed action. Both are content
- * moves (see lib/shiftSwap) — no user_id changes, so the unique constraint is
- * never at risk — written through the existing optimistic schedule writes.
+ * Applies a swap or give-away as a single ATOMIC action, via the Postgres RPCs in
+ * migration 107. Each RPC reads and rewrites both rows inside one transaction, so a
+ * failure rolls the whole operation back — no half-swap can survive.
  *
- * Content-swap dodges the *constraint*, but two sequential writes still aren't
- * atomic on their own: a failed second leg would leave the grid half-swapped.
- * So on failure BOTH legs are restored to their original content — leg 2 can
- * throw *after* its DB write has already landed (a post-write session/network
- * hiccup), so rolling back only leg 1 would leave a half-swap with both rows
- * showing one shift. Restoring both guarantees a failed swap reverts cleanly.
+ * This replaced two sequential client writes guarded by a best-effort restore-both.
+ * That restore was `.catch`-swallowed, so a leg-2 failure whose restore ALSO failed
+ * left a live half-swap — which bit Aaron 2026-07-24 (swapped Rey↔Robert; Robert got
+ * the shift but Rey was never cleared, both on). One transaction removes the window.
+ *
+ * Content-only move: the RPCs swap shift_type + times and never touch user_id or
+ * date, so shifts_user_date_unique is never in play. After the write we refresh() so
+ * local schedule state matches the transaction's committed result.
  */
-const original = (s: ShiftWithUser) =>
-  ({ shiftType: s.shiftType, startTime: s.startTime, endTime: s.endTime, notes: s.notes });
-
 export function useShiftSwap() {
-  const { updateShift, createShift } = useSchedule();
+  const { refresh } = useSchedule();
   const [busy, setBusy] = useState(false);
 
   // Direct swap: two crew trade shifts on the same day.
   const swap = async (a: ShiftWithUser, b: ShiftWithUser, note?: string) => {
     setBusy(true);
     try {
-      const { forA, forB } = swapPlan(a, b);
-      const n = note?.trim() || undefined;
-      const origA = original(a), origB = original(b);
-      await updateShift(a.id, { ...forA, notes: n });
-      try {
-        await updateShift(b.id, { ...forB, notes: n });
-      } catch (e) {
-        // Restore BOTH rows — leg 2 may have written before throwing, so rolling
-        // back only A would leave a half-swap. Guard each restore so a restore
-        // failure can't mask the original error.
-        await updateShift(a.id, origA).catch(() => {});
-        await updateShift(b.id, origB).catch(() => {});
-        throw e;
-      }
+      const { error } = await writeWithRefresh(() =>
+        supabase.rpc('swap_shift_content', { p_a_id: a.id, p_b_id: b.id, p_note: note?.trim() || undefined }));
+      if (error) throw error;
+      refresh();
     } finally {
       setBusy(false);
     }
@@ -50,21 +39,15 @@ export function useShiftSwap() {
   const giveAway = async (shift: ShiftWithUser, takerId: string, takerShift: ShiftWithUser | null, note?: string) => {
     setBusy(true);
     try {
-      const { forGiver, forTaker } = giveAwayPlan(shift);
-      const n = note?.trim() || undefined;
-      await updateShift(shift.id, { ...forGiver, notes: n });
-      try {
-        if (takerShift) await updateShift(takerShift.id, { ...forTaker, notes: n });
-        else await createShift({ userId: takerId, date: shift.date, ...forTaker, notes: n });
-      } catch (e) {
-        // Restore the giver rather than stranding them on a day-off; also restore
-        // the taker's existing shift, which may have been written before the throw
-        // (a freshly-created taker row can't be cleanly undone here, so only the
-        // update case is reverted). Guarded so a restore failure can't mask the cause.
-        await updateShift(shift.id, original(shift)).catch(() => {});
-        if (takerShift) await updateShift(takerShift.id, original(takerShift)).catch(() => {});
-        throw e;
-      }
+      const { error } = await writeWithRefresh(() =>
+        supabase.rpc('give_away_shift', {
+          p_giver_id: shift.id,
+          p_taker_id: takerId,
+          p_taker_shift_id: takerShift?.id ?? undefined,
+          p_note: note?.trim() || undefined,
+        }));
+      if (error) throw error;
+      refresh();
     } finally {
       setBusy(false);
     }

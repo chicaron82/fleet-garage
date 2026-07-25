@@ -2,10 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ShiftWithUser } from '../../src/types';
 
-const updateShiftSpy = vi.fn();
-const createShiftSpy = vi.fn();
+// The hook now calls atomic Postgres RPCs (migration 107) instead of two client
+// writes, so we assert the RPC name + args and the follow-up refresh(). writeWithRefresh
+// is passed through to its thunk so the rpc result surfaces unchanged.
+const rpcSpy = vi.fn();
+const refreshSpy = vi.fn();
+vi.mock('../../src/lib/supabase', () => ({
+  supabase: { rpc: (...args: unknown[]) => rpcSpy(...args) },
+  writeWithRefresh: (fn: () => unknown) => fn(),
+}));
 vi.mock('../../src/context/ScheduleContext', () => ({
-  useSchedule: () => ({ updateShift: updateShiftSpy, createShift: createShiftSpy }),
+  useSchedule: () => ({ refresh: refreshSpy }),
 }));
 
 import { useShiftSwap } from '../../src/components/schedule/useShiftSwap';
@@ -18,36 +25,52 @@ const mk = (over: Partial<ShiftWithUser>): ShiftWithUser => ({
 
 const opener = mk({ id: 'a', userId: 'ua', shiftType: 'opening', startTime: '06:45', endTime: '15:15' });
 const closer = mk({ id: 'b', userId: 'ub', shiftType: 'closing', startTime: '16:00', endTime: '23:00' });
+const dayOff = mk({ id: 'c', userId: 'uc', shiftType: 'day-off', startTime: undefined, endTime: undefined });
 
-beforeEach(() => { updateShiftSpy.mockReset(); createShiftSpy.mockReset(); });
+beforeEach(() => { rpcSpy.mockReset(); refreshSpy.mockReset(); rpcSpy.mockResolvedValue({ data: [], error: null }); });
 
 describe('useShiftSwap.swap', () => {
-  it('trades content on the happy path (two writes only)', async () => {
-    updateShiftSpy.mockResolvedValue(undefined);
+  it('swaps atomically through one RPC call, then refreshes', async () => {
     const { result } = renderHook(() => useShiftSwap());
-    await act(async () => { await result.current.swap(opener, closer); });
+    await act(async () => { await result.current.swap(opener, closer, '  traded  '); });
 
-    expect(updateShiftSpy).toHaveBeenCalledTimes(2);
-    // leg 1: opener's row takes the closer's content
-    expect(updateShiftSpy).toHaveBeenNthCalledWith(1, 'a', expect.objectContaining({ shiftType: 'closing', startTime: '16:00', endTime: '23:00' }));
-    // leg 2: closer's row takes the opener's content
-    expect(updateShiftSpy).toHaveBeenNthCalledWith(2, 'b', expect.objectContaining({ shiftType: 'opening', startTime: '06:45', endTime: '15:15' }));
+    expect(rpcSpy).toHaveBeenCalledTimes(1);
+    expect(rpcSpy).toHaveBeenCalledWith('swap_shift_content', { p_a_id: 'a', p_b_id: 'b', p_note: 'traded' });
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('restores BOTH rows when leg 2 fails after a partial write (no half-swap)', async () => {
-    // leg1 ok, leg2 throws (e.g. a post-write hiccup), both restores ok
-    updateShiftSpy
-      .mockResolvedValueOnce(undefined)            // leg 1
-      .mockRejectedValueOnce(new Error('hiccup'))  // leg 2
-      .mockResolvedValue(undefined);               // restores
+  it('swapping an on-shift with a day-off is one call (the Rey↔Robert case) — no half-swap path', async () => {
     const { result } = renderHook(() => useShiftSwap());
+    await act(async () => { await result.current.swap(opener, dayOff); });
+    // Empty note collapses to undefined so the SQL default (clear) applies.
+    expect(rpcSpy).toHaveBeenCalledWith('swap_shift_content', { p_a_id: 'a', p_b_id: 'c', p_note: undefined });
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
 
-    await expect(act(async () => { await result.current.swap(opener, closer); })).rejects.toThrow('hiccup');
+  it('does not refresh when the RPC errors, and still clears busy', async () => {
+    rpcSpy.mockResolvedValue({ data: null, error: new Error('rpc failed') });
+    const { result } = renderHook(() => useShiftSwap());
+    await expect(act(async () => { await result.current.swap(opener, closer); })).rejects.toThrow('rpc failed');
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(result.current.busy).toBe(false);
+  });
+});
 
-    expect(updateShiftSpy).toHaveBeenCalledTimes(4);
-    // restore A (opener) to its original opening — NOT left as the swapped closing
-    expect(updateShiftSpy).toHaveBeenNthCalledWith(3, 'a', expect.objectContaining({ shiftType: 'opening', startTime: '06:45', endTime: '15:15' }));
-    // restore B (closer) to its original closing — the leg that may have written before throwing
-    expect(updateShiftSpy).toHaveBeenNthCalledWith(4, 'b', expect.objectContaining({ shiftType: 'closing', startTime: '16:00', endTime: '23:00' }));
+describe('useShiftSwap.giveAway', () => {
+  it('passes the taker existing shift id when they have one', async () => {
+    const { result } = renderHook(() => useShiftSwap());
+    await act(async () => { await result.current.giveAway(closer, 'uc', dayOff, 'covering'); });
+    expect(rpcSpy).toHaveBeenCalledWith('give_away_shift', {
+      p_giver_id: 'b', p_taker_id: 'uc', p_taker_shift_id: 'c', p_note: 'covering',
+    });
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the taker shift id when they have no same-day shift (new row created server-side)', async () => {
+    const { result } = renderHook(() => useShiftSwap());
+    await act(async () => { await result.current.giveAway(closer, 'unew', null); });
+    expect(rpcSpy).toHaveBeenCalledWith('give_away_shift', {
+      p_giver_id: 'b', p_taker_id: 'unew', p_taker_shift_id: undefined, p_note: undefined,
+    });
   });
 });
