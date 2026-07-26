@@ -129,9 +129,20 @@ export function AirportFlipSection() {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors">
-      <div>
-        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">✈️ Airport Flip</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Scan a return — record odo, fuel, damage for the counter. Clears at end of shift.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">✈️ Airport Flip</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Scan a return — record odo, fuel, damage for the counter. Clears at end of shift.</p>
+        </div>
+        {/* Shift scoreboard — how many returns turned around altogether this shift. Counts every
+            scanned row (copy only marks rows sent, never removes them), so it climbs all shift and
+            zeroes only at end-of-shift clear. The per-class breakdown lives with the rows below. */}
+        {flip.rows.length > 0 && (
+          <div className="shrink-0 rounded-lg border border-fg-yellow/40 bg-fg-yellow/10 px-2.5 py-1 text-center leading-none">
+            <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{flip.rows.length}</p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">flipped</p>
+          </div>
+        )}
       </div>
 
       {!capture ? (
