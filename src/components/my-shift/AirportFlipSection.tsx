@@ -13,6 +13,7 @@ import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
+import { NeededClasses } from './NeededClasses';
 import { checkKeys, keyShortNote } from '../../lib/keyCount';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
@@ -31,6 +32,8 @@ export function AirportFlipSection() {
   const { user } = useAuth();
   const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhoto } = useVehicleHoldContext();
   const flip = useAirportFlip();
+  // Classes turned around this shift (uppercased) → drives the "Needed" strip's satisfied ✓ state.
+  const flippedClasses = new Set(flip.rows.map(r => (r.rentalClass ?? '').trim().toUpperCase()).filter(Boolean));
   const { getName } = useUserResolver();
   const checkGeotab = useGeotabPending();
 
@@ -144,6 +147,8 @@ export function AirportFlipSection() {
           </div>
         )}
       </div>
+
+      <NeededClasses flippedClasses={flippedClasses} />
 
       {!capture ? (
         <KeytagSearchScan onPlate={() => {}} onRead={(read, photo) => void onScan(read, photo)} />
