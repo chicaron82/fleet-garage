@@ -18,17 +18,21 @@
 // writer path.
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { businessDateOf } from '../lib/shiftDay';
-import { buildFlipReport, normalizeFlipRow, type FlipRow } from '../lib/airportFlip';
+import { buildFlipReport, mergeFlipRows, normalizeFlipRow, sameFlipRows, type FlipRow } from '../lib/airportFlip';
 import { loadServerFlips, saveServerFlips } from '../lib/airportFlipSync';
 
 const KEY = 'fg_airport_flip';
 
 interface Stored { day: string; rows: FlipRow[]; at: number }
 
-let cache: FlipRow[] | null = null;
+// TWO caches, deliberately. `all` is the persisted truth and includes tombstones (a delete has to
+// travel to the other device, so it can't just be spliced); `visible` is what every consumer sees.
+// Splitting them keeps snapshot()'s stable-reference contract — filtering per call would hand
+// useSyncExternalStore a fresh array each time and spin forever.
+let cacheAll: FlipRow[] | null = null;
+let cacheVisible: FlipRow[] = [];
 let cacheDay = '';
-let cacheAt = 0;            // last-write epoch of the cached rows — compared against the server on hydrate
-let hydratedDay = '';      // the shift-day already pulled from the server (hydrate once per day)
+let hydrating = false;     // one pull at a time — the 4 consumers all mount this hook
 const listeners = new Set<() => void>();
 
 /** null = nothing stored here; a stale shift-day reads as expired ({ rows: [] }, as designed). */
@@ -51,45 +55,59 @@ function readStorage(today: string): { rows: FlipRow[]; at: number } {
   } catch { return { rows: [], at: 0 }; }
 }
 
-/** The shared snapshot. Returns a STABLE reference between writes — useSyncExternalStore
- *  re-renders on identity change, so a fresh array each call would loop forever. */
-function snapshot(today: string): FlipRow[] {
-  if (cache === null || cacheDay !== today) {
-    const s = readStorage(today);
-    cache = s.rows;
-    cacheAt = s.at;
-    cacheDay = today;
+/** Every row incl. tombstones — the persisted set, and what the mutators fold over. */
+function snapshotAll(today: string): FlipRow[] {
+  if (cacheAll === null || cacheDay !== today) {
+    setCache(today, readStorage(today).rows);
   }
-  return cache;
+  return cacheAll!;
+}
+
+/** The shared snapshot consumers render. Returns a STABLE reference between writes —
+ *  useSyncExternalStore re-renders on identity change, so a fresh array each call would loop
+ *  forever. Tombstones are filtered here, once per write, not per call. */
+function snapshot(today: string): FlipRow[] {
+  snapshotAll(today);
+  return cacheVisible;
+}
+
+function setCache(today: string, all: FlipRow[]): void {
+  cacheAll = all;
+  cacheVisible = all.filter(r => !r.deleted);
+  cacheDay = today;
+}
+
+function persist(today: string, all: FlipRow[], at: number): void {
+  try { localStorage.setItem(KEY, JSON.stringify({ day: today, rows: all, at } satisfies Stored)); }
+  catch { /* quota / private mode: the in-memory store still serves this session */ }
 }
 
 function commit(today: string, next: FlipRow[]): void {
   const at = Date.now();
-  cache = next;
-  cacheDay = today;
-  cacheAt = at;
-  try { localStorage.setItem(KEY, JSON.stringify({ day: today, rows: next, at } satisfies Stored)); }
-  catch { /* quota / private mode: the in-memory store still serves this session */ }
+  setCache(today, next);
+  persist(today, next, at);
   void saveServerFlips(today, next, at);   // best-effort cross-device push; localStorage is the offline cache
   listeners.forEach(l => l());
 }
 
-// Cross-device pull: on first mount of a shift-day, adopt the server's list if it's newer than local
-// (last-write-wins by `at`). Local-only set — does NOT re-push (the server already has it). Runs once
-// per day; the module flag guards the 4 consumers from racing.
+// Cross-device pull. MERGES rather than adopting: rows reconcile individually by their own `at`,
+// so a row neither device touched survives and two devices adding different cars never conflict
+// (see mergeFlipRows for the loss this replaced). Pushes the reconciliation back so both sides
+// converge — and because merging is idempotent, a no-op merge writes nothing and two devices
+// can't ping-pong. Safe to re-run, which is what lets the refocus pull below exist at all.
 async function hydrateFromServer(today: string): Promise<void> {
-  if (hydratedDay === today) return;
-  hydratedDay = today;
-  const server = await loadServerFlips();
-  if (!server || server.day !== today) return;   // no row / offline / stale server day → keep local
-  snapshot(today);                                // ensure cacheAt reflects the current local list
-  if (server.at <= cacheAt) return;               // local is same-or-newer → nothing to adopt
-  cache = server.rows;
-  cacheDay = today;
-  cacheAt = server.at;
-  try { localStorage.setItem(KEY, JSON.stringify({ day: today, rows: server.rows, at: server.at } satisfies Stored)); }
-  catch { /* noop */ }
-  listeners.forEach(l => l());
+  if (hydrating) return;
+  hydrating = true;
+  try {
+    const server = await loadServerFlips();
+    if (!server || server.day !== today) return;  // no row / offline / stale server day → keep local
+    const local = snapshotAll(today);
+    const merged = mergeFlipRows(local, server.rows);
+    if (sameFlipRows(merged, local)) return;      // nothing new either way → don't write
+    commit(today, merged);
+  } finally {
+    hydrating = false;
+  }
 }
 
 function subscribe(cb: () => void): () => void {
@@ -99,15 +117,16 @@ function subscribe(cb: () => void): () => void {
 
 /** Test seam — drop the module cache so a test starts from storage. */
 export function __resetAirportFlipStore(): void {
-  cache = null;
+  cacheAll = null;
+  cacheVisible = [];
   cacheDay = '';
-  cacheAt = 0;
-  hydratedDay = '';
+  hydrating = false;
 }
 
 export interface AirportFlip {
   rows: FlipRow[];
-  add: (row: Omit<FlipRow, 'id' | 'checked' | 'sent'>) => void;
+  /** `at` and `deleted` are stamped by the store, not supplied — the caller describes the CAR. */
+  add: (row: Omit<FlipRow, 'id' | 'checked' | 'sent' | 'at' | 'deleted'>) => void;
   update: (id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged' | 'notes'>>) => void;
   remove: (id: string) => void;
   toggleChecked: (id: string) => void;
@@ -123,34 +142,48 @@ export function useAirportFlip(): AirportFlip {
   const getSnapshot = useCallback(() => snapshot(today), [today]);
   const rows = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  // Pull the server's list once per shift-day so the other device's flips show up here.
-  useEffect(() => { void hydrateFromServer(today); }, [today]);
+  // Pull on mount AND whenever the app comes back to the foreground. The refocus pull is the half
+  // that actually closes the loss window: he flips on the phone, adds one on the computer, then
+  // picks the phone back up — the PWA was never killed, so without this it would still be holding
+  // (and about to push) a list that predates the computer's flip. Safe to re-run because the merge
+  // is idempotent.
+  useEffect(() => {
+    void hydrateFromServer(today);
+    const onVisible = () => { if (document.visibilityState === 'visible') void hydrateFromServer(today); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [today]);
 
   // Every mutator reads the CURRENT shared snapshot rather than a captured copy, so two mounted
   // consumers can never write over each other with stale rows.
+  // Folds over ALL rows (tombstones included) — a delete has to persist to reach the other
+  // device. Every mutator stamps the row's own `at`: that stamp IS the merge key.
   const mutate = useCallback((fn: (prev: FlipRow[]) => FlipRow[]) => {
-    commit(today, fn(snapshot(today)));
+    commit(today, fn(snapshotAll(today)));
   }, [today]);
 
-  const add = useCallback((row: Omit<FlipRow, 'id' | 'checked' | 'sent'>) => {
-    mutate(prev => [...prev, { ...row, id: crypto.randomUUID(), checked: true, sent: false }]);
+  const add = useCallback((row: Omit<FlipRow, 'id' | 'checked' | 'sent' | 'at' | 'deleted'>) => {
+    mutate(prev => [...prev, { ...row, id: crypto.randomUUID(), checked: true, sent: false, at: Date.now(), deleted: false }]);
   }, [mutate]);
 
   const update = useCallback((id: string, patch: Partial<Pick<FlipRow, 'odo' | 'fuel' | 'damaged' | 'notes'>>) => {
-    mutate(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
+    mutate(prev => prev.map(r => (r.id === id ? { ...r, ...patch, at: Date.now() } : r)));
   }, [mutate]);
 
-  const remove = useCallback((id: string) => mutate(prev => prev.filter(r => r.id !== id)), [mutate]);
+  // Tombstone, not a splice: a spliced row would be resurrected by the other device's stale copy
+  // on the next merge. Filtered from view immediately; dies with the shift day.
+  const remove = useCallback((id: string) =>
+    mutate(prev => prev.map(r => (r.id === id ? { ...r, deleted: true, at: Date.now() } : r))), [mutate]);
 
   // Only UNSENT rows toggle — a sent row is locked (nothing double-sends).
   const toggleChecked = useCallback((id: string) => {
-    mutate(prev => prev.map(r => (r.id === id && !r.sent ? { ...r, checked: !r.checked } : r)));
+    mutate(prev => prev.map(r => (r.id === id && !r.sent ? { ...r, checked: !r.checked, at: Date.now() } : r)));
   }, [mutate]);
 
   const reportForSend = useCallback(() => buildFlipReport(rows.filter(r => r.checked && !r.sent)), [rows]);
 
   const markSent = useCallback(() => {
-    mutate(prev => prev.map(r => (r.checked && !r.sent ? { ...r, sent: true, checked: false } : r)));
+    mutate(prev => prev.map(r => (r.checked && !r.sent ? { ...r, sent: true, checked: false, at: Date.now() } : r)));
   }, [mutate]);
 
   const checkedUnsentCount = rows.filter(r => r.checked && !r.sent).length;

@@ -32,6 +32,15 @@ export interface FlipRow {
   checked: boolean;
   /** Already copied for the counter — locked out of future copies so nothing double-sends. */
   sent: boolean;
+  /** Epoch ms of this ROW's last mutation — the merge key for cross-device reconciliation.
+   *  Per-row rather than per-list: two devices adding DIFFERENT cars aren't in conflict at all,
+   *  and whole-list last-write-wins invented one (see mergeFlipRows). 0 for a row written by a
+   *  build older than this field, so any stamped edit beats it. */
+  at: number;
+  /** Tombstone. A removed row is KEPT (flagged) rather than spliced, because a merge that only
+   *  unions ids would resurrect it from the other device's stale copy. Filtered out of everything
+   *  the operator sees; garbage-collected for free by the shift-day expiry. */
+  deleted: boolean;
 }
 
 /** One counter line: plate first (their search key), then only the fields that were filled. */
@@ -63,7 +72,49 @@ export function normalizeFlipRow(r: Partial<FlipRow>): FlipRow {
     notes: r.notes ?? '',
     checked: r.checked ?? true,
     sent: r.sent ?? false,
+    at: r.at ?? 0,
+    deleted: r.deleted ?? false,
   };
+}
+
+/** Reconcile this device's rows with the server's — the fix for cross-device flip loss.
+ *
+ *  The bug (found in the 2026-07-26 line-check, never hit live): the sync stored ONE payload and
+ *  resolved conflicts by whole-list last-write-wins, while the server pull ran once per shift-day.
+ *  So a device that was open before another device wrote would push its stale list and silently
+ *  drop the other's flips — phone flips A, computer flips B, phone (still alive in the pocket)
+ *  flips C and pushes [A,C]; B is gone. Offline-first lost the other direction the same way.
+ *
+ *  The mistake was modelling an append-mostly EVENT LOG as a document. Two devices adding
+ *  different cars were never in conflict; whole-list LWW manufactured one. So conflicts resolve
+ *  PER ROW by `at`, and rows neither side touched simply survive.
+ *
+ *  Deletes carry tombstones because a plain union would resurrect them from the other side's
+ *  stale copy — `remove` is part of the API, so that had to be representable.
+ *
+ *  Order: this device's rows keep their positions (the list must not reshuffle under him
+ *  mid-shift), and rows only the server had are appended. Idempotent and commutative — which is
+ *  what makes re-pulling on refocus safe, and that's what actually closes the pickup window. */
+export function mergeFlipRows(local: FlipRow[], server: FlipRow[]): FlipRow[] {
+  const winner = new Map<string, FlipRow>();
+  for (const r of local) winner.set(r.id, r);
+  for (const r of server) {
+    const mine = winner.get(r.id);
+    // Strictly-newer wins, so a tie keeps the local row — deterministic, and a same-millisecond
+    // edit on two devices is not a case worth a clock-skew tiebreaker.
+    if (!mine || r.at > mine.at) winner.set(r.id, r);
+  }
+  const merged = local.map(r => winner.get(r.id) ?? r);
+  const known = new Set(local.map(r => r.id));
+  for (const r of server) if (!known.has(r.id)) merged.push(winner.get(r.id) ?? r);
+  return merged;
+}
+
+/** Do two row lists carry the same rows at the same versions? Lets the hydrate skip a pointless
+ *  write when a merge changed nothing — without it, two devices would ping-pong reconciliations. */
+export function sameFlipRows(a: FlipRow[], b: FlipRow[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((r, i) => r.id === b[i].id && r.at === b[i].at);
 }
 
 /**

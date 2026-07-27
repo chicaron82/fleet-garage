@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { flipRowLine, buildFlipReport, normalizeFlipRow, flipClassSummary, type FlipRow } from '../../src/lib/airportFlip';
+import { flipRowLine, buildFlipReport, normalizeFlipRow, flipClassSummary, mergeFlipRows, sameFlipRows, type FlipRow } from '../../src/lib/airportFlip';
 
 const row = (over: Partial<FlipRow>): FlipRow => ({
   id: 'r1', plate: 'LFJ285', unit: '5427802', odo: '41230', fuel: '7/8',
-  isEv: false, damaged: false, rentalClass: '', notes: '', checked: true, sent: false, ...over,
+  isEv: false, damaged: false, rentalClass: '', notes: '', checked: true, sent: false, at: 0, deleted: false, ...over,
 });
 
 describe('flipRowLine', () => {
@@ -62,10 +62,10 @@ describe('flipRowLine — resilience to rows saved before a field existed', () =
 describe('normalizeFlipRow', () => {
   it('fills every missing field so an old persisted row can never crash a render', () => {
     const healed = normalizeFlipRow({ id: 'r', plate: 'LFJ285', odo: '41230', fuel: '7/8' });
-    expect(healed).toEqual({ id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', isEv: false, damaged: false, rentalClass: '', notes: '', checked: true, sent: false });
+    expect(healed).toEqual({ id: 'r', plate: 'LFJ285', unit: null, odo: '41230', fuel: '7/8', isEv: false, damaged: false, rentalClass: '', notes: '', checked: true, sent: false, at: 0, deleted: false });
   });
   it('preserves what is already there (a sent+unchecked row stays that way)', () => {
-    const row: FlipRow = { id: 'r', plate: 'LUR170', unit: '5427802', odo: '1', fuel: 'F', isEv: false, damaged: true, rentalClass: 'Q4', notes: 'weed smell', checked: false, sent: true };
+    const row: FlipRow = { id: 'r', plate: 'LUR170', unit: '5427802', odo: '1', fuel: 'F', isEv: false, damaged: true, rentalClass: 'Q4', notes: 'weed smell', checked: false, sent: true, at: 1700000000000, deleted: false };
     expect(normalizeFlipRow(row)).toEqual(row);
   });
 });
@@ -131,5 +131,105 @@ describe('flipRowLine — EV returns read "charge", gas reads "fuel"', () => {
     const old = { id: 'x', plate: 'ABC123', odo: '100', fuel: 'F', damaged: false, checked: true, sent: false };
     expect(normalizeFlipRow(old).isEv).toBe(false);
     expect(flipRowLine(normalizeFlipRow(old))).toBe('ABC123 · odo 100 · fuel F');
+  });
+});
+
+// ── mergeFlipRows: the cross-device reconciliation ────────────────────────────────────────
+//
+// Found in the 2026-07-26 line-check (never hit live): the sync stored ONE payload under
+// whole-list last-write-wins and pulled once per shift-day, so a device open before another
+// device wrote would push its stale list and silently drop the other's flips. These cases are
+// the concrete loss scenarios from that finding.
+describe('mergeFlipRows', () => {
+  const r = (id: string, at: number, over: Partial<FlipRow> = {}) =>
+    row({ id, at, plate: id.toUpperCase(), ...over });
+
+  it('THE BUG: keeps a flip only the other device has', () => {
+    // Phone flipped A. Computer hydrated, flipped B. Phone (still alive) then flipped C.
+    // Under the old whole-list LWW the phone pushed [A,C] and B vanished.
+    const phone  = [r('a', 100), r('c', 300)];
+    const server = [r('a', 100), r('b', 200)];
+    expect(mergeFlipRows(phone, server).map(x => x.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('THE OTHER DIRECTION: offline rows survive a newer server write', () => {
+    // Phone flipped offline (newer stamp, never pushed); computer wrote later.
+    const phoneOffline = [r('a', 100), r('offline', 500)];
+    const server       = [r('a', 100), r('computer', 400)];
+    const out = mergeFlipRows(phoneOffline, server);
+    expect(out.map(x => x.id).sort()).toEqual(['a', 'computer', 'offline']);
+  });
+
+  it('per-row newest wins on a genuine same-row conflict', () => {
+    const local  = [r('a', 100, { odo: 'stale' })];
+    const server = [r('a', 200, { odo: 'fresher' })];
+    expect(mergeFlipRows(local, server)[0].odo).toBe('fresher');
+    // ...and not the other way round
+    expect(mergeFlipRows(server, local)[0].odo).toBe('fresher');
+  });
+
+  it('a tie keeps the local row — deterministic, no clock-skew tiebreaker', () => {
+    const local  = [r('a', 100, { odo: 'mine' })];
+    const server = [r('a', 100, { odo: 'theirs' })];
+    expect(mergeFlipRows(local, server)[0].odo).toBe('mine');
+  });
+
+  it('a tombstone does NOT get resurrected by the other side of the merge', () => {
+    // The reason deletes are tombstoned rather than spliced: a plain id-union would bring the
+    // row back from whichever device still had it.
+    const deletedHere = [r('a', 300, { deleted: true })];
+    const stillThere  = [r('a', 100)];
+    expect(mergeFlipRows(deletedHere, stillThere)[0].deleted).toBe(true);
+    expect(mergeFlipRows(stillThere, deletedHere)[0].deleted).toBe(true);
+  });
+
+  it('a re-add after a delete wins, because it is newer', () => {
+    const readded = [r('a', 400, { deleted: false })];
+    const tomb    = [r('a', 300, { deleted: true })];
+    expect(mergeFlipRows(readded, tomb)[0].deleted).toBe(false);
+  });
+
+  it("preserves THIS device's row order — the list must not reshuffle mid-shift", () => {
+    const local  = [r('c', 300), r('a', 100), r('b', 200)];
+    const server = [r('a', 100), r('b', 200), r('z', 400)];
+    expect(mergeFlipRows(local, server).map(x => x.id)).toEqual(['c', 'a', 'b', 'z']);
+  });
+
+  // Idempotence + commutativity are what make the refocus re-pull safe: re-running can't drift,
+  // and two devices reconciling can't ping-pong writes.
+  it('is idempotent — merging twice equals merging once', () => {
+    const local  = [r('a', 100), r('c', 300)];
+    const server = [r('a', 100), r('b', 200)];
+    const once = mergeFlipRows(local, server);
+    expect(mergeFlipRows(once, server)).toEqual(once);
+  });
+
+  it('agrees on the same SET from either side', () => {
+    const local  = [r('a', 100), r('c', 300)];
+    const server = [r('b', 200), r('a', 150)];
+    const l = mergeFlipRows(local, server).map(x => `${x.id}@${x.at}`).sort();
+    const s = mergeFlipRows(server, local).map(x => `${x.id}@${x.at}`).sort();
+    expect(l).toEqual(s);
+  });
+
+  it('legacy rows (at: 0, written before this field) lose to any stamped edit', () => {
+    const legacy  = [r('a', 0,   { odo: 'legacy' })];
+    const stamped = [r('a', 1,   { odo: 'stamped' })];
+    expect(mergeFlipRows(legacy, stamped)[0].odo).toBe('stamped');
+  });
+
+  it('empty sides are no-ops in both directions', () => {
+    const rows = [r('a', 100)];
+    expect(mergeFlipRows(rows, [])).toEqual(rows);
+    expect(mergeFlipRows([], rows)).toEqual(rows);
+  });
+});
+
+describe('sameFlipRows', () => {
+  it('true only when the same rows sit at the same versions', () => {
+    expect(sameFlipRows([row({ id: 'a', at: 1 })], [row({ id: 'a', at: 1 })])).toBe(true);
+    expect(sameFlipRows([row({ id: 'a', at: 1 })], [row({ id: 'a', at: 2 })])).toBe(false);
+    expect(sameFlipRows([row({ id: 'a', at: 1 })], [row({ id: 'b', at: 1 })])).toBe(false);
+    expect(sameFlipRows([], [row({ id: 'a', at: 1 })])).toBe(false);
   });
 });
