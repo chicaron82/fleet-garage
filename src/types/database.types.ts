@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      airport_flips: {
+        Row: {
+          flips: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          flips: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          flips?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audits: {
         Row: {
           auditor_id: string
