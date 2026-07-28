@@ -1422,6 +1422,7 @@ export type Database = {
           has_j1772_adapter: boolean | null
           has_mobile_cable: boolean | null
           id: string
+          is_hybrid: boolean
           is_tesla: boolean
           key_count: number | null
           keytag_photo_url: string | null
@@ -1454,6 +1455,7 @@ export type Database = {
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id: string
+          is_hybrid?: boolean
           is_tesla?: boolean
           key_count?: number | null
           keytag_photo_url?: string | null
@@ -1486,6 +1488,7 @@ export type Database = {
           has_j1772_adapter?: boolean | null
           has_mobile_cable?: boolean | null
           id?: string
+          is_hybrid?: boolean
           is_tesla?: boolean
           key_count?: number | null
           keytag_photo_url?: string | null

@@ -194,6 +194,9 @@ export interface Vehicle {
   archivedById?: string;
   // EV / Tesla accessories
   isTesla: boolean;
+  // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
+  // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.
+  isHybrid?: boolean;
   hasMobileCable: boolean | null;
   hasJ1772Adapter: boolean | null;
   evLastUpdatedBy?: string | null;

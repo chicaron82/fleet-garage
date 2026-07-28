@@ -15,10 +15,14 @@ interface VehicleIdentityFieldsProps {
   onModel: (v: string) => void;
   onYear: (v: number) => void;
   onColor: (v: string) => void;
+  // Hybrid is a flag on the vehicle, not a "<Base> Hybrid" model. Optional: only render the
+  // toggle where a parent wires it (register form now; edit modal later). No onHybrid → no toggle.
+  isHybrid?: boolean;
+  onHybrid?: (v: boolean) => void;
 }
 
 export function VehicleIdentityFields({
-  make, model, year, color, onMake, onModel, onYear, onColor,
+  make, model, year, color, onMake, onModel, onYear, onColor, isHybrid, onHybrid,
 }: VehicleIdentityFieldsProps) {
   return (
     <>
@@ -88,6 +92,20 @@ export function VehicleIdentityFields({
           </select>
         </div>
       </div>
+
+      {/* Hybrid toggle — the attribute that replaced the hard-coded "<Base> Hybrid" models.
+          Pick the base model above, then flag it here. Only shown when the parent wires onHybrid. */}
+      {onHybrid && (
+        <label className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 cursor-pointer select-none">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">🔋 Hybrid model</span>
+          <input
+            type="checkbox"
+            checked={!!isHybrid}
+            onChange={e => onHybrid(e.target.checked)}
+            className="w-5 h-5 accent-fg-yellow cursor-pointer"
+          />
+        </label>
+      )}
     </>
   );
 }

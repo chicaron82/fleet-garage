@@ -71,6 +71,7 @@ export function useVehicleOperations({
           branch_id:         branchId,
           status,
           is_tesla:          vehicle.isTesla ?? false,
+          is_hybrid:         vehicle.isHybrid ?? false,
           has_mobile_cable:  vehicle.hasMobileCable ?? null,
           has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
         })

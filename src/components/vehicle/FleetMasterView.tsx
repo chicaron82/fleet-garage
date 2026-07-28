@@ -162,6 +162,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                               ⚡
                             </span>
                           )}
+                          {v.isHybrid && (
+                            <span className="text-[10px] font-bold shrink-0 text-green-500" title="Hybrid">🔋</span>
+                          )}
                           <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap truncate">
                             {v.make} {v.model} {v.year} · {v.color}
                           </span>

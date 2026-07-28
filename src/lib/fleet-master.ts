@@ -27,6 +27,7 @@ export interface FleetVehicle {
   holdFlaggedAt?: string;
   branchId: string;
   isTesla: boolean;
+  isHybrid: boolean;
   hasMobileCable: boolean | null;
   hasJ1772Adapter: boolean | null;
   /** The boss's size/type group (Q4, P4, T…) off the keytag — filterable so FG can answer
@@ -75,6 +76,7 @@ export interface FleetVehicleRow {
   color: string;
   branch_id: string | null;
   is_tesla: boolean;
+  is_hybrid?: boolean | null;
   has_mobile_cable: boolean | null;
   has_j1772_adapter: boolean | null;
   rental_class: string | null;
@@ -187,6 +189,7 @@ export function buildFleetView(
       holdFlaggedAt,
       branchId:        v.branch_id ?? 'YWG',
       isTesla:         v.is_tesla,
+      isHybrid:        v.is_hybrid ?? false,
       hasMobileCable:  v.has_mobile_cable,
       hasJ1772Adapter: v.has_j1772_adapter,
       rentalClass:     v.rental_class,
@@ -205,7 +208,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, has_mobile_cable, has_j1772_adapter, rental_class')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class')
       .eq('branch_id', branchId),
     supabase
       .from('holds')

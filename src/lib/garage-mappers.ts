@@ -56,6 +56,7 @@ export function mapVehicle(row: Row): Vehicle {
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
     isTesla:        (row['is_tesla'] as boolean)          ?? false,
+    isHybrid:       (row['is_hybrid'] as boolean)         ?? false,
     hasMobileCable: (row['has_mobile_cable'] as boolean | null) ?? null,
     hasJ1772Adapter:(row['has_j1772_adapter'] as boolean | null) ?? null,
     evLastUpdatedBy: (row['ev_last_updated_by'] as string | null) ?? null,

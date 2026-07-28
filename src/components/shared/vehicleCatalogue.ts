@@ -7,12 +7,12 @@
  *  escape hatch for anything off-catalogue. */
 export const MAKES_MODELS: Record<string, string[]> = {
   Chevrolet:       ['Blazer', 'Colorado', 'Equinox', 'Malibu', 'Malibu LT', 'Silverado', 'Suburban', 'Tahoe', 'Trailblazer', 'Trax', 'Traverse'],
-  Ford:            ['Bronco', 'Bronco Sport', 'Edge', 'Escape', 'Escape Hybrid', 'Expedition', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
-  Toyota:          ['4Runner', 'Camry', 'Camry Hybrid', 'Camry LE', 'Camry SE', 'Corolla', 'Corolla Cross', 'Corolla Hatchback', 'Corolla Hybrid', 'Highlander', 'Prius', 'RAV4', 'RAV4 Hybrid', 'Sienna', 'Tacoma'],
+  Ford:            ['Bronco', 'Bronco Sport', 'Edge', 'Escape', 'Expedition', 'Explorer', 'F-150', 'Maverick', 'Mustang'],
+  Toyota:          ['4Runner', 'Camry', 'Camry LE', 'Camry SE', 'Corolla', 'Corolla Cross', 'Corolla Hatchback', 'Highlander', 'Prius', 'RAV4', 'Sienna', 'Tacoma'],
   Honda:           ['Accord', 'Civic', 'CR-V', 'HR-V', 'Pilot', 'Ridgeline'],
   Nissan:          ['Altima', 'Frontier', 'Kicks', 'Murano', 'Pathfinder', 'Rogue', 'Sentra', 'Versa'],
   Hyundai:         ['Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson', 'Venue'],
-  Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Niro EV', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Sportage Hybrid', 'Telluride'],
+  Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Niro EV', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
   Chrysler:        ['300', 'Pacifica'],

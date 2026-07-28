@@ -18,19 +18,23 @@
 export interface VehicleClass {
   make: string;
   model: string;
+  /** Hybrid is a flag on the vehicle now, not a "<Base> Hybrid" model (migration 109). A tag whose
+   *  class code is a hybrid variant resolves to the BASE model + this hint, so the model stays
+   *  selectable in the catalogue AND the hybrid signal survives the scan. */
+  isHybrid?: boolean;
 }
 
 const CODEX: Record<string, VehicleClass> = {
   // Toyota
   CCAM: { make: 'Toyota', model: 'Camry' },
   CCSE: { make: 'Toyota', model: 'Camry SE' },
-  CCMH: { make: 'Toyota', model: 'Camry Hybrid' },
+  CCMH: { make: 'Toyota', model: 'Camry', isHybrid: true },
   CCRL: { make: 'Toyota', model: 'Corolla' },
   CCRC: { make: 'Toyota', model: 'Corolla Cross' },
   CCRH: { make: 'Toyota', model: 'Corolla Hatchback' },
-  CCLH: { make: 'Toyota', model: 'Corolla Hybrid' },
+  CCLH: { make: 'Toyota', model: 'Corolla', isHybrid: true },
   CRVB: { make: 'Toyota', model: 'RAV4' },
-  CRHX: { make: 'Toyota', model: 'RAV4 Hybrid' }, // surfaced live 2026-07-22 (Aaron, keytag photo) —
+  CRHX: { make: 'Toyota', model: 'RAV4', isHybrid: true }, // surfaced live 2026-07-22 (Aaron, keytag photo) —
   // the boss's #1 poach target. Tag prints correct CRHX but the rental class is mislabeled Q4 (gas
   // RAV4's class); the real class is E6 (powertrain-hybrid group, per the Hertz chart he photographed
   // 2026-07-20). First live test of the field-provenance ladder shipped same session (8a60f43).
@@ -50,7 +54,7 @@ const CODEX: Record<string, VehicleClass> = {
   CSOR: { make: 'Kia', model: 'Sorento' },
   CSOL: { make: 'Kia', model: 'Soul' },
   CSPT: { make: 'Kia', model: 'Sportage' },
-  CSEH: { make: 'Kia', model: 'Sportage Hybrid' },
+  CSEH: { make: 'Kia', model: 'Sportage', isHybrid: true },
   // Nissan
   CKSV: { make: 'Nissan', model: 'Kicks' },
   // Kicks is a NISSAN. CKVA sat in the Kia block and shipped 2 vehicles as "Kia Kicks"

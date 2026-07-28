@@ -17,7 +17,7 @@ describe('lookupVehicleClass', () => {
     expect(lookupVehicleClass('C3US')).toEqual({ make: 'Tesla', model: 'Model 3' }); // 3rd Model 3 code, Aaron confirmed at the car 2026-07-20
     expect(lookupVehicleClass('CGCL')).toEqual({ make: 'Dodge', model: 'Grand Caravan' });
     expect(lookupVehicleClass('CELA')).toEqual({ make: 'Hyundai', model: 'Elantra' }); // C-prefix but Hyundai
-    expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage Hybrid' }); // hybrid gets its own code (cf CSPT)
+    expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage', isHybrid: true }); // hybrid is a flag now (migration 109), base model + hint (cf CSPT)
     expect(lookupVehicleClass('CALE')).toEqual({ make: 'GMC', model: 'Acadia' }); // added 2026-07-17, the gap Aaron flagged
     expect(lookupVehicleClass('CTLT')).toEqual({ make: 'Chevrolet', model: 'Traverse' }); // added 2026-07-17 (L2 class)
     expect(lookupVehicleClass('C6CU')).toEqual({ make: 'Volvo', model: 'XC60' }); // added 2026-07-20, Aaron visually confirmed on unit 5427752

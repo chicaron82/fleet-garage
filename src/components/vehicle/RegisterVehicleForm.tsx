@@ -46,6 +46,8 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
   const [model, setModel] = useState(scanned?.model ?? '');
   const [year, setYear] = useState(scanned?.year ?? currentYear);
   const [color, setColor] = useState(scanned?.color ?? '');
+  // Hybrid flag — an attribute now, not a "<Base> Hybrid" model. Operator-checked; defaults off.
+  const [isHybrid, setIsHybrid] = useState(false);
   // Rental class is read off the tag, not operator-typed — carried through to the insert.
   const [rentalClass, setRentalClass] = useState(scanned?.rentalClass ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
@@ -112,6 +114,7 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
         keyCount:       effectiveKeyCount,
         branchId:       user?.branchId,
         isTesla,
+        isHybrid,
         // EV assets register as "not assessed" (null) — never assume present.
         // The first real present/missing observation (and its timeline entry)
         // comes from the EV Assets tab / check-in, not from cataloging the car.
@@ -237,6 +240,8 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
               onModel={setModel}
               onYear={setYear}
               onColor={setColor}
+              isHybrid={isHybrid}
+              onHybrid={setIsHybrid}
             />
 
             {/* Rental class is READ off the tag, not typed — show what FG captured (show-your-work)
