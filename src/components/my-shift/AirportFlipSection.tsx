@@ -54,6 +54,10 @@ export function AirportFlipSection() {
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
   const [toast, setToast] = useState('');
+  // Sent rows collapse into a tap-to-expand summary by default: once a car's dispatched it's done,
+  // and a shift of them buries the scan button + the still-to-send rows under dead scroll (Aaron,
+  // live 2026-07-28). Unsent rows stay expanded — those are the ones still needing a decision.
+  const [sentExpanded, setSentExpanded] = useState(false);
 
   // Diffed against what the car is SUPPOSED to carry, so FG says "a key short" instead of just
   // storing a number. Null keys = not counted; a car with no baseline seeds it from this count.
@@ -129,6 +133,24 @@ export function AirportFlipSection() {
       setTimeout(() => setToast(''), 3000);
     } catch { setToast('Copy failed — long-press the list to copy manually.'); }
   };
+
+  // One row renderer, reused for the always-open unsent list and the collapsed sent group.
+  const renderRow = (r: (typeof flip.rows)[number]) => (
+    <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition ${r.sent ? 'border-gray-100 dark:border-gray-800 opacity-55' : 'border-gray-200 dark:border-gray-700'}`}>
+      {r.sent ? (
+        <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 shrink-0 w-12">✓ Sent</span>
+      ) : (
+        <input type="checkbox" checked={r.checked} onChange={() => flip.toggleChecked(r.id)} className="w-4 h-4 accent-fg-yellow cursor-pointer shrink-0" />
+      )}
+      {r.rentalClass && (
+        <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">{r.rentalClass}</span>
+      )}
+      <span className="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-200">{flipRowLine(r)}</span>
+      {!r.sent && <button type="button" aria-label="Remove" onClick={() => flip.remove(r.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 text-xs shrink-0 cursor-pointer">✕</button>}
+    </div>
+  );
+  const unsentRows = flip.rows.filter(r => !r.sent);
+  const sentRows = flip.rows.filter(r => r.sent);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors">
@@ -247,20 +269,24 @@ export function AirportFlipSection() {
 
       {flip.rows.length > 0 && (
         <div className="space-y-1.5">
-          {flip.rows.map(r => (
-            <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition ${r.sent ? 'border-gray-100 dark:border-gray-800 opacity-55' : 'border-gray-200 dark:border-gray-700'}`}>
-              {r.sent ? (
-                <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 shrink-0 w-12">✓ Sent</span>
-              ) : (
-                <input type="checkbox" checked={r.checked} onChange={() => flip.toggleChecked(r.id)} className="w-4 h-4 accent-fg-yellow cursor-pointer shrink-0" />
-              )}
-              {r.rentalClass && (
-                <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">{r.rentalClass}</span>
-              )}
-              <span className="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-200">{flipRowLine(r)}</span>
-              {!r.sent && <button type="button" aria-label="Remove" onClick={() => flip.remove(r.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 text-xs shrink-0 cursor-pointer">✕</button>}
+          {/* Still-to-send rows stay open — the ones that still need a decision + drive the scan/copy flow. */}
+          {unsentRows.map(renderRow)}
+
+          {/* Sent rows collapse to a one-line summary so a shift of dispatched cars doesn't bury the
+              scan button under dead scroll. Tap to expand when you need to look one up. */}
+          {sentRows.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setSentExpanded(v => !v)}
+                className="w-full flex items-center justify-between rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800/40 cursor-pointer transition"
+              >
+                <span>✓ {sentRows.length} sent</span>
+                <span className="text-gray-400 dark:text-gray-500">{sentExpanded ? 'collapse ▲' : 'tap to expand ▼'}</span>
+              </button>
+              {sentExpanded && <div className="space-y-1.5 mt-1.5">{sentRows.map(renderRow)}</div>}
             </div>
-          ))}
+          )}
 
           {/* Aaron's own shift tally — what he turned around, by class. Not in the counter
               copy-out (they search by plate). */}
