@@ -79,6 +79,7 @@ function toKeytagRead(input: unknown): KeytagRead {
     rentalClass: s(r.rentalClass)?.toUpperCase(),
     make: vc?.make,
     model: vc?.model,
+    isHybrid: vc?.isHybrid,
     year,
     color: s(r.color),
     bodyStyle: s(r.bodyStyle),

@@ -46,8 +46,9 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
   const [model, setModel] = useState(scanned?.model ?? '');
   const [year, setYear] = useState(scanned?.year ?? currentYear);
   const [color, setColor] = useState(scanned?.color ?? '');
-  // Hybrid flag — an attribute now, not a "<Base> Hybrid" model. Operator-checked; defaults off.
-  const [isHybrid, setIsHybrid] = useState(false);
+  // Hybrid flag — an attribute now, not a "<Base> Hybrid" model. Pre-checked when the scanned tag's
+  // class code is a hybrid variant (codex hint); otherwise operator-checked, defaults off.
+  const [isHybrid, setIsHybrid] = useState(scanned?.isHybrid ?? false);
   // Rental class is read off the tag, not operator-typed — carried through to the insert.
   const [rentalClass, setRentalClass] = useState(scanned?.rentalClass ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
@@ -68,6 +69,7 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
     setYear(s.year ?? currentYear);
     setColor(s.color ?? '');
     setRentalClass(s.rentalClass ?? '');
+    setIsHybrid(s.isHybrid ?? false);
   });
 
   const [successToast, setSuccessToast] = useState<string | null>(null);

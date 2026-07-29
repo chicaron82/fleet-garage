@@ -92,7 +92,7 @@ export const TOOLS: Anthropic.Tool[] = [
         plate: { type: 'string', description: 'License plate.' },
         unit_number: { type: 'string', description: 'Fleet unit number (join the digit groups).' },
         make: { type: 'string', description: 'e.g. "Kia".' },
-        model: { type: 'string', description: 'e.g. "Sportage Hybrid" (from lookup_vehicle_class).' },
+        model: { type: 'string', description: 'e.g. "Sportage" (base model from lookup_vehicle_class; hybrid is a separate flag, not part of the model name).' },
         year: { type: 'integer', description: 'Model year, e.g. 2026.' },
         color: { type: 'string', description: 'e.g. "Gray".' },
       },

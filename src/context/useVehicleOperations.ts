@@ -221,7 +221,7 @@ export function useVehicleOperations({
     // LOCKS those fields (field_sources 'manual') — the operator standing at the car outranks any
     // scan, so no future tag read overrides his edit (the CCLH-should-be-CCMH case). Omitted →
     // unit/plate-only edit, as before.
-    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null },
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; isHybrid?: boolean },
   ) => {
     // Manual edit = the operator's confirmed truth → stamp 'manual' on every field he set, so the
     // provenance ladder (inferred < tag < manual) blocks a later scan from clobbering it. Merge into
@@ -230,6 +230,7 @@ export function useVehicleOperations({
     if (unit) stamps.unitNumber = 'manual';
     if (identity) {
       stamps.make = 'manual'; stamps.model = 'manual'; stamps.year = 'manual'; stamps.color = 'manual';
+      stamps.isHybrid = 'manual';  // a human's hybrid call outranks a later tag read
       if (identity.rentalClass && identity.rentalClass.trim() !== '') stamps.rentalClass = 'manual';
     }
     const { data: cur } = await supabase.from('vehicles').select('field_sources').eq('id', vehicleId).maybeSingle();
@@ -241,7 +242,7 @@ export function useVehicleOperations({
       supabase.from('vehicles').update({
         unit_number:          unit,
         license_plate:        plate,
-        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass } : {}),
+        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass, is_hybrid: identity.isHybrid ?? false } : {}),
         field_sources:        mergedSources,
         edit_status:          null,
         edit_suggested_unit:  null,

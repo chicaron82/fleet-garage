@@ -14,6 +14,7 @@ interface VehicleDirectEditModalProps {
   initialYear: number;
   initialColor: string;
   initialRentalClass: string | null;
+  initialIsHybrid?: boolean;
   /** Per-field provenance — a 'manual' entry LOCKS that field against future tag reads. Undefined/
    *  absent-key fields render with no lock indicator (inferred/tag-sourced, freely overwritable). */
   fieldSources?: Record<string, FieldSource>;
@@ -22,7 +23,7 @@ interface VehicleDirectEditModalProps {
     vehicleId: string,
     unitNumber: string | null,
     licensePlate: string,
-    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null },
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; isHybrid?: boolean },
   ) => Promise<void>;
   /** Release a manual lock on one field, WITHOUT touching its value — a future scan can update it
    *  again. A separate action from Save on purpose: unlocking and editing are different decisions. */
@@ -57,6 +58,7 @@ export function VehicleDirectEditModal({
   initialYear,
   initialColor,
   initialRentalClass,
+  initialIsHybrid,
   fieldSources,
   onClose,
   directEditVehicleIdentity,
@@ -69,6 +71,7 @@ export function VehicleDirectEditModal({
   // Seed a blank/unknown year (0 sentinel) to the current year so the stepper starts in range.
   const [editYear, setEditYear] = useState(initialYear >= 2000 ? initialYear : new Date().getFullYear());
   const [editColor, setEditColor] = useState(initialColor);
+  const [editHybrid, setEditHybrid] = useState(!!initialIsHybrid);
   // Rental class (Q4, E6, P4, R…). Editing it here LOCKS it against future tag reads — the fix for
   // a tag that maps to the wrong class (CCLH→Corolla when the car's really a Camry, or class F where
   // it should be E6). Freeform short code, upper-cased on save.
@@ -157,6 +160,8 @@ export function VehicleDirectEditModal({
             onModel={setEditModel}
             onYear={setEditYear}
             onColor={setEditColor}
+            isHybrid={editHybrid}
+            onHybrid={setEditHybrid}
           />
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
@@ -184,7 +189,7 @@ export function VehicleDirectEditModal({
                 vehicleId,
                 editUnit.trim() || null,
                 editPlate.trim().toUpperCase(),
-                { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null },
+                { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null, isHybrid: editHybrid },
               );
               setEditSaving(false);
               onClose();

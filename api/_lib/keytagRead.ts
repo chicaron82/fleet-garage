@@ -21,6 +21,10 @@ export interface KeytagRead {
   rentalClass?: string;
   make?: string;
   model?: string;
+  /** Hybrid — set when the resolved class code is a hybrid variant (the codex's isHybrid hint,
+   *  e.g. CCMH/CCLH/CRHX/CSEH). Lets a scanned hybrid tag pre-check the register form's toggle
+   *  instead of registering as gas + waiting for a manual tick. */
+  isHybrid?: boolean;
   /** Model year — the trailing number on the class line ("CCVL 25" → 2025). */
   year?: number;
   /** Colour, mapped from the tag's colour code (WHI→White, BLK→Black, …). */

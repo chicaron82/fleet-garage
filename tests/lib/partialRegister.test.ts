@@ -11,19 +11,27 @@ const DURANGO: KeytagRead = {
 describe('scannedFromRead', () => {
   it('keeps every field the tag DID give, blanking only what it did not', () => {
     expect(scannedFromRead(DURANGO, 'LUR437')).toEqual({
-      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '', teachClassCode: 'CDGT',
+      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '', isHybrid: false, teachClassCode: 'CDGT',
     });
   });
 
   it('never returns null on an incomplete read — that was the whole bug', () => {
     expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111')).toEqual({
-      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '', teachClassCode: undefined,
+      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '', isHybrid: false, teachClassCode: undefined,
     });
   });
 
   it('carries the rental class read off the tag through to registration', () => {
     const cx5: KeytagRead = { plate: 'LUR119', unitNumber: '5421433', classCode: 'CC5S', rentalClass: 'Q4', year: 2025, color: 'Red' };
     expect(scannedFromRead(cx5, 'LUR119').rentalClass).toBe('Q4');
+  });
+
+  it('carries the hybrid flag so a scanned hybrid tag pre-checks the register toggle', () => {
+    // CCMH etc. resolve (in keytag-read) to base model + isHybrid; that flag must reach the form.
+    const camryHybrid: KeytagRead = { plate: 'LUR266', unitNumber: '5422118', make: 'Toyota', model: 'Camry', isHybrid: true, rentalClass: 'E6', year: 2025, color: 'White' };
+    expect(scannedFromRead(camryHybrid, 'LUR266').isHybrid).toBe(true);
+    // …and a gas read defaults it off, never undefined.
+    expect(scannedFromRead(DURANGO, 'LUR437').isHybrid).toBe(false);
   });
 });
 

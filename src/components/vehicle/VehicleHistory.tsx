@@ -306,6 +306,7 @@ export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
         initialYear={vehicle.year}
         initialColor={vehicle.color}
         initialRentalClass={vehicle.rentalClass ?? null}
+        initialIsHybrid={vehicle.isHybrid}
         fieldSources={vehicle.fieldSources}
         onClose={() => setShowDirectEdit(false)}
         directEditVehicleIdentity={directEditVehicleIdentity}

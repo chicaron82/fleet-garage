@@ -25,6 +25,7 @@ export function scannedFromRead(read: KeytagRead, plate: string): ScannedIdentit
     year:  read.year  ?? 0,
     color: read.color ?? '',
     rentalClass: read.rentalClass ?? '',
+    isHybrid: read.isHybrid ?? false,
     // Only when the codex missed — registering then teaches the mapping (see isUnknownClassCode).
     teachClassCode: isUnknownClassCode(read) ? normalizeClassCode(read.classCode) : undefined,
   };

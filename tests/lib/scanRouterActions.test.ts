@@ -54,7 +54,7 @@ describe('scanRouterActions', () => {
     // make/model/unit/year that FG had just read off the tag in his hand. If the tag was readable
     // enough to offer Register at all, every field it read must travel to the form.
     const read: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
-    const scanned = { unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: '' };
+    const scanned = { unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: '', isHybrid: false };
     const actions = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1);
     expect(actions.map(a => a.kind)).toEqual(['register', 'register-and-flag', 'lnf']);
     expect(actions.find(a => a.kind === 'register')!.screen).toEqual({ name: 'register-vehicle', prefill: 'LUR315', scanned });
