@@ -18,7 +18,7 @@ export function carsCleaned(h: Pick<HandoffNote, 'fullPages' | 'lastPageEntries'
   return h.fullPages * 19 + h.lastPageEntries;
 }
 
-export interface TeamMate { id: string; firstName: string; start: string; attendance?: Attendance; }
+export interface TeamMate { id: string; firstName: string; start: string; end: string; attendance?: Attendance; }
 
 /** The attendance state a coworker pill cycles to on tap:
  *  scheduled (undefined) → present → absent → scheduled. */
@@ -33,7 +33,7 @@ export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayI
   return shifts
     .filter(s => s.date === todayISO && s.userId !== userId && !isFullDayShift(s.shiftType))
     .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
-    .map(s => ({ id: s.id, firstName: s.user.name.split(' ')[0], start: fmtTime24(s.startTime), attendance: s.attendance }));
+    .map(s => ({ id: s.id, firstName: s.user.name.split(' ')[0], start: fmtTime24(s.startTime), end: fmtTime24(s.endTime), attendance: s.attendance }));
 }
 
 export interface MyDayModel {

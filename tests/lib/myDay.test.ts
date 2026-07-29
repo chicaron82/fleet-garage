@@ -51,7 +51,7 @@ describe('teammatesOnToday', () => {
   const shifts: ShiftWithUser[] = [
     shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
     shift({ userId: 'u2', date: today, shiftType: 'closing', startTime: '16:00:00', name: 'CJ Rivera' }),
-    shift({ userId: 'u3', date: today, shiftType: 'opening', startTime: '06:45:00', name: 'Ray Diaz' }),
+    shift({ userId: 'u3', date: today, shiftType: 'opening', startTime: '06:45:00', endTime: '15:15:00', name: 'Ray Diaz' }),
     shift({ userId: 'u4', date: today, shiftType: 'day-off', name: 'Off Person' }),
     shift({ userId: 'u5', date: '2026-07-02', shiftType: 'opening', name: 'Tomorrow' }),
   ];
@@ -60,6 +60,7 @@ describe('teammatesOnToday', () => {
     const team = teammatesOnToday(shifts, 'me', today);
     expect(team.map(t => t.firstName)).toEqual(['Ray', 'CJ']); // 06:45 before 16:00
     expect(team[0].start).toBe('06:45');
+    expect(team[0].end).toBe('15:15'); // marking a mate present flips the pill to show this ("til 15:15")
     expect(team.find(t => t.firstName === 'Off')).toBeUndefined();
     expect(team.find(t => t.firstName === 'Tomorrow')).toBeUndefined();
   });

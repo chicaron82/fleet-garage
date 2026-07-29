@@ -120,7 +120,9 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
                         {att === 'present' && <span aria-hidden className="font-bold">✓</span>}
                         {att === 'absent' && <span aria-hidden className="font-bold">✗</span>}
                         <span className={att === 'absent' ? 'line-through' : ''}>{mate.firstName}</span>
-                        <span className="tabular-nums opacity-60">{mate.start}</span>
+                        {/* Default shows START (who I begin the shift with). Marking present flips it
+                            to "til END" — the overlap question once I know they're actually here. */}
+                        <span className="tabular-nums opacity-60">{att === 'present' ? `til ${mate.end}` : mate.start}</span>
                       </button>
                     );
                   })}
