@@ -64,6 +64,27 @@ describe('scheduleAnomalies — off on a normally-worked day', () => {
     }]);
   });
 
+  it("counts the FULL off-block past the nag budget — Aaron's real 4-day stretch read as 3 (fixed 2026-07-29)", () => {
+    // Jul 30 day-off · Jul 31 pto · Aug 1 day-off · Aug 2 day-off = 4 in a row. The old code reused
+    // the 3-day nag window as the COUNT window and truncated it to 3. Nag budget (arg 2) bounds
+    // what SURFACES; the count scans the whole array, so a 4th day past the budget still tallies.
+    const out = scheduleAnomalies([
+      day('Thu', 1, 'day-off'), day('Fri', 2, 'pto'), day('Sat', 3, 'day-off'), day('Sun', 4, 'day-off'),
+    ], 3);
+    expect(out).toHaveLength(1); // only the first (in-budget) day speaks
+    expect(out[0].label).toBe('No work tomorrow');
+    expect(out[0].detail).toBe('4 days off in a row — enjoy the long weekend.');
+  });
+
+  it('nag budget bounds SURFACING — a weekend shift 5 days out stays silent', () => {
+    // The budget must still gate what shouts, even with a longer array passed for counting.
+    const out = scheduleAnomalies([
+      day('Mon', 1, 'mid'), day('Tue', 2, 'mid'), day('Wed', 3, 'mid'),
+      day('Thu', 4, 'mid'), day('Sun', 5, 'opening'),
+    ], 3);
+    expect(out).toEqual([]);
+  });
+
   it('pto and day-off BOTH count as not-working (different values, same meaning)', () => {
     // If pto were treated as a shift, the block would be 2 and the long weekend would vanish.
     const out = scheduleAnomalies([day('Fri', 1, 'pto'), day('Sat', 2, 'day-off'), day('Sun', 3, 'day-off')]);

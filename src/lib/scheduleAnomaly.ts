@@ -64,11 +64,20 @@ function offBlockLength(days: AnomalyDay[], index: number): number {
 /**
  * Anomalies in the lookahead window, as My Day insights. `days` must be consecutive and
  * date-ordered, starting tomorrow. Returns [] for an ordinary week, so the card stays hidden.
+ *
+ * `nagBudget` bounds which days may SURFACE an alert (Aaron's nag budget — far enough to act on,
+ * close enough it never becomes wallpaper). It does NOT bound the off-block COUNT: pass a longer
+ * `days` array than the budget and a 4-day break still reads "4 days off in a row" while only its
+ * first day (inside the budget) surfaces. Default Infinity = every passed day may surface.
  */
-export function scheduleAnomalies(days: AnomalyDay[]): ScheduleInsight[] {
+export function scheduleAnomalies(days: AnomalyDay[], nagBudget = Number.POSITIVE_INFINITY): ScheduleInsight[] {
   const out: ScheduleInsight[] = [];
 
   days.forEach((d, i) => {
+    // Past the nag budget: don't SHOUT about it yet — but it still counted toward any off-block
+    // that started inside the budget (offBlockLength scans the whole array below).
+    if (d.daysAway > nagBudget) return;
+
     // ⚠️ Working a day he's normally OFF (a weekend) — the one that costs something if missed.
     if (worked(d) && !d.normalWorkday) {
       out.push({

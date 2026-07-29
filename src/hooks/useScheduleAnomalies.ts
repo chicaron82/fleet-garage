@@ -18,12 +18,23 @@ import type { ScheduleInsight } from '../lib/scheduleInsights';
 import type { ShiftType } from '../types';
 
 const BASELINE_WEEKS = 12;
+/** Nag budget — how many days out an anomaly may SURFACE. Aaron's tuning: far enough to act on,
+ *  close enough it never becomes wallpaper. */
 const LOOKAHEAD_DAYS = 3;
+/** How far to fetch/scan for COUNTING an off-block. Kept separate from the nag budget so a 4-day
+ *  break reads "4 days off" — reusing the 3-day nag window as the count window truncated it to 3
+ *  (Aaron caught it live 2026-07-29: FG said 3, his schedule had 4). Bounds the max countable run. */
+const BLOCK_LOOKAHEAD = 14;
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /** His declared work week — Mon(1)…Fri(5). Everything else is a normally-off day. */
 const NORMAL_WORKDAYS = new Set([1, 2, 3, 4, 5]);
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+// LOCAL calendar date, NOT toISOString/UTC. `now` is a raw instant, so a UTC serialization rolled
+// `todayISO` to tomorrow after ~7pm in Winnipeg (UTC-5) — firing "no work tomorrow" a day early.
+// The '17 fix corrected the lookahead PARSE (midnight below) but left this anchor on UTC; this is
+// the other half. Midnight-based lookahead dates serialize the same either way, so this is safe.
+const pad = (n: number) => String(n).padStart(2, '0');
+const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const isOff = (t: ShiftType) => t === 'day-off' || t === 'pto' || t === 'sick';
 
@@ -38,7 +49,7 @@ export function useScheduleAnomalies(userId: string | undefined, today: Date): S
     // lookahead day never made it into the query. Caught by render-verify 2026-07-17.
     const midnight = new Date(`${todayISO}T00:00:00`);
     const start = iso(addDays(midnight, -BASELINE_WEEKS * 7));
-    const end = iso(addDays(midnight, LOOKAHEAD_DAYS));
+    const end = iso(addDays(midnight, BLOCK_LOOKAHEAD));
     const { data } = await supabase
       .from('shifts')
       .select('date, shift_type')
@@ -61,9 +72,11 @@ export function useScheduleAnomalies(userId: string | undefined, today: Date): S
     }
 
     // The lookahead, tomorrow-first and contiguous (the pure fn counts off-blocks by adjacency).
+    // Built out to BLOCK_LOOKAHEAD for an honest off-block count; scheduleAnomalies only SURFACES
+    // the first LOOKAHEAD_DAYS (the nag budget) — the rest just lets the count run true.
     const byDate = new Map(data.map(r => [r.date as string, r.shift_type as ShiftType]));
     const days: AnomalyDay[] = [];
-    for (let n = 1; n <= LOOKAHEAD_DAYS; n++) {
+    for (let n = 1; n <= BLOCK_LOOKAHEAD; n++) {
       const d = addDays(midnight, n);
       const key = iso(d);
       const shiftType = byDate.get(key);
@@ -75,7 +88,7 @@ export function useScheduleAnomalies(userId: string | undefined, today: Date): S
         offCount: off[dow], sampleSize: seen[dow],
       });
     }
-    setInsights(scheduleAnomalies(days));
+    setInsights(scheduleAnomalies(days, LOOKAHEAD_DAYS));
   }, [userId, todayISO]);
 
   // setState post-await (async), matching usePersonalEvents / useEffieMemory.
