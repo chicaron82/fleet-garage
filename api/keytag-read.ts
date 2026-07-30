@@ -126,7 +126,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       return;
     }
 
-    const anthropic = new Anthropic({ apiKey });
+    // maxRetries: the SDK backs off + retries transient failures (429 / 500+ / 529 "Overloaded",
+    // connection blips) with jitter before giving up — so a busy-Anthropic moment self-heals here
+    // instead of bubbling a scary error onto Aaron's shift screen. 4 tries covers a real spike.
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 });
     const message = await anthropic.messages.create({
       model: VISION_MODEL,
       max_tokens: 1024,
@@ -165,7 +168,18 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ read });
   } catch (err) {
+    // Full detail stays in the server log (Vercel) for debugging; the CLIENT gets a clean,
+    // human message — never the raw Anthropic error JSON, which used to leak straight onto the
+    // shift screen (the "Overloaded" incident, 2026-07-29). Overload / rate-limit / upstream 5xx
+    // are transient → flag them `retryable` so the client can auto-retry + say "busy, try again".
     console.error('[keytag-read] handler error:', err);
-    res.status(500).json({ error: `Read error: ${err instanceof Error ? err.message : String(err)}` });
+    const status = (err as { status?: number })?.status;
+    const msg = err instanceof Error ? err.message : String(err);
+    const transient = status === 529 || status === 503 || status === 429 || /overload/i.test(msg);
+    if (transient) {
+      res.status(503).json({ error: 'The scanner is busy right now — try again in a moment.', retryable: true });
+      return;
+    }
+    res.status(500).json({ error: 'Could not read the key tag. Try again.' });
   }
 }

@@ -12,6 +12,7 @@ import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
+import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { NeededClasses } from './NeededClasses';
 import { checkKeys, keyShortNote } from '../../lib/keyCount';
@@ -54,6 +55,10 @@ export function AirportFlipSection() {
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
   const [toast, setToast] = useState('');
+  // Manual plate entry — the fallback when the AI scan is down (Anthropic busy) or misreads a
+  // plate. The scan is a speed layer; the plate is the real identity key, so the flip must not
+  // stop just because vision is unavailable.
+  const [manualPlate, setManualPlate] = useState('');
   // Sent rows collapse into a tap-to-expand summary by default: once a car's dispatched it's done,
   // and a shift of them buries the scan button + the still-to-send rows under dead scroll (Aaron,
   // live 2026-07-28). Unsent rows stay expanded — those are the ones still needing a decision.
@@ -62,6 +67,18 @@ export function AirportFlipSection() {
   // Diffed against what the car is SUPPOSED to carry, so FG says "a key short" instead of just
   // storing a number. Null keys = not counted; a car with no baseline seeds it from this count.
   const keyCheck = keys !== null ? checkKeys(capture?.vehicle?.keyCount ?? null, keys) : null;
+
+  // Open the capture card for a resolved (plate, vehicle) — shared by the scan path AND the manual
+  // plate fallback so they can never drift into two half-implementations. Seeds the geotab check +
+  // EV asset boxes from the record (last known, or present for a car never assessed — the same
+  // `?? present` default the EV Assets tab uses), then clears the capture fields.
+  const openCapture = async (cap: NonNullable<typeof capture>, vehicle: Vehicle | null) => {
+    setCapture(cap);
+    setGeotabPending(await checkGeotab(cap.plate));
+    setCable(toEvStatus(vehicle?.hasMobileCable) ?? 'present');
+    setAdapter(toEvStatus(vehicle?.hasJ1772Adapter) ?? 'present');
+    setOdo(''); setFuelLevel(null); setBatteryPct(null); setKeys(null); setDamaged(false); setNotes('');
+  };
 
   // Scan a return → resolve + enrich the fleet from the WHOLE read (register new / backfill partial),
   // then open the capture card. New cars / too-partial reads no-op the fleet write; never blocks.
@@ -81,24 +98,39 @@ export function AirportFlipSection() {
     // class code, which the codex resolves to a make server-side — so a Tesla FG has never seen
     // still gets the charge gauge + asset check on its very first return.
     const isTesla = !!vehicle?.isTesla || read.make === 'Tesla';
-    setCapture({
+    const vehicleId = vehicle?.id ?? registeredId ?? null;
+    await openCapture({
       plate,
       unit: vehicle?.unitNumber ?? read.unitNumber ?? null,
       rentalClass: read.rentalClass ?? '',
       vehicle,
       isTesla,
-      vehicleId: vehicle?.id ?? registeredId ?? null,
-    });
+      vehicleId,
+    }, vehicle);
     // Keep the tag itself on the record — the evidence a misread can be audited against.
     // Best-effort and fire-and-forget: never delays the capture card.
-    const scannedVehicleId = vehicle?.id ?? registeredId ?? null;
-    if (scannedVehicleId) void attachKeytagPhoto(scannedVehicleId, photo);
-    setGeotabPending(await checkGeotab(plate));
-    // Seed the asset boxes from the record: last known, or present for a car never assessed
-    // (same `?? present` default the EV Assets tab uses — absence of a check isn't a loss).
-    setCable(toEvStatus(vehicle?.hasMobileCable) ?? 'present');
-    setAdapter(toEvStatus(vehicle?.hasJ1772Adapter) ?? 'present');
-    setOdo(''); setFuelLevel(null); setBatteryPct(null); setKeys(null); setDamaged(false); setNotes('');
+    if (vehicleId) void attachKeytagPhoto(vehicleId, photo);
+  };
+
+  // Manual plate fallback: normalize the plate (same MB-prefix safety net the scan uses), match it
+  // to the fleet, and open the same capture card. A KNOWN plate carries its full record (class,
+  // keys, EV assets); an UNKNOWN plate still captures for the counter (they search by plate) — it's
+  // just not auto-registered as a new fleet car, matching the scan path's "only register a complete
+  // identity" rule (a bare plate is too partial to mint a real vehicle record).
+  const submitManualPlate = () => {
+    const plate = correctManitobaPrefix(manualPlate);
+    if (!plate) { setToast('Enter a plate to continue.'); return; }
+    const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null;
+    void openCapture({
+      plate,
+      unit: vehicle?.unitNumber ?? null,
+      rentalClass: vehicle?.rentalClass ?? '',
+      vehicle,
+      isTesla: !!vehicle?.isTesla,
+      vehicleId: vehicle?.id ?? null,
+    }, vehicle);
+    setManualPlate('');
+    if (!vehicle) setToast(`${plate} — not on file, capturing for the counter.`);
   };
 
   const addToList = () => {
@@ -173,7 +205,30 @@ export function AirportFlipSection() {
       <NeededClasses flippedClasses={flippedClasses} />
 
       {!capture ? (
-        <KeytagSearchScan onPlate={() => {}} onRead={(read, photo) => void onScan(read, photo)} />
+        <div className="space-y-2">
+          <KeytagSearchScan onPlate={() => {}} onRead={(read, photo) => void onScan(read, photo)} />
+          {/* Manual plate fallback — flip keeps going if the AI scan is down or misreads. */}
+          <div className="flex items-center gap-2">
+            <input
+              className={INPUT}
+              value={manualPlate}
+              onChange={e => setManualPlate(e.target.value.toUpperCase())}
+              onKeyDown={e => { if (e.key === 'Enter') submitManualPlate(); }}
+              placeholder="or type a plate — if the scan's down"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              onClick={submitManualPlate}
+              disabled={!manualPlate.trim()}
+              className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+            >
+              Enter
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="rounded-lg border border-fg-yellow/50 bg-yellow-50/40 dark:bg-yellow-900/10 p-3 space-y-2.5">
           <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
