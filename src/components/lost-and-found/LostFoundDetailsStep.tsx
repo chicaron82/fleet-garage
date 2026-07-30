@@ -27,6 +27,9 @@ export function LostFoundDetailsStep({ form, user }: { form: LostFoundForm; user
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const itemCamRef = useRef<HTMLInputElement>(null);
   const itemGalleryRef = useRef<HTMLInputElement>(null);
+  // Inline key-tag scan on the plate field — the same scan-to-fill Step 1 does, surfaced here so
+  // filling the plate from the tag doesn't require detouring back to the photo step.
+  const keyTagCamRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <button
@@ -107,9 +110,30 @@ export function LostFoundDetailsStep({ form, user }: { form: LostFoundForm; user
 
       {/* License plate */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
-          License plate
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+            License plate
+          </label>
+          {/* Scan-to-fill from the key tag without leaving this step — mirrors Step 1's key-tag
+              PhotoSlot: capture the tag → set the preview → read it → fill the plate (+ ScanBranch
+              register/backfill offer renders below). */}
+          <button
+            type="button"
+            disabled={form.keytag.reading}
+            onClick={() => { hapticLight(); keyTagCamRef.current?.click(); }}
+            className="flex items-center gap-1 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition"
+          >
+            📷 {form.keytag.reading ? 'Reading…' : 'Scan tag'}
+          </button>
+        </div>
+        <input
+          ref={keyTagCamRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={form.handlePhotoCapture(form.setKeyTagPhoto, (p) => void form.keytag.scanPhoto(p, form.setLicensePlate))}
+        />
         <PlateInput
           placeholder="e.g. LUR 224"
           value={form.licensePlate}
