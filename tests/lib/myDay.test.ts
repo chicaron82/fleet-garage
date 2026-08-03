@@ -58,11 +58,22 @@ describe('teammatesOnToday', () => {
 
   it('excludes me, day-offs, and other days; sorts by start; maps first name + HH:MM', () => {
     const team = teammatesOnToday(shifts, 'me', today);
-    expect(team.map(t => t.firstName)).toEqual(['Ray', 'CJ']); // 06:45 before 16:00
+    expect(team.map(t => t.displayName)).toEqual(['Ray', 'CJ']); // 06:45 before 16:00
     expect(team[0].start).toBe('06:45');
     expect(team[0].end).toBe('15:15'); // marking a mate present flips the pill to show this ("til 15:15")
-    expect(team.find(t => t.firstName === 'Off')).toBeUndefined();
-    expect(team.find(t => t.firstName === 'Tomorrow')).toBeUndefined();
+    expect(team.find(t => t.displayName === 'Off')).toBeUndefined();
+    expect(team.find(t => t.displayName === 'Tomorrow')).toBeUndefined();
+  });
+
+  it('disambiguates same-first-name teammates to full roster names (utility Larry C vs driver Larry J)', () => {
+    const larrys: ShiftWithUser[] = [
+      shift({ userId: 'me', date: today, shiftType: 'mid', name: 'Aaron S' }),
+      shift({ userId: 'lc', date: today, shiftType: 'opening', startTime: '08:00:00', name: 'Larry C' }),
+      shift({ userId: 'lj', date: today, shiftType: 'opening', startTime: '10:00:00', name: 'Larry J' }),
+      shift({ userId: 'rob', date: today, shiftType: 'closing', startTime: '16:00:00', name: 'Robert' }),
+    ];
+    // Both Larrys → full names; the un-collided Robert stays first-name.
+    expect(teammatesOnToday(larrys, 'me', today).map(t => t.displayName)).toEqual(['Larry C', 'Larry J', 'Robert']);
   });
 
   it('carries each mate\'s attendance through (undefined when unmarked)', () => {
@@ -72,8 +83,8 @@ describe('teammatesOnToday', () => {
       shift({ userId: 'u3', date: today, shiftType: 'closing', startTime: '16:00:00', name: 'CJ Rivera' }),
     ];
     const team = teammatesOnToday(withAtt, 'me', today);
-    expect(team.find(t => t.firstName === 'Ray')?.attendance).toBe('present');
-    expect(team.find(t => t.firstName === 'CJ')?.attendance).toBeUndefined();
+    expect(team.find(t => t.displayName === 'Ray')?.attendance).toBe('present');
+    expect(team.find(t => t.displayName === 'CJ')?.attendance).toBeUndefined();
   });
 });
 
@@ -93,7 +104,7 @@ describe('deriveMyDay', () => {
     expect(m.shiftTime).toBe('06:45 – 15:30');
     expect(m.firstName).toBe('Aaron');
     expect(m.greeting).toBe('Good morning');
-    expect(m.team.map(t => t.firstName)).toEqual(['CJ']);
+    expect(m.team.map(t => t.displayName)).toEqual(['CJ']);
   });
 
   it('day-off → working false (no fleet-balance prompt on a day off)', () => {

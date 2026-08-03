@@ -18,7 +18,7 @@ export function carsCleaned(h: Pick<HandoffNote, 'fullPages' | 'lastPageEntries'
   return h.fullPages * 19 + h.lastPageEntries;
 }
 
-export interface TeamMate { id: string; firstName: string; start: string; end: string; attendance?: Attendance; }
+export interface TeamMate { id: string; displayName: string; start: string; end: string; attendance?: Attendance; }
 
 /** The attendance state a coworker pill cycles to on tap:
  *  scheduled (undefined) → present → absent → scheduled. */
@@ -28,12 +28,29 @@ export function nextAttendance(current: Attendance | undefined): Attendance | un
   return undefined;
 }
 
-/** Who else is working today (excludes me + full-day/off types), soonest start first. */
+/** Who else is working today (excludes me + full-day/off types), soonest start first.
+ *  Chips show the first name; when two teammates share one (e.g. utility "Larry C"
+ *  vs driver "Larry J"), the colliding ones fall back to their full roster name so
+ *  same-first-name people are distinguishable at a glance. */
 export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayISO: string): TeamMate[] {
-  return shifts
+  const onToday = shifts
     .filter(s => s.date === todayISO && s.userId !== userId && !isFullDayShift(s.shiftType))
-    .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
-    .map(s => ({ id: s.id, firstName: s.user.name.split(' ')[0], start: fmtTime24(s.startTime), end: fmtTime24(s.endTime), attendance: s.attendance }));
+    .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  const firstNameCounts = new Map<string, number>();
+  for (const s of onToday) {
+    const fn = s.user.name.split(' ')[0];
+    firstNameCounts.set(fn, (firstNameCounts.get(fn) ?? 0) + 1);
+  }
+  return onToday.map(s => {
+    const fn = s.user.name.split(' ')[0];
+    return {
+      id: s.id,
+      displayName: (firstNameCounts.get(fn) ?? 0) > 1 ? s.user.name : fn,
+      start: fmtTime24(s.startTime),
+      end: fmtTime24(s.endTime),
+      attendance: s.attendance,
+    };
+  });
 }
 
 export interface MyDayModel {
