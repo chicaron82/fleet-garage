@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBlankFills } from '../../../../api/_lib/effie/holdExecutors';
+import { computeBlankFills, missingRegisterFieldsResult } from '../../../../api/_lib/effie/holdExecutors';
 
 // The blanks-only backfill rule behind propose_update_and_hold: fill a field ONLY when the
 // existing fleet row is blank AND the key tag read a value. Never overwrite a known field.
@@ -46,5 +46,47 @@ describe('computeBlankFills', () => {
   it('trims the values it fills', () => {
     const existing = { unit_number: null, make: null, model: null, year: null, color: null };
     expect(computeBlankFills(existing, { color: '  White  ' })).toEqual([{ field: 'color', value: 'White' }]);
+  });
+});
+
+// The shared register-path guard behind propose_register_and_hold + propose_register_vehicle:
+// every one of the six identity fields must be present (non-blank) before a proposal is drafted.
+describe('missingRegisterFieldsResult', () => {
+  const full = { plate: 'ABC123', unit_number: '5422183', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };
+
+  it('returns null when every required field is present', () => {
+    expect(missingRegisterFieldsResult(full, 'Ask the user.')).toBeNull();
+  });
+
+  it('lists exactly the blank fields and tails the caller hint', () => {
+    const result = missingRegisterFieldsResult({ plate: 'ABC123', make: 'Toyota' }, 'Ask the user for these before proposing.');
+    expect(result).not.toBeNull();
+    const parsed = JSON.parse(result!);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.reason).toBe('Still need: unit_number, model, year, color. Ask the user for these before proposing.');
+  });
+
+  it('treats undefined, null, empty string, and whitespace-only as missing', () => {
+    const result = missingRegisterFieldsResult(
+      { plate: 'ABC123', unit_number: '', make: '   ', model: undefined, year: 2026, color: 'White' },
+      'Read them off the key tag or ask the user before proposing.',
+    );
+    const parsed = JSON.parse(result!);
+    expect(parsed.reason).toBe('Still need: unit_number, make, model. Read them off the key tag or ask the user before proposing.');
+  });
+
+  it('counts year 0 as PRESENT — the guard string-coerces ("0" is non-blank), unlike computeBlankFills', () => {
+    // Preserved quirk: this register guard uses `${v}`.trim(), so 0 → "0" → not missing. That
+    // differs from computeBlankFills (which uses !year). Pinned so a future "cleanup" can't silently
+    // change either path to match the other without a decision.
+    expect(missingRegisterFieldsResult({ ...full, year: 0 }, 'Ask the user.')).toBeNull();
+  });
+
+  it('keeps the two call sites distinct via their hint text', () => {
+    const bare = { plate: 'ABC123' };
+    expect(JSON.parse(missingRegisterFieldsResult(bare, 'Ask the user for these before proposing.')!).reason)
+      .toContain('Ask the user for these before proposing.');
+    expect(JSON.parse(missingRegisterFieldsResult(bare, 'Read them off the key tag or ask the user before proposing.')!).reason)
+      .toContain('Read them off the key tag or ask the user before proposing.');
   });
 });

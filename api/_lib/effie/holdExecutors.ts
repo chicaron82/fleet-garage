@@ -17,6 +17,25 @@ import {
   type VehicleFieldFill,
 } from '../holdProposal.js';
 
+/** The six identity fields every register-path proposal needs before it can be drafted. */
+const REQUIRED_REGISTER_FIELDS = ['plate', 'unit_number', 'make', 'model', 'year', 'color'] as const;
+type RegisterFieldInput = { plate?: string; unit_number?: string; make?: string; model?: string; year?: number; color?: string };
+
+/**
+ * Shared missing-field guard for the register paths (register-and-hold, register-only): returns a
+ * ready-to-return tool result listing whatever is still blank, or `null` when every field is
+ * present. The per-caller `hint` tails the message ("Ask the user…" vs "Read them off the key
+ * tag…"). Pure — deduped from two verbatim copies (ticket-effie-require-vehicle-fields-dedupe).
+ */
+export function missingRegisterFieldsResult(input: RegisterFieldInput, hint: string): string | null {
+  const missing = REQUIRED_REGISTER_FIELDS.filter(
+    (k) => input[k] === undefined || input[k] === null || `${input[k]}`.trim() === '',
+  );
+  return missing.length > 0
+    ? JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. ${hint}` })
+    : null;
+}
+
 /**
  * Draft a hold for an EXISTING vehicle — resolves it and builds a proposal. NEVER
  * writes: the proposal goes to the client as a confirm card, and only a user tap
@@ -81,15 +100,8 @@ export async function executeProposeRegisterHold(
       }),
     };
   }
-  const missing = (['plate', 'unit_number', 'make', 'model', 'year', 'color'] as const).filter(
-    (k) => input[k] === undefined || input[k] === null || `${input[k]}`.trim() === '',
-  );
-  if (missing.length > 0) {
-    return {
-      proposal: null,
-      toolResult: JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. Ask the user for these before proposing.` }),
-    };
-  }
+  const missingResult = missingRegisterFieldsResult(input, 'Ask the user for these before proposing.');
+  if (missingResult) return { proposal: null, toolResult: missingResult };
   const proposal = buildRegisterHoldProposal(
     {
       unitNumber: `${input.unit_number}`.trim(),
@@ -200,15 +212,8 @@ export async function executeProposeRegisterVehicle(
       }),
     };
   }
-  const missing = (['plate', 'unit_number', 'make', 'model', 'year', 'color'] as const).filter(
-    (k) => input[k] === undefined || input[k] === null || `${input[k]}`.trim() === '',
-  );
-  if (missing.length > 0) {
-    return {
-      proposal: null,
-      toolResult: JSON.stringify({ ok: false, reason: `Still need: ${missing.join(', ')}. Read them off the key tag or ask the user before proposing.` }),
-    };
-  }
+  const missingResult = missingRegisterFieldsResult(input, 'Read them off the key tag or ask the user before proposing.');
+  if (missingResult) return { proposal: null, toolResult: missingResult };
   // Tesla → the confirm card asks for cable/adapter at intake. Lowercase compare so
   // "TESLA"/"tesla" from a class-code lookup all resolve (mirrors ev-detection's isTeslaMake).
   const isTesla = `${input.make ?? ''}`.trim().toLowerCase() === 'tesla';
