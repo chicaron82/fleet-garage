@@ -42,10 +42,12 @@ print(f"🧭 FG ORIENT · {datetime.now().strftime('%a %Y-%m-%d %H:%M')}")
 
 print("\n— AARON'S SHIFT (today + next) —")
 today_lbl = datetime.now().strftime('%a %b %d')
+# Filter by Aaron's stable profile id (from reference_aaron_work_schedule), not a
+# name match — '%aaron s%' would break on a rename or a second "Aaron S".
 sh = rows("""select to_char(s.date,'Dy Mon DD') d, s.shift_type,
      to_char(s.start_time,'HH24:MI') st, to_char(s.end_time,'HH24:MI') et
-   from shifts s join profiles p on p.id::text = s.user_id::text
-   where p.name ilike '%aaron s%'
+   from shifts s
+   where s.user_id = '9f560505-ea86-4dcf-81d6-a9d960c9eae8'
      and s.date >= (now() at time zone 'America/Winnipeg')::date
    order by s.date limit 5""")
 for r in sh:
@@ -78,11 +80,14 @@ if ch and ch[0]['n']:
 else:
     print("  none")
 
-print("\n— EFFIE (recent activity) —")
-eff = q("select count(*) n from effie_pending_writes where created_at > now() - interval '3 days'")
+print("\n— EFFIE (awaiting action) —")
+# Genuinely pending = not yet resolved. (A recent 'approved' row with resolved_at set
+# is DONE, not pending — the earlier version wrongly counted those.)
+eff = q("select count(*) n from effie_pending_writes where resolved_at is null")
 if isinstance(eff, list) and eff:
-    print(f"  {eff[0]['n']} pending write(s) in the last 3 days")
+    n = eff[0]['n']
+    print(f"  {n} proposal(s) awaiting your action" if n else "  none awaiting")
 elif isinstance(eff, dict) and eff.get('_error'):
     print(f"  (skipped: {eff['_error']})")
 else:
-    print("  none recent")
+    print("  none awaiting")
