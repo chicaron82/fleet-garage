@@ -67,8 +67,10 @@ roster = rows("""select p.role, count(distinct p.name) n,
 roles = {r['role'] for r in roster}
 for r in roster:
     print(f"  {r['role']}: {r['n']} → {r['who']}")
-if roster and 'HIR' not in roles:
-    print("  ⚠️  no HIR scheduled — a driver may get pulled to cover the booth")
+# NO 'no HIR' anomaly flag here, on purpose: FG doesn't ingest the HIR (counter/booth)
+# schedule, so 'HIR' is NEVER in the roster — the warning would fire EVERY day. A signal that
+# always cries wolf trains you to ignore the orient. It's a structural blind spot, not an
+# anomaly. (Removed 2026-08-04 per Aaron: "FG doesn't know the HIR schedule, so it's always blank.")
 if not roster:
     print("  (nobody scheduled today)")
 
