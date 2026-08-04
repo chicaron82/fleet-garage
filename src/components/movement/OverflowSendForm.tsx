@@ -88,7 +88,7 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
         </div>
       )}
 
-      {ov.toast && <Toast message={ov.toast} />}
+      {ov.toast && <Toast message={ov.toast} variant="success" />}
     </div>
   );
 }
