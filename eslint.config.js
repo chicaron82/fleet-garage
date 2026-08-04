@@ -24,7 +24,10 @@ export default defineConfig([
     // Line discipline: logic files (components / hooks / context / lib) are capped
     // at 330 code lines. When you approach it, extract a hook, a pure lib, or split
     // the component — see CLAUDE.md. New files MUST pass this error cap.
-    files: ['src/**/*.{ts,tsx}'],
+    // api/** is IN scope too (added 2026-08-03): the serverless functions + their _lib
+    // are logic that grows just like src/ — the cap once skipped api/, and fg-chat.ts
+    // quietly reached 336 with no ritual catching it (ticket-api-line-gate).
+    files: ['src/**/*.{ts,tsx}', 'api/**/*.ts'],
     rules: {
       'max-lines': ['error', { max: 330, skipBlankLines: true, skipComments: true }],
     },

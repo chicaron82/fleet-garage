@@ -19,30 +19,10 @@ import { isAllowed } from './_lib/assistantAccess.js';
 import { SYSTEM_PROMPT } from './_lib/effiePrompt.js';
 import { TOOLS } from './_lib/effieTools.js';
 import { todayInWinnipeg, todayLabelWinnipeg } from './_lib/effieHelpers.js';
-import { PHOTO_CONTEXTS, type PhotoContext } from './_lib/photoRequest.js';
+import { type PhotoContext } from './_lib/photoRequest.js';
 import { type Proposal } from './_lib/holdProposal.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
-import {
-  executeLookup,
-  executeProposeHold,
-  executeProposeRegisterHold,
-  executeProposeUpdateAndHold,
-  executeProposeRegisterVehicle,
-  executeLookupSchedule,
-  executeLookupMyShift,
-  executeSearchLostFound,
-  executeLookupIssues,
-  executeLookupHeld,
-  executeLookupVehicleLocation,
-  executeLookupSent,
-  executeProposeLostItem,
-  executeProposeMemory,
-  executeProposeReminder,
-  executeProposeEvent,
-  executeProposeOverflowLog,
-  executeProposeNavigation,
-  executeLookupVehicleClass,
-} from './_lib/effieExecutors.js';
+import { dispatchToolUse } from './_lib/effie/dispatchToolUse.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -234,93 +214,10 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
-        let content: string;
-        try {
-          if (tu.name === 'propose_hold') {
-            const out = await executeProposeHold(
-              supabase,
-              tu.input as { plate?: string; hold_type?: string; damage_description?: string },
-            );
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'propose_register_and_hold') {
-            const out = await executeProposeRegisterHold(
-              supabase,
-              tu.input as Parameters<typeof executeProposeRegisterHold>[1],
-            );
-            if (out.proposal) proposal = out.proposal;
-            content = out.toolResult;
-          } else if (tu.name === 'propose_update_and_hold') {
-            const out = await executeProposeUpdateAndHold(
-              supabase,
-              tu.input as Parameters<typeof executeProposeUpdateAndHold>[1],
-            );
-            if (out.proposal) proposal = out.proposal;
-            content = out.toolResult;
-          } else if (tu.name === 'propose_register_vehicle') {
-            const out = await executeProposeRegisterVehicle(
-              supabase,
-              tu.input as Parameters<typeof executeProposeRegisterVehicle>[1],
-            );
-            if (out.proposal) proposal = out.proposal;
-            content = out.toolResult;
-          } else if (tu.name === 'lookup_schedule') {
-            content = await executeLookupSchedule(supabase, userData.user.id, tu.input as { date?: string; shift_type?: string });
-          } else if (tu.name === 'lookup_my_shift') {
-            content = await executeLookupMyShift(supabase, userData.user.id, tu.input as { days?: number });
-          } else if (tu.name === 'search_lost_found') {
-            content = await executeSearchLostFound(supabase, tu.input as { query?: string; status?: string });
-          } else if (tu.name === 'lookup_issues') {
-            content = await executeLookupIssues(supabase, tu.input as { status?: string });
-          } else if (tu.name === 'lookup_held') {
-            content = await executeLookupHeld(supabase);
-          } else if (tu.name === 'lookup_vehicle_location') {
-            content = await executeLookupVehicleLocation(supabase, (tu.input as { plate?: string }).plate ?? '');
-          } else if (tu.name === 'lookup_sent') {
-            content = await executeLookupSent(supabase, tu.input as { scope?: string });
-          } else if (tu.name === 'propose_navigation') {
-            const out = executeProposeNavigation(tu.input as { destination?: string });
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'request_photo') {
-            const ctx = (tu.input as { context?: string }).context;
-            if (ctx && (PHOTO_CONTEXTS as readonly string[]).includes(ctx)) photoRequest = ctx as PhotoContext;
-            content = JSON.stringify({
-              ok: true,
-              note: 'An inline upload button is now shown in your reply. Ask the operator for the photo in one short line; do NOT describe the button itself.',
-            });
-          } else if (tu.name === 'lookup_vehicle_class') {
-            content = executeLookupVehicleClass(tu.input as { code?: string });
-          } else if (tu.name === 'propose_lost_item') {
-            const out = executeProposeLostItem(
-              tu.input as { description?: string; location?: string; license_plate?: string; notes?: string },
-            );
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'propose_memory') {
-            const out = executeProposeMemory(tu.input as { content?: string });
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'propose_event') {
-            const out = executeProposeEvent(tu.input as { title?: string; date?: string; time?: string });
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'propose_reminder') {
-            const out = executeProposeReminder(tu.input as { text?: string });
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else if (tu.name === 'propose_overflow_log') {
-            const out = await executeProposeOverflowLog(supabase, tu.input as { plates?: string[]; destination?: string });
-            if (out.proposal) proposal = out.proposal; // captured out-of-band for the client
-            content = out.toolResult;
-          } else {
-            const plate = (tu.input as { plate?: string }).plate ?? '';
-            content = JSON.stringify(await executeLookup(supabase, plate));
-          }
-        } catch {
-          content = JSON.stringify({ error: 'That action failed — could not read vehicle records.' });
-        }
-        results.push({ type: 'tool_result', tool_use_id: tu.id, content });
+        const dispatched = await dispatchToolUse(tu, supabase, userData.user.id);
+        if (dispatched.proposal) proposal = dispatched.proposal; // captured out-of-band for the client
+        if (dispatched.photoRequest) photoRequest = dispatched.photoRequest;
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content: dispatched.content });
       }
       convo.push({ role: 'user', content: results });
     }

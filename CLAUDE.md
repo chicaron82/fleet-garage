@@ -21,10 +21,13 @@ queue) but has **one operator** (Aaron).
 
 ## The 330-Line Cap
 
-**All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`) stay under 330 lines.**
+**All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and
+the `api/` serverless functions + their `api/_lib`) stay under 330 lines.**
 
 This is enforced by ESLint (`max-lines`, counting code lines — blank lines and
-comments are skipped). The limit exists because FG grew as a proof-of-concept
+comments are skipped). The gate covers `src/**/*.{ts,tsx}` **and `api/**/*.ts`**
+(the latter added 2026-08-03, `ticket-api-line-gate` — `fg-chat.ts` had crept to
+336 with nothing watching the API layer). The limit exists because FG grew as a proof-of-concept
 without a size guardrail and started accumulating god-components; it is now
 load-bearing, so the cap keeps complexity from hiding in 500-line files.
 
@@ -77,8 +80,10 @@ the count above is the canary: if it stops matching
 `find src/lib -name '*.ts' ! -name '*.test.ts' | wc -l`, pure logic is going
 untested.)*
 
-**Blind spot: the canary only watches `src/lib`. Pure logic in `api/_lib` (and
-inline in `api/*.ts`) is NOT counted** — so it slips test-less silently. Rule of
+**Blind spot (narrowed 2026-08-03): the `max-lines` *size* gate now covers `api/`
+too — but the test-coverage *canary* still only watches `src/lib`. So pure logic
+in `api/_lib` (and inline in `api/*.ts`) is size-capped but still slips test-less
+silently.** Rule of
 thumb: if a piece of logic is subtle enough that you *hand-verify* it (a shift-day
 cutover, a plate-prefix snap, a dedup key), it's subtle enough to deserve a test —
 extract it to `api/_lib` and test it under `tests/api/_lib/`. R35 caught
