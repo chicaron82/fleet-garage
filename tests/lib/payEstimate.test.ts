@@ -207,21 +207,35 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
   });
 
-  it('worked stat: Holiday = hours worked (regularRate); HolPrem = flat 8h entitlement (no OT for hours > 8)', () => {
+  it('worked stat (actuals): Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)', () => {
     // 09:00–17:30 = 8.5h gross, net = 8h after break deduction
     const shift = makeShift({ date: '2026-06-06', isStat: true, actualStartTime: '09:00', actualEndTime: '17:30' });
     const est = calcPayEstimate([shift], today);
     expect(est.holidayHours).toBe(8);
-    expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 3);  // flat entitlement, not OT-scaled
+    expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.otRate, 3);  // worked-holiday premium at 1.5×, not flat regular
     expect(est.otHours).toBe(0);
     expect(est.regularHours).toBe(0);
     expect(est.daysLogged).toBe(1);
-    // gross = 8 × 17.75 (Holiday) + 8 × 17.75 (HolPrem) = 142 + 142 = 284
-    expect(est.gross).toBeCloseTo(284, 1);
+    // gross = 8 × 17.75 (Holiday) + 8 × 26.625 (HolPrem) = 142 + 213 = 355
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate + 8 * PAY_CONFIG.otRate, 1);
   });
 
-  it('unworked stat: HolPrem = 8h at regularRate; Holiday = $0', () => {
-    const shift = makeShift({ date: '2026-06-06', isStat: true });
+  it('scheduled WORKED stat (no actuals): counts the worked hours + OT premium — NOT dropped to premium-only', () => {
+    // The 2026-08-04 bug: a rostered working shift on a stat, no actuals yet, was treated as a day
+    // OFF — dropping ~8h of pay so a stat period read LOWER than a normal week. Must mirror the
+    // worked-stat treatment. mid 10:30–19:00 = 8.5h gross, net 8h.
+    const shift = makeShift({ date: '2026-06-06', isStat: true, shiftType: 'mid', startTime: '10:30', endTime: '19:00' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.holidayHours).toBe(8);                               // worked hours COUNTED, not dropped
+    expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.otRate, 3); // premium at 1.5×
+    expect(est.regularHours).toBe(0);
+    expect(est.otHours).toBe(0);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate + 8 * PAY_CONFIG.otRate, 1);
+  });
+
+  it('unworked stat (day-off): HolPrem = flat 8h at regularRate; Holiday = $0', () => {
+    // A stat you have OFF (day-off shift type) → holiday-pay entitlement only, no worked hours.
+    const shift = makeShift({ date: '2026-06-06', isStat: true, shiftType: 'day-off' });
     const est = calcPayEstimate([shift], today);
     expect(est.holPremGross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
     expect(est.holidayHours).toBe(0);

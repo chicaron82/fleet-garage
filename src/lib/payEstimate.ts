@@ -135,9 +135,11 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
       const net      = netActualHours(grossHrs);
       if (shift.isStat) {
-        // Worked stat: Holiday = hours at regular rate (no OT for hours > 8); HolPrem = flat entitlement
+        // Worked stat: Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)
+        // — the premium for working a holiday. (Fix 2026-08-04: was a flat 8h×regularRate, which
+        // silently dropped the time-and-a-half; the interface already documented net×otRate.)
         holidayHours += net;
-        holPremGross += 8 * PAY_CONFIG.regularRate;
+        holPremGross += net * PAY_CONFIG.otRate;
       } else {
         const ot = calcOT(shift);
         otHours      += ot;
@@ -147,6 +149,15 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       if (shift.shiftType === 'pto') ptoDays++;
       bumpUnlogged(shift.date);
       regularHours += 8;
+    } else if (shift.isStat && !isFullDayShift(shift.shiftType)) {
+      // Scheduled WORKED stat (rostered working shift, no actuals yet): Holiday = scheduled hours
+      // (regularRate) + HolPrem = those hours at OT rate (1.5×). Mirrors the with-actuals worked-stat
+      // branch so a stat you're scheduled to work isn't silently treated as a day off — which dropped
+      // ~8h of pay from the estimate (a stat period read LOWER than a normal week). (Fix 2026-08-04.)
+      bumpUnlogged(shift.date);
+      const net = netActualHours(calcHours(shift.startTime, shift.endTime));
+      holidayHours += net;
+      holPremGross += net * PAY_CONFIG.otRate;
     } else if (!isFullDayShift(shift.shiftType) && !shift.isStat) {
       // Unlogged working day — scheduled hours (no OT assumed); confirmed if past
       bumpUnlogged(shift.date);
@@ -154,7 +165,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       const net       = netActualHours(scheduled);
       regularHours   += Math.min(net, 8);
     } else if (shift.isStat) {
-      // Unworked stat: HolPrem entitlement still paid (Holiday = $0)
+      // Unworked stat (day-off / full-day type): flat 8h entitlement at regularRate (Holiday = $0)
       holPremGross += 8 * PAY_CONFIG.regularRate;
     }
     // day-off (non-stat): $0
