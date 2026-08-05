@@ -30,7 +30,7 @@ let scanSeq = 0;
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhoto } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhoto, recordKeyCount } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -137,6 +137,24 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         : activeHolds > 0 ? `🔧 On hold (${activeHolds})`
                         : '✅ Clear'}
                     </p>
+                    {/* Key count surfaced HERE, tag in hand — not hidden behind opening the unit. If
+                        it's unlogged, log the baseline right now (the moment of truth), so a future
+                        short return is detectable. (ticket-scan-keycount-surface.) */}
+                    {vehicle.keyCount != null ? (
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">🔑 {vehicle.keyCount} key{vehicle.keyCount === 1 ? '' : 's'} on the ring</p>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">🔑 Keys not logged —</span>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4].map(n => (
+                            <button key={n} type="button" onClick={() => void recordKeyCount(vehicle.id, n)}
+                              className="w-6 h-6 rounded text-xs font-semibold border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer">
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
