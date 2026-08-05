@@ -19,6 +19,9 @@ interface Props {
   /** A key-tag scan's full read — seeds every field it captured, so a scan never asks the
    *  operator to retype what FG just read. Falls back to `prefill` (plate-or-unit) when absent. */
   scanned?: ScannedIdentity;
+  /** The compressed key-tag photo the scan was read from — attached to the NEW vehicle on register
+   *  so the source tag is on file (the scan-router only attaches for already-known cars). */
+  keytagPhoto?: string;
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
   returnTo?: 'fleet' | 'hold';
@@ -32,8 +35,8 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
     : { unit: '', plate: value };
 }
 
-export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle, allVehicles, releaseUnitNumber } = useVehicleHoldContext();
+export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onSuccess, returnTo = 'hold' }: Props) {
+  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhoto } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
@@ -130,6 +133,11 @@ export function RegisterVehicleForm({ prefill, scanned, onBack, onSuccess, retur
       // submission owns the success path; this one just stands down.
       if (!maybeId) return;
       const id = maybeId;
+      // Persist the key-tag photo the scan was read from onto the NEW vehicle. The scan-router only
+      // attaches for already-known cars, so a scan-to-register left the fresh record with no tag on
+      // file — the exact case where the source tag matters most (auditing the OCR'd identity later).
+      // (ticket-scan-register-keytag-photo, 2026-08-04.)
+      if (keytagPhoto) void attachKeytagPhoto(id, keytagPhoto);
       hapticMedium();
       // Reconcile a confirmed unit# conflict: the new vehicle now carries the
       // number, so release it from the record it was stapled to in error. The

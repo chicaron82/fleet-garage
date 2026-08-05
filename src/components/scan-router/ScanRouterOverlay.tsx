@@ -36,6 +36,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
+  // The compressed key-tag photo, kept so a REGISTER (new vehicle) can attach it to the freshly
+  // created record — the known-vehicle attach below can't, the car doesn't exist yet at scan time.
+  const [scanPhoto, setScanPhoto] = useState<string | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
   const reading = status === 'reading';
@@ -46,6 +49,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     setScanRead(null);
     setGeotabPending(false);
     const base64 = await compressImage(file);
+    setScanPhoto(base64);
     const read = await readKeytag(base64);
     if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
     setScanRead(read);
@@ -167,7 +171,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   <button
                     key={a.kind}
                     type="button"
-                    onClick={() => go(a.screen)}
+                    onClick={() => go(
+                      a.screen.name === 'register-vehicle' && scanPhoto
+                        ? { ...a.screen, scannedPhoto: scanPhoto }
+                        : a.screen,
+                    )}
                     className="w-full flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-3 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer text-left"
                   >
                     <span className="text-base leading-none">{a.icon}</span>

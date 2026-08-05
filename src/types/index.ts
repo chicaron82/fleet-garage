@@ -368,7 +368,7 @@ export type Screen =
   | { name: 'my-day' }
   | { name: 'vehicle'; vehicleId: string }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; prefillNonce?: number }
-  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity }
+  | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity; scannedPhoto?: string }
   // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that
   // compares equal across two scans of the same tag, so a value-keyed re-seed would fire only
   // once and a repeat scan (after a reset/complete) would silently no-op — the plate field stays

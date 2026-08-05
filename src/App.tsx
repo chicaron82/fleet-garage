@@ -162,6 +162,7 @@ export default function App() {
           <RegisterVehicleForm
             prefill={screen.prefill}
             scanned={screen.scanned}
+            keytagPhoto={screen.scannedPhoto}
             returnTo={screen.fromHold ? 'hold' : 'fleet'}
             onBack={() =>
               screen.fromHold
