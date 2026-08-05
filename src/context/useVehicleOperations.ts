@@ -9,7 +9,7 @@ import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
-import { makeAttachKeytagPhoto } from './keytagPhotoWrite';
+import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
@@ -96,7 +96,10 @@ export function useVehicleOperations({
   // See ./fieldUnlockWrite.
   const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });
   const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
-  const attachKeytagPhoto = makeAttachKeytagPhoto({ setAllVehicles });
+  const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
+    setAllVehicles,
+    currentKeytagUrl: id => allVehicles.find(v => v.id === id)?.keytagPhotoUrl,
+  });
 
   // Reconcile a unit# conflict at registration: release the number from the
   // record it was on so it can land on the one being added. See ./identityReconcile.
@@ -285,7 +288,7 @@ export function useVehicleOperations({
     updateVehicleFields,
     unlockVehicleField,
     recordKeyCount,
-    attachKeytagPhoto,
+    attachKeytagPhotoIfMissing,
     releaseUnitNumber,
     addHold,
     addRelease,

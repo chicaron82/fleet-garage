@@ -32,7 +32,7 @@ const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();
-  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhoto } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const flip = useAirportFlip();
   // Classes turned around this shift (uppercased) → drives the "Needed" strip's satisfied ✓ state.
   const flippedClasses = new Set(flip.rows.map(r => (r.rentalClass ?? '').trim().toUpperCase()).filter(Boolean));
@@ -114,7 +114,7 @@ export function AirportFlipSection() {
     }, vehicle);
     // Keep the tag itself on the record — the evidence a misread can be audited against.
     // Best-effort and fire-and-forget: never delays the capture card.
-    if (vehicleId) void attachKeytagPhoto(vehicleId, photo);
+    if (vehicleId) void attachKeytagPhotoIfMissing(vehicleId, photo);
   };
 
   // Manual plate fallback: normalize the plate (same MB-prefix safety net the scan uses), match it

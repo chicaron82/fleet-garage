@@ -36,7 +36,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 }
 
 export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhoto } = useVehicleHoldContext();
+  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
@@ -137,7 +137,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       // attaches for already-known cars, so a scan-to-register left the fresh record with no tag on
       // file — the exact case where the source tag matters most (auditing the OCR'd identity later).
       // (ticket-scan-register-keytag-photo, 2026-08-04.)
-      if (keytagPhoto) void attachKeytagPhoto(id, keytagPhoto);
+      if (keytagPhoto) void attachKeytagPhotoIfMissing(id, keytagPhoto);
       hapticMedium();
       // Reconcile a confirmed unit# conflict: the new vehicle now carries the
       // number, so release it from the record it was stapled to in error. The

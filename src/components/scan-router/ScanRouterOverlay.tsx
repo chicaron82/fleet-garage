@@ -30,7 +30,7 @@ let scanSeq = 0;
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhoto, recordKeyCount } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -61,7 +61,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     void backfillFromRead(read);
     // Keep the tag on the record it resolved to — the evidence a misread is audited against.
     const known = resolveKeytagScan(read, vehicles).vehicle;
-    if (known) void attachKeytagPhoto(known.id, base64);
+    if (known) void attachKeytagPhotoIfMissing(known.id, base64);
     // A class code the codex can't resolve is why registration degrades — record it so codes
     // self-report instead of waiting for someone to get stuck at a car and ask.
     if (isUnknownClassCode(read)) void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
