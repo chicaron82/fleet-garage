@@ -12,7 +12,7 @@ import { usePlateRecognition } from '../../src/hooks/usePlateRecognition';
 const KNOWN: KnownPlate = {
   source: 'registry', plate: 'LZM524',
   unitNumber: '1234567', make: 'Toyota', model: 'Camry', year: 2023, color: 'Black',
-  vehicleId: null, registryId: 'r1',
+  vehicleId: null, registryId: 'r1', archivedAt: null,
 };
 
 // Mirrors the hook's internal debounce window.

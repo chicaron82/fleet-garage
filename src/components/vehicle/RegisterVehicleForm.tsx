@@ -223,11 +223,23 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
                 the car just created (LZM556 confusion, 2026-07-20). Gate on !submitting. */}
             {!submitting && plateMatch && (
               plateMatch.source === 'vehicle' ? (
-                <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                    ⚠️ This plate is already on a registered vehicle{describeKnownPlate(plateMatch) ? ` — ${describeKnownPlate(plateMatch)}` : ''}. Adding it again creates a duplicate.
-                  </p>
-                </div>
+                plateMatch.archivedAt ? (
+                  // An ARCHIVED / out-of-fleet match (e.g. sold or auctioned). Recognition finds it
+                  // (a plate is a global identity), but it is NOT a live duplicate — the scan-router
+                  // already reads this same plate as "not in the fleet". Inform, don't alarm; the
+                  // operator can register a returning/re-plated car without a false duplicate block.
+                  <div className="rounded-lg border border-slate-300 dark:border-slate-600/60 bg-slate-50 dark:bg-slate-800/40 px-3 py-2">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      🗄️ This plate was on an archived vehicle{describeKnownPlate(plateMatch) ? ` — ${describeKnownPlate(plateMatch)}` : ''} (archived {new Date(plateMatch.archivedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}). It's out of the fleet — re-registering is fine, not a live duplicate.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      ⚠️ This plate is already on a registered vehicle{describeKnownPlate(plateMatch) ? ` — ${describeKnownPlate(plateMatch)}` : ''}. Adding it again creates a duplicate.
+                    </p>
+                  </div>
+                )
               ) : (
                 <div className="rounded-lg border border-teal-300 dark:border-teal-700/60 bg-teal-50 dark:bg-teal-900/20 px-3 py-2">
                   <p className="text-xs font-semibold text-teal-700 dark:text-teal-400">

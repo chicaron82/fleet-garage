@@ -4,7 +4,7 @@ import type { Vehicle, VehicleRegistryEntry } from '../../src/types';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-type VehicleLike = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'color'>;
+type VehicleLike = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'archivedAt'>;
 
 function vehicle(over: Partial<VehicleLike> = {}): VehicleLike {
   return {
@@ -40,8 +40,16 @@ describe('pickKnownVehicle', () => {
     expect(result).toEqual({
       source: 'vehicle', plate: 'ABC123',
       unitNumber: '1234567', make: 'Toyota', model: 'Camry', year: 2023, color: 'Black',
-      vehicleId: 'v1', registryId: null,
+      vehicleId: 'v1', registryId: null, archivedAt: null,
     });
+  });
+
+  it('carries archivedAt on an archived fleet match — so a caller can tell it from a LIVE duplicate', () => {
+    // The dup-guard bug (LFJ374, 2026-08-05): an archived/auctioned car still matches by plate
+    // (global recognition), but must NOT read as a live duplicate. archivedAt is how a caller tells.
+    const result = pickKnownVehicle('ABC123', [vehicle({ archivedAt: '2026-07-13T21:46:06Z' })], null);
+    expect(result?.source).toBe('vehicle');
+    expect(result?.archivedAt).toBe('2026-07-13T21:46:06Z');
   });
 
   it('prefers the canonical fleet vehicle over a staged registry entry', () => {
@@ -63,7 +71,7 @@ describe('pickKnownVehicle', () => {
     expect(result).toEqual({
       source: 'registry', plate: 'XYZ789',
       unitNumber: null, make: 'Ford', model: null, year: null, color: null,
-      vehicleId: 'v9', registryId: 'r1',
+      vehicleId: 'v9', registryId: 'r1', archivedAt: null,
     });
   });
 
@@ -82,7 +90,7 @@ describe('pickKnownVehicle', () => {
     expect(result).toEqual({
       source: 'registry', plate: 'XYZ789',
       unitNumber: null, make: null, model: null, year: null, color: null,
-      vehicleId: null, registryId: 'r1',
+      vehicleId: null, registryId: 'r1', archivedAt: null,
     });
   });
 });
@@ -93,7 +101,7 @@ describe('describeKnownPlate', () => {
   const base: KnownPlate = {
     source: 'vehicle', plate: 'ABC123',
     unitNumber: null, make: null, model: null, year: null, color: null,
-    vehicleId: null, registryId: null,
+    vehicleId: null, registryId: null, archivedAt: null,
   };
 
   it('joins unit and vehicle when both are known', () => {

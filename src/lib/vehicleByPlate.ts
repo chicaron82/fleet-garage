@@ -17,6 +17,10 @@ export interface KnownPlate {
   color: string | null;
   vehicleId: string | null;   // set when source === 'vehicle'
   registryId: string | null;  // set when source === 'registry'
+  /** Non-null when the matched fleet vehicle is ARCHIVED (out of the fleet — e.g. sold/auctioned).
+   *  Recognition still finds it (a plate is a global identity), but callers must not treat an
+   *  archived match as a LIVE duplicate. Always null for a registry sighting. */
+  archivedAt: string | null;
 }
 
 /**
@@ -27,7 +31,7 @@ export function normalizePlate(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '');
 }
 
-type VehicleLike = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'color'>;
+type VehicleLike = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'archivedAt'>;
 
 /**
  * Resolve the best-known identity for a (normalized) plate. A real fleet
@@ -47,6 +51,7 @@ export function pickKnownVehicle(
       source: 'vehicle', plate,
       unitNumber: v.unitNumber, make: v.make, model: v.model, year: v.year, color: v.color,
       vehicleId: v.id, registryId: null,
+      archivedAt: v.archivedAt ?? null,
     };
   }
   if (registryEntry?.plate && normalizePlate(registryEntry.plate) === plate) {
@@ -59,6 +64,7 @@ export function pickKnownVehicle(
       color: registryEntry.color ?? null,
       vehicleId: registryEntry.vehicleId ?? null,
       registryId: registryEntry.id,
+      archivedAt: null, // a staged registry sighting is never an archived fleet vehicle
     };
   }
   return null;
