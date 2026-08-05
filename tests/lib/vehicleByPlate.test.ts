@@ -52,6 +52,17 @@ describe('pickKnownVehicle', () => {
     expect(result?.archivedAt).toBe('2026-07-13T21:46:06Z');
   });
 
+  it('prefers a LIVE match over an archived one when a plate has both (dup-guard must see the live dup)', () => {
+    // Reachable once an archived plate is re-registered (same plate on a new live row). The guard
+    // must surface the LIVE duplicate, not the archived "re-registering is fine" note.
+    const result = pickKnownVehicle('ABC123', [
+      vehicle({ id: 'archived-row', archivedAt: '2026-07-13T21:46:06Z' }),
+      vehicle({ id: 'live-row' }),
+    ], null);
+    expect(result?.vehicleId).toBe('live-row');
+    expect(result?.archivedAt).toBeNull();
+  });
+
   it('prefers the canonical fleet vehicle over a staged registry entry', () => {
     const result = pickKnownVehicle(
       'ABC123',

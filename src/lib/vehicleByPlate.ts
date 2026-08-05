@@ -45,7 +45,12 @@ export function pickKnownVehicle(
   vehicles: VehicleLike[],
   registryEntry: VehicleRegistryEntry | null,
 ): KnownPlate | null {
-  const v = vehicles.find(x => normalizePlate(x.licensePlate) === plate);
+  // Prefer a LIVE (non-archived) match over an archived one: a plate can carry both an archived row
+  // (sold/auctioned) AND a live row (re-registered under the same plate), and for the dup-guard a
+  // live duplicate must win over the "was archived, re-registering is fine" note. Falls back to an
+  // archived-only match when that's all there is.
+  const matches = vehicles.filter(x => normalizePlate(x.licensePlate) === plate);
+  const v = matches.find(x => !x.archivedAt) ?? matches[0];
   if (v) {
     return {
       source: 'vehicle', plate,
