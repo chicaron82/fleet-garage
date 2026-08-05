@@ -22,6 +22,10 @@ export interface VehicleClass {
    *  class code is a hybrid variant resolves to the BASE model + this hint, so the model stays
    *  selectable in the catalogue AND the hybrid signal survives the scan. */
   isHybrid?: boolean;
+  /** Battery-EV → the flip logs a charge % instead of a gas level. UNLIKE isHybrid, EV models are
+   *  distinctly named (Niro EV, not Niro), so EV-ness is derivable from the model — no per-vehicle
+   *  flag / migration needed. Tesla is covered separately by make (isTeslaMake). */
+  isEv?: boolean;
 }
 
 const CODEX: Record<string, VehicleClass> = {
@@ -47,7 +51,7 @@ const CODEX: Record<string, VehicleClass> = {
   CTAP: { make: 'Hyundai', model: 'Tucson' },
   // Kia
   CKSE: { make: 'Kia', model: 'Seltos' },
-  CKNE: { make: 'Kia', model: 'Niro EV' },
+  CKNE: { make: 'Kia', model: 'Niro EV', isEv: true },
   CCVL: { make: 'Kia', model: 'Carnival' },
   CFEX: { make: 'Kia', model: 'Forte' },
   CK4L: { make: 'Kia', model: 'K4' },
@@ -128,6 +132,16 @@ const CODEX: Record<string, VehicleClass> = {
 /** Every mapping, for the contract test that pins the codex to the register form's catalogue —
  *  a code that resolves to a model the dropdown can't offer strands the operator mid-registration. */
 export const CODEX_ENTRIES = Object.entries(CODEX);
+
+// Battery-EV models (charge %, not gas fuel), derived from the codex `isEv` marks — a single source
+// of truth, so marking a code EV is all it takes. Tesla is handled separately by make (isTeslaMake).
+const EV_MODELS: ReadonlySet<string> = new Set(
+  Object.values(CODEX).filter(c => c.isEv).map(c => c.model.toLowerCase()),
+);
+/** True when a model is a battery-EV — used by the airport flip to show a charge % gauge. */
+export function isEvModel(model: string | undefined | null): boolean {
+  return !!model && EV_MODELS.has(model.trim().toLowerCase());
+}
 
 export function normalizeClassCode(code: string | undefined | null): string {
   return (code ?? '').trim().toUpperCase().split(/\s+/)[0] ?? '';

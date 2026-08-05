@@ -20,6 +20,7 @@ import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
 import { BatteryLevelSelector } from '../shared/BatteryLevelSelector';
+import { isEvModel } from '../../../api/_lib/vehicleClassCodex';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { toEvStatus } from '../../lib/ev-detection';
 import { useUserResolver } from '../../hooks/useUserResolver';
@@ -38,7 +39,7 @@ export function AirportFlipSection() {
   const { getName } = useUserResolver();
   const checkGeotab = useGeotabPending();
 
-  const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null; isTesla: boolean; vehicleId: string | null } | null>(null);
+  const [capture, setCapture] = useState<{ plate: string; unit: string | null; rentalClass: string; vehicle: Vehicle | null; isTesla: boolean; isEv: boolean; vehicleId: string | null } | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [odo, setOdo] = useState('');
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
@@ -98,6 +99,9 @@ export function AirportFlipSection() {
     // class code, which the codex resolves to a make server-side — so a Tesla FG has never seen
     // still gets the charge gauge + asset check on its very first return.
     const isTesla = !!vehicle?.isTesla || read.make === 'Tesla';
+    // EV = Tesla OR a battery-EV model (Niro EV, …) — from the fleet record or the tag's codex-
+    // resolved make/model. Drives the charge-% gauge instead of a gas reading. (ticket-ev-fuel-percentage.)
+    const isEv = isTesla || isEvModel(vehicle?.model) || isEvModel(read.model);
     const vehicleId = vehicle?.id ?? registeredId ?? null;
     await openCapture({
       plate,
@@ -105,6 +109,7 @@ export function AirportFlipSection() {
       rentalClass: read.rentalClass ?? '',
       vehicle,
       isTesla,
+      isEv,
       vehicleId,
     }, vehicle);
     // Keep the tag itself on the record — the evidence a misread can be audited against.
@@ -127,6 +132,7 @@ export function AirportFlipSection() {
       rentalClass: vehicle?.rentalClass ?? '',
       vehicle,
       isTesla: !!vehicle?.isTesla,
+      isEv: !!vehicle?.isTesla || isEvModel(vehicle?.model),
       vehicleId: vehicle?.id ?? null,
     }, vehicle);
     setManualPlate('');
@@ -135,13 +141,13 @@ export function AirportFlipSection() {
 
   const addToList = () => {
     if (!capture) return;
-    const level = capture.isTesla
+    const level = capture.isEv
       ? (batteryPct !== null ? `${batteryPct}%` : '')
       : (fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '');
     // A short ring rides the counter copy-out — actionable while the rental is still open.
     const shortNote = keyCheck ? keyShortNote(keyCheck) : '';
     const counterNotes = [notes.trim(), shortNote].filter(Boolean).join(' · ');
-    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isTesla, damaged, notes: counterNotes });
+    flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isEv, damaged, notes: counterNotes });
     // Latest count is the new truth (and seeds the baseline the first time a car is counted).
     if (keys !== null && capture.vehicleId) void recordKeyCount(capture.vehicleId, keys);
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
@@ -258,7 +264,7 @@ export function AirportFlipSection() {
           <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
 
           {/* The gauge mirrors the instrument: a gas dash reads eighths, a Tesla's reads a %. */}
-          {capture.isTesla
+          {capture.isEv
             ? <BatteryLevelSelector batteryPct={batteryPct} setBatteryPct={setBatteryPct} />
             : <FuelLevelSelector fuelLevel={fuelLevel} setFuelLevel={setFuelLevel} />}
 

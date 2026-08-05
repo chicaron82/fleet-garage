@@ -1,5 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { lookupVehicleClass } from '../../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, isEvModel } from '../../../api/_lib/vehicleClassCodex';
+
+describe('isEvModel', () => {
+  it('recognizes a battery-EV model marked isEv in the codex (case/space tolerant)', () => {
+    expect(isEvModel('Niro EV')).toBe(true);   // CKNE — the EV case that drives the charge-% gauge
+    expect(isEvModel('niro ev')).toBe(true);
+    expect(isEvModel('  Niro EV ')).toBe(true);
+  });
+
+  it('is false for non-EV models — including distinctly-named non-EV variants and hybrids', () => {
+    expect(isEvModel('Niro')).toBe(false);      // a non-EV Niro would be its own model string
+    expect(isEvModel('Versa')).toBe(false);
+    expect(isEvModel('RAV4')).toBe(false);      // gas/hybrid, not a battery-EV
+    expect(isEvModel('Sportage')).toBe(false);  // has a hybrid variant but is not a battery-EV
+  });
+
+  it('handles null/undefined/empty safely', () => {
+    expect(isEvModel(null)).toBe(false);
+    expect(isEvModel(undefined)).toBe(false);
+    expect(isEvModel('')).toBe(false);
+  });
+});
 
 describe('lookupVehicleClass', () => {
   it('maps a known class code to make/model (the tag that prompted this feature)', () => {
