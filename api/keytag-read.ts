@@ -23,16 +23,20 @@ interface FgResponse {
 
 const VISION_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong vision model.
 
-const PROMPT = `You are reading a photo of a printed Hertz vehicle KEY TAG. Read the fields printed on it and report them exactly as shown — do not guess or invent anything you cannot see.
+const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
-The tag shows fields like these:
-- The TOP line is the owning branch: a city name then a branch number and a RENTAL CLASS, e.g. "WINNIPEG / 08199  Q4". The short code AFTER the branch number (e.g. "Q4", "P4", "T", "L2") is the RENTAL CLASS — the car's size/type group, distinct from the class code below. Report it exactly. It is short (1–3 chars) and sits in the top corner next to the branch number.
-- "Veh #" → the UNIT NUMBER. Join the digit groups into one string (e.g. "542 0427" → "5420427").
-- "Lic Plate" → the LICENSE PLATE, exactly as printed.
-- A CLASS line such as "CCVL 25": the letters are the class code ("CCVL"); the trailing number is the model YEAR ("25" → 2025). Report the class code and the year separately. Do NOT try to name the make or model — that's looked up from the class code elsewhere. The class code (a 4-char code on its own line) and the rental class (the short code by the branch number up top) are DIFFERENT fields — report both.
-- A COLOUR / BODY line such as "WHI 4DR": map the colour code to a colour name (WHI→White, BLK→Black, SIL→Silver, GRY→Gray, BLU→Blue, RED→Red; if it's another code, give your best full-word reading). The body style is the rest ("4DR").
+Fields the tag MAY carry (read the ones present):
+- RENTAL CLASS: a short 1–3 char size/type group code (e.g. "Q4", "P4", "T", "L2", "B"), usually at the top next to a branch number. Printed: "WINNIPEG / 08199  Q4". Handwritten: often just "8199  B" (branch number, then the class). Report the short class code — NOT the branch number.
+- UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
+- LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
+- MAKE / MODEL — the ONE real difference between the two formats:
+  • PRINTED tags do NOT write the make/model — they print a 4-char CLASS CODE ("CCVL", "CVRS") resolved to a model elsewhere. Report it as classCode; leave make/model empty.
+  • HANDWRITTEN tags usually write the MODEL directly ("versa", "Elantra") with NO 4-char code. Report model as written, and make only when it's unambiguous from that model (Versa→Nissan, Elantra→Hyundai, Camry→Toyota); leave classCode empty.
+- MODEL YEAR: printed on the class line ("CCVL 25" → 2025); handwritten a 2-digit year by the model ("25 versa" → 2025).
+- COLOUR: a code on printed tags (WHI→White, BLK→Black, SIL→Silver, GRY→Gray, BLU→Blue, RED→Red — else your best full-word reading); a plain word on handwritten ("Blue"). Report the colour name.
+- BODY STYLE: e.g. "4DR", if present. Ignore other scribbles (options like "AC L1", stall/location notes).
 
-Push through an angled, low-contrast, or partially-obscured tag and read what you can. Leave a field empty only if it genuinely isn't legible. If the image is NOT a vehicle key tag at all, call report_keytag with everything empty. Call report_keytag with what you read.`;
+Push through an angled, low-contrast, handwritten, or partial tag and read what you can. Only if the image is NOT a key tag at all, call report_keytag with everything empty. Call report_keytag with what you read.`;
 
 const REPORT_TOOL: Anthropic.Tool = {
   name: 'report_keytag',
@@ -43,7 +47,9 @@ const REPORT_TOOL: Anthropic.Tool = {
       plate: { type: 'string', description: 'License plate ("Lic Plate"), exactly as printed. "" if not legible.' },
       unitNumber: { type: 'string', description: 'Unit number ("Veh #"), digit groups joined. "" if not legible.' },
       classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
-      rentalClass: { type: 'string', description: 'The rental class by the branch number up top, e.g. "Q4", "P4", "T". "" if not legible.' },
+      rentalClass: { type: 'string', description: 'The rental class by the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
+      make: { type: 'string', description: 'Make — ONLY when written on the tag (handwritten) or unambiguous from a written model (Versa→Nissan). "" on a printed tag (make is derived from the class code downstream).' },
+      model: { type: 'string', description: 'Model — when written DIRECTLY on the tag (handwritten, e.g. "Versa"). "" on a printed tag (derived from the class code).' },
       year: { type: 'integer', description: 'Model year from the class line (e.g. 2025). 0 if not legible.' },
       color: { type: 'string', description: 'Colour name mapped from the code (WHI→White…). "" if not legible.' },
       bodyStyle: { type: 'string', description: 'Body style from the colour/body line (e.g. "4DR"). "" if none.' },
@@ -57,6 +63,8 @@ interface RawKeytag {
   unitNumber?: string;
   classCode?: string;
   rentalClass?: string;
+  make?: string;
+  model?: string;
   year?: number;
   color?: string;
   bodyStyle?: string;
@@ -77,8 +85,10 @@ function toKeytagRead(input: unknown): KeytagRead {
     unitNumber: s(r.unitNumber),
     classCode,
     rentalClass: s(r.rentalClass)?.toUpperCase(),
-    make: vc?.make,
-    model: vc?.model,
+    // Printed tag: make/model DERIVED from the class code (codex wins). Handwritten tag: no code,
+    // but the model is written directly — fall back to the read's own make/model.
+    make: vc?.make ?? s(r.make),
+    model: vc?.model ?? s(r.model),
     isHybrid: vc?.isHybrid,
     year,
     color: s(r.color),
