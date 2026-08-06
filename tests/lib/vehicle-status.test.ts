@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveHoldStatus, toVehicleStatus, isOnExceptionStatus, factsFromRow, factsFromHold, findLinkedOpenException,
-  holdsDrivingStatus,
+  openSaleCarHolds,
   type HoldFacts,
 } from '../../src/lib/vehicle-status';
 
@@ -81,30 +81,28 @@ describe('deriveHoldStatus', () => {
 
 // ── Enum mapping ──────────────────────────────────────────────────────────────
 
-// ── holdsDrivingStatus (the restore-into-circulation closer) ────────────────────
-describe('holdsDrivingStatus', () => {
-  it('selects every hold driving a non-clear status; leaves terminal ones as history', () => {
+// ── openSaleCarHolds (the auction intent a restore cancels — and ONLY that) ──────
+describe('openSaleCarHolds', () => {
+  it('selects only the still-open sale_car holds (active or released-and-out)', () => {
     const holds = [
-      { id: 'active-held',  status: 'ACTIVE',   holdTypes: ['damage'] },
-      { id: 'active-sale',  status: 'ACTIVE',   holdTypes: ['sale_car'] },
-      { id: 'auction',      status: 'RELEASED', holdTypes: ['sale_car'],   release: { releaseType: 'EXCEPTION', actualReturn: null } },
-      { id: 'open-exc',     status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'EXCEPTION', actualReturn: null } },
-      { id: 'open-mech',    status: 'RELEASED', holdTypes: ['mechanical'], release: { releaseType: 'MECHANICAL_RELEASE', actualReturn: null } },
-      { id: 'pre-existing', status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'PRE_EXISTING', actualReturn: null } },
-      // terminal / not driving:
-      { id: 'returned-exc', status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'EXCEPTION', actualReturn: '2026-07-01T00:00:00Z' } },
-      { id: 'voided',       status: 'VOIDED',   holdTypes: ['damage'] },
-      { id: 'returned',     status: 'RETURNED', holdTypes: ['damage'] },
+      { id: 'active-sale', status: 'ACTIVE',   holdTypes: ['sale_car'] },
+      { id: 'auction-exc', status: 'RELEASED', holdTypes: ['sale_car'],   release: { releaseType: 'EXCEPTION', actualReturn: null } },
+      { id: 'sale-mech',   status: 'RELEASED', holdTypes: ['sale_car'],   release: { releaseType: 'MECHANICAL_RELEASE', actualReturn: null } },
+      // NOT selected — the car's REAL condition, preserved through a restore:
+      { id: 'pre-existing',  status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'PRE_EXISTING', actualReturn: null } },
+      { id: 'active-damage', status: 'ACTIVE',   holdTypes: ['damage'] },
+      { id: 'open-exc',      status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'EXCEPTION', actualReturn: null } },
+      // terminal sale holds — history, left alone:
+      { id: 'sale-returned', status: 'RELEASED', holdTypes: ['sale_car'],   release: { releaseType: 'EXCEPTION', actualReturn: '2026-07-01T00:00:00Z' } },
+      { id: 'sale-voided',   status: 'VOIDED',   holdTypes: ['sale_car'] },
     ];
-    expect(holdsDrivingStatus(holds).map(h => h.id))
-      .toEqual(['active-held', 'active-sale', 'auction', 'open-exc', 'open-mech', 'pre-existing']);
+    expect(openSaleCarHolds(holds).map(h => h.id)).toEqual(['active-sale', 'auction-exc', 'sale-mech']);
   });
 
-  it('returns nothing when every hold is already terminal (a genuinely clean car)', () => {
-    expect(holdsDrivingStatus([
-      { id: 'v', status: 'VOIDED',   holdTypes: ['damage'] },
-      { id: 'r', status: 'RETURNED', holdTypes: ['damage'] },
-    ])).toEqual([]);
+  it('leaves a PRE_EXISTING damage hold untouched — a restored car keeps its accepted scratch', () => {
+    // THE regression this exists to prevent: restore must never erase a still-true condition.
+    const holds = [{ id: 'scratch', status: 'RELEASED', holdTypes: ['damage'], release: { releaseType: 'PRE_EXISTING', actualReturn: null } }];
+    expect(openSaleCarHolds(holds)).toEqual([]);
   });
 });
 

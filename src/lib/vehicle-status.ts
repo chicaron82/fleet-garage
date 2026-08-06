@@ -57,25 +57,25 @@ export function deriveHoldStatus(facts: HoldFacts[]): HoldDerivedStatus {
 }
 
 /**
- * The holds still DRIVING a non-clear status — the exact set that must be closed to return a vehicle
- * to CLEAR. Mirrors every non-clear branch of `deriveHoldStatus`: an ACTIVE hold (held / sale-car),
- * a RELEASED-and-still-open exception or mechanical (on-exception / auction-short-term), or a
- * pre-existing release. Terminal holds — returned, repaired, already-voided — are history and are
- * left untouched.
+ * The still-open `sale_car` holds — the auction/sale intent a RESTORE cancels, and ONLY that.
  *
- * Used by restore-into-circulation: a sale/auction car management puts back is a clean slate
- * (archiveVehicle's own "re-flag if it returns with a real issue" contract), so its open status
- * drivers — including the RELEASED sale_car hold archiving leaves untouched — get voided and the
- * car re-derives CLEAR on both the read and write paths.
+ * When management puts an archived sale/auction car back into circulation, the thing they reversed is
+ * the *sale intent* — not the car's real condition. So restore voids these (auction's off) and
+ * PRESERVES every other hold, then re-derives status from what survives. Crucially an accepted
+ * PRE_EXISTING scratch is NOT a sale hold, so it stays — the car returns PRE_EXISTING, never a lying
+ * CLEAR. Erasing a still-true condition would recreate the exact old-damage-amnesia FG exists to kill.
+ *
+ * "Open" = still driving a status: ACTIVE, or RELEASED on an exception/mechanical not yet returned.
+ * A terminal sale hold (returned/repaired/already-voided) is history and is left alone.
  */
-export function holdsDrivingStatus<T extends {
+export function openSaleCarHolds<T extends {
   status: string;
   holdTypes: string[];
   release?: { releaseType: string; actualReturn?: string | null } | null;
 }>(holds: T[]): T[] {
   return holds.filter(h => {
     const f = factsFromHold(h);
-    return f.isActive || f.isOpenException || f.isOpenMechanical || f.isPreExisting;
+    return f.isSaleCar && (f.isActive || f.isOpenException || f.isOpenMechanical);
   });
 }
 

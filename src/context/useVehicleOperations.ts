@@ -1,6 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
-import { deriveHoldStatus, factsFromHold, toVehicleStatus, holdsDrivingStatus } from '../lib/vehicle-status';
+import { deriveHoldStatus, factsFromHold, toVehicleStatus, openSaleCarHolds } from '../lib/vehicle-status';
 import { isTeslaMake } from '../lib/ev-detection';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription } from './holdEditing';
@@ -155,28 +155,31 @@ export function useVehicleOperations({
   };
 
   const restoreVehicle = async (vehicleId: string) => {
-    // Un-archive INTO CIRCULATION: management put a sale/auction car back, so it returns a CLEAN
-    // slate — exactly archiveVehicle's own "re-flag if it returns with a real issue" contract.
-    // We do NOT resurrect voided holds (that was a drift that contradicted archive AND kept the car
-    // flagged). Instead we CLOSE every hold still driving a non-clear status — crucially the
-    // RELEASED-and-open sale_car hold archiving leaves untouched, which is what pinned the car at
-    // AUCTION_SHORT_TERM — and reset it to CLEAR. With all status-drivers voided, buildFleetView
-    // re-derives CLEAR too, so the column can't drift back. A real issue on return = one re-flag.
-    const closeIds = holdsDrivingStatus(holds.filter(h => h.vehicleId === vehicleId)).map(h => h.id);
+    // Un-archive INTO CIRCULATION: management put a sale/auction car back, which reverses ONLY the
+    // sale intent — NOT the car's real condition. So we void just the still-open sale_car holds
+    // (auction's off, and they're what pinned the car at AUCTION_SHORT_TERM) and PRESERVE every other
+    // hold, then RE-DERIVE the status from what survives. An accepted PRE_EXISTING scratch stays →
+    // the car returns PRE_EXISTING, never a lying CLEAR (erasing a still-true condition would recreate
+    // the exact old-damage-amnesia FG exists to kill). We do NOT resurrect the holds archiving voided
+    // — a real ACTIVE issue on return is one deliberate re-flag.
+    const vehHolds = holds.filter(h => h.vehicleId === vehicleId);
+    const cancelIds = openSaleCarHolds(vehHolds).map(h => h.id);
+    const survivors = vehHolds.filter(h => !cancelIds.includes(h.id));
+    const newStatus = toVehicleStatus(deriveHoldStatus(survivors.map(factsFromHold)));
     const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ archived_at: null, archived_by_id: null, status: 'CLEAR' }).eq('id', vehicleId)
+      supabase.from('vehicles').update({ archived_at: null, archived_by_id: null, status: newStatus }).eq('id', vehicleId)
     );
     if (error) return;
-    if (closeIds.length) {
+    if (cancelIds.length) {
       await writeWithRefresh(() =>
-        supabase.from('holds').update({ status: 'VOIDED' }).eq('vehicle_id', vehicleId).in('id', closeIds)
+        supabase.from('holds').update({ status: 'VOIDED' }).eq('vehicle_id', vehicleId).in('id', cancelIds)
       );
     }
     setAllVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, archivedAt: undefined, archivedById: undefined, status: 'CLEAR' } : v
+      v.id === vehicleId ? { ...v, archivedAt: undefined, archivedById: undefined, status: newStatus } : v
     ));
     setAllHolds(prev => prev.map(h =>
-      closeIds.includes(h.id) ? { ...h, status: 'VOIDED' as const } : h
+      cancelIds.includes(h.id) ? { ...h, status: 'VOIDED' as const } : h
     ));
     const vehicle = allVehicles.find(v => v.id === vehicleId);
     await pushNotification(
