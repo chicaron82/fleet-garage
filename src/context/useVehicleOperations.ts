@@ -2,6 +2,8 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, openSaleCarHolds } from '../lib/vehicle-status';
 import { isTeslaMake } from '../lib/ev-detection';
+import { normalizePlate } from '../lib/vehicleByPlate';
+import { decideMint } from '../lib/mintGuard';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription } from './holdEditing';
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
@@ -45,6 +47,32 @@ export function useVehicleOperations({
     // would mint its own UUID. A dropped re-entrant call resolves undefined (the
     // first call is doing the work) — same contract as addHold/addRelease.
     return withSubmitLock(`vehicle:${vehicle.licensePlate.trim().toUpperCase()}`, async () => {
+      // MATCH-BEFORE-MINT: a car already on record must not get a SECOND row. Prefer a live match
+      // over an archived one (an archived/re-plated car IS a fresh registration). See ./lib/mintGuard.
+      const plateKey = normalizePlate(vehicle.licensePlate);
+      const plateMatches = allVehicles.filter(v => normalizePlate(v.licensePlate) === plateKey);
+      const existing = plateMatches.find(v => !v.archivedAt) ?? plateMatches[0];
+      const decision = decideMint(existing, vehicle.unitNumber);
+      if (decision.action === 'reuse') return decision.id; // same plate + unit already on record
+      if (decision.action === 'upgrade') {
+        // Plate-only stub → fill the unit + identity in place, don't double it (LFJ370 class).
+        const { error: upErr } = await writeWithRefresh(() =>
+          supabase.from('vehicles').update({
+            unit_number:  vehicle.unitNumber,
+            make:         vehicle.make,
+            model:        vehicle.model,
+            year:         vehicle.year,
+            color:        vehicle.color,
+            rental_class: vehicle.rentalClass ?? null,
+            is_hybrid:    vehicle.isHybrid ?? false,
+          }).eq('id', decision.id)
+        );
+        if (upErr) throw new Error(`Failed to upgrade vehicle stub: ${(upErr as { message?: string }).message}`);
+        setAllVehicles(prev => prev.map(v => v.id === decision.id
+          ? { ...v, unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? v.rentalClass, isHybrid: vehicle.isHybrid ?? v.isHybrid }
+          : v));
+        return decision.id;
+      }
       const id = crypto.randomUUID();
       const branchId = (vehicle.branchId ?? (activeBranch === 'ALL' ? 'YWG' : activeBranch)) as BranchId;
       // Registration defaults to HELD (register-to-flag flow); a caller can pass a
