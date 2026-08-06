@@ -57,6 +57,29 @@ export function deriveHoldStatus(facts: HoldFacts[]): HoldDerivedStatus {
 }
 
 /**
+ * The holds still DRIVING a non-clear status — the exact set that must be closed to return a vehicle
+ * to CLEAR. Mirrors every non-clear branch of `deriveHoldStatus`: an ACTIVE hold (held / sale-car),
+ * a RELEASED-and-still-open exception or mechanical (on-exception / auction-short-term), or a
+ * pre-existing release. Terminal holds — returned, repaired, already-voided — are history and are
+ * left untouched.
+ *
+ * Used by restore-into-circulation: a sale/auction car management puts back is a clean slate
+ * (archiveVehicle's own "re-flag if it returns with a real issue" contract), so its open status
+ * drivers — including the RELEASED sale_car hold archiving leaves untouched — get voided and the
+ * car re-derives CLEAR on both the read and write paths.
+ */
+export function holdsDrivingStatus<T extends {
+  status: string;
+  holdTypes: string[];
+  release?: { releaseType: string; actualReturn?: string | null } | null;
+}>(holds: T[]): T[] {
+  return holds.filter(h => {
+    const f = factsFromHold(h);
+    return f.isActive || f.isOpenException || f.isOpenMechanical || f.isPreExisting;
+  });
+}
+
+/**
  * True for the "out on an override — scrutinize it on return" statuses: OUT_ON_EXCEPTION (a hold
  * released on an open exception/mechanical, still circulating) or AUCTION_SHORT_TERM (a sale car
  * out to auction as-is). The single predicate behind Exception Returns, the Airport Flip re-hold,

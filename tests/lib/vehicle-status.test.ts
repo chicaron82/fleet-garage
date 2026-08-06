@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveHoldStatus, toVehicleStatus, isOnExceptionStatus, factsFromRow, factsFromHold, findLinkedOpenException,
+  holdsDrivingStatus,
   type HoldFacts,
 } from '../../src/lib/vehicle-status';
 
@@ -79,6 +80,33 @@ describe('deriveHoldStatus', () => {
 });
 
 // ── Enum mapping ──────────────────────────────────────────────────────────────
+
+// ── holdsDrivingStatus (the restore-into-circulation closer) ────────────────────
+describe('holdsDrivingStatus', () => {
+  it('selects every hold driving a non-clear status; leaves terminal ones as history', () => {
+    const holds = [
+      { id: 'active-held',  status: 'ACTIVE',   holdTypes: ['damage'] },
+      { id: 'active-sale',  status: 'ACTIVE',   holdTypes: ['sale_car'] },
+      { id: 'auction',      status: 'RELEASED', holdTypes: ['sale_car'],   release: { releaseType: 'EXCEPTION', actualReturn: null } },
+      { id: 'open-exc',     status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'EXCEPTION', actualReturn: null } },
+      { id: 'open-mech',    status: 'RELEASED', holdTypes: ['mechanical'], release: { releaseType: 'MECHANICAL_RELEASE', actualReturn: null } },
+      { id: 'pre-existing', status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'PRE_EXISTING', actualReturn: null } },
+      // terminal / not driving:
+      { id: 'returned-exc', status: 'RELEASED', holdTypes: ['damage'],     release: { releaseType: 'EXCEPTION', actualReturn: '2026-07-01T00:00:00Z' } },
+      { id: 'voided',       status: 'VOIDED',   holdTypes: ['damage'] },
+      { id: 'returned',     status: 'RETURNED', holdTypes: ['damage'] },
+    ];
+    expect(holdsDrivingStatus(holds).map(h => h.id))
+      .toEqual(['active-held', 'active-sale', 'auction', 'open-exc', 'open-mech', 'pre-existing']);
+  });
+
+  it('returns nothing when every hold is already terminal (a genuinely clean car)', () => {
+    expect(holdsDrivingStatus([
+      { id: 'v', status: 'VOIDED',   holdTypes: ['damage'] },
+      { id: 'r', status: 'RETURNED', holdTypes: ['damage'] },
+    ])).toEqual([]);
+  });
+});
 
 describe('toVehicleStatus', () => {
   it.each([
