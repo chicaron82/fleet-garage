@@ -15,15 +15,19 @@
 // logged against a car FG doesn't know. This one deliberately never creates a fleet row — the
 // scan-router keeps offering "Register" as the operator's choice. See docs/ticket-backfill-at-scan.md.
 import { useCallback, useState } from 'react';
-import { backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../lib/resolveKeytagScan';
+import { resolveKeytagScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../lib/resolveKeytagScan';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
 export function useBackfillOnScan(deps: {
   vehicles: ReturnType<typeof useVehicleHoldContext>['vehicles'];
   updateVehicleFields: ReturnType<typeof useVehicleHoldContext>['updateVehicleFields'];
+  /** Optional: when a caller has the tag PHOTO, backfill also becomes the universal capture point —
+   *  a known vehicle lacking a keytag photo gets one, on every surface that routes a scan through
+   *  here. If-missing, so it never clobbers a good tag. Omit on surfaces with no photo. */
+  attachKeytagPhotoIfMissing?: ReturnType<typeof useVehicleHoldContext>['attachKeytagPhotoIfMissing'];
 }) {
-  const { vehicles, updateVehicleFields } = deps;
+  const { vehicles, updateVehicleFields, attachKeytagPhotoIfMissing } = deps;
   const [backfillToast, setBackfillToast] = useState<string | null>(null);
   // The disagreement half. Deliberately NOT auto-cleared like the fill toast: a fill is
   // good news that can flash by, a conflict is something he has to decide about, and it
@@ -33,7 +37,15 @@ export function useBackfillOnScan(deps: {
   /** Given a key-tag read: if it matches an on-record car with blank fields, fill them. No-ops for
    *  a new plate, a complete record, or a read that adds nothing. Never throws — a failed write
    *  must not block what the operator came here to do. */
-  const backfillFromRead = useCallback(async (read: KeytagRead) => {
+  const backfillFromRead = useCallback(async (read: KeytagRead, photo?: string) => {
+    // Universal keytag capture: if the caller handed us the tag photo and this scan resolves to a
+    // KNOWN vehicle, save the photo when it lacks one — independent of whether there's anything to
+    // backfill (a complete known car still deserves its source tag on file). If-missing, never a
+    // clobber. This is the shared choke-point (scan-router + holds search route through here).
+    if (photo && attachKeytagPhotoIfMissing) {
+      const known = resolveKeytagScan(read, vehicles).vehicle;
+      if (known) void attachKeytagPhotoIfMissing(known.id, photo);
+    }
     // Say the disagreement out loud BEFORE the write — it's independent of whether there
     // was anything to fill, and it used to be swallowed entirely on this surface.
     const cf = keytagConflictsOnScan(read, vehicles);
@@ -50,7 +62,7 @@ export function useBackfillOnScan(deps: {
       setBackfillToast(`✨ ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
       setTimeout(() => setBackfillToast(null), 3000);
     } catch { /* non-blocking */ }
-  }, [vehicles, updateVehicleFields]);
+  }, [vehicles, updateVehicleFields, attachKeytagPhotoIfMissing]);
 
   return { backfillToast, conflictToast, backfillFromRead };
 }

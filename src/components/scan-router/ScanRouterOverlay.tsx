@@ -32,7 +32,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
-  const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
+  const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
@@ -57,11 +57,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
     setGeotabPending(await checkGeotab(read.plate));
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
-    // he routes to below (hold / view / trip) already sees a complete record. Blanks-only.
-    void backfillFromRead(read);
-    // Keep the tag on the record it resolved to — the evidence a misread is audited against.
-    const known = resolveKeytagScan(read, vehicles).vehicle;
-    if (known) void attachKeytagPhotoIfMissing(known.id, base64);
+    // he routes to below (hold / view / trip) already sees a complete record. Blanks-only. Passing
+    // the photo also lets backfill attach the tag to a known car that lacks one (universal capture,
+    // if-missing) — one choke-point instead of a separate attach call here.
+    void backfillFromRead(read, base64);
     // A class code the codex can't resolve is why registration degrades — record it so codes
     // self-report instead of waiting for someone to get stuck at a car and ask.
     if (isUnknownClassCode(read)) void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');

@@ -28,9 +28,10 @@ interface Props {
 
 export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle, updateVehicleFields } = useVehicleHoldContext();
+  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   // A scanned tag fills an on-record car's blanks here, at the scan — see docs/ticket-backfill-at-scan.md.
-  const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields });
+  // Passing attach makes the holds search-scan also save the tag to a known car that lacks one.
+  const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<HoldsTab>('holds');
   const [currentPage, setCurrentPage] = useState(() => {
@@ -277,7 +278,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           </div>
           {noMatch
             ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
-            : <KeytagSearchScan onPlate={handleKeytagPlate} onRead={(read) => void backfillFromRead(read)} />}
+            : <KeytagSearchScan onPlate={handleKeytagPlate} onRead={(read, photo) => void backfillFromRead(read, photo)} />}
           {/* Never fill silently — name what the tag just landed on the record. */}
           {backfillToast && <p className="text-xs font-semibold text-green-700 dark:text-green-400">{backfillToast}</p>}
         </div>

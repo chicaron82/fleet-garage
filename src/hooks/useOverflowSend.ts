@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import { buildOverflowTrip } from '../lib/overflowTrip';
 import { planOverflowScan } from '../lib/overflowScan';
+import { resolveKeytagScan } from '../lib/resolveKeytagScan';
 import type { OverflowDestination } from '../../api/_lib/overflowProposal';
 
 export interface OverflowSend {
@@ -22,7 +23,7 @@ export interface OverflowSend {
 
 export function useOverflowSend(onLogged?: () => void) {
   const { readKeytag, status } = useKeytagRead();
-  const { vehicles, addVehicle, updateVehicleFields } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { user } = useAuth();
   const [destination, setDestination] = useState<OverflowDestination>('Airport');
   const [sends, setSends] = useState<OverflowSend[]>([]);
@@ -38,10 +39,12 @@ export function useOverflowSend(onLogged?: () => void) {
     if (!plan) { setErr('No plate on that tag — log it in Effie chat instead.'); return; }
     // Do the fleet write up front (identity is in hand), then stage the send.
     let sendStatus: OverflowSend['status'] = 'known';
+    // The vehicle this scan touched — for universal keytag capture (attach the tag if it lacks one).
+    let vehicleId: string | undefined;
     if (plan.register && user) {
       const nv = plan.register;
       try {
-        await addVehicle({
+        vehicleId = await addVehicle({
           unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model,
           year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
@@ -49,13 +52,19 @@ export function useOverflowSend(onLogged?: () => void) {
         sendStatus = 'registered';
       } catch { sendStatus = 'unregistered'; }
     } else if (plan.backfill) {
+      vehicleId = plan.backfill.vehicleId;
       try { await updateVehicleFields(plan.backfill.vehicleId, plan.backfill.applies); sendStatus = 'backfilled'; }
       catch { sendStatus = 'known'; }
     } else if (plan.unregistered) {
       sendStatus = 'unregistered';
+    } else {
+      // Plain known car (nothing to register or fill) — still a capture opportunity.
+      vehicleId = resolveKeytagScan(read, vehicles).vehicle?.id;
     }
+    // Universal keytag capture: save the tag to the car it touched if that car has none. If-missing.
+    if (vehicleId) void attachKeytagPhotoIfMissing(vehicleId, base64);
     setSends(prev => [...prev, { ...plan.send, status: sendStatus }]);
-  }, [readKeytag, vehicles, addVehicle, updateVehicleFields, user]);
+  }, [readKeytag, vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user]);
 
   const remove = useCallback((index: number) => setSends(prev => prev.filter((_, i) => i !== index)), []);
 
