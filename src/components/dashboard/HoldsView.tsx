@@ -44,7 +44,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
-  const [archivedOpen, setArchivedOpen] = useState(false);
   const [pinnedVehicleIds, setPinnedVehicleIds] = useState<Set<string>>(new Set());
 
   const togglePin = useCallback((vehicleId: string) => {
@@ -164,6 +163,17 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   // Typed ≥2 chars with nothing matching: the search-row button flips from
   // "scan" to "add to ledger", and the list shows the not-found note.
   const noMatch = filtered.length === 0 && search.trim().length >= 2;
+  // How many ARCHIVED cars the search matches — so a no-active-match search points at the archive
+  // (which auto-expands below) instead of a flat "not in the system" that hides a returning car.
+  const archivedMatchCount = search.trim().length >= 2
+    ? archivedVehicles.filter(v => {
+        const q = search.toUpperCase();
+        return (v.unitNumber?.toUpperCase() ?? '').includes(q) ||
+          v.licensePlate.toUpperCase().includes(q) ||
+          v.make.toUpperCase().includes(q) ||
+          v.model.toUpperCase().includes(q);
+      }).length
+    : 0;
 
   const getDisplayHold = (vehicleId: string, status: VehicleStatus) => {
     const vh = holds.filter(h => h.vehicleId === vehicleId);
@@ -301,7 +311,13 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
             />
           ))}
           {noMatch && (
-            <p className="text-center text-gray-400 text-sm py-8">"{search}" not in the system.</p>
+            archivedMatchCount > 0 ? (
+              <p className="text-center text-amber-700 dark:text-amber-400 text-sm py-8 font-medium">
+                "{search}" is archived — {archivedMatchCount} match{archivedMatchCount === 1 ? '' : 'es'} below ↓
+              </p>
+            ) : (
+              <p className="text-center text-gray-400 text-sm py-8">"{search}" not in the system.</p>
+            )
           )}
           {filtered.length === 0 && search.trim().length < 2 && search.trim().length > 0 && (
             <p className="text-center text-gray-400 text-sm py-8">Keep typing to search…</p>
@@ -327,13 +343,13 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
           )}
         </div>
 
-        {/* Archived Vehicles */}
-        {canManageVehicles(user!.role) && archivedVehicles.length > 0 && (
+        {/* Archived Vehicles — search surfaces a match here (auto-expanded) even when the active
+            fleet has none, mirroring the Issue Log / ExceptionReturnSection. */}
+        {canManageVehicles(user!.role) && (
           <ArchivedVehiclesSection
             archivedVehicles={archivedVehicles}
-            open={archivedOpen}
-            onToggle={() => setArchivedOpen(o => !o)}
             onRestore={restoreVehicle}
+            search={search}
           />
         )}
 
