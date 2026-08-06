@@ -33,6 +33,13 @@ describe('scannedFromRead', () => {
     // …and a gas read defaults it off, never undefined.
     expect(scannedFromRead(DURANGO, 'LUR437').isHybrid).toBe(false);
   });
+
+  it('carries the INFERRED flag so the form flags a class it inferred vs one it read', () => {
+    const inferred: KeytagRead = { plate: 'LUR256', unitNumber: '5425999', classCode: 'CVRS', make: 'Nissan', model: 'Versa', rentalClass: 'B', rentalClassInferred: true, year: 2025 };
+    expect(scannedFromRead(inferred, 'LUR256').rentalClassInferred).toBe(true);
+    // a straight tag read leaves it falsy — read off the tag, not inferred.
+    expect(scannedFromRead({ plate: 'LUR119', unitNumber: '5421433', rentalClass: 'Q4' }, 'LUR119').rentalClassInferred).toBeUndefined();
+  });
 });
 
 describe('canRegisterPartially', () => {

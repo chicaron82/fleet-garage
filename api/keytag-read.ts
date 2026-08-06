@@ -165,6 +165,31 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
         .maybeSingle();
       if (taught?.make) { read.make = taught.make; read.model = taught.model; }
     }
+    // Rental-class LEARN + INFER (twin of the taught code->make/model codex above). A scan where BOTH
+    // the class code and the rental class read clean TEACHES code->class; a scan with a readable code
+    // but a BLANK class INFERS it from what was learned. Ground truth only -- the tags are the chart.
+    // Best-effort: learning/inferring must never break the read.
+    if (read.classCode) {
+      const codeKey = normalizeClassCode(read.classCode);
+      try {
+        if (codeKey && read.rentalClass) {
+          await supabase.from('class_code_rental_class').upsert(
+            { code: codeKey, rental_class: read.rentalClass, learned_by: userData.user.id, updated_at: new Date().toISOString() },
+            { onConflict: 'code' },
+          );
+        } else if (codeKey && !read.rentalClass) {
+          const { data: learned } = await supabase
+            .from('class_code_rental_class')
+            .select('rental_class')
+            .eq('code', codeKey)
+            .maybeSingle();
+          if (learned?.rental_class) {
+            read.rentalClass = learned.rental_class;
+            read.rentalClassInferred = true;
+          }
+        }
+      } catch { /* learning/inferring must never break the read */ }
+    }
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ read });
   } catch (err) {

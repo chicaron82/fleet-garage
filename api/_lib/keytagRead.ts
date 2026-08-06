@@ -19,6 +19,12 @@ export interface KeytagRead {
    *  derived), a car GROUP many models share, and the shorthand the boss uses to request
    *  returns. Upper-cased. Empty if not legible. */
   rentalClass?: string;
+  /** Set when `rentalClass` above was NOT read off the tag but INFERRED from the class code via the
+   *  learned code→class store (`class_code_rental_class`): the tag's class field was unreadable, but
+   *  the code resolved to a class FG learned from a prior clean scan. The register form marks the
+   *  field 'inferred' (a later clean tag read outranks + self-corrects it) and flags it to the
+   *  operator. Absent/false = read straight off the tag. */
+  rentalClassInferred?: boolean;
   make?: string;
   model?: string;
   /** Hybrid — set when the resolved class code is a hybrid variant (the codex's isHybrid hint,

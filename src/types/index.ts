@@ -355,6 +355,9 @@ export interface ScannedIdentity {
   /** Rental class read off the tag's top corner (Q4, P4, T…), carried into registration
    *  so it's stored on the vehicle. Empty when the tag's class corner wasn't legible. */
   rentalClass: string;
+  /** True when `rentalClass` above was INFERRED from the class code (the learned code→class store),
+   *  not read off the tag — so the register form flags it honestly instead of "read off the tag". */
+  rentalClassInferred?: boolean;
   /** Hybrid, resolved from the tag's class code via the codex — pre-checks the register toggle. */
   isHybrid?: boolean;
   /** The tag's class code, set ONLY when the codex couldn't resolve it. Its presence means

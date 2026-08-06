@@ -285,7 +285,11 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
                 so the operator can confirm it before registering. Stored on the vehicle. */}
             {rentalClass && (
               <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Rental class read off the tag</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {scanned?.rentalClassInferred
+                    ? '↳ Rental class inferred from the code (tag class unreadable)'
+                    : 'Rental class read off the tag'}
+                </span>
                 <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-gray-800 dark:text-gray-100">{rentalClass}</span>
               </div>
             )}

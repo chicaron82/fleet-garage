@@ -95,6 +95,27 @@ export type Database = {
         }
         Relationships: []
       }
+      class_code_rental_class: {
+        Row: {
+          code: string
+          learned_by: string | null
+          rental_class: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          learned_by?: string | null
+          rental_class: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          learned_by?: string | null
+          rental_class?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       effie_memory: {
         Row: {
           content: string
