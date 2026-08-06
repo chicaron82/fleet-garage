@@ -59,11 +59,15 @@ export function MidShiftCheckIn() {
   const existingArrival   = getMidArrival();
   const existingDeparture = getMidDeparture();
 
-  // Pick up from where the running gas sheet already stands: arrival seeds from
-  // any earlier reading today, departure seeds from the arrival count (it only
-  // unlocks once arrival is logged).
+  // Pick up from where the running gas sheet already stands. BOTH mid checkpoints seed from the
+  // FURTHEST-ALONG reading of the day (getLatestGasSheetReading — the shared max pool that the
+  // afternoon check-in, handoff, and closing log all already use), so a mid pick-up chains like the
+  // rest of the app. Departure used to seed only from the arrival count, which ignored a handoff
+  // logged DURING the mid window: arrival page 3/2 (40) + a 15:15 handoff page 4/7 (64) meant the
+  // 7pm departure wrongly picked up from 3/2 instead of the further-along 4/7. Departure can never
+  // be behind the handoff, so seed it from the max (Aaron, 2026-08-05).
   const arrivalSeed   = existingArrival ?? getLatestGasSheetReading();
-  const departureSeed = existingDeparture ?? existingArrival;
+  const departureSeed = existingDeparture ?? getLatestGasSheetReading();
 
   const initArrival = arrivalSeed
     ? convertFromBackend(arrivalSeed.fullPages, arrivalSeed.lastPageEntries)

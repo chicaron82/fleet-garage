@@ -120,6 +120,19 @@ describe('latestGasSheetReading', () => {
     expect(result).toMatchObject({ fullPages: 2, lastPageEntries: 8 }); // 46 wins
   });
 
+  it('mid departure seeds from the handoff, not the earlier arrival (Aaron 2026-08-05)', () => {
+    // The mid-window fix: departure seeds from getLatestGasSheetReading (this fn), so a handoff
+    // logged DURING the shift — further along than the mid arrival — is what departure picks up from.
+    // Real numbers: arrival page 3/2 = 40; handoff page 4/7 = 64. The 7pm departure must seed from
+    // the handoff (64), never regress to the arrival (40).
+    const arrival = { fullPages: 2, lastPageEntries: 2 };  // page 3 / 2 → 40
+    const handoff = { fullPages: 3, lastPageEntries: 7 };  // page 4 / 7 → 64
+    expect(latestGasSheetReading([arrival, handoff])).toEqual(handoff);
+    // round-trips to the physical page the operator is actually writing on
+    expect(convertFromBackend(handoff.fullPages, handoff.lastPageEntries))
+      .toEqual({ totalPages: 4, entriesOnCurrentPage: 7 });
+  });
+
   it('highest count wins across three same-day readings whatever the log order', () => {
     // Aaron's worked example: arrival 15 → handoff 32 → departure 46, cleanly
     // increasing, but suppose they were keyed in out of order.
