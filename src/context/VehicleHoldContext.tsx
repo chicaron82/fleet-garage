@@ -46,6 +46,9 @@ export interface VehicleHoldContextValue {
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
   clearSaleHold: (holdId: string, clearedByName: string) => Promise<void>;
+  /** Accept an open exception as pre-existing in place (re-types the release EXCEPTION→PRE_EXISTING),
+   *  closing the lingering exception so the vehicle re-derives out of OUT_ON_EXCEPTION. Per-hold. */
+  convertToPreExisting: (holdId: string, reason: string, byName: string) => Promise<void>;
   // Destructive hold-history edits — corrections, not lifecycle. See holdEditing.ts.
   voidHold: (holdId: string) => Promise<void>;
   deleteHold: (holdId: string) => Promise<void>;

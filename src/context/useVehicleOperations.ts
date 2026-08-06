@@ -4,7 +4,7 @@ import { deriveHoldStatus, factsFromHold, toVehicleStatus, openSaleCarHolds } fr
 import { isTeslaMake } from '../lib/ev-detection';
 import { normalizePlate } from '../lib/vehicleByPlate';
 import { decideMint } from '../lib/mintGuard';
-import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired } from './holdResolution';
+import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired, makeConvertToPreExisting } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription } from './holdEditing';
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
@@ -143,6 +143,7 @@ export function useVehicleOperations({
   const markRepaired  = makeMarkRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markReturned   = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
   const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const convertToPreExisting = makeConvertToPreExisting({ holds, allVehicles, setAllHolds, setAllVehicles });
   const voidHold        = makeVoidHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const deleteHold      = makeDeleteHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const deleteHoldPhoto = makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles });
@@ -334,6 +335,7 @@ export function useVehicleOperations({
     markIssueRepaired,
     markReturned,
     clearSaleHold,
+    convertToPreExisting,
     voidHold,
     deleteHold,
     deleteHoldPhoto,

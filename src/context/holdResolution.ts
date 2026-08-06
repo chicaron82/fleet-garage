@@ -99,6 +99,46 @@ export function makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehic
   };
 }
 
+// Accept an OPEN (never-returned) exception as PRE-EXISTING, in place. A car let out on an exception
+// for a cosmetic issue that won't be repaired keeps circulating, so the normal return-comparison that
+// would close the exception never happens — it lingers open and holds the vehicle at OUT_ON_EXCEPTION
+// forever. This re-types that release EXCEPTION → PRE_EXISTING (clearing the pending return), so the
+// damage is recorded as accepted-as-is and the vehicle re-derives to PRE_EXISTING. Per-hold and
+// explicit: only the damage the operator picks is converted — other holds (a windshield chip, a dent)
+// are untouched. Obsoletes the re-flag-then-mark-pre-existing workaround that orphaned the original
+// exception (Aaron, 2026-08-05). The hold stays RELEASED (pre-existing is a released state).
+export function makeConvertToPreExisting({ holds, allVehicles, setAllHolds, setAllVehicles }: ResolutionDeps) {
+  return async (holdId: string, reason: string, byName: string) => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    if (!hold.release) throw new Error(`Hold has no release to convert: ${holdId}`);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('releases')
+        .update({ release_type: 'PRE_EXISTING', expected_return: null, reason })
+        .eq('id', hold.release!.id)
+    );
+    if (error) throw new Error(`Failed to accept as pre-existing: ${(error as { message?: string }).message}`);
+    // Re-derive: this hold's release is now PRE_EXISTING, so the vehicle drops out of the
+    // on-exception branch and lands on pre-existing (unless another hold still grounds it).
+    const projectedHolds = holds
+      .filter(h => h.vehicleId === hold.vehicleId)
+      .map(h => h.id === holdId
+        ? { ...h, release: h.release ? { ...h.release, releaseType: 'PRE_EXISTING' as const, expectedReturn: undefined } : undefined }
+        : h);
+    const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
+    const { error: vehErr } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
+    );
+    const unit = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
+    await pushNotification(hold.branchId, NOTIFY_MGMT, 'ℹ️',
+      `Unit ${unit}: an exception was accepted as pre-existing by ${byName}.`, 'info', { vehicleId: hold.vehicleId });
+    setAllHolds(prev => prev.map(h => h.id !== holdId ? h : {
+      ...h, release: h.release ? { ...h.release, releaseType: 'PRE_EXISTING', expectedReturn: undefined } : undefined,
+    }));
+    if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
+  };
+}
+
 // Record a hold's issue as physically repaired and reconcile the vehicle status.
 // When the repaired hold is a re-hold linking back to a prior exception release
 // (`linkedHoldId`), that linked exception only existed to cover for this same

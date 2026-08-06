@@ -8,6 +8,9 @@ vi.mock('../../src/lib/haptics', () => ({
 }));
 // HoldRecordCard (the extracted per-hold card) pulls the destructive edit ops from
 // context; this test doesn't wrap a provider, so stub it.
+vi.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'u-1', employeeId: 'E1', name: 'Test VSA', role: 'VSA', branchId: 'YWG' } }),
+}));
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({ voidHold: vi.fn(), deleteHold: vi.fn(), deleteHoldPhoto: vi.fn() }),
 }));

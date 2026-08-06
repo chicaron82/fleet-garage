@@ -5,6 +5,8 @@
 import { useState, type RefObject } from 'react';
 import { holdTypePillClass, getTireSwapSeason, unresolvedHoldTypes } from '../../lib/holdBadge';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useAuth } from '../../context/AuthContext';
+import { canMarkPreExisting } from '../../types';
 import { StatusBadge } from './StatusBadge';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import type { Hold, Vehicle } from '../../types';
@@ -51,7 +53,29 @@ export function HoldRecordCard({
   const mechanicalOpen = unresolvedTypes.includes('mechanical');
 
   // Hold-history edits (edit-description / delete / void / remove-photo) — from context.
-  const { voidHold, deleteHold, deleteHoldPhoto, editHoldDescription } = useVehicleHoldContext();
+  const { voidHold, deleteHold, deleteHoldPhoto, editHoldDescription, convertToPreExisting } = useVehicleHoldContext();
+  const { user } = useAuth();
+  // An OPEN exception (released on exception, never returned) keeps the vehicle at OUT_ON_EXCEPTION.
+  // For a cosmetic issue that won't be repaired, the operator can accept it as pre-existing in place —
+  // closing the exception without a re-flag (which used to orphan the original). Per-hold + explicit.
+  const isOpenException = hold.status === 'RELEASED'
+    && hold.release?.releaseType === 'EXCEPTION' && !hold.release?.actualReturn;
+  const canAccept = !muted && isOpenException && !!user && canMarkPreExisting(user.role);
+  const [acceptArmed, setAcceptArmed] = useState(false);
+  const [acceptBusy, setAcceptBusy] = useState(false);
+  const [acceptErr, setAcceptErr] = useState('');
+  const runAccept = async () => {
+    if (!user) return;
+    setAcceptBusy(true); setAcceptErr('');
+    try {
+      await convertToPreExisting(hold.id, 'Accepted as pre-existing — cosmetic, no repair planned', user.name);
+      setAcceptArmed(false);
+    } catch (e) {
+      setAcceptErr(e instanceof Error ? e.message : 'Could not accept as pre-existing.');
+    } finally {
+      setAcceptBusy(false);
+    }
+  };
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [marked, setMarked] = useState<Set<string>>(new Set()); // photos staged for deletion
@@ -277,6 +301,30 @@ export function HoldRecordCard({
       </div>
 
       <HoldRecordFooter hold={hold} getName={getName} getRole={getRole} getEmpId={getEmpId} fmt={fmt} fmtDate={fmtDate} />
+
+      {/* Accept an open exception as pre-existing in place — cosmetic damage that won't be repaired,
+          so it stops circulating as an exception and the vehicle re-derives out of OUT_ON_EXCEPTION.
+          Only this damage is affected; other holds are untouched. */}
+      {canAccept && (
+        <div className="mt-2.5 border-t border-gray-100 dark:border-gray-800 pt-2.5">
+          {acceptArmed ? (
+            <>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mb-2">
+                ↩ Accept this exception as pre-existing? It stops circulating as an exception and the vehicle reads pre-existing (renting as-is). Only this damage changes.
+              </p>
+              {acceptErr && <p className="text-xs text-red-500 mb-2">{acceptErr}</p>}
+              <div className="flex gap-2">
+                <button type="button" disabled={acceptBusy} onClick={() => { setAcceptArmed(false); setAcceptErr(''); }} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 cursor-pointer">Cancel</button>
+                <button type="button" disabled={acceptBusy} onClick={runAccept} className="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-1.5 text-xs font-semibold text-white disabled:opacity-60 cursor-pointer">{acceptBusy ? 'Working…' : 'Accept as pre-existing'}</button>
+              </div>
+            </>
+          ) : (
+            <button type="button" onClick={() => setAcceptArmed(true)} className="w-full rounded-lg border border-slate-300 dark:border-slate-600/60 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer">
+              ↩ Accept as pre-existing
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

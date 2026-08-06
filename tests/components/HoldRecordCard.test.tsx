@@ -14,6 +14,9 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({ voidHold, deleteHold, deleteHoldPhoto }),
 }));
 // Isolate the edit controls — the footer/badge have their own render deps.
+vi.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'u-1', employeeId: 'E1', name: 'Test VSA', role: 'VSA', branchId: 'YWG' } }),
+}));
 vi.mock('../../src/components/holds/HoldRecordFooter', () => ({ HoldRecordFooter: () => null }));
 vi.mock('../../src/components/holds/StatusBadge', () => ({ StatusBadge: () => null }));
 

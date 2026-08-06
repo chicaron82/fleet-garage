@@ -32,7 +32,7 @@ vi.mock('../../src/lib/garage-uploads', () => ({
   NOTIFY_MGMT: ['Branch Manager', 'Operations Manager', 'City Manager'],
 }));
 
-const { makeMarkRepairedBatch, makeMarkIssueRepaired, makeMarkRepaired, makeClearSaleHold } = await import('../../src/context/holdResolution');
+const { makeMarkRepairedBatch, makeMarkIssueRepaired, makeMarkRepaired, makeClearSaleHold, makeConvertToPreExisting } = await import('../../src/context/holdResolution');
 const { GEOTAB_HOLD_DESC } = await import('../../src/lib/hold-presets');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -259,5 +259,49 @@ describe('makeClearSaleHold — preserves a return that already happened', () =>
     await makeClearSaleHold(deps([saleHold({ status: 'ACTIVE' })]))('h-sale', 'Aaron S.');
     expect(fromCalls).toContain('holds');
     expect(fromCalls).not.toContain('releases');
+  });
+});
+
+// ── Accept an open exception as pre-existing, in place ───────────────────────
+// A cosmetic exception that keeps circulating (never returned) held the vehicle at
+// OUT_ON_EXCEPTION forever. Converting the release EXCEPTION→PRE_EXISTING closes it and re-derives
+// the vehicle to PRE_EXISTING — per-hold, so an unrelated open exception on the same car is untouched.
+
+describe('makeConvertToPreExisting', () => {
+  const openException = (id: string, vehicleId: string, releaseId: string) =>
+    makeHold(id, vehicleId, {
+      status: 'RELEASED',
+      release: { id: releaseId, holdId: id, approvedById: 'mgr-1', approvedAt: '2026-06-20T00:00:00.000Z',
+        releaseType: 'EXCEPTION', releaseMethod: 'standard', reason: 'Verbal override', notes: '' },
+    });
+
+  it('re-types the release to pre-existing and derives the vehicle PRE_EXISTING', async () => {
+    const hold = openException('h-1', 'v-1', 'r-1');
+    const d = deps([hold]);
+
+    await makeConvertToPreExisting(d)('h-1', 'Cosmetic — accepted', 'Aaron S.');
+
+    expect(fromCalls).toEqual(['releases', 'vehicles']);
+    expect(chain.update).toHaveBeenCalledWith({ release_type: 'PRE_EXISTING', expected_return: null, reason: 'Cosmetic — accepted' });
+    expect(chain.update).toHaveBeenCalledWith({ status: 'PRE_EXISTING' });
+    const patch = d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[];
+    expect(patch([hold])[0].release?.releaseType).toBe('PRE_EXISTING');
+  });
+
+  it('only the picked damage changes — an unrelated open exception keeps the car OUT_ON_EXCEPTION', async () => {
+    const scratch = openException('h-scratch', 'v-1', 'r-1');
+    const dent    = openException('h-dent', 'v-1', 'r-2');
+    const d = deps([scratch, dent]);
+
+    await makeConvertToPreExisting(d)('h-scratch', 'Cosmetic — accepted', 'Aaron S.');
+
+    // The dent's exception is still open → the vehicle re-derives back to on-exception, not pre-existing.
+    expect(chain.update).toHaveBeenCalledWith({ status: 'OUT_ON_EXCEPTION' });
+  });
+
+  it('throws (no writes) when the hold has no release to convert', async () => {
+    const d = deps([makeHold('h-1', 'v-1', { status: 'ACTIVE' })]);
+    await expect(makeConvertToPreExisting(d)('h-1', 'x', 'Aaron S.')).rejects.toThrow('no release');
+    expect(fromCalls).toEqual([]);
   });
 });
