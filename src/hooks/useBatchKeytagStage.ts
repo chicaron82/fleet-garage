@@ -59,7 +59,12 @@ export function useBatchKeytagStage(): BatchKeytagState {
           // Shadow-mode auto-clear verdict (L2, observe-only) — false for a register (kind), the
           // real verdict for a backfill. Recorded on the row; nothing fires.
           const wouldAutoClear = passesDeterministicAutoClear(plan.proposal, { plateCorrected: plan.wasCorrected });
-          const ok = await stage(plan.proposal, 'keytag-batch', undefined, wouldAutoClear);
+          // Phase 3 (ticket-universal-keytag-capture): thread the KEY-TAG photo through the
+          // pending-write's `photos` channel so it survives stage→approve. register/backfill
+          // proposals never carry a damage hold, so `photos` is otherwise unused for them — a
+          // clean, collision-free carrier. useProposalConfirm attaches it on approve via
+          // attachKeytagPhotoIfMissing (if-missing, best-effort).
+          const ok = await stage(plan.proposal, 'keytag-batch', [base64s[i]], wouldAutoClear);
           out.push({ index: i, plan, staged: ok, stageError: !ok });
         }
       }

@@ -32,8 +32,12 @@ export interface PendingWrite {
   proposal: Proposal;
   source: string;
   createdAt: string;
-  /** Damage photos (base64 data URLs) captured when a hold was staged, so they survive
-   *  stage→approve. Undefined for staged writes with no attached photos. */
+  /** Photos (base64 data URLs) carried with a staged write so they survive stage→approve.
+   *  TWO uses, disambiguated by proposal kind — no collision, since a given kind only ever
+   *  carries one: (a) DAMAGE photos on hold-bearing kinds (attached via addHold on approve);
+   *  (b) the KEY-TAG photo on batch-staged register_vehicle/update_vehicle kinds, which have
+   *  no hold — attached via attachKeytagPhotoIfMissing on approve (ticket-universal-keytag-
+   *  capture Phase 3). Undefined for staged writes with no photo. */
   photos?: string[];
   /** Shadow-mode auto-clear verdict (graduated autonomy L2): true = the deterministic gate
    *  would auto-clear this backfill; false = it wouldn't; null/undefined = not evaluated.

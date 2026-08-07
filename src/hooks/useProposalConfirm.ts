@@ -35,6 +35,10 @@ interface ProposalConfirmDeps {
   addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
   updateVehicleFields: ReturnType<typeof useVehicleHoldContext>['updateVehicleFields'];
   setCoverPhoto: ReturnType<typeof useVehicleHoldContext>['setCoverPhoto'];
+  /** Optional (queue only): attach a batch-staged KEY-TAG photo to the car on approve
+   *  (if-missing, best-effort — the helper never throws). Absent for the chat card, where
+   *  the attach simply no-ops. See ticket-universal-keytag-capture Phase 3. */
+  attachKeytagPhotoIfMissing?: ReturnType<typeof useVehicleHoldContext>['attachKeytagPhotoIfMissing'];
   addLostFoundItem: ReturnType<typeof useLostFoundContext>['addLostFoundItem'];
   effieMemory: Pick<ReturnType<typeof useEffieMemory>, 'add'>;
   onNavigate?: (screen: Screen) => void;
@@ -49,7 +53,7 @@ interface ProposalConfirmDeps {
  * dedup) for free. Throws on failure so the card surfaces its error state.
  */
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
-  const { user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
+  const { user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
   return useCallback(
     async (proposal: Proposal, extra?: RegisterAssetChoice, photosOverride?: string[]) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
@@ -121,7 +125,7 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         // For a Tesla, the card captured cable/adapter presence at intake — store them
         // (present by default if a typed "confirm" skipped the toggles). Non-Tesla stays
         // null (unknown), exactly as before.
-        await addVehicle({
+        const newVehicleId = await addVehicle({
           unitNumber: nv.unitNumber,
           licensePlate: nv.plate,
           make: nv.make,
@@ -138,12 +142,24 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           // view's syncVehicleStatus heals it.
           status: 'CLEAR',
         });
+        // Phase 3 (ticket-universal-keytag-capture): a batch-staged register carries its KEY-TAG
+        // photo in photosOverride — attach it to the freshly-created car (if-missing, best-effort;
+        // the helper never throws, so it can't fail the approve). No-op for the chat card (unwired)
+        // or a dropped re-entrant register (no id returned).
+        if (newVehicleId && attachKeytagPhotoIfMissing && photosOverride?.[0]) {
+          await attachKeytagPhotoIfMissing(newVehicleId, photosOverride[0]);
+        }
         return;
       }
       // Backfill — the keytag-scan partial branch. Only ever FILLS (resolveKeytag never
       // proposes a conflicting field), so this is a plain field update, no status change.
       if (proposal.kind === 'update_vehicle') {
         await updateVehicleFields(proposal.vehicleId, proposal.fills);
+        // Phase 3 (ticket-universal-keytag-capture): a batch-staged backfill carries its KEY-TAG
+        // photo in photosOverride — attach it to the known car (if-missing, best-effort).
+        if (attachKeytagPhotoIfMissing && photosOverride?.[0]) {
+          await attachKeytagPhotoIfMissing(proposal.vehicleId, photosOverride[0]);
+        }
         return;
       }
       const holdTypes: HoldType[] = [proposal.holdType as HoldType];
@@ -196,6 +212,6 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },
-    [user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem, effieMemory, onNavigate, setOpen],
+    [user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen],
   );
 }

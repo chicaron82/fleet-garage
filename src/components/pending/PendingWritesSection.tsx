@@ -20,7 +20,7 @@ import type { RegisterAssetChoice } from '../../../api/_lib/holdProposal';
 export function PendingWritesSection() {
   const { pending, markResolved } = usePendingWritesContext();
   const { user } = useAuth();
-  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const effieMemory = useEffieMemory();
   const [collapsed, setCollapsed] = useState(false);
@@ -41,8 +41,8 @@ export function PendingWritesSection() {
   // (passed as photosOverride on approve, below), not from any chat context. setOpen is
   // a no-op (no panel to close).
   const confirmProposal = useProposalConfirm({
-    user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem,
-    effieMemory, setOpen: () => {},
+    user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing,
+    addLostFoundItem, effieMemory, setOpen: () => {},
   });
 
   // The single guarded approve — used by a card tap AND the "Approve all safe" bulk pass, so
