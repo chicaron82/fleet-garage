@@ -109,6 +109,10 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             >
               📷
             </button>
+            {/* Divider + gap: 📷 scan is the high-frequency action; the bell/profile are
+                occasional. A thumb reaching for scan kept clipping the notification bell, so
+                separate the constant-tap action from the notifications/identity cluster. */}
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" aria-hidden="true" />
             <NotificationBell onNavigate={handleNavigate} onOffStdEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
             <UserProfileMenu />
           </div>
