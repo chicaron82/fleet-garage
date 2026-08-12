@@ -202,9 +202,13 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 ))}
               </div>
 
+              {/* Scan another → open the camera in ONE tap, not two. Resetting scanRead alone
+                  would land back on the cold "Snap the tag" intro, forcing a second tap on the
+                  snap button. The file input is always mounted and this onClick is a user
+                  gesture, so firing it directly opens the camera straight away. */}
               <button
                 type="button"
-                onClick={() => { setScanRead(null); setErrMsg(''); }}
+                onClick={() => { setScanRead(null); setErrMsg(''); fileRef.current?.click(); }}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 Scan another
