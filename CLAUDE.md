@@ -324,6 +324,15 @@ the verify bot (creds in gitignored `.env.local`: `VERIFY_EMPLOYEE_ID` /
 falls back to the last-visited module, which reads as "wrong screen rendered"
 (bit 2026-07-16 — `/my-shift` pre-alias rendered My Day and got read as a
 landing-pref bug). This is the standing cure for "shipped visual work unseen."
+**⚠️ The helper renders at 1280px DESKTOP + LIGHT mode only** (`verify-fg.mjs` hardcodes
+`viewport 1280×900`, no theme). So it **cannot see** two whole classes of change: the
+`md:hidden` **mobile header** (`AppShell.tsx` — invisible above the `md` breakpoint) and
+**dark mode** (class-based, not `prefers-color-scheme`, so Playwright's `colorScheme:'dark'`
+does nothing). For a mobile-only or dark change, a plain helper run "verifies" a ghost —
+render a **custom viewport** (e.g. 390px) and **force the class** (`page.evaluate(() =>
+document.documentElement.classList.add('dark'))`), and drive **both themes + the tightest
+layout state in one pass**. Bit the header mis-tap fix `619fade` (2026-08-11): the fix lived
+in the `md:hidden` header, so the desktop-light helper would have shown nothing.
 
 **Write boundary (DiZee is a mock account, scoped writes OK as of 2026-06-16):**
 self-scoped writes are free — anything affecting only DiZee's own numbers
