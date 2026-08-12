@@ -81,8 +81,10 @@ export function deriveMyDay(input: {
    *  opening) and the opening day (yesterday closing). */
   myYesterdayShiftType?: ShiftType;
   myTomorrowShiftType?: ShiftType;
+  /** Tomorrow's start time — for the "open tomorrow" wake heads-up copy. */
+  myTomorrowStart?: string;
 }): MyDayModel {
-  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType, myTomorrowShiftType } = input;
+  const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart } = input;
   const myShift = shifts.find(s => s.userId === userId && s.date === todayISO);
   const working = !!myShift && !isFullDayShift(myShift.shiftType);
   return {
@@ -95,6 +97,6 @@ export function deriveMyDay(input: {
     shiftTime: myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
     team: teammatesOnToday(shifts, userId, todayISO),
     carsCleanedThisShift: handoff && handoffIsToday ? carsCleaned(handoff) : null,
-    insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, myTomorrowShiftType, userId }),
+    insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart, userId }),
   };
 }

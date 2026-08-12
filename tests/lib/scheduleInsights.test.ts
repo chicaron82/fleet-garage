@@ -89,6 +89,39 @@ describe('deriveScheduleInsights — solo floor', () => {
   });
 });
 
+describe('deriveScheduleInsights — wake heads-up (open tomorrow)', () => {
+  const insightsFor = (shifts: ShiftWithUser[], t: ShiftType | undefined, tStart?: string) =>
+    deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType: undefined, myTomorrowShiftType: t, myTomorrowStart: tStart, userId: 'me' });
+
+  it('fires when I open tomorrow and today is not a closing (coworker keeps solo-floor quiet)', () => {
+    const ins = insightsFor([mk('me', 'mid'), mk('other', 'mid')], 'opening', '06:45:00');
+    expect(ins.map(i => i.kind)).toEqual(['wake-early']);
+    expect(ins[0].detail).toContain('open tomorrow');
+    expect(ins[0].detail).toContain('06:45');
+  });
+
+  it('fires when I am OFF today but open tomorrow (the set-your-alarm case)', () => {
+    expect(insightsFor([mk('me', 'day-off')], 'opening', '06:45:00').map(i => i.kind)).toContain('wake-early');
+  });
+
+  it('does NOT fire when today is CLOSING — the clopen owns that, no duplicate wake line', () => {
+    const ks = insightsFor([mk('me', 'closing'), mk('other', 'mid')], 'opening', '06:45:00').map(i => i.kind);
+    expect(ks).toContain('clopen');
+    expect(ks).not.toContain('wake-early');
+  });
+
+  it('does NOT fire when tomorrow is not an opening (mid or no shift)', () => {
+    expect(insightsFor([mk('me', 'mid'), mk('other', 'mid')], 'mid', '10:30:00').map(i => i.kind)).not.toContain('wake-early');
+    expect(insightsFor([mk('me', 'mid'), mk('other', 'mid')], undefined).map(i => i.kind)).not.toContain('wake-early');
+  });
+
+  it('gracefully omits the time parenthetical when tomorrow start is unknown', () => {
+    const ins = insightsFor([mk('me', 'mid'), mk('other', 'mid')], 'opening', undefined);
+    expect(ins[0].detail).toContain('open tomorrow');
+    expect(ins[0].detail).not.toMatch(/\(\d/); // no "(06:45)" when the start time is missing
+  });
+});
+
 describe('deriveScheduleInsights — clean day / no false positives', () => {
   it('returns [] when not scheduled at all today', () => {
     expect(kinds([mk('other', 'opening')], 'closing')).toEqual([]);

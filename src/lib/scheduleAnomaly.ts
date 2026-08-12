@@ -104,7 +104,13 @@ export function scheduleAnomalies(days: AnomalyDay[], nagBudget = Number.POSITIV
         label: `No work ${whenLabel(d)}`,
         // "Long weekend" is a DERIVATION, never a label — it only earns the words when the
         // consecutive off-block is really there (pto + day-off both count as not-working).
-        detail: block >= 3 ? `${block} days off in a row — enjoy the long weekend.` : `${d.dayName} off — you usually work it.`,
+        // A single planned PTO/VAC day is tagged so it reads as booked time off, not a
+        // surprise day-off (the ticket's crux: PTO must be legible, never mistaken).
+        detail: block >= 3
+          ? `${block} days off in a row — enjoy the long weekend.`
+          : d.shiftType === 'pto'
+            ? `${d.dayName} off (PTO) — you usually work it.`
+            : `${d.dayName} off — you usually work it.`,
       });
     }
   });

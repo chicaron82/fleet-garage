@@ -61,6 +61,7 @@ export function useMyDay(): UseMyDay {
     handoffIsToday,
     myYesterdayShiftType: adjacentShiftTypes.yesterday,
     myTomorrowShiftType: adjacentShiftTypes.tomorrow,
+    myTomorrowStart: adjacentShiftTypes.tomorrowStart,
   });
 
   const todayEntry = getTodayEntry();

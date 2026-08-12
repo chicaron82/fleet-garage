@@ -11,10 +11,12 @@ import type { ShiftType } from '../types';
 export interface AdjacentShiftTypes {
   yesterday: ShiftType | undefined;
   tomorrow: ShiftType | undefined;
+  /** Tomorrow's start time ('HH:MM:SS'), for the "open tomorrow" wake heads-up. */
+  tomorrowStart: string | undefined;
 }
 
 export function useMyAdjacentShiftTypes(userId: string | undefined): AdjacentShiftTypes {
-  const [types, setTypes] = useState<AdjacentShiftTypes>({ yesterday: undefined, tomorrow: undefined });
+  const [types, setTypes] = useState<AdjacentShiftTypes>({ yesterday: undefined, tomorrow: undefined, tomorrowStart: undefined });
   useEffect(() => {
     if (!userId) return; // stays at the initial {} until signed in; never a sync setState in-effect
     let cancelled = false;
@@ -27,12 +29,18 @@ export function useMyAdjacentShiftTypes(userId: string | undefined): AdjacentShi
     (async () => {
       const { data, error } = await supabase
         .from('shifts')
-        .select('date, shift_type')
+        .select('date, shift_type, start_time')
         .eq('user_id', userId)
         .in('date', [yStr, tStr]);
       if (cancelled || error || !data) return;
-      const byDate = new Map((data as { date: string; shift_type: ShiftType }[]).map((r) => [r.date, r.shift_type]));
-      setTypes({ yesterday: byDate.get(yStr), tomorrow: byDate.get(tStr) });
+      const byDate = new Map(
+        (data as { date: string; shift_type: ShiftType; start_time: string | null }[]).map((r) => [r.date, r]),
+      );
+      setTypes({
+        yesterday: byDate.get(yStr)?.shift_type,
+        tomorrow: byDate.get(tStr)?.shift_type,
+        tomorrowStart: byDate.get(tStr)?.start_time ?? undefined,
+      });
     })();
     return () => { cancelled = true; };
   }, [userId]);

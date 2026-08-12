@@ -94,8 +94,15 @@ describe('scheduleAnomalies — off on a normally-worked day', () => {
   it('a LONE day off never invents a weekend that is not there', () => {
     const out = scheduleAnomalies([day('Thu', 1, 'pto'), day('Fri', 2, 'opening')]);
     expect(out[0].label).toBe('No work tomorrow');
-    expect(out[0].detail).toBe('Thu off — you usually work it.');
+    expect(out[0].detail).toBe('Thu off (PTO) — you usually work it.');
     expect(out[0].detail).not.toContain('long weekend');
+  });
+
+  it('a lone PTO day is tagged (PTO); a plain day-off is not — booked time off stays legible', () => {
+    const pto = scheduleAnomalies([day('Wed', 1, 'pto'), day('Thu', 2, 'opening')]);
+    expect(pto[0].detail).toBe('Wed off (PTO) — you usually work it.');
+    const off = scheduleAnomalies([day('Wed', 1, 'day-off'), day('Thu', 2, 'opening')]);
+    expect(off[0].detail).toBe('Wed off — you usually work it.');
   });
 
   it('only the FIRST day of an off-block speaks — a 3-day break says it once', () => {

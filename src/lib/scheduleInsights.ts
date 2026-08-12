@@ -10,8 +10,9 @@
 import type { ShiftWithUser, ShiftType, UserRole } from '../types';
 import { isFullDayShift } from '../types';
 import { SCHEDULE_GROUPS } from './scheduleGroups';
+import { fmtTime24 } from './shiftTypeMeta';
 
-export type ScheduleInsightKind = 'clopen' | 'solo-floor' | 'event' | 'anomaly-working' | 'anomaly-off';
+export type ScheduleInsightKind = 'clopen' | 'solo-floor' | 'event' | 'anomaly-working' | 'anomaly-off' | 'wake-early';
 
 export interface ScheduleInsight {
   kind: ScheduleInsightKind;
@@ -37,11 +38,29 @@ export function deriveScheduleInsights(input: {
   todayShifts: ShiftWithUser[];
   myYesterdayShiftType: ShiftType | undefined;
   myTomorrowShiftType: ShiftType | undefined;
+  /** Tomorrow's start time ('HH:MM[:SS]'), for the wake heads-up copy. */
+  myTomorrowStart?: string;
   userId: string;
 }): ScheduleInsight[] {
-  const { todayShifts, myYesterdayShiftType, myTomorrowShiftType, userId } = input;
+  const { todayShifts, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart, userId } = input;
   const insights: ScheduleInsight[] = [];
   const myToday = todayShifts.find(s => s.userId === userId);
+
+  // ⏰ Wake heads-up — you OPEN tomorrow, so an early alarm is coming; wind down tonight
+  // (ties to the 11pm-hard-stop rule). BOUNDED on purpose: only an opening-tomorrow fires
+  // (~1–2×/week), never a daily "tomorrow you're on X" — his shift types rotate, so a daily
+  // shape readout would become wallpaper he learns to ignore (Aaron 2026-07-17; the same
+  // reason scheduleAnomaly is day-based not type-based). Skipped when today is CLOSING: the
+  // clopen below already warns "open tomorrow", louder and with the turnaround context.
+  if (myTomorrowShiftType === 'opening' && myToday?.shiftType !== 'closing') {
+    const at = myTomorrowStart ? ` (${fmtTime24(myTomorrowStart)})` : '';
+    insights.push({
+      kind: 'wake-early',
+      icon: '⏰',
+      label: 'Open tomorrow',
+      detail: `You open tomorrow${at} — early start, wind down tonight.`,
+    });
+  }
 
   // 🔁 Clopen — today is either END of a close→open back-to-back (shift TYPE is the signal,
   // no hour threshold). Fire on the CLOSING day (forward: the prep warning, a day before the
