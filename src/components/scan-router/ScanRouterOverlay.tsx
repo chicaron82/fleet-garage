@@ -10,6 +10,7 @@ import { compressImage } from '../../lib/image';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
+import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { logUnknownClassCode } from '../../hooks/useUnknownClassCode';
@@ -73,6 +74,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce) : [];
   const vehicle = result?.vehicle ?? null;
   const activeHolds = vehicle ? holds.filter(h => h.vehicleId === vehicle.id && h.status === 'ACTIVE').length : 0;
+  // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
+  // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
+  const evScan = vehicle ? evAssetScanStatus(vehicle) : null;
 
   const go = (screen: Screen) => { navigate(screen); onClose(); };
 
@@ -159,6 +163,17 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   <p className="text-xs text-amber-700 dark:text-amber-400">
                     Not in the fleet{actions.some(a => a.kind === 'register') ? '' : ' — couldn’t read enough to register it'}
                   </p>
+                )}
+                {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at
+                    the car so a missing one gets caught the moment the tag is read, not at dispatch. */}
+                {evScan && (
+                  evScan.kind === 'complete' ? (
+                    <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">⚡ EV kit — last seen complete (cable + adapter)</p>
+                  ) : (
+                    <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">
+                      ⚡ EV kit — last seen missing: {evScan.missing.map(m => (m === 'cable' ? 'charge cable' : 'J1772 adapter')).join(' + ')}
+                    </p>
+                  )
                 )}
                 {/* Geotab install watchlist — separate axis from holds/exception; must hold until installed. */}
                 {geotabPending && (

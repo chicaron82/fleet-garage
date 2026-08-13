@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTeslaMake, toEvStatus, classifyTesla, type TeslaVehicleRow, type EvStatusRow } from '../../src/lib/ev-detection';
+import { isTeslaMake, toEvStatus, classifyTesla, evAssetScanStatus, type TeslaVehicleRow, type EvStatusRow } from '../../src/lib/ev-detection';
 
 // `id` was missing here until tests/ got type-checked (reflect 48, 2026-07-22) — the fixtures
 // silently omitted a REQUIRED field, and vitest's `toEqual` treats `{id: undefined}` as equal to
@@ -83,5 +83,44 @@ describe('classifyTesla', () => {
     const r = classifyTesla(tesla, { ev_cable_status: null, ev_adapter_status: null });
     expect(r.lastCable).toBeNull();
     expect(r.lastAdapter).toBeNull();
+  });
+});
+
+// ── evAssetScanStatus (the scan-card EV-kit line) ────────────────────────────
+
+describe('evAssetScanStatus', () => {
+  const tv = (over: Partial<{ isTesla: boolean; make: string; hasMobileCable: boolean | null; hasJ1772Adapter: boolean | null }>) =>
+    ({ isTesla: true, make: 'Tesla', hasMobileCable: null, hasJ1772Adapter: null, ...over });
+
+  it('returns null for a non-Tesla (nothing to surface)', () => {
+    expect(evAssetScanStatus({ isTesla: false, make: 'Toyota', hasMobileCable: false, hasJ1772Adapter: false })).toBeNull();
+  });
+
+  it('complete only when BOTH assets are confirmed present', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: true, hasJ1772Adapter: true }))).toEqual({ kind: 'complete' });
+  });
+
+  it('missing lists a known-false cable', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: false, hasJ1772Adapter: true }))).toEqual({ kind: 'missing', missing: ['cable'] });
+  });
+
+  it('missing lists a known-false adapter', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: true, hasJ1772Adapter: false }))).toEqual({ kind: 'missing', missing: ['adapter'] });
+  });
+
+  it('missing lists BOTH when both are known-false', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: false, hasJ1772Adapter: false }))).toEqual({ kind: 'missing', missing: ['cable', 'adapter'] });
+  });
+
+  it('never claims complete off an unassessed (null) asset — one present, one null → null', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: true, hasJ1772Adapter: null }))).toBeNull();
+  });
+
+  it('a Tesla with nothing recorded (both null) surfaces nothing', () => {
+    expect(evAssetScanStatus(tv({ hasMobileCable: null, hasJ1772Adapter: null }))).toBeNull();
+  });
+
+  it('detects Tesla by make even if the isTesla flag is unset', () => {
+    expect(evAssetScanStatus({ make: 'Tesla', hasMobileCable: false, hasJ1772Adapter: true })).toEqual({ kind: 'missing', missing: ['cable'] });
   });
 });
