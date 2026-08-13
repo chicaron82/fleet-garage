@@ -1,7 +1,10 @@
 // Shared types and pure-function utilities for ShiftSummarySection.
 // Kept in a separate .ts file so AnalyticsComponents.tsx can satisfy
 // the fast-refresh constraint (components-only exports).
-import type { Pump2Status } from '../../lib/fuelReadings';
+/** The retired Pump-2 locked-tripwire verdict — kept only to read HISTORICAL
+ *  shift_summaries.pump2_drift rows. Pump 2 returned to service 2026-08-13, so new
+ *  summaries no longer set it (it's a normal metered pump now). */
+export type Pump2Drift = 'ok' | 'used' | 'fault';
 
 export function fmtMinutes(mins: number): string {
   // Round first: callers pass float-derived minutes (e.g. hours*60 = 491.99999999999994),
@@ -30,7 +33,7 @@ export interface SavedSummary {
   tripMinutes: number;
   holdsFlagged: number;
   firstActivityAt: string | null;
-  pump2Drift: Pump2Status | null;
+  pump2Drift: Pump2Drift | null;
 }
 
 export function mapSaved(row: Record<string, unknown>): SavedSummary {
@@ -46,7 +49,7 @@ export function mapSaved(row: Record<string, unknown>): SavedSummary {
     tripMinutes:           row.trip_minutes as number,
     holdsFlagged:          row.holds_flagged as number,
     firstActivityAt:       row.first_activity_at as string | null,
-    pump2Drift:            (row.pump2_drift as Pump2Status | null) ?? null,
+    pump2Drift:            (row.pump2_drift as Pump2Drift | null) ?? null,
   };
 }
 

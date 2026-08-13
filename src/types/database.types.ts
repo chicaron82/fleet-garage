@@ -398,6 +398,8 @@ export type Database = {
           logged_by_name: string | null
           pump1_close: number | null
           pump1_open: number | null
+          pump2_close: number | null
+          pump2_open: number | null
           pump2_reading: number | null
           topup_note: string | null
         }
@@ -412,6 +414,8 @@ export type Database = {
           logged_by_name?: string | null
           pump1_close?: number | null
           pump1_open?: number | null
+          pump2_close?: number | null
+          pump2_open?: number | null
           pump2_reading?: number | null
           topup_note?: string | null
         }
@@ -426,6 +430,8 @@ export type Database = {
           logged_by_name?: string | null
           pump1_close?: number | null
           pump1_open?: number | null
+          pump2_close?: number | null
+          pump2_open?: number | null
           pump2_reading?: number | null
           topup_note?: string | null
         }

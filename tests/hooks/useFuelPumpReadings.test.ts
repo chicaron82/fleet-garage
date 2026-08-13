@@ -68,13 +68,13 @@ describe('useFuelPumpReadings — opening prefill', () => {
     expect(result.current.digitalOpen).toBe('');
   });
 
-  it('never pre-fills pump2Reading regardless of what the prior row has', async () => {
-    mockNoPriorThenPrev({ pump1_close: 4200, digital_close: 95.5 });
+  it("pre-fills pump2Open from the prior shift's pump2_close (Pump 2 back in service)", async () => {
+    mockNoPriorThenPrev({ pump1_close: 4200, pump2_close: 1520, digital_close: 95.5 });
 
     const { result } = renderHook(() => useFuelPumpReadings(TEST_USER));
 
     await waitFor(() => expect(result.current.pump1Open).toBe('4200'));
-    expect(result.current.pump2Reading).toBe('');
+    expect(result.current.pump2Open).toBe('1520');
   });
 
   it('handles a prior row where pump1_close is null (partial entry)', async () => {
@@ -97,12 +97,12 @@ describe('useFuelPumpReadings — opening prefill', () => {
 });
 
 describe('useFuelPumpReadings — today-row restore', () => {
-  it('restores all fields from today\'s saved row including pump2Reading', async () => {
+  it("restores all fields from today's saved row including both Pump 2 readings", async () => {
     maybySingleSpy.mockResolvedValueOnce({
       data: {
         id: 'row-abc',
         pump1_open: 4100, pump1_close: 4200,
-        pump2_reading: 1439,
+        pump2_open: 1439, pump2_close: 1520,
         digital_open: 90.0, digital_close: 95.5,
         topup_note: 'Added 50L',
       },
@@ -113,22 +113,13 @@ describe('useFuelPumpReadings — today-row restore', () => {
 
     await waitFor(() => expect(result.current.pump1Open).toBe('4100'));
     expect(result.current.pump1Close).toBe('4200');
-    expect(result.current.pump2Reading).toBe('1439');
+    expect(result.current.pump2Open).toBe('1439');
+    expect(result.current.pump2Close).toBe('1520');
     expect(result.current.digitalOpen).toBe('90');
     expect(result.current.digitalClose).toBe('95.5');
     // saved flag is set so the form shows "already saved"
     expect(result.current.saved).toBe(true);
     // no second query — early return after restoring today's row
     expect(maybySingleSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not pre-fill pump2Reading from prior-day data (requires fresh entry)', async () => {
-    mockNoPriorThenPrev({ pump1_close: 4200, digital_close: 95.5, pump2_reading: 1440 });
-
-    const { result } = renderHook(() => useFuelPumpReadings(TEST_USER));
-
-    await waitFor(() => expect(result.current.pump1Open).toBe('4200'));
-    // pump2 must still be blank — pre-fill from prev day is intentionally excluded
-    expect(result.current.pump2Reading).toBe('');
   });
 });

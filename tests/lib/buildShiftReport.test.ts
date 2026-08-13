@@ -295,7 +295,7 @@ describe('buildReport — conditional sections', () => {
 describe('buildReport — fuel section', () => {
   const fullFuel = {
     pump1Open: 417547, pump1Close: 417782, pump1Pumped: 235,
-    pump2Reading: 1439, pump2: 'ok' as const,
+    pump2Open: 1439, pump2Close: 1520, pump2Pumped: 81,
     digitalOpen: 1677, digitalClose: 1462.3, digitalNet: -214.7, topupNote: null,
   };
 
@@ -303,23 +303,14 @@ describe('buildReport — fuel section', () => {
     expect(buildReport(baseData({ fuel: null }))).not.toContain('FUEL — PUMP READINGS');
   });
 
-  it('renders all three readings off the card, with the locked Pump 2 untouched', () => {
+  it('renders all readings off the card — both metered pumps and the tank', () => {
     const r = buildReport(baseData({ fuel: fullFuel }));
     expect(r).toContain('FUEL — PUMP READINGS');
     expect(r).toContain('417,547 → 417,782');
     expect(r).toContain('235 L pumped');
-    expect(r).toContain('✓ locked, untouched');
+    expect(r).toContain('1,439 → 1,520');
+    expect(r).toContain('81 L pumped');
     expect(r).toContain('214.7 L down');
-  });
-
-  it('escalates Pump 2 above the lock to a theft alarm', () => {
-    const r = buildReport(baseData({ fuel: { ...fullFuel, pump2Reading: 1500, pump2: 'used' } }));
-    expect(r).toContain('Fuel theft — flag immediately');
-  });
-
-  it('flags Pump 2 below the lock as a meter fault', () => {
-    const r = buildReport(baseData({ fuel: { ...fullFuel, pump2Reading: 1400, pump2: 'fault' } }));
-    expect(r).toContain('Meter fault/misread');
   });
 
   it('surfaces the top-up note when the tank went up', () => {

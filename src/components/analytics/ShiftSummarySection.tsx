@@ -5,12 +5,11 @@ import { hapticMedium } from '../../lib/haptics';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { shiftDayWindow } from '../../lib/shiftDay';
 import { isManagement } from '../../lib/analytics';
-import { pump2Status, EXPECTED_PUMP2, type Pump2Status } from '../../lib/fuelReadings';
 import {
   SummaryRow, ShiftSparkline, HistoryCard, TeamTodayCard,
 } from './AnalyticsComponents';
 import { ShiftExportActionSheet } from '../my-shift/ShiftExportActionSheet';
-import { fmtMinutes, fmtTime, type SavedSummary, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
+import { fmtMinutes, fmtTime, type SavedSummary, type Pump2Drift, mapSaved, decomposeOffStandard } from './shiftSummaryUtils';
 
 interface LiveSummary {
   offStandardMinutes: number;   // total (persisted) — equals nonAirport + airport + flipping
@@ -22,7 +21,7 @@ interface LiveSummary {
   tripMinutes: number;          // from vsa_trips — still persisted to the snapshot
   holdsFlagged: number;
   firstActivityAt: string | null;
-  pump2Drift: Pump2Status | null;
+  pump2Drift: Pump2Drift | null;
 }
 
 export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) {
@@ -50,7 +49,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
     setLoading(true);
     const { startISO: dayStartISO, endISO: dayEndISO } = shiftDayWindow(date);
 
-    const [osResult, tripsResult, holdsResult, histResult, fuelResult] = await Promise.all([
+    const [osResult, tripsResult, holdsResult, histResult] = await Promise.all([
       supabase.from('off_standard_entries')
         .select('start_time, minutes, reason, auto_from_trip, preset_reason')
         .eq('user_id', user.id)
@@ -74,13 +73,6 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         .gte('date', localDateStr(-30))
         .order('date', { ascending: false })
         .limit(5),
-      supabase.from('fuel_pump_readings')
-        .select('pump2_reading')
-        .eq('branch_id', user.branchId)
-        .eq('date', date)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
     ]);
 
     const osEntries = osResult.data ?? [];
@@ -106,10 +98,9 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
 
     const holdsFlagged = (holdsResult.data ?? []).length;
 
-    const fuelRow = fuelResult.data;
-    const pump2Drift = fuelRow?.pump2_reading != null
-      ? pump2Status(String(fuelRow.pump2_reading), EXPECTED_PUMP2)
-      : null;
+    // Pump 2 is a normal metered pump again (back in service 2026-08-13) — no more
+    // locked-tripwire drift to compute. Historical pump2_drift rows still display.
+    const pump2Drift: Pump2Drift | null = null;
 
     const allTimes = [
       ...osEntries.map(r => r.start_time as string),

@@ -1,5 +1,5 @@
 import type { ShiftType, ShiftWithUser } from '../types';
-import { EXPECTED_PUMP2, type FuelReport } from './fuelReadings';
+import { type FuelReport } from './fuelReadings';
 import { holdTypeLabel } from './holdTypeLabels';
 import { shiftTypeSentence } from './shiftTypeMeta';
 
@@ -116,8 +116,8 @@ function fmtRate(n: number): string {
 }
 
 // The fuel block — all three readings off the paper Gasoline Pump Card (Pump 1
-// meter, locked Pump 2, digital tank inventory), with the Pump 2 line carrying
-// the loss-prevention verdict (theft / fault) inline.
+// + Pump 2 analog meters, digital tank inventory), each metered pump showing its
+// open → close and litres pumped.
 function fuelSection(f: FuelReport): string[] {
   const SEP = '─'.repeat(37);
   const n = (v: number) => v.toLocaleString('en-CA');
@@ -129,14 +129,10 @@ function fuelSection(f: FuelReport): string[] {
     out.push(`Pump 1:  ${n(f.pump1Close)}`);
   }
 
-  if (f.pump2Reading != null) {
-    if (f.pump2 === 'used') {
-      out.push(`⚠ Pump 2:  ${n(f.pump2Reading)} — ABOVE locked ${EXPECTED_PUMP2}. Fuel theft — flag immediately.`);
-    } else if (f.pump2 === 'fault') {
-      out.push(`⚠ Pump 2:  ${n(f.pump2Reading)} — BELOW locked ${EXPECTED_PUMP2}. Meter fault/misread (a cumulative meter can't drop).`);
-    } else {
-      out.push(`Pump 2:  ${n(f.pump2Reading)}  ✓ locked, untouched`);
-    }
+  if (f.pump2Open != null && f.pump2Close != null) {
+    out.push(`Pump 2:  ${n(f.pump2Open)} → ${n(f.pump2Close)}${f.pump2Pumped != null ? `  ·  ${n(f.pump2Pumped)} L pumped` : ''}`);
+  } else if (f.pump2Close != null) {
+    out.push(`Pump 2:  ${n(f.pump2Close)}`);
   }
 
   if (f.digitalOpen != null && f.digitalClose != null) {

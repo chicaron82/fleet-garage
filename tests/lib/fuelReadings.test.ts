@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analogPumped, digitalDelta, pump2Status, digitalWentUp, buildFuelReport, EXPECTED_PUMP2 } from '../../src/lib/fuelReadings';
+import { analogPumped, digitalDelta, digitalWentUp, buildFuelReport } from '../../src/lib/fuelReadings';
 import type { FuelRow } from '../../src/lib/fuelReadings';
 
 describe('analogPumped', () => {
@@ -31,25 +31,6 @@ describe('digitalDelta', () => {
   });
 });
 
-describe('pump2Status — the directional tripwire', () => {
-  it("is 'ok' when the locked meter reads its expected value", () => {
-    expect(pump2Status('1439', EXPECTED_PUMP2)).toBe('ok');
-  });
-  it("is 'used' when the reading is ABOVE expected (a cumulative meter only climbs when pumped)", () => {
-    expect(pump2Status('1470', EXPECTED_PUMP2)).toBe('used'); // someone used the locked side
-    expect(pump2Status('1440', EXPECTED_PUMP2)).toBe('used');
-  });
-  it("is 'fault' when the reading is BELOW expected (a meter can't decrease)", () => {
-    expect(pump2Status('1201', EXPECTED_PUMP2)).toBe('fault'); // impossible drop → fault/misread
-    expect(pump2Status('1438', EXPECTED_PUMP2)).toBe('fault');
-  });
-  it('is null while the field is blank or non-numeric (not an alarm)', () => {
-    expect(pump2Status('', EXPECTED_PUMP2)).toBeNull();
-    expect(pump2Status('  ', EXPECTED_PUMP2)).toBeNull();
-    expect(pump2Status('abc', EXPECTED_PUMP2)).toBeNull();
-  });
-});
-
 describe('digitalWentUp', () => {
   it('is true only when closing exceeds opening (a mid-shift top-up)', () => {
     expect(digitalWentUp('500', '512')).toBe(true);
@@ -62,8 +43,10 @@ describe('digitalWentUp', () => {
 });
 
 describe('buildFuelReport', () => {
+  // Pump 2 is a normal metered pump again (back in service 2026-08-13) — open → close, like Pump 1.
   const row = (over: Partial<FuelRow> = {}): FuelRow => ({
-    pump1_open: 417547, pump1_close: 417782, pump2_reading: 1439,
+    pump1_open: 417547, pump1_close: 417782,
+    pump2_open: 1439, pump2_close: 1520,
     digital_open: 1677, digital_close: 1462.3, topup_note: null, ...over,
   });
 
@@ -72,21 +55,18 @@ describe('buildFuelReport', () => {
     expect(buildFuelReport(undefined)).toBeNull();
   });
 
-  it('mirrors the paper card: Pump 1 pumped, locked Pump 2 ok, tank net change', () => {
+  it('mirrors the paper card: both analog pumps pumped, tank net change', () => {
     const f = buildFuelReport(row())!;
-    expect(f.pump1Pumped).toBe(235);       // 417782 − 417547
-    expect(f.pump2).toBe('ok');            // locked at 1439, untouched
-    expect(f.pump2Reading).toBe(1439);
-    expect(f.digitalNet).toBeCloseTo(-214.7); // 1462.3 − 1677, tank drawn down
+    expect(f.pump1Pumped).toBe(235);          // 417782 − 417547
+    expect(f.pump2Open).toBe(1439);
+    expect(f.pump2Close).toBe(1520);
+    expect(f.pump2Pumped).toBe(81);           // 1520 − 1439
+    expect(f.digitalNet).toBeCloseTo(-214.7);  // 1462.3 − 1677, tank drawn down
   });
 
-  it('flags Pump 2 above the lock as used (theft) and below as fault', () => {
-    expect(buildFuelReport(row({ pump2_reading: 1500 }))!.pump2).toBe('used');
-    expect(buildFuelReport(row({ pump2_reading: 1400 }))!.pump2).toBe('fault');
-  });
-
-  it('leaves Pump 2 status null when the reading is absent', () => {
-    expect(buildFuelReport(row({ pump2_reading: null }))!.pump2).toBeNull();
+  it('Pump 2 litres are null until both open and close are present', () => {
+    expect(buildFuelReport(row({ pump2_close: null }))!.pump2Pumped).toBeNull();
+    expect(buildFuelReport(row({ pump2_open: null }))!.pump2Pumped).toBeNull();
   });
 
   it('carries partial rows — derived figures null until both ends are present', () => {

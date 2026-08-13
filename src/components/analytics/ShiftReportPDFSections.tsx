@@ -4,7 +4,6 @@ import { View, Text, Image, Link } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes, type ReportData, type ReportThroughput } from '../../lib/buildShiftReport';
 import { LOGO_SRC, s, resolveQueueLabel } from './ShiftReportPDFUtils';
 import { holdTypeLabel } from '../../lib/holdTypeLabels';
-import { EXPECTED_PUMP2 } from '../../lib/fuelReadings';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -213,16 +212,10 @@ export function FuelSection({ fuel }: { fuel: NonNullable<ReportData['fuel']> })
           <Text style={s.rateValue}>{n(fuel.pump1Open)} – {n(fuel.pump1Close)}{fuel.pump1Pumped != null ? `  ·  ${n(fuel.pump1Pumped)} L pumped` : ''}</Text>
         </View>
       )}
-      {fuel.pump2Reading != null && (
+      {fuel.pump2Open != null && fuel.pump2Close != null && (
         <View style={s.rateRow}>
-          <Text style={s.rateLabel}>Pump 2 (locked)</Text>
-          {fuel.pump2 === 'used' ? (
-            <Text style={s.fuelAlert}>{n(fuel.pump2Reading)} — above {EXPECTED_PUMP2}. Fuel theft, flag immediately.</Text>
-          ) : fuel.pump2 === 'fault' ? (
-            <Text style={s.fuelAlert}>{n(fuel.pump2Reading)} — below {EXPECTED_PUMP2}. Meter fault / misread.</Text>
-          ) : (
-            <Text style={s.rateValue}>{n(fuel.pump2Reading)}  ·  untouched</Text>
-          )}
+          <Text style={s.rateLabel}>Pump 2</Text>
+          <Text style={s.rateValue}>{n(fuel.pump2Open)} – {n(fuel.pump2Close)}{fuel.pump2Pumped != null ? `  ·  ${n(fuel.pump2Pumped)} L pumped` : ''}</Text>
         </View>
       )}
       {fuel.digitalOpen != null && fuel.digitalClose != null && (

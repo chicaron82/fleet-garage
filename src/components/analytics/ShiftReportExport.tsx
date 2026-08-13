@@ -142,7 +142,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         .limit(1),
 
       supabase.from('fuel_pump_readings')
-        .select('pump1_open, pump1_close, pump2_reading, digital_open, digital_close, topup_note')
+        .select('pump1_open, pump1_close, pump2_open, pump2_close, digital_open, digital_close, topup_note')
         .eq('branch_id', user.branchId)
         .eq('date', date)
         .order('created_at', { ascending: false })
