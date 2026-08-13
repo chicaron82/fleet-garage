@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
+import { plausibleYearOr } from '../../lib/vehicles';
 import { teachClassCode } from '../../hooks/useUnknownClassCode';
 import type { ScannedIdentity } from '../../types';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
@@ -47,7 +48,10 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   const [plate, setPlate] = useState(scanned?.plate ?? seed.plate);
   const [make, setMake] = useState(scanned?.make ?? '');
   const [model, setModel] = useState(scanned?.model ?? '');
-  const [year, setYear] = useState(scanned?.year ?? currentYear);
+  // A handwritten tag can mis-read the year (e.g. `10`) or leave it blank (0). Either way, seed
+  // the ±1 stepper at a plausible year rather than dozens of taps from the truth. plausibleYearOr
+  // catches the non-null garbage that `?? currentYear` alone would let through.
+  const [year, setYear] = useState(plausibleYearOr(scanned?.year, currentYear));
   const [color, setColor] = useState(scanned?.color ?? '');
   // Hybrid flag — an attribute now, not a "<Base> Hybrid" model. Pre-checked when the scanned tag's
   // class code is a hybrid variant (codex hint); otherwise operator-checked, defaults off.
@@ -70,7 +74,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
     setPlate(s.plate ?? seed.plate);
     setMake(s.make ?? '');
     setModel(s.model ?? '');
-    setYear(s.year ?? currentYear);
+    setYear(plausibleYearOr(s.year, currentYear));
     setColor(s.color ?? '');
     setRentalClass(s.rentalClass ?? '');
     setIsHybrid(s.isHybrid ?? false);

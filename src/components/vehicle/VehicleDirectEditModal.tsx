@@ -3,6 +3,7 @@ import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
 import { ClassChipPicker } from './ClassChipPicker';
+import { plausibleYearOr } from '../../lib/vehicles';
 import type { FieldSource } from '../../types';
 
 interface VehicleDirectEditModalProps {
@@ -68,8 +69,8 @@ export function VehicleDirectEditModal({
   const [editPlate, setEditPlate] = useState(initialLicensePlate);
   const [editMake, setEditMake] = useState(initialMake);
   const [editModel, setEditModel] = useState(initialModel);
-  // Seed a blank/unknown year (0 sentinel) to the current year so the stepper starts in range.
-  const [editYear, setEditYear] = useState(initialYear >= 2000 ? initialYear : new Date().getFullYear());
+  // Seed a blank/unknown/mis-read year to the current year so the stepper starts in range.
+  const [editYear, setEditYear] = useState(plausibleYearOr(initialYear, new Date().getFullYear()));
   const [editColor, setEditColor] = useState(initialColor);
   const [editHybrid, setEditHybrid] = useState(!!initialIsHybrid);
   // Rental class (Q4, E6, P4, R…). Editing it here LOCKS it against future tag reads — the fix for
