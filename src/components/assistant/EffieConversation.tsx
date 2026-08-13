@@ -19,7 +19,7 @@ import { usePendingWritesContext } from '../../context/PendingWritesContext';
 import { HoldProposalCard } from './HoldProposalCard';
 import { EffieImageStrip } from './EffieImageStrip';
 import { moduleGreeting } from '../../lib/assistantGreeting';
-import { photosForProposal } from '../../lib/photosForProposal';
+import { photosForProposalConfirm } from '../../lib/photosForProposal';
 import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
 import { photoCaptionFor, photoButtonLabel } from '../../../api/_lib/photoRequest';
@@ -94,7 +94,9 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
       if (typedConfirmInFlightRef.current || messages[lastIdx].proposalDone) return; // no double-fire
       typedConfirmInFlightRef.current = true;
       setDraft('');
-      void confirmProposal(pending)
+      // Same kind-aware photo scope as the card tap — a typed "yes" to a register must still
+      // attach the key tag the operator uploaded earlier in the conversation.
+      void confirmProposal(pending, undefined, photosForProposalConfirm(pending.kind, messages, lastIdx))
         .then(() => clearProposal(lastIdx))
         .catch(() => { /* keep card for tap-retry */ })
         .finally(() => { typedConfirmInFlightRef.current = false; });
@@ -152,9 +154,10 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
                 proposal={m.proposal}
                 done={!!m.proposalDone}
                 onConfirm={async (extra) => {
-                  // Scope photos to the turn(s) that prompted THIS proposal — never the
-                  // whole conversation (a hold must not attach earlier keytag photos).
-                  await confirmProposal(m.proposal!, extra, photosForProposal(messages, i)); // throws → card shows its error state
+                  // Scope photos by the proposal's kind: a register/backfill reaches back for the
+                  // key-tag photo (may be several turns back after a conversational draft); a hold
+                  // keeps the tight prompting-turn scope (never sweeps up an earlier keytag photo).
+                  await confirmProposal(m.proposal!, extra, photosForProposalConfirm(m.proposal!.kind, messages, i)); // throws → card shows its error state
                   markProposalDone(i); // recorded on the MESSAGE so a remount renders the receipt, not a re-confirmable card
                 }}
                 onDismiss={() => clearProposal(i)}

@@ -24,3 +24,40 @@ export function photosForProposal(messages: readonly TurnWithImages[], index: nu
   }
   return out;
 }
+
+/**
+ * The single most-recent operator-uploaded image before the proposal at `index`, reaching back
+ * PAST Effie's turns. For a register/backfill the photo IS the key tag — and a *conversational*
+ * draft (upload the tag, then a few Q&A turns to fill a missing year or correct the class) leaves
+ * that photo several turns back, behind intervening assistant replies. `photosForProposal`'s
+ * contiguous-block scope stops at those replies and misses it, so the tag never lands on the car
+ * (found live 2026-08-13: a handwritten-tag register via Effie saved no key-tag photo). Returns []
+ * when the operator uploaded no image at all.
+ */
+export function keytagPhotoForProposal(messages: readonly TurnWithImages[], index: number): string[] {
+  for (let i = index - 1; i >= 0; i--) {
+    const imgs = messages[i]?.role === 'user' ? messages[i].images : undefined;
+    if (imgs && imgs.length > 0) return [imgs[imgs.length - 1]];
+  }
+  return [];
+}
+
+/**
+ * Photo scope for a proposal CONFIRM, chosen by the proposal's kind — the two kinds carry opposite
+ * photo semantics:
+ *  - register_vehicle / update_vehicle → the photo is the KEY TAG; use the reach-back scope so a
+ *    conversational register still attaches it (via attachKeytagPhotoIfMissing on confirm).
+ *  - everything else (holds, register_and_hold) → the photo is DAMAGE evidence; keep the tight
+ *    contiguous scope so a hold never sweeps up an earlier key-tag photo
+ *    (bug-misc-effie-hold-attaches-all-photos.md).
+ */
+export function photosForProposalConfirm(
+  kind: string,
+  messages: readonly TurnWithImages[],
+  index: number,
+): string[] {
+  if (kind === 'register_vehicle' || kind === 'update_vehicle') {
+    return keytagPhotoForProposal(messages, index);
+  }
+  return photosForProposal(messages, index);
+}
