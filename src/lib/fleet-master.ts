@@ -33,6 +33,10 @@ export interface FleetVehicle {
   /** The boss's size/type group (Q4, P4, T…) off the keytag — filterable so FG can answer
    *  a "send me the Q4s" dirties list. Null on manual/pre-existing rows. */
   rentalClass: string | null;
+  /** Keys on the ring — null when never set (a fleet-health gap the chips surface). */
+  keyCount: number | null;
+  /** The stored key-tag photo — null when the tag was never captured (fleet-health gap). */
+  keytagPhotoUrl: string | null;
 }
 
 /**
@@ -80,6 +84,8 @@ export interface FleetVehicleRow {
   has_mobile_cable: boolean | null;
   has_j1772_adapter: boolean | null;
   rental_class: string | null;
+  key_count?: number | null;
+  keytag_photo_url?: string | null;
 }
 
 function fmtType(t: string): string {
@@ -193,6 +199,8 @@ export function buildFleetView(
       hasMobileCable:  v.has_mobile_cable,
       hasJ1772Adapter: v.has_j1772_adapter,
       rentalClass:     v.rental_class,
+      keyCount:        v.key_count ?? null,
+      keytagPhotoUrl:  v.keytag_photo_url ?? null,
     };
   });
 
@@ -208,8 +216,12 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class')
-      .eq('branch_id', branchId),
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url')
+      .eq('branch_id', branchId)
+      // Archived (sold/auctioned) cars are a separate concern everywhere else in the app
+      // (VehicleHoldContext filters `!v.archivedAt`); the master view + its health counts
+      // are the LIVE fleet, so exclude them here too.
+      .is('archived_at', null),
     supabase
       .from('holds')
       .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return)')

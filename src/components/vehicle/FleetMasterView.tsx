@@ -4,6 +4,8 @@ import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
+import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
+import { FleetHealthChips } from './FleetHealthChips';
 import type { Screen } from '../../types';
 
 interface Props {
@@ -36,6 +38,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [cohort, setCohort] = useState<FleetCohortId | null>(null);
   const [collapsed, setCollapsed] = useState<Set<FleetStatus>>(new Set(COLLAPSED_BY_DEFAULT));
 
   useEffect(() => {
@@ -49,7 +52,10 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   }, [user?.branchId, refreshKey]);
 
   const term = search.trim().toUpperCase();
-  const filtered = vehicles.filter(v => matchesFleetSearch(v, term));
+  // Cohort counts are the whole-fleet PULSE — always over the full loaded set, never narrowed by
+  // the search box (search finds a car; the chips report fleet health).
+  const cohortCounts = fleetCohortCounts(vehicles);
+  const filtered = vehicles.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
 
   const toggleCollapsed = (status: FleetStatus) => {
     setCollapsed(prev => {
@@ -89,6 +95,11 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
         <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />
       </div>
 
+      {/* Fleet-health pulse — tappable chips filter the list to each gap */}
+      {vehicles.length > 0 && (
+        <FleetHealthChips total={vehicles.length} counts={cohortCounts} active={cohort} onSelect={setCohort} />
+      )}
+
       {/* No match — register CTA */}
       {noMatch && (
         <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-6 text-center space-y-2">
@@ -113,7 +124,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           {STATUS_GROUPS.map(({ status, label, dot, badgeClass, headerClass }) => {
             const group = filtered.filter(v => v.status === status);
             if (group.length === 0) return null;
-            const isCollapsed = term ? false : collapsed.has(status);
+            // A search term OR an active cohort expands every group — otherwise the collapsed
+            // Clear group (where most cars live) would hide the very cohort you just tapped.
+            const isCollapsed = (term || cohort) ? false : collapsed.has(status);
             return (
               <div key={status} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <button
