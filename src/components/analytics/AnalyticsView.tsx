@@ -26,7 +26,6 @@ import { EVAssetStatusSection } from './EVAssetStatusSection';
 import { ClassDispatchSection } from './ClassDispatchSection';
 import { ShiftSummarySection } from './ShiftSummarySection';
 import { ChronicIssuesSection } from './ChronicIssuesSection';
-import { EffieCreditSection } from './EffieCreditSection';
 import { chronicVehicles, CHRONIC_THRESHOLD } from '../../lib/chronicIssues';
 
 interface TripRow { trip_type: string; driver_id: string; }
@@ -273,14 +272,6 @@ export function AnalyticsView({ onOpenVehicle }: { onOpenVehicle?: (vehicleId: s
           {isManagement(user.role) && (
             <DriverCoverageSection activeBranch={activeBranch} />
           )}
-
-          {/* Effie's prepaid API credit. Deliberately NOT behind isManagement, unlike its
-              neighbours: MGMT_ROLES is Branch/Operations/City Manager, and Aaron's own FG role
-              is VSA — so gating this would hide HIS API bill from the one person who pays it and
-              taps "Topped up". (Caught on the render-verify, 2026-08-15: the section simply
-              wasn't in the DOM.) FG is trusted-crew-only by design, so an ungated readout is
-              consistent with the app's actual scope. */}
-          <EffieCreditSection />
         </>
       )}
 

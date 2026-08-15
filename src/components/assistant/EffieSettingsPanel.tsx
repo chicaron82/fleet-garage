@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { KOKORO_VOICES, type KokoroSynthesisApi, type KokoroVoice } from '../../hooks/useKokoroSynthesis';
 import { KeytagReaderPreview } from './KeytagReaderPreview';
+import { EffieCreditPanel } from './EffieCreditPanel';
 import type { EffieMemory } from '../../hooks/useEffieMemory';
 
 const CALLSIGN_KEY = 'fg_effie_callsign';
@@ -167,6 +168,11 @@ export function EffieSettingsPanel({ kokoro, memories, onForget, onClose }: Prop
           </div>
         )}
       </div>
+
+      {/* What Effie costs — the prepaid balance she runs on. Lives here rather than in
+          Analytics because FG is personal-first: this is Aaron's own API bill, and Effie's
+          allowlist already scopes it to exactly the right person. */}
+      <EffieCreditPanel />
 
       {/* Key-tag reader — a read-only validation surface for the vision read (point real
           camera-roll tags at it). Precursor to the L&F register/backfill flow. */}
