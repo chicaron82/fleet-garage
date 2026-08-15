@@ -8,10 +8,14 @@
 // hold's evidence to the photos actually taken for it. See
 // docs/bug-misc-effie-hold-attaches-all-photos.md.
 
-/** Minimal shape — a chat turn with an optional set of attached images. */
+/** Minimal shape — a chat turn with an optional set of attached images, and (assistant turns)
+ *  whether it carried a drafted proposal. `proposal` is deliberately typed loose: the real
+ *  ChatMessage carries a rich `Proposal`, and this helper only ever asks "was there one?" —
+ *  so ChatMessage satisfies this shape structurally and no call site has to thread anything. */
 interface TurnWithImages {
   role: 'user' | 'assistant';
   images?: string[];
+  proposal?: unknown;
 }
 
 export function photosForProposal(messages: readonly TurnWithImages[], index: number): string[] {
@@ -33,10 +37,19 @@ export function photosForProposal(messages: readonly TurnWithImages[], index: nu
  * contiguous-block scope stops at those replies and misses it, so the tag never lands on the car
  * (found live 2026-08-13: a handwritten-tag register via Effie saved no key-tag photo). Returns []
  * when the operator uploaded no image at all.
+ *
+ * ⛔ THE PROPOSAL BOUNDARY: the walk stops at a PRIOR drafted proposal. A proposal marks a
+ * completed sub-operation, so this car's tag is always uploaded AFTER the previous car's draft.
+ * Without the boundary, registering a second car in the same chat *without* showing a new tag
+ * reaches back past the first proposal and attaches CAR A's key tag to CAR B — wrong provenance,
+ * the same class as the scan-router wrong-data bug. With it, the reach-back fails SAFE: no photo
+ * beats the wrong car's photo, and the operator can still attach one afterwards.
  */
 export function keytagPhotoForProposal(messages: readonly TurnWithImages[], index: number): string[] {
   for (let i = index - 1; i >= 0; i--) {
-    const imgs = messages[i]?.role === 'user' ? messages[i].images : undefined;
+    const turn = messages[i];
+    if (turn?.role === 'assistant' && turn.proposal) break;   // prior proposal → stop; not our tag
+    const imgs = turn?.role === 'user' ? turn.images : undefined;
     if (imgs && imgs.length > 0) return [imgs[imgs.length - 1]];
   }
   return [];

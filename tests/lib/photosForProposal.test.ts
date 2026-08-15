@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { photosForProposal, keytagPhotoForProposal, photosForProposalConfirm } from '../../src/lib/photosForProposal';
 
-type Turn = { role: 'user' | 'assistant'; images?: string[] };
+type Turn = { role: 'user' | 'assistant'; images?: string[]; proposal?: unknown };
+const draft = { kind: 'register_vehicle' };   // stand-in for a real Proposal — presence is all that matters
 
 describe('photosForProposal', () => {
   it('scopes to the damage turn — a hold does NOT pick up an earlier keytag photo', () => {
@@ -73,6 +74,56 @@ describe('keytagPhotoForProposal', () => {
     ];
     expect(keytagPhotoForProposal(messages, 2)).toEqual([]);
     expect(keytagPhotoForProposal([], 0)).toEqual([]);
+  });
+
+  // ── the proposal boundary ──
+  it('STOPS at a prior proposal — a second register never inherits the first car\'s tag', () => {
+    // Register car A off its tag, then ask to register car B without showing a new tag.
+    // Before the boundary this reached back past proposal A and attached A's key tag to B.
+    const messages: Turn[] = [
+      { role: 'user', images: ['tag-a.jpg'] }, // 0: car A's key tag
+      { role: 'assistant', proposal: draft },  // 1: drafts register A   ← boundary
+      { role: 'user' },                        // 2: "now register the RAV4 too" (no photo)
+      { role: 'assistant', proposal: draft },  // 3: drafts register B   ← confirming this
+    ];
+    expect(keytagPhotoForProposal(messages, 3)).toEqual([]);   // fails SAFE, never ['tag-a.jpg']
+  });
+
+  it('each car keeps its OWN tag in a sequential two-register chat', () => {
+    const messages: Turn[] = [
+      { role: 'user', images: ['tag-a.jpg'] }, // 0
+      { role: 'assistant', proposal: draft },  // 1: register A
+      { role: 'user', images: ['tag-b.jpg'] }, // 2
+      { role: 'assistant', proposal: draft },  // 3: register B
+    ];
+    expect(keytagPhotoForProposal(messages, 1)).toEqual(['tag-a.jpg']);
+    expect(keytagPhotoForProposal(messages, 3)).toEqual(['tag-b.jpg']);
+  });
+
+  it('the boundary is a PROPOSAL, not merely an assistant turn — Q&A still reaches back', () => {
+    // Regression guard on 2372e00: plain assistant replies must NOT stop the walk, or the
+    // conversational register breaks again. Only a proposal-bearing turn is a boundary.
+    const messages: Turn[] = [
+      { role: 'user', images: ['keytag.jpg'] },
+      { role: 'assistant' },                  // "what year is it?" — no proposal, walk continues
+      { role: 'user' },                       // "2021"
+      { role: 'assistant' },                  // "and the class?" — still no proposal
+      { role: 'user' },                       // "IFAR"
+      { role: 'assistant', proposal: draft }, // 5: the register draft ← confirming this
+    ];
+    expect(keytagPhotoForProposal(messages, 5)).toEqual(['keytag.jpg']);
+  });
+
+  it('a proposal AFTER the tag but BEFORE this one still bounds the walk', () => {
+    // A hold drafted mid-chat also closes the sub-operation — a later register must not
+    // reach back across it to a tag that belonged to the pre-hold conversation.
+    const messages: Turn[] = [
+      { role: 'user', images: ['tag-a.jpg'] },
+      { role: 'assistant', proposal: draft }, // 1: a hold draft — boundary
+      { role: 'user' },
+      { role: 'assistant', proposal: draft }, // 3: register draft
+    ];
+    expect(keytagPhotoForProposal(messages, 3)).toEqual([]);
   });
 });
 
