@@ -9,6 +9,8 @@ import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
+import { priceUsage } from './_lib/apiSpend.js';
+import { recordSpend } from './_lib/recordSpend.js';
 
 interface FgRequest {
   method?: string;
@@ -156,6 +158,11 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
         },
       ],
     });
+
+    // Credit tracker: log the cost of this read regardless of how the response is used below —
+    // a failed parse still burned the tokens, so recording it before the early-return keeps the
+    // ledger honest about spend the operator got nothing for.
+    void recordSpend(supabase, 'keytag-read', [priceUsage(VISION_MODEL, message.usage)]);
 
     const toolUse = message.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
     if (!toolUse) {

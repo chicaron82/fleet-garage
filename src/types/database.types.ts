@@ -116,6 +116,45 @@ export type Database = {
         }
         Relationships: []
       }
+      effie_ledger: {
+        Row: {
+          amount_usd: number
+          at: string
+          cache_read_tokens: number | null
+          cache_write_tokens: number | null
+          id: number
+          input_tokens: number | null
+          kind: string
+          model: string | null
+          output_tokens: number | null
+          source: string | null
+        }
+        Insert: {
+          amount_usd: number
+          at?: string
+          cache_read_tokens?: number | null
+          cache_write_tokens?: number | null
+          id?: number
+          input_tokens?: number | null
+          kind: string
+          model?: string | null
+          output_tokens?: number | null
+          source?: string | null
+        }
+        Update: {
+          amount_usd?: number
+          at?: string
+          cache_read_tokens?: number | null
+          cache_write_tokens?: number | null
+          id?: number
+          input_tokens?: number | null
+          kind?: string
+          model?: string | null
+          output_tokens?: number | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       effie_memory: {
         Row: {
           content: string

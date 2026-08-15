@@ -23,6 +23,8 @@ import { type PhotoContext } from './_lib/photoRequest.js';
 import { type Proposal } from './_lib/holdProposal.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { dispatchToolUse } from './_lib/effie/dispatchToolUse.js';
+import { priceUsage, type SpendLine } from './_lib/apiSpend.js';
+import { recordSpend } from './_lib/recordSpend.js';
 
 // Minimal shapes of the Vercel Node serverless req/res — only what this handler
 // touches. Hand-typed instead of depending on @vercel/node, whose transitive deps
@@ -182,6 +184,9 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     let proposal: Proposal | null = null; // a drafted hold / register+hold to confirm, if any
     let photoRequest: PhotoContext | null = null; // an inline upload button to show, if Effie asked for a photo
     let recoveryUsed = false; // the draft-claim backstop fires at most once
+    // Credit tracker: every call in this loop is separately billable, so cost accrues per
+    // iteration and is written as ONE ledger row for the whole turn (see api/_lib/apiSpend.ts).
+    const spent: SpendLine[] = [];
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const message = await anthropic.messages.create({
         model,
@@ -190,6 +195,7 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
         tools: TOOLS,
         messages: convo,
       });
+      spent.push(priceUsage(model, message.usage));
 
       if (message.stop_reason !== 'tool_use') {
         answer = message.content
@@ -226,6 +232,9 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // confirm card. The proxy never writes — the write happens on the user's tap.
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ text: answer || '(no answer)', proposal, photoRequest });
+    // Bookkeeping AFTER the response is sent and deliberately un-awaited: the operator's answer
+    // never waits on a ledger write, and a failed write can't turn a good turn into an error.
+    void recordSpend(supabase, 'fg-chat', spent);
   } catch (err) {
     console.error('[fg-chat] handler error:', err);
     res.status(500).json({ error: `Assistant error: ${err instanceof Error ? err.message : String(err)}` });

@@ -9,7 +9,9 @@ import { isAllowed } from './_lib/assistantAccess.js';
 import { parseDocumentDataUrl } from './_lib/imageData.js';
 import { isAvailabilityError } from './_lib/modelFallback.js';
 import type { ParsedSchedule, ParsedShiftType } from './_lib/scheduleParse.js';
-import { buildScheduleRequest, FALLBACK_VISION_MODEL } from './_lib/scheduleVisionRequest.js';
+import { buildScheduleRequest, FALLBACK_VISION_MODEL, VISION_MODEL } from './_lib/scheduleVisionRequest.js';
+import { priceUsage } from './_lib/apiSpend.js';
+import { recordSpend } from './_lib/recordSpend.js';
 
 interface FgRequest {
   method?: string;
@@ -115,6 +117,13 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
         .stream({ ...request, model: FALLBACK_VISION_MODEL }, { timeout: FALLBACK_TIMEOUT_MS, maxRetries: 1 })
         .finalMessage();
     }
+
+    // Credit tracker: price against whichever model actually answered — the fallback is a
+    // different rate, and a degraded read that goes unrecorded (or worse, gets priced as the
+    // primary) would quietly skew the balance in the exact moment things are already going wrong.
+    void recordSpend(supabase, 'fg-schedule-parse', [
+      priceUsage(degraded ? FALLBACK_VISION_MODEL : VISION_MODEL, message.usage),
+    ]);
 
     if (message.stop_reason === 'max_tokens') {
       res.status(502).json({ error: 'This schedule was too large to read in one pass — try a photo covering fewer weeks.' });
