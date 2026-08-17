@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
+import { useVehicleSightings } from '../../hooks/useVehicleSightings';
+import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -17,12 +19,15 @@ import { hapticLight } from '../../lib/haptics';
 // without permanently lowering a baseline). Same principle as the tag: see it, and be able to fix it.
 const KEY_OPTIONS = [1, 2, 3, 4];
 
-export function VehicleRecordFacts({ vehicleId, keytagPhotoUrl, keyCount }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount }: {
   vehicleId: string;
+  /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
+  plate?: string | null;
   keytagPhotoUrl?: string | null;
   keyCount?: number | null;
 }) {
   const { recordKeyCount } = useVehicleHoldContext();
+  const sightings = useVehicleSightings(plate);
   const [zoom, setZoom] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
 
@@ -69,6 +74,23 @@ export function VehicleRecordFacts({ vehicleId, keytagPhotoUrl, keyCount }: {
           🔑 {keyCount ? `${keyCount} ${keyCount === 1 ? 'key' : 'keys'} on the ring` : 'Keys — set'} ✏️
         </button>
       )}
+
+      {/* Last seen — a SCAN is the only event in FG that means "he was standing at this car with
+          the tag in his hand". Read-only: it's a record of what happened, not a field to set.
+          Going-forward only (nothing logged scans before 2026-08-16), so "never scanned" is the
+          honest day-one state for most of the fleet and reads as *not yet*, not as broken. */}
+      <span
+        className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+          isStaleSighting(sightings)
+            ? 'border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400'
+            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+        }`}
+        title={sightings.lastSeenAt ? `Last scanned ${new Date(sightings.lastSeenAt).toLocaleString('en-CA')}` : 'No key-tag scan on record yet'}
+      >
+        👁️ {sightings.neverSeen
+          ? 'Never scanned'
+          : `Seen ${sightings.count}× · last ${describeLastSeen(sightings.lastSeenAt)}`}
+      </span>
 
       {zoom && keytagPhotoUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setZoom(false)}>

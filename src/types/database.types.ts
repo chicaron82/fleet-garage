@@ -1466,6 +1466,36 @@ export type Database = {
           },
         ]
       }
+      vehicle_sightings: {
+        Row: {
+          branch_id: string | null
+          id: number
+          plate: string
+          seen_at: string
+          seen_by_id: string | null
+          seen_by_name: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          id?: number
+          plate: string
+          seen_at?: string
+          seen_by_id?: string | null
+          seen_by_name?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          id?: number
+          plate?: string
+          seen_at?: string
+          seen_by_id?: string | null
+          seen_by_name?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
       vehicles: {
         Row: {
           archived_at: string | null

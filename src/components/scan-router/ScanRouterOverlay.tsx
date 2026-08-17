@@ -13,6 +13,8 @@ import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
+import { recordSighting } from '../../hooks/useVehicleSightings';
+import { useAuth } from '../../context/AuthContext';
 import { logUnknownClassCode } from '../../hooks/useUnknownClassCode';
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -31,6 +33,7 @@ let scanSeq = 0;
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
+  const { user } = useAuth();
   const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
@@ -55,6 +58,21 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
     setScanRead(read);
     setScanNonce(++scanSeq); // distinct per scan → each "Start trip"/"Log L&F" re-seeds the destination
+
+    // ── "Last seen" ── The scan IS the sighting: he's physically holding the car right now, which
+    // is a thing nothing else in FG records (a trip means someone drove it, a hold means someone
+    // flagged it). Logged HERE, at the read, rather than on an action — because most scans end in
+    // "look and walk away", and those still mean he had the car in his hands. Resolve first so a
+    // mis-read plate lands on the right car, and so a known vehicle's id rides along.
+    // Fire-and-forget by contract: a bookkeeping failure must never cost him a scan.
+    const seen = resolveKeytagScan(read, vehicles);
+    void recordSighting({
+      plate: seen.plate,
+      vehicleId: seen.vehicle?.id ?? null,
+      seenById: user?.id ?? null,
+      seenByName: user?.name ?? null,
+      branchId: seen.vehicle?.branchId ?? null,
+    });
 
     setGeotabPending(await checkGeotab(read.plate));
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action

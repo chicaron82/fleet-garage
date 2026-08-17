@@ -36,6 +36,10 @@ import { resolve, join } from 'node:path';
 //    upserts on it, so a lost-ack retry converges instead of duplicating.
 //  - useIssues.ts: 2 of 4 sites are inside the locked addIssue; the other 2
 //    are issue_events appends behind converging status updates.
+//  - useVehicleSightings.ts: append-only "last seen" log — a row IS the event
+//    (he scanned this car at this moment), so two scans SHOULD be two rows and a
+//    same-frame dupe is impossible anyway: it fires once per completed key-tag
+//    read, not per tap. Locking it would suppress the very thing it records.
 //  - useUnknownClassCode.ts: append-only telemetry (a class code the codex
 //    couldn't resolve, logged so codes self-report). Every row is a sighting;
 //    a duplicate sighting is a true record of two scans, not corruption, and
@@ -62,6 +66,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/hooks/useOffStandardEntryEdits.ts': 1, // handleSubmitBackdate — locked
   'src/hooks/usePendingWrites.ts':      1, // EXEMPT: client-id keyed (see above)
   'src/hooks/useUnknownClassCode.ts':   1, // EXEMPT: append-only sighting log (see above)
+  'src/hooks/useVehicleSightings.ts':   1, // EXEMPT: append-only last-seen log (see above)
   'src/hooks/useRentalClasses.ts':      1, // EXEMPT: chip "Other" add, PK-keyed on code (see above)
 };
 
