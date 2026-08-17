@@ -320,6 +320,9 @@ export interface HandoffNote {
   teamSize: number;
   notes?: string;
   lotStatus: LotStatus;
+  /** Optional context photo — in practice the key board. lotStatus is a judgment word; this is
+   *  the measurement behind it (migration 116). Null is a normal shift, not a broken record. */
+  photoUrl?: string | null;
   morningHours: number; // default 8.0 — productive hours (excludes 30min unpaid lunch)
   carryOverCleared: number; // prior-day-fuelled cars cleaned & sent today (no fresh gas line)
   airportFlipping: boolean; // Manual attestation: morning crew ran quick turnarounds at the airport
@@ -529,6 +532,7 @@ export interface WashbayLog {
   shiftHours: number;        // Hours washbay ran (default 8)
   overtimeHours: number;     // Extended operating hours beyond base (0–3)
   lotStatus: LotStatus;      // Lot state at end of closing shift
+  photoUrl?: string | null;  // Optional context photo — the board at close (migration 116)
   airportFlipping: boolean;  // Manual attestation: quick turnarounds run at the airport today (lowers bay count)
   loggedById: string;        // User.id
   loggedAt: string;          // ISO timestamp

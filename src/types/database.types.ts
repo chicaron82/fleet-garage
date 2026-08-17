@@ -552,6 +552,7 @@ export type Database = {
           lot_status: string
           morning_hours: number
           notes: string | null
+          photo_url: string | null
           team_size: number
         }
         Insert: {
@@ -567,6 +568,7 @@ export type Database = {
           lot_status?: string
           morning_hours?: number
           notes?: string | null
+          photo_url?: string | null
           team_size?: number
         }
         Update: {
@@ -582,6 +584,7 @@ export type Database = {
           lot_status?: string
           morning_hours?: number
           notes?: string | null
+          photo_url?: string | null
           team_size?: number
         }
         Relationships: []
@@ -1775,6 +1778,7 @@ export type Database = {
           non_rentables_fuelled: number
           non_rentables_note: string | null
           overtime_hours: number
+          photo_url: string | null
           shift_hours: number
           team_size: number
         }
@@ -1795,6 +1799,7 @@ export type Database = {
           non_rentables_fuelled?: number
           non_rentables_note?: string | null
           overtime_hours?: number
+          photo_url?: string | null
           shift_hours?: number
           team_size: number
         }
@@ -1815,6 +1820,7 @@ export type Database = {
           non_rentables_fuelled?: number
           non_rentables_note?: string | null
           overtime_hours?: number
+          photo_url?: string | null
           shift_hours?: number
           team_size?: number
         }

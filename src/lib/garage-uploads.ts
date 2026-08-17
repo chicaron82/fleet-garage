@@ -90,3 +90,23 @@ export async function pushNotification(
     recipient_user_id: recipientUserId ?? null,
   }));
 }
+
+/** A shift log's optional context photo — the key board at handoff or at close.
+ *
+ *  `lot_status` is a judgment word; this is the measurement behind it (migration 116). Pathed by
+ *  the log's own key (`handoff/<id>` or `closing/<branch>-<date>`) so a re-upload for the same
+ *  shift overwrites rather than orphaning — hence `upsert: true`, and why the bucket has an UPDATE
+ *  policy but deliberately no DELETE one.
+ *
+ *  Returns null on any failure. The caller MUST treat that as "log it without a photo": a shift
+ *  log that fails because a photo upload timed out would lose the counts, which are the part that
+ *  can never be reconstructed. */
+export async function uploadShiftLogPhoto(base64: string, logKey: string): Promise<string | null> {
+  const blob = base64ToBlob(base64);
+  const path = `${logKey}.jpg`;
+  const { error } = await withUploadTimeout(
+    supabase.storage.from('shift-log-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+  );
+  if (error) return null;
+  return supabase.storage.from('shift-log-photos').getPublicUrl(path).data.publicUrl;
+}

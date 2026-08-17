@@ -13,6 +13,7 @@ import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
 import { lotStatusFromQueue } from '../../lib/closingQueue';
+import { ShiftLogPhotoField } from './ShiftLogPhotoField';
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -47,6 +48,7 @@ export function WashbayClosingLog() {
   // Default = who actually showed (roster minus no-shows); label still shows roster.
   const teamSize = userTeamSize ?? (presentTeam || 2);
   const [overtimeHours,    setOvertimeHours]    = useState(0);
+  const [photo,            setPhoto]            = useState<string | null>(null);
   const [submitting,       setSubmitting]       = useState(false);
   const [editing,          setEditing]          = useState(false);
   const [overtimeOpen,     setOvertimeOpen]     = useState(false);
@@ -104,7 +106,7 @@ export function WashbayClosingLog() {
     if (!canSubmit) return;
     setSubmitting(true);
     const { fullPages, lastPageEntries } = convertToBackendFormat(totalPages, entriesOnCurrentPage);
-    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: 0, deferredCompletions: 0, nonRentablesNote: null, carryOver: 0, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus: lotStatusFromQueue(cr), airportFlipping: flippingDone });
+    await submitWashbayLog({ fullPages, lastPageEntries, carsRemaining: cr, cleanNotPickedUp: cnpu, nonRentablesFuelled: 0, deferredCompletions: 0, nonRentablesNote: null, carryOver: 0, teamSize, shiftHours: SHIFT_HOURS, overtimeHours, lotStatus: lotStatusFromQueue(cr), airportFlipping: flippingDone }, undefined, photo);
     setEditing(false);
     setSubmitting(false);
   };
@@ -240,6 +242,12 @@ export function WashbayClosingLog() {
           </div>
           <span className="text-xs text-gray-500 dark:text-gray-400">🔄 Quick turnarounds done at the airport today</span>
         </label>
+
+        {/* The board at close. This log's lot status is DERIVED (lotStatusFromQueue(cr)) rather
+            than picked, which makes the photo more useful here, not less: it's the only record of
+            what the derived word was standing on. An already-saved photo shows through when
+            re-opening the same day's close. */}
+        <ShiftLogPhotoField value={photo} onChange={setPhoto} existingUrl={todayLog?.photoUrl} />
 
         {carsIn > 0 && (
           <div className={`rounded-lg px-4 py-3 ${delta >= 0 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50' : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'}`}>

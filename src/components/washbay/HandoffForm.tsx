@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShiftLogPhotoField } from './ShiftLogPhotoField';
 import { useWashbayContext } from '../../context/WashbayContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAirportFlip } from '../../hooks/useAirportFlip';
@@ -72,6 +73,7 @@ export function HandoffForm({ onClose }: Props) {
   // highlight lights up automatically when someone's absent.
   const teamSize = userTeamSize ?? (presentTeam || 2);
   const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
+  const [photo,           setPhoto]           = useState<string | null>(null);
   const [notes,           setNotes]           = useState('');
   const [adjustMorning,    setAdjustMorning]   = useState(false);
   const [morningHours,     setMorningHours]    = useState(8.0);
@@ -126,6 +128,7 @@ export function HandoffForm({ onClose }: Props) {
       lastPageEntries,
       teamSize,
       lotStatus,
+      photo,
       notes: notes.trim() || undefined,
       morningHours: adjustMorning ? morningHours : undefined,
       carryOverCleared: inheritedBacklog > 0 ? inheritedBacklog : undefined,
@@ -264,6 +267,10 @@ export function HandoffForm({ onClose }: Props) {
               ))}
             </div>
           </div>
+
+          {/* Evidence for the word just picked — see ShiftLogPhotoField. Directly under the pills,
+              NOT down in Notes: a "backlog" pill and a photo of the board are the same fact. */}
+          <ShiftLogPhotoField value={photo} onChange={setPhoto} />
 
           {/* Notes */}
           <div>
