@@ -32,10 +32,16 @@ function TripBadge({ type }: { type: string }) {
 
 interface TripListProps {
   trips: TripRun[];
-  isManagement: boolean;
 }
 
-export function TripList({ trips, isManagement }: TripListProps) {
+/** Trip rows for the movement log.
+ *
+ *  There used to be a second "⚠️ Long trip · Nm" badge here behind `isManagement`, which both
+ *  call sites passed as a literal `false` — so it had never rendered for anyone, manager or not.
+ *  Deleted 2026-08-17 (Aaron: *"just delete it lol brain cleared cache on it"*). The duration
+ *  itself still shows inline on every row, and still goes amber past the flag threshold — that
+ *  part was always live and stays. */
+export function TripList({ trips }: TripListProps) {
   return (
     <div className="space-y-2">
       {trips.map(trip => {
@@ -93,13 +99,6 @@ export function TripList({ trips, isManagement }: TripListProps) {
                         ⬛ One-way
                       </span>
                     )}
-                  </div>
-                )}
-                {isManagement && flagged && (
-                  <div className="mt-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 transition-colors">
-                      ⚠️ Long trip · {duration}m
-                    </span>
                   </div>
                 )}
                 {trip.notes && (

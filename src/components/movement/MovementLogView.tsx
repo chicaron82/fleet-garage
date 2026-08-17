@@ -186,7 +186,7 @@ export function MovementLogView({ prefillPlate, prefillNonce, autoStart }: { pre
               <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged Today</p>
               <ShareAction label="Share log" build={() => buildTripShare(liveOnly)} />
             </div>
-            <TripList trips={liveOnly} isManagement={false} />
+            <TripList trips={liveOnly} />
           </div>
         );
       })()}
