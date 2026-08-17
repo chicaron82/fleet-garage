@@ -16,8 +16,9 @@ import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { recordSighting } from '../../hooks/useVehicleSightings';
 import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { useAuth } from '../../context/AuthContext';
-import { logUnknownClassCode } from '../../hooks/useUnknownClassCode';
+import { logUnknownClassCode, teachClassCode } from '../../hooks/useUnknownClassCode';
 import { isUnknownClassCode } from '../../lib/partialRegister';
+import { classCodeLessonFromScan, classCodeLearnedLabel } from '../../lib/classCodeLesson';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -46,6 +47,8 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const [scanPhoto, setScanPhoto] = useState<string | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+  // Set when the scan taught the codex a code off this car's own record (see classCodeLesson).
+  const [codexToast, setCodexToast] = useState('');
   const reading = status === 'reading';
 
   const onFile = async (file: File | undefined) => {
@@ -53,6 +56,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     setErrMsg('');
     setScanRead(null);
     setGeotabPending(false);
+    setCodexToast('');
     const base64 = await compressImage(file);
     setScanPhoto(base64);
     const read = await readKeytag(base64);
@@ -81,9 +85,24 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // the photo also lets backfill attach the tag to a known car that lacks one (universal capture,
     // if-missing) — one choke-point instead of a separate attach call here.
     void backfillFromRead(read, base64);
-    // A class code the codex can't resolve is why registration degrades — record it so codes
-    // self-report instead of waiting for someone to get stuck at a car and ask.
-    if (isUnknownClassCode(read)) void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
+    // ── The codex's missing drain ── A class code the codex can't resolve is why registration
+    // degrades. Two outcomes, and only one of them used to exist:
+    //   • The car is ALREADY on record with a make/model → the record IS the answer. Teach the
+    //     codex from it and say so. Until this, learning happened ONLY in the register form, so a
+    //     known car could never resolve its code and re-logged the same complaint every scan
+    //     (CTAC, a Tacoma, logged three times before anything could close it).
+    //   • Genuinely unknown → log it, so codes self-report instead of waiting for someone to get
+    //     stuck at a car and ask.
+    // Fire-and-forget both ways: neither a lesson nor a log may cost him the scan.
+    if (isUnknownClassCode(read)) {
+      const lesson = classCodeLessonFromScan(read, seen.vehicle);
+      if (lesson) {
+        void teachClassCode(lesson.code, lesson.make, lesson.model, user?.id);
+        setCodexToast(classCodeLearnedLabel(lesson));
+      } else {
+        void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
+      }
+    }
   };
 
   // Resolved against the LIVE fleet each render rather than snapshotted at scan time: the backfill
@@ -235,9 +254,15 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {conflictToast && (
                   <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">{conflictToast}</p>
                 )}
+                {/* FG closed its own gap off this car's record — green, because nothing is owed. */}
+                {codexToast && (
+                  <p className="text-[11px] font-semibold mt-1 text-green-700 dark:text-green-400">{codexToast}</p>
+                )}
                 {/* Say WHY registration degraded. Before this the scan just quietly offered less
-                    and the operator had to infer the cause from the shape of the failure. */}
-                {scanRead && isUnknownClassCode(scanRead) && (
+                    and the operator had to infer the cause from the shape of the failure.
+                    Suppressed when the scan TAUGHT the code instead — asking him to add by hand
+                    what FG just learned by itself is the exact confusion this pair replaced. */}
+                {scanRead && isUnknownClassCode(scanRead) && !codexToast && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
                     Class code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
                     make/model need adding by hand. Logged for DiZee.
