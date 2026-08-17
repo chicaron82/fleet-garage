@@ -12,10 +12,20 @@ interface Preferences {
   /** Show the ℹ️ / ⓘ guide affordances in the header and sidebar.
    *
    *  Aaron, 2026-08-17: *"a toggle switch to disable the module guides. its my tool now afterall,
-   *  i know what everything goes. if i want to show it off i can turn it back on."* Those buttons
-   *  are onboarding chrome on every screen of a single-operator tool with no visitors. Off, the
-   *  guide itself is untouched and still reachable from the profile menu — what stops is the app
-   *  OFFERING it. Defaults true so a demo account (and the first run) keeps the tour. */
+   *  i know what everything goes. if i want to show it off i can turn it back on."*
+   *
+   *  ⭐ THE REAL REASON, which he gave AFTER it shipped: *"i've been accidentally tapping it."*
+   *  Not clutter — MIS-TAPS. The header ℹ️ sits `ml-0.5` from 📷, his highest-frequency action, so
+   *  a thumb reaching for the scanner opened a guide modal instead, on the lot, tag in hand. The
+   *  header below already documents the identical bug on the OTHER side of 📷 (the notification
+   *  bell) and fixed it with a divider and a gap; ℹ️ never got the same treatment.
+   *
+   *  So the toggle is a hit-target fix that happens to look like a preference. Note the corollary:
+   *  turning guides back ON for a demo restores the mis-tap. If that becomes annoying, give ℹ️ the
+   *  same divider/gap the bell got rather than reaching for this switch.
+   *
+   *  Off, the guide itself is untouched and still reachable from the profile menu — what stops is
+   *  the app OFFERING it. Defaults true so a demo account (and the first run) keeps the tour. */
   showModuleGuide: boolean;
 }
 
