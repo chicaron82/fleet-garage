@@ -14,6 +14,7 @@ import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { recordSighting } from '../../hooks/useVehicleSightings';
+import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { useAuth } from '../../context/AuthContext';
 import { logUnknownClassCode } from '../../hooks/useUnknownClassCode';
 import { isUnknownClassCode } from '../../lib/partialRegister';
@@ -91,7 +92,8 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const result = scanRead ? resolveKeytagScan(scanRead, vehicles) : null;
   const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce) : [];
   const vehicle = result?.vehicle ?? null;
-  const activeHolds = vehicle ? holds.filter(h => h.vehicleId === vehicle.id && h.status === 'ACTIVE').length : 0;
+  const holdLines = vehicle ? scanHoldLines(holds, vehicle.id) : [];
+  const activeHolds = holdLines.length;
   // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
   // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
   const evScan = vehicle ? evAssetScanStatus(vehicle) : null;
@@ -158,6 +160,31 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         : activeHolds > 0 ? `🔧 On hold (${activeHolds})`
                         : '✅ Clear'}
                     </p>
+                    {/* WHAT'S WRONG WITH IT — Aaron's ask (2026-08-16), the last gap in this card.
+                        The overlay always had these holds in scope and counted them into "On hold
+                        (2)", dropping the description: it said something's wrong, then made him
+                        open the record to find out what. Now the tag tells him "Damage · Windshield
+                        chip" while he's standing at the car, so he can verify it's still there or
+                        already fixed without a detour. A hold the car went OUT on is called out
+                        loudest — that's the old-damage amnesia FG exists to prevent. */}
+                    {holdLines.length > 0 && (
+                      <div className="mt-1.5 space-y-1">
+                        {holdLines.map(l => (
+                          <div key={l.id} className={`rounded-lg px-2 py-1.5 text-xs ${
+                            l.onException
+                              ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                              : 'bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-300'
+                          }`}>
+                            <p className="font-semibold">
+                              {l.onException ? '⚠️ Out on exception' : '🔧'} {l.typeLabel}
+                              <span className="font-normal opacity-70"> · flagged {flaggedOnLabel(l.flaggedAt)}</span>
+                            </p>
+                            {l.detail && <p className="mt-0.5">{l.detail}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Key count surfaced HERE, tag in hand — not hidden behind opening the unit. If
                         it's unlogged, log the baseline right now (the moment of truth), so a future
                         short return is detectable. (ticket-scan-keycount-surface.) */}
