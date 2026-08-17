@@ -59,6 +59,53 @@ export interface FuelReport {
   topupNote:    string | null;
 }
 
+/** What a new day's form should open with, carried forward from history. */
+export interface CarriedOpenings {
+  pump1Open:   number | null;
+  pump2Open:   number | null;
+  digitalOpen: number | null;
+}
+
+/**
+ * The opening readings a fresh day should pre-fill with — the LAST KNOWN READING per gauge,
+ * scanning history newest-first.
+ *
+ * ⚠️ WHY THIS EXISTS (Aaron, 2026-08-16, and his diagnosis was the sharper one): the original
+ * prefill read the previous ROW's *closing* values, which quietly almost never fired. His data
+ * explains it — Aug 12 recorded a close (436879) and Aug 13's open carried it perfectly, then
+ * Aug 13 and Aug 14 went in **open-only** and the chain died.
+ *
+ * **The root cause is structural, not forgetfulness: FG has ONE user.** The closing-to-opening
+ * relay assumes a two-person handoff — opener logs open, closer logs close, next opener inherits.
+ * When Aaron works an open, *nobody exists to log the close*, so that half of the sheet has no
+ * author. Another artifact of the abandoned multi-operator shape (see CLAUDE.md "Personal-first").
+ *
+ * So: prefer a row's CLOSING (still the truest carry-forward when it's there), fall back to that
+ * same row's OPENING, and keep scanning back until each gauge finds a number. An opening is a
+ * real reading the pump gave him — the number will have moved since, but it's the right ballpark,
+ * and a transposed digit becomes obvious instead of invisible. A blank field teaches nothing.
+ *
+ * Each gauge resolves INDEPENDENTLY: pump 2 came back into service later than pump 1, so its
+ * last reading can be many rows newer or older than the others'. Locking all three to one row
+ * would blank the gauges that happen to be missing from it.
+ */
+export function carryForwardOpenings(rowsNewestFirst: readonly FuelRow[]): CarriedOpenings {
+  const firstOf = (close: (r: FuelRow) => number | null, open: (r: FuelRow) => number | null) => {
+    for (const r of rowsNewestFirst) {
+      const c = close(r);
+      if (c != null) return c;
+      const o = open(r);
+      if (o != null) return o;
+    }
+    return null;
+  };
+  return {
+    pump1Open:   firstOf(r => r.pump1_close,   r => r.pump1_open),
+    pump2Open:   firstOf(r => r.pump2_close,   r => r.pump2_open),
+    digitalOpen: firstOf(r => r.digital_close, r => r.digital_open),
+  };
+}
+
 /**
  * Shape a saved fuel row into the report block — the readings the paper card
  * shows (Pump 1 + Pump 2 analog meters, digital tank inventory), with the derived

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analogPumped, digitalDelta, digitalWentUp, buildFuelReport } from '../../src/lib/fuelReadings';
+import { analogPumped, digitalDelta, digitalWentUp, buildFuelReport, carryForwardOpenings } from '../../src/lib/fuelReadings';
 import type { FuelRow } from '../../src/lib/fuelReadings';
 
 describe('analogPumped', () => {
@@ -79,5 +79,61 @@ describe('buildFuelReport', () => {
   it('passes the top-up note through', () => {
     expect(buildFuelReport(row({ topup_note: 'Tank topped up mid-shift' }))!.topupNote)
       .toBe('Tank topped up mid-shift');
+  });
+});
+
+describe('carryForwardOpenings — the prefill that was silently never firing', () => {
+  const row = (o: Partial<FuelRow>): FuelRow => ({
+    pump1_open: null, pump1_close: null,
+    pump2_open: null, pump2_close: null,
+    digital_open: null, digital_close: null,
+    topup_note: null,
+    ...o,
+  });
+
+  it('prefers a CLOSING when one exists — the truest carry-forward', () => {
+    const out = carryForwardOpenings([row({ pump1_open: 100, pump1_close: 150 })]);
+    expect(out.pump1Open).toBe(150);
+  });
+
+  it('⭐ falls back to that row\'s OPENING when the closing is missing', () => {
+    // Aaron's real shape: he works the open, logs the opening, and — as FG's ONLY user —
+    // there is no second person to log the close. Before this, the prefill found a row,
+    // read a null closing, and silently filled nothing.
+    const out = carryForwardOpenings([row({ pump1_open: 437186 })]);
+    expect(out.pump1Open).toBe(437186);
+  });
+
+  it('reproduces the exact live failure: Aug 14 open-only after Aug 12 had a close', () => {
+    const history = [
+      row({ pump1_open: 437186 }),                        // Aug 14 — open only (his Friday open)
+      row({ pump1_open: 436879 }),                        // Aug 13 — open only
+      row({ pump1_open: 436432, pump1_close: 436879 }),   // Aug 12 — the last real closing
+    ];
+    // Old behaviour took row[0].pump1_close → null → blank field. Now it carries the newest
+    // real reading instead of skipping straight past it.
+    expect(carryForwardOpenings(history).pump1Open).toBe(437186);
+  });
+
+  it('resolves each gauge INDEPENDENTLY, scanning as far back as needed', () => {
+    // Pump 2 returned to service later than Pump 1, so its last reading can sit rows away.
+    // Locking all three to a single row would blank whichever gauges that row lacks.
+    const history = [
+      row({ pump1_open: 437186 }),                    // newest: pump 1 only
+      row({ digital_close: 6338.8 }),                 // tank, one row back
+      row({ pump2_open: 1558 }),                      // pump 2, two rows back
+    ];
+    expect(carryForwardOpenings(history)).toEqual({
+      pump1Open: 437186, pump2Open: 1558, digitalOpen: 6338.8,
+    });
+  });
+
+  it('returns nulls when there is no history at all', () => {
+    expect(carryForwardOpenings([])).toEqual({ pump1Open: null, pump2Open: null, digitalOpen: null });
+  });
+
+  it('does not mistake a legitimate ZERO reading for "missing"', () => {
+    // A gauge genuinely reading 0 is data. `!= null` (not falsy) is what makes that work.
+    expect(carryForwardOpenings([row({ pump1_close: 0 })]).pump1Open).toBe(0);
   });
 });

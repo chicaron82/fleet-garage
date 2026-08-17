@@ -11,6 +11,10 @@ const maybySingleSpy = vi.fn();
 
 const ltSpy = vi.fn(() => queryBuilder);
 
+// The prev-day lookup now fetches a WINDOW of rows (awaited directly) rather than one
+// .maybeSingle() — so the builder resolves through `then`, and this holds what it yields.
+let prevRows: Record<string, unknown>[] = [];
+
 const queryBuilder: Record<string, unknown> = {
   select:      vi.fn(() => queryBuilder),
   eq:          vi.fn(() => queryBuilder),
@@ -19,7 +23,7 @@ const queryBuilder: Record<string, unknown> = {
   limit:       vi.fn(() => queryBuilder),
   insert:      vi.fn(() => queryBuilder),
   maybeSingle: maybySingleSpy,
-  then:        vi.fn((resolve) => resolve?.({ data: null, error: null })),
+  then:        vi.fn((resolve) => resolve?.({ data: prevRows, error: null })),
 };
 
 vi.mock('../../src/lib/supabase', () => ({
@@ -36,13 +40,13 @@ vi.mock('../../src/hooks/useFleetBalance', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prevRows = [];
 });
 
-// Helper: return null for today's row (call 1), then a prev-day row (call 2).
-function mockNoPriorThenPrev(prevData: Record<string, unknown> | null) {
-  maybySingleSpy
-    .mockResolvedValueOnce({ data: null, error: null })
-    .mockResolvedValueOnce({ data: prevData, error: null });
+// Helper: no row for today (via maybeSingle), then a history window (via the awaited builder).
+function mockNoPriorThenPrev(...rows: (Record<string, unknown> | null)[]) {
+  maybySingleSpy.mockResolvedValue({ data: null, error: null });
+  prevRows = rows.filter(Boolean) as Record<string, unknown>[];
 }
 
 describe('useFuelPumpReadings — opening prefill', () => {
@@ -57,13 +61,12 @@ describe('useFuelPumpReadings — opening prefill', () => {
     expect(result.current.digitalOpen).toBe('95.5');
   });
 
-  it('leaves fields empty when no prior row exists', async () => {
-    maybySingleSpy.mockResolvedValue({ data: null, error: null });
+  it('leaves fields empty when no history exists at all', async () => {
+    mockNoPriorThenPrev();
 
     const { result } = renderHook(() => useFuelPumpReadings(TEST_USER));
 
-    // Two maybeSingle calls: today (null) then prev-day (null).
-    await waitFor(() => expect(maybySingleSpy).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(ltSpy).toHaveBeenCalledTimes(1));
     expect(result.current.pump1Open).toBe('');
     expect(result.current.digitalOpen).toBe('');
   });
@@ -77,13 +80,31 @@ describe('useFuelPumpReadings — opening prefill', () => {
     expect(result.current.pump2Open).toBe('1520');
   });
 
-  it('handles a prior row where pump1_close is null (partial entry)', async () => {
-    mockNoPriorThenPrev({ pump1_close: null, digital_close: 88.0 });
+  // ⭐ THIS TEST USED TO ASSERT THE BUG. It called a missing closing a "partial entry" and
+  // pinned pump1Open to '' — which is exactly why the dead prefill survived review: someone
+  // hit the case, named it, and wrote down the wrong answer. In a ONE-USER tool a shift Aaron
+  // opens has nobody to log its close, so "closing is null" is the NORMAL row, not a partial
+  // one, and blanking the field throws away the last real number the pump gave him.
+  it('falls back to the row\'s OPENING when its closing is null (the one-user shape)', async () => {
+    mockNoPriorThenPrev({ pump1_open: 437186, pump1_close: null, digital_close: 88.0 });
 
     const { result } = renderHook(() => useFuelPumpReadings(TEST_USER));
 
-    await waitFor(() => expect(result.current.digitalOpen).toBe('88'));
-    expect(result.current.pump1Open).toBe('');
+    await waitFor(() => expect(result.current.pump1Open).toBe('437186'));
+    expect(result.current.digitalOpen).toBe('88');
+  });
+
+  it('reproduces the live failure: two open-only rows in front of the last real closing', async () => {
+    mockNoPriorThenPrev(
+      { pump1_open: 437186 },                       // Aug 14 — his Friday open, no close
+      { pump1_open: 436879 },                       // Aug 13 — open only
+      { pump1_open: 436432, pump1_close: 436879 },  // Aug 12 — the last recorded closing
+    );
+
+    const { result } = renderHook(() => useFuelPumpReadings(TEST_USER));
+
+    // Old behaviour read row[0].pump1_close → null → blank. Now it carries the newest real reading.
+    await waitFor(() => expect(result.current.pump1Open).toBe('437186'));
   });
 
   it('excludes today\'s row so a re-opened form does not seed closing as opening', async () => {

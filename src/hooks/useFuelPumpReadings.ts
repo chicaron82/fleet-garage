@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { withSubmitLock } from '../lib/submitLock';
 import { localDateStr } from './useFleetBalance';
-import { analogPumped, digitalDelta, digitalWentUp } from '../lib/fuelReadings';
+import { analogPumped, digitalDelta, digitalWentUp, carryForwardOpenings, type FuelRow } from '../lib/fuelReadings';
 import type { User } from '../types';
 
 /**
  * Owns the Shift Duties fuel section: the readings, the derived maths (via the
  * pure lib), and the save. Pump 1 and Pump 2 are both analog gauges tracked
  * open→close (Pump 2 returned to service 2026-08-13, retiring the locked-tripwire
- * model); the digital tank keeps decimals. Opening readings pre-fill from the
- * prior shift's close so the running sheet carries forward.
+ * model); the digital tank keeps decimals. Opening readings pre-fill from the LAST
+ * KNOWN reading per gauge — closing preferred, that row's opening as fallback —
+ * because FG has one user, so a shift he OPENS has nobody to log its close.
  */
 export function useFuelPumpReadings(user: User) {
   const [pump1Open, setPump1Open]       = useState('');
@@ -54,19 +55,27 @@ export function useFuelPumpReadings(user: User) {
         return;
       }
 
-      // No today row — pre-fill opening readings from the previous shift's close.
+      // No today row — carry the LAST KNOWN reading forward per gauge.
+      //
+      // ⚠️ This used to read only the previous ROW's *closing* values, and silently almost never
+      // fired: FG has ONE user, so when Aaron works an open there is no second person to log the
+      // close, and that half of the sheet has no author. The lookup found a row, read a null
+      // closing, and filled nothing — the feature looked like it had never been built.
+      // Fetching a WINDOW (not one row) lets carryForwardOpenings prefer a closing, fall back to
+      // that row's opening, and resolve each gauge independently. 30 rows is many months of a
+      // sheet that gets filled a few times a week, and keeps the read bounded.
       const { data: prev } = await supabase
         .from('fuel_pump_readings')
-        .select('pump1_close, pump2_close, digital_close')
+        .select('pump1_open, pump1_close, pump2_open, pump2_close, digital_open, digital_close, topup_note')
         .eq('branch_id', user.branchId)
         .lt('date', localDateStr(0))
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!prev) return;
-      if (prev.pump1_close   != null) setPump1Open(String(prev.pump1_close));
-      if (prev.pump2_close   != null) setPump2Open(String(prev.pump2_close));
-      if (prev.digital_close != null) setDigitalOpen(String(prev.digital_close));
+        .limit(30);
+      if (!prev?.length) return;
+      const carried = carryForwardOpenings(prev as FuelRow[]);
+      if (carried.pump1Open   != null) setPump1Open(String(carried.pump1Open));
+      if (carried.pump2Open   != null) setPump2Open(String(carried.pump2Open));
+      if (carried.digitalOpen != null) setDigitalOpen(String(carried.digitalOpen));
     })();
   }, [user.branchId]);
 
