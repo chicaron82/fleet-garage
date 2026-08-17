@@ -237,7 +237,18 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
                   value={unit}
                   onValueChange={setUnit}
                   placeholder="e.g. 5428735"
-                  autoFocus
+                  /* Focus only an EMPTY unit number. Unconditional autoFocus put the cursor in a
+                     numeric field that a key-tag scan had already filled correctly — raising the
+                     keypad over the form for a field Aaron never edits, which is what buried the
+                     key-count selector he actually came to tap (`34b7ffb`).
+
+                     Keyed on `unit` rather than on `scanned`, deliberately: the useful question is
+                     "is there anything here?", not "how did we get here". A manual add focuses
+                     (nothing to read), a scan that captured the unit does not, and a scan whose
+                     unit came back BLANK still focuses — which `!scanned` would have missed, since
+                     `scannedFromRead` returns '' rather than null for a field the tag didn't give
+                     up. Evaluated at mount, which is the only moment autoFocus means anything. */
+                  autoFocus={!unit}
                   className={INPUT}
                 />
               </div>
