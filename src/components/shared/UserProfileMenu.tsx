@@ -182,6 +182,22 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                       <input type="checkbox" className="sr-only" checked={prefs.darkMode} onChange={e => updatePref('darkMode', e.target.checked)} />
                     </div>
                   </label>
+
+                  {/* Guide chrome, retirable. Off hides the header ℹ️ and the sidebar's per-item ⓘ
+                      — but NOT the "📖 Module Guide" item in this same menu, deliberately. That
+                      keeps the guide one tap away for showing FG off, and puts the switch and its
+                      own escape hatch in the same place, so turning it off can never strand him
+                      hunting for where it went. */}
+                  <label className="flex items-center justify-between cursor-pointer group mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="flex-1 min-w-0 pr-3">
+                      <span className="block text-sm font-semibold text-gray-700 dark:text-gray-200">Module Guide Buttons</span>
+                      <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">The ℹ️ in the header and ⓘ in the sidebar. The guide stays in this menu either way.</span>
+                    </span>
+                    <div className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${prefs.showModuleGuide ? 'bg-fg-yellow' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300 ${prefs.showModuleGuide ? 'translate-x-5' : 'translate-x-1'}`} />
+                      <input type="checkbox" className="sr-only" checked={prefs.showModuleGuide} onChange={e => updatePref('showModuleGuide', e.target.checked)} />
+                    </div>
+                  </label>
                 </div>
               </div>
 

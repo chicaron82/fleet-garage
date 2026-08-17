@@ -9,6 +9,14 @@ interface Preferences {
   notifyNewFlags: boolean;
   notifyReleases: boolean;
   landingTab: LandingTab;
+  /** Show the ℹ️ / ⓘ guide affordances in the header and sidebar.
+   *
+   *  Aaron, 2026-08-17: *"a toggle switch to disable the module guides. its my tool now afterall,
+   *  i know what everything goes. if i want to show it off i can turn it back on."* Those buttons
+   *  are onboarding chrome on every screen of a single-operator tool with no visitors. Off, the
+   *  guide itself is untouched and still reachable from the profile menu — what stops is the app
+   *  OFFERING it. Defaults true so a demo account (and the first run) keeps the tour. */
+  showModuleGuide: boolean;
 }
 
 interface PreferencesContextValue {
@@ -20,7 +28,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited' };
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
   void writeWithRefresh(() => supabase.from('user_preferences').upsert(

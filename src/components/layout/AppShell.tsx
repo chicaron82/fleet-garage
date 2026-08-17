@@ -4,6 +4,7 @@ import { OfflineSyncBanner } from './OfflineSyncBanner';
 import { BuildStamp } from './BuildStamp';
 import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
+import { usePreferences } from '../../context/PreferencesContext';
 import { NotificationBell } from '../shared/NotificationBell';
 import { ActiveSessionPill } from './ActiveSessionPill';
 import { useScanRouter } from '../../context/scanRouter';
@@ -35,6 +36,11 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
     contentRef.current?.scrollTo({ top: 0 });
   }, [screenKey]);
   const [guideModule, setGuideModule] = useState<Module | null>(null);
+  // Onboarding chrome, switchable off — see Preferences.showModuleGuide. Withholding the callback
+  // is what removes the sidebar's per-item ⓘ too: Sidebar already renders it behind
+  // `{onShowGuide && …}`, so one flag retires both affordances without a second conditional.
+  const { prefs } = usePreferences();
+  const guidesOn = prefs.showModuleGuide;
   const [pendingApprovalEntryId, setPendingApprovalEntryId] = useState<string | null>(null);
   const [pendingBackdateId, setPendingBackdateId]           = useState<string | null>(null);
   const [pendingVehicleEditId, setPendingVehicleEditId]     = useState<string | null>(null);
@@ -53,16 +59,27 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
         />
       )}
 
+      {/* The slide-in transform is scoped to `max-md:` so that at desktop this element carries NO
+          transform at all. Any transform other than `none` makes an
+          element the containing block for its `position: fixed` descendants — so with a translate
+          still applied at desktop, every modal rendered from inside the sidebar (the profile menu's
+          Settings and Profile sheets, and its Module Guide) resolved `fixed inset-0` against this
+          w-64 column instead of the viewport, and rendered ~224px wide with every label wrapped to
+          three lines. The header's own guide modal looked fine because it lives outside this div,
+          which is exactly what made the bug hard to see. Found 2026-08-17 while render-checking the
+          guide toggle, which had just moved a new row into that squeezed modal. `md:transform-none`
+          was tried first and is the wrong tool — it has to win a cascade race against
+          `-translate-x-full`, whereas scoping the translate to mobile means there is no race. */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 md:static md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-40 w-64 max-md:transition-transform duration-200 md:static ${
+          sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
         }`}
       >
         <Sidebar
           activeModule={activeModule}
           onNavigate={handleNavigate}
           onClose={() => setSidebarOpen(false)}
-          onShowGuide={setGuideModule}
+          onShowGuide={guidesOn ? setGuideModule : undefined}
         />
       </div>
 
@@ -88,13 +105,15 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
               />
             </div>
             <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
-            <button
-              onClick={() => { hapticLight(); setGuideModule(activeModule); }}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer ml-0.5"
-              title="Module Guide"
-            >
-              <span className="text-xs">i</span>
-            </button>
+            {guidesOn && (
+              <button
+                onClick={() => { hapticLight(); setGuideModule(activeModule); }}
+                className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer ml-0.5"
+                title="Module Guide"
+              >
+                <span className="text-xs">i</span>
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ActiveSessionPill variant="header" activeModule={activeModule} onNavigate={handleNavigate} />
