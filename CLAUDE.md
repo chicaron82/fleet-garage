@@ -19,6 +19,53 @@ queue) but has **one operator** (Aaron).
   code IS fast code." Build new/shape-unknown ideas in **two passes** (pass 1: works +
   green + rough-shaped; pass 2: extract/split/name/dedupe into proper order) — both green.
 
+### A role gate on a personal affordance is a bug (three found 2026-08-17)
+
+Aaron's role is **`VSA`**. `canRelease()` and `isManagement()` are **false** for him. So any
+`{isManagement && …}` wrapper is, in practice, **`{false && …}`** — it deletes the feature for
+the only person using the app. This has now bitten four times:
+
+| Where | What it hid | Verdict |
+|---|---|---|
+| `EffieCreditPanel` | his own API bill | wrong ROOM → moved (`d460412`) |
+| `HoldsVehicleRow` | the 📌 pin on his own holds board | wrong GATE → removed |
+| `ScheduleScreen` | closing-hours readout (peak season) | wrong SCOPE → readout freed, toggle kept |
+| `TripList` | long-trip flag — `isManagement={false}` at **both** call sites | dead in the app entirely |
+
+**Before adding or keeping a role gate, ask which of three it is:**
+
+1. **An authority action** — releasing a damaged car on exception, approving a request,
+   flipping a branch-wide default. **Keep the gate.** (`PendingApprovalsSection` and the
+   peak-season *toggle* are correct as-is.)
+2. **A personal affordance** — pinning, filtering, a readout about the reader's own work.
+   **No gate.** Wiring a convenience to an authority check is the recurring mistake.
+3. **Mixed** — a readout bundled with a control. **Split it**, don't open the gate wholesale.
+
+And the deeper pattern, which fired **three times in one week**: FG carries assumptions from
+the multi-operator org that never adopted it. Besides role gates, watch for **two-person
+handoffs** — the fuel closing→opening relay (`ea1aa0d`) assumed an opener and a closer, and
+the class codex (`282d190`) could only learn during registration. **When a feature silently
+does nothing, ask whether it is waiting for a second person who does not exist.**
+
+### Domain Enum Protocol — ground the live distribution before you filter on it
+
+Shipped 2026-08-16: `scanHoldLines` filtered `status === 'ACTIVE'`. An out-on-exception hold is
+**`RELEASED`** — releasing it is what let the car go out — so the filter excluded the exact case
+the request opened with. Live distribution: **9 ACTIVE against 199 RELEASED, of 422**. Four
+checks agreed with me and all four were circular: I wrote the filter, I wrote the fixture, I
+wrote a highlight for a state the filter made unreachable, and I render-verified on a car I chose
+*because* it matched the filter.
+
+**So, when writing or narrowing a filter over a status/enum column:**
+
+1. **Query the live distribution first** (Management API, one statement). A branch matching 2% of
+   rows is a finding, not a detail.
+2. **Write down which values are IN and which are OUT, and why** — in the code, next to the
+   filter. `scanHoldSummary.ts` is the reference.
+3. **Never verify on a fixture you chose.** Verify on the case the *operator* described, in
+   their words. If the fix erased every real instance, manufacture one — and then **check the
+   durable side effect (the row), not the visible one (the toast)**.
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and

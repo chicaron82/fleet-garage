@@ -146,19 +146,24 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
       {/* Your upcoming clopens — read from the stored schedule, no re-upload. Null when none. */}
       <UpcomingClopensBanner userId={user?.id} />
 
-      {/* Peak season banner — managers only */}
-      {isManager && (
-        <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-          isPeakSeason
-            ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
-            : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
-        }`}>
-          <span>
-            {isPeakSeason ? '☀️ Peak season active' : 'Peak season off'}
-            <span className="ml-1.5 font-normal opacity-70">
-              {isPeakSeason ? '— closing defaults 14:30–23:00' : '— closing defaults 13:30–22:00'}
-            </span>
+      {/* Peak season banner. The READOUT is for everyone — it states what time closings start
+          (14:30–23:00 in peak, 13:30–22:00 off), which is a fact about the reader's OWN shift, and
+          the person working the closing is exactly who needs it. It was manager-gated wholesale,
+          which hid a schedule fact from the people it schedules. The TOGGLE stays manager-only:
+          flipping peak season changes the branch's defaults for everybody, which is a real
+          authority action rather than a personal one. Splitting them beats opening the gate. */}
+      <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+        isPeakSeason
+          ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+          : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+      }`}>
+        <span>
+          {isPeakSeason ? '☀️ Peak season active' : 'Peak season off'}
+          <span className="ml-1.5 font-normal opacity-70">
+            {isPeakSeason ? '— closing defaults 14:30–23:00' : '— closing defaults 13:30–22:00'}
           </span>
+        </span>
+        {isManager && (
           <button
             onClick={async () => {
               setTogglingPeak(true);
@@ -169,8 +174,8 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
           >
             {togglingPeak ? '…' : isPeakSeason ? 'Turn off' : 'Turn on'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* PTO + Sick stats */}
       <div className="flex items-center gap-2 flex-wrap">

@@ -305,7 +305,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
               latestHold={getDisplayHold(vehicle.id, vehicle.status)}
               streak={releaseStreak(vehicle.id)}
               isPinned={pinnedVehicleIds.has(vehicle.id)}
-              isManagement={canRelease(user!.role)}
               onTogglePin={togglePin}
               onOpen={handleOpenVehicle}
               getName={getName}

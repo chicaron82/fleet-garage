@@ -8,16 +8,22 @@ interface Props {
   latestHold?: Hold;
   streak: number;
   isPinned: boolean;
-  isManagement: boolean;
   onTogglePin: (vehicleId: string) => void;
   onOpen: (vehicle: Vehicle) => void;
   getName: (id: string, fallbackName?: string) => string;
 }
 
-/** One vehicle row in the holds dashboard list: optional pin (management),
- *  the tappable vehicle card, status badge, unrepaired streak, cover photo. */
+/** One vehicle row in the holds dashboard list: pin, the tappable vehicle card,
+ *  status badge, unrepaired streak, cover photo.
+ *
+ *  The pin used to be gated behind `canRelease(role)` — management only. That wired a PERSONAL
+ *  affordance ("keep the car I'm watching at the top of my list") to an AUTHORITY check that
+ *  exists for something else entirely: releasing a known-damaged car on exception is a liability
+ *  judgment. Aaron is a VSA, so the gate denied the pin to the only person who uses this board.
+ *  Same shape as the credit readout that shipped invisible behind `isManagement` (`d460412`):
+ *  on a single-operator tool a role gate is usually a leftover from the org that never arrived. */
 export function HoldsVehicleRow({
-  vehicle, latestHold, streak, isPinned, isManagement, onTogglePin, onOpen, getName,
+  vehicle, latestHold, streak, isPinned, onTogglePin, onOpen, getName,
 }: Props) {
   const emojis = holdContextEmojis(
     vehicle.status,
@@ -28,20 +34,18 @@ export function HoldsVehicleRow({
 
   return (
     <div className="flex items-stretch gap-1.5">
-      {isManagement && (
-        <button
-          type="button"
-          onClick={() => onTogglePin(vehicle.id)}
-          aria-label={isPinned ? 'Unpin' : 'Pin to top'}
-          className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${
-            isPinned
-              ? 'text-red-500'
-              : 'text-gray-200 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500'
-          }`}
-        >
-          📌
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => onTogglePin(vehicle.id)}
+        aria-label={isPinned ? 'Unpin' : 'Pin to top'}
+        className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${
+          isPinned
+            ? 'text-red-500'
+            : 'text-gray-200 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500'
+        }`}
+      >
+        📌
+      </button>
       <button
         onClick={() => { hapticLight(); onOpen(vehicle); }}
         className={`flex-1 bg-white dark:bg-gray-900 rounded-xl border p-4 text-left hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:shadow-sm transition-all cursor-pointer group ${
