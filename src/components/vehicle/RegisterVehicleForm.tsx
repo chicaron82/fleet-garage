@@ -199,6 +199,37 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               Vehicle Details
             </h2>
 
+            {/* ── FIRST, deliberately ──────────────────────────────────────────────────────────
+                This is the baseline the check-in diffs against, and it must be set while the ring
+                is in hand: a car whose first count happens on an already-short return would seed
+                its baseline low and hide the loss. Optional — left blank, the first count seeds it.
+
+                It leads the form because it is the ONLY question left. The key tag prints the unit
+                number, plate, rental class, year and colour, and the scan reads them accurately
+                enough that Aaron never edits them — but no tag can say how many keys are physically
+                on the ring. That takes his eyes on the object.
+
+                It used to sit LAST, below every scan-filled field, so the form led with the answers
+                and buried the question. Aaron, mid-shift 2026-08-17: *"the scan is generally
+                accurate so I rarely have to make corrections on the unit number. so when I register
+                one I need to scroll a bit to tap the # of keys"* — and the numeric keypad covers the
+                bottom of the screen, which is exactly where it was. At the top it cannot be covered
+                by the keypad no matter which field has focus. Everything below is now what he
+                actually treats it as: a confirmation block, not a form. */}
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                🔑 Keys on the ring{make === 'Tesla' && <span className="text-blue-600 dark:text-blue-400"> — key card</span>}
+              </span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map(n => (
+                  <button key={n} type="button" onClick={() => setKeyCount(effectiveKeyCount === n ? null : n)}
+                    className={`w-8 h-8 rounded-lg text-sm font-semibold border transition cursor-pointer ${effectiveKeyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Unit #</label>
@@ -298,22 +329,6 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               </div>
             )}
 
-            {/* The baseline the check-in diffs against. Set it HERE while the ring is in hand — a
-                car whose first count happens on an already-short return would otherwise seed its
-                baseline low and hide the loss. Optional: left blank, the first count seeds it. */}
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                🔑 Keys on the ring{make === 'Tesla' && <span className="text-blue-600 dark:text-blue-400"> — key card</span>}
-              </span>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map(n => (
-                  <button key={n} type="button" onClick={() => setKeyCount(effectiveKeyCount === n ? null : n)}
-                    className={`w-8 h-8 rounded-lg text-sm font-semibold border transition cursor-pointer ${effectiveKeyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Teslas register with EV assets unassessed — assessment is a logged
