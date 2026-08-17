@@ -37,6 +37,9 @@ export interface FleetVehicle {
   keyCount: number | null;
   /** The stored key-tag photo — null when the tag was never captured (fleet-health gap). */
   keytagPhotoUrl: string | null;
+  /** When the row was created — i.e. when Aaron registered the car. Carried so "registered today"
+   *  is derivable from real history rather than needing a snapshot (see `fleetTrend.ts`). */
+  createdAt: string | null;
 }
 
 /**
@@ -86,6 +89,7 @@ export interface FleetVehicleRow {
   rental_class: string | null;
   key_count?: number | null;
   keytag_photo_url?: string | null;
+  created_at?: string | null;
 }
 
 function fmtType(t: string): string {
@@ -201,6 +205,7 @@ export function buildFleetView(
       rentalClass:     v.rental_class,
       keyCount:        v.key_count ?? null,
       keytagPhotoUrl:  v.keytag_photo_url ?? null,
+      createdAt:       v.created_at ?? null,
     };
   });
 
@@ -216,7 +221,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url, created_at')
       .eq('branch_id', branchId)
       // Archived (sold/auctioned) cars are a separate concern everywhere else in the app
       // (VehicleHoldContext filters `!v.archivedAt`); the master view + its health counts

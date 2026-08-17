@@ -425,6 +425,39 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_daily_snapshot: {
+        Row: {
+          branch_id: string
+          captured_at: string
+          id: number
+          missing_keycount: number
+          missing_keytag: number
+          needs_backfill: number
+          snapshot_date: string
+          total: number
+        }
+        Insert: {
+          branch_id: string
+          captured_at?: string
+          id?: number
+          missing_keycount: number
+          missing_keytag: number
+          needs_backfill: number
+          snapshot_date: string
+          total: number
+        }
+        Update: {
+          branch_id?: string
+          captured_at?: string
+          id?: number
+          missing_keycount?: number
+          missing_keytag?: number
+          needs_backfill?: number
+          snapshot_date?: string
+          total?: number
+        }
+        Relationships: []
+      }
       fuel_pump_readings: {
         Row: {
           branch_id: string

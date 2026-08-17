@@ -6,6 +6,8 @@ import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
 import { FleetHealthChips } from './FleetHealthChips';
+import { useFleetTrend } from '../../hooks/useFleetTrend';
+import { cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
 import type { Screen } from '../../types';
 
 interface Props {
@@ -57,6 +59,19 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const cohortCounts = fleetCohortCounts(vehicles);
   const filtered = vehicles.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
 
+  // ── Movement, not just level ────────────────────────────────────────────────────────────────
+  // Two different sources, and the split is the point (see fleetTrend.ts / migration 115):
+  // registrations are real history off created_at and work from day one; the cohort arrows need a
+  // stored baseline and appear from the second snapshot onward.
+  const baseline = useFleetTrend({
+    branchId: user?.branchId ?? '', counts: cohortCounts, total: vehicles.length, ready: !loading && vehicles.length > 0,
+  });
+  const todayISO = toLocalDate(new Date());
+  const deltas = cohortDeltas(cohortCounts, baseline);
+  const sinceLabel = describeBaseline(baseline?.snapshotDate, todayISO);
+  const createdStamps = vehicles.map(v => v.createdAt);
+  const addedToday = registeredOn(createdStamps, todayISO);
+
   const toggleCollapsed = (status: FleetStatus) => {
     setCollapsed(prev => {
       const next = new Set(prev);
@@ -97,7 +112,22 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
 
       {/* Fleet-health pulse — tappable chips filter the list to each gap */}
       {vehicles.length > 0 && (
-        <FleetHealthChips total={vehicles.length} counts={cohortCounts} active={cohort} onSelect={setCohort} />
+        <FleetHealthChips total={vehicles.length} counts={cohortCounts} active={cohort} onSelect={setCohort} deltas={deltas} />
+      )}
+
+      {/* The trend line. Registrations are an ACTIVITY, not a gap, so they get a line rather than a
+          chip — there is nothing to filter the list down to. The "since" phrase names the real
+          baseline date, so a gap in snapshots reads as a gap instead of a confident "yesterday". */}
+      {vehicles.length > 0 && (addedToday > 0 || sinceLabel) && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
+          {addedToday > 0 && (
+            <span className="font-semibold text-gray-700 dark:text-gray-300">
+              ➕ {addedToday} registered today
+            </span>
+          )}
+          {addedToday > 0 && sinceLabel && <span> · </span>}
+          {sinceLabel && <span>arrows {sinceLabel}</span>}
+        </p>
       )}
 
       {/* No match — register CTA */}

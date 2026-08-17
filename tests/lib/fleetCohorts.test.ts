@@ -10,6 +10,7 @@ function v(over: Partial<FleetVehicle> = {}): FleetVehicle {
     status: 'clear', holdCount: 0, holdSummary: [], branchId: 'YWG',
     isTesla: false, isHybrid: false, hasMobileCable: null, hasJ1772Adapter: null,
     rentalClass: 'Q4', keyCount: 2, keytagPhotoUrl: 'https://x/tag.jpg',
+    createdAt: '2026-08-01T12:00:00Z',
     ...over,
   };
 }
