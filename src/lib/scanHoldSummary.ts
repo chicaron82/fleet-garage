@@ -25,15 +25,28 @@ export interface ScanHoldLine {
 }
 
 /**
- * The active holds on one vehicle, shaped for the scan card. Newest first, because the thing he
- * just flagged is the thing he's most likely standing there about.
+ * The LIVE holds on one vehicle, shaped for the scan card. Newest first, because the thing he just
+ * flagged is the thing he's most likely standing there about.
  *
- * ⚠️ ACTIVE ONLY. A repaired or returned hold is history, and history belongs on the vehicle
- * record — putting it in the scan card would bury the one line he actually needs under a log.
+ * ⚠️ "Live" means ACTIVE **or RELEASED**, and getting this wrong made the feature miss its own
+ * headline case. Aaron's ask opened with *"its an out on exception car"* — and an out-on-exception
+ * car's hold is **RELEASED**, not ACTIVE: releasing it is what let the car go out. Filtering to
+ * ACTIVE alone caught **9 holds out of 422** fleet-wide (199 are RELEASED) and showed nothing on
+ * exactly the cars he most needs told about (found live 2026-08-17, 561PIC — a hail car reading
+ * "⚠️ On exception" with no reason beside it).
+ *
+ * A RELEASED hold is not history — **the car is out there carrying that damage right now.** That's
+ * [[old-damage amnesia]], the thing FG exists to prevent.
+ *
+ * Still excluded, and deliberately: REPAIRED (fixed), RETURNED (came back, closed) and VOIDED
+ * (logged in error). Those are history and belong on the record — in the scan card they'd bury the
+ * one line he needs under a log.
  */
+const LIVE: readonly Hold['status'][] = ['ACTIVE', 'RELEASED'];
+
 export function scanHoldLines(holds: readonly Hold[], vehicleId: string): ScanHoldLine[] {
   return holds
-    .filter(h => h.vehicleId === vehicleId && h.status === 'ACTIVE')
+    .filter(h => h.vehicleId === vehicleId && LIVE.includes(h.status))
     .map(h => ({
       id: h.id,
       typeLabel: h.holdTypes.map(holdTypeLabel).join(' + '),

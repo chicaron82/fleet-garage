@@ -25,13 +25,31 @@ describe('scanHoldLines', () => {
     expect(line.typeLabel).toBe('Damage + Detail');
   });
 
-  it('only returns ACTIVE holds for THIS vehicle', () => {
+  it('returns LIVE holds for THIS vehicle — active AND released', () => {
     const holds = [
-      hold({ id: 'a' }),
+      hold({ id: 'a' }),                              // ACTIVE — held right now
+      hold({ id: 'r', status: 'RELEASED' }),          // out on exception — carrying it RIGHT NOW
       hold({ id: 'b', status: 'REPAIRED' }),          // history — belongs on the record, not the card
+      hold({ id: 'x', status: 'RETURNED' }),          // history
+      hold({ id: 'v', status: 'VOIDED' }),            // logged in error
       hold({ id: 'c', vehicleId: 'other' }),          // someone else's car
     ];
-    expect(scanHoldLines(holds, 'v1').map(l => l.id)).toEqual(['a']);
+    expect(scanHoldLines(holds, 'v1').map(l => l.id).sort()).toEqual(['a', 'r']);
+  });
+
+  it('⭐ shows the reason on an OUT-ON-EXCEPTION car — the headline case that was missing', () => {
+    // Live regression: 561PIC, a hail car, read "⚠️ On exception" with no reason beside it,
+    // because its hold is RELEASED (releasing it is what let the car go out) and the filter was
+    // ACTIVE-only. That caught 9 holds out of 422 fleet-wide and blanked exactly the cars that
+    // matter most — a car circulating WITH known damage.
+    const hail = hold({
+      status: 'RELEASED', holdTypes: ['hail'], damageDescription: 'Hail damage',
+      release: { releaseType: 'EXCEPTION', actualReturn: undefined } as Hold['release'],
+    });
+    const [line] = scanHoldLines([hail], 'v1');
+    expect(line.typeLabel).toMatch(/hail/i);
+    expect(line.detail).toBe('Hail damage');
+    expect(line.onException).toBe(true);
   });
 
   it('puts the NEWEST flag first — the likely reason he is standing there', () => {
