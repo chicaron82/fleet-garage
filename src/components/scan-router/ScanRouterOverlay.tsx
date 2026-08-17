@@ -90,10 +90,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // above writes through context, so re-resolving is what makes the card show the now-filled
   // identity instead of the blanks the tag was read against.
   const result = scanRead ? resolveKeytagScan(scanRead, vehicles) : null;
-  const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce) : [];
+
   const vehicle = result?.vehicle ?? null;
   const holdLines = vehicle ? scanHoldLines(holds, vehicle.id) : [];
   const activeHolds = holdLines.length;
+  // Computed AFTER holdLines: a held car gets a "Mark repaired" route at the top of the menu.
+  const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce, holdLines.length > 0) : [];
   // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
   // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
   const evScan = vehicle ? evAssetScanStatus(vehicle) : null;

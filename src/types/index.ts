@@ -369,7 +369,10 @@ export interface ScannedIdentity {
 export type Screen =
   | { name: 'dashboard' }
   | { name: 'my-day' }
-  | { name: 'vehicle'; vehicleId: string }
+  // `openRepair` is the scan-router deep-link: the scan card can send him straight to a held
+  // car's repair action instead of the top of the record. The OVERLAY still only routes — the
+  // vehicle module performs its own action, which is what keeps the thin-hub law intact.
+  | { name: 'vehicle'; vehicleId: string; openRepair?: boolean; openRepairNonce?: number }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; prefillNonce?: number }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity; scannedPhoto?: string }
   // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that

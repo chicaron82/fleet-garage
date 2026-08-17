@@ -122,3 +122,40 @@ describe('scanRouterActions', () => {
     expect(kinds(tooThin)).toContain('lnf');
   });
 });
+
+describe('scanRouterActions — the repair deep-link (held cars)', () => {
+  const onRecord: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
+  const actions = (held: boolean) => scanRouterActions(onRecord, resolveKeytagScan(onRecord, FLEET), 7, held);
+
+  it('offers NO repair route on a clean car', () => {
+    expect(actions(false).map(a => a.kind)).not.toContain('repair');
+  });
+
+  it('offers it FIRST on a held car — the likely reason he is standing there', () => {
+    const a = actions(true);
+    expect(a[0].kind).toBe('repair');
+    expect(a[0].label).toMatch(/repaired/i);
+  });
+
+  it('⭐ ROUTES rather than writing — the thin-hub law stays intact', () => {
+    // The overlay must never perform the repair itself; it hands the INTENT to the vehicle
+    // module, which owns the action. If this ever becomes a write in the scan card, that law
+    // is broken and this test is the place it should fail.
+    const repair = actions(true)[0];
+    expect(repair.screen).toMatchObject({ name: 'vehicle', vehicleId: expect.any(String), openRepair: true });
+  });
+
+  it('stamps the nonce so a REPEAT scan of the same tag re-opens the action', () => {
+    // Same trap as the prefill nonces: without it the destination sees an unchanged value and
+    // silently no-ops on the second scan.
+    const first = scanRouterActions(onRecord, resolveKeytagScan(onRecord, FLEET), 7, true)[0];
+    const second = scanRouterActions(onRecord, resolveKeytagScan(onRecord, FLEET), 8, true)[0];
+    expect(first.screen).toMatchObject({ openRepairNonce: 7 });
+    expect(second.screen).toMatchObject({ openRepairNonce: 8 });
+  });
+
+  it('still offers view / flag / trip alongside it', () => {
+    const k = actions(true).map(a => a.kind);
+    expect(k).toEqual(expect.arrayContaining(['repair', 'view', 'flag', 'lnf', 'trip']));
+  });
+});

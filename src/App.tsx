@@ -133,6 +133,8 @@ export default function App() {
         return (
           <VehicleHistory
             vehicleId={screen.vehicleId}
+            openRepair={screen.openRepair}
+            openRepairNonce={screen.openRepairNonce}
             onBack={() => navigate({ name: 'dashboard' })}
             onNewHold={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
           />

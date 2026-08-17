@@ -10,7 +10,7 @@ import type { KeytagScanResult } from './resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Screen } from '../types';
 
-export type ScanActionKind = 'register' | 'register-and-flag' | 'view' | 'flag' | 'lnf' | 'trip';
+export type ScanActionKind = 'register' | 'register-and-flag' | 'view' | 'flag' | 'lnf' | 'trip' | 'repair';
 
 export interface ScanAction {
   kind: ScanActionKind;
@@ -25,7 +25,14 @@ export interface ScanAction {
  * completely enough to register (else only Lost & Found makes sense). Returns [] for an unreadable
  * tag (no plate) — the overlay shows the read error instead.
  */
-export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, scanNonce: number): ScanAction[] {
+/**
+ * @param hasActiveHold — true when the scanned car is currently held. Adds the "Mark repaired"
+ *   route so a car he's standing at with the damage in front of him is one tap from its repair
+ *   action instead of a landing-at-the-top-of-the-record detour (Aaron, 2026-08-16).
+ *   ⚠️ It is a ROUTE, not a write: the overlay still only routes, and the vehicle module performs
+ *   its own action. That's what keeps the thin-hub law intact rather than bent.
+ */
+export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, scanNonce: number, hasActiveHold = false): ScanAction[] {
   const { plate, vehicle } = result;
   if (!plate) return [];
 
@@ -41,6 +48,13 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
   if (vehicle) {
     const who = vehicle.unitNumber ? `Unit ${vehicle.unitNumber}` : plate;
     return [
+      // Repair first when the car is held — it's the reason he's most likely standing there with
+      // the tag. `openRepairNonce` makes a repeat scan a distinct routing event, same as the
+      // prefill nonces: without it a second scan of the same tag would no-op at the destination.
+      ...(hasActiveHold
+        ? [{ kind: 'repair' as const, label: 'Mark repaired / done', icon: '✓',
+             screen: { name: 'vehicle' as const, vehicleId: vehicle.id, openRepair: true, openRepairNonce: scanNonce } }]
+        : []),
       { kind: 'view', label: `View ${who}`, icon: '🔎', screen: { name: 'vehicle', vehicleId: vehicle.id } },
       { kind: 'flag', label: 'Flag / hold', icon: '🔧', screen: { name: 'new-hold', vehicleId: vehicle.id, prefillNonce: scanNonce } },
       logLostFound,

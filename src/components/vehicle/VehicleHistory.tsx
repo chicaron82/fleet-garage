@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag, canMarkPreExisting } from '../../types';
@@ -19,6 +19,10 @@ import { HoldShareMenu } from '../holds/HoldShareMenu';
 
 interface Props {
   vehicleId: string;
+  /** Scan-router deep-link: arrive with the repair action already open (see Screen.openRepair). */
+  openRepair?: boolean;
+  /** Distinct per scan, so scanning the SAME tag twice re-opens the action instead of no-opping. */
+  openRepairNonce?: number;
   onBack: () => void;
   onNewHold: (vehicleId: string) => void;
 }
@@ -29,12 +33,28 @@ function holdActionLabel(holdTypes: string[]): string {
 }
 
 
-export function VehicleHistory({ vehicleId, onBack, onNewHold }: Props) {
+export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack, onNewHold }: Props) {
   const h = useVehicleHistory(vehicleId);
   const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity, unlockVehicleField } = useVehicleHoldContext();
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showEditSuggestion, setShowEditSuggestion] = useState(false);
   const [showDirectEdit, setShowDirectEdit]   = useState(false);
+  // ── Scan-router deep-link ──────────────────────────────────────────────────────────────────
+  // He scanned a held car's tag, saw "Damage · Windshield chip" on the card, and tapped
+  // "Mark repaired". THIS module opens its own action — the overlay only routed — which is what
+  // keeps the thin-hub law intact instead of putting a write inside the scan card.
+  //
+  // Fires once per NONCE, not once per mount: scanning the same tag twice must re-open the action,
+  // and the ref is what stops a re-render (or the holds refetching) from re-opening it underneath
+  // him mid-edit. Waits for repairableHolds to load, since they arrive async.
+  const openedForNonce = useRef<number | null>(null);
+  useEffect(() => {
+    if (!openRepair || h.repairableHolds.length === 0) return;
+    const key = openRepairNonce ?? 0;
+    if (openedForNonce.current === key) return;
+    openedForNonce.current = key;
+    h.openRepairAction();
+  }, [openRepair, openRepairNonce, h]);
 
 
   const { vehicle } = h;
