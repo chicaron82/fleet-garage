@@ -9,7 +9,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
-import { isOnExceptionStatus } from '../../lib/vehicle-status';
+import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
@@ -124,7 +124,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
   const vehicle = result?.vehicle ?? null;
   const holdLines = vehicle ? scanHoldLines(holds, vehicle.id) : [];
-  const activeHolds = holdLines.length;
+  // NOT "active" — holdLines is ACTIVE **or RELEASED** since 2026-08-17. The old name is what let
+  // a released hold speak as though it were holding the car. Count only; never the label.
+  const liveHolds = holdLines.length;
   // Computed AFTER holdLines: a held car gets a "Mark repaired" route at the top of the menu.
   const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce, holdLines.length > 0) : [];
   // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
@@ -187,15 +189,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     <p className="text-xs text-gray-600 dark:text-gray-300">
                       {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.color ? ` · ${vehicle.color}` : ''}
                     </p>
-                    <p className={`text-xs font-semibold mt-0.5 ${
-                      isOnExceptionStatus(vehicle.status) ? 'text-amber-700 dark:text-amber-400'
-                      : activeHolds > 0 ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-700 dark:text-green-400'
-                    }`}>
-                      {isOnExceptionStatus(vehicle.status) ? '⚠️ On exception'
-                        : activeHolds > 0 ? `🔧 On hold (${activeHolds})`
-                        : '✅ Clear'}
-                    </p>
+                    {/* Derived from the vehicle's STATUS, never from the hold count — see
+                        scanStatusLine.ts. The count only adds a suffix. */}
+                    {(() => {
+                      const line = scanStatusLine(vehicle.status, liveHolds);
+                      return <p className={`text-xs font-semibold mt-0.5 ${TONE_TEXT[line.tone]}`}>{line.text}</p>;
+                    })()}
                     {/* WHAT'S WRONG WITH IT — Aaron's ask (2026-08-16), the last gap in this card.
                         The overlay always had these holds in scope and counted them into "On hold
                         (2)", dropping the description: it said something's wrong, then made him
@@ -206,10 +205,14 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     {holdLines.length > 0 && (
                       <div className="mt-1.5 space-y-1">
                         {holdLines.map(l => (
+                          /* Tone follows the VEHICLE's status, not the hold's existence — an
+                             on-exception hold still overrides to amber because that car is out
+                             carrying the damage right now, which is the one thing worth shouting
+                             about regardless of what the record says. */
                           <div key={l.id} className={`rounded-lg px-2 py-1.5 text-xs ${
                             l.onException
-                              ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300'
-                              : 'bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-300'
+                              ? TONE_BLOCK.amber
+                              : TONE_BLOCK[scanStatusLine(vehicle.status, liveHolds).tone]
                           }`}>
                             <p className="font-semibold">
                               {l.onException ? '⚠️ Out on exception' : '🔧'} {l.typeLabel}
