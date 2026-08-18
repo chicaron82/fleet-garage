@@ -5,6 +5,7 @@
 // (a fleet class lookup), so this raw read leaves them empty and returns the class code.
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { shouldEscalate, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
@@ -23,7 +24,14 @@ interface FgResponse {
   json(body: unknown): void;
 }
 
-const VISION_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong vision model.
+// ── Two-tier reading ────────────────────────────────────────────────────────────────────────────
+// FIRST pass is cheap. Only a read FG can't check against the fleet pays for the strong model.
+// Measured on 40 of Aaron's real tags (2026-08-18, see api/_lib/keytagEscalation.ts for the full
+// numbers): haiku resolves to the right car 97.5% of the time, but is only 87.5% on the plate —
+// and opus was perfect on all 13 tags haiku found hard, 13-0. So the strong model IS better; it
+// just isn't worth 5.4x on a scan whose answer the fleet already knows.
+const FAST_MODEL   = 'claude-haiku-4-5';
+const STRONG_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong vision model.
 
 const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
@@ -142,8 +150,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     // connection blips) with jitter before giving up — so a busy-Anthropic moment self-heals here
     // instead of bubbling a scary error onto Aaron's shift screen. 4 tries covers a real spike.
     const anthropic = new Anthropic({ apiKey, maxRetries: 4 });
-    const message = await anthropic.messages.create({
-      model: VISION_MODEL,
+    const askModel = (model: string) => anthropic.messages.create({
+      model,
       max_tokens: 1024,
       system: PROMPT,
       tools: [REPORT_TOOL],
@@ -158,18 +166,50 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
         },
       ],
     });
+    const toolInput = (m: Anthropic.Message) =>
+      m.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')?.input;
 
-    // Credit tracker: log the cost of this read regardless of how the response is used below —
-    // a failed parse still burned the tokens, so recording it before the early-return keeps the
-    // ledger honest about spend the operator got nothing for.
-    void recordSpend(supabase, 'keytag-read', [priceUsage(VISION_MODEL, message.usage)]);
+    // ── Pass 1: the cheap read ──
+    const fast = await askModel(FAST_MODEL);
+    // Every call is logged the moment it returns, escalation or not — a failed parse still burned
+    // the tokens, and the ledger has to be honest about spend the operator got nothing for.
+    const spend = [priceUsage(FAST_MODEL, fast.usage)];
+    let usedModel = FAST_MODEL;
+    let input = toolInput(fast);
+    let read = input ? toKeytagRead(input) : null;
 
-    const toolUse = message.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    if (!toolUse) {
+    // ── Can the fleet confirm it? ──
+    // Not a confidence score — just "does this land on a car we already have". A matched read is
+    // corroborated by an independent record, which beats a second opinion from a bigger model.
+    // An unmatched one is a new car (where the read BECOMES the record) or a misread, and both
+    // want the strong model. The lookup is one indexed query on keys FG already resolves scans by.
+    let matched = false;
+    if (hasIdentityKey(read)) {
+      const plate = plateKey(read?.plate);
+      const unit = unitDigits(read?.unitNumber);
+      const ors = [plate && `license_plate.eq.${plate}`, unit && `unit_number.eq.${unit}`].filter(Boolean).join(',');
+      const { data: hit } = await supabase
+        .from('vehicles').select('id').is('archived_at', null).or(ors).limit(1);
+      matched = !!hit?.length;
+    }
+
+    // ── Pass 2, only when nothing corroborates it ──
+    if (shouldEscalate(read, matched)) {
+      const strong = await askModel(STRONG_MODEL);
+      spend.push(priceUsage(STRONG_MODEL, strong.usage));
+      usedModel = STRONG_MODEL;
+      const strongInput = toolInput(strong);
+      // Keep the cheap read only if the strong one returned nothing usable — never downgrade.
+      if (strongInput) { input = strongInput; read = toKeytagRead(strongInput); }
+    }
+
+    void recordSpend(supabase, 'keytag-read', spend);
+    void usedModel;
+
+    if (!read) {
       res.status(502).json({ error: "Couldn't read a key tag from that photo." });
       return;
     }
-    const read = toKeytagRead(toolUse.input);
     // The curated codex is tried first (in toKeytagRead). Only when it MISSES do we consult the
     // codes Aaron has taught — so a taught row fills a gap and can never silently override a
     // vetted mapping. One cheap keyed lookup, and only on the codes that would otherwise fail.

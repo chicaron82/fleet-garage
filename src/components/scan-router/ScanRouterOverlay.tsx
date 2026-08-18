@@ -179,10 +179,17 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   </p>
                 )}
                 <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-                  {/* On a unit-number match the TAG had no plate — but the car we resolved to does,
-                      and handing that plate back is the entire point of the fallback. Falling back
-                      to the record's plate keeps the header from opening with a bare "· Unit …". */}
-                  {result.plate || vehicle?.licensePlate || ''}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
+                  {/* ⭐ Once a vehicle RESOLVED, its record is authoritative for the plate — not the
+                      tag read. Two reasons, and the second one is new:
+                        • On a unit-number match the tag had no readable plate at all, and handing
+                          the record's plate back is the entire point of that fallback.
+                        • The reader now runs a cheap model first (api/keytag-read.ts), which is
+                          ~87.5% on plates against ~97.5% on unit numbers. So a read can resolve
+                          correctly VIA THE UNIT while carrying a misread plate — roughly 1 in 8.
+                          Showing the read's plate there would print a plate the car doesn't have,
+                          on a card he uses to identify the car in his hand.
+                      An UNresolved read still shows what was read, because that's all there is. */}
+                  {vehicle?.licensePlate || result.plate || ''}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
                 </p>
                 {vehicle ? (
                   <>
