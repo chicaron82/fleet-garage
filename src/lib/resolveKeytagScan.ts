@@ -4,6 +4,7 @@
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
+import { matchByUnitNumber } from './matchByUnitNumber';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
@@ -34,6 +35,12 @@ export interface KeytagScanResult {
   wasCorrected: boolean;
   /** The matched fleet vehicle, or null = not in the fleet (new). */
   vehicle: Vehicle | null;
+  /** The plate couldn't be read and the UNIT NUMBER identified the car instead. Surfaced on the
+   *  card — FG never resolves by a weaker key without saying which key did the work. */
+  matchedByUnit: boolean;
+  /** Two or more live vehicles carry the scanned unit, so nothing was matched. Not an error: the
+   *  operator picks. Empty on every normal scan. */
+  unitCandidates: Vehicle[];
   /** new | complete | partial (with fills/conflicts) — from resolveKeytag. */
   resolution: KeytagResolution;
 }
@@ -115,9 +122,23 @@ export function changeNote(changes: KeytagChange[]): string {
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {
   const raw = (read.plate ?? '').trim().toUpperCase().replace(/\s+/g, '');
   const plate = correctManitobaPrefix(read.plate ?? '');
-  const vehicle = plate
+  const byPlate = plate
     ? vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null
     : null;
+
+  // ── Unit-number fallback ────────────────────────────────────────────────────────────────────
+  // The tag carries TWO identity keys and this only ever used one. A crumpled or torn tag loses
+  // the plate long before it loses the unit number, and that is precisely the scan worth doing —
+  // a clean tag Aaron can read himself (2026-08-18, see matchByUnitNumber.ts).
+  //
+  // Strictly a FALLBACK: the plate is the primary key and wins whenever it matched, so a scan that
+  // resolves today keeps resolving to the same car. The unit is consulted only when the plate gave
+  // us nothing, and only an unambiguous hit is accepted — units are not unique in this fleet.
+  const unitMatch = byPlate ? { kind: 'none' as const } : matchByUnitNumber(read.unitNumber, vehicles);
+  const vehicle = byPlate ?? (unitMatch.kind === 'one' ? unitMatch.vehicle : null);
+  const matchedByUnit = !byPlate && unitMatch.kind === 'one';
+  const unitCandidates = unitMatch.kind === 'ambiguous' ? unitMatch.vehicles : [];
+
   const existing = vehicle
     ? { unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null }
     : null;
@@ -126,6 +147,8 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     plate,
     wasCorrected: plate !== raw,
     vehicle,
+    matchedByUnit,
+    unitCandidates,
     resolution: resolveKeytag(read, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
   };
 }

@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { logUnknownClassCode, teachClassCode } from '../../hooks/useUnknownClassCode';
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import { classCodeLessonFromScan, classCodeLearnedLabel } from '../../lib/classCodeLesson';
+import { matchedByUnitLabel } from '../../lib/matchByUnitNumber';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -60,7 +61,13 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     const base64 = await compressImage(file);
     setScanPhoto(base64);
     const read = await readKeytag(base64);
-    if (!read?.plate) { setErrMsg(error ?? 'Could not read that key tag — try again.'); return; }
+    // Bail only when the tag gave us NEITHER identity key. It used to bail on a missing plate
+    // alone — so a crumpled tag whose "Veh #" was perfectly legible reported "Could not read that
+    // key tag", about a car FG had on record. The scan hadn't failed; the check had.
+    if (!read?.plate && !read?.unitNumber?.trim()) {
+      setErrMsg(error ?? 'Could not read that key tag — try again.');
+      return;
+    }
     setScanRead(read);
     setScanNonce(++scanSeq); // distinct per scan → each "Start trip"/"Log L&F" re-seeds the destination
 
@@ -71,15 +78,20 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // mis-read plate lands on the right car, and so a known vehicle's id rides along.
     // Fire-and-forget by contract: a bookkeeping failure must never cost him a scan.
     const seen = resolveKeytagScan(read, vehicles);
+    // The plate the rest of this function should use. On a unit-number match the TAG had no
+    // readable plate, but the car we resolved to does — and both `recordSighting` and the geotab
+    // check guard on a non-empty plate, so passing the tag's blank would have made a unit-matched
+    // scan silently skip its sighting AND its geotab lookup. Widening the resolver reached these.
+    const effectivePlate = seen.plate || seen.vehicle?.licensePlate || '';
     void recordSighting({
-      plate: seen.plate,
+      plate: effectivePlate,
       vehicleId: seen.vehicle?.id ?? null,
       seenById: user?.id ?? null,
       seenByName: user?.name ?? null,
       branchId: seen.vehicle?.branchId ?? null,
     });
 
-    setGeotabPending(await checkGeotab(read.plate));
+    setGeotabPending(await checkGeotab(effectivePlate));
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
     // he routes to below (hold / view / trip) already sees a complete record. Blanks-only. Passing
     // the photo also lets backfill attach the tag to a known car that lacks one (universal capture,
@@ -165,7 +177,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   </p>
                 )}
                 <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-                  {result.plate}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
+                  {/* On a unit-number match the TAG had no plate — but the car we resolved to does,
+                      and handing that plate back is the entire point of the fallback. Falling back
+                      to the record's plate keeps the header from opening with a bare "· Unit …". */}
+                  {result.plate || vehicle?.licensePlate || ''}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
                 </p>
                 {vehicle ? (
                   <>
@@ -225,9 +240,37 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                       </div>
                     )}
                   </>
+                ) : result && result.unitCandidates.length > 0 ? (
+                  /* Two live cars carry the scanned unit and the plate was unreadable, so nothing
+                     was matched. Deliberately NOT a guess and NOT a failure — name the candidates
+                     and let him pick, because attaching a scan to the wrong car is the one outcome
+                     worse than not resolving. (Three such pairs exist in the fleet today.) */
+                  <div className="text-xs text-amber-700 dark:text-amber-400 space-y-1">
+                    <p className="font-semibold">
+                      ⚠️ Two cars carry unit #{result.unitCandidates[0].unitNumber} — and the plate wasn’t readable.
+                    </p>
+                    {result.unitCandidates.map(v => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => go({ name: 'vehicle', vehicleId: v.id })}
+                        className="block w-full text-left rounded-lg border border-amber-300 dark:border-amber-700 px-2 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition cursor-pointer"
+                      >
+                        <span className="font-mono font-semibold">{v.licensePlate}</span>
+                        <span className="opacity-80"> · {v.year} {v.make} {v.model} · {v.color}</span>
+                      </button>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
                     Not in the fleet{actions.some(a => a.kind === 'register') ? '' : ' — couldn’t read enough to register it'}
+                  </p>
+                )}
+                {/* Which key did the work. FG never resolves by the weaker key silently — if the
+                    plate was unreadable and the unit number found the car, say so. */}
+                {result?.matchedByUnit && (
+                  <p className="text-xs font-semibold mt-1 text-blue-700 dark:text-blue-400">
+                    🔎 {matchedByUnitLabel(true, scanRead?.unitNumber)}
                   </p>
                 )}
                 {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at
