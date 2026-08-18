@@ -67,9 +67,18 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           w-64 column instead of the viewport, and rendered ~224px wide with every label wrapped to
           three lines. The header's own guide modal looked fine because it lives outside this div,
           which is exactly what made the bug hard to see. Found 2026-08-17 while render-checking the
-          guide toggle, which had just moved a new row into that squeezed modal. `md:transform-none`
-          was tried first and is the wrong tool — it has to win a cascade race against
-          `-translate-x-full`, whereas scoping the translate to mobile means there is no race. */}
+          guide toggle, which had just moved a new row into that squeezed modal.
+
+          ⚠️ `md:transform-none` was tried first and does NOT work — and the reason matters, because
+          the obvious next guess (force it with `!`) is also wrong. Tailwind v4 emits
+          `-translate-x-full` as **`translate: var(--tw-translate-x) …`**, the standalone `translate`
+          property — while `transform-none` emits **`transform: none`**. Different properties
+          entirely, so there is no specificity fight to win; it simply never applies. (Verified by
+          grepping the built CSS, 2026-08-18, after an earlier version of this comment confidently
+          asserted a "cascade race" that does not exist.) And per spec a non-`none` `translate`
+          creates a containing block for fixed descendants exactly like `transform` does — which is
+          why the bug existed at all. Scoping the translate to `max-md:` leaves the property unset
+          at desktop, which is the only thing that actually fixes it. */}
       <div
         className={`fixed inset-y-0 left-0 z-40 w-64 max-md:transition-transform duration-200 md:static ${
           sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'

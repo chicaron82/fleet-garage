@@ -42,9 +42,19 @@ export function useWashbayHandoff(
     const loggedAt = new Date().toISOString();
     // Keyed on branch+date so re-opening the same day's close overwrites its own photo instead of
     // orphaning the first — the row itself upserts on the same pair.
+    //
+    // ⚠️ NO NEW PHOTO MUST MEAN "DON'T TOUCH", NOT "SET NULL". This first shipped as
+    // `data.photoUrl ?? null`, which looked like it preserved an existing photo — but the closing
+    // form never passes `photoUrl` back, so it resolved to null and **silently destroyed the photo
+    // any time he re-opened a same-day close to fix a car count.** Worse, the form kept displaying
+    // the old photo (via `existingUrl`) right up until save.
+    // The fix is structural rather than a reminder to callers: when there's no new photo we OMIT
+    // the column from the upsert entirely. Postgres' ON CONFLICT DO UPDATE only touches the
+    // columns supplied, so an absent `photo_url` leaves the stored one alone on an update and
+    // defaults to NULL on a fresh insert — both correct, and no caller can forget to pass it.
     const photoUrl = photo
       ? await uploadShiftLogPhoto(photo, `closing/${branchId}-${date}`)
-      : (data.photoUrl ?? null);
+      : null;
     try {
       const { data: row, error } = await writeWithRefresh(() =>
         supabase.from('washbay_logs').upsert({
@@ -62,7 +72,7 @@ export function useWashbayHandoff(
           shift_hours:         data.shiftHours,
           overtime_hours:      data.overtimeHours,
           lot_status:          data.lotStatus,
-          photo_url:           photoUrl,
+          ...(photoUrl ? { photo_url: photoUrl } : {}),
           airport_flipping:    data.airportFlipping,
           logged_by:           user!.id,
           logged_at:           loggedAt,
