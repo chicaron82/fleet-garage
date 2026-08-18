@@ -220,10 +220,16 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 🔑 Keys on the ring{make === 'Tesla' && <span className="text-blue-600 dark:text-blue-400"> — key card</span>}
               </span>
-              <div className="flex gap-1">
+              {/* 44px, the Apple/Google minimum touch target — swept here at the same time as the
+                  scan card's row (2026-08-18). These were 32px, 4px apart, and this row is now the
+                  FIRST thing he touches on the form, tapped with nitrile gloves on. Same buttons,
+                  same hands, same standard. */}
+              <div className="flex gap-2">
                 {[1, 2, 3, 4].map(n => (
                   <button key={n} type="button" onClick={() => setKeyCount(effectiveKeyCount === n ? null : n)}
-                    className={`w-8 h-8 rounded-lg text-sm font-semibold border transition cursor-pointer ${effectiveKeyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                    aria-pressed={effectiveKeyCount === n}
+                    aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
+                    className={`w-11 h-11 rounded-lg text-sm font-semibold border transition cursor-pointer ${effectiveKeyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
                     {n}
                   </button>
                 ))}

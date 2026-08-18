@@ -223,22 +223,44 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
                     {/* Key count surfaced HERE, tag in hand — not hidden behind opening the unit. If
                         it's unlogged, log the baseline right now (the moment of truth), so a future
-                        short return is detectable. (ticket-scan-keycount-surface.) */}
-                    {vehicle.keyCount != null ? (
-                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">🔑 {vehicle.keyCount} key{vehicle.keyCount === 1 ? '' : 's'} on the ring</p>
-                    ) : (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">🔑 Keys not logged —</span>
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4].map(n => (
-                            <button key={n} type="button" onClick={() => void recordKeyCount(vehicle.id, n)}
-                              className="w-6 h-6 rounded text-xs font-semibold border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer">
-                              {n}
-                            </button>
-                          ))}
-                        </div>
+                        short return is detectable. (ticket-scan-keycount-surface.)
+                        
+                        ⭐ THE ROW STAYS AFTER IT'S SET, with the current value lit. It used to
+                        collapse into static text the moment he tapped — so a mis-tap (gloves, cold,
+                        moving) could only be undone by leaving the card and opening the vehicle.
+                        The correction path vanished at exactly the moment it was needed.
+                        Aaron, 2026-08-18: *"sometimes I tap the wrong count so have to open it up
+                        to edit the key count number."*
+                        
+                        He also floated a confirmation step. Deliberately NOT built: it taxes the
+                        CORRECT path — the overwhelming majority of taps — to insure against the
+                        rare wrong one, and it contradicts the header's own rule that "scanning is
+                        one tap, not two". With gloves, a confirm dialog is just one more small
+                        target between him and done. **Make the mistake cheap instead of making the
+                        action expensive.** */}
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        🔑 {vehicle.keyCount != null
+                          ? `${vehicle.keyCount} key${vehicle.keyCount === 1 ? '' : 's'} on the ring —`
+                          : 'Keys not logged —'}
+                      </span>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4].map(n => (
+                          <button key={n} type="button" onClick={() => void recordKeyCount(vehicle.id, n)}
+                            aria-pressed={vehicle.keyCount === n}
+                            aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
+                            /* 44px — the Apple/Google minimum touch target. This was 24px, which is
+                               half the standard, spaced 4px apart, tapped with nitrile gloves on. */
+                            className={`w-11 h-11 rounded-lg text-sm font-semibold border transition cursor-pointer ${
+                              vehicle.keyCount === n
+                                ? 'bg-fg-yellow border-fg-yellow text-black'
+                                : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100'
+                            }`}>
+                            {n}
+                          </button>
+                        ))}
                       </div>
-                    )}
+                    </div>
                   </>
                 ) : result && result.unitCandidates.length > 0 ? (
                   /* Two live cars carry the scanned unit and the plate was unreadable, so nothing
