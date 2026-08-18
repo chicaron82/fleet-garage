@@ -80,10 +80,27 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     setEndTime(typeDefaults[t].end);
     // Mirror the preset into actual hours too, so the default is "worked as
     // scheduled" and the user only edits actual when their real hours differed.
-    actual.syncToScheduled(typeDefaults[t].start, typeDefaults[t].end);
+    //
+    // ⚠️ ONLY when the preset HAS times. day-off / pto / sick have `{ start: '', end: '' }`, and
+    // syncToScheduled sets both unconditionally — so flipping to Day Off blanked the actual hours.
+    // That was invisible while the actual-hours section was hidden for those types (the wipe was
+    // never rendered, never saved). The moment that section became visible for a day off — which
+    // is the whole point of the fix below — the blanking would have started overwriting real
+    // logged hours. A day-off's actual hours have nothing to mirror anyway: "I got called in on my
+    // Sunday" is not a variation on a scheduled preset.
+    const preset = typeDefaults[t];
+    if (preset.start && preset.end) actual.syncToScheduled(preset.start, preset.end);
   };
 
-  const showActual = shiftType !== null && !isDayOff && isPastOrToday;
+  // Actual hours show for EVERY type, day-off included. Hiding them for day-off/pto/sick made
+  // `calcOT`'s own rule unreachable through the UI: it grants ALL net hours as OT for exactly
+  // those types (`isFullDayShift(shiftType) || isStat`), and the sheet refused to collect the
+  // hours that rule needs. Aaron, 2026-08-18, after flipping a Sunday he was called in on:
+  // *"flipped to day off, but i don't see where i can log hours."*
+  //
+  // The SCHEDULED times stay hidden for these types and should — he wasn't scheduled. Actual
+  // times are the entire reason a day-off row would ever be opened after the fact.
+  const showActual = shiftType !== null && isPastOrToday;
 
   const handleSave = async () => {
     if (shiftType === null) {
