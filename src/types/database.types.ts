@@ -1323,6 +1323,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_changes: {
+        Row: {
+          changed: Json
+          changed_at: string
+          id: string
+          op: string
+          vehicle_id: string
+        }
+        Insert: {
+          changed: Json
+          changed_at?: string
+          id?: string
+          op: string
+          vehicle_id: string
+        }
+        Update: {
+          changed?: Json
+          changed_at?: string
+          id?: string
+          op?: string
+          vehicle_id?: string
+        }
+        Relationships: []
+      }
       vehicle_checkins: {
         Row: {
           branch_id: string
@@ -1565,6 +1589,7 @@ export type Database = {
           rental_class: string | null
           status: string
           unit_number: string | null
+          updated_at: string | null
           year: number
         }
         Insert: {
@@ -1599,6 +1624,7 @@ export type Database = {
           rental_class?: string | null
           status: string
           unit_number?: string | null
+          updated_at?: string | null
           year: number
         }
         Update: {
@@ -1633,6 +1659,7 @@ export type Database = {
           rental_class?: string | null
           status?: string
           unit_number?: string | null
+          updated_at?: string | null
           year?: number
         }
         Relationships: []
