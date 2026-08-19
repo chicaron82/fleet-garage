@@ -104,13 +104,17 @@ export function changeLines(row: VehicleChangeRow): ChangeLine[] {
 export function describeChangeTime(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return 'unknown time';
-  // ⚠️ Formatted by hand rather than via toLocaleTimeString: that reads the DEVICE locale, and it
-  // rendered "22:55" on the verify run. Aaron reads times as AM/PM — we converted nanays to 12-hour
-  // this same evening for exactly that reason — so a log that quietly shows 24-hour on one phone
-  // and 12-hour on another is both inconsistent with him and unpredictable.
-  const h24 = then.getHours();
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  const clock = `${h12}:${String(then.getMinutes()).padStart(2, '0')} ${h24 < 12 ? 'AM' : 'PM'}`;
+  // ⚠️ 24-HOUR, AND HAND-FORMATTED — two separate decisions, both made the hard way.
+  //
+  // Hand-formatted because `toLocaleTimeString` reads the DEVICE locale: the same log would render
+  // 12-hour on one phone and 24-hour on another, which is worse than either choice.
+  //
+  // 24-hour because **FG is 24-hour everywhere** — the hand-off card, the backdate sheet, the shift
+  // report, the off-standard report. I first wrote this as AM/PM, reasoning from the nanays form I
+  // had converted three hours earlier. That was the WRONG constraint to carry over: the AM/PM ask
+  // was his SISTER's, about HER kitchen's order sheet. Aaron reads 24-hour fine and asked for FG to
+  // stay consistent. A constraint belongs to a surface and an audience, not to a night.
+  const clock = `${String(then.getHours()).padStart(2, '0')}:${String(then.getMinutes()).padStart(2, '0')}`;
   const sameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 

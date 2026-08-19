@@ -1,5 +1,6 @@
 import { sentToFleet } from '../../lib/washbay-throughput';
 import type { WashbayLog } from '../../types';
+import { ShiftLogPhotoView } from './ShiftLogPhotoView';
 
 const COMPANY_STANDARD = 3.0;
 
@@ -64,19 +65,8 @@ export function ClosingLogSummary({ log, baseHours, isPeakSeason, heldToday, air
           <p className="text-xs text-gray-400 dark:text-gray-500 italic">Parked: "{log.nonRentablesNote}"</p>
         )}
 
-        {/* The board as it stood at close. Rendered full-width rather than as a thumbnail: at
-            thumbnail size you cannot count keys, and counting keys is the entire reason it's here.
-            A photo nobody can read back is write-only, which would make the capture pointless. */}
-        {log.photoUrl && (
-          <a href={log.photoUrl} target="_blank" rel="noreferrer" className="block">
-            <img
-              src={log.photoUrl}
-              alt="The lot at close"
-              className="w-full max-h-56 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-            />
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">📷 Logged with this close — tap to open full size</p>
-          </a>
-        )}
+        {/* The board as it stood at close — see ShiftLogPhotoView for why it renders full width. */}
+        <ShiftLogPhotoView url={log.photoUrl} alt="The lot at close" caption="Logged with this close" />
 
         <div className="space-y-1 text-sm pt-2 border-t border-gray-100 dark:border-gray-800">
           <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Airport pipeline</p>

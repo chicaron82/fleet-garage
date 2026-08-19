@@ -24,6 +24,7 @@ import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { LotStatus, HandoffNote } from '../../types';
+import { ShiftLogPhotoView } from '../washbay/ShiftLogPhotoView';
 import { canLogHandoff } from '../../types';
 
 // ── Style helpers ──────────────────────────────────────────────────────────────
@@ -75,6 +76,15 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
         <span>team of <strong>{latestHandoff.teamSize}</strong></span>
       </div>
       {latestHandoff.notes && <p className={`text-xs ${s.text} opacity-80`}>{latestHandoff.notes}</p>}
+
+      {/* ⚠️ THE HALF THAT WAS MISSING UNTIL 2026-08-18. The photo field shipped on BOTH shift logs
+          in `1c92130`, and only the closing log ever got a way to look at the result — so every
+          board photo taken at hand-off uploaded, saved, mapped back into this very object, and was
+          rendered by nothing. Aaron found it by asking "does the photo I take of the board show up
+          anywhere?", which no gate could have asked. Same renderer as the close, so the two can't
+          drift apart again. */}
+      <ShiftLogPhotoView url={latestHandoff.photoUrl} alt="The board at hand-off" caption="Logged with this hand-off" />
+
       <p className={`text-[10px] ${s.text} opacity-60`}>Logged by {latestHandoff.loggedByName} · {time}</p>
     </div>
   );

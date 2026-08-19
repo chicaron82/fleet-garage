@@ -73,19 +73,22 @@ describe('describeChangeTime', () => {
   const now = new Date(2026, 7, 18, 23, 0, 0); // Aug 18 2026, 11pm local
 
   it('⭐ carries a time of day — a window is what an incident is scoped by', () => {
-    expect(describeChangeTime(new Date(2026, 7, 18, 14, 5).toISOString(), now)).toBe('today 2:05 PM');
-    expect(describeChangeTime(new Date(2026, 7, 17, 9, 3).toISOString(), now)).toBe('yesterday 9:03 AM');
+    expect(describeChangeTime(new Date(2026, 7, 18, 14, 5).toISOString(), now)).toBe('today 14:05');
+    expect(describeChangeTime(new Date(2026, 7, 17, 9, 3).toISOString(), now)).toBe('yesterday 09:03');
   });
 
-  it('⭐ 12-hour, always — never whatever the device locale prefers', () => {
-    // The verify run rendered "22:55" through toLocaleTimeString. Aaron reads AM/PM (nanays was
-    // converted the same evening), and a format that changes per device is worse than either.
-    expect(describeChangeTime(new Date(2026, 7, 18, 22, 55).toISOString(), now)).toBe('today 10:55 PM');
-    expect(describeChangeTime(new Date(2026, 7, 18, 0, 5).toISOString(), now)).toBe('today 12:05 AM');
-    expect(describeChangeTime(new Date(2026, 7, 18, 12, 30).toISOString(), now)).toBe('today 12:30 PM');
+  it('⭐ 24-hour and device-independent — FG is 24-hour everywhere', () => {
+    // Two decisions in one line. Hand-formatted because toLocaleTimeString reads the DEVICE locale,
+    // so the same log would render differently phone to phone. 24-hour because every other clock in
+    // FG is (hand-off card, backdate sheet, shift report, off-standard report) — Aaron's call when
+    // I asked: he reads 24h fine and wants FG consistent. The AM/PM constraint I nearly carried in
+    // belonged to his SISTER's order sheet, not to this app.
+    expect(describeChangeTime(new Date(2026, 7, 18, 22, 55).toISOString(), now)).toBe('today 22:55');
+    expect(describeChangeTime(new Date(2026, 7, 18, 0, 5).toISOString(), now)).toBe('today 00:05');
+    expect(describeChangeTime(new Date(2026, 7, 18, 12, 30).toISOString(), now)).toBe('today 12:30');
   });
   it('falls back to a dated stamp further out', () => {
-    expect(describeChangeTime(new Date(2026, 7, 2, 9, 3).toISOString(), now)).toBe('Aug 2, 9:03 AM');
+    expect(describeChangeTime(new Date(2026, 7, 2, 9, 3).toISOString(), now)).toBe('Aug 2, 09:03');
   });
   it('does not throw on a junk timestamp', () => {
     expect(describeChangeTime('not-a-date', now)).toBe('unknown time');
