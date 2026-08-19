@@ -5,8 +5,8 @@
 // (a fleet class lookup), so this raw read leaves them empty and returns the class code.
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation';
-import { normalizeOwning } from './_lib/owningArea';
+import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation.js';
+import { normalizeOwning } from './_lib/owningArea.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';

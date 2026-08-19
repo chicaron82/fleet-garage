@@ -23,7 +23,7 @@
 // resolves to nothing is either a new car or a bad read, and both of those want the strong model.
 //
 // The check costs nothing extra — resolving a scan against the fleet is something FG already does.
-import type { KeytagRead } from './keytagRead';
+import type { KeytagRead } from './keytagRead.js';
 
 /** Digits only — tags print the unit spaced ("542 4882"), FG stores it joined. */
 export function unitDigits(raw: string | null | undefined): string {
