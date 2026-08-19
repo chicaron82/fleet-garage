@@ -20,17 +20,25 @@ interface Rate {
   output: number;
   /** Cache reads bill at a fraction of input; cache writes at a premium. */
   cacheRead: number;
+  /** A 5-minute cache write — 1.25x input. */
   cacheWrite: number;
+  /** ⚠️ A ONE-HOUR cache write is a DIFFERENT, higher rate — 2x input, not 1.25x.
+   *  Measured 2026-08-19: the API reports the two separately
+   *  (`usage.cache_creation.ephemeral_1h_input_tokens` vs `ephemeral_5m_input_tokens`) while this
+   *  table used to price both at the 5m rate. Nothing writes a 1h cache today, so it was never
+   *  wrong yet — but the ledger exists to not be quietly wrong, and a 40% under-report is exactly
+   *  the failure it was built to prevent. */
+  cacheWrite1h: number;
 }
 
 export const RATES: Readonly<Record<string, Rate>> = {
   // Effie's text/routing model (api/fg-chat.ts MODEL)
-  'claude-sonnet-4-6': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
+  'claude-sonnet-4-6': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75, cacheWrite1h: 6  },
   // Effie's vision model (api/fg-chat.ts VISION_MODEL) — keytag + damage reads
-  'claude-opus-4-8': { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+  'claude-opus-4-8': { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25, cacheWrite1h: 10  },
   // fg-schedule-parse's availability fallback (scheduleVisionRequest FALLBACK_VISION_MODEL)
-  'claude-sonnet-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-  'claude-haiku-4-5': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+  'claude-sonnet-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5, cacheWrite1h: 4  },
+  'claude-haiku-4-5': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, cacheWrite1h: 2  },
 };
 
 /** The token counts we price. Mirrors the shape of Anthropic's `message.usage`. */
@@ -39,6 +47,12 @@ export interface TokenUsage {
   output_tokens?: number | null;
   cache_read_input_tokens?: number | null;
   cache_creation_input_tokens?: number | null;
+  /** The 5m/1h split of `cache_creation_input_tokens`. Present on responses that wrote a cache;
+   *  the two bill at DIFFERENT rates, so pricing the total alone under-reports a 1h write. */
+  cache_creation?: {
+    ephemeral_5m_input_tokens?: number | null;
+    ephemeral_1h_input_tokens?: number | null;
+  } | null;
 }
 
 export interface SpendLine {
@@ -68,6 +82,12 @@ export function priceUsage(model: string, usage: TokenUsage | null | undefined):
   const outputTokens = n(usage?.output_tokens);
   const cacheReadTokens = n(usage?.cache_read_input_tokens);
   const cacheWriteTokens = n(usage?.cache_creation_input_tokens);
+  // Split the writes by TTL when the response reports it. A 1-hour write bills at 2x input while a
+  // 5-minute one bills at 1.25x — pricing every write at the cheaper rate would under-report by 40%
+  // on any request that used the long cache. Falls back to charging the whole thing at the 5m rate
+  // when the breakdown is absent, which is what every response looked like before this existed.
+  const write1h = n(usage?.cache_creation?.ephemeral_1h_input_tokens);
+  const write5m = usage?.cache_creation ? n(usage.cache_creation.ephemeral_5m_input_tokens) : cacheWriteTokens;
   const rate = RATES[model];
   if (!rate) {
     return { model, costUsd: 0, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, unpriced: true };
@@ -76,7 +96,8 @@ export function priceUsage(model: string, usage: TokenUsage | null | undefined):
     (inputTokens * rate.input +
       outputTokens * rate.output +
       cacheReadTokens * rate.cacheRead +
-      cacheWriteTokens * rate.cacheWrite) /
+      write5m * rate.cacheWrite +
+      write1h * rate.cacheWrite1h) /
     1_000_000;
   return { model, costUsd, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, unpriced: false };
 }
