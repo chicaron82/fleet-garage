@@ -6,6 +6,8 @@ import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
 import { FleetHealthChips } from './FleetHealthChips';
+import { FleetAuditPanel } from './FleetAuditPanel';
+import { useFleetAudit } from '../../hooks/useFleetAudit';
 import { useFleetTrend } from '../../hooks/useFleetTrend';
 import { cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
 import type { Screen } from '../../types';
@@ -63,6 +65,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   // Two different sources, and the split is the point (see fleetTrend.ts / migration 115):
   // registrations are real history off created_at and work from day one; the cohort arrows need a
   // stored baseline and appear from the second snapshot onward.
+  const audit = useFleetAudit(vehicles, user?.branchId);
+
   const baseline = useFleetTrend({
     branchId: user?.branchId ?? '', counts: cohortCounts, total: vehicles.length, ready: !loading && vehicles.length > 0,
   });
@@ -109,6 +113,11 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
         />
         <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />
       </div>
+
+      {/* Records that contradict each other — silent unless there are any. Sits ABOVE the health
+          chips deliberately: a chip counts a GAP (no key count yet), this counts a CONTRADICTION,
+          and a contradiction is the one FG can be actively wrong about. */}
+      <FleetAuditPanel findings={audit.findings} loaded={audit.loaded} onDismiss={audit.dismiss} onNavigate={onNavigate} />
 
       {/* Fleet-health pulse — tappable chips filter the list to each gap */}
       {vehicles.length > 0 && (

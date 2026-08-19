@@ -398,6 +398,30 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_audit_dismissals: {
+        Row: {
+          branch_id: string | null
+          dismissed_at: string
+          dismissed_by: string | null
+          finding_key: string
+          note: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          dismissed_at?: string
+          dismissed_by?: string | null
+          finding_key: string
+          note?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          dismissed_at?: string
+          dismissed_by?: string | null
+          finding_key?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       fleet_balance: {
         Row: {
           date: string
