@@ -30,6 +30,8 @@ export interface VehicleHoldContextValue {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
+  /** Record the owning branch read off a tag, if the vehicle has none yet. See owningAreaWrite. */
+  recordOwningArea: (vehicleId: string, owningArea: string) => Promise<void>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;

@@ -6,6 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { shouldEscalate, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation';
+import { normalizeOwning } from './_lib/owningArea';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
@@ -36,7 +37,10 @@ const STRONG_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong v
 const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
 Fields the tag MAY carry (read the ones present):
-- RENTAL CLASS: a short 1–3 char size/type group code (e.g. "Q4", "P4", "T", "L2", "B"), usually at the top next to a branch number. Printed: "WINNIPEG / 08199  Q4". Handwritten: often just "8199  B" (branch number, then the class). Report the short class code — NOT the branch number.
+- OWNING AREA + RENTAL CLASS — the top line carries BOTH, report them separately:
+  • OWNING AREA: the 4–5 digit branch number that owns the vehicle ("08199", "8193"). Report the digits.
+  • RENTAL CLASS: the short 1–3 char size/type group beside it ("Q4", "P4", "T", "L2", "B").
+  Printed: "WINNIPEG / 08199  Q4" → owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B". Do NOT put the branch number in rentalClass.
 - UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
 - LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
 - MAKE / MODEL — the ONE real difference between the two formats:
@@ -57,7 +61,8 @@ const REPORT_TOOL: Anthropic.Tool = {
       plate: { type: 'string', description: 'License plate ("Lic Plate"), exactly as printed. "" if not legible.' },
       unitNumber: { type: 'string', description: 'Unit number ("Veh #"), digit groups joined. "" if not legible.' },
       classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
-      rentalClass: { type: 'string', description: 'The rental class by the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
+      rentalClass: { type: 'string', description: 'The rental class beside the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
+      owningArea: { type: 'string', description: 'The 4–5 digit OWNING branch number on that same top line, e.g. "08199", "8193". Digits only. "" if not legible.' },
       make: { type: 'string', description: 'Make — ONLY when written on the tag (handwritten) or unambiguous from a written model (Versa→Nissan). "" on a printed tag (make is derived from the class code downstream).' },
       model: { type: 'string', description: 'Model — when written DIRECTLY on the tag (handwritten, e.g. "Versa"). "" on a printed tag (derived from the class code).' },
       year: { type: 'integer', description: 'Model year from the class line (e.g. 2025). 0 if not legible.' },
@@ -70,6 +75,7 @@ const REPORT_TOOL: Anthropic.Tool = {
 
 interface RawKeytag {
   plate?: string;
+  owningArea?: string;
   unitNumber?: string;
   classCode?: string;
   rentalClass?: string;
@@ -95,6 +101,9 @@ function toKeytagRead(input: unknown): KeytagRead {
     unitNumber: s(r.unitNumber),
     classCode,
     rentalClass: s(r.rentalClass)?.toUpperCase(),
+    // Normalized here (leading zero stripped) so the stored value is one shape regardless of
+    // whether the tag printed "08199" or "8199".
+    owningArea: normalizeOwning(r.owningArea) || undefined,
     // Printed tag: make/model DERIVED from the class code (codex wins). Handwritten tag: no code,
     // but the model is written directly — fall back to the read's own make/model.
     make: vc?.make ?? s(r.make),

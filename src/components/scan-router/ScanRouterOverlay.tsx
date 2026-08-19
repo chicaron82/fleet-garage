@@ -37,7 +37,7 @@ let scanSeq = 0;
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { user } = useAuth();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -97,6 +97,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // the photo also lets backfill attach the tag to a known car that lacks one (universal capture,
     // if-missing) — one choke-point instead of a separate attach call here.
     void backfillFromRead(read, base64);
+    // The owning branch — read off the tag's class line, discarded by this app until 2026-08-18.
+    // If-missing and fire-and-forget: it accumulates as he scans, and a car's owning survives a
+    // re-plate, so the first good read is the one that counts. See context/owningAreaWrite.
+    if (read.owningArea && seen.vehicle && !seen.vehicle.owningArea) {
+      void recordOwningArea(seen.vehicle.id, read.owningArea);
+    }
     // ── The codex's missing drain ── A class code the codex can't resolve is why registration
     // degrades. Two outcomes, and only one of them used to exist:
     //   • The car is ALREADY on record with a make/model → the record IS the answer. Teach the

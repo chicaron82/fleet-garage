@@ -53,6 +53,7 @@ export function mapVehicle(row: Row): Vehicle {
     fieldSources: (row['field_sources'] as Record<string, FieldSource>) ?? {},
     keyCount:     (row['key_count'] as number | null) ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
+    owningArea:     nullableStr(row, 'owning_area'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
     isTesla:        (row['is_tesla'] as boolean)          ?? false,

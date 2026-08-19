@@ -5,6 +5,10 @@
 // fleet. The field set mirrors NewVehicle (the register proposal) so a read flows
 // straight into registration or backfill.
 export interface KeytagRead {
+  /** The OWNING branch number off the tag's top line ("8199" Winnipeg, "8193" Calgary…),
+   *  normalized to digits without the printed leading zero. Undefined when not legible.
+   *  Captured 2026-08-18 — the line was always read and the number always discarded. */
+  owningArea?: string;
   /** License plate ("Lic Plate") — the match key. The caller normalizes
    *  (correctManitobaPrefix) and looks up an existing vehicle by this before resolving. */
   plate?: string;

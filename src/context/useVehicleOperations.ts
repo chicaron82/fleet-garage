@@ -12,6 +12,7 @@ import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
 import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
+import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
@@ -124,6 +125,11 @@ export function useVehicleOperations({
   // See ./fieldUnlockWrite.
   const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });
   const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
+  // Records the owning branch off a scanned tag, if-missing. See ./owningAreaWrite.
+  const recordOwningArea = makeRecordOwningArea({
+    setAllVehicles,
+    currentOwning: id => allVehicles.find(v => v.id === id)?.owningArea,
+  });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
     setAllVehicles,
     currentKeytagUrl: id => allVehicles.find(v => v.id === id)?.keytagPhotoUrl,
@@ -326,6 +332,7 @@ export function useVehicleOperations({
     unlockVehicleField,
     recordKeyCount,
     attachKeytagPhotoIfMissing,
+    recordOwningArea,
     releaseUnitNumber,
     addHold,
     addRelease,

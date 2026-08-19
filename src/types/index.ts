@@ -177,6 +177,11 @@ export interface Vehicle {
   /** Rental class — the boss's size/type group code (Q4, P4, T, L2…), read off the keytag's
    *  top corner. The shorthand the boss uses to request returns; null when unknown/manual. */
   rentalClass?: string | null;
+  /** The branch that OWNS this car — the number beside the class on the tag ("8199" Winnipeg,
+   *  "8193" Calgary…). Null on every vehicle registered before 2026-08-18; it fills in as tags get
+   *  scanned, is never backfilled, and is never DERIVED from the unit prefix (those rotate — see
+   *  api/_lib/owningArea.ts). A one-way car kept and re-plated to MB keeps its original owning. */
+  owningArea?: string | null;
   /** Per-field provenance for the key-tag identity fields (make/model/year/color/rentalClass/
    *  unitNumber): which source last set each value. Absent key = inferred/unknown (freely
    *  overwritten); 'tag' = read off a key tag; 'manual' = Aaron edited it (LOCKED — no scan
