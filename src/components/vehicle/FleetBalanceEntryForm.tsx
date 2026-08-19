@@ -45,9 +45,13 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
 
   if (todayEntry && !editing) {
     // Show summary with edit button
+    // hour12:false EXPLICITLY. 'en-CA' DEFAULTS to 12-hour, so omitting it rendered "04:13 p.m."
+    // directly above the hand-off card's "16:13" on the same screen. Every other clock in FG passes
+    // this flag; these two just never did. Aaron's call (2026-08-18): keep FG consistently 24-hour.
     const enteredTime = new Date(todayEntry.enteredAt ?? 0).toLocaleTimeString('en-CA', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
 
     return (

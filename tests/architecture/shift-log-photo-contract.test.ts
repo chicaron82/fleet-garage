@@ -59,6 +59,19 @@ describe('shift-log photo: every capture has a display', () => {
     }
   });
 
+  it('⭐ a shift-log photo outlives its own day', () => {
+    // Both live surfaces guard to TODAY (the hand-off card's isToday, and ClosingLogSummary only
+    // rendering inside today's form), so without a history surface a board photo is viewable for
+    // one shift and then effectively gone — and "what did the board look like" is a question mostly
+    // asked the NEXT morning. The washbay history is where a day's record already lives.
+    const history = readFileSync(join(SRC, 'components/washbay/WashbayHistorySection.tsx'), 'utf8');
+    expect(
+      history.includes('<DayShiftPhotos'),
+      'WashbayHistorySection no longer discloses past board photos — a photo would again be ' +
+      'visible only on the day it was taken.',
+    ).toBe(true);
+  });
+
   it('the display component renders an <img>, not just a link', () => {
     // Guards the seasoning as well as the wiring: the point is that he can READ the key board, so
     // a bare "photo attached" link would technically satisfy the census and still fail the operator.

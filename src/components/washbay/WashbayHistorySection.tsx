@@ -7,6 +7,7 @@ import { convertToBackendFormat, convertFromBackend } from '../../lib/gas-sheet'
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { businessDateOf } from '../../lib/shiftDay';
 import { BackfillEntryForm, type BackfillFormState } from './BackfillEntryForm';
+import { DayShiftPhotos } from './DayShiftPhotos';
 import {
   type BackfillEntry,
   findLatestBackfill,
@@ -251,7 +252,9 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
                         const color = partialRate >= COMPANY_STANDARD
                           ? 'text-green-600 dark:text-green-400'
                           : partialRate >= 2.5 ? 'text-amber-500' : 'text-red-500 dark:text-red-400';
-                        const handoffTime = new Date(row.handoff.loggedAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+                        // hour12:false EXPLICITLY — 'en-CA' defaults to 12-hour, so omitting it printed "4:13 p.m."
+                        // beside FG's 24-hour clocks everywhere else. Aaron asked for FG to stay consistent.
+                        const handoffTime = new Date(row.handoff.loggedAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
                         return (
                           <div className="flex items-center gap-3 text-xs flex-wrap">
                             <span className="text-gray-700 dark:text-gray-300 font-medium">{carsIn} cleaned</span>
@@ -275,6 +278,11 @@ export function WashbayHistorySection({ washbayLogs, handoffNotes }: Props) {
                       </button>
                     )}
                   </div>
+
+                  {/* The board as it stood that day — see DayShiftPhotos for why it discloses
+                      rather than previews. Backfill entries carry no photo: they're typed in
+                      after the fact, so only a real log ever has one. */}
+                  <DayShiftPhotos handoffUrl={row.handoff?.photoUrl} closingUrl={row.primary?.photoUrl} />
 
                   {isOpen && (
                     <BackfillEntryForm
