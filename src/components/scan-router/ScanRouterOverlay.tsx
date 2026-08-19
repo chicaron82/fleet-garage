@@ -285,7 +285,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                      worse than not resolving. (Three such pairs exist in the fleet today.) */
                   <div className="text-xs text-amber-700 dark:text-amber-400 space-y-1">
                     <p className="font-semibold">
-                      ⚠️ Two cars carry unit #{result.unitCandidates[0].unitNumber} — and the plate wasn’t readable.
+                      ⚠️ {result.unitCandidates.length} cars carry unit #{result.unitCandidates[0].unitNumber} — and the plate wasn’t readable.
                     </p>
                     {result.unitCandidates.map(v => (
                       <button

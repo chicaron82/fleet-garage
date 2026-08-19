@@ -35,6 +35,38 @@ export function plateKey(raw: string | null | undefined): string {
   return (raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
+/** The columns a fleet lookup has to bring back for the read to be checked against it. */
+export type FleetHit = { id: string; license_plate: string | null; unit_number: string | null };
+
+/**
+ * Does the fleet actually CORROBORATE this read — or does it merely brush against it?
+ *
+ * ⚠️ The hole this closes (found at /reflect 58, hours after shipping): the first version asked
+ * only "did plate OR unit hit any car", which is a weaker question than it looks. Haiku reads a
+ * plate right 87.5% of the time, and the plates in this fleet are near-neighbours by construction
+ * (LUR489 / LUR480 / LUR189 are all live). So a single-character misread can land on a DIFFERENT
+ * REAL CAR — the lookup says "matched", escalation is skipped, and FG resolves the scan to the
+ * wrong vehicle with full confidence. That is worse than not resolving at all, and it was exactly
+ * the failure the escalation was written to prevent.
+ *
+ * The comment above claims the tag's safety comes from "mutually confirming keys". This function
+ * is that claim implemented instead of asserted: when the tag gave both a plate and a unit, the
+ * car the PLATE found must itself carry the unit that was read. One key landing somewhere while
+ * the other lands elsewhere (or nowhere) means at least one field was misread — escalate.
+ *
+ * When only one key survived the tag (the crumpled-tag case), a single hit is all the
+ * corroboration that exists, and it stays sufficient.
+ */
+export function corroborates(read: KeytagRead | null | undefined, hits: readonly FleetHit[]): boolean {
+  const plate = plateKey(read?.plate);
+  const unit = unitDigits(read?.unitNumber);
+  const byPlate = plate ? hits.find(h => plateKey(h.license_plate) === plate) : undefined;
+
+  if (plate && unit) return !!byPlate && unitDigits(byPlate.unit_number) === unit;
+  if (plate) return !!byPlate;
+  return !!unit && hits.some(h => unitDigits(h.unit_number) === unit);
+}
+
 /** What a cheap read has to offer before it's even worth a fleet lookup. */
 export function hasIdentityKey(read: KeytagRead | null | undefined): boolean {
   return !!plateKey(read?.plate) || !!unitDigits(read?.unitNumber);

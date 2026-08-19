@@ -5,7 +5,7 @@
 // (a fleet class lookup), so this raw read leaves them empty and returns the class code.
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { shouldEscalate, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation';
+import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation';
 import { normalizeOwning } from './_lib/owningArea';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
@@ -197,9 +197,12 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       const plate = plateKey(read?.plate);
       const unit = unitDigits(read?.unitNumber);
       const ors = [plate && `license_plate.eq.${plate}`, unit && `unit_number.eq.${unit}`].filter(Boolean).join(',');
-      const { data: hit } = await supabase
-        .from('vehicles').select('id').is('archived_at', null).or(ors).limit(1);
-      matched = !!hit?.length;
+      // Bring back the keys themselves, not just a row count — `corroborates` has to check that
+      // the plate and the unit landed on the SAME car. A plate is unique and a unit is shared by
+      // at most two live vehicles today, so 4 rows is headroom, not a guess.
+      const { data: hits } = await supabase
+        .from('vehicles').select('id, license_plate, unit_number').is('archived_at', null).or(ors).limit(4);
+      matched = corroborates(read, hits ?? []);
     }
 
     // ── Pass 2, only when nothing corroborates it ──
