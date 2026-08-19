@@ -13,6 +13,7 @@ import { VehicleLostFoundSection } from './VehicleLostFoundSection';
 import { VehicleDirectEditModal } from './VehicleDirectEditModal';
 import { VehicleArchiveModal } from './VehicleArchiveModal';
 import { VehicleRecordFacts } from './VehicleRecordFacts';
+import { VehicleChangeLog } from './VehicleChangeLog';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
 
@@ -263,6 +264,8 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
         />
 
         <VehicleLostFoundSection vehicle={vehicle} />
+
+        <VehicleChangeLog vehicleId={vehicle.id} />
 
         {showArchiveConfirm && (
           <VehicleArchiveModal
