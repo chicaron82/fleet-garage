@@ -36,7 +36,7 @@ interface Props {
 let scanSeq = 0;
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
-  const { readKeytag, status, error } = useKeytagRead();
+  const { readKeytag, status, error, errorRef } = useKeytagRead();
   const { user } = useAuth();
   const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
@@ -66,7 +66,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // alone — so a crumpled tag whose "Veh #" was perfectly legible reported "Could not read that
     // key tag", about a car FG had on record. The scan hadn't failed; the check had.
     if (!read?.plate && !read?.unitNumber?.trim()) {
-      setErrMsg(error ?? 'Could not read that key tag — try again.');
+      setErrMsg(errorRef.current ?? error ?? 'Could not read that key tag — try again.');
       return;
     }
     setScanRead(read);

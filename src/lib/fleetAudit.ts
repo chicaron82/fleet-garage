@@ -168,7 +168,11 @@ export function auditFleet(
     if (v.keyCount === null || v.keyCount === undefined) continue;   // never counted is a gap, not a contradiction
     if (v.keyCount === TESLA_KEYCARD_COUNT) continue;
     findings.push({
-      key: `tesla-key-count:${v.id}`,
+      // ⚠️ Keyed on the PLATE, not the row id. The contract at the top of this file says keys derive
+      // from identifiers so a dismissal survives a record being re-registered — and this one quietly
+      // broke it (found at /reflect 59, the same "documented a property the code doesn't uphold"
+      // shape as R58's cascade-race comment, two days running).
+      key: `tesla-key-count:${normalizePlate(v.licensePlate)}`,
       kind: 'tesla-key-count',
       title: `${v.licensePlate} is a Tesla recorded with ${v.keyCount} keycards`,
       detail: v.keyCount < TESLA_KEYCARD_COUNT

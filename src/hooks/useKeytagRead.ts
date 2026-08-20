@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
@@ -19,9 +19,17 @@ export function useKeytagRead() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [read, setRead] = useState<KeytagRead | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // ⚠️ A REF ALONGSIDE THE STATE, and it is not redundant. Callers read the message inside the same
+  // async handler that awaited readKeytag — a closure created BEFORE setError ran — so the state
+  // they see is always the stale one (empty). The overlay's `error ?? 'Could not read that key tag'`
+  // therefore showed the generic fallback for EVERY failure, including "the scanner is busy right
+  // now, try again in a moment", which is transient and worth retrying. He re-photographed a tag
+  // that was never the problem (found at /reflect 59; the 19-hour outage surfaced it).
+  const errorRef = useRef<string | null>(null);
 
   const readKeytag = useCallback(async (image: string): Promise<KeytagRead | null> => {
     setStatus('reading');
+    errorRef.current = null;
     setError(null);
     setRead(null);
     try {
@@ -57,7 +65,9 @@ export function useKeytagRead() {
       }
       throw new Error('The scanner is busy right now — try again in a moment.');
     } catch (e) {
-      setError(friendlyError(e instanceof Error ? e.message : 'Could not read the key tag.'));
+      const msg = friendlyError(e instanceof Error ? e.message : 'Could not read the key tag.');
+      errorRef.current = msg;
+      setError(msg);
       setStatus('error');
       return null;
     }
@@ -69,5 +79,5 @@ export function useKeytagRead() {
     setError(null);
   }, []);
 
-  return { status, read, error, readKeytag, reset };
+  return { status, read, error, errorRef, readKeytag, reset };
 }
