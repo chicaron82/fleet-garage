@@ -16,17 +16,22 @@
 // exists to prevent (project_fg_old_damage_amnesia). Every finding names the records and leaves the
 // call to the operator.
 
+import { TESLA_KEYCARD_COUNT } from './keyCount';
+
 export interface AuditVehicle {
   id: string;
+  /** A Tesla's key count is not a preference — it is always exactly one (see lib/keyCount). */
+  isTesla?: boolean;
   unitNumber: string | null;
   licensePlate: string;
   make: string;
   model: string;
   year: number;
   color: string;
+  keyCount?: number | null;
 }
 
-export type FleetAuditKind = 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate';
+export type FleetAuditKind = 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate' | 'tesla-key-count';
 
 export interface FleetAuditFinding {
   /** Stable across runs so a dismissal sticks. Derived from the kind + the identifiers, never from
@@ -152,6 +157,24 @@ export function auditFleet(
         ? 'Same year, make and model too — one of these plates was very likely read wrong.'
         : 'The vehicles differ, so this may be a coincidence worth confirming rather than a misread.',
       vehicles: group,
+    });
+  }
+
+  // ── 4. A Tesla whose key count isn't one ───────────────────────────────────────────────────
+  // Not a gap — a contradiction. A Tesla carries exactly one keycard, so any other number means the
+  // record is wrong or the card is gone, and a gone card means the car cannot be driven at all.
+  for (const v of vehicles) {
+    if (!v.isTesla) continue;
+    if (v.keyCount === null || v.keyCount === undefined) continue;   // never counted is a gap, not a contradiction
+    if (v.keyCount === TESLA_KEYCARD_COUNT) continue;
+    findings.push({
+      key: `tesla-key-count:${v.id}`,
+      kind: 'tesla-key-count',
+      title: `${v.licensePlate} is a Tesla recorded with ${v.keyCount} keycards`,
+      detail: v.keyCount < TESLA_KEYCARD_COUNT
+        ? 'A Tesla cannot be driven without its card — if it is genuinely missing, this car is grounded.'
+        : 'A Tesla carries exactly one keycard, so this count cannot be right.',
+      vehicles: [v],
     });
   }
 

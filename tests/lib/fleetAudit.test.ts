@@ -102,3 +102,31 @@ describe('auditSummary', () => {
     expect(auditSummary(auditFleet([rogueGood, rogueBad, kiaGood, kiaBad]))).toBe('2 records need a look');
   });
 });
+
+describe('a Tesla whose key count is not one', () => {
+  const tesla = (o: Partial<AuditVehicle> & { id: string }): AuditVehicle =>
+    v({ isTesla: true, make: 'Tesla', model: 'Model 3', year: 2022, color: 'Red', ...o });
+
+  it('⭐ flags a Tesla recorded with more than one card', () => {
+    const [f] = auditFleet([tesla({ id: 't1', licensePlate: '0GE608', keyCount: 2 })]);
+    expect(f.kind).toBe('tesla-key-count');
+    expect(f.detail).toMatch(/exactly one keycard/);
+  });
+
+  it('⭐ a Tesla short of its card reads as GROUNDED, not as a miscount', () => {
+    const [f] = auditFleet([tesla({ id: 't2', licensePlate: '0GE608', keyCount: 0 })]);
+    expect(f.detail).toMatch(/grounded/i);
+  });
+
+  it('says nothing about a correct Tesla, or one never counted', () => {
+    // Never-counted is a GAP (the fleet-health chips own that), not a contradiction. Reporting it
+    // here would put every unscanned Tesla in an alarm list and teach him to close the alarm list.
+    expect(auditFleet([tesla({ id: 't3', licensePlate: '0GE608', keyCount: 1 })])).toEqual([]);
+    expect(auditFleet([tesla({ id: 't4', licensePlate: '0GE608', keyCount: null })])).toEqual([]);
+  });
+
+  it('leaves non-Teslas alone — four keys on a Carnival is normal', () => {
+    expect(auditFleet([v({ id: 'c1', licensePlate: 'LUR900', keyCount: 4 })])).toEqual([]);
+  });
+});
+

@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
+import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
@@ -256,12 +257,15 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         action expensive.** */}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        🔑 {vehicle.keyCount != null
-                          ? `${vehicle.keyCount} key${vehicle.keyCount === 1 ? '' : 's'} on the ring —`
-                          : 'Keys not logged —'}
+                        {vehicle.isTesla ? '⚡' : '🔑'} {vehicle.keyCount != null
+                          ? `${vehicle.keyCount} ${keyNoun(vehicle.isTesla, vehicle.keyCount)} —`
+                          : vehicle.isTesla ? 'Keycard not logged —' : 'Keys not logged —'}
                       </span>
                       <div className="flex gap-2">
-                        {[1, 2, 3, 4].map(n => (
+                        {/* A Tesla carries exactly ONE keycard, so 2/3/4 are questions with no true
+                            answer — and this row is tapped with gloves on. Offering only the real
+                            option removes the mis-tap instead of asking him to avoid it. */}
+                        {keyOptionsFor(vehicle.isTesla).map(n => (
                           <button key={n} type="button" onClick={() => void recordKeyCount(vehicle.id, n)}
                             aria-pressed={vehicle.keyCount === n}
                             aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}

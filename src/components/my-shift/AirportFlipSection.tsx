@@ -15,7 +15,7 @@ import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } f
 import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { NeededClasses } from './NeededClasses';
-import { checkKeys, keyShortNote } from '../../lib/keyCount';
+import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
@@ -145,7 +145,9 @@ export function AirportFlipSection() {
       ? (batteryPct !== null ? `${batteryPct}%` : '')
       : (fuelLevel !== null ? FUEL_LABELS[fuelLevel] : '');
     // A short ring rides the counter copy-out — actionable while the rental is still open.
-    const shortNote = keyCheck ? keyShortNote(keyCheck) : '';
+    // The counter copy-out carries the SAME severity the screen showed — a grounded Tesla must not
+    // reach the counter described as a short ring.
+    const shortNote = keyCheck ? keyShortNoteFor(keyCheck, capture.vehicle?.isTesla === true) : '';
     const counterNotes = [notes.trim(), shortNote].filter(Boolean).join(' · ');
     flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isEv, damaged, notes: counterNotes });
     // Latest count is the new truth (and seeds the baseline the first time a car is counted).
@@ -294,11 +296,12 @@ export function AirportFlipSection() {
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                🔑 Keys on ring
+                {capture.vehicle?.isTesla ? '⚡ Keycard' : '🔑 Keys on ring'}
                 {capture.vehicle?.keyCount ? <span className="ml-1.5 normal-case font-normal text-gray-400">went out with {capture.vehicle.keyCount}</span> : null}
               </span>
               <div className="flex gap-1">
-                {[1, 2, 3, 4].map(n => (
+                {/* One card on a Tesla — the other three were never answerable. See lib/keyCount. */}
+                {keyOptionsFor(capture.vehicle?.isTesla === true).map(n => (
                   <button key={n} type="button" onClick={() => setKeys(keys === n ? null : n)}
                     className={`w-8 h-8 rounded-lg text-sm font-semibold border transition cursor-pointer ${keys === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
                     {n}
@@ -306,8 +309,16 @@ export function AirportFlipSection() {
                 ))}
               </div>
             </div>
+            {/* ⚠️ A missing Tesla keycard is not a short return, it is an immobilised car — so it must
+                not render in the same tone as "one key short". The severity belongs to the vehicle,
+                not to the number (Aaron, 2026-08-19). */}
             {keyCheck && keyCheck.short > 0 && (
-              <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">{keyShortNote(keyCheck)} — flag it at the counter while the contract is open.</p>
+              <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                {keyShortNoteFor(keyCheck, capture.vehicle?.isTesla === true)}
+                {keyShortSeverity(keyCheck, capture.vehicle?.isTesla === true) === 'grounded'
+                  ? ' — do not stage it; it cannot be moved without the card.'
+                  : ' — flag it at the counter while the contract is open.'}
+              </p>
             )}
             {keyCheck?.seedsBaseline && (
               <p className="text-[11px] text-gray-400 dark:text-gray-500">First count for this car — saving {keys} as its baseline.</p>

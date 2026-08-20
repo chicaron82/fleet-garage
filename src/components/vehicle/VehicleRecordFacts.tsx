@@ -3,6 +3,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
+import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -17,14 +18,17 @@ import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
 // see-only and a flip count overwrites it. Without a correction path, one miscount at a return
 // silently becomes the car's new truth and there's no way back (and no way to rehearse a shortfall
 // without permanently lowering a baseline). Same principle as the tag: see it, and be able to fix it.
-const KEY_OPTIONS = [1, 2, 3, 4];
+// Options come from the car, not from a constant: a Tesla carries exactly one keycard, so the
+// other three were never answerable. See lib/keyCount.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
   keytagPhotoUrl?: string | null;
   keyCount?: number | null;
+  /** Drives what the key picker may offer — a Tesla has one card and no alternatives. */
+  isTesla?: boolean;
 }) {
   const { recordKeyCount } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
@@ -52,8 +56,8 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount 
 
       {editingKeys ? (
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400">🔑</span>
-          {KEY_OPTIONS.map(n => (
+          <span className="text-xs text-gray-500 dark:text-gray-400">{isTesla ? '⚡' : '🔑'}</span>
+          {keyOptionsFor(isTesla === true).map(n => (
             <button
               key={n}
               type="button"
@@ -71,7 +75,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount 
           onClick={() => { hapticLight(); setEditingKeys(true); }}
           className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
         >
-          🔑 {keyCount ? `${keyCount} ${keyCount === 1 ? 'key' : 'keys'} on the ring` : 'Keys — set'} ✏️
+          {isTesla ? '⚡' : '🔑'} {keyCount
+            ? `${keyCount} ${keyNoun(isTesla === true, keyCount)}`
+            : isTesla ? 'Keycard — set' : 'Keys — set'} ✏️
         </button>
       )}
 
