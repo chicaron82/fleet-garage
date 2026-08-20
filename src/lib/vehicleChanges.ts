@@ -32,6 +32,7 @@ const LABELS: Record<string, string> = {
   color: 'Colour',
   status: 'Status',
   rental_class: 'Class',
+  class_code: 'Model code',
   key_count: 'Keys',
   owning_area: 'Owning',
   branch_id: 'Branch',

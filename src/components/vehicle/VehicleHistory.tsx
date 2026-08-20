@@ -109,7 +109,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
               </div>
               <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
               <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
-              <div className="mt-2"><VehicleRecordFacts vehicleId={vehicle.id} plate={vehicle.licensePlate} keytagPhotoUrl={vehicle.keytagPhotoUrl} keyCount={vehicle.keyCount} isTesla={vehicle.isTesla} /></div>
+              <div className="mt-2"><VehicleRecordFacts vehicleId={vehicle.id} plate={vehicle.licensePlate} keytagPhotoUrl={vehicle.keytagPhotoUrl} keyCount={vehicle.keyCount} isTesla={vehicle.isTesla} classCode={vehicle.classCode} rentalClass={vehicle.rentalClass} /></div>
               {vehicle.editStatus === 'pending' && (
                 <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   Edit pending approval
