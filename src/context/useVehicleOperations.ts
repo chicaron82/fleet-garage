@@ -137,7 +137,7 @@ export function useVehicleOperations({
   // Records the class code off a scanned tag, if-missing. See ./classCodeWrite.
   const recordClassCode = makeRecordClassCode({
     setAllVehicles,
-    currentClassCode: id => allVehicles.find(v => v.id === id)?.classCode,
+    currentVehicle: id => allVehicles.find(v => v.id === id),
   });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
     setAllVehicles,
@@ -287,6 +287,10 @@ export function useVehicleOperations({
       stamps.make = 'manual'; stamps.model = 'manual'; stamps.year = 'manual'; stamps.color = 'manual';
       stamps.isHybrid = 'manual';  // a human's hybrid call outranks a later tag read
       if (identity.rentalClass && identity.rentalClass.trim() !== '') stamps.rentalClass = 'manual';
+      // ⚠️ A hand-corrected class code must outrank BOTH a later tag read and the migration-121
+      // backfill. Without this stamp his correction would still read as 'derived' and the very next
+      // scan would overwrite it — the exact loop the editable field exists to break.
+      if (identity.classCode && identity.classCode.trim() !== '') stamps.classCode = 'manual';
     }
     const { data: cur } = await supabase.from('vehicles').select('field_sources').eq('id', vehicleId).maybeSingle();
     const existingSources = (cur && typeof cur.field_sources === 'object' && cur.field_sources)

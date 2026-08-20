@@ -108,7 +108,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // make and model on every scan and then threw the code away, so a record's identity could never
     // be checked against what produced it. A car's code doesn't change, so the first good read wins
     // and a later misread can't rewrite it. See context/classCodeWrite.
-    if (read.classCode && seen.vehicle && !seen.vehicle.classCode) {
+    // Fires when there's no code OR when the stored one was only DERIVED (migration 121's backfill).
+    // Skipping on any stored value would mean a deduction outranks a reading — see classCodeWrite.
+    if (read.classCode && seen.vehicle
+        && (!seen.vehicle.classCode || seen.vehicle.fieldSources?.classCode === 'derived')) {
       void recordClassCode(seen.vehicle.id, read.classCode);
     }
     // ── The codex's missing drain ── A class code the codex can't resolve is why registration

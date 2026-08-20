@@ -162,7 +162,12 @@ export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 
 /** How an identity field's current value was set — provenance for the key-tag ladder
  *  (inferred < tag < manual). Absent from a vehicle's `fieldSources` means inferred/unknown. */
-export type FieldSource = 'tag' | 'manual';
+export type FieldSource = 'tag' | 'manual' | 'derived';
+/* 'derived' (2026-08-19, migration 121): the value was DEDUCED from other fields FG already held —
+ * a class code inferred from make + model + hybrid + year — rather than read off a tag or typed by a
+ * person. It is deliberately weaker than both: a real tag reading OVERWRITES a derived value, where
+ * it would never overwrite a 'tag' one. Without this third state a backfilled deduction would
+ * permanently outrank the truth. */
 
 export interface Vehicle {
   id: string;
