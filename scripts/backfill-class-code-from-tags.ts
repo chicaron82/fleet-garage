@@ -73,6 +73,7 @@ async function loadTaught(): Promise<Record<string, { make: string; model: strin
 
 interface Row {
   id: string; unit_number: string | null; license_plate: string;
+  field_sources: Record<string, string> | null;
   make: string; model: string; rental_class: string | null; keytag_photo_url: string;
 }
 
@@ -99,12 +100,12 @@ async function main(): Promise<void> {
 
   const rows: Row[] = await (await fetch(
     `${SB}/rest/v1/vehicles?archived_at=is.null&class_code=is.null&keytag_photo_url=not.is.null` +
-    `&select=id,unit_number,license_plate,make,model,rental_class,keytag_photo_url&limit=500`, { headers: H })).json();
+    `&select=id,unit_number,license_plate,make,model,rental_class,keytag_photo_url,field_sources&limit=500`, { headers: H })).json();
 
   console.log(`${rows.length} cars with a stored tag photo and no class code${APPLY ? '' : '  (DRY RUN — writing nothing)'}\n`);
 
   const agree: string[] = [], disagree: string[] = [], unknown: string[] = [], unread: string[] = [];
-  const writes: Array<{ id: string; code: string }> = [];
+  const writes: Array<{ id: string; code: string; sources: Record<string, string> }> = [];
 
   for (const [i, v] of rows.entries()) {
     const label = `${v.unit_number ?? '?'} ${v.license_plate} · ${v.make} ${v.model}`;
@@ -133,7 +134,7 @@ async function main(): Promise<void> {
       // quick-add path) — fill blanks, flag conflicts, the same contract resolveKeytag runs on.
       else if (same(hit.make, v.make) && (same(hit.model, v.model) || !v.model || same(v.model, 'Unknown'))) {
         agree.push(`${label} → ${code}`);
-        writes.push({ id: v.id, code });
+        writes.push({ id: v.id, code, sources: v.field_sources ?? {} });
       } else {
         disagree.push(`${label} — read ${code} = ${hit.make} ${hit.model} ✗ record says ${v.make} ${v.model}`);
       }
@@ -157,9 +158,22 @@ async function main(): Promise<void> {
     return;
   }
   for (const w of writes) {
+    // ⚠️ STAMP THE PROVENANCE, or the value lands OUTSIDE the ladder and freezes.
+    // FieldSource is 'tag' | 'manual' | 'derived', and classCodeWrite only ever fills a blank or
+    // upgrades a 'derived'. A code written with NO stamp matches neither branch of its guard, so a
+    // real scan at the car could never correct it — the exact permanence the 'derived' state was
+    // invented to prevent (found by the 2026-08-20 line-check: 103 rows had landed like that).
+    //
+    // 'derived', not 'tag', and the reason is precise: the agreement check below compares MAKE and
+    // MODEL, not the code itself. Both CKSV and CKVA resolve to "Nissan Kicks", so a year-variant
+    // misread PASSES verification. These reads are stronger than deduction and weaker than a tag
+    // read confirmed by the man holding it — so they stay upgradeable.
     await fetch(`${SB}/rest/v1/vehicles?id=eq.${w.id}&class_code=is.null`, {   // blanks-only, at the write
       method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ class_code: w.code }),
+      body: JSON.stringify({
+        class_code: w.code,
+        field_sources: { ...(w.sources ?? {}), classCode: 'derived' },
+      }),
     });
   }
   console.log(`\n✓ wrote ${writes.length} class codes (blanks-only). Codex untouched.`);
