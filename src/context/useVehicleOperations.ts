@@ -13,6 +13,7 @@ import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
 import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
+import { makeRecordClassCode } from './classCodeWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
@@ -65,6 +66,7 @@ export function useVehicleOperations({
             year:         vehicle.year,
             color:        vehicle.color,
             rental_class: vehicle.rentalClass ?? null,
+            class_code:   vehicle.classCode ?? null,
             is_hybrid:    vehicle.isHybrid ?? false,
           }).eq('id', decision.id)
         );
@@ -95,6 +97,7 @@ export function useVehicleOperations({
           year:              vehicle.year,
           color:             vehicle.color,
           rental_class:      vehicle.rentalClass ?? null,
+          class_code:        vehicle.classCode ?? null,
           key_count:         keyCount,
           keytag_photo_url:  vehicle.keytagPhotoUrl ?? null,
           branch_id:         branchId,
@@ -129,6 +132,12 @@ export function useVehicleOperations({
   const recordOwningArea = makeRecordOwningArea({
     setAllVehicles,
     currentOwning: id => allVehicles.find(v => v.id === id)?.owningArea,
+  });
+
+  // Records the class code off a scanned tag, if-missing. See ./classCodeWrite.
+  const recordClassCode = makeRecordClassCode({
+    setAllVehicles,
+    currentClassCode: id => allVehicles.find(v => v.id === id)?.classCode,
   });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
     setAllVehicles,
@@ -267,7 +276,7 @@ export function useVehicleOperations({
     // LOCKS those fields (field_sources 'manual') — the operator standing at the car outranks any
     // scan, so no future tag read overrides his edit (the CCLH-should-be-CCMH case). Omitted →
     // unit/plate-only edit, as before.
-    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; isHybrid?: boolean },
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; classCode?: string | null; isHybrid?: boolean },
   ) => {
     // Manual edit = the operator's confirmed truth → stamp 'manual' on every field he set, so the
     // provenance ladder (inferred < tag < manual) blocks a later scan from clobbering it. Merge into
@@ -288,7 +297,7 @@ export function useVehicleOperations({
       supabase.from('vehicles').update({
         unit_number:          unit,
         license_plate:        plate,
-        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass, is_hybrid: identity.isHybrid ?? false } : {}),
+        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass, class_code: identity.classCode ?? null, is_hybrid: identity.isHybrid ?? false } : {}),
         field_sources:        mergedSources,
         edit_status:          null,
         edit_suggested_unit:  null,
@@ -333,6 +342,7 @@ export function useVehicleOperations({
     recordKeyCount,
     attachKeytagPhotoIfMissing,
     recordOwningArea,
+    recordClassCode,
     releaseUnitNumber,
     addHold,
     addRelease,

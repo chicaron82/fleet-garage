@@ -52,6 +52,7 @@ export function mapVehicle(row: Row): Vehicle {
     rentalClass:  nullableStr(row, 'rental_class'),
     fieldSources: (row['field_sources'] as Record<string, FieldSource>) ?? {},
     keyCount:     (row['key_count'] as number | null) ?? null,
+    classCode:    optStr(row, 'class_code') ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
     owningArea:     nullableStr(row, 'owning_area'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,

@@ -38,7 +38,7 @@ let scanSeq = 0;
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error } = useKeytagRead();
   const { user } = useAuth();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -103,6 +103,13 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // re-plate, so the first good read is the one that counts. See context/owningAreaWrite.
     if (read.owningArea && seen.vehicle && !seen.vehicle.owningArea) {
       void recordOwningArea(seen.vehicle.id, read.owningArea);
+    }
+    // The class code itself — same if-missing, fire-and-forget shape. FG resolved this code into a
+    // make and model on every scan and then threw the code away, so a record's identity could never
+    // be checked against what produced it. A car's code doesn't change, so the first good read wins
+    // and a later misread can't rewrite it. See context/classCodeWrite.
+    if (read.classCode && seen.vehicle && !seen.vehicle.classCode) {
+      void recordClassCode(seen.vehicle.id, read.classCode);
     }
     // ── The codex's missing drain ── A class code the codex can't resolve is why registration
     // degrades. Two outcomes, and only one of them used to exist:

@@ -32,6 +32,8 @@ export interface VehicleHoldContextValue {
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
   /** Record the owning branch read off a tag, if the vehicle has none yet. See owningAreaWrite. */
   recordOwningArea: (vehicleId: string, owningArea: string) => Promise<void>;
+  /** Record the class code read off a tag, if the vehicle has none yet. See classCodeWrite. */
+  recordClassCode: (vehicleId: string, classCode: string) => Promise<void>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;
@@ -64,7 +66,7 @@ export interface VehicleHoldContextValue {
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   markVehicleEditPending: (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => void;
   applyVehicleIdentity: (vehicleId: string, unit: string | null, plate: string) => Promise<void>;
-  directEditVehicleIdentity: (vehicleId: string, unit: string | null, plate: string, identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; isHybrid?: boolean }) => Promise<void>;
+  directEditVehicleIdentity: (vehicleId: string, unit: string | null, plate: string, identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; classCode?: string | null; isHybrid?: boolean }) => Promise<void>;
   shuttlePlate: string;
   setShuttlePlate: (plate: string) => void;
 }

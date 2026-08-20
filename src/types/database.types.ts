@@ -1585,6 +1585,7 @@ export type Database = {
           archived_at: string | null
           archived_by_id: string | null
           branch_id: string | null
+          class_code: string | null
           color: string
           cover_photo_url: string | null
           created_at: string | null
@@ -1620,6 +1621,7 @@ export type Database = {
           archived_at?: string | null
           archived_by_id?: string | null
           branch_id?: string | null
+          class_code?: string | null
           color: string
           cover_photo_url?: string | null
           created_at?: string | null
@@ -1655,6 +1657,7 @@ export type Database = {
           archived_at?: string | null
           archived_by_id?: string | null
           branch_id?: string | null
+          class_code?: string | null
           color?: string
           cover_photo_url?: string | null
           created_at?: string | null

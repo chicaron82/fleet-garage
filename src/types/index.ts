@@ -198,6 +198,10 @@ export interface Vehicle {
   archivedAt?: string;
   archivedById?: string;
   // EV / Tesla accessories
+  /** The 4-char class code read off the tag — what the codex resolves into this make/model.
+   *  Stored so a record's identity can be checked against the code that produced it (migration 120).
+   *  Null on every car registered before 2026-08-19; fills in as tags are scanned. */
+  classCode?: string | null;
   isTesla: boolean;
   // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
   // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.

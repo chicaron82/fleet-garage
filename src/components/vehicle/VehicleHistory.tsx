@@ -329,6 +329,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
         initialYear={vehicle.year}
         initialColor={vehicle.color}
         initialRentalClass={vehicle.rentalClass ?? null}
+            initialClassCode={vehicle.classCode ?? null}
         initialIsHybrid={vehicle.isHybrid}
         fieldSources={vehicle.fieldSources}
         onClose={() => setShowDirectEdit(false)}

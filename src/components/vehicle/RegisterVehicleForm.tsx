@@ -129,6 +129,9 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
         year:           year,
         color,
         rentalClass:    rentalClass.trim() || null,
+      // The code he CONFIRMED on the form — stored on the car so its identity stays checkable
+      // against what produced it (migration 120). Blank stores nothing, same as it teaches nothing.
+      classCode:      classCode.trim().toUpperCase() || null,
         keyCount:       effectiveKeyCount,
         branchId:       user?.branchId,
         isTesla,

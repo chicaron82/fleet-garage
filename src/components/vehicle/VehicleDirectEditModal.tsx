@@ -15,6 +15,8 @@ interface VehicleDirectEditModalProps {
   initialYear: number;
   initialColor: string;
   initialRentalClass: string | null;
+  /** The class code the record's identity was resolved from (migration 120). Null before then. */
+  initialClassCode?: string | null;
   initialIsHybrid?: boolean;
   /** Per-field provenance — a 'manual' entry LOCKS that field against future tag reads. Undefined/
    *  absent-key fields render with no lock indicator (inferred/tag-sourced, freely overwritable). */
@@ -24,7 +26,7 @@ interface VehicleDirectEditModalProps {
     vehicleId: string,
     unitNumber: string | null,
     licensePlate: string,
-    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; isHybrid?: boolean },
+    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; classCode?: string | null; isHybrid?: boolean },
   ) => Promise<void>;
   /** Release a manual lock on one field, WITHOUT touching its value — a future scan can update it
    *  again. A separate action from Save on purpose: unlocking and editing are different decisions. */
@@ -59,6 +61,7 @@ export function VehicleDirectEditModal({
   initialYear,
   initialColor,
   initialRentalClass,
+  initialClassCode,
   initialIsHybrid,
   fieldSources,
   onClose,
@@ -77,6 +80,9 @@ export function VehicleDirectEditModal({
   // a tag that maps to the wrong class (CCLH→Corolla when the car's really a Camry, or class F where
   // it should be E6). Freeform short code, upper-cased on save.
   const [editClass, setEditClass] = useState(initialRentalClass ?? '');
+  // The code the record's identity CAME FROM. Stored since migration 120; null on every car
+  // registered before then, and it fills in as tags get scanned.
+  const [editClassCode, setEditClassCode] = useState(initialClassCode ?? '');
   const [editSaving, setEditSaving] = useState(false);
   // Which field's unlock is in flight — disables just that badge, not the whole modal.
   const [unlockingField, setUnlockingField] = useState<string | null>(null);
@@ -172,6 +178,26 @@ export function VehicleDirectEditModal({
             </label>
             <ClassChipPicker value={editClass} onChange={setEditClass} />
           </div>
+
+          {/* The class code — the tag field this record's make and model were RESOLVED from.
+              Shown here because a wrong code is invisible everywhere else: the car looks correct
+              while the code that produced it is wrong, and that same code is what the codex learns
+              from. Empty on any car registered before 2026-08-19; it fills in as tags are scanned. */}
+          <div>
+            <label htmlFor="edit-class-code" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+              Class Code <span className="normal-case font-normal text-gray-400">(read off the tag — what the codex resolves)</span>
+            </label>
+            <input
+              id="edit-class-code"
+              value={editClassCode}
+              onChange={e => setEditClassCode(e.target.value.toUpperCase())}
+              maxLength={6}
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder="Not recorded"
+              className="w-32 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-mono font-semibold tracking-wider text-gray-900 dark:text-gray-100"
+            />
+          </div>
         </div>
         <div className="flex gap-3 pt-1">
           <button
@@ -190,7 +216,7 @@ export function VehicleDirectEditModal({
                 vehicleId,
                 editUnit.trim() || null,
                 editPlate.trim().toUpperCase(),
-                { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null, isHybrid: editHybrid },
+                { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null, classCode: editClassCode.trim().toUpperCase() || null, isHybrid: editHybrid },
               );
               setEditSaving(false);
               onClose();
