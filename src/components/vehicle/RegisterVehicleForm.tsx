@@ -58,6 +58,13 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   const [isHybrid, setIsHybrid] = useState(scanned?.isHybrid ?? false);
   // Rental class is read off the tag, not operator-typed — carried through to the insert.
   const [rentalClass, setRentalClass] = useState(scanned?.rentalClass ?? '');
+  // ⚠️ EDITABLE, and that is the whole point. `teachClassCode` is present only when the codex
+  // couldn't resolve the code — i.e. registering this car will TEACH FG what the code means. So it
+  // is simultaneously the most consequential field on the form and, until now, the only one the
+  // operator could neither see nor correct. On 2026-08-19 a Seltos tag read CKSE as CKSP; Aaron
+  // corrected the make and model, and FG dutifully taught the MISREAD code the right car — while
+  // the real code stayed unknown, so the next Seltos would misread and teach again.
+  const [classCode, setClassCode] = useState(scanned?.teachClassCode ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -77,6 +84,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
     setYear(plausibleYearOr(s.year, currentYear));
     setColor(s.color ?? '');
     setRentalClass(s.rentalClass ?? '');
+    setClassCode(s.teachClassCode ?? '');
     setIsHybrid(s.isHybrid ?? false);
   });
 
@@ -160,7 +168,10 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
       // The tag printed a code the codex couldn't resolve, and he just told us what the car IS —
       // so learn it. Next scan of this code fills make/model on its own. Best-effort by design.
-      if (scanned?.teachClassCode) void teachClassCode(scanned.teachClassCode, make, model, user?.id);
+      // Teach what he CONFIRMED, never what the reader guessed — and a blank box teaches nothing,
+    // because no entry beats a wrong one (a bad code resolves a future car to the wrong vehicle).
+    const codeToTeach = classCode.trim().toUpperCase();
+    if (scanned?.teachClassCode && codeToTeach) void teachClassCode(codeToTeach, make, model, user?.id);
       if (releaseFailed && unitConflict) {
         // Registration succeeded; only the old record's cleanup failed. Warn and
         // auto-proceed — non-blocking (the new vehicle is already correct).
@@ -332,6 +343,33 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               isHybrid={isHybrid}
               onHybrid={setIsHybrid}
             />
+
+            {/* The class code — shown because registering with it WRITES it into the codex.
+                Every other field on this form only describes this one car; this one teaches FG a
+                rule it will apply to every future car wearing the same code. That asymmetry is why
+                it has to be visible and correctable. */}
+            {scanned?.teachClassCode && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                <label htmlFor="class-code" className="text-xs text-amber-800 dark:text-amber-300 shrink-0">
+                  🏷️ Class code
+                </label>
+                <input
+                  id="class-code"
+                  value={classCode}
+                  onChange={e => setClassCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  placeholder="CKSE"
+                  className="w-24 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm font-mono font-semibold tracking-wider text-gray-900 dark:text-gray-100"
+                />
+                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                  {classCode.trim()
+                    ? `New to FG — registering teaches ${classCode.trim()} = this make and model. Check it against the tag.`
+                    : 'Left blank, FG learns nothing from this tag — safer than learning it wrong.'}
+                </span>
+              </div>
+            )}
 
             {/* Rental class is READ off the tag, not typed — show what FG captured (show-your-work)
                 so the operator can confirm it before registering. Stored on the vehicle. */}

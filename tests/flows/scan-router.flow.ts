@@ -46,6 +46,43 @@ test('scan → Register carries EVERY field read off the tag', async ({ page }) 
   await expect(page.getByText(/Rental class read off the tag/)).toBeVisible();
 });
 
+test('⭐ an UNKNOWN class code is shown and editable — it teaches the codex', async ({ page }) => {
+  // `teachClassCode` is present only when the codex could not resolve the code, which means
+  // registering this car WRITES a rule FG will apply to every future car wearing it. Until
+  // 2026-08-19 that field was invisible: a Seltos tag read CKSE as CKSP, Aaron corrected the make
+  // and model, and FG taught the MISREAD code the right car while the real code stayed unknown.
+  await injectScreen(page, {
+    name: 'register-vehicle', prefill: 'ABX931',
+    scanned: {
+      unitNumber: '5429931', plate: 'ABX931', make: 'Kia', model: 'Seltos',
+      year: 2025, color: 'Blue', rentalClass: 'B5', teachClassCode: 'CKSP',
+    },
+  });
+  const code = page.getByLabel(/Class code/);
+  await expect(code).toBeVisible();
+  await expect(code).toHaveValue('CKSP');
+  await expect(page.getByText(/registering teaches CKSP/)).toBeVisible();
+
+  // Correctable in place — the whole point.
+  await code.fill('CKSE');
+  await expect(page.getByText(/registering teaches CKSE/)).toBeVisible();
+
+  // Blank teaches nothing, and says so rather than silently doing nothing.
+  await code.fill('');
+  await expect(page.getByText(/FG learns nothing from this tag/)).toBeVisible();
+});
+
+test('a code the codex already knows stays out of the way', async ({ page }) => {
+  // No teachClassCode means nothing is being learned, so there is nothing to confirm — an amber
+  // field on every registration would be noise, and noise is how a real warning gets ignored.
+  await injectScreen(page, {
+    name: 'register-vehicle', prefill: 'ABX931',
+    scanned: { unitNumber: '5429931', plate: 'ABX931', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: 'C' },
+  });
+  await expect(page.getByRole('button', { name: 'Add to Ledger' })).toBeVisible();
+  await expect(page.getByLabel(/Class code/)).toHaveCount(0);
+});
+
 test('scan → Flag/hold opens the flag form on the scanned vehicle', async ({ page }) => {
   await injectScreen(page, { name: 'new-hold', vehicleId: FIXTURE.vehicleId });
   await expect(page.getByText('Flag Issue').first()).toBeVisible();
