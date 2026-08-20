@@ -1,0 +1,39 @@
+-- A note on the car — the tier BELOW a hold (2026-08-20, Aaron's ask from the lot).
+--
+-- WHY IT EXISTS, in his words: *"I don't hold every single damage in FG. I'm the only user
+-- remember. So a damage could also have no record on it. Leaving a note addresses that at some
+-- point there was damage and it's getting sent fixed."*
+--
+-- That corrected an assumption worth writing down: FG's `Clear` never meant "undamaged", it meant
+-- "nothing held in FG". A hold is a heavy instrument — photos, release approval, exception
+-- tracking — and plenty of real facts about a car don't earn one. Until now the cheapest thing FG
+-- could spend on a car was a whole hold, so everything smaller went unrecorded. This makes a
+-- sentence affordable.
+--
+-- It is the digital form of the habit he already runs by hand: he buckles the rear belts at the end
+-- of every back-row vacuum as a note to his future self — *"hey future me we're good here, move
+-- on."* This is that, for the cars: **don't go looking for this one, it's at Speedy.**
+--
+-- ── The archive comes FREE, and that's why there's no `vehicle_notes` table ──────────────────
+-- Aaron's design call: clearing a note must not erase it, because if the damage was never held,
+-- **the note is the only trace it ever existed** — and old damage going quiet and circulating as
+-- "always been like that" is the exact amnesia FG was built against.
+--
+-- Making `note` a COLUMN rather than its own table means migration 118's trigger already does it:
+-- setting logs {note: {from: null, to: "at Speedy"}}, clearing logs {from: "at Speedy", to: null}.
+-- The card shows one current note and never grows a scroll; the car keeps the whole history in the
+-- change trail. A separate table would have needed its own archiving code to reach the same place.
+--
+-- ── No `note_by`, deliberately ───────────────────────────────────────────────────────────────
+-- Migration 118 explains why the trail is silent on WHO: FG writes with the anon key under
+-- allow-all RLS, so there is no honest actor to record, and a fabricated attribution is worse than
+-- an empty one. The same logic applies here from the other direction: Aaron is the only operator,
+-- so a `note_by` column would carry the identical value on every row — zero signal, and a false
+-- promise of multi-user provenance the app can't keep. If the crew ever grows, it lands then.
+--
+-- `note_at` DOES earn its place: a note is a claim about the car's CURRENT situation, and one left
+-- three months ago ("at Speedy") reads very differently from one left this morning. Staleness is
+-- the whole reason to show a date.
+
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS note    TEXT;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS note_at TIMESTAMPTZ;

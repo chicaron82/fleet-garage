@@ -54,6 +54,8 @@ export function mapVehicle(row: Row): Vehicle {
     keyCount:     (row['key_count'] as number | null) ?? null,
     classCode:    optStr(row, 'class_code') ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
+    note:           nullableStr(row, 'note'),
+    noteAt:         nullableStr(row, 'note_at'),
     owningArea:     nullableStr(row, 'owning_area'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
     branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback

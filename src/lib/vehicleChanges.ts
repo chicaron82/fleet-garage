@@ -33,6 +33,8 @@ const LABELS: Record<string, string> = {
   status: 'Status',
   rental_class: 'Class',
   class_code: 'Model code',
+  note: 'Note',
+  note_at: 'Note left',
   key_count: 'Keys',
   owning_area: 'Owning',
   branch_id: 'Branch',

@@ -11,6 +11,7 @@ import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
+import { makeSetVehicleNote } from './vehicleNoteWrite';
 import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
@@ -128,6 +129,7 @@ export function useVehicleOperations({
   // See ./fieldUnlockWrite.
   const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });
   const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
+  const setVehicleNote = makeSetVehicleNote({ setAllVehicles });
   // Records the owning branch off a scanned tag, if-missing. See ./owningAreaWrite.
   const recordOwningArea = makeRecordOwningArea({
     setAllVehicles,
@@ -344,6 +346,7 @@ export function useVehicleOperations({
     updateVehicleFields,
     unlockVehicleField,
     recordKeyCount,
+    setVehicleNote,
     attachKeytagPhotoIfMissing,
     recordOwningArea,
     recordClassCode,

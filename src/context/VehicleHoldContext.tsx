@@ -39,6 +39,8 @@ export interface VehicleHoldContextValue {
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;
   /** Record the keys-on-ring count observed at a check-in (deliberate overwrite — latest is truth). */
   recordKeyCount: (vehicleId: string, keyCount: number) => Promise<void>;
+  /** Set the car's current note, or clear it with null (migrations/122). */
+  setVehicleNote: (vehicleId: string, note: string | null) => Promise<void>;
   /** Upload the scanned key tag and keep it on the vehicle as the read's evidence. */
   attachKeytagPhotoIfMissing: (vehicleId: string, photo: string) => Promise<void>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;

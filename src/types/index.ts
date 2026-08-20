@@ -199,6 +199,14 @@ export interface Vehicle {
   /** The key tag photo the vision read was made FROM — evidence for auditing/correcting a
    *  misread, and the provenance for teaching the codex a new class code. Latest tag wins. */
   keytagPhotoUrl?: string | null;
+  /** A free-text note about the car's CURRENT situation — the tier below a hold, for the facts
+   *  that don't earn one ("sent to Speedy for windshield replacement"). One current note, not a
+   *  log: clearing it is captured by the change trail (migrations/118), so the car keeps the
+   *  history without the card growing a scroll. See migrations/122. */
+  note?: string | null;
+  /** When the current note was left — a note is a claim about NOW, and one left three months ago
+   *  reads very differently from one left this morning. */
+  noteAt?: string | null;
   coverPhotoUrl?: string;
   archivedAt?: string;
   archivedById?: string;
