@@ -50,7 +50,7 @@ Fleet Garage has evolved far beyond a simple damage ledger. It now encompasses t
 
 - **Frontend:** React 19 + TypeScript (Strict Mode)
 - **Styling:** Tailwind CSS v4 (with full Dark Mode support)
-- **State:** React Context API — domain-split providers (`VehicleHoldContext`, `WashbayContext`, `IssueContext`, `LostFoundContext`) plus `AuthContext`, `ProfilesContext`, `PreferencesContext`, `ScheduleContext`
+- **State:** React Context API — domain-split providers (`VehicleHoldContext`, `WashbayContext`, `IssueContext`, `LostFoundContext`, `FleetBalanceContext`) plus `AuthContext`, `ProfilesContext`, `PreferencesContext`, `ScheduleContext`, `ActiveSessionsContext`, `PendingWritesContext`, `ScanRouterContext`, `EffieContext`
 - **Backend (BaaS):** Supabase (PostgreSQL + Row Level Security + Storage)
 - **Deployment:** Vercel
 
