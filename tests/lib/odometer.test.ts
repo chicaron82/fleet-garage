@@ -46,8 +46,13 @@ describe('describeOdometer — never the number alone', () => {
   it('⭐ always carries the age, because a km reading is a claim about a MOMENT', () => {
     // "47,200 km" from April describes a car that has since done a summer of rentals. Rendering it
     // bare invites a decision on a stale number.
-    expect(describeOdometer(47200, new Date(2026, 7, 12).toISOString())).toBe('47,200 km · 8d ago');
-    expect(describeOdometer(47200, new Date(2026, 7, 20).toISOString())).toBe('47,200 km · today');
+    //
+    // ⚠️ `now` IS PASSED EXPLICITLY, and that is the whole point of this file's history: the first
+    // version of these two assertions let the function read the real clock. They passed locally at
+    // 22:23 CDT and failed in CI at 03:33 UTC — the same instant, the next calendar day — because
+    // "8d ago" had become "9d ago". A test that depends on when it runs is not a test.
+    expect(describeOdometer(47200, new Date(2026, 7, 12).toISOString(), now)).toBe('47,200 km · 8d ago');
+    expect(describeOdometer(47200, new Date(2026, 7, 20).toISOString(), now)).toBe('47,200 km · today');
   });
 
   it('falls back to a dated stamp once it is genuinely old', () => {
@@ -55,11 +60,11 @@ describe('describeOdometer — never the number alone', () => {
   });
 
   it('renders nothing at all when there is nothing to say', () => {
-    expect(describeOdometer(null, null)).toBe('');
-    expect(describeOdometer(0, new Date().toISOString())).toBe('');
+    expect(describeOdometer(null, null, now)).toBe('');
+    expect(describeOdometer(0, new Date().toISOString(), now)).toBe('');
   });
 
   it('survives a reading with no date rather than inventing one', () => {
-    expect(describeOdometer(47200, null)).toBe('47,200 km');
+    expect(describeOdometer(47200, null, now)).toBe('47,200 km');
   });
 });

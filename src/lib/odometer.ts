@@ -45,9 +45,19 @@ export function describeOdometerAge(iso: string | null | undefined, now: Date = 
  *
  * "47,200 km · Aug 12"  — a fact and its age, in the width of a chip.
  */
-export function describeOdometer(km: number | null | undefined, at: string | null | undefined): string {
+export function describeOdometer(
+  km: number | null | undefined,
+  at: string | null | undefined,
+  /** ⚠️ INJECTABLE, and it has to be. Without this the function reads the real clock, which makes it
+   *  untestable deterministically — a test written today passes today and fails tomorrow. That is
+   *  exactly how this shipped: the gate was green at 22:23 CDT and CI failed at 03:33 UTC, the same
+   *  instant on the next calendar day, because "8d ago" had become "9d ago" (2026-08-20).
+   *  Every sibling formatter in FG already takes `now` — describeLastSeen, describeChangeTime,
+   *  describeOdometerAge below. This one silently didn't, and the inconsistency was the bug. */
+  now: Date = new Date(),
+): string {
   if (km === null || km === undefined || km <= 0) return '';
   const pretty = km.toLocaleString('en-CA');
-  const age = describeOdometerAge(at);
+  const age = describeOdometerAge(at, now);
   return age ? `${pretty} km · ${age}` : `${pretty} km`;
 }
