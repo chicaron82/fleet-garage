@@ -34,6 +34,8 @@ export interface VehicleHoldContextValue {
   recordOwningArea: (vehicleId: string, owningArea: string) => Promise<void>;
   /** Record the class code read off a tag, if the vehicle has none yet. See classCodeWrite. */
   recordClassCode: (vehicleId: string, classCode: string) => Promise<void>;
+  /** Record the odometer read off a flip. Latest reading wins. See odometerWrite. */
+  recordOdometer: (vehicleId: string, km: number) => Promise<void>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;

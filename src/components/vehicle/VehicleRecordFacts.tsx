@@ -4,6 +4,7 @@ import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
+import { describeOdometer } from '../../lib/odometer';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -32,7 +33,7 @@ import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 // field is how two surfaces start disagreeing. Silent when absent — 155 of the fleet legitimately
 // have no code, and a "set me" prompt on every one of them is noise, not a nudge.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -40,6 +41,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   keyCount?: number | null;
   /** Drives what the key picker may offer — a Tesla has one card and no alternatives. */
   isTesla?: boolean;
+  /** Last odometer reading + when (migration 123). Rendered together, never the number alone. */
+  odometer?: number | null;
+  odometerAt?: string | null;
   /** The tag's 4-char model code (CRHX). Null for the ~155 cars whose tag never gave one. */
   classCode?: string | null;
   /** The branch's rental grouping (Q4, B4, C…) — a different axis from the model code. */
@@ -95,6 +99,14 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
             : isTesla ? 'Keycard — set' : 'Keys — set'} ✏️
         </button>
       )}
+
+      {/* The odometer, always with its age — the airport's "high km?" question is about a number
+          whose meaning decays. A bare figure from April would invite a decision on a stale fact. */}
+      {odometer ? (
+        <span className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+          🛣️ {describeOdometer(odometer, odometerAt)}
+        </span>
+      ) : null}
 
       {(classCode || rentalClass) && (
         <span

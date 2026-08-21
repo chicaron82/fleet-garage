@@ -1612,6 +1612,8 @@ export type Database = {
           model: string
           note: string | null
           note_at: string | null
+          odometer: number | null
+          odometer_at: string | null
           owning_area: string | null
           rental_class: string | null
           status: string
@@ -1650,6 +1652,8 @@ export type Database = {
           model: string
           note?: string | null
           note_at?: string | null
+          odometer?: number | null
+          odometer_at?: string | null
           owning_area?: string | null
           rental_class?: string | null
           status: string
@@ -1688,6 +1692,8 @@ export type Database = {
           model?: string
           note?: string | null
           note_at?: string | null
+          odometer?: number | null
+          odometer_at?: string | null
           owning_area?: string | null
           rental_class?: string | null
           status?: string

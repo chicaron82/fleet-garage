@@ -15,6 +15,7 @@ import { makeSetVehicleNote } from './vehicleNoteWrite';
 import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
+import { makeRecordOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
@@ -140,6 +141,12 @@ export function useVehicleOperations({
   const recordClassCode = makeRecordClassCode({
     setAllVehicles,
     currentVehicle: id => allVehicles.find(v => v.id === id),
+  });
+
+  // Keeps the odo the flip already collects. Latest-wins — see ./odometerWrite.
+  const recordOdometer = makeRecordOdometer({
+    setAllVehicles,
+    currentOdometer: id => allVehicles.find(v => v.id === id)?.odometer,
   });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
     setAllVehicles,
@@ -350,6 +357,7 @@ export function useVehicleOperations({
     attachKeytagPhotoIfMissing,
     recordOwningArea,
     recordClassCode,
+    recordOdometer,
     releaseUnitNumber,
     addHold,
     addRelease,

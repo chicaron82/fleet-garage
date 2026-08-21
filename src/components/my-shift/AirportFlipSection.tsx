@@ -16,6 +16,7 @@ import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { NeededClasses } from './NeededClasses';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
+import { parseOdometer, describeOdometer } from '../../lib/odometer';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
@@ -32,7 +33,7 @@ const onException = (v: Vehicle | null) => !!v && isOnExceptionStatus(v.status);
 
 export function AirportFlipSection() {
   const { user } = useAuth();
-  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordKeyCount, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
+  const { vehicles, addVehicle, updateVehicleFields, getHoldsForVehicle, addHold, updateVehicleEVAssets, recordOdometer, recordKeyCount, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const flip = useAirportFlip();
   // Classes turned around this shift (uppercased) → drives the "Needed" strip's satisfied ✓ state.
   const flippedClasses = new Set(flip.rows.map(r => (r.rentalClass ?? '').trim().toUpperCase()).filter(Boolean));
@@ -152,6 +153,11 @@ export function AirportFlipSection() {
     flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isEv, damaged, notes: counterNotes });
     // Latest count is the new truth (and seeds the baseline the first time a car is counted).
     if (keys !== null && capture.vehicleId) void recordKeyCount(capture.vehicleId, keys);
+    // The odo he already typed for the counter — kept rather than discarded (migration 123). Free
+    // data: it costs him nothing extra, and it is what the airport is actually asking about when
+    // they want "a high-km out-of-province car for a one-way".
+    const km = parseOdometer(odo);
+    if (km !== null && capture.vehicleId) void recordOdometer(capture.vehicleId, km);
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
     // still chargeable, where the same loss found later in the washbay is just gone. Seeded boxes
     // mean this always writes for a Tesla: a re-affirmation is itself worth recording, since it's
@@ -263,7 +269,17 @@ export function AirportFlipSection() {
             />
           )}
 
-          <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
+          <div>
+            <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
+            {/* What FG last heard, WITH its age — so a four-month-old figure can't pass for current
+                (see lib/odometer). Also a free sanity check: a reading below this one is a misread,
+                and the write refuses it rather than rewriting a good record. */}
+            {capture.vehicle?.odometer ? (
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                last recorded {describeOdometer(capture.vehicle.odometer, capture.vehicle.odometerAt)}
+              </p>
+            ) : null}
+          </div>
 
           {/* The gauge mirrors the instrument: a gas dash reads eighths, a Tesla's reads a %. */}
           {capture.isEv

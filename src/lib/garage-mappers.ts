@@ -53,6 +53,8 @@ export function mapVehicle(row: Row): Vehicle {
     fieldSources: (row['field_sources'] as Record<string, FieldSource>) ?? {},
     keyCount:     (row['key_count'] as number | null) ?? null,
     classCode:    optStr(row, 'class_code') ?? null,
+    odometer:     (row['odometer'] as number | null) ?? null,
+    odometerAt:   optStr(row, 'odometer_at') ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
     note:           nullableStr(row, 'note'),
     noteAt:         nullableStr(row, 'note_at'),

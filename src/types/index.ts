@@ -215,6 +215,10 @@ export interface Vehicle {
    *  Stored so a record's identity can be checked against the code that produced it (migration 120).
    *  Null on every car registered before 2026-08-19; fills in as tags are scanned. */
   classCode?: string | null;
+  /** Last odometer reading, captured off the airport flip (migration 123). Latest wins.
+   *  ⚠️ Never render it without `odometerAt` — a km figure is a claim about a moment. */
+  odometer?: number | null;
+  odometerAt?: string | null;
   isTesla: boolean;
   // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
   // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.
