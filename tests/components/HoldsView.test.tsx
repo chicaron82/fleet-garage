@@ -152,7 +152,7 @@ describe('HoldsView — search', () => {
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
     expect(await screen.findByText(/"ZZZZ" not in the system\./)).toBeInTheDocument();
-    expect(screen.getByText(/Add to ledger/i)).toBeInTheDocument();
+    expect(screen.getByText(/Add to FG/i)).toBeInTheDocument();
   });
 
   it('calls onRegisterAndFlag with the search term when register CTA is clicked', async () => {
@@ -162,7 +162,7 @@ describe('HoldsView — search', () => {
     render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={onRegisterAndFlag} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
-    await user.click(await screen.findByText(/Add to ledger/i));
+    await user.click(await screen.findByText(/Add to FG/i));
 
     expect(onRegisterAndFlag).toHaveBeenCalledWith('ZZZZ');
   });

@@ -202,7 +202,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
           ← Back
         </button>
         <span className="text-gray-300">|</span>
-        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Add to Ledger</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Add to FG</span>
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -413,7 +413,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               disabled={!canSubmit}
               className="flex-1 py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-black font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
             >
-              {submitting ? 'Adding…' : 'Add to Ledger'}
+              {submitting ? 'Adding…' : 'Add to FG'}
             </button>
           </div>
 

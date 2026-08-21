@@ -3,8 +3,9 @@
 // pre-filled. One shared flow behind both entry points (My Day card + header icon).
 // Thin-hub law: this resolves and ROUTES — every action hands off to the module that owns it.
 // The action menu itself is pure + tested (lib/scanRouterActions); this is just its surface.
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
+import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
@@ -41,7 +42,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
-  const fileRef = useRef<HTMLInputElement>(null);
+  const { scan, pickedFileRef, pickedNonce } = useScanRouter();
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
   // The compressed key-tag photo, kept so a REGISTER (new vehicle) can attach it to the freshly
@@ -53,7 +54,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const [codexToast, setCodexToast] = useState('');
   const reading = status === 'reading';
 
-  const onFile = async (file: File | undefined) => {
+  // Wrapped rather than suppressed: this is the consume-effect's only caller, so an identity
+  // that changed every render would re-enter that effect on every render of a busy overlay.
+  const onFile = useCallback(async (file: File | undefined) => {
     if (!file) return;
     setErrMsg('');
     setScanRead(null);
@@ -132,7 +135,21 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
         void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
       }
     }
-  };
+  }, [readKeytag, errorRef, error, vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode]);
+
+  // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,
+  // so the photo arrives AFTER mount rather than from a button in here. Keyed on the nonce, not on
+  // the File, and the ref is nulled before the read: re-running this effect must never re-read a
+  // tag, which costs a real API call and writes a duplicate sighting. Cancelling the camera simply
+  // leaves the "Snap the key tag" prompt below as the fallback.
+  useEffect(() => {
+    const file = pickedFileRef.current;
+    if (!file) return;
+    pickedFileRef.current = null;
+    void onFile(file);
+    // onFile is listed honestly rather than suppressed: nulling the ref BEFORE the read is what
+    // makes one photo read once, so a re-run (vehicles churn) just early-returns.
+  }, [pickedNonce, onFile, pickedFileRef]);
 
   // Resolved against the LIVE fleet each render rather than snapshotted at scan time: the backfill
   // above writes through context, so re-resolving is what makes the card show the now-filled
@@ -161,22 +178,13 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
         </div>
 
         <div className="p-4 space-y-3">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
-          />
-
           {!scanRead && (
             <>
               <p className="text-xs text-gray-500 dark:text-gray-400">Snap the tag — FG will tell you what the car is and what you can do with it.</p>
               <button
                 type="button"
                 disabled={reading}
-                onClick={() => fileRef.current?.click()}
+                onClick={scan}
                 className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 px-4 py-4 text-black font-semibold text-sm cursor-pointer disabled:cursor-not-allowed"
               >
                 {reading ? 'Reading…' : '📷 Snap the key tag'}
@@ -386,11 +394,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
               {/* Scan another → open the camera in ONE tap, not two. Resetting scanRead alone
                   would land back on the cold "Snap the tag" intro, forcing a second tap on the
-                  snap button. The file input is always mounted and this onClick is a user
-                  gesture, so firing it directly opens the camera straight away. */}
+                  snap button. scan() fires the provider's always-mounted input from inside this
+                  user gesture, so the camera opens straight away. */}
               <button
                 type="button"
-                onClick={() => { setScanRead(null); setErrMsg(''); fileRef.current?.click(); }}
+                onClick={() => { setScanRead(null); setErrMsg(''); scan(); }}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 Scan another

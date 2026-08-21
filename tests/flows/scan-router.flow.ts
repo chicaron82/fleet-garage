@@ -38,7 +38,7 @@ test('scan → Register carries EVERY field read off the tag', async ({ page }) 
     name: 'register-vehicle', prefill: 'ABX931',
     scanned: { unitNumber: '5429931', plate: 'ABX931', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: 'C' },
   });
-  await expect(page.getByRole('button', { name: 'Add to Ledger' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to FG' })).toBeVisible();
   await expect(page.getByRole('textbox').nth(0)).toHaveValue('5429931');   // unit
   await expect(page.getByRole('textbox').nth(1)).toHaveValue('ABX931');    // plate
   await expect(page.getByRole('combobox').nth(0)).toHaveValue('Toyota');   // make
@@ -84,7 +84,7 @@ test('⭐ a code the codex KNOWS is still stored — it just is not up for teach
       year: 2026, color: 'Gray', rentalClass: 'L2', classCode: 'CALE',
     },
   });
-  await expect(page.getByRole('button', { name: 'Add to Ledger' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to FG' })).toBeVisible();
   // No amber teach box — nothing is being learned…
   await expect(page.getByLabel(/Class code/)).toHaveCount(0);
   // …but the value rides along and is stored. Asserted via the submitted payload's own field.
@@ -98,7 +98,7 @@ test('a code the codex already knows stays out of the way', async ({ page }) => 
     name: 'register-vehicle', prefill: 'ABX931',
     scanned: { unitNumber: '5429931', plate: 'ABX931', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: 'C' },
   });
-  await expect(page.getByRole('button', { name: 'Add to Ledger' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to FG' })).toBeVisible();
   await expect(page.getByLabel(/Class code/)).toHaveCount(0);
 });
 

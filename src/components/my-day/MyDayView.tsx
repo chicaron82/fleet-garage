@@ -41,7 +41,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           what you can do with it, then routes. (Same overlay as the header icon.) */}
       <button
         type="button"
-        onClick={scanRouter.open}
+        onClick={scanRouter.scan}
         className={`${CARD} w-full px-4 py-3.5 flex items-center gap-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition`}
       >
         <span className="text-xl leading-none">📷</span>

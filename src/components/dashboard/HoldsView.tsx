@@ -162,7 +162,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // Typed ≥2 chars with nothing matching: the search-row button flips from
-  // "scan" to "add to ledger", and the list shows the not-found note.
+  // "scan" to "add to FG", and the list shows the not-found note.
   const noMatch = filtered.length === 0 && search.trim().length >= 2;
   // How many ARCHIVED cars the search matches — so a no-active-match search points at the archive
   // (which auto-expands below) instead of a flat "not in the system" that hides a returning car.
@@ -277,7 +277,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
             )}
           </div>
           {noMatch
-            ? <PrimaryAction label="Add to ledger & flag" onClick={() => onRegisterAndFlag(search)} />
+            ? <PrimaryAction label="Add to FG & flag" onClick={() => onRegisterAndFlag(search)} />
             : <KeytagSearchScan onPlate={handleKeytagPlate} onRead={(read, photo) => void backfillFromRead(read, photo)} />}
           {/* Never fill silently — name what the tag just landed on the record. */}
           {backfillToast && <p className="text-xs font-semibold text-green-700 dark:text-green-400">{backfillToast}</p>}

@@ -130,7 +130,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
                 card). Always-visible icon, not tap-to-expand: scanning is one tap, not two. */}
             <button
               type="button"
-              onClick={scanRouter.open}
+              onClick={scanRouter.scan}
               aria-label="Scan a key tag"
               title="Scan a key tag"
               className="text-lg leading-none px-1 cursor-pointer hover:opacity-70 transition"
