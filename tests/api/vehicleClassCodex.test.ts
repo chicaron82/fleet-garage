@@ -5,7 +5,8 @@ describe('curated codex — codes must match what the tags actually print', () =
   it('⭐ CVTA is the Volkswagen Taos code, and CTVA is not a code at all', () => {
     // 2026-08-21: the curated entry carried a transposition, and migration 121 propagated it onto
     // 25 vehicles by inverting make+model through it. Four physical tags read CVTA — LUR184,
-    // LFJ390, DEWJ042 and MCN122 — and none read CTVA.
+    // LFJ390, DEWJ042 and MCN122 — and none read CTVA. Aaron settled it outright: "ctva does not
+    // exist. it was a typo". This assertion is the guard against it being re-added.
     expect(lookupVehicleClass('CVTA')).toEqual({ make: 'Volkswagen', model: 'Taos' });
     expect(lookupVehicleClass('CTVA')).toBeNull();
   });

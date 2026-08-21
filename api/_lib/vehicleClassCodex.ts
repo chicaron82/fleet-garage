@@ -103,12 +103,14 @@ const CODEX: Record<string, VehicleClass> = {
   CC5S: { make: 'Mazda', model: 'CX-5' },
   // Volkswagen
   CJCL: { make: 'Volkswagen', model: 'Jetta' },
-  // ⚠️ CVTA, not CTVA — the curated entry carried a transposition until 2026-08-21, and migration
-  // 121 propagated it onto 25 vehicles by inverting make+model through it. Four physical tags say
-  // CVTA and none say CTVA: LUR184, LFJ390, DEWJ042 (Toronto) and MCN122 (already stored from a
-  // live tag read). If a genuine CTVA ever turns up it will log as an unknown code and Aaron
-  // decides — which is the safe direction; the wrong direction was 25 cars stamped with a code
-  // that appears on no tag in the fleet.
+  // ⚠️ CVTA, not CTVA. The curated entry carried a transposition until 2026-08-21, and migration
+  // 121 propagated it onto 25 vehicles by inverting make+model through it — a backfill copies the
+  // authority it derived from, errors included.
+  //
+  // ⭐ CTVA DOES NOT EXIST — Aaron, 2026-08-21: *"ctva does not exist. it was a typo"*, confirming
+  // four physical tags that all read CVTA (LUR184, LFJ390, DEWJ042, and MCN122 which already held
+  // CVTA stamped from a live scan). Not "unverified", not "probably" — settled by the man who
+  // built this table. Don't re-add it.
   CVTA: { make: 'Volkswagen', model: 'Taos' },
   CATL: { make: 'Volkswagen', model: 'Atlas' },
   CTCF: { make: 'Volkswagen', model: 'Tiguan' }, // surfaced live 2026-07-20 (Aaron, unit 5429832 / LUR466, rental class Q4) — rare on the lot, confirmed Tiguan
