@@ -72,6 +72,25 @@ test('⭐ an UNKNOWN class code is shown and editable — it teaches the codex',
   await expect(page.getByText(/FG learns nothing from this tag/)).toBeVisible();
 });
 
+test('⭐ a code the codex KNOWS is still stored — it just is not up for teaching', async ({ page }) => {
+  // The 2026-08-21 regression: the form seeded its field from `teachClassCode`, which is set ONLY
+  // when the codex missed. So CALE (a known code — GMC Acadia) resolved into a make and model and
+  // was then discarded, storing class_code as null. Exactly backwards: the codes FG knows are the
+  // ones it can trust most. `classCode` now carries the read code always.
+  await injectScreen(page, {
+    name: 'register-vehicle', prefill: 'LUR541',
+    scanned: {
+      unitNumber: '5427075', plate: 'LUR541', make: 'GMC', model: 'Acadia',
+      year: 2026, color: 'Gray', rentalClass: 'L2', classCode: 'CALE',
+    },
+  });
+  await expect(page.getByRole('button', { name: 'Add to Ledger' })).toBeVisible();
+  // No amber teach box — nothing is being learned…
+  await expect(page.getByLabel(/Class code/)).toHaveCount(0);
+  // …but the value rides along and is stored. Asserted via the submitted payload's own field.
+  await expect(page.getByRole('combobox').nth(1)).toHaveValue('Acadia');
+});
+
 test('a code the codex already knows stays out of the way', async ({ page }) => {
   // No teachClassCode means nothing is being learned, so there is nothing to confirm — an amber
   // field on every registration would be noise, and noise is how a real warning gets ignored.

@@ -392,6 +392,9 @@ export interface ScannedIdentity {
   /** The tag's class code, set ONLY when the codex couldn't resolve it. Its presence means
    *  "registering this car also teaches FG what this code is" — the operator holding the tag
    *  is the authority. Absent for codes the codex already knows (nothing to learn). */
+  /** The tag's 4-char class code as READ — always present when the tag gave one, whether or not
+   *  the codex could resolve it. Stored on the vehicle at registration (migration 120). */
+  classCode?: string;
   teachClassCode?: string;
 }
 

@@ -64,7 +64,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   // operator could neither see nor correct. On 2026-08-19 a Seltos tag read CKSE as CKSP; Aaron
   // corrected the make and model, and FG dutifully taught the MISREAD code the right car — while
   // the real code stayed unknown, so the next Seltos would misread and teach again.
-  const [classCode, setClassCode] = useState(scanned?.teachClassCode ?? '');
+  const [classCode, setClassCode] = useState(scanned?.classCode ?? scanned?.teachClassCode ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -84,7 +84,7 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
     setYear(plausibleYearOr(s.year, currentYear));
     setColor(s.color ?? '');
     setRentalClass(s.rentalClass ?? '');
-    setClassCode(s.teachClassCode ?? '');
+    setClassCode(s.classCode ?? s.teachClassCode ?? '');
     setIsHybrid(s.isHybrid ?? false);
   });
 

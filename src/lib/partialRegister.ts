@@ -27,7 +27,14 @@ export function scannedFromRead(read: KeytagRead, plate: string): ScannedIdentit
     rentalClass: read.rentalClass ?? '',
     rentalClassInferred: read.rentalClassInferred,
     isHybrid: read.isHybrid ?? false,
-    // Only when the codex missed — registering then teaches the mapping (see isUnknownClassCode).
+    // ⚠️ TWO SEPARATE FIELDS, and conflating them lost data for a day (2026-08-21).
+    //   `classCode`      — what the tag SAID, always. It is stored on the vehicle so the record's
+    //                      identity stays checkable against what produced it (migration 120).
+    //   `teachClassCode` — only when the codex MISSED, i.e. "registering this also teaches FG".
+    // The register form used to seed its field from `teachClassCode` alone, so a code the codex
+    // already knew (CALE → GMC Acadia) was resolved into a make and model and then DISCARDED:
+    // exactly backwards, since the known codes are the ones we can trust most.
+    classCode: normalizeClassCode(read.classCode) || undefined,
     teachClassCode: isUnknownClassCode(read) ? normalizeClassCode(read.classCode) : undefined,
   };
 }

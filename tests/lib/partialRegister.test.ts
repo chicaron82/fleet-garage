@@ -11,13 +11,13 @@ const DURANGO: KeytagRead = {
 describe('scannedFromRead', () => {
   it('keeps every field the tag DID give, blanking only what it did not', () => {
     expect(scannedFromRead(DURANGO, 'LUR437')).toEqual({
-      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '', isHybrid: false, teachClassCode: 'CDGT',
+      unitNumber: '5429949', plate: 'LUR437', make: '', model: '', year: 2026, color: 'Black', rentalClass: '', isHybrid: false, classCode: 'CDGT', teachClassCode: 'CDGT',
     });
   });
 
   it('never returns null on an incomplete read — that was the whole bug', () => {
     expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111')).toEqual({
-      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '', isHybrid: false, teachClassCode: undefined,
+      unitNumber: '', plate: 'AAA111', make: '', model: '', year: 0, color: '', rentalClass: '', isHybrid: false, classCode: undefined, teachClassCode: undefined,
     });
   });
 
@@ -39,6 +39,29 @@ describe('scannedFromRead', () => {
     expect(scannedFromRead(inferred, 'LUR256').rentalClassInferred).toBe(true);
     // a straight tag read leaves it falsy — read off the tag, not inferred.
     expect(scannedFromRead({ plate: 'LUR119', unitNumber: '5421433', rentalClass: 'Q4' }, 'LUR119').rentalClassInferred).toBeUndefined();
+  });
+});
+
+describe('the class code rides along even when the codex KNOWS it', () => {
+  it('⭐ a known code is still carried — the 2026-08-21 regression', () => {
+    // The payload used to carry the code ONLY via `teachClassCode`, which is set only when the
+    // codex missed. So CALE (known — GMC Acadia) was resolved into a make and model and then
+    // DISCARDED, storing class_code as null on a freshly registered car. Exactly backwards: the
+    // codes FG knows are the ones it can trust most.
+    const acadia: KeytagRead = { plate: 'LUR541', unitNumber: '5427075', classCode: 'CALE', make: 'GMC', model: 'Acadia', rentalClass: 'L2', year: 2026, color: 'Gray' };
+    const s = scannedFromRead(acadia, 'LUR541');
+    expect(s.classCode).toBe('CALE');
+    expect(s.teachClassCode).toBeUndefined();   // nothing to learn — it already resolved
+  });
+
+  it('an unknown code rides in BOTH — stored on the car, and offered for teaching', () => {
+    const s = scannedFromRead({ plate: 'LUR541', unitNumber: '5427075', classCode: 'ZZZZ' }, 'LUR541');
+    expect(s.classCode).toBe('ZZZZ');
+    expect(s.teachClassCode).toBe('ZZZZ');
+  });
+
+  it('normalizes what it carries', () => {
+    expect(scannedFromRead({ plate: 'LUR541', classCode: ' cale ' }, 'LUR541').classCode).toBe('CALE');
   });
 });
 
