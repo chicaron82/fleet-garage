@@ -69,7 +69,19 @@ export function VehicleEVAssets({
                     vehicle.id,
                     isAdapter ? (vehicle.hasMobileCable ?? true) : next,
                     isAdapter ? next : (vehicle.hasJ1772Adapter ?? true),
-                    'management'
+                    // ⚠️ 'vsa_washbay', not 'management' — this hardcoded 'management' for EVERY
+                    // user of this screen, so Aaron (a VSA) saw his own check attributed to
+                    // "Management" in the history he was reading. All 12 'management' rows in the
+                    // table were his, from here; none were management actions.
+                    //
+                    // ⭐ EvSource answers WHERE a check happened, not WHO did it — check_in,
+                    // driver_trip and vsa_washbay all name a surface, and 'management' was the odd
+                    // one naming a role. Where a check happened is what tells you how much to trust
+                    // it: a car in hand in the bay is stronger evidence than a glance at check-in.
+                    // Ticking these boxes on the record card is the same act as the EV Assets tab —
+                    // him, at a car, in the washbay — so it reports the same source. (Aaron's call,
+                    // 2026-08-21: "your lean is correct".)
+                    'vsa_washbay'
                   );
                 }}
                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
