@@ -121,3 +121,44 @@ export function summariseZones(ids: readonly string[]): string {
   if (named.length <= 2) return named.join(' · ');
   return `${named.slice(0, 2).join(' · ')} +${named.length - 2}`;
 }
+
+// ── The vehicle-level read ─────────────────────────────────────────────────────────────────────
+// Aaron's design, 2026-08-22 from the lot: the map should also live ABOVE the hold history as a
+// persistent, at-a-glance reference — "damage exists on that part of the car" — because the moment
+// it matters is when he is standing at the vehicle with the paper inspection slip deciding what to
+// circle. Per-hold tagging is data entry; THIS is what makes the tagging pay.
+
+/** The only hold facts the vehicle map needs. Deliberately structural rather than `Hold`, so the
+ *  derivation stays pure and testable without dragging the whole domain type in. */
+export interface ZoneHoldFacts {
+  status: string;
+  damageZones?: string[];
+  /** ISO — the most recent one across the standing holds is his "last seen". */
+  flaggedAt: string;
+}
+
+/** Statuses where the damage is GONE from the car.
+ *
+ *  ⭐ RELEASED IS NOT ONE OF THEM, and that is the whole point. A pre-existing release means
+ *  "accepted as-is, no repair planned, renting as-is" — the damage is still physically on the panel
+ *  ([[reference_fg_status_semantics]]). Clear those and the map goes blank on precisely the cars it
+ *  exists for: the ones carrying approved damage that circulates unrepaired. RETURNED came back
+ *  with the damage still on it. Only a repair, or a hold that was never real, clears a panel. */
+const CLEARED_STATUSES: ReadonlySet<string> = new Set(['REPAIRED', 'VOIDED']);
+
+export interface VehicleDamage {
+  /** Every panel still carrying damage, nose to tail, de-duplicated across holds. */
+  zones: string[];
+  /** When the most recent standing hold was flagged — null when nothing stands. */
+  lastFlaggedAt: string | null;
+}
+
+/** Merge a vehicle's holds into "what is wrong with this car, right now, and where".
+ *  A hold flipping to REPAIRED clears its panels with no second action from anyone. */
+export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDamage {
+  const standing = holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) > 0);
+  const zones = orderZones(standing.flatMap(h => h.damageZones ?? []));
+  const lastFlaggedAt = standing.reduce<string | null>(
+    (latest, h) => (latest === null || h.flaggedAt > latest ? h.flaggedAt : latest), null);
+  return { zones, lastFlaggedAt };
+}

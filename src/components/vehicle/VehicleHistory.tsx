@@ -7,6 +7,7 @@ import { CloseExceptionAction } from './CloseExceptionAction';
 import { hapticHeavy } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
 import { HoldActionPanels } from '../holds/HoldActionPanels';
+import { VehicleDamageMap } from './VehicleDamageMap';
 import { PhotoLightbox } from '../shared/PhotoLightbox';
 import { VehicleEVAssets } from './VehicleEVAssets';
 import { VehicleLostFoundSection } from './VehicleLostFoundSection';
@@ -278,6 +279,11 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
           />
         )}
         <HoldActionPanels h={h} vehicleId={vehicleId} streak={streak} />
+
+        {/* Damage on this car, at a glance — above the history on purpose (Aaron, 2026-08-22):
+            it is the reference he reads while filling the paper inspection slip, and it must not
+            need a record opened to be seen. Repaired panels drop off it by themselves. */}
+        <VehicleDamageMap holds={h.holds} />
 
         <HoldHistorySection
           vehicle={vehicle}
