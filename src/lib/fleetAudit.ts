@@ -5,12 +5,18 @@
 // entered twice off a SINGLE MISREAD CHARACTER. Both had sat in the live fleet for months, and
 // nothing in FG was ever going to mention them.
 //
-// ⭐ THE DESIGN CHOICE THAT MATTERS: the plate check does NOT validate against provincial formats.
-// I don't reliably know them (I guessed at "Saskatchewan" earlier today and was wrong), and a fleet
-// that takes one-ways from four provinces would make a format whitelist rot immediately. Instead it
+// ⭐ THE DESIGN CHOICE THAT MATTERS: the CONFUSABLE-PLATE check does not validate against provincial
+// formats. A fleet that takes one-ways from four provinces would make a format whitelist rot, so it
 // looks for the failure mode that actually happened: **two live plates that are the same string once
 // the OCR-confusable characters are collapsed.** No provincial knowledge required, and it catches
 // exactly the pair that got past everything.
+//
+// ⚠️ UPDATED 2026-08-22 — that paragraph used to end "no provincial knowledge required" full stop,
+// and a fifth check now DOES compare a plate's shape to a province's. The two are not in conflict
+// and the difference is the point: the whitelist I refused is a list of formats a plate is ALLOWED
+// to have; the cross-check below compares a plate against the one branch that actually owns it, read
+// off the same key tag. It cannot rot, because a branch's shape is measured from that branch's own
+// live cars. The old sentence is corrected rather than deleted so the reasoning survives.
 //
 // It PROPOSES, it never fixes. A wrong auto-merge would eat a damage record — the one thing FG
 // exists to prevent (project_fg_old_damage_amnesia). Every finding names the records and leaves the
@@ -18,6 +24,7 @@
 
 import { TESLA_KEYCARD_COUNT } from './keyCount';
 import { LETTER_TO_DIGIT } from '../../api/_lib/platePrefix';
+import { expectedPlateShape, owningLabel } from '../../api/_lib/owningArea';
 
 export interface AuditVehicle {
   id: string;
@@ -30,9 +37,12 @@ export interface AuditVehicle {
   year: number;
   color: string;
   keyCount?: number | null;
+  /** The branch that owns the car, read off the key tag ("8193"). Empty/absent for most of the
+   *  fleet, which predates the capture — absent is never a finding. */
+  owningArea?: string | null;
 }
 
-export type FleetAuditKind = 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate' | 'tesla-key-count';
+export type FleetAuditKind = 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate' | 'tesla-key-count' | 'plate-owning';
 
 export interface FleetAuditFinding {
   /** Stable across runs so a dismissal sticks. Derived from the kind + the identifiers, never from
@@ -46,6 +56,11 @@ export interface FleetAuditFinding {
 
 export function normalizePlate(raw: string | null | undefined): string {
   return (raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/** A plate reduced to its FORM: letters become A, digits become 9. "LZM516" → "AAA999". */
+export function plateShape(raw: string | null | undefined): string {
+  return normalizePlate(raw).replace(/[A-Z]/g, 'A').replace(/[0-9]/g, '9');
 }
 
 /** Collapse a plate to its confusable-class form, so LUR143 and LURL43 land on the same string. */
@@ -174,6 +189,44 @@ export function auditFleet(
       vehicles: [v],
     });
   }
+
+  // ── 5. A plate that disagrees with the branch that owns it ─────────────────────────────────
+  // Aaron's design (2026-08-21): "that's why we double check, with the owning. ABCD123 paired with
+  // toronto good. but if it read ABC0123 and toronto, then it should know that its not a 0 it may
+  // be an O, so surface to get actual eyes to make the call."
+  //
+  // ⭐⭐ IT NAMES THE DISAGREEMENT AND REFUSES TO NAME A CULPRIT, and that rule was bought the hard
+  // way. Validating this against the live fleet turned up exactly one one-off case — 0ES919, an
+  // Alberta-shaped plate on a car owned by 8199 Winnipeg — and I wrote into the spec that the check
+  // should suggest "OES919". Aaron read the key tag: CALG / 08193, with 0ES919 printed on it. The
+  // OWNING CODE was the bad value. Acting on that suggestion would have overwritten a correct plate.
+  // The data cannot tell you which half is wrong; that is the entire reason a human looks at the tag.
+  //
+  // The discriminator is DISTANCE, and on the live fleet it separated the two cases perfectly:
+  // 125 plates matched their owning branch's shape, ONE was a single character off (the misread),
+  // and FOUR were two or more off — genuinely re-plated cars, which must stay silent or the board
+  // fills with permanent noise and stops being read at all.
+  for (const v of vehicles) {
+    if (claimed.has(v.id)) continue;
+    const expected = expectedPlateShape(v.owningArea);
+    if (!expected) continue;                       // unknown branch, or one whose own fleet disagrees
+    const shape = plateShape(v.licensePlate);
+    // A different LENGTH is a different format, not a misread: a misread swaps a character, it does
+    // not add or drop one — and same-length is what the one-off distance was measured on.
+    if (shape.length !== expected.length) continue;
+    let off = 0;
+    for (let i = 0; i < expected.length; i++) if (shape[i] !== expected[i]) off++;
+    if (off !== 1) continue;                       // 0 = agrees; 2+ = really wearing another province
+    findings.push({
+      key: `plate-owning:${normalizePlate(v.licensePlate)}`,
+      kind: 'plate-owning',
+      title: `${v.licensePlate} does not match the plates ${owningLabel(v.owningArea)} issues`,
+      detail: `Cars owned there read ${expected}; this one reads ${shape} — one character apart. `
+        + 'Either the plate or the owning number was read wrong, and only the key tag can say which.',
+      vehicles: [v],
+    });
+  }
+
 
   return findings
     .filter(f => !gone.has(f.key))

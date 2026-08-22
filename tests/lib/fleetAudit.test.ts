@@ -130,3 +130,87 @@ describe('a Tesla whose key count is not one', () => {
   });
 });
 
+
+// ── 5. Plate ↔ owning cross-check (docs/ticket-plate-province-crosscheck.md) ────────────────────
+// The check that needs only ONE row. The confusable-plate check compares two records, so a lone
+// disagreement — a car with no twin — was invisible to it forever. 0ES919 was exactly that.
+
+describe('auditFleet — a plate that disagrees with its owning branch', () => {
+  const car = (over: Partial<AuditVehicle> & { id: string; licensePlate: string }): AuditVehicle => ({
+    unitNumber: over.id, make: 'Ford', model: 'Escape', year: 2025, color: 'Blue', ...over,
+  });
+
+  it('⭐ flags the real case: an Alberta-shaped plate owned by Winnipeg', () => {
+    const f = auditFleet([car({ id: 'v1', licensePlate: '0ES919', owningArea: '8199' })], []);
+    const hit = f.find(x => x.kind === 'plate-owning')!;
+    expect(hit).toBeTruthy();
+    expect(hit.title).toContain('0ES919');
+    expect(hit.title).toContain('Winnipeg (8199)');
+    expect(hit.detail).toContain('AAA999');
+    expect(hit.detail).toContain('9AA999');
+  });
+
+  it('⭐⭐ NEVER suggests which side is wrong', () => {
+    // The rule Aaron's key tag bought: the owning code was the bad half, not the plate, and a
+    // suggested "correction" would have overwritten a plate that was right all along.
+    const f = auditFleet([car({ id: 'v1', licensePlate: '0ES919', owningArea: '8199' })], []);
+    const hit = f.find(x => x.kind === 'plate-owning')!;
+    expect(hit.detail).toMatch(/only the key tag can say which/);
+    expect(hit.detail).not.toMatch(/OES919|should be|likely|probably|try /i);
+  });
+
+  it('says nothing when the plate agrees with its branch', () => {
+    const f = auditFleet([
+      car({ id: 'v1', licensePlate: 'LZM516', owningArea: '8199' }),   // MB shape, MB branch
+      car({ id: 'v2', licensePlate: '0ES919', owningArea: '8193' }),   // AB shape, AB branch
+    ], []);
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('⭐ stays silent on a genuinely re-plated car — two or more characters off', () => {
+    // The four live cases: long-stay Teslas re-plated where they sit. Flag these and the board
+    // fills with permanent noise, and a list you cannot clear is a list you stop reading.
+    const f = auditFleet([car({ id: 'v1', licensePlate: 'LUR143', owningArea: '8191' })], []);  // MB plate, BC branch
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('ignores a plate of a different length entirely', () => {
+    // A misread swaps a character; it does not add or drop one. Different length = different format.
+    const f = auditFleet([car({ id: 'v1', licensePlate: 'ABCD123', owningArea: '8199' })], []);
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('says nothing when the owning branch is absent or unknown', () => {
+    // Most of the fleet predates the capture. Absent is never a finding.
+    const f = auditFleet([
+      car({ id: 'v1', licensePlate: '0ES919' }),
+      car({ id: 'v2', licensePlate: '0ES919', owningArea: '9999' }),
+    ], []);
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('⭐ says nothing for 8890, whose own fleet disagrees about its format', () => {
+    // A branch that cannot vouch for a shape must not be used to judge one — inventing a format
+    // for it would flag four correct cars.
+    const f = auditFleet([car({ id: 'v1', licensePlate: 'LUR143', owningArea: '8890' })], []);
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('keys on the plate so a dismissal survives a re-registration', () => {
+    const f = auditFleet([car({ id: 'v1', licensePlate: '0ES919', owningArea: '8199' })], []);
+    expect(f.find(x => x.kind === 'plate-owning')!.key).toBe('plate-owning:0ES919');
+    const dismissed = auditFleet([car({ id: 'v-NEW-ROW', licensePlate: '0ES919', owningArea: '8199' })],
+                                 ['plate-owning:0ES919']);
+    expect(dismissed.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+  });
+
+  it('defers to a duplicate finding rather than piling on', () => {
+    // Two rows for one car is the bigger story; this check must not add a second line about it.
+    const f = auditFleet([
+      car({ id: 'v1', unitNumber: '5774567', licensePlate: '0ES919', owningArea: '8199' }),
+      car({ id: 'v2', unitNumber: '5774567', licensePlate: '0ES919', owningArea: '8199' }),
+    ], []);
+    expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
+    expect(f.some(x => x.kind === 'duplicate-unit')).toBe(true);
+  });
+});

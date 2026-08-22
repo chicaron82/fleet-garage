@@ -80,3 +80,38 @@ export function isForeignOwning(raw: string | null | undefined): boolean {
   if (!o) return false;
   return o !== HOME_OWNING && o !== '8999';
 }
+
+// ── The plate shape a branch's own cars wear ────────────────────────────────────────────────────
+// Added 2026-08-22 for the plate ↔ owning cross-check (docs/ticket-plate-province-crosscheck.md).
+//
+// ⚠️ MEASURED, NOT RECALLED. Every shape below was computed from the live fleet on 2026-08-22 by
+// collapsing each plate to letters-and-digits and grouping by owning code:
+//   8199 Winnipeg   AAA999   (112 cars, unanimous)
+//   8193 Calgary    9AA999   (12)
+//   8197 Toronto    AAAA999  (4)
+//   8191 Vancouver  AA999A   (3)
+//   8190 Sask.      999AAA   (3)
+//   8194 Montreal   AAA9999  (2)
+// All six are DISTINCT, which is what makes a mismatch meaningful rather than ambiguous. An earlier
+// version of this knowledge lived only in my head and I got a province wrong from it; the numbers
+// above are reproducible from the vehicles table.
+//
+// 8890 is deliberately absent even though it is a known branch: its five cars carry MB, AB and BC
+// plates, because they are long-stay Teslas re-plated where they sit. A branch whose own fleet
+// disagrees about its format cannot vouch for a plate, and inventing one for it would flag four
+// correct cars. Same for 8999 (historical Winnipeg) — no live cars to measure.
+
+/** Owning code → the plate shape that branch's own cars wear, in A(letter)/9(digit) form. */
+const OWNING_PLATE_SHAPE: Record<string, string> = {
+  '8199': 'AAA999',    // Manitoba
+  '8193': '9AA999',    // Alberta
+  '8197': 'AAAA999',   // Ontario
+  '8191': 'AA999A',    // British Columbia
+  '8190': '999AAA',    // Saskatchewan
+  '8194': 'AAA9999',   // Quebec
+};
+
+/** The shape a car owned by `raw` should wear, or '' when this branch cannot vouch for one. */
+export function expectedPlateShape(raw: string | null | undefined): string {
+  return OWNING_PLATE_SHAPE[normalizeOwning(raw)] ?? '';
+}
