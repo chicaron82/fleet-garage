@@ -33,6 +33,21 @@ const KNOWN: Record<string, string> = {
   // historical cars read as Winnipeg rather than as an unknown branch. Named plainly "Winnipeg":
   // the NUMBER already distinguishes it, and "Winnipeg (former) (8999)" reads like a stutter.
   '8999': 'Winnipeg',
+
+  // Added 2026-08-21 — these three were live in the fleet and displaying as bare numbers.
+  // Each was CONFIRMED, not guessed:
+  //   8190 — all three cars carry 111AAA plates (Saskatchewan's format). Aaron called it.
+  //   8194 — both cars carry AAA1111 plates (Quebec's format).
+  //   8890 — read straight off two stored key tags: "VAN DTG / 08890". Vancouver, the
+  //          Dollar/Thrifty side of it, which is why it sits alongside 8191. Named plainly
+  //          "Vancouver" for the same reason 8999 is plainly "Winnipeg" — the number carries
+  //          the distinction. Aaron called this one too; the PLATES had me doubting it (its
+  //          five cars carry AB, MB and BC plates) until the tag settled it — those are
+  //          long-stay 2022 Teslas re-plated where they sit, so a car's owning branch and its
+  //          plate's province legitimately diverge. Don't infer a branch from plates.
+  '8190': 'Saskatchewan',
+  '8194': 'Montreal',
+  '8890': 'Vancouver',
 };
 
 /** FG's home branch. A car owned here is the unremarkable case; everything else is worth flagging. */

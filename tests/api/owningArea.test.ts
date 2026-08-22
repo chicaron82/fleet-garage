@@ -57,3 +57,23 @@ describe('isForeignOwning', () => {
     expect(isForeignOwning(undefined)).toBe(false);
   });
 });
+
+// Codes that were live in the fleet but displaying as bare numbers until 2026-08-21. Each was
+// CONFIRMED rather than guessed: 8190 and 8194 from the plate formats their cars carry (111AAA
+// Saskatchewan, AAA1111 Quebec), and 8890 read straight off two stored key tags — "VAN DTG / 08890".
+describe('owningLabel — the codes named 2026-08-21', () => {
+  it('names Saskatchewan, Montreal and Vancouver-DTG', () => {
+    expect(owningLabel('8190')).toBe('Saskatchewan (8190)');
+    expect(owningLabel('8194')).toBe('Montreal (8194)');
+    expect(owningLabel('8890')).toBe('Vancouver (8890)');
+  });
+
+  it('keeps the two Vancouver codes apart by number, not by a qualifier', () => {
+    expect(owningLabel('8191')).toBe('Vancouver (8191)');
+    expect(owningLabel('08890')).toBe('Vancouver (8890)');   // tags print the leading zero
+  });
+
+  it('still refuses to name a code nobody has confirmed', () => {
+    expect(owningLabel('8123')).toBe('8123');
+  });
+});
