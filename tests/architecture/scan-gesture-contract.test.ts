@@ -35,6 +35,14 @@ describe('scan-router: the camera opens on the first tap', () => {
 
     // The input must sit OUTSIDE `{isOpen && <ScanRouterOverlay .../>}` — inside it, it would
     // unmount with the overlay and there'd be nothing to click at tap time.
+    //
+    // ⚠️ HONEST LIMIT OF THIS ASSERTION (named at /reflect 60 rather than left to be over-trusted):
+    // this checks SOURCE ORDER as a proxy for "always mounted". It reliably catches the realistic
+    // regression — someone moving the input back into the overlay — because the overlay assertion
+    // below fails too. It does NOT catch an input that sits before the overlay but inside a
+    // conditional of its own (`{somethingElse && <input type="file" …/>}`), which would compile,
+    // pass here, and still be unmounted at tap time. Parsing the JSX would close that gap; the
+    // proxy is deliberate, and this comment exists so the next reader knows its edge.
     const overlayLine = src.indexOf('isOpen && <ScanRouterOverlay');
     const inputLine = src.indexOf('type="file"');
     expect(inputLine).toBeGreaterThan(-1);
