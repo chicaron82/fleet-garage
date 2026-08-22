@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import { orderZones } from '../lib/damageZones';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { deleteDamagePhotos } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
@@ -92,6 +93,28 @@ export function makeEditHoldDescription({ holds, setAllHolds }: EditDeps) {
       supabase.from('holds').update({ damage_description: text }).eq('id', holdId));
     if (error) throw new Error(`Failed to edit description: ${(error as { message?: string }).message}`);
     setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, damageDescription: text })));
+  };
+}
+
+/** SET a hold's damage zones — which body panels the damage sits on.
+ *
+ *  ⭐ Deliberately not a photo flow. Aaron's cut of 2026-08-22: the photos are already on the
+ *  record, so tagging a zone is annotation, not capture — which is the only reason the 441 holds
+ *  already on the books can ever be tagged at all. Tie it to a live camera and the feature reaches
+ *  forward only, and the old circulating damage FG exists for stays unqueryable forever.
+ *
+ *  Like the description, zones are pure metadata: they never drive vehicle status, so there is no
+ *  reconcile cascade. An EMPTY array is legal and meaningful — it is how a mistagged hold is
+ *  cleared, so this must not borrow the description's non-empty guard. */
+export function makeEditHoldDamageZones({ holds, setAllHolds }: EditDeps) {
+  return async (holdId: string, zones: string[]): Promise<void> => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    const next = orderZones(zones);   // stable on write, whatever order he tapped
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ damage_zones: next }).eq('id', holdId));
+    if (error) throw new Error(`Failed to save damage zones: ${(error as { message?: string }).message}`);
+    setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, damageZones: next })));
   };
 }
 

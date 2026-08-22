@@ -619,6 +619,7 @@ export type Database = {
           cleaned_inhouse_logged_at: string | null
           created_at: string | null
           damage_description: string
+          damage_zones: string[]
           detail_reason: string | null
           flagged_at: string
           flagged_by_employee_id: string | null
@@ -642,6 +643,7 @@ export type Database = {
           cleaned_inhouse_logged_at?: string | null
           created_at?: string | null
           damage_description: string
+          damage_zones?: string[]
           detail_reason?: string | null
           flagged_at: string
           flagged_by_employee_id?: string | null
@@ -665,6 +667,7 @@ export type Database = {
           cleaned_inhouse_logged_at?: string | null
           created_at?: string | null
           damage_description?: string
+          damage_zones?: string[]
           detail_reason?: string | null
           flagged_at?: string
           flagged_by_employee_id?: string | null

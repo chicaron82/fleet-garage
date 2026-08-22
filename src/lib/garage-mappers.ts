@@ -173,6 +173,7 @@ export function mapHold(row: Row): Hold {
     flaggedAt:            reqStr(row, 'flagged_at',             'mapHold'),
     notes:              reqStr(row, 'notes',              'mapHold'),
     photos:             optStrArray(row, 'photos'),
+    damageZones:        optStrArray(row, 'damage_zones') ?? [],
     status:             reqStr(row, 'status',             'mapHold') as HoldStatus,
     linkedHoldId:       optStr(row, 'linked_hold_id'),
     release:                 releases?.[0] ? mapRelease(releases[0]) : undefined,

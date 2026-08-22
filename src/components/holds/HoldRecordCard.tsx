@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { canMarkPreExisting } from '../../types';
 import { StatusBadge } from './StatusBadge';
 import { HoldRecordFooter } from './HoldRecordFooter';
+import { HoldDamageZones } from './HoldDamageZones';
 import type { Hold, Vehicle } from '../../types';
 
 const MAX_PHOTOS = 4;
@@ -205,6 +206,10 @@ export function HoldRecordCard({
           {' '}· {getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)} · {fmt(hold.flaggedAt)}
           {hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
         </p>
+        {/* WHERE the damage is — chips, and the diagram behind an Edit tap. Lives in its own
+            component: this file is at the 330-line cap and the map is not a two-liner. */}
+        <HoldDamageZones hold={hold} />
+
         {hold.notes && (
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 italic">"{hold.notes}"</p>
         )}

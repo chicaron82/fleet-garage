@@ -62,6 +62,8 @@ export interface VehicleHoldContextValue {
   deleteHold: (holdId: string) => Promise<void>;
   deleteHoldPhoto: (holdId: string, photoUrl: string) => Promise<void>;
   editHoldDescription: (holdId: string, description: string) => Promise<void>;
+  /** Set which body panels this hold's damage sits on. Empty array clears them. */
+  editHoldDamageZones: (holdId: string, zones: string[]) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;

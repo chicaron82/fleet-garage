@@ -285,6 +285,14 @@ export interface Hold {
   flaggedAt: string;           // ISO timestamp
   notes: string;
   photos?: string[];
+  /** Body panels the damage sits on — ids from lib/damageZones. The zone is an INDEX (which panel);
+   *  the photo carries the precise spot and the type. Empty = not tagged yet, which most holds are
+   *  until the backfill runs.
+   *
+   *  Optional here, NOT NULL in the DB (default '{}'): a hold read from a row always has it, and the
+   *  `?` is only for objects built in code before they are written — same shape as `photos` above.
+   *  Read it as `hold.damageZones ?? []`. */
+  damageZones?: string[];
   status: HoldStatus;
   linkedHoldId?: string;
   release?: Release;

@@ -5,7 +5,7 @@ import { isTeslaMake } from '../lib/ev-detection';
 import { normalizePlate } from '../lib/vehicleByPlate';
 import { decideMint } from '../lib/mintGuard';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired, makeConvertToPreExisting } from './holdResolution';
-import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription } from './holdEditing';
+import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription, makeEditHoldDamageZones } from './holdEditing';
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
 import { makeUpdateVehicleEVAssets } from './evAssetWrite';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
@@ -172,6 +172,7 @@ export function useVehicleOperations({
   const deleteHold      = makeDeleteHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const deleteHoldPhoto = makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles });
   const editHoldDescription = makeEditHoldDescription({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const editHoldDamageZones = makeEditHoldDamageZones({ holds, allVehicles, setAllHolds, setAllVehicles });
   const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markRepairedBatch = makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markIssueRepaired = makeMarkIssueRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
@@ -372,6 +373,7 @@ export function useVehicleOperations({
     deleteHold,
     deleteHoldPhoto,
     editHoldDescription,
+    editHoldDamageZones,
     closeException,
     archiveVehicle,
     restoreVehicle,
