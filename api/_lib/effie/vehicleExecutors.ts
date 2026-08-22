@@ -2,14 +2,14 @@
 // last-known location, class-code decode). Split from effieExecutors.ts (2026-07-24, pure move).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { summarizeLookup, type HoldFact, type VehicleLookupResult } from '../vehicleSummary.js';
-import { correctManitobaPrefix } from '../platePrefix.js';
+import { correctManitobaPlate } from '../platePrefix.js';
 import { normalizePlate, resolveVehicleRow, toVehicleFact, SCHED_TZ, scheduleDateLabel } from '../effieHelpers.js';
 import { lookupVehicleClass } from '../vehicleClassCodex.js';
 
 /** Is this plate on the Geotab install watchlist and still pending? Keyed by the
  *  MB-corrected plate, matching how the sheet plates are stored (see migration 095). */
 async function isGeotabPending(supabase: SupabaseClient, rawPlate: string): Promise<boolean> {
-  const plate = correctManitobaPrefix(rawPlate);
+  const plate = correctManitobaPlate(rawPlate);
   if (!plate) return false;
   const { data } = await supabase
     .from('geotab_watchlist')

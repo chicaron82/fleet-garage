@@ -1,9 +1,9 @@
 // One step up from resolveKeytag: given a raw key-tag read and the fleet, normalize the
-// plate (correctManitobaPrefix — the misread-prefix safety net), match it to a fleet
+// plate (correctManitobaPlate — the misread-prefix safety net), match it to a fleet
 // vehicle, and resolve to new / complete / partial. Pure — the fleet is passed in; the
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
-import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
+import { correctManitobaPlate } from '../../api/_lib/platePrefix';
 import { matchByUnitNumber } from './matchByUnitNumber';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
@@ -121,7 +121,7 @@ export function changeNote(changes: KeytagChange[]): string {
 
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {
   const raw = (read.plate ?? '').trim().toUpperCase().replace(/\s+/g, '');
-  const plate = correctManitobaPrefix(read.plate ?? '');
+  const plate = correctManitobaPlate(read.plate ?? '');
   const byPlate = plate
     ? vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null
     : null;

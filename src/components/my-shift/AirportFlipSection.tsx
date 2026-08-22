@@ -12,7 +12,7 @@ import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
-import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
+import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { NeededClasses } from './NeededClasses';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
@@ -124,7 +124,7 @@ export function AirportFlipSection() {
   // just not auto-registered as a new fleet car, matching the scan path's "only register a complete
   // identity" rule (a bare plate is too partial to mint a real vehicle record).
   const submitManualPlate = () => {
-    const plate = correctManitobaPrefix(manualPlate);
+    const plate = correctManitobaPlate(manualPlate);
     if (!plate) { setToast('Enter a plate to continue.'); return; }
     const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null;
     void openCapture({

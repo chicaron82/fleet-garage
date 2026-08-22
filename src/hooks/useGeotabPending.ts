@@ -7,13 +7,13 @@
 // can read (trusted-crew allow-all).
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { correctManitobaPrefix } from '../../api/_lib/platePrefix';
+import { correctManitobaPlate } from '../../api/_lib/platePrefix';
 
 /** Returns a checker: given a scanned plate, resolves true when it's on the Geotab install
  *  watchlist and NOT yet installed (still pending → hold until installed). */
 export function useGeotabPending() {
   return useCallback(async (rawPlate: string): Promise<boolean> => {
-    const plate = correctManitobaPrefix(rawPlate);
+    const plate = correctManitobaPlate(rawPlate);
     if (!plate) return false;
     const { data } = await supabase
       .from('geotab_watchlist')
@@ -30,7 +30,7 @@ export function useGeotabPending() {
  *  reader of it (Effie's `isGeotabPending`, the scanner badge) — stays in lockstep with the resolved
  *  exception. Without this the two drift: the hold says done, the table still says pending. */
 export async function markGeotabInstalled(rawPlate: string, userId: string): Promise<void> {
-  const plate = correctManitobaPrefix(rawPlate);
+  const plate = correctManitobaPlate(rawPlate);
   if (!plate) return;
   await supabase
     .from('geotab_watchlist')

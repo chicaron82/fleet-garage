@@ -6,7 +6,7 @@
 import { useRef } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { compressImage } from '../../lib/image';
-import { correctManitobaPrefix } from '../../../api/_lib/platePrefix';
+import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
 export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
@@ -26,7 +26,7 @@ export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
     if (!file) return;
     const base64 = await compressImage(file);
     const read = await readKeytag(base64);
-    const plate = correctManitobaPrefix(read?.plate ?? '');
+    const plate = correctManitobaPlate(read?.plate ?? '');
     if (plate) onPlate(plate);
     if (read) onRead?.(read, base64);
   };

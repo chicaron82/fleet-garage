@@ -10,7 +10,7 @@ export interface KeytagRead {
    *  Captured 2026-08-18 — the line was always read and the number always discarded. */
   owningArea?: string;
   /** License plate ("Lic Plate") — the match key. The caller normalizes
-   *  (correctManitobaPrefix) and looks up an existing vehicle by this before resolving. */
+   *  (correctManitobaPlate) and looks up an existing vehicle by this before resolving. */
   plate?: string;
   /** "Veh #", digit groups joined (e.g. "542 0427" → "5420427"). */
   unitNumber?: string;

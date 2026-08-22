@@ -2,7 +2,7 @@
 // resolution, and the Winnipeg date formatting the schedule/trip tools use. Lifted out
 // of fg-chat verbatim so each tool module imports them instead of living in a god-file.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { correctManitobaPrefix } from './platePrefix.js';
+import { correctManitobaPlate } from './platePrefix.js';
 import type { VehicleFact } from './vehicleSummary.js';
 
 /** Canonical plate form for matching — mirrors src/lib/vehicleByPlate.ts normalizePlate. */
@@ -28,7 +28,7 @@ export async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: stri
   // Also try the MB-prefix-corrected form, so a handwriting/keytag misread (KMR250 →
   // KUR250) still resolves. Only snaps a not-in-fleet prefix to a known one, so it
   // can add a match but never breaks the exact one (checked first).
-  const corrected = correctManitobaPrefix(norm);
+  const corrected = correctManitobaPlate(norm);
   // The fleet is small and plates aren't stored normalized, so match in JS the same
   // way the app does (allVehicles.find). RLS limits the rows to this user's reach.
   const { data: vehicles, error } = await supabase

@@ -17,6 +17,7 @@
 // call to the operator.
 
 import { TESLA_KEYCARD_COUNT } from './keyCount';
+import { LETTER_TO_DIGIT } from '../../api/_lib/platePrefix';
 
 export interface AuditVehicle {
   id: string;
@@ -43,21 +44,13 @@ export interface FleetAuditFinding {
   vehicles: AuditVehicle[];
 }
 
-/** Characters a vision read swaps for each other. Deliberately TIGHT — every pair here is one that
- *  actually bit us or is a textbook confusion. A loose set would flag half the fleet. */
-const CONFUSABLE: Record<string, string> = {
-  O: '0',           // OEJ761 → 0EJ761 (real, 2026-05)
-  I: '1', L: '1',   // LURL43 → LUR143 (real, 2026-07)
-  S: '5', B: '8', Z: '2', G: '6',
-};
-
 export function normalizePlate(raw: string | null | undefined): string {
   return (raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 /** Collapse a plate to its confusable-class form, so LUR143 and LURL43 land on the same string. */
 export function confusableKey(raw: string | null | undefined): string {
-  return normalizePlate(raw).split('').map(c => CONFUSABLE[c] ?? c).join('');
+  return normalizePlate(raw).split('').map(c => LETTER_TO_DIGIT[c] ?? c).join('');
 }
 
 function describe(v: AuditVehicle): string {
