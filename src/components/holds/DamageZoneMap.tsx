@@ -18,10 +18,15 @@ interface Props {
   onToggle: (id: string) => void;
   /** Read-only view — the diagram still shows what is tagged, it just does not accept taps. */
   disabled?: boolean;
+  /** Panels the hold's own note suggests, drawn as a dashed OUTLINE rather than a fill.
+   *  ⚠️ Visually distinct from `selected` on purpose: a proposal that looks like a selection is a
+   *  proposal that gets confirmed without being read, which is how a guess becomes a record. */
+  candidates?: readonly string[];
 }
 
-export function DamageZoneMap({ selected, onToggle, disabled = false }: Props) {
+export function DamageZoneMap({ selected, onToggle, disabled = false, candidates = [] }: Props) {
   const isOn = (id: string) => selected.includes(id);
+  const isCandidate = (id: string) => !selected.includes(id) && candidates.includes(id);
 
   return (
     <svg
@@ -56,6 +61,7 @@ export function DamageZoneMap({ selected, onToggle, disabled = false }: Props) {
           decorative dot that eats a tap is a bug you only find on a real phone. */}
       {DAMAGE_ZONES.map(z => {
         const on = isOn(z.id);
+        const suggested = isCandidate(z.id);
         return (
           <rect
             key={z.id}
@@ -66,14 +72,18 @@ export function DamageZoneMap({ selected, onToggle, disabled = false }: Props) {
             aria-disabled={disabled || undefined}
             data-zone={z.id}
             onClick={disabled ? undefined : () => onToggle(z.id)}
-            strokeWidth={on ? 3 : 1.5}
+            strokeWidth={on || suggested ? 3 : 1.5}
+            strokeDasharray={suggested ? '10 7' : undefined}
+            data-suggested={suggested || undefined}
             className={[
               'transition-colors',
               disabled ? '' : 'cursor-pointer',
               on
                 ? 'fill-red-500/35 stroke-red-500'
-                : 'fill-transparent stroke-gray-300/70 dark:stroke-gray-600/70' +
-                  (disabled ? '' : ' hover:fill-gray-400/20'),
+                : suggested
+                  ? 'fill-amber-400/15 stroke-amber-500'
+                  : 'fill-transparent stroke-gray-300/70 dark:stroke-gray-600/70' +
+                    (disabled ? '' : ' hover:fill-gray-400/20'),
             ].join(' ')}
           />
         );

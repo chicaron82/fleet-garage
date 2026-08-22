@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones,
+  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue,
+  type QueueHold,
 } from '../../src/lib/damageZones';
 
 describe('the zone catalogue', () => {
@@ -161,5 +162,52 @@ describe('vehicleDamageZones — what is wrong with this car right now', () => {
 
   it('a car with no holds at all is clear', () => {
     expect(vehicleDamageZones([])).toEqual({ zones: [], lastFlaggedAt: null });
+  });
+});
+
+describe('zoneBackfillQueue', () => {
+  const q = (over: Partial<QueueHold> & { id: string }): QueueHold =>
+    ({ status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
+  const rankByHelp = (h: QueueHold) => (h.notes.includes('lift gate') ? 0 : h.notes ? 1 : 2);
+
+  it('⭐ leaves out repaired and voided holds entirely', () => {
+    // Their panels never render anywhere, so tagging them is archaeology with no payoff.
+    const out = zoneBackfillQueue([
+      q({ id: 'a', status: 'REPAIRED' }), q({ id: 'b', status: 'VOIDED' }), q({ id: 'c' }),
+    ], () => 0);
+    expect(out.map(h => h.id)).toEqual(['c']);
+  });
+
+  it('keeps active, released and returned — the damage is still on those cars', () => {
+    const out = zoneBackfillQueue([
+      q({ id: 'a', status: 'ACTIVE' }), q({ id: 'b', status: 'RELEASED' }), q({ id: 'c', status: 'RETURNED' }),
+    ], () => 0);
+    expect(out).toHaveLength(3);
+  });
+
+  it('leaves out holds that are already tagged', () => {
+    const out = zoneBackfillQueue([q({ id: 'a', damageZones: ['hood'] }), q({ id: 'b' })], () => 0);
+    expect(out.map(h => h.id)).toEqual(['b']);
+  });
+
+  it('⭐ puts the notes the matcher can read first, so the grind opens fast', () => {
+    const out = zoneBackfillQueue([
+      q({ id: 'blank' }),
+      q({ id: 'vague', notes: 'Passenger side' }),
+      q({ id: 'pinned', notes: 'Rear lift gate' }),
+    ], rankByHelp);
+    expect(out.map(h => h.id)).toEqual(['pinned', 'vague', 'blank']);
+  });
+
+  it('breaks ties newest first', () => {
+    const out = zoneBackfillQueue([
+      q({ id: 'older', flaggedAt: '2026-01-01T00:00:00Z' }),
+      q({ id: 'newer', flaggedAt: '2026-08-20T00:00:00Z' }),
+    ], () => 0);
+    expect(out.map(h => h.id)).toEqual(['newer', 'older']);
+  });
+
+  it('is empty when there is nothing left to tag', () => {
+    expect(zoneBackfillQueue([q({ id: 'a', damageZones: ['hood'] })], () => 0)).toEqual([]);
   });
 });

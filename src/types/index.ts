@@ -432,6 +432,10 @@ export type Screen =
   | { name: 'issue-log' }
   | { name: 'manifest' }
   | { name: 'fleet-master' }
+  // The damage-zone backfill run — a TEMPORARY job with a temporary front door. Deliberately not a
+  // nav module: its entry card on the Holds dashboard disappears once the queue is empty, and a
+  // permanent menu slot for a finite task is clutter that outlives the task.
+  | { name: 'zone-backfill' }
   | { name: 'effie' };
 
 // ── Audits ───────────────────────────────────────────────────────────────────

@@ -112,7 +112,7 @@ beforeEach(() => {
 describe('HoldsView — vehicle list', () => {
   it('renders HELD vehicles in the default list', async () => {
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     expect(screen.getByText('1234567')).toBeInTheDocument();
     expect(screen.getByText(/HLD111/)).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe('HoldsView — vehicle list', () => {
 
   it('hides CLEAR vehicles when no search is active', async () => {
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     expect(screen.queryByText('7654321')).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('HoldsView — search', () => {
   it('filters by unit number', async () => {
     const user = userEvent.setup();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '7654321');
     expect(await screen.findByText('7654321')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('HoldsView — search', () => {
   it('filters by plate fragment', async () => {
     const user = userEvent.setup();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'CLR');
     expect(await screen.findByText(/CLR222/)).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('HoldsView — search', () => {
   it('shows "not in the system" + register CTA for unmatched search ≥2 chars', async () => {
     const user = userEvent.setup();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
     expect(await screen.findByText(/"ZZZZ" not in the system\./)).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe('HoldsView — search', () => {
     const user = userEvent.setup();
     const onRegisterAndFlag = vi.fn();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={vi.fn()} onRegisterAndFlag={onRegisterAndFlag} />);
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={onRegisterAndFlag} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), 'ZZZZ');
     await user.click(await screen.findByText(/Add to FG/i));
@@ -173,7 +173,7 @@ describe('HoldsView — vehicle card interaction', () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /Toyota Camry/i }));
     expect(onSelectVehicle).toHaveBeenCalledWith('v-1');
@@ -183,7 +183,7 @@ describe('HoldsView — vehicle card interaction', () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '1234567');
     await user.click(await screen.findByRole('button', { name: /Toyota Camry/i }));
@@ -196,7 +196,7 @@ describe('HoldsView — vehicle card interaction', () => {
     const user = userEvent.setup();
     const onSelectVehicle = vi.fn();
     const HoldsView = await importComponent();
-    render(<HoldsView onSelectVehicle={onSelectVehicle} onRegisterAndFlag={vi.fn()} />);
+    render(<HoldsView onSelectVehicle={onSelectVehicle} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '1234567');
     await user.click(await screen.findByRole('button', { name: /Toyota Camry/i }));

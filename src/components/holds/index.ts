@@ -15,3 +15,5 @@ export * from './RepairConfirmSection';
 export * from './StatusBadge';
 export * from './VerbalOverrideForm';
 export * from './RevealPanel';
+export * from './ZoneBackfillCard';
+export * from './DamageZoneBackfillView';

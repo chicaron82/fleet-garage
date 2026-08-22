@@ -9,6 +9,7 @@ export function screenToPath(screen: Screen): string {
     case 'schedule':        return '/schedule';
     case 'lost-and-found':  return '/lost-and-found';
     case 'fleet-master':    return '/fleet';
+    case 'zone-backfill':   return '/damage-zones';
     case 'movement-log':    return '/movement-log';
     case 'audits':          return '/audits';
     case 'analytics':       return '/analytics';
@@ -38,6 +39,7 @@ export function pathToScreen(path: string): Screen | null {
     case '/schedule':       return { name: 'schedule' };
     case '/lost-and-found': return { name: 'lost-and-found' };
     case '/fleet':          return { name: 'fleet-master' };
+    case '/damage-zones':   return { name: 'zone-backfill' };
     case '/movement-log':   return { name: 'movement-log' };
     case '/audits':         return { name: 'audits' };
     case '/analytics':      return { name: 'analytics' };

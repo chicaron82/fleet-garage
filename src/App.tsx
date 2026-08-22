@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { DamageZoneBackfillView } from './components/holds/DamageZoneBackfillView';
 import { useAuth } from './context/AuthContext';
 import { VehicleHoldProvider } from './context/VehicleHoldContext';
 import { WashbayProvider } from './context/WashbayContext';
@@ -209,6 +210,8 @@ export default function App() {
             refreshKey={fleetRefreshKey}
           />
         );
+      case 'zone-backfill':
+        return <DamageZoneBackfillView onBack={() => navigate({ name: 'dashboard' })} />;
       case 'effie':
         return <EffieModule onNavigate={navigate} />;
       default:
@@ -216,6 +219,7 @@ export default function App() {
           <HoldsView
             onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
             onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
+            onOpenZoneBackfill={() => navigate({ name: 'zone-backfill' })}
           />
         );
     }

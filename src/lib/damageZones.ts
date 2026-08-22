@@ -25,6 +25,7 @@ export const DAMAGE_ZONE_IDS = [
   'driver-front-quarter', 'driver-front-door', 'driver-rear-door', 'driver-rear-quarter',
   'wheel-passenger-front', 'wheel-passenger-rear', 'wheel-driver-front', 'wheel-driver-rear',
   'mirror-passenger', 'mirror-driver',
+  'rocker-passenger', 'rocker-driver',
 ] as const;
 
 export type DamageZoneId = (typeof DAMAGE_ZONE_IDS)[number];
@@ -67,6 +68,13 @@ export const DAMAGE_ZONES: readonly DamageZone[] = [
 
   { id: 'mirror-passenger', name: 'Mirror — passenger', x: 326, y: 166, w: 40, h: 26, rx: 6 },
   { id: 'mirror-driver',    name: 'Mirror — driver',    x: 326, y: 508, w: 40, h: 26, rx: 6 },
+
+  // ⭐ ADDED 2026-08-22, and the fleet asked for them. Building the note matcher meant reading his
+  // real hold notes, and "side skirt" turns up over and over — "Driver side side skirt", "Side skirt
+  // passenger side", "Passenger side skirt", "Side skirt dents". The map he'd been given had nowhere
+  // to put a panel he names constantly, so the catalogue was wrong, not the notes.
+  { id: 'rocker-passenger', name: 'Side skirt — passenger', x: 366, y: 166, w: 170, h: 26, rx: 6 },
+  { id: 'rocker-driver',    name: 'Side skirt — driver',    x: 366, y: 508, w: 170, h: 26, rx: 6 },
 ];
 
 const BY_ID = new Map<string, DamageZone>(DAMAGE_ZONES.map(z => [z.id, z]));
@@ -161,4 +169,38 @@ export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDama
   const lastFlaggedAt = standing.reduce<string | null>(
     (latest, h) => (latest === null || h.flaggedAt > latest ? h.flaggedAt : latest), null);
   return { zones, lastFlaggedAt };
+}
+
+// ── The backfill queue ─────────────────────────────────────────────────────────────────────────
+// 251 standing holds carry no zones. This orders them for a sitting-down-and-grinding pass, which
+// is the journey Aaron actually described: "easier to back fill them, which I can do on my spare
+// time." The screen that matters is not a field inside one hold — it is getting through a list.
+
+export interface QueueHold {
+  id: string;
+  status: string;
+  damageZones?: string[];
+  notes: string;
+  flaggedAt: string;
+}
+
+/**
+ * Holds worth tagging, in the order worth tagging them.
+ *
+ * ⭐ REPAIRED AND VOIDED HOLDS ARE NOT IN THE QUEUE. Their panels would never render anywhere —
+ * `vehicleDamageZones` drops them — so tagging one is pure archaeology with no payoff on any screen.
+ * That is 190 of the 441 holds removed from the job before it starts.
+ *
+ * ⭐ AND THE EASY ONES COME FIRST. `rank` is meant to be "how much help the note gives" (0 = the note
+ * pins one panel, 1 = it offers a few, 2 = it says nothing useful), so a long grind opens with a run
+ * of one-tap confirmations instead of a wall of blank diagrams. Momentum is a feature when the list
+ * is this long. Ties break newest-first — fresher damage is likelier to still matter.
+ */
+export function zoneBackfillQueue<T extends QueueHold>(
+  holds: readonly T[],
+  rank: (h: T) => number,
+): T[] {
+  return holds
+    .filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) === 0)
+    .sort((a, b) => rank(a) - rank(b) || (a.flaggedAt < b.flaggedAt ? 1 : a.flaggedAt > b.flaggedAt ? -1 : 0));
 }

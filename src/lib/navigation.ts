@@ -57,7 +57,10 @@ export function getNavItemsForRole(role: UserRole, activeBranch: BranchId = 'YWG
 
 // ── Screen → Module mapping ─────────────────────────────────────────────────
 
-const HOLDS_SCREENS = new Set(['dashboard', 'vehicle', 'new-hold', 'register-vehicle']);
+// 'zone-backfill' belongs to HOLDS rather than being its own module: it is a finite job over hold
+// records, reached from a card on the Holds dashboard that vanishes when the queue empties. A
+// permanent nav slot for a task that ends would outlive the task.
+const HOLDS_SCREENS = new Set(['dashboard', 'vehicle', 'new-hold', 'register-vehicle', 'zone-backfill']);
 const AUDIT_SCREENS = new Set(['audits', 'audit-form']);
 
 export function getActiveModule(screen: Screen): Module {

@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { ZoneBackfillCard } from '../holds/ZoneBackfillCard';
+import { displayHoldFor } from '../../lib/displayHold';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
@@ -23,10 +25,12 @@ import { EVAssetsTab } from '../holds/EVAssetsTab';
 import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
 interface Props {
   onSelectVehicle: (vehicleId: string) => void;
+  /** Opens the damage-zone backfill run. The card that uses it hides itself once the queue empties. */
+  onOpenZoneBackfill: () => void;
   onRegisterAndFlag: (prefill?: string) => void;
 }
 
-export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
+export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfill }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   // A scanned tag fills an on-record car's blanks here, at the scan — see docs/ticket-backfill-at-scan.md.
@@ -176,15 +180,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
       }).length
     : 0;
 
-  const getDisplayHold = (vehicleId: string, status: VehicleStatus) => {
-    const vh = holds.filter(h => h.vehicleId === vehicleId);
-    if (vh.length === 0) return undefined;
-    // For status-specific states, prefer the hold that caused that status
-    if (status === 'HELD')             return vh.find(h => h.status === 'ACTIVE') ?? vh[0];
-    if (status === 'PRE_EXISTING')     return vh.find(h => h.release?.releaseType === 'PRE_EXISTING') ?? vh[0];
-    if (status === 'OUT_ON_EXCEPTION') return vh.find(h => h.release?.releaseType === 'EXCEPTION') ?? vh[0];
-    return vh.sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a))[0];
-  };
+  const getDisplayHold = (vehicleId: string, status: VehicleStatus) =>
+    displayHoldFor(holds, vehicleId, status, holdLatestActivity);
 
   const { getName } = useUserResolver();
 
@@ -223,6 +220,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag }: Props) {
         />
 
         <HoldsTabStrip activeTab={activeTab} onTab={setActiveTab} />
+
+        {/* Finite job, temporary door — renders only while holds are still untagged. */}
+        <ZoneBackfillCard onOpen={onOpenZoneBackfill} />
 
         {activeTab === 'ev-assets' ? <EVAssetsTab /> : (
           <>
