@@ -29,9 +29,19 @@ type ExceptionItem =
   | { kind: 'detail'; vehicle: Vehicle; hold: Hold }
   | { kind: 'damage'; vehicle: Vehicle; hold: Hold; isAuction: boolean };
 
-interface Props { search?: string; }
+interface Props {
+  search?: string;
+  /** Open a car's record, carrying the exception list as its cohort.
+   *
+   *  ⭐ These cars live ONLY in this section — the main list filters OUT_ON_EXCEPTION out on purpose
+   *  — and until now the section had no way to reach a record at all. Aaron, having walked all 80
+   *  cars in the main list with the new prev/next arrows: "it doesn't cycle through the out on
+   *  exception vehicles. that one requires a bunch of hopping to get done." So they get their own
+   *  worklist rather than being mixed into a list they were deliberately kept out of. */
+  onOpenVehicle?: (vehicleId: string, cohort: string[]) => void;
+}
 
-export function ExceptionReturnSection({ search = '' }: Props) {
+export function ExceptionReturnSection({ search = '', onOpenVehicle }: Props) {
   const { user } = useAuth();
   const { vehicles, holds, getHoldsForVehicle, addHold, closeException } = useVehicleHoldContext();
   const re = useReEval();
@@ -86,6 +96,10 @@ export function ExceptionReturnSection({ search = '' }: Props) {
   const visibleGeotab  = visibleItems.filter(i => i.hold.damageDescription === GEOTAB_HOLD_DESC);
   const visibleReturns = visibleItems.filter(i => i.hold.damageDescription !== GEOTAB_HOLD_DESC);
 
+  // Their own worklist, in the order they are shown — deliberately NOT merged with the main list,
+  // which excludes these cars on purpose. De-duplicated: one car can carry several exception holds.
+  const exceptionCohort = [...new Set(visibleReturns.map(i => i.vehicle.id))];
+
   const renderItem = (item: ExceptionItem) =>
     item.kind === 'detail' ? (
       <DetailReEvalCard key={item.hold.id} item={{ hold: item.hold, vehicle: item.vehicle }} re={re} />
@@ -97,6 +111,7 @@ export function ExceptionReturnSection({ search = '' }: Props) {
         isAuction={item.isAuction}
         allHolds={getHoldsForVehicle(item.vehicle.id)}
         user={user}
+        onOpenVehicle={onOpenVehicle && (id => onOpenVehicle(id, exceptionCohort))}
         onReHold={async (vehicleId, description, notes, photos, linkedHoldId, holdTypes) => {
           if (!user) return;
           await addHold(vehicleId, description, notes, user.id, photos, holdTypes, undefined, undefined, linkedHoldId);
@@ -180,13 +195,14 @@ export function ExceptionReturnSection({ search = '' }: Props) {
 
 // ── Damage / auction return card ─────────────────────────────────────────────
 
-function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold }: {
+function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold, onOpenVehicle }: {
   vehicle: Vehicle;
   hold: Hold;
   isAuction: boolean;
   allHolds: Hold[];
   user: User | null;
   onReHold: (vehicleId: string, description: string, notes: string, photos: string[], linkedHoldId: string, holdTypes: HoldType[]) => Promise<void>;
+  onOpenVehicle?: (vehicleId: string) => void;
 }) {
   const { getName } = useUserResolver();
 
@@ -196,7 +212,14 @@ function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold }
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{vehicle.unitNumber}</span>
+              {onOpenVehicle ? (
+                <button type="button" onClick={() => onOpenVehicle(vehicle.id)}
+                        className="font-semibold text-gray-900 dark:text-gray-100 text-sm hover:underline cursor-pointer">
+                  {vehicle.unitNumber} →
+                </button>
+              ) : (
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{vehicle.unitNumber}</span>
+              )}
               <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
               <span className="text-gray-500 dark:text-gray-400 text-xs">{vehicle.licensePlate}</span>
             </div>

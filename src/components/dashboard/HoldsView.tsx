@@ -288,7 +288,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
-        <ExceptionReturnSection search={search} />
+        <ExceptionReturnSection search={search} onOpenVehicle={onSelectVehicle} />
 
         {/* Vehicle List */}
         <div className="space-y-2">

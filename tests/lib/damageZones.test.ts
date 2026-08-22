@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue,
+  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue, presetFor,
   type QueueHold,
 } from '../../src/lib/damageZones';
 
@@ -209,5 +209,31 @@ describe('zoneBackfillQueue', () => {
 
   it('is empty when there is nothing left to tag', () => {
     expect(zoneBackfillQueue([q({ id: 'a', damageZones: ['hood'] })], () => 0)).toEqual([]);
+  });
+});
+
+describe('presetFor', () => {
+  it('offers the top surfaces for a hail hold — hail falls downward', () => {
+    expect(presetFor(['hail'])).toEqual({ label: 'Hail — hood, roof, trunk',
+                                          zones: ['hood', 'roof', 'trunk-liftgate'] });
+  });
+
+  it('finds hail among several types on one hold', () => {
+    expect(presetFor(['damage', 'hail'])?.zones).toEqual(['hood', 'roof', 'trunk-liftgate']);
+  });
+
+  it('offers nothing for damage that has no characteristic shape', () => {
+    expect(presetFor(['damage'])).toBeNull();
+    expect(presetFor(['mechanical', 'detail'])).toBeNull();
+    expect(presetFor([])).toBeNull();
+    expect(presetFor(undefined)).toBeNull();
+  });
+
+  it('⭐ hands back a fresh array each time', () => {
+    // The caller drops it straight into a draft and then toggles panels off it; a shared array
+    // would let one hold's edits rewrite the preset for every hold after it.
+    const a = presetFor(['hail'])!.zones;
+    a.push('roof');
+    expect(presetFor(['hail'])!.zones).toEqual(['hood', 'roof', 'trunk-liftgate']);
   });
 });

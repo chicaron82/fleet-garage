@@ -6,13 +6,14 @@
 // nothing is tagged, because "no zones recorded" is itself the thing the backfill is hunting.
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { orderZones, toggleZone, zoneLabel } from '../../lib/damageZones';
+import { orderZones, toggleZone, zoneLabel, presetFor } from '../../lib/damageZones';
 import { DamageZoneMap } from './DamageZoneMap';
 import type { Hold } from '../../types';
 
 export function HoldDamageZones({ hold }: { hold: Hold }) {
   const { editHoldDamageZones } = useVehicleHoldContext();
   const saved = orderZones(hold.damageZones ?? []);
+  const preset = presetFor(hold.holdTypes);
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>(saved);
@@ -67,6 +68,14 @@ export function HoldDamageZones({ hold }: { hold: Hold }) {
             <p className="mb-1 text-xs italic text-gray-500 dark:text-gray-400">"{hold.notes.trim()}"</p>
           )}
           <DamageZoneMap selected={draft} onToggle={id => setDraft(d => toggleZone(d, id))} disabled={busy} />
+          {/* A preset is a SHAPE the damage takes, not a guess — hail falls downward, so a hail hold
+              is nearly always the same three panels. Still one deliberate tap. */}
+          {preset && (
+            <button type="button" onClick={() => setDraft(orderZones(preset.zones))} disabled={busy}
+                    className="mt-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">
+              {preset.label}
+            </button>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <button type="button" onClick={save} disabled={busy}
                     className="rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-gray-900 cursor-pointer">

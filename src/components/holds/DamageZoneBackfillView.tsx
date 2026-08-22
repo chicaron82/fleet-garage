@@ -10,7 +10,7 @@
 // surface the choice, because a pre-selected guess gets confirmed without being read.
 import { useMemo, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones } from '../../lib/damageZones';
+import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones, presetFor } from '../../lib/damageZones';
 import { zonesFromNote } from '../../lib/zoneFromNote';
 import { DamageZoneMap } from './DamageZoneMap';
 
@@ -39,6 +39,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
   const hold = queue[i];
   const vehicle = allVehicles.find(v => v.id === hold?.vehicleId);
   const guess = useMemo(() => zonesFromNote(hold?.notes), [hold]);
+  const preset = presetFor(hold?.holdTypes);
 
   const advance = () => { setI(n => n + 1); setDraft([]); setErr(''); };
 
@@ -129,6 +130,12 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
                   className="rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
             {busy ? 'Saving…' : draft.length > 0 ? `Save ${draft.length} & next` : 'Skip'}
           </button>
+          {preset && draft.length === 0 && (
+            <button type="button" onClick={() => setDraft(orderZones(preset.zones))} disabled={busy}
+                    className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">
+              {preset.label}
+            </button>
+          )}
           {guess.candidates.length > 0 && draft.length === 0 && (
             <button type="button" onClick={() => setDraft(orderZones(guess.candidates))} disabled={busy}
                     className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">

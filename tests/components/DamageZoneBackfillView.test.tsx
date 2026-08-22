@@ -113,3 +113,31 @@ describe('DamageZoneBackfillView', () => {
     expect(container.querySelectorAll('img')).toHaveLength(2);
   });
 });
+
+describe('DamageZoneBackfillView — the hail preset', () => {
+  it('⭐ offers the top surfaces on a hail hold, in one tap', () => {
+    // Hail falls downward, so a hail hold is nearly always the same three panels. 25 standing
+    // hail holds were in the queue the day this shipped — 25 records that become one tap each.
+    HOLDS = [hold({ id: 'h1', holdTypes: ['hail'], holdType: 'hail', notes: '' })];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hail — hood, roof, trunk' }));
+    expect(zone('hood')).toHaveAttribute('aria-checked', 'true');
+    expect(zone('roof')).toHaveAttribute('aria-checked', 'true');
+    expect(zone('trunk-liftgate')).toHaveAttribute('aria-checked', 'true');
+    // Selected, not saved — it is still his tap on Save that writes.
+    expect(editHoldDamageZones).not.toHaveBeenCalled();
+  });
+
+  it('does not offer it on damage with no characteristic shape', () => {
+    HOLDS = [hold({ id: 'h1', holdTypes: ['damage'], notes: '' })];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Hail/ })).toBeNull();
+  });
+
+  it('leaves the preset alone once he has started tagging by hand', () => {
+    HOLDS = [hold({ id: 'h1', holdTypes: ['hail'], notes: '' })];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    fireEvent.click(zone('front-bumper'));
+    expect(screen.queryByRole('button', { name: /Hail/ })).toBeNull();
+  });
+});

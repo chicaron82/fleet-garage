@@ -204,3 +204,26 @@ export function zoneBackfillQueue<T extends QueueHold>(
     .filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) === 0)
     .sort((a, b) => rank(a) - rank(b) || (a.flaggedAt < b.flaggedAt ? 1 : a.flaggedAt > b.flaggedAt ? -1 : 0));
 }
+
+// ── Presets ────────────────────────────────────────────────────────────────────────────────────
+// Aaron, after tagging his way through 80 cars: "hail cars i think should have a preset that covers
+// the hood, roof and trunk."
+//
+// ⭐ A preset is not a guess — it is a shape the damage takes. Hail falls DOWNWARD, so it lands on
+// the horizontal surfaces and a hail hold is nearly always the same three panels. Live fleet: 32
+// hail-typed holds, and all 32 mention hail in their text too, so the hold type alone identifies
+// them cleanly. 25 of those are standing, which is 25 holds in the backfill queue that become one
+// tap each.
+//
+// Deliberately his three, exactly. Hail hits the glass as well, but he named hood/roof/trunk and a
+// preset that quietly does more than it says stops being a preset and becomes a guess with a button.
+
+const HAIL_ZONES: readonly string[] = ['hood', 'roof', 'trunk-liftgate'];
+
+export interface ZonePreset { label: string; zones: string[] }
+
+/** The preset offered for a hold, or null when its damage has no characteristic shape. */
+export function presetFor(holdTypes: readonly string[] | undefined): ZonePreset | null {
+  if (!holdTypes?.includes('hail')) return null;
+  return { label: 'Hail — hood, roof, trunk', zones: [...HAIL_ZONES] };
+}
