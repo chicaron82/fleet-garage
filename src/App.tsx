@@ -16,7 +16,7 @@ import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, canAccessScreen, resolveLandingScreen } from './lib/navigation';
-import { screenToPath, pathToScreen } from './lib/screenRouting';
+import { screenToPath, pathToScreen, backAction, depthOf, type HistoryDepth } from './lib/screenRouting';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
 import { usePreferences } from './context/PreferencesContext';
@@ -54,9 +54,28 @@ export default function App() {
   useOfflineQueueFlush();
 
   const navigate = useCallback((next: Screen) => {
-    window.history.pushState(next, '', screenToPath(next));
+    // Stamp the depth so "is there anywhere to go back to" stays a readable fact across pushes,
+    // pops and refreshes, instead of a counter we would have to keep in sync (see lib/screenRouting).
+    window.history.pushState({ ...next, _depth: depthOf(window.history.state) + 1 }, '', screenToPath(next));
     setScreen(next);
   }, []);
+
+  /**
+   * What "← Back" does. POPS the stack FG already maintains, so he lands in the module he came
+   * from — Fleet if he came from Fleet, Holds if he came from Holds.
+   *
+   * ⭐ Every back button used to `navigate({ name: 'dashboard' })` instead, which PUSHED the Holds
+   * dashboard. Aaron: "when i look up a car in fleet module and open it up. then hit back, i'm taken
+   * to the holds module instead of back to the fleet module." It also grew the stack on every
+   * back-tap, so the hardware back button then walked him forwards through screens he had left.
+   *
+   * The fallback is only reachable at depth 1 — a deep link or a refresh straight onto a record,
+   * where there is genuinely nothing behind.
+   */
+  const goBack = useCallback((fallback: Screen) => {
+    if (backAction(window.history.state) === 'pop') window.history.back();
+    else navigate(fallback);
+  }, [navigate]);
 
   // Seed the initial history entry on login (derived state — avoids setState-in-effect)
   if (user?.id !== prevUserId) {
@@ -82,7 +101,7 @@ export default function App() {
         activeBranch: user.branchId,
       });
       window.history.replaceState({ appRoot: true }, '', '/');
-      window.history.pushState(targetScreen, '', screenToPath(targetScreen));
+      window.history.pushState({ ...targetScreen, _depth: 1 }, '', screenToPath(targetScreen));
       setScreen(targetScreen);
     }
   }
@@ -98,11 +117,14 @@ export default function App() {
       const state = e.state as (Screen & { appRoot?: boolean }) | null;
       if (!state || state.appRoot) {
         const def = user ? getDefaultScreenForRole(user.role, user.branchId) : { name: 'dashboard' as const };
-        window.history.pushState(def, '', screenToPath(def));
+        window.history.pushState({ ...def, _depth: 1 }, '', screenToPath(def));
         setScreen(def);
         setShowLogoutConfirm(true);
       } else {
-        setScreen(state as Screen);
+        // Strip the depth stamp — it belongs to the history entry, not to the screen.
+        const { _depth: _ignored, ...restored } = state as Screen & HistoryDepth;
+        void _ignored;
+        setScreen(restored as Screen);
       }
     };
     window.addEventListener('popstate', handlePop);
@@ -120,7 +142,7 @@ export default function App() {
   if (!canAccessScreen(screen, user.role, user.branchId)) {
     const def = getDefaultScreenForRole(user.role, user.branchId);
     if (screen.name !== def.name) {
-      window.history.replaceState(def, '', screenToPath(def));
+      window.history.replaceState({ ...def, _depth: Math.max(depthOf(window.history.state), 1) }, '', screenToPath(def));
       setScreen(def);
     }
     return null;
@@ -136,7 +158,7 @@ export default function App() {
             vehicleId={screen.vehicleId}
             openRepair={screen.openRepair}
             openRepairNonce={screen.openRepairNonce}
-            onBack={() => navigate({ name: 'dashboard' })}
+            onBack={() => goBack({ name: 'dashboard' })}
             onNewHold={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
             cohort={screen.cohort}
             /* Stepping keeps the SAME cohort — that is the whole point: he is walking one list. */
@@ -148,13 +170,13 @@ export default function App() {
           <NewHoldForm
             vehicleId={screen.vehicleId}
             prefillNonce={screen.prefillNonce}
-            onBack={() => navigate({ name: 'dashboard' })}
+            onBack={() => goBack({ name: 'dashboard' })}
             onSuccess={(vehicleId) => {
               // If this hold came from a fresh registration, clean the history stack
               if (screen.fromRegister) {
                 window.history.replaceState({ appRoot: true }, '', '/');
-                window.history.pushState({ name: 'dashboard' }, '', '/');
-                window.history.pushState({ name: 'vehicle', vehicleId }, '', `/vehicle/${vehicleId}`);
+                window.history.pushState({ name: 'dashboard', _depth: 1 }, '', '/');
+                window.history.pushState({ name: 'vehicle', vehicleId, _depth: 2 }, '', `/vehicle/${vehicleId}`);
                 setScreen({ name: 'vehicle', vehicleId });
               } else {
                 navigate({ name: 'vehicle', vehicleId });
@@ -170,11 +192,7 @@ export default function App() {
             scanned={screen.scanned}
             keytagPhoto={screen.scannedPhoto}
             returnTo={screen.fromHold ? 'hold' : 'fleet'}
-            onBack={() =>
-              screen.fromHold
-                ? navigate({ name: 'new-hold' })
-                : navigate({ name: 'dashboard' })
-            }
+            onBack={() => goBack(screen.fromHold ? { name: 'new-hold' } : { name: 'fleet-master' })}
             onSuccess={(vehicleId) => {
               if (screen.fromHold) {
                 navigate({ name: 'new-hold', vehicleId, fromRegister: true });
@@ -198,7 +216,7 @@ export default function App() {
       case 'audits':
         return <AuditView onNewAudit={() => navigate({ name: 'audit-form' })} />;
       case 'audit-form':
-        return <AuditForm onBack={() => navigate({ name: 'audits' })} />;
+        return <AuditForm onBack={() => goBack({ name: 'audits' })} />;
       case 'analytics':
         return <AnalyticsView onOpenVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })} />;
       case 'issue-log':
@@ -214,7 +232,7 @@ export default function App() {
           />
         );
       case 'zone-backfill':
-        return <DamageZoneBackfillView onBack={() => navigate({ name: 'dashboard' })} />;
+        return <DamageZoneBackfillView onBack={() => goBack({ name: 'dashboard' })} />;
       case 'effie':
         return <EffieModule onNavigate={navigate} />;
       default:
