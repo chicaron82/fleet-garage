@@ -57,8 +57,15 @@ export interface MyDayModel {
   greeting: string;
   firstName: string;
   myShift: ShiftWithUser | undefined;
-  /** Scheduled a working shift today (not day-off/pto/sick). */
+  /** At work today. TRUE for a rostered working shift, and ALSO for a full-day type
+   *  (day-off / pto / sick) once actual hours are logged — see `overtime`. */
   working: boolean;
+  /** Called in on a day the roster had him off: a full-day type with actual hours logged.
+   *  This is the state `ot.ts` already prices at 1.5x for every net hour. */
+  overtime: boolean;
+  /** The roster's own word for the day, shown UNDER the headline when `overtime` — the day-off
+   *  is what makes every hour time-and-a-half, so it must not be erased by the label. */
+  shiftSubLabel: string | null;
   isMid: boolean;
   shiftLabel: string | null;
   shiftTime: string | null;
@@ -86,15 +93,31 @@ export function deriveMyDay(input: {
 }): MyDayModel {
   const { shifts, userId, userName, todayISO, hour, handoff, handoffIsToday, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart } = input;
   const myShift = shifts.find(s => s.userId === userId && s.date === todayISO);
-  const working = !!myShift && !isFullDayShift(myShift.shiftType);
+
+  // ⭐ `shift_type` is the PLAN; `actualStartTime` is what happened. My Day used to read only the
+  // plan, so a day-off he was called in on rendered as an empty cockpit while he stood in the bay —
+  // and `ot.ts` had been pricing that same day as all-overtime the whole time. Two layers of one
+  // app disagreeing about one day. Logged hours settle it (Aaron, 2026-08-22, from the lot).
+  //
+  // Note the direction: hours logged PROVE he is here; no hours prove nothing at all. So this only
+  // ever ADDS the working state, never removes one — the observation-boundary rule FG is built on.
+  const overtime = !!myShift && isFullDayShift(myShift.shiftType) && !!myShift.actualStartTime;
+  const working = !!myShift && (!isFullDayShift(myShift.shiftType) || overtime);
   return {
     greeting: greeting(hour),
     firstName: userName.split(' ')[0],
     myShift,
     working,
+    overtime,
     isMid: myShift?.shiftType === 'mid',
-    shiftLabel: myShift ? SHIFT_TYPE_LABEL[myShift.shiftType] : null,
-    shiftTime: myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
+    // On an overtime day the headline answers "what am I doing today" — Overtime — and the roster's
+    // own label drops to the sub-line rather than vanishing.
+    shiftLabel: overtime ? 'Overtime' : myShift ? SHIFT_TYPE_LABEL[myShift.shiftType] : null,
+    shiftSubLabel: overtime && myShift ? `Scheduled ${SHIFT_TYPE_LABEL[myShift.shiftType].toLowerCase()}` : null,
+    // A full-day type has no scheduled times, so the range has to come from the hours actually logged.
+    shiftTime: overtime && myShift
+      ? shiftTimeRange(myShift.actualStartTime, myShift.actualEndTime)
+      : myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
     team: teammatesOnToday(shifts, userId, todayISO),
     carsCleanedThisShift: handoff && handoffIsToday ? carsCleaned(handoff) : null,
     insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart, userId }),

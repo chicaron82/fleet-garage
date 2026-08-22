@@ -111,8 +111,62 @@ describe('deriveMyDay', () => {
     const shifts = [shift({ userId: 'me', date: today, shiftType: 'day-off', name: 'Aaron S' })];
     const m = deriveMyDay({ ...base, shifts });
     expect(m.working).toBe(false);
+    expect(m.overtime).toBe(false);          // no hours logged → nothing to prove he is here
     expect(m.shiftLabel).toBe('Day Off');
+    expect(m.shiftSubLabel).toBeNull();
     expect(m.shiftTime).toBeNull();
+  });
+
+  // ── Called in on a day off ───────────────────────────────────────────────────────────────────
+  // Aaron worked OT on a rostered day off (2026-08-22) and My Day rendered an empty cockpit while
+  // he was standing in the bay — because `working` read the roster type and never the clock, even
+  // though ot.ts had been pricing the same day at 1.5x all morning.
+
+  it('⭐ day-off WITH actual hours → working, and the headline says Overtime', () => {
+    const shifts = [shift({
+      userId: 'me', date: today, shiftType: 'day-off', name: 'Aaron S',
+      actualStartTime: '10:01', actualEndTime: '15:00',
+    })];
+    const m = deriveMyDay({ ...base, shifts });
+    expect(m.working).toBe(true);
+    expect(m.overtime).toBe(true);
+    expect(m.shiftLabel).toBe('Overtime');
+    // The day-off is WHY every hour is 1.5x, so the label must not erase it.
+    expect(m.shiftSubLabel).toBe('Scheduled day off');
+    // A full-day type has no scheduled times — the range comes from the hours actually logged.
+    expect(m.shiftTime).toBe('10:01 – 15:00');
+  });
+
+  it('a clock-in with no clock-out still counts as working', () => {
+    // Mid-shift is the normal case: he punched in, the end time is not known yet.
+    const shifts = [shift({
+      userId: 'me', date: today, shiftType: 'day-off', name: 'Aaron S', actualStartTime: '10:01',
+    })];
+    const m = deriveMyDay({ ...base, shifts });
+    expect(m.working).toBe(true);
+    expect(m.overtime).toBe(true);
+  });
+
+  it('pto and sick behave the same when hours get logged', () => {
+    for (const type of ['pto', 'sick'] as const) {
+      const shifts = [shift({ userId: 'me', date: today, shiftType: type, name: 'Aaron S', actualStartTime: '08:00' })];
+      expect(deriveMyDay({ ...base, shifts }).overtime).toBe(true);
+    }
+  });
+
+  it('a ROSTERED shift is never labelled overtime, however its hours run', () => {
+    // The direction matters: logged hours only ever ADD the working state. A normal shift with
+    // actual hours is just a normal shift — overtime here would be a lie on every ordinary day.
+    const shifts = [shift({
+      userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S',
+      actualStartTime: '06:45', actualEndTime: '17:30',
+    })];
+    const m = deriveMyDay({ ...base, shifts });
+    expect(m.working).toBe(true);
+    expect(m.overtime).toBe(false);
+    expect(m.shiftLabel).toBe('Opening');
+    expect(m.shiftSubLabel).toBeNull();
+    expect(m.shiftTime).toBe('09:00 – 17:00');
   });
 
   it('not scheduled → working false, myShift undefined', () => {

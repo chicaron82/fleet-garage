@@ -82,6 +82,11 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
                 <span className="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400 tabular-nums">{day.shiftTime}</span>
               )}
             </p>
+            {/* The roster's word for the day, kept visible on an overtime day: being OFF is what
+                makes every logged hour time-and-a-half, so the headline must not swallow it. */}
+            {day.shiftSubLabel && (
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{day.shiftSubLabel} · every hour at 1.5x</p>
+            )}
           </div>
           <button
             type="button"
@@ -156,7 +161,11 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
         <section className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {day.balanceLogged ? "Today's fleet balance" : 'First up — log the fleet balance'}
+              {/* "First up" is an opener's ritual and it isn't his on a called-in day — the balance
+                  belongs to whoever is rostered. The card still shows, because he is the one who
+                  actually feeds FG (Aaron, 2026-08-22: "Geoff has it... he rarely uses FG"), so
+                  hiding it would remove the only path by which the number ever gets logged. */}
+              {day.balanceLogged ? "Today's fleet balance" : day.overtime ? 'Fleet balance — not logged yet' : 'First up — log the fleet balance'}
             </h2>
             {day.balanceLogged && (
               <span className="text-xs font-semibold text-green-600 dark:text-green-400">✓ Logged</span>
