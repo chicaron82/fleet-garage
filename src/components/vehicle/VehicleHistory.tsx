@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CohortNav } from './CohortNav';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canRelease, canMarkRepaired, canManageVehicles, canClearSaleFlag, canMarkPreExisting } from '../../types';
@@ -28,6 +29,10 @@ interface Props {
   openRepairNonce?: number;
   onBack: () => void;
   onNewHold: (vehicleId: string) => void;
+  /** The ordered worklist this record was opened from, and how to walk it. Both absent for a scan
+   *  or a deep link, where "next" has no meaning — the arrows then do not render. */
+  cohort?: string[];
+  onOpenVehicle?: (vehicleId: string) => void;
 }
 
 function holdActionLabel(holdTypes: string[]): string {
@@ -36,7 +41,7 @@ function holdActionLabel(holdTypes: string[]): string {
 }
 
 
-export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack, onNewHold }: Props) {
+export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack, onNewHold, cohort, onOpenVehicle }: Props) {
   const h = useVehicleHistory(vehicleId);
   const { releaseStreak, setCoverPhoto, archiveVehicle, updateVehicleEVAssets, directEditVehicleIdentity, unlockVehicleField } = useVehicleHoldContext();
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -81,6 +86,8 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
           {vehicle.unitNumber ?? <span className="text-gray-400 italic">Unit # pending</span>}
         </span>
         <StatusBadge status={vehicle.status} />
+
+        <CohortNav cohort={cohort} vehicleId={vehicleId} onOpenVehicle={onOpenVehicle} />
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">

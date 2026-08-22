@@ -412,7 +412,10 @@ export type Screen =
   // `openRepair` is the scan-router deep-link: the scan card can send him straight to a held
   // car's repair action instead of the top of the record. The OVERLAY still only routes — the
   // vehicle module performs its own action, which is what keeps the thin-hub law intact.
-  | { name: 'vehicle'; vehicleId: string; openRepair?: boolean; openRepairNonce?: number }
+  // `cohort` is the ORDERED list the record was opened from — his filter, his sort, his page — so
+  // the header can offer prev/next through the worklist he is actually walking. In memory only, not
+  // in the URL: a refresh drops it and the arrows go away, which is the honest degradation.
+  | { name: 'vehicle'; vehicleId: string; openRepair?: boolean; openRepairNonce?: number; cohort?: string[] }
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; prefillNonce?: number }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity; scannedPhoto?: string }
   // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that

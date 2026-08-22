@@ -138,6 +138,9 @@ export default function App() {
             openRepairNonce={screen.openRepairNonce}
             onBack={() => navigate({ name: 'dashboard' })}
             onNewHold={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
+            cohort={screen.cohort}
+            /* Stepping keeps the SAME cohort — that is the whole point: he is walking one list. */
+            onOpenVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId, cohort: screen.cohort })}
           />
         );
       case 'new-hold':
@@ -217,7 +220,7 @@ export default function App() {
       default:
         return (
           <HoldsView
-            onSelectVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })}
+            onSelectVehicle={(vehicleId, cohort) => navigate({ name: 'vehicle', vehicleId, cohort })}
             onRegisterAndFlag={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}
             onOpenZoneBackfill={() => navigate({ name: 'zone-backfill' })}
           />

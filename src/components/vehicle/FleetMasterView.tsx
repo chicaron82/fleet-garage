@@ -194,7 +194,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => onNavigate({ name: 'vehicle', vehicleId: v.id })}
+                        // The cohort is THIS GROUP as displayed, so the record's prev/next walks the
+                        // same run of cars he is looking at rather than the whole fleet.
+                        onClick={() => onNavigate({ name: 'vehicle', vehicleId: v.id, cohort: group.map(g => g.id) })}
                         className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer ${evBorderClass}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">

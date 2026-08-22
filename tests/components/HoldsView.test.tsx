@@ -176,7 +176,9 @@ describe('HoldsView — vehicle card interaction', () => {
     render(<HoldsView onSelectVehicle={onSelectVehicle} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /Toyota Camry/i }));
-    expect(onSelectVehicle).toHaveBeenCalledWith('v-1');
+    // Opens WITH the list as displayed, so the record can offer prev/next through the same
+    // worklist instead of sending him back here to find the next car (2026-08-22).
+    expect(onSelectVehicle).toHaveBeenCalledWith('v-1', expect.arrayContaining(['v-1']));
   });
 
   it('shows confirmation sheet when card is clicked during active search', async () => {
@@ -202,6 +204,8 @@ describe('HoldsView — vehicle card interaction', () => {
     await user.click(await screen.findByRole('button', { name: /Toyota Camry/i }));
     await user.click(await screen.findByRole('button', { name: /yes, open it/i }));
 
-    expect(onSelectVehicle).toHaveBeenCalledWith('v-1');
+    // Opens WITH the list as displayed, so the record can offer prev/next through the same
+    // worklist instead of sending him back here to find the next car (2026-08-22).
+    expect(onSelectVehicle).toHaveBeenCalledWith('v-1', expect.arrayContaining(['v-1']));
   });
 });

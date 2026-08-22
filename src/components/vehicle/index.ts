@@ -10,3 +10,4 @@ export * from './VehicleEVAssets';
 export * from './VehicleHistory';
 export * from './VehicleMergePrompt';
 export * from './VehicleDamageMap';
+export * from './CohortNav';

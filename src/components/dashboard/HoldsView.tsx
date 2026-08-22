@@ -24,7 +24,9 @@ import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
 import { EVAssetsTab } from '../holds/EVAssetsTab';
 import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
 interface Props {
-  onSelectVehicle: (vehicleId: string) => void;
+  /** `cohort` is the list AS DISPLAYED — his filter, his sort — so the record can offer prev/next
+   *  through the same worklist instead of sending him back here to find the next car. */
+  onSelectVehicle: (vehicleId: string, cohort?: string[]) => void;
   /** Opens the damage-zone backfill run. The card that uses it hides itself once the queue empties. */
   onOpenZoneBackfill: () => void;
   onRegisterAndFlag: (prefill?: string) => void;
@@ -192,7 +194,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
 
   const handleOpenVehicle = (vehicle: Vehicle) => {
     if (search.trim()) setPendingVehicle(vehicle);
-    else onSelectVehicle(vehicle.id);
+    // The FILTERED, SORTED list — not the page. He works a status down; the arrows should follow
+    // that same run of cars past the page boundary rather than stopping at 20.
+    else onSelectVehicle(vehicle.id, filtered.map(v => v.id));
   };
 
   if (loadError) {
@@ -362,7 +366,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
             vehicle={pendingVehicle}
             hold={getDisplayHold(pendingVehicle.id, pendingVehicle.status)}
             onClose={() => setPendingVehicle(null)}
-            onConfirm={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id); }}
+            onConfirm={() => { setPendingVehicle(null); onSelectVehicle(pendingVehicle.id, filtered.map(v => v.id)); }}
           />
         )}
           </>
