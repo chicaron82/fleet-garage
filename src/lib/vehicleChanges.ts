@@ -56,6 +56,10 @@ const NOISE = new Set([
   'edit_suggested_unit', 'edit_suggested_plate', 'edit_suggested_by', 'edit_suggested_at',
   'edit_suggestion_note', 'edit_status', 'edit_reviewed_by', 'edit_reviewed_at',
   'ev_last_updated_by', 'ev_last_updated_at', 'archived_by_id',
+  // `note_at` is stamped by the same write that sets `note` and cleared by the same write that
+  // clears it, so it never carries information the Note line above it hasn't already given — it
+  // just added a raw ISO timestamp to every note change (seen on the record 2026-08-22).
+  'note_at',
 ]);
 
 export function fieldLabel(column: string): string {
@@ -81,6 +85,30 @@ export function formatValue(v: unknown): string {
  * A DELETE stores the whole row rather than a diff (there is nothing left to diff against), so it
  * renders as the row's identifying fields going to nothing — never as an empty change.
  */
+/** The provenance map, rendered as WHAT ACTUALLY MOVED.
+ *
+ *  ⭐ `field_sources` is a jsonb object, and the trigger records the whole thing on both sides. So a
+ *  single field's provenance changing printed two 120-character JSON blobs at the operator, and the
+ *  real content of that change — `classCode: derived → tag` — was buried inside them (Aaron, looking
+ *  at a record 2026-08-22: "cleaning up how this displays"). Diffing the two objects turns it back
+ *  into one short line per field that actually changed, in FG's own vocabulary.
+ *
+ *  Provenance is not decoration here: `derived → tag` means a deduction was replaced by something
+ *  read off the physical key tag, which is the ladder the whole class-code system runs on. It is
+ *  worth SHOWING, which is precisely why it was worth un-burying. */
+function sourceLines(from: unknown, to: unknown): ChangeLine[] {
+  const a = (from && typeof from === 'object' ? from : {}) as Record<string, unknown>;
+  const b = (to && typeof to === 'object' ? to : {}) as Record<string, unknown>;
+  const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => a[k] !== b[k]);
+  return keys.map(k => ({
+    field: `field_sources.${k}`,
+    // camelCase key → the column label FG already uses, so "classCode" reads as "Model code source".
+    label: `${fieldLabel(k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()))} source`,
+    from: formatValue(a[k]),
+    to: formatValue(b[k]),
+  }));
+}
+
 export function changeLines(row: VehicleChangeRow): ChangeLine[] {
   const out: ChangeLine[] = [];
   for (const [field, value] of Object.entries(row.changed)) {
@@ -92,6 +120,7 @@ export function changeLines(row: VehicleChangeRow): ChangeLine[] {
     // A malformed diff (hand-written row, a future trigger change) must not throw inside a render.
     const pair = value as { from?: unknown; to?: unknown } | null;
     if (!pair || typeof pair !== 'object') continue;
+    if (field === 'field_sources') { out.push(...sourceLines(pair.from, pair.to)); continue; }
     out.push({ field, label: fieldLabel(field), from: formatValue(pair.from), to: formatValue(pair.to) });
   }
   return out.sort((a, b) => a.label.localeCompare(b.label));

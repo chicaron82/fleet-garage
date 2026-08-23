@@ -102,3 +102,62 @@ describe('changeCountLabel', () => {
     expect(changeCountLabel([row({}), row({})])).toBe('2 record changes');
   });
 });
+
+// ── field_sources, and the two JSON blobs it used to print ──────────────────────────────────────
+// Aaron, looking at a real record 2026-08-22: "cleaning up how this displays". The provenance map is
+// a jsonb object and the trigger records the whole thing on both sides, so ONE field's provenance
+// moving rendered as two 120-character blobs with the actual change buried inside them.
+
+describe('changeLines — field_sources', () => {
+  const row = (from: unknown, to: unknown) =>
+    ({ changedAt: '2026-08-22T18:54:00Z', op: 'UPDATE' as const, changed: { field_sources: { from, to } } });
+
+  it('⭐ shows only the key that MOVED, in FG vocabulary', () => {
+    // The real entry: everything identical except classCode, derived → tag.
+    const before = { make: 'tag', year: 'tag', color: 'tag', model: 'tag', classCode: 'derived', unitNumber: 'tag', rentalClass: 'tag' };
+    const after  = { ...before, classCode: 'tag' };
+    const lines = changeLines(row(before, after));
+    expect(lines).toEqual([{ field: 'field_sources.classCode', label: 'Model code source', from: 'derived', to: 'tag' }]);
+  });
+
+  it('names a source that appears where there was none', () => {
+    const lines = changeLines(row({}, { classCode: 'tag' }));
+    expect(lines).toEqual([{ field: 'field_sources.classCode', label: 'Model code source', from: '—', to: 'tag' }]);
+  });
+
+  it('names one that disappears', () => {
+    const lines = changeLines(row({ unitNumber: 'tag' }, {}));
+    expect(lines[0]).toMatchObject({ label: 'Unit number source', from: 'tag', to: '—' });
+  });
+
+  it('⭐ says NOTHING when the object was rewritten but nothing actually moved', () => {
+    // A write that stores an identical map is bookkeeping, and a line saying so is a line that
+    // teaches him to scroll past this section.
+    const same = { make: 'tag', classCode: 'tag' };
+    expect(changeLines(row(same, { ...same }))).toEqual([]);
+  });
+
+  it('lists several movers separately rather than as one blob', () => {
+    const lines = changeLines(row({ make: 'derived' }, { make: 'tag', color: 'tag' }));
+    expect(lines.map(l => l.label).sort()).toEqual(['Colour source', 'Make source']);
+  });
+
+  it('survives a malformed provenance value without throwing', () => {
+    expect(changeLines(row(null, 'not-an-object'))).toEqual([]);
+  });
+});
+
+describe('changeLines — note_at', () => {
+  it('⭐ drops the note timestamp, which only ever repeats the Note line', () => {
+    // It printed a raw ISO string under every note change and said nothing the line above did not.
+    const lines = changeLines({
+      changedAt: '2026-08-21T18:56:00Z', op: 'UPDATE',
+      changed: {
+        note:    { from: null, to: 'Assigned to car star Fife' },
+        note_at: { from: null, to: '2026-08-21T18:56:41.996+00:00' },
+      },
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0].label).toBe('Note');
+  });
+});
