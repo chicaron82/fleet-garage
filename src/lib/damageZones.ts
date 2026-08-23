@@ -215,8 +215,22 @@ export function zoneBackfillQueue<T extends QueueHold>(
 // them cleanly. 25 of those are standing, which is 25 holds in the backfill queue that become one
 // tap each.
 //
-// Deliberately his three, exactly. Hail hits the glass as well, but he named hood/roof/trunk and a
-// preset that quietly does more than it says stops being a preset and becomes a guess with a button.
+// ⭐⭐ GLASS IS DELIBERATELY OUT, and the reason is Aaron's, not a scope decision:
+//
+//   "its mainly body damage that is visible. is that chip from hail or is it pre-existing? i don't
+//    know. its ambiguous. was the window smashed because of hail or was it from vandalism. again, i
+//    don't know. so i think its a better call to have glass damage a separate tap if it exists."
+//
+// A preset asserts a CAUSE, not just a location. Tapping this says "the hail damage is on these
+// panels" — true for horizontal sheet metal, because hail falls downward and lands there. A chip in
+// the windshield could be hail, a stone off a gravel truck, or something that was there in March,
+// and neither the panel nor the hold type can tell you which. Folding glass in would write an
+// unverified causal claim into 25 records from a single tap.
+//
+// A deliberate tap on the windshield is a person saying "I looked, and I think this one is hail."
+// That is worth something. A preset saying it is worth nothing. Same rule as the plate ↔ owning
+// check refusing to name a culprit and the note matcher refusing to pre-select: never let the
+// machine assert what only a person can see.
 
 const HAIL_ZONES: readonly string[] = ['hood', 'roof', 'trunk-liftgate'];
 
