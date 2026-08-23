@@ -178,6 +178,10 @@ export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDama
 
 export interface QueueHold {
   id: string;
+  /** The car's unit number — mock rows carry the HRZ- prefix (see MOCK_UNIT_PREFIX). */
+  unitNumber?: string | null;
+  /** The picklist line, when the flag came from one. `DAMAGE_PRESETS` in lib/hold-presets. */
+  damageDescription?: string;
   /** Every type on the hold. Only body damage has a panel — see MAPPABLE_TYPES. */
   holdTypes: readonly string[];
   /** Which car it belongs to — a car can carry several holds, and they must arrive together. */
@@ -192,6 +196,25 @@ export interface QueueHold {
 function newestFirst(a: string, b: string): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
+
+/** FG's seed rows all carry this unit prefix ([[reference_fg_mock_units]]) — a real unit is digits.
+ *  Two of them were sitting in the backfill queue with novelistic descriptions ("Customer denied
+ *  damage at return"), which is a tell, but the prefix is the fact. Mocks belong in no worklist. */
+const MOCK_UNIT_PREFIX = 'HRZ-';
+
+/** Picklist lines that describe damage the paper slip records in NOTES, not on its diagram.
+ *
+ *  ⭐ AARON'S RULE, and it governs this whole feature: "i don't need zones for them as they don't
+ *  exist on the manual sheet. those are just filled out in the notes filled on the manual slip."
+ *  The zone map mirrors the diagram on Vehicle Inspection #9000501 — so if it does not get circled
+ *  on paper, it must not ask for a zone here. A missing cigarette lighter is a real fault with no
+ *  body location, because nothing on the body happened.
+ *
+ *  Only PICKLIST lines can be ruled out this way. A hand-typed "rear camera" or "Trunk bed liner
+ *  damaged" is the same kind of fault and no string can safely say so — those stay in the count, and
+ *  that is fine: the count is TRUE, the record is complete, and the scan still tells him the bed
+ *  liner on that Seltos is wrecked. Only the at-a-glance map cannot draw it. */
+const NOT_ON_THE_DIAGRAM: ReadonlySet<string> = new Set(['Missing part / accessory']);
 
 /** Hold types where "which panel?" is a meaningful question.
  *
@@ -216,7 +239,9 @@ export function zoneBackfillQueue<T extends QueueHold>(
   const open = holds.filter(h =>
     !CLEARED_STATUSES.has(h.status)
     && (h.damageZones?.length ?? 0) === 0
-    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type)));
+    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type))
+    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX)
+    && !NOT_ON_THE_DIAGRAM.has(h.damageDescription ?? ''));
 
   // ⭐ GROUP BY CAR FIRST. The queue counts HOLDS; he experiences CARS — so when a car with two
   // separate damage records came round a second time for its other hold, it read as "my tag didn't

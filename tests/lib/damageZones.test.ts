@@ -279,3 +279,42 @@ describe('presetFor', () => {
     expect(presetFor(['hail'])!.zones).toEqual(['hood', 'roof', 'trunk-liftgate']);
   });
 });
+
+describe('zoneBackfillQueue — what never belonged in the list', () => {
+  const q2 = (over: Partial<QueueHold> & { id: string }): QueueHold =>
+    ({ vehicleId: over.id, holdTypes: ['damage'], status: 'ACTIVE', notes: '',
+       flaggedAt: '2026-08-01T00:00:00Z', unitNumber: '5421011', ...over });
+
+  it('⭐ leaves out FG\'s own mock rows', () => {
+    // GHK 294 / KLP 447 were sitting in the queue with novelistic seed descriptions. The HRZ-
+    // unit prefix is the fact; mocks belong in no worklist.
+    const out = zoneBackfillQueue([
+      q2({ id: 'mock', unitNumber: 'HRZ-4821' }),
+      q2({ id: 'real', unitNumber: '5421557' }),
+    ], () => 0);
+    expect(out.map(h => h.id)).toEqual(['real']);
+  });
+
+  it('⭐ leaves out a picklist fault the paper slip records in NOTES, not on its diagram', () => {
+    // "i don't need zones for them as they don't exist on the manual sheet." A missing cigarette
+    // lighter is a real fault with no body location, because nothing on the body happened.
+    const out = zoneBackfillQueue([
+      q2({ id: 'lighter', damageDescription: 'Missing part / accessory' }),
+      q2({ id: 'scratch', damageDescription: 'Scratch — paint surface' }),
+    ], () => 0);
+    expect(out.map(h => h.id)).toEqual(['scratch']);
+  });
+
+  it('⭐ KEEPS a hand-typed fault no rule can safely classify', () => {
+    // "rear camera" and "Trunk bed liner damaged" are the same kind of fault, typed free-hand.
+    // No string can rule them out, so they stay counted — and that count is TRUE. The record is
+    // complete either way; only the at-a-glance map cannot draw them.
+    const out = zoneBackfillQueue([q2({ id: 'camera', damageDescription: 'rear camera' })], () => 0);
+    expect(out.map(h => h.id)).toEqual(['camera']);
+  });
+
+  it('does not choke on a hold with no unit number or description', () => {
+    const out = zoneBackfillQueue([q2({ id: 'bare', unitNumber: null, damageDescription: undefined })], () => 0);
+    expect(out.map(h => h.id)).toEqual(['bare']);
+  });
+});

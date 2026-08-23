@@ -22,7 +22,10 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
   // Snapshot the queue ONCE. Saving a hold removes it from the live list, and a queue that
   // re-derives would renumber and reshuffle under him mid-pass — "12 of 251" has to mean something.
   const queue = useMemo(
-    () => zoneBackfillQueue(holds, h => {
+    () => zoneBackfillQueue(holds.map(h => ({
+      ...h,
+      unitNumber: allVehicles.find(v => v.id === h.vehicleId)?.unitNumber ?? null,
+    })), h => {
       const g = zonesFromNote(h.notes);
       return g.certain ? 0 : g.candidates.length > 0 ? 1 : 2;
     }),

@@ -9,8 +9,13 @@ import { zoneBackfillQueue } from '../../lib/damageZones';
 const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900';
 
 export function ZoneBackfillCard({ onOpen }: { onOpen: () => void }) {
-  const { holds } = useVehicleHoldContext();
-  const left = zoneBackfillQueue(holds, () => 0).length;
+  const { holds, allVehicles } = useVehicleHoldContext();
+  // The unit number carries the mock-row tell, so the count has to see it too — otherwise the card
+  // and the run would disagree about how much work is left.
+  const left = zoneBackfillQueue(
+    holds.map(h => ({ ...h, unitNumber: allVehicles.find(v => v.id === h.vehicleId)?.unitNumber ?? null })),
+    () => 0,
+  ).length;
   if (left === 0) return null;
 
   return (

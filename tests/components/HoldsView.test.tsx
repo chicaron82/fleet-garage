@@ -42,6 +42,7 @@ vi.mock('../../src/context/AuthContext', () => ({
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({
     vehicles:       ALL_VEHICLES,
+    allVehicles:    ALL_VEHICLES,   // the backfill card resolves unit numbers to spot mock rows
     holds:          [TEST_HOLD],
     staleHolds:     [],
     loading:        false,
