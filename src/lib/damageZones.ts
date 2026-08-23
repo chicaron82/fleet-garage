@@ -178,6 +178,8 @@ export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDama
 
 export interface QueueHold {
   id: string;
+  /** Every type on the hold. Only body damage has a panel — see MAPPABLE_TYPES. */
+  holdTypes: readonly string[];
   /** Which car it belongs to — a car can carry several holds, and they must arrive together. */
   vehicleId: string;
   status: string;
@@ -191,11 +193,30 @@ function newestFirst(a: string, b: string): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
 
+/** Hold types where "which panel?" is a meaningful question.
+ *
+ *  ⭐ EVERYTHING ELSE IS NOT "HE CANNOT TELL" — IT IS "THE QUESTION DOES NOT APPLY." Aaron, 92 holds
+ *  into the backfill: "now what to do with the ones that can't be mapped. dismiss so it doesn't show
+ *  up again?" The live answer was better than a dismiss button: 67 of those 92 were MECHANICAL
+ *  (65 of them sub-type 'other', 2 tire-swaps), 14 were sale_car, 2 were missing_accessories, and
+ *  only NINE were damage. A safety recall does not sit on a quarter panel; a car going to auction is
+ *  not damage at all.
+ *
+ *  Same principle that already excludes REPAIRED and VOIDED: do not ask a question that has no
+ *  answer. And deliberately NOT a dismissal — a dismiss button would let a REAL damage hold be
+ *  hidden, and this whole feature exists because damage nobody wrote down comes back later as
+ *  somebody's problem. A count that stays at two because two cars are genuinely unplaceable is
+ *  telling the truth, and he can tag them next time he is standing at one. */
+const MAPPABLE_TYPES: ReadonlySet<string> = new Set(['damage', 'hail']);
+
 export function zoneBackfillQueue<T extends QueueHold>(
   holds: readonly T[],
   rank: (h: T) => number,
 ): T[] {
-  const open = holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) === 0);
+  const open = holds.filter(h =>
+    !CLEARED_STATUSES.has(h.status)
+    && (h.damageZones?.length ?? 0) === 0
+    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type)));
 
   // ⭐ GROUP BY CAR FIRST. The queue counts HOLDS; he experiences CARS — so when a car with two
   // separate damage records came round a second time for its other hold, it read as "my tag didn't

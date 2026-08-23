@@ -169,7 +169,7 @@ describe('zoneBackfillQueue', () => {
   // vehicleId defaults to the hold's own id, so each fixture is its own car unless a test says
   // otherwise — the grouping behaviour then has to be asked for explicitly to show up.
   const q = (over: Partial<QueueHold> & { id: string }): QueueHold =>
-    ({ vehicleId: over.id, status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
+    ({ vehicleId: over.id, holdTypes: ['damage'], status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
   const rankByHelp = (h: QueueHold) => (h.notes.includes('lift gate') ? 0 : h.notes ? 1 : 2);
 
   it('⭐ leaves out repaired and voided holds entirely', () => {
@@ -207,6 +207,25 @@ describe('zoneBackfillQueue', () => {
       q({ id: 'newer', flaggedAt: '2026-08-20T00:00:00Z' }),
     ], () => 0);
     expect(out.map(h => h.id)).toEqual(['newer', 'older']);
+  });
+
+  it('⭐ leaves out holds where a panel is not a meaningful answer', () => {
+    // 83 of the 92 remaining were like this: a safety recall does not sit on a quarter panel, and a
+    // car flagged for auction is not damage at all. Not "he cannot tell" — the question does not apply.
+    const out = zoneBackfillQueue([
+      q({ id: 'mech', holdTypes: ['mechanical'] }),
+      q({ id: 'sale', holdTypes: ['sale_car'] }),
+      q({ id: 'acc', holdTypes: ['missing_accessories'] }),
+      q({ id: 'detail', holdTypes: ['detail'] }),
+      q({ id: 'dmg', holdTypes: ['damage'] }),
+      q({ id: 'hail', holdTypes: ['hail'] }),
+    ], () => 0);
+    expect(out.map(h => h.id).sort()).toEqual(['dmg', 'hail']);
+  });
+
+  it('keeps a hold that is damage AND something else', () => {
+    const out = zoneBackfillQueue([q({ id: 'both', holdTypes: ['mechanical', 'damage'] })], () => 0);
+    expect(out.map(h => h.id)).toEqual(['both']);
   });
 
   it('is empty when there is nothing left to tag', () => {
