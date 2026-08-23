@@ -14,6 +14,7 @@ import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
 import { buildImportShifts, dateRange, nextType, type ImportRow } from '../../lib/scheduleImportBuild';
+import { isStatDay } from '../../lib/stats';
 import { findClopens, formatClopen } from '../../lib/scheduleClopens';
 import { ScheduleImportGrid } from './ScheduleImportGrid';
 
@@ -110,7 +111,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
           cells: row.cells.map((c, ci) => ({ date: c.date, type: typeAt(ri, ci), startTime: c.startTime, endTime: c.endTime })),
         });
       });
-      const shifts = buildImportShifts(rows, getTypeDefaults(isPeakSeason), isFullDayShift);
+      const shifts = buildImportShifts(rows, getTypeDefaults(isPeakSeason), isFullDayShift, isStatDay);
       const range = dateRange(shifts);
       if (!range) {
         setWriteMsg('Nothing to write — no dated shifts found.');

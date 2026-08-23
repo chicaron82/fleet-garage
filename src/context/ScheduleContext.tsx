@@ -168,6 +168,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         end_time:   s.endTime   ?? null,
         shift_type: s.shiftType,
         notes:      s.notes     ?? null,
+        // Carried through, not computed here. The bulk path used to drop it, so every imported
+        // shift landed on the column default (false) — including the stats FG could already name.
+        is_stat:    s.isStat    ?? false,
       }));
       const { data, error } = await writeWithRefresh(() =>
         supabase.from('shifts').upsert(rows, { onConflict: 'user_id,date', ignoreDuplicates: true }).select()

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { addDaysISO, buildImportShifts, nextType, dateRange, dropProtectedDays, PROTECTED_IMPORT_TYPES, type ImportRow } from '../../src/lib/scheduleImportBuild';
 import type { ShiftType } from '../../src/types';
+import { isStatDay } from '../../src/lib/stats';
 
 const defaults: Record<ShiftType, { start: string; end: string }> = {
   opening: { start: '06:45', end: '15:15' },
@@ -11,6 +12,8 @@ const defaults: Record<ShiftType, { start: string; end: string }> = {
   sick: { start: '', end: '' },
 };
 const isFullDay = (t: ShiftType) => t === 'day-off' || t === 'pto' || t === 'sick';
+/** The existing cases are about dates and times, not stats — hold that axis still. */
+const noStats = () => false;
 
 describe('addDaysISO', () => {
   it('adds days across a month boundary', () => {
@@ -32,7 +35,7 @@ describe('buildImportShifts', () => {
         ],
       },
     ];
-    expect(buildImportShifts(rows, defaults, isFullDay)).toEqual([
+    expect(buildImportShifts(rows, defaults, isFullDay, noStats)).toEqual([
       { userId: 'u1', date: '2026-04-17', shiftType: 'opening', startTime: '06:45', endTime: '15:15' },
       { userId: 'u1', date: '2026-04-18', shiftType: 'day-off', startTime: undefined, endTime: undefined },
       { userId: 'u1', date: '2026-04-19', shiftType: 'pto', startTime: undefined, endTime: undefined },
@@ -41,7 +44,7 @@ describe('buildImportShifts', () => {
 
   it('falls back to default times when a working cell has none (off flipped to working)', () => {
     const rows: ImportRow[] = [{ userId: 'u1', cells: [{ date: '2026-04-17', type: 'closing', startTime: null, endTime: null }] }];
-    expect(buildImportShifts(rows, defaults, isFullDay)[0]).toEqual({
+    expect(buildImportShifts(rows, defaults, isFullDay, noStats)[0]).toEqual({
       userId: 'u1', date: '2026-04-17', shiftType: 'closing', startTime: '14:30', endTime: '23:00',
     });
   });
@@ -57,7 +60,7 @@ describe('buildImportShifts', () => {
         ],
       },
     ];
-    expect(buildImportShifts(rows, defaults, isFullDay)).toEqual([
+    expect(buildImportShifts(rows, defaults, isFullDay, noStats)).toEqual([
       { userId: 'u1', date: '2026-04-18', shiftType: 'mid', startTime: '10:00', endTime: '18:00' },
     ]);
   });
@@ -126,5 +129,44 @@ describe('dropProtectedDays', () => {
   it('protects sick days as well as pto', () => {
     expect(PROTECTED_IMPORT_TYPES).toContain('pto');
     expect(PROTECTED_IMPORT_TYPES).toContain('sick');
+  });
+});
+
+describe('buildImportShifts — stat seeding', () => {
+  // Deliberately exercised against the REAL isStatDay, not a stub. A stub I write here could
+  // only ever confirm the plumbing; the thing worth knowing is whether an imported block lands
+  // with the column the PAY math reads (payEstimate.ts / ot.ts) already correct.
+  const row = (dates: string[]): ImportRow[] => [
+    { userId: 'u1', cells: dates.map((date) => ({ date, type: 'opening' as const, startTime: '06:45', endTime: '15:15' })) },
+  ];
+
+  it('stamps isStat on legislated Manitoba stats and leaves ordinary days alone', () => {
+    const out = buildImportShifts(
+      row(['2026-05-18', '2026-05-19', '2026-09-30', '2026-10-12', '2026-10-13']),
+      defaults, isFullDay, isStatDay,
+    );
+    expect(out.map((s) => [s.date, s.isStat])).toEqual([
+      ['2026-05-18', true],       // Victoria Day — the one that was wrong in the DB
+      ['2026-05-19', undefined],  // ordinary Tuesday
+      ['2026-09-30', true],       // National Day for Truth & Reconciliation
+      ['2026-10-12', true],       // Thanksgiving
+      ['2026-10-13', undefined],
+    ]);
+  });
+
+  it('stamps a full-day type on a stat too — a booked day off still lands on a real stat', () => {
+    const out = buildImportShifts(
+      [{ userId: 'u1', cells: [{ date: '2026-09-07', type: 'pto', startTime: null, endTime: null }] }],
+      defaults, isFullDay, isStatDay,
+    );
+    expect(out[0]).toEqual({
+      userId: 'u1', date: '2026-09-07', shiftType: 'pto',
+      startTime: undefined, endTime: undefined, isStat: true,
+    });
+  });
+
+  it('leaves the flag absent rather than false, so the row shape is unchanged on ordinary days', () => {
+    const out = buildImportShifts(row(['2026-05-19']), defaults, isFullDay, isStatDay);
+    expect('isStat' in out[0]).toBe(false);
   });
 });

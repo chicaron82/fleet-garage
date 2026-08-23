@@ -39,6 +39,8 @@ export interface ImportShift {
   shiftType: ShiftType;
   startTime?: string;
   endTime?: string;
+  /** Set only on legislated stat days — absent means "not a stat". See buildImportShifts. */
+  isStat?: boolean;
 }
 
 /**
@@ -47,11 +49,24 @@ export interface ImportShift {
  * times; if a cell has no times (e.g. the human flipped an OFF cell to a working type),
  * the type's default times fill in. Full-day types (off/pto/sick) carry no times. Rows
  * must already be resolved to a userId (the caller drops unassigned rows).
+ *
+ * ⭐ STAT DAYS SEED THEMSELVES. FG has always known which dates are Manitoba stats
+ * (`lib/stats.ts` → `isStatDay`), but that knowledge only ever reached LABELS — the money
+ * (`payEstimate.ts`, `ot.ts`) reads the `shifts.is_stat` COLUMN, which the import never set.
+ * So the app could call a date "Victoria Day" on one screen while paying it as an ordinary
+ * Monday on another, and it did: Aaron worked Mon 2026-05-18 and the column said false until
+ * he was told (2026-08-23). Two sources of truth, one of them silent about the one that pays.
+ * Seeding here closes it at the only place a whole block of shifts is born.
+ *
+ * ⚠️ LEGISLATED STATS ONLY. Hertz-observed days that Manitoba doesn't legislate are NOT in the
+ * map and still need the manual flag — this removes the guesswork, it doesn't replace the human.
+ * `isStatDay` is injected rather than imported so the map stays swappable and this stays pure.
  */
 export function buildImportShifts(
   rows: ImportRow[],
   defaults: Record<ShiftType, { start: string; end: string }>,
   isFullDay: (t: ShiftType) => boolean,
+  isStatDay: (date: string) => boolean,
 ): ImportShift[] {
   const out: ImportShift[] = [];
   for (const row of rows) {
@@ -65,6 +80,9 @@ export function buildImportShifts(
         shiftType,
         startTime: full ? undefined : (cell.startTime ?? defaults[shiftType].start),
         endTime: full ? undefined : (cell.endTime ?? defaults[shiftType].end),
+        // Only stamped when true — an absent flag reads as "ordinary day" everywhere downstream,
+        // and keeps the written row identical in shape to what the import produced before.
+        ...(isStatDay(cell.date) ? { isStat: true } : {}),
       });
     }
   }
