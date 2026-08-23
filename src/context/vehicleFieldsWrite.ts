@@ -1,6 +1,11 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle, FieldSource } from '../types';
 import type { KeytagFill } from '../lib/resolveKeytag';
+import { findUnitConflict } from '../lib/identityConflict';
+
+/** What the write has to say for itself. `unitConflict` means the tag's unit number was NOT applied
+ *  because another live record already carries it — everything else the tag read still was. */
+export interface UpdateFieldsResult { unitConflict?: Vehicle }
 
 /** The `vehicles` row shape a backfill can touch — typed explicitly (not a generic
  *  Record) because the Supabase client rejects an untyped update payload. */
@@ -21,15 +26,37 @@ interface VehicleFieldsUpdate {
  *  useVehicleOperations under the line cap (mirrors evAssetWrite.ts). */
 export function makeUpdateVehicleFields(deps: {
   setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+  /** Live fleet, for the unit#-collision guard below. */
+  allVehicles: Vehicle[];
 }) {
-  const { setAllVehicles } = deps;
+  const { setAllVehicles, allVehicles } = deps;
 
-  return async (vehicleId: string, fills: KeytagFill[]): Promise<void> => {
-    if (fills.length === 0) return;
+  return async (vehicleId: string, fills: KeytagFill[]): Promise<UpdateFieldsResult> => {
+    if (fills.length === 0) return {};
+
+    // ⭐⭐ THE UNIT#-COLLISION GUARD. The registration form has always checked this (useUnitConflict
+    // → findUnitConflict) because a unit number is fleet-wide: the same number on two records means
+    // it has drifted onto the wrong car. A SCAN writing the same field had no such check, and that
+    // is what produced both of this week's duplicate-unit findings — LUR254 on 2026-08-21 and
+    // LUR243 tonight. Each time a tag wrote a unit number straight over the top and the collision
+    // only surfaced days later on the audit board.
+    //
+    // ⚠️ It does NOT decide which record is right. Aaron's LUR254 case was the TAG being correct and
+    // the other row being bogus; tonight's LUR243 was the opposite. The data cannot tell them apart
+    // — only the key tag can, and he is holding it at exactly this moment. So the unit is left
+    // alone, everything else the tag read is still written, and the conflict is handed back to be
+    // said out loud. Never silently create the duplicate; never silently "fix" it either.
+    const unitFill = fills.find(f => f.field === 'unitNumber');
+    const conflict = unitFill
+      ? findUnitConflict(String(unitFill.value ?? ''), allVehicles, vehicleId)
+      : undefined;
+    const applied = conflict ? fills.filter(f => f.field !== 'unitNumber') : fills;
+    if (applied.length === 0) return { unitConflict: conflict };
+
     const payload: VehicleFieldsUpdate = {};
     const patch: Partial<Pick<Vehicle, 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass'>> = {};
     const stamps: Record<string, FieldSource> = {};
-    for (const f of fills) {
+    for (const f of applied) {
       if (f.field === 'unitNumber')       { payload.unit_number = f.value as string; patch.unitNumber = f.value as string; }
       else if (f.field === 'year')        { payload.year = f.value as number; patch.year = f.value as number; }
       else if (f.field === 'rentalClass') { payload.rental_class = f.value as string; patch.rentalClass = f.value as string; }
@@ -50,5 +77,6 @@ export function makeUpdateVehicleFields(deps: {
     );
     if (error) throw new Error(`Failed to update vehicle: ${(error as { message?: string }).message}`);
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, ...patch, fieldSources: merged } : v)));
+    return { unitConflict: conflict };
   };
 }

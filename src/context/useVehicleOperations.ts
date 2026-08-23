@@ -126,7 +126,7 @@ export function useVehicleOperations({
 
   // Keytag-backfill write (the partial→backfill half of keytag-scan): applies FILLS
   // only, never conflicts. See ./vehicleFieldsWrite.
-  const updateVehicleFields = makeUpdateVehicleFields({ setAllVehicles });
+  const updateVehicleFields = makeUpdateVehicleFields({ setAllVehicles, allVehicles });
   // Release a manual lock on one identity field — the un-lock half of the provenance ladder.
   // See ./fieldUnlockWrite.
   const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });

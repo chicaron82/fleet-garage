@@ -54,7 +54,16 @@ export function useBackfillOnScan(deps: {
     const bf = backfillFieldsOnScan(read, vehicles); // partial with fills and/or changes, else null
     if (!bf) return;
     try {
-      await updateVehicleFields(bf.vehicleId, bf.applies); // fills + non-locked corrections, stamped 'tag'
+      const res = await updateVehicleFields(bf.vehicleId, bf.applies); // fills + corrections, stamped 'tag'
+      // ⭐ The tag's unit number collided with another live record, so it was NOT applied. Say it
+      // HERE, at the scan, because this is the one moment he is holding the key tag — the only
+      // thing that can settle which record is right. Both of this week's duplicate-unit findings
+      // were created by this write and surfaced days later on a board instead.
+      if (res?.unitConflict) {
+        const other = res.unitConflict;
+        setConflictToast(`⚠️ Unit ${bf.applies.find(f => f.field === 'unitNumber')?.value} is already on `
+          + `${other.licensePlate} — not applied. Same car, or has the number moved?`);
+      }
       // Show the work — never write silently. A fill is new info; a change OVERRODE a stale value
       // (an inferred guess or older tag read self-healing), which is worth saying more loudly.
       const filled = bf.fills.length ? `filled ${bf.fills.map(f => f.field).join(', ')}` : '';

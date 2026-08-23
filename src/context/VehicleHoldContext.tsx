@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import type { UpdateFieldsResult } from './vehicleFieldsWrite';
 import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -29,7 +30,7 @@ export interface VehicleHoldContextValue {
   /** Resolves the new vehicle id — or `undefined` when a same-plate call was in flight (dropped re-entrant, see submit lock). */
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
-  updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<void>;
+  updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<UpdateFieldsResult>;
   /** Record the owning branch read off a tag, if the vehicle has none yet. See owningAreaWrite. */
   recordOwningArea: (vehicleId: string, owningArea: string) => Promise<void>;
   /** Record the class code read off a tag, if the vehicle has none yet. See classCodeWrite. */
