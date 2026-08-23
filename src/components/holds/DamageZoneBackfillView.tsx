@@ -10,7 +10,7 @@
 // surface the choice, because a pre-selected guess gets confirmed without being read.
 import { useMemo, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones, presetFor } from '../../lib/damageZones';
+import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones, presetFor, vehicleDamageZones } from '../../lib/damageZones';
 import { zonesFromNote } from '../../lib/zoneFromNote';
 import { DamageZoneMap } from './DamageZoneMap';
 
@@ -40,6 +40,15 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
   const vehicle = allVehicles.find(v => v.id === hold?.vehicleId);
   const guess = useMemo(() => zonesFromNote(hold?.notes), [hold]);
   const preset = presetFor(hold?.holdTypes);
+
+  // ⭐ What is ALREADY tagged on this car, from its OTHER holds. Without it, a car arriving for its
+  // second damage record looks identical to one whose tag failed to save — which is exactly how it
+  // read to Aaron. Seeing the panel he already recorded turns "did that not stick?" into "right,
+  // this one is a different hold on the same car."
+  const alreadyOnCar = useMemo(() => {
+    if (!hold) return [];
+    return vehicleDamageZones(holds.filter(h => h.vehicleId === hold.vehicleId && h.id !== hold.id)).zones;
+  }, [holds, hold]);
 
   const advance = () => { setI(n => n + 1); setDraft([]); setErr(''); };
 
@@ -113,6 +122,21 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
             {(hold.photos ?? []).map(src => (
               <img key={src} src={src} alt="" className="h-24 w-24 rounded-lg object-cover shrink-0" />
             ))}
+          </div>
+        )}
+
+        {alreadyOnCar.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              Already on this car
+            </span>
+            {alreadyOnCar.map(id => (
+              <span key={id}
+                    className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                {zoneLabel(id)}
+              </span>
+            ))}
+            <span className="text-[11px] text-gray-400 dark:text-gray-500">· this is a different hold</span>
           </div>
         )}
 

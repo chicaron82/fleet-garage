@@ -166,8 +166,10 @@ describe('vehicleDamageZones — what is wrong with this car right now', () => {
 });
 
 describe('zoneBackfillQueue', () => {
+  // vehicleId defaults to the hold's own id, so each fixture is its own car unless a test says
+  // otherwise — the grouping behaviour then has to be asked for explicitly to show up.
   const q = (over: Partial<QueueHold> & { id: string }): QueueHold =>
-    ({ status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
+    ({ vehicleId: over.id, status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
   const rankByHelp = (h: QueueHold) => (h.notes.includes('lift gate') ? 0 : h.notes ? 1 : 2);
 
   it('⭐ leaves out repaired and voided holds entirely', () => {
@@ -209,6 +211,27 @@ describe('zoneBackfillQueue', () => {
 
   it('is empty when there is nothing left to tag', () => {
     expect(zoneBackfillQueue([q({ id: 'a', damageZones: ['hood'] })], () => 0)).toEqual([]);
+  });
+
+  it('⭐ keeps ONE CAR\'s holds together, however they rank', () => {
+    // The queue counts holds; he experiences cars. A car with two damage records coming round a
+    // second time reads as "my tag didn't save" — 30 of the 132 remaining holds were exactly that.
+    const out = zoneBackfillQueue([
+      q({ id: 'car1-a', vehicleId: 'car1', notes: 'Rear lift gate' }),
+      q({ id: 'car2-a', vehicleId: 'car2', notes: 'Rear lift gate' }),
+      q({ id: 'car1-b', vehicleId: 'car1', notes: '' }),          // blank note, ranks last
+    ], rankByHelp);
+    expect(out.map(h => h.id)).toEqual(['car1-a', 'car1-b', 'car2-a']);
+  });
+
+  it('a car still inherits its BEST hold\'s rank, so easy cars open the run', () => {
+    // car2's only hold is readable; car1's readable hold drags its blank sibling along behind it.
+    const out = zoneBackfillQueue([
+      q({ id: 'blank-car', vehicleId: 'carX', notes: '' }),
+      q({ id: 'good', vehicleId: 'carY', notes: 'Rear lift gate' }),
+      q({ id: 'goods-sibling', vehicleId: 'carY', notes: '' }),
+    ], rankByHelp);
+    expect(out.map(h => h.id)).toEqual(['good', 'goods-sibling', 'blank-car']);
   });
 });
 

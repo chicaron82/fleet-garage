@@ -178,31 +178,47 @@ export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDama
 
 export interface QueueHold {
   id: string;
+  /** Which car it belongs to — a car can carry several holds, and they must arrive together. */
+  vehicleId: string;
   status: string;
   damageZones?: string[];
   notes: string;
   flaggedAt: string;
 }
 
-/**
- * Holds worth tagging, in the order worth tagging them.
- *
- * ⭐ REPAIRED AND VOIDED HOLDS ARE NOT IN THE QUEUE. Their panels would never render anywhere —
- * `vehicleDamageZones` drops them — so tagging one is pure archaeology with no payoff on any screen.
- * That is 190 of the 441 holds removed from the job before it starts.
- *
- * ⭐ AND THE EASY ONES COME FIRST. `rank` is meant to be "how much help the note gives" (0 = the note
- * pins one panel, 1 = it offers a few, 2 = it says nothing useful), so a long grind opens with a run
- * of one-tap confirmations instead of a wall of blank diagrams. Momentum is a feature when the list
- * is this long. Ties break newest-first — fresher damage is likelier to still matter.
- */
+/** Newest first. Shared by both sort levels so a car and its holds order the same way. */
+function newestFirst(a: string, b: string): number {
+  return a < b ? 1 : a > b ? -1 : 0;
+}
+
 export function zoneBackfillQueue<T extends QueueHold>(
   holds: readonly T[],
   rank: (h: T) => number,
 ): T[] {
-  return holds
-    .filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) === 0)
-    .sort((a, b) => rank(a) - rank(b) || (a.flaggedAt < b.flaggedAt ? 1 : a.flaggedAt > b.flaggedAt ? -1 : 0));
+  const open = holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) === 0);
+
+  // ⭐ GROUP BY CAR FIRST. The queue counts HOLDS; he experiences CARS — so when a car with two
+  // separate damage records came round a second time for its other hold, it read as "my tag didn't
+  // save" (Aaron, 2026-08-22, live: 30 of 132 remaining holds sat on a car he had already tagged).
+  // Keeping a car's holds adjacent turns "why am I seeing this again?" into "right, this one has two".
+  //
+  // A car inherits its BEST hold's rank, so the easiest-first ordering still holds at the car level
+  // and the run still opens with a stretch of one-tap confirmations.
+  const byCar = new Map<string, { rank: number; at: string; holds: T[] }>();
+  for (const h of open) {
+    const car = byCar.get(h.vehicleId);
+    const r = rank(h);
+    if (!car) byCar.set(h.vehicleId, { rank: r, at: h.flaggedAt, holds: [h] });
+    else {
+      car.rank = Math.min(car.rank, r);
+      if (h.flaggedAt > car.at) car.at = h.flaggedAt;
+      car.holds.push(h);
+    }
+  }
+
+  return [...byCar.values()]
+    .sort((a, b) => a.rank - b.rank || newestFirst(a.at, b.at))
+    .flatMap(car => car.holds.sort((a, b) => rank(a) - rank(b) || newestFirst(a.flaggedAt, b.flaggedAt)));
 }
 
 // ── Presets ────────────────────────────────────────────────────────────────────────────────────

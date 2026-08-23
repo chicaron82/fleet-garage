@@ -141,3 +141,47 @@ describe('DamageZoneBackfillView — the hail preset', () => {
     expect(screen.queryByRole('button', { name: /Hail/ })).toBeNull();
   });
 });
+
+describe('DamageZoneBackfillView — a car with more than one hold', () => {
+  it('⭐ names what is already tagged on the car, so a second visit is not mistaken for a lost tag', () => {
+    // 30 of the 132 remaining holds sat on a car Aaron had already tagged, and the second visit
+    // read as "my tag didn't save". It had saved — on the other hold.
+    HOLDS = [
+      hold({ id: 'h-tagged', vehicleId: 'veh-1', damageZones: ['trunk-liftgate'], notes: '' }),
+      hold({ id: 'h-open', vehicleId: 'veh-1', notes: '' }),
+    ];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('Already on this car')).toBeInTheDocument();
+    expect(screen.getByText('Trunk / liftgate')).toBeInTheDocument();
+    expect(screen.getByText(/this is a different hold/)).toBeInTheDocument();
+  });
+
+  it('⭐ walks a car\'s two open holds back to back, not scattered through the run', () => {
+    HOLDS = [
+      hold({ id: 'elsewhere', vehicleId: 'veh-9', notes: 'Rear lift gate' }),
+      hold({ id: 'pair-a', vehicleId: 'veh-1', notes: 'Rear lift gate' }),
+      hold({ id: 'pair-b', vehicleId: 'veh-1', notes: '' }),
+    ];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('1 of 3 · 0 tagged')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    // Second stop is still the SAME car — its blank-note sibling, dragged along behind it.
+    expect(screen.getByText('2 of 3 · 0 tagged')).toBeInTheDocument();
+    expect(screen.getByText('LFJ396')).toBeInTheDocument();
+  });
+
+  it('says nothing about the car when this is its only hold', () => {
+    HOLDS = [hold({ id: 'h1', vehicleId: 'veh-1', notes: '' })];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.queryByText('Already on this car')).toBeNull();
+  });
+
+  it('does not count a REPAIRED sibling — that damage is gone', () => {
+    HOLDS = [
+      hold({ id: 'fixed', vehicleId: 'veh-1', status: 'REPAIRED', damageZones: ['hood'] }),
+      hold({ id: 'h-open', vehicleId: 'veh-1', notes: '' }),
+    ];
+    render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.queryByText('Already on this car')).toBeNull();
+  });
+});
