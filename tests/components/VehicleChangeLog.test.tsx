@@ -11,7 +11,11 @@ let ROWS: { changedAt: string; op: 'UPDATE' | 'DELETE'; changed: Record<string, 
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({ revertVehicleChange }),
 }));
-vi.mock('../../src/hooks/useVehicleChanges', () => ({ useVehicleChanges: () => ROWS }));
+// The refresh key is the observable signal that the component asked for a fresh read.
+let lastRefreshKey = 0;
+vi.mock('../../src/hooks/useVehicleChanges', () => ({
+  useVehicleChanges: (_id: string, refreshKey = 0) => { lastRefreshKey = refreshKey; return ROWS; },
+}));
 vi.mock('../../src/lib/haptics', () => ({ hapticLight: vi.fn() }));
 
 import { VehicleChangeLog } from '../../src/components/vehicle/VehicleChangeLog';
@@ -77,5 +81,34 @@ describe('VehicleChangeLog — undo', () => {
     ROWS = [];
     const { container } = render(<VehicleChangeLog vehicleId="veh-1" />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('VehicleChangeLog — the trail after an undo', () => {
+  it('⭐ asks for a FRESH read once the undo succeeds', async () => {
+    // The revert WRITES a new entry (the same trigger records it). Without a re-read the trail goes
+    // stale the moment he uses it — still showing the entry he just undid, still offering to undo
+    // it, and a second tap would refuse with a message about his own correction.
+    ROWS = [SCAN];
+    render(<VehicleChangeLog vehicleId="veh-1" />);
+    openLog();
+    const before = lastRefreshKey;
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.click(screen.getByRole('button', { name: /Undo these 2 changes\?/ }));
+    await waitFor(() => expect(lastRefreshKey).toBe(before + 1));
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();   // disarmed again
+  });
+
+  it('does NOT re-read when the undo was refused', async () => {
+    // A refusal changed nothing, so re-reading would only make the log flicker for no reason.
+    revertVehicleChange.mockRejectedValueOnce(new Error('color has changed since'));
+    ROWS = [SCAN];
+    render(<VehicleChangeLog vehicleId="veh-1" />);
+    openLog();
+    const before = lastRefreshKey;
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.click(screen.getByRole('button', { name: /Undo these 2 changes\?/ }));
+    await waitFor(() => expect(screen.getByText(/color has changed since/)).toBeInTheDocument());
+    expect(lastRefreshKey).toBe(before);
   });
 });

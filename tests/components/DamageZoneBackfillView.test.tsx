@@ -185,3 +185,28 @@ describe('DamageZoneBackfillView — a car with more than one hold', () => {
     expect(screen.queryByText('Already on this car')).toBeNull();
   });
 });
+
+describe('DamageZoneBackfillView — arriving before the fleet has loaded', () => {
+  it('⭐ takes no snapshot while holds are still empty', async () => {
+    // A cold load straight onto /damage-zones gives an empty holds array on the first render.
+    // Snapshotting THAT froze the run at "Nothing left to tag" until he navigated away and back —
+    // hidden behind the happy path, because the dashboard card cannot render before holds exist.
+    HOLDS = [];
+    const { rerender } = render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('Nothing left to tag')).toBeInTheDocument();
+
+    HOLDS = [hold({ id: 'h1', notes: 'Rear lift gate' })];
+    rerender(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('1 of 1 · 0 tagged')).toBeInTheDocument();
+  });
+
+  it('and then holds that snapshot steady while he works', () => {
+    HOLDS = [hold({ id: 'a', notes: '' }), hold({ id: 'b', notes: '' })];
+    const { rerender } = render(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('1 of 2 · 0 tagged')).toBeInTheDocument();
+    // A hold being tagged elsewhere must not renumber the run under him mid-pass.
+    HOLDS = [hold({ id: 'a', notes: '' })];
+    rerender(<DamageZoneBackfillView onBack={vi.fn()} />);
+    expect(screen.getByText('1 of 2 · 0 tagged')).toBeInTheDocument();
+  });
+});

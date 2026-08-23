@@ -66,10 +66,18 @@ export function useBackfillOnScan(deps: {
       }
       // Show the work — never write silently. A fill is new info; a change OVERRODE a stale value
       // (an inferred guess or older tag read self-healing), which is worth saying more loudly.
-      const filled = bf.fills.length ? `filled ${bf.fills.map(f => f.field).join(', ')}` : '';
+      // ⚠️ APPLIED, not planned. `bf.fills` is what the tag OFFERED; when the unit number collides it
+      // is skipped, and reporting it anyway would have the success toast claim a write that never
+      // happened — beside a warning saying it didn't. Found at /reflect 61, an hour after shipping
+      // the guard: I added the refusal and left the boast intact.
+      const applied = res?.unitConflict ? bf.fills.filter(f => f.field !== 'unitNumber') : bf.fills;
+      const filled = applied.length ? `filled ${applied.map(f => f.field).join(', ')}` : '';
       const changed = changeNote(bf.changes);
-      setBackfillToast(`✨ ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
-      setTimeout(() => setBackfillToast(null), 3000);
+      const note = [filled, changed].filter(Boolean).join(' · ');
+      if (note) {
+        setBackfillToast(`✨ ${bf.plate} · ${note}`);
+        setTimeout(() => setBackfillToast(null), 3000);
+      }
     } catch { /* non-blocking */ }
   }, [vehicles, updateVehicleFields, attachKeytagPhotoIfMissing]);
 

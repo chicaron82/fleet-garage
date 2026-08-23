@@ -14,7 +14,8 @@ import { hapticLight } from '../../lib/haptics';
 // to name (project_fg_scope_boundary). Better a trail that admits what it doesn't know than one
 // that quietly implies a person.
 export function VehicleChangeLog({ vehicleId }: { vehicleId: string }) {
-  const rows = useVehicleChanges(vehicleId);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const rows = useVehicleChanges(vehicleId, refreshKey);
   const { revertVehicleChange } = useVehicleHoldContext();
   const [open, setOpen] = useState(false);
   // Armed by key, so one confirm can be showing at a time and a stray tap never writes.
@@ -27,6 +28,7 @@ export function VehicleChangeLog({ vehicleId }: { vehicleId: string }) {
     try {
       await revertVehicleChange(vehicleId, row.changed, row.op);
       setArming(null);
+      setRefreshKey(k => k + 1);   // the revert wrote a new entry — re-read, or the trail lies
     } catch (e) {
       // The refusal ("colour has changed since") is the useful half — show it, don't swallow it.
       setErr({ key, msg: e instanceof Error ? e.message : 'Could not undo it.' });

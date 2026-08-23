@@ -8,11 +8,15 @@
 // ⚠️ The note's suggested panels are drawn as a DASHED OUTLINE and are not selected. He confirms by
 // tapping. The rule is the one the plate ↔ owning check cost me: a machine that cannot be sure must
 // surface the choice, because a pre-selected guess gets confirmed without being read.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones, presetFor, vehicleDamageZones } from '../../lib/damageZones';
 import { zonesFromNote } from '../../lib/zoneFromNote';
 import { DamageZoneMap } from './DamageZoneMap';
+import type { Hold } from '../../types';
+
+/** A hold plus the unit number the mock-row guard needs. */
+type QueueItem = Hold & { unitNumber: string | null };
 
 const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900';
 
@@ -21,17 +25,24 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
 
   // Snapshot the queue ONCE. Saving a hold removes it from the live list, and a queue that
   // re-derives would renumber and reshuffle under him mid-pass — "12 of 251" has to mean something.
-  const queue = useMemo(
-    () => zoneBackfillQueue(holds.map(h => ({
+  //
+  // ⚠️ But once holds have LOADED, not on the first render. Snapshotting an empty array — which is
+  // what a cold load of /damage-zones gives you — froze the run at "Nothing left to tag" until he
+  // navigated away and back. He normally arrives via the dashboard card, which cannot render before
+  // the holds exist, so the bug hid behind the happy path (found at /reflect 61).
+  const snapshot = useRef<QueueItem[] | null>(null);
+  const queue = useMemo(() => {
+    if (snapshot.current) return snapshot.current;
+    if (holds.length === 0) return [];              // still loading — take no snapshot yet
+    snapshot.current = zoneBackfillQueue(holds.map(h => ({
       ...h,
       unitNumber: allVehicles.find(v => v.id === h.vehicleId)?.unitNumber ?? null,
     })), h => {
       const g = zonesFromNote(h.notes);
       return g.certain ? 0 : g.candidates.length > 0 ? 1 : 2;
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+    });
+    return snapshot.current;
+  }, [holds, allVehicles]);
 
   const [i, setI] = useState(0);
   const [draft, setDraft] = useState<string[]>([]);

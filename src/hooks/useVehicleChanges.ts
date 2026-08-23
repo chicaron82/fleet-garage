@@ -9,7 +9,11 @@ import type { VehicleChangeRow } from '../lib/vehicleChanges';
 
 const MAX_ROWS = 50;
 
-export function useVehicleChanges(vehicleId: string | null | undefined): VehicleChangeRow[] {
+/** `refreshKey` re-reads the trail. Undoing an entry WRITES a new one (the same trigger records the
+ *  revert), so without this the log he is looking at goes stale the moment he uses it — still showing
+ *  the entry he just undid, still offering to undo it, and a second tap would refuse with a message
+ *  about his own correction. Found at /reflect 61, an hour after shipping the undo. */
+export function useVehicleChanges(vehicleId: string | null | undefined, refreshKey = 0): VehicleChangeRow[] {
   // Rows are STAMPED with the vehicle they belong to and only read back on a match — the same
   // guard useVehicleSightings uses, and for the same reason: without it, the moment between
   // navigating to a new car and its fetch landing renders the PREVIOUS car's history under the new
@@ -38,7 +42,7 @@ export function useVehicleChanges(vehicleId: string | null | undefined): Vehicle
     }
     void load();
     return () => { cancelled = true; };
-  }, [vehicleId]);
+  }, [vehicleId, refreshKey]);
 
   if (!vehicleId || loaded?.id !== vehicleId) return [];
   return loaded.rows;

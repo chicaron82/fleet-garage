@@ -41,8 +41,16 @@ export function useRegisterOnScan(deps: {
     const bf = backfillFieldsOnScan(read, vehicles);
     if (bf) {
       try {
-        await updateVehicleFields(bf.vehicleId, bf.applies);
-        const filled = bf.fills.length ? `filled ${bf.fills.map(f => f.field).join(', ')}` : '';
+        const res = await updateVehicleFields(bf.vehicleId, bf.applies);
+        // Same honesty rule as useBackfillOnScan: report what was APPLIED. A skipped unit number
+        // must not appear in a "filled …" line, and the collision has to be said out loud rather
+        // than swallowed — this path had been silent about it entirely.
+        const applied = res?.unitConflict ? bf.fills.filter(f => f.field !== 'unitNumber') : bf.fills;
+        if (res?.unitConflict) {
+          flash(`⚠️ Unit already on ${res.unitConflict.licensePlate} — not applied to ${bf.plate}`);
+          return;
+        }
+        const filled = applied.length ? `filled ${applied.map(f => f.field).join(', ')}` : '';
         const changed = bf.changes.length ? `corrected ${bf.changes.map(c => c.field).join(', ')}` : '';
         flash(`✨ Updated ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
       } catch { /* non-blocking */ }
