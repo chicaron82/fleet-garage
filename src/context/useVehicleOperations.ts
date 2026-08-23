@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { makeRevertVehicleChange } from './vehicleChangeRevert';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, openSaleCarHolds } from '../lib/vehicle-status';
 import { isTeslaMake } from '../lib/ev-detection';
@@ -173,6 +174,7 @@ export function useVehicleOperations({
   const deleteHoldPhoto = makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles });
   const editHoldDescription = makeEditHoldDescription({ holds, allVehicles, setAllHolds, setAllVehicles });
   const editHoldDamageZones = makeEditHoldDamageZones({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const revertVehicleChange = makeRevertVehicleChange({ setAllVehicles });
   const closeException = makeCloseException({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markRepairedBatch = makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles });
   const markIssueRepaired = makeMarkIssueRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
@@ -374,6 +376,7 @@ export function useVehicleOperations({
     deleteHoldPhoto,
     editHoldDescription,
     editHoldDamageZones,
+    revertVehicleChange,
     closeException,
     archiveVehicle,
     restoreVehicle,

@@ -62,6 +62,9 @@ export interface VehicleHoldContextValue {
   deleteHold: (holdId: string) => Promise<void>;
   deleteHoldPhoto: (holdId: string, photoUrl: string) => Promise<void>;
   editHoldDescription: (holdId: string, description: string) => Promise<void>;
+  /** Undo one entry in a car's change log. Throws with a plain reason when the record has moved
+   *  since — see lib/changeRevert for why it refuses rather than half-reverting. */
+  revertVehicleChange: (vehicleId: string, changed: Record<string, unknown>, op: 'UPDATE' | 'DELETE') => Promise<void>;
   /** Set which body panels this hold's damage sits on. Empty array clears them. */
   editHoldDamageZones: (holdId: string, zones: string[]) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
