@@ -637,6 +637,7 @@ export type Database = {
           resolved_types: string[]
           status: string
           vehicle_id: string
+          zones_reviewed_at: string | null
         }
         Insert: {
           branch_id?: string
@@ -661,6 +662,7 @@ export type Database = {
           resolved_types?: string[]
           status: string
           vehicle_id: string
+          zones_reviewed_at?: string | null
         }
         Update: {
           branch_id?: string
@@ -685,6 +687,7 @@ export type Database = {
           resolved_types?: string[]
           status?: string
           vehicle_id?: string
+          zones_reviewed_at?: string | null
         }
         Relationships: [
           {

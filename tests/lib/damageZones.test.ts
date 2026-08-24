@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue, presetFor,
+  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue, zonesSetAside, presetFor,
   type QueueHold,
 } from '../../src/lib/damageZones';
 
@@ -316,5 +316,61 @@ describe('zoneBackfillQueue — what never belonged in the list', () => {
   it('does not choke on a hold with no unit number or description', () => {
     const out = zoneBackfillQueue([q2({ id: 'bare', unitNumber: null, damageDescription: undefined })], () => 0);
     expect(out.map(h => h.id)).toEqual(['bare']);
+  });
+});
+
+// ── "No panel applies" — the answer, not a dismissal (migrations/125) ─────────
+describe('zonesReviewedAt — holds a human has set aside', () => {
+  const q = (over: Partial<QueueHold> & { id: string }): QueueHold =>
+    ({ vehicleId: over.id, holdTypes: ['damage'], status: 'ACTIVE', notes: '', flaggedAt: '2026-08-01T00:00:00Z', ...over });
+  const REVIEWED = '2026-08-24T15:00:00Z';
+
+  it('⭐ stops asking about a hold whose question has been answered', () => {
+    // The real pair (2026-08-24): a rear camera lens proud of its housing and a trunk bed liner
+    // eaten by a chemical spill. Real damage, photographed, nowhere on the body diagram — so they
+    // came back to the top of a finite queue forever and made "nothing left to tag" a lie.
+    const out = zoneBackfillQueue([
+      q({ id: 'lens',   notes: 'lense for rear camera slightly off', zonesReviewedAt: REVIEWED }),
+      q({ id: 'liner',  notes: 'bed liner eaten by chemical spill',  zonesReviewedAt: REVIEWED }),
+      q({ id: 'bumper', notes: 'front bumper scrape' }),
+    ], () => 0);
+    expect(out.map(h => h.id)).toEqual(['bumper']);
+  });
+
+  it('⚠️ counts them instead of hiding them — nothing vanishes behind a tap', () => {
+    // The objection this design had to earn its way past. A set-aside hold leaves the QUEUE and
+    // stays visible in the total, so a real damage hold can never be silently swallowed.
+    const holds = [
+      q({ id: 'lens',   zonesReviewedAt: REVIEWED }),
+      q({ id: 'bumper' }),
+    ];
+    expect(zoneBackfillQueue(holds, () => 0).map(h => h.id)).toEqual(['bumper']);
+    expect(zonesSetAside(holds).map(h => h.id)).toEqual(['lens']);
+  });
+
+  it('clearing it puts the hold straight back in the queue', () => {
+    // A tap made in error must be as cheap to undo as it was to make.
+    const back = q({ id: 'lens', zonesReviewedAt: null });
+    expect(zoneBackfillQueue([back], () => 0).map(h => h.id)).toEqual(['lens']);
+    expect(zonesSetAside([back])).toEqual([]);
+  });
+
+  it('a hold that was set aside and LATER tagged is in neither list', () => {
+    // Zones win: it has an answer now, so it is neither outstanding nor set aside.
+    const tagged = q({ id: 'lens', zonesReviewedAt: REVIEWED, damageZones: ['front-bumper'] });
+    expect(zoneBackfillQueue([tagged], () => 0)).toEqual([]);
+    expect(zonesSetAside([tagged])).toEqual([]);
+  });
+
+  it('does not count things that were never in the queue to begin with', () => {
+    // Set-aside is only meaningful for a hold the queue WOULD have asked about. A repaired hold, a
+    // mock row, a mechanical hold and a picklist line with no diagram entry were already excluded —
+    // counting them would inflate the number and make it noise.
+    expect(zonesSetAside([
+      q({ id: 'repaired',   status: 'REPAIRED', zonesReviewedAt: REVIEWED }),
+      q({ id: 'mock',       unitNumber: 'HRZ-4821', zonesReviewedAt: REVIEWED }),
+      q({ id: 'mechanical', holdTypes: ['mechanical'], zonesReviewedAt: REVIEWED }),
+      q({ id: 'accessory',  damageDescription: 'Missing part / accessory', zonesReviewedAt: REVIEWED }),
+    ])).toEqual([]);
   });
 });

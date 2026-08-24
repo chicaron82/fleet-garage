@@ -10,7 +10,7 @@
 // surface the choice, because a pre-selected guess gets confirmed without being read.
 import { useMemo, useRef, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { zoneBackfillQueue, toggleZone, zoneLabel, orderZones, presetFor, vehicleDamageZones } from '../../lib/damageZones';
+import { zoneBackfillQueue, zonesSetAside, toggleZone, zoneLabel, orderZones, presetFor, vehicleDamageZones } from '../../lib/damageZones';
 import { zonesFromNote } from '../../lib/zoneFromNote';
 import { DamageZoneMap } from './DamageZoneMap';
 import type { Hold } from '../../types';
@@ -21,7 +21,7 @@ type QueueItem = Hold & { unitNumber: string | null };
 const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900';
 
 export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
-  const { holds, allVehicles, editHoldDamageZones } = useVehicleHoldContext();
+  const { holds, allVehicles, editHoldDamageZones, markZonesReviewed } = useVehicleHoldContext();
 
   // Snapshot the queue ONCE. Saving a hold removes it from the live list, and a queue that
   // re-derives would renumber and reshuffle under him mid-pass — "12 of 251" has to mean something.
@@ -49,6 +49,11 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState(0);
+  // Armed by a first tap, same as the change-log undo. The objection that kept "nothing to mark" out
+  // of the design was that a stray tap could bury a REAL damage hold — so it costs two taps, and the
+  // done screen still names how many were set aside.
+  const [armed, setArmed] = useState(false);
+  const [aside, setAside] = useState(0);
 
   const hold = queue[i];
   const vehicle = allVehicles.find(v => v.id === hold?.vehicleId);
@@ -64,7 +69,27 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
     return vehicleDamageZones(holds.filter(h => h.vehicleId === hold.vehicleId && h.id !== hold.id)).zones;
   }, [holds, hold]);
 
-  const advance = () => { setI(n => n + 1); setDraft([]); setErr(''); };
+  // Live, not snapshotted: a hold set aside during this run shows up in the total immediately.
+  const setAsideTotal = useMemo(() => zonesSetAside(holds.map(h => ({
+    ...h,
+    unitNumber: allVehicles.find(v => v.id === h.vehicleId)?.unitNumber ?? null,
+  }))).length, [holds, allVehicles]);
+
+  const advance = () => { setI(n => n + 1); setDraft([]); setErr(''); setArmed(false); };
+
+  /** "There is no panel for this one." Answers the queue's question; touches nothing else. */
+  const noneApplies = async () => {
+    setBusy(true); setErr('');
+    try {
+      await markZonesReviewed(hold.id);
+      setAside(n => n + 1);
+      advance();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveAndNext = async () => {
     if (draft.length === 0) { advance(); return; }
@@ -92,6 +117,15 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
             ? 'Every standing hold already has its panels recorded.'
             : `You went through ${queue.length} hold${queue.length === 1 ? '' : 's'}.`}
         </p>
+        {/* ⚠️ Set-aside holds are SKIPPED, never hidden. The whole reason a dismiss was resisted for
+            two days is that a real damage hold could vanish behind a tap — so the count is stated
+            here, out loud, every time. Nothing quietly disappears from a queue on this screen. */}
+        {setAsideTotal > 0 && (
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {setAsideTotal} hold{setAsideTotal === 1 ? '' : 's'} set aside as having no panel on the
+            diagram{aside > 0 ? ` (${aside} this run)` : ''} — still on the record, just not asked about again.
+          </p>
+        )}
         <button type="button" onClick={onBack}
                 className="rounded-lg bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
           Back
@@ -180,8 +214,31 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
               Accept all {guess.candidates.length}
             </button>
           )}
+          {/* ⭐ "No panel applies" — for the faults with nowhere to sit on Vehicle Inspection
+              #9000501's diagram: a camera lens proud of its housing, a bed liner eaten by a spill.
+              Skip leaves it in the queue forever; this answers the question. Two taps, because the
+              risk this design had to earn its way past was a stray one burying real damage. */}
+          {draft.length === 0 && (
+            armed ? (
+              <>
+                <button type="button" onClick={() => void noneApplies()} disabled={busy}
+                        className="rounded-lg bg-gray-800 dark:bg-gray-200 px-3 py-2 text-sm font-semibold text-white dark:text-gray-900 disabled:opacity-50 cursor-pointer">
+                  {busy ? 'Saving…' : 'Confirm — no panel'}
+                </button>
+                <button type="button" onClick={() => setArmed(false)} disabled={busy}
+                        className="text-xs text-gray-400 hover:underline cursor-pointer">Cancel</button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setArmed(true)} disabled={busy}
+                      className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">
+                No panel applies
+              </button>
+            )
+          )}
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            {draft.length === 0 ? 'Nothing tagged — Skip leaves it untouched' : draft.map(zoneLabel).join(' · ')}
+            {draft.length > 0 ? draft.map(zoneLabel).join(' · ')
+              : armed ? 'It stays on the record — the queue just stops asking'
+              : 'Nothing tagged — Skip leaves it in the queue'}
           </span>
         </div>
         {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}

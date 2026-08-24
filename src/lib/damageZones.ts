@@ -188,6 +188,8 @@ export interface QueueHold {
   vehicleId: string;
   status: string;
   damageZones?: string[];
+  /** Set once a human has answered "which panel?" with "none applies" — see REVIEWED below. */
+  zonesReviewedAt?: string | null;
   notes: string;
   flaggedAt: string;
 }
@@ -226,10 +228,21 @@ const NOT_ON_THE_DIAGRAM: ReadonlySet<string> = new Set(['Missing part / accesso
  *  not damage at all.
  *
  *  Same principle that already excludes REPAIRED and VOIDED: do not ask a question that has no
- *  answer. And deliberately NOT a dismissal — a dismiss button would let a REAL damage hold be
- *  hidden, and this whole feature exists because damage nobody wrote down comes back later as
- *  somebody's problem. A count that stays at two because two cars are genuinely unplaceable is
- *  telling the truth, and he can tag them next time he is standing at one. */
+ *  answer.
+ *
+ *  ⚠️ THIS COMMENT USED TO ARGUE AGAINST A DISMISS, AND AARON OVERRULED IT — correctly. It said "a
+ *  count that stays at two because two cars are genuinely unplaceable is telling the truth." The
+ *  count was true and the QUEUE was not: a to-do list with permanent residents is one nobody trusts,
+ *  and two holds that can never be cleared turn "nothing left to tag" into a lie it tells forever.
+ *  He, 2026-08-24, third time of asking: "i recognize those nothing can be marked for those. i don't
+ *  need FG reminding me."
+ *
+ *  The old objection was still right about the RISK — a dismiss must never let real damage vanish —
+ *  and that is answered by shape rather than by refusal: `zonesReviewedAt` (migrations/125) is queue
+ *  state, not vehicle state. The hold keeps its status, notes and photos and appears everywhere it
+ *  did before; only the "which panel?" prompt is answered. It is a timestamp so it is auditable, and
+ *  `zonesSetAside` below exists so the screen can always SAY how many were set aside. Nothing is
+ *  hidden — it is accounted for. */
 const MAPPABLE_TYPES: ReadonlySet<string> = new Set(['damage', 'hail']);
 
 export function zoneBackfillQueue<T extends QueueHold>(
@@ -238,6 +251,7 @@ export function zoneBackfillQueue<T extends QueueHold>(
 ): T[] {
   const open = holds.filter(h =>
     !CLEARED_STATUSES.has(h.status)
+    && !h.zonesReviewedAt                       // already answered: nothing on the diagram applies
     && (h.damageZones?.length ?? 0) === 0
     && h.holdTypes.some(type => MAPPABLE_TYPES.has(type))
     && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX)
@@ -302,4 +316,18 @@ export interface ZonePreset { label: string; zones: string[] }
 export function presetFor(holdTypes: readonly string[] | undefined): ZonePreset | null {
   if (!holdTypes?.includes('hail')) return null;
   return { label: 'Hail — hood, roof, trunk', zones: [...HAIL_ZONES] };
+}
+
+/** How many holds a human has set aside as "no panel applies" — the honest counterweight to the
+ *  queue skipping them. The screen reports this so a set-aside hold is never silently swallowed:
+ *  the fear that kept this out of the design for two days was that a real damage hold could vanish
+ *  behind a tap, and the answer is that it stays counted and nameable, not that nobody may tap. */
+export function zonesSetAside<T extends QueueHold>(holds: readonly T[]): T[] {
+  return holds.filter(h =>
+    !!h.zonesReviewedAt
+    && !CLEARED_STATUSES.has(h.status)
+    && (h.damageZones?.length ?? 0) === 0
+    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type))
+    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX)
+    && !NOT_ON_THE_DIAGRAM.has(h.damageDescription ?? ''));
 }

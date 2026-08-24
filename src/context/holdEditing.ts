@@ -118,6 +118,28 @@ export function makeEditHoldDamageZones({ holds, setAllHolds }: EditDeps) {
   };
 }
 
+/** MARK a hold as reviewed-with-no-panel — the backfill queue stops asking about it.
+ *
+ *  ⭐ Queue state, never vehicle state (migrations/125). The hold keeps its status, its notes and
+ *  its photos, and still appears everywhere it did before; the ONLY thing this answers is the
+ *  backfill's "which panel?". For the faults with no place on Vehicle Inspection #9000501's body
+ *  diagram — a camera lens proud of its housing, a bed liner eaten by a spill.
+ *
+ *  Passing `false` clears it and puts the hold back in the queue, because a tap made in error must
+ *  be as cheap to undo as it was to make. Like zones and descriptions: pure metadata, no vehicle
+ *  status cascade. */
+export function makeMarkZonesReviewed({ holds, setAllHolds }: EditDeps) {
+  return async (holdId: string, reviewed = true): Promise<void> => {
+    const hold = holds.find(h => h.id === holdId);
+    if (!hold) throw new Error(`Hold not found: ${holdId}`);
+    const at = reviewed ? new Date().toISOString() : null;
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ zones_reviewed_at: at }).eq('id', holdId));
+    if (error) throw new Error(`Failed to save: ${(error as { message?: string }).message}`);
+    setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, zonesReviewedAt: at })));
+  };
+}
+
 /** Remove ONE photo from a hold — the array, the storage file, and the cover if it was pinned. */
 export function makeDeleteHoldPhoto({ holds, allVehicles, setAllHolds, setAllVehicles }: EditDeps) {
   return async (holdId: string, photoUrl: string): Promise<void> => {

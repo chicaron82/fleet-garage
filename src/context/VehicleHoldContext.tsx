@@ -68,6 +68,9 @@ export interface VehicleHoldContextValue {
   revertVehicleChange: (vehicleId: string, changed: Record<string, unknown>, op: 'UPDATE' | 'DELETE') => Promise<void>;
   /** Set which body panels this hold's damage sits on. Empty array clears them. */
   editHoldDamageZones: (holdId: string, zones: string[]) => Promise<void>;
+  /** Answer the backfill's "which panel?" with "none applies" — queue state only, the hold is
+   *  untouched. `false` clears it and puts the hold back in the queue. See migrations/125. */
+  markZonesReviewed: (holdId: string, reviewed?: boolean) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<void>;
   archiveVehicle: (vehicleId: string) => Promise<void>;

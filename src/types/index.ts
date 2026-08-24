@@ -293,6 +293,10 @@ export interface Hold {
    *  `?` is only for objects built in code before they are written — same shape as `photos` above.
    *  Read it as `hold.damageZones ?? []`. */
   damageZones?: string[];
+  /** When a human looked and confirmed NO body panel applies (migrations/125). Queue state for the
+   *  zone backfill, never a fact about the car and never a dismissal of the damage — the hold, its
+   *  notes and its photos are untouched. Set = the backfill stops asking; null = still asking. */
+  zonesReviewedAt?: string | null;
   status: HoldStatus;
   linkedHoldId?: string;
   release?: Release;
