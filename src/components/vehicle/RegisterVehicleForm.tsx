@@ -14,6 +14,8 @@ import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
 import { UnitConflictNotice } from './UnitConflictNotice';
+import { RegisterEVAssets } from './RegisterEVAssets';
+import { useEvAssetCheck } from '../../hooks/useEvAssetCheck';
 
 interface Props {
   prefill?: string;
@@ -37,7 +39,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 }
 
 export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhotoIfMissing, restoreVehicle } = useVehicleHoldContext();
+  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhotoIfMissing, restoreVehicle, updateVehicleEVAssets } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
@@ -66,6 +68,9 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   // the real code stayed unknown, so the next Seltos would misread and teach again.
   const [classCode, setClassCode] = useState(scanned?.classCode ?? scanned?.teachClassCode ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
+  // ⚡ The EV asset check made at the car — closed by default, so ignoring it registers both
+  // assets as null exactly as before. See RegisterEVAssets for why it lives on this form at all.
+  const ev = useEvAssetCheck();
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -86,9 +91,15 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
     setRentalClass(s.rentalClass ?? '');
     setClassCode(s.classCode ?? s.teachClassCode ?? '');
     setIsHybrid(s.isHybrid ?? false);
+    // The EV check belongs to the car he was looking at, not to the form. A new scan is a new
+    // car, so the assessment closes with it — otherwise car A's cable status rides onto car B,
+    // which is precisely the failure this whole re-seed exists to prevent.
+    ev.reset();
   });
 
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  // Carries its own tone: the registration can succeed while a follow-on write fails, and a
+  // warning rendered in the green success toast would be a lie about what actually landed.
+  const [successToast, setSuccessToast] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
   // Set when the conflict reconciliation's release half failed — the new vehicle
   // is registered, but the OLD record still carries the unit#. Non-blocking warning.
   const [releaseWarning, setReleaseWarning] = useState<{ old: string; vehicleId: string } | null>(null);
@@ -136,9 +147,11 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
         branchId:       user?.branchId,
         isTesla,
         isHybrid,
-        // EV assets register as "not assessed" (null) — never assume present.
-        // The first real present/missing observation (and its timeline entry)
-        // comes from the EV Assets tab / check-in, not from cataloging the car.
+        // EV assets register as "not assessed" (null) — never assume present. The insert NEVER
+        // carries a status, even when he assessed them on the form: an assessment is a logged
+        // observation with a source, so it goes through updateVehicleEVAssets below and lands in
+        // the asset history. Writing it here instead would put the status on the car with no
+        // record of who saw it or where — the one thing this rule exists to prevent.
         hasMobileCable:  null,
         hasJ1772Adapter: null,
         // Fleet-add path has no hold — vehicle enters clean. Hold path lets
@@ -154,6 +167,21 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       // file — the exact case where the source tag matters most (auditing the OCR'd identity later).
       // (ticket-scan-register-keytag-photo, 2026-08-04.)
       if (keytagPhoto) void attachKeytagPhotoIfMissing(id, keytagPhoto);
+      // ⚡ The check he made standing at the car, logged through the SAME path the EV Assets tab
+      // uses — so it arrives in the asset history with its source rather than as a silent column
+      // write. Source is 'vsa_washbay' because that is what EvSource answers: WHERE the check
+      // happened, not who did it. This is him, at the car, in the bay — the strongest evidence FG
+      // collects, and identical in kind to ticking the boxes on the record card.
+      //
+      // ⚠️ Caught locally and never allowed to reach the outer catch. The vehicle insert has
+      // already succeeded by this line; a throw that reset `submitting` would invite a second tap
+      // and mint a DUPLICATE CAR. A failed asset log costs one re-check in the tab; a duplicate
+      // costs a fleet record and the hunt to find it.
+      let evLogFailed = false;
+      if (isTesla && ev.assessed) {
+        try { await updateVehicleEVAssets(id, ev.hasCable, ev.hasAdapter, 'vsa_washbay'); }
+        catch { evLogFailed = true; }
+      }
       hapticMedium();
       // Reconcile a confirmed unit# conflict: the new vehicle now carries the
       // number, so release it from the record it was stapled to in error. The
@@ -180,8 +208,15 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
         // auto-proceed — non-blocking (the new vehicle is already correct).
         setReleaseWarning({ old: unitConflict.licensePlate, vehicleId: id });
         navTimer.current = setTimeout(() => onSuccess(id), 5000);
+      } else if (evLogFailed) {
+        // The car registered; only the asset log didn't land. Say so on EVERY return path — the
+        // hold path normally navigates silently, and silence here would let him walk away
+        // believing the cable was recorded. Knowing instead of assuming is the whole point of
+        // the block; a check that quietly evaporated is worse than never offering it.
+        setSuccessToast({ text: `⚠️ ${unit.trim()} registered — the EV asset check didn't save. Log it in the EV Assets tab.`, tone: 'warn' });
+        setTimeout(() => onSuccess(id), 3500);
       } else if (returnTo === 'fleet') {
-        setSuccessToast(`✅ Vehicle ${unit.trim()} registered`);
+        setSuccessToast({ text: `✅ Vehicle ${unit.trim()} registered`, tone: 'ok' });
         setTimeout(() => onSuccess(id), 2500);
       } else {
         onSuccess(id);
@@ -389,16 +424,10 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
 
           </div>
 
-          {/* Teslas register with EV assets unassessed — assessment is a logged
-              action, done in the EV Assets tab, not assumed at registration. */}
-          {make === 'Tesla' && (
-            <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 p-4">
-              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">⚡ EV Assets</p>
-              <p className="text-xs text-blue-700/80 dark:text-blue-300/80">
-                Registers as <span className="font-semibold">Not assessed</span>. Check the charge cable &amp; J1772 adapter in the <span className="font-semibold">EV Assets</span> tab — the first check logs the real status to the asset history.
-              </p>
-            </div>
-          )}
+          {/* ⚡ Assessed at the car when he says he looked; otherwise registers as "Not assessed",
+              which is the behaviour this form has always had. The reasoning lives with the
+              component. */}
+          {make === 'Tesla' && <RegisterEVAssets check={ev} />}
 
           <div className="flex gap-2">
             <button
@@ -422,8 +451,8 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
 
       {successToast && (
         <div className="fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
-          <div className="px-5 py-3 rounded-2xl bg-green-800/90 text-white text-sm font-semibold shadow-xl backdrop-blur-sm">
-            {successToast}
+          <div className={`max-w-md px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl backdrop-blur-sm ${successToast.tone === 'warn' ? 'bg-amber-600/95' : 'bg-green-800/90'}`}>
+            {successToast.text}
           </div>
         </div>
       )}
