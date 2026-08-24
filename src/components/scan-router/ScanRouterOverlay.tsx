@@ -12,6 +12,7 @@ import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
+import { ScanDamageZones } from './ScanDamageZones';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
@@ -255,6 +256,10 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         ))}
                       </div>
                     )}
+
+                    {/* WHERE it is — the other half of the hold lines above, which say only WHAT.
+                        Silent on a car with no panels recorded (most scans). See ScanDamageZones. */}
+                    <ScanDamageZones holds={holds} vehicleId={vehicle.id} />
 
                     {/* Key count surfaced HERE, tag in hand — not hidden behind opening the unit. If
                         it's unlogged, log the baseline right now (the moment of truth), so a future
