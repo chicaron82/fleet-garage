@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { zoneLabel, orderZones } from '../../lib/damageZones';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticHeavy } from '../../lib/haptics';
 import type { RefObject, ChangeEvent } from 'react';
@@ -40,6 +41,43 @@ interface Props {
   getName: (id: string, snapshot?: string) => string;
   getEmpId: (id: string, snapshot?: string) => string;
   getRole: (id: string) => string;
+}
+
+
+/** The bits that actually tell two holds apart, for the pickers.
+ *
+ *  ⚠️ Both pickers used to render description + types + date and nothing else. On LUR184 every hold
+ *  carried the description "Windshield chip", so three rows differed only by their date — and one of
+ *  them was a rear-bumper scratch. Aaron resolved real damage off the record because the rows were
+ *  indistinguishable (2026-08-24), and the car then read CLEAR while carrying it.
+ *
+ *  The zone and the note were on the hold all along. A picker asks someone to CHOOSE; withholding
+ *  the only fields that separate the choices is the defect, and it is shared by both pickers — so
+ *  this lives in one place rather than being fixed where he happened to be standing. */
+export function HoldPickerDetail({ hold }: { hold: Hold }) {
+  const zones = orderZones(hold.damageZones ?? []);
+  return (
+    <>
+      <span className="mt-0.5 block text-xs text-gray-400 dark:text-gray-500">
+        {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
+      </span>
+      {zones.length > 0 && (
+        <span className="mt-1 flex flex-wrap gap-1">
+          {zones.map((z) => (
+            <span key={z}
+                  className="rounded-full border border-red-300 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-800 dark:text-red-300">
+              {zoneLabel(z)}
+            </span>
+          ))}
+        </span>
+      )}
+      {hold.notes.trim() && (
+        <span className="mt-0.5 block truncate text-xs italic text-gray-500 dark:text-gray-400">
+          "{hold.notes.trim()}"
+        </span>
+      )}
+    </>
+  );
 }
 
 export function HoldHistorySection({
@@ -129,9 +167,7 @@ export function HoldHistorySection({
                             {hold.status === 'ACTIVE' ? 'ACTIVE' : 'RELEASED'}
                           </span>
                         </span>
-                        <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                          {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
-                        </span>
+                        <HoldPickerDetail hold={hold} />
                       </span>
                     </button>
                   );
@@ -173,9 +209,7 @@ export function HoldHistorySection({
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer"
                   >
                     <p className="text-base font-medium text-gray-900 dark:text-gray-100">{hold.damageDescription}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                      {hold.holdTypes.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')} · {fmt(hold.flaggedAt)}
-                    </p>
+                    <HoldPickerDetail hold={hold} />
                   </button>
                 ))}
               </div>
