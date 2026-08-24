@@ -28,7 +28,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     () => [...profiles.values()].map((p) => ({ id: p.id, name: p.name })),
     [profiles],
   );
-  const { status, schedule, error, degraded, parse, reset, hydrate } = useScheduleImport();
+  const { status, schedule, error, degraded, parse, reset, hydrate, parsingImage } = useScheduleImport();
 
   // ⭐ SEEDED FROM THE SAVED DRAFT, so closing this modal costs nothing. Read ONCE, on mount: it is
   // the starting value of the state, never a value that keeps overwriting it (a prop frozen into
@@ -48,11 +48,19 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   // The parse lives in the hook, so it has to be handed back separately — and NOT re-parsed: a fresh
   // vision call costs money and could return a different grid than the one his overrides were made
   // against, silently pointing his corrections at the wrong cells.
+  // ⭐ RESUMING A READ, not just a grid. Three cases and they are genuinely different:
+  //   • draft has a PARSE  → adopt it; never re-read a sheet whose grid he has already corrected.
+  //   • draft has an IMAGE and the job is still reading it → nothing to do, the read survived.
+  //   • draft has an IMAGE and nothing is reading it → the app was reloaded mid-read (or he closed
+  //     before it finished, in a session since ended). Start it again.
+  // That last case is also the hole cbabd50 opened: image + no parse rendered NO branch at all —
+  // `hasSheet` true, status 'idle' — so the modal came back blank with his sheet apparently loaded.
   useEffect(() => {
-    if (!restored?.schedule) return;
-    hydrate(restored.schedule, restored.degraded);
-    // `restored` never changes after mount, so this runs exactly once — no guard ref needed.
-  }, [restored, hydrate]);
+    if (!restored) return;
+    if (restored.schedule) { hydrate(restored.image ?? '', restored.schedule, restored.degraded); return; }
+    if (restored.image && parsingImage() !== restored.image) void parse(restored.image);
+    // `restored` never changes after mount, so this runs exactly once.
+  }, [restored, hydrate, parse, parsingImage]);   // all module-stable; this still runs once
 
   // Save on every change. Cheap (a JSON round-trip of a grid), and the alternative — saving on close
   // — cannot work: the backdrop click and Escape both leave without warning, which is exactly the

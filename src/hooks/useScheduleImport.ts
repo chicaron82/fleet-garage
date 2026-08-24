@@ -1,64 +1,45 @@
-import { useCallback, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useCallback, useSyncExternalStore } from 'react';
+import {
+  startParse, subscribeParse, getParseState, resetParse, adoptParse, parsingImage, type JobState,
+} from '../lib/scheduleParseJob';
 import type { ParsedSchedule } from '../../api/_lib/scheduleParse';
 
-// Client side of the schedule-photo import (Phase 1). POSTs the photo to the
-// /api/fg-schedule-parse endpoint (which holds the API key) and reads back a typed
-// ParsedSchedule. READ-ONLY — nothing is written here; the preview is the product.
+// Client side of the schedule-photo import (Phase 1). READ-ONLY — nothing is written here; the
+// preview is the product.
+//
+// ⚠️ THE FETCH USED TO LIVE IN THIS HOOK, and that made the read die with the modal: unmounting
+// orphaned the promise, it landed on a dead component, and the answer was discarded. Closing the
+// sheet mid-read cost a vision call and returned nothing. The job now lives at module scope
+// (lib/scheduleParseJob) and this hook is a subscription to it — so the read carries on while he
+// goes and scans a car, and whoever is mounted when it lands picks it up.
 type ImportStatus = 'idle' | 'parsing' | 'done' | 'error';
 
 export function useScheduleImport() {
-  const [status, setStatus] = useState<ImportStatus>('idle');
-  const [schedule, setSchedule] = useState<ParsedSchedule | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // True when a backup vision model read the sheet (primary was unavailable) — the preview
-  // warns so rows get a harder look before the write.
-  const [degraded, setDegraded] = useState(false);
+  // useSyncExternalStore, not useState+useEffect: the read can finish between the first render and
+  // the subscription, and this is the primitive built to close exactly that gap without tearing.
+  // (`getParseState` returns the same object reference until the job actually emits, which is the
+  // contract it needs.)
+  const job: JobState = useSyncExternalStore(subscribeParse, getParseState, getParseState);
 
-  const parse = useCallback(async (image: string) => {
-    setStatus('parsing');
-    setError(null);
-    setSchedule(null);
-    setDegraded(false);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
-      const res = await fetch('/api/fg-schedule-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ image }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | { schedule?: ParsedSchedule; degraded?: boolean; error?: string }
-        | null;
-      if (!res.ok) throw new Error(data?.error || `Parse failed (${res.status})`);
-      setSchedule(data?.schedule ?? { staff: [] });
-      setDegraded(data?.degraded === true);
-      setStatus('done');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not parse the schedule.');
-      setStatus('error');
-    }
+  const parse = useCallback(async (image: string) => { startParse(image); }, []);
+  const reset = useCallback(() => { resetParse(); }, []);
+
+  /** Adopt a parse restored from a draft without re-reading the sheet — a fresh vision call costs
+   *  money and could return a DIFFERENT grid than the one his overrides were made against, silently
+   *  pointing his corrections at the wrong cells. */
+  const hydrate = useCallback((image: string, schedule: ParsedSchedule, wasDegraded: boolean) => {
+    adoptParse(image, schedule, wasDegraded);
   }, []);
 
-  /** Put a previously-parsed sheet back without re-reading it — restoring a draft after the modal
-   *  was closed (lib/scheduleImportDraft). A re-parse would cost a vision call and, worse, could come
-   *  back DIFFERENT from the grid he had already been correcting. The saved parse is the one his
-   *  overrides were made against, so it is the only one that may be restored alongside them. */
-  const hydrate = useCallback((saved: ParsedSchedule, wasDegraded: boolean) => {
-    setSchedule(saved);
-    setDegraded(wasDegraded);
-    setError(null);
-    setStatus('done');
-  }, []);
-
-  const reset = useCallback(() => {
-    setStatus('idle');
-    setSchedule(null);
-    setError(null);
-    setDegraded(false);
-  }, []);
-
-  return { status, schedule, error, degraded, parse, reset, hydrate };
+  return {
+    status: job.status as ImportStatus,
+    schedule: job.status === 'done' ? job.schedule : null,
+    error: job.status === 'error' ? job.error : null,
+    degraded: job.status === 'done' ? job.degraded : false,
+    /** The image the running read belongs to — lets a resume tell "still mine" from "a stale job". */
+    parsingImage,
+    parse,
+    reset,
+    hydrate,
+  };
 }
