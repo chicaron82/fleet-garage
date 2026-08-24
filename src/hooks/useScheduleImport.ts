@@ -42,6 +42,17 @@ export function useScheduleImport() {
     }
   }, []);
 
+  /** Put a previously-parsed sheet back without re-reading it — restoring a draft after the modal
+   *  was closed (lib/scheduleImportDraft). A re-parse would cost a vision call and, worse, could come
+   *  back DIFFERENT from the grid he had already been correcting. The saved parse is the one his
+   *  overrides were made against, so it is the only one that may be restored alongside them. */
+  const hydrate = useCallback((saved: ParsedSchedule, wasDegraded: boolean) => {
+    setSchedule(saved);
+    setDegraded(wasDegraded);
+    setError(null);
+    setStatus('done');
+  }, []);
+
   const reset = useCallback(() => {
     setStatus('idle');
     setSchedule(null);
@@ -49,5 +60,5 @@ export function useScheduleImport() {
     setDegraded(false);
   }, []);
 
-  return { status, schedule, error, degraded, parse, reset };
+  return { status, schedule, error, degraded, parse, reset, hydrate };
 }

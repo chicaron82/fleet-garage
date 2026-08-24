@@ -3,13 +3,14 @@
 // against the photo (reassign names, tap a cell to fix its type) → Confirm writes it. The
 // write REPLACES the parsed date span for the imported people (wipe-then-create via
 // importWeekShifts); the parse never writes — only this confirm tap does.
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useProfiles } from '../../context/ProfilesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useScheduleImport } from '../../hooks/useScheduleImport';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { compressDocumentImage, readFileAsDataUrl } from '../../lib/image';
+import { loadImportDraft, saveImportDraft, clearImportDraft } from '../../lib/scheduleImportDraft';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
 import { isFullDayShift } from '../../types';
 import { matchSchedule, type RosterProfile, type ParsedShiftType } from '../../../api/_lib/scheduleParse';
@@ -27,14 +28,41 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     () => [...profiles.values()].map((p) => ({ id: p.id, name: p.name })),
     [profiles],
   );
-  const { status, schedule, error, degraded, parse, reset } = useScheduleImport();
+  const { status, schedule, error, degraded, parse, reset, hydrate } = useScheduleImport();
 
-  const [image, setImage] = useState<string | null>(null);
-  const [nameOverrides, setNameOverrides] = useState<Record<number, string | null>>({});
-  const [cellOverrides, setCellOverrides] = useState<Record<string, ParsedShiftType>>({});
+  // ⭐ SEEDED FROM THE SAVED DRAFT, so closing this modal costs nothing. Read ONCE, on mount: it is
+  // the starting value of the state, never a value that keeps overwriting it (a prop frozen into
+  // useState is a real trap here — this one is deliberate, and the draft is written FROM this state,
+  // so re-reading it would fight the user's own taps).
+  // Lazy initialiser, not a ref: read ONCE at mount, never during a later render. (`useRef(load())`
+  // would re-read localStorage on every single render and only throw the result away — and the
+  // react-hooks/refs rule rejects reading a ref while rendering, correctly.)
+  const [restored] = useState(loadImportDraft);
+  const [image, setImage] = useState<string | null>(restored?.image ?? null);
+  const [nameOverrides, setNameOverrides] = useState<Record<number, string | null>>(restored?.nameOverrides ?? {});
+  const [cellOverrides, setCellOverrides] = useState<Record<string, ParsedShiftType>>(restored?.cellOverrides ?? {});
   const [writeState, setWriteState] = useState<'idle' | 'writing' | 'done' | 'error'>('idle');
   const [writeMsg, setWriteMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // The parse lives in the hook, so it has to be handed back separately — and NOT re-parsed: a fresh
+  // vision call costs money and could return a different grid than the one his overrides were made
+  // against, silently pointing his corrections at the wrong cells.
+  useEffect(() => {
+    if (!restored?.schedule) return;
+    hydrate(restored.schedule, restored.degraded);
+    // `restored` never changes after mount, so this runs exactly once — no guard ref needed.
+  }, [restored, hydrate]);
+
+  // Save on every change. Cheap (a JSON round-trip of a grid), and the alternative — saving on close
+  // — cannot work: the backdrop click and Escape both leave without warning, which is exactly the
+  // path that used to destroy his work.
+  useEffect(() => {
+    if (writeState === 'done') return;                      // written; the draft is cleared below
+    if (!image && !schedule && Object.keys(nameOverrides).length === 0
+        && Object.keys(cellOverrides).length === 0) return; // nothing worth saving yet
+    saveImportDraft({ image, schedule: schedule ?? null, degraded, nameOverrides, cellOverrides });
+  }, [image, schedule, degraded, nameOverrides, cellOverrides, writeState]);
 
   // Derived (no sync effects): matcher result + manual overrides layered on top.
   const matched = useMemo(
@@ -58,6 +86,12 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   const unmatchedCount = (schedule?.staff.length ?? 0) - assignedCount;
   const allDates = (schedule?.staff ?? []).flatMap((s) => s.cells.map((c) => c.date)).filter((d): d is string => !!d).sort();
   const span = allDates.length ? `${allDates[0]} → ${allDates[allDates.length - 1]}` : '';
+  // ⚠️ THE SHEET IS IN HAND IF WE HAVE THE PICTURE **OR** THE PARSE OF IT. Every render below used
+  // to gate on `image` alone, which was fine while the photo could never outlive the grid. It can
+  // now: a draft too big for the quota is saved WITHOUT the image on purpose (his taps matter more
+  // than the picture), and gating on `image` would have restored all his corrections and then shown
+  // him the file picker — the work loaded, invisible, and one tap from being overwritten.
+  const hasSheet = !!image || !!schedule;
   const isPdfDoc = !!image?.startsWith('data:application/pdf');
   const thumb = (imgCls: string) =>
     isPdfDoc ? (
@@ -65,8 +99,14 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         <span className="text-xl">📄</span>
         <span className="text-[10px] font-medium">PDF</span>
       </div>
+    ) : image ? (
+      <img src={image} alt="Schedule" className={imgCls} />
     ) : (
-      <img src={image!} alt="Schedule" className={imgCls} />
+      // Restored from a draft whose photo did not fit. The grid below is the real product.
+      <div className="flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 text-center text-gray-400 dark:border-gray-700">
+        <span className="text-lg">🗒️</span>
+        <span className="text-[10px] leading-tight">photo<br />not kept</span>
+      </div>
     );
 
   const resetAll = () => {
@@ -91,6 +131,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     resetAll();
     setImage(null);
     reset();
+    clearImportDraft();          // an explicit "start over" — the old draft must not come back
   };
   const onCycleCell = (ri: number, ci: number) =>
     setCellOverrides((o) => ({ ...o, [`${ri}-${ci}`]: nextType(typeAt(ri, ci)) }));
@@ -129,6 +170,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         : '';
       setWriteMsg(`Wrote ${outcome.written} shifts for ${userIds.length} staff · ${range.start} → ${range.end}.${kept}`);
       setWriteState('done');
+      clearImportDraft();     // it landed in the DB — the draft has done its job
     } catch (e) {
       setWriteMsg(e instanceof Error ? e.message : 'Could not write the schedule.');
       setWriteState('error');
@@ -152,7 +194,16 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {!image && (
+          {/* ⭐ A NOTE, NEVER A PROMPT. He should not have to answer "resume?" while holding a wet
+              cloth — the work is simply there. Saying nothing at all would be worse though: a grid
+              he does not remember opening reads as a bug. So: one quiet line, no decision. */}
+          {restored && writeState !== 'done' && (
+            <p className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
+              ↩︎ Picked up where you left off{restored.image ? '' : ' — the photo was too large to keep, but your corrections are here'}.
+            </p>
+          )}
+
+          {!hasSheet && (
             <div className="flex flex-col items-center gap-3 py-12 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-300">Upload a <b>photo or PDF</b> of the printed staff schedule (a single week or a multi-week sheet). A PDF reads most reliably.</p>
               <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={onPick} className="hidden" />
@@ -162,21 +213,21 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {image && status === 'parsing' && (
+          {hasSheet && status === 'parsing' && (
             <div className="flex flex-col items-center gap-3 py-12">
               {thumb('max-h-48 rounded-lg border border-gray-200 dark:border-gray-700')}
               <p className="animate-pulse text-sm text-gray-500 dark:text-gray-400">Reading the schedule…</p>
             </div>
           )}
 
-          {image && status === 'error' && (
+          {hasSheet && status === 'error' && (
             <div className="flex flex-col items-center gap-3 py-10">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               <button onClick={retake} className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs dark:border-gray-700">Try another photo</button>
             </div>
           )}
 
-          {image && status === 'done' && schedule && writeState === 'done' && (
+          {hasSheet && status === 'done' && schedule && writeState === 'done' && (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <div className="rounded-full bg-green-100 p-3 text-2xl dark:bg-green-500/20">✓</div>
               <p className="text-sm font-medium text-green-700 dark:text-green-400">{writeMsg}</p>
@@ -184,7 +235,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {image && status === 'done' && schedule && writeState !== 'done' && (
+          {hasSheet && status === 'done' && schedule && writeState !== 'done' && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-start gap-3">
                 {thumb('max-h-40 shrink-0 rounded-lg border border-gray-200 dark:border-gray-700')}
@@ -238,11 +289,11 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
-          {image && status === 'done' && writeState !== 'done' && (
+          {hasSheet && status === 'done' && writeState !== 'done' && (
             <button onClick={retake} className="cursor-pointer text-xs text-gray-500 transition hover:text-gray-700 dark:text-gray-400">↻ Different photo</button>
           )}
           <div className="ml-auto flex items-center gap-3">
-            {image && status === 'done' && writeState !== 'done' && (assignedCount > 0 ? (
+            {hasSheet && status === 'done' && writeState !== 'done' && (assignedCount > 0 ? (
               <button
                 onClick={confirmWrite}
                 disabled={!canWrite}
