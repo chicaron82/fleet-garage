@@ -43,9 +43,13 @@ export function NewHoldDamageZones({ holdTypes, zones, onToggleZone, noPanelAppl
         )}
       </div>
 
-      {/* Narrow on purpose: a full-width diagram pushes the submit button off a phone screen, and
-          this sits mid-form with the notes and photos still below it. */}
-      <div className="max-w-[13rem]">
+      {/* Full width, like every other place the map is TAPPED — the hold screen, the backfill run,
+          the vehicle record. It was briefly capped at 13rem, copied from the scan sheet, where the
+          map is a `disabled` picture nobody touches (Aaron, straight away: *"may i ask why it was
+          made smaller than the regular map"*). The worry was the submit button falling below the
+          fold, but the answer to a long form is scrolling, not shrinking the target he has to hit
+          with gloves on — and the backfill view proves full width works on his phone. */}
+      <div>
         <DamageZoneMap
           selected={zones}
           onToggle={id => { hapticLight(); onToggleZone(id); }}
