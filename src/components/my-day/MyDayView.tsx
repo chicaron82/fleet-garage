@@ -198,8 +198,17 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
         </section>
       )}
 
-      {/* ── What you walked into (opening shift) ─────────────────────────── */}
-      {day.working && day.myShift?.shiftType === 'opening' && <OpeningLotCard />}
+      {/* ── What the day started with ────────────────────────────────────────
+          NOT gated to openings any more (Aaron, 2026-08-25, on a MID: *"this
+          shouldn't be buried in the shift hand-off"*). The gate assumed an OPENER
+          exists to inherit the lot and reconstruct a missing close — the same
+          absent-second-person assumption as the fuel relay and the codex. On a mid
+          or a close the card simply never rendered, so the ONLY surface offering
+          the backfill was the one inside the Log Shift Handoff modal.
+          Last night's close is a fact about YESTERDAY (findPriorShiftLog keys on
+          shiftDateStr(-1)), so the question is equally valid whoever is on today —
+          and the missing number distorts the day's rate regardless of who fills it. */}
+      {day.working && <OpeningLotCard openedToday={day.myShift?.shiftType === 'opening'} />}
 
       {/* ── Opening fuel pump readings — same place as OpeningLotCard, so an
           opener never has to switch to My Shift to log them ────────────── */}
