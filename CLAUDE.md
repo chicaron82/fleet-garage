@@ -47,6 +47,52 @@ handoffs** — the fuel closing→opening relay (`ea1aa0d`) assumed an opener an
 the class codex (`282d190`) could only learn during registration. **When a feature silently
 does nothing, ask whether it is waiting for a second person who does not exist.**
 
+#### ⚠️ The counter-rule: an unreachable module is SCOPE, not a gate (2026-08-25)
+
+The rule above trains a cold reviewer to treat every `isManagement` wrapper as suspect. Run
+that instinct one level up — at `ROLE_MODULES` in `src/lib/navigation.ts` — and it produces a
+**false positive that a line-check will re-discover forever.** It has already cost one pass.
+
+The finding *looks* airtight: Aaron is `VSA` in the live `profiles` table, the `VSA` row of
+`ROLE_MODULES` omits `analytics` and `audits`, `canAccessScreen` therefore returns `false`,
+and six `isManagement` gates sit inside `AnalyticsView` on top of that. Eleven readouts he
+cannot open, one of them (`WashbayHistorySection`) edited within the week. Every fact true.
+**The conclusion is still wrong.**
+
+Aaron, asked directly: *"i don't need analytics. whatever i need from it has been pulled to my
+view already or reshaped to how i need it… lots of what isn't available to me are scope
+features that rely on data i do not have so i don't include them into my active account."*
+
+So **the nav allowlist is FG's SCOPE mechanism, not its permission mechanism.** It cannot be a
+security boundary — the anon key ships in the client and 49 of the 61 policies in
+`migrations/schema.sql` are `USING (true)` (the other 12 scope `profiles` rows or bind a storage
+bucket; none are real access control), so a UI gate protects nothing. What it actually does is
+keep him out of rooms built on **data FG structurally does not have**: fleet balance,
+turnaround, driver coverage, class dispatch all need the HIR/counter side he has never had
+access to (see `reference_fg_data_blind_spots`). Rendering those would produce a screen that is
+empty at best and *confidently wrong* at worst — the exact ambiguity FG exists to remove.
+
+**Before reporting an unreachable surface, apply this test:**
+
+1. **Does its data exist in FG at all?** No → correct exclusion, not a defect. Stop.
+2. **Has the capability been reshaped into a room he does use?** Washbay history, throughput and
+   shift summary all have deliberate counterparts in **My Shift**. Reshaped ≠ missing.
+3. **Only if both miss** is it the category-2 bug the table above describes.
+
+Two things this does NOT license. The `isManagement` wrappers on genuinely *personal* readouts
+are still the documented bug — the four rows above stand. And the excluded modules are **wired
+and working, not dead code**: Aaron's own framing is *"if someone is curious about using FG in
+that role, we can create one — everything is essentially wired and good to go."* That is the
+"Keep the substrate" insurance clause above, being live rather than theoretical. **Do not
+delete an unreachable module as dead weight.**
+
+**The meta-lesson, and the reason this is written down:** an unreachable surface is a
+*balance*, not a *contradiction* — two live claims (it exists / he can't reach it) that are
+both intentional. The reviewer's reflex is to treat every unresolved thing as broken. Here the
+resolving fact lived in memory, not in the code, and no amount of reading `src/` would have
+produced it. **When a "finding" rests on what the operator wants rather than on what the code
+does, it is a question for him — not a verdict.**
+
 ### Domain Enum Protocol — ground the live distribution before you filter on it
 
 Shipped 2026-08-16: `scanHoldLines` filtered `status === 'ACTIVE'`. An out-on-exception hold is
