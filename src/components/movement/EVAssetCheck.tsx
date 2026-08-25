@@ -15,6 +15,23 @@ interface EVAssetCheckProps {
   onCableChange: (s: EvAssetStatus | null) => void;
   onAdapterChange: (s: EvAssetStatus | null) => void;
   lastCheck?: EvLastCheck | null;
+  /**
+   * Offer "Didn't check" — a way back to **null**, meaning *not assessed*, distinct from *present*.
+   *
+   * Off everywhere by default, because the other five surfaces (trip start, driver live, the flip,
+   * the EV Assets tab, quick-add) are all "you are holding this car right now" moments where not
+   * looking isn't a state worth modelling. REGISTRATION is the exception: a car can be registered
+   * off a tag at the desk, and recording "present" for a trunk nobody opened is the assumption this
+   * whole feature exists to refuse.
+   *
+   * ⚠️ Deliberately an ESCAPE, not a gate. Registration used to make him tap "✓ I checked them"
+   * BEFORE he could answer — Aaron, 2026-08-25: *"tap to check is redundant. I've already checked.
+   * I want to register it with the knowledge I have on it."* He was right, and the tap arithmetic
+   * proves it: opting IN costs a tap on the common case (both present, every time) to protect the
+   * rare one. Inverted, the common case is FREE and only "I didn't look" costs a tap — which is the
+   * honest shape, because not looking is the exception, not the default.
+   */
+  allowNotChecked?: boolean;
 }
 
 const ASSETS: { key: 'cable' | 'adapter'; label: string }[] = [
@@ -43,8 +60,12 @@ export function EVAssetCheck({
   onCableChange,
   onAdapterChange,
   lastCheck,
+  allowNotChecked = false,
 }: EVAssetCheckProps) {
-  // Default both to present on mount — normal case requires zero taps
+  // Default both to present on mount — the normal case requires zero taps.
+  //
+  // MOUNT ONLY, and that's what makes `allowNotChecked` work: once he clears to null the effect is
+  // long done, so "not assessed" sticks instead of being helpfully re-filled underneath him.
   useEffect(() => {
     if (cableStatus === null)   onCableChange('present');
     if (adapterStatus === null) onAdapterChange('present');
@@ -70,15 +91,22 @@ export function EVAssetCheck({
 
       <div className="p-3 space-y-1">
         {ASSETS.map(({ key, label }) => {
-          const val       = statuses[key];
-          const set       = handlers[key];
-          const isPresent = val !== 'missing';
+          const val = statuses[key];
+          const set = handlers[key];
+          // THREE states, not two — but `unset` is only ever reachable when `allowNotChecked` put
+          // it there. Everywhere else `val` is non-null from mount, so this collapses to the
+          // present/missing checkbox it has always been.
+          const state: 'present' | 'missing' | 'unset' = val ?? 'unset';
+          const isPresent = state === 'present';
           return (
             <label key={key} className="flex items-center gap-3 cursor-pointer py-2">
               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                isPresent
-                  ? 'bg-blue-500 border-blue-500 text-white'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600'
+                state === 'present' ? 'bg-blue-500 border-blue-500 text-white'
+                : state === 'missing' ? 'bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600'
+                // Not assessed reads as neither: a dashed, empty box. It must NOT look like an
+                // unticked "missing" box, because "nobody looked" and "it isn't there" are opposite
+                // claims and only one of them is evidence.
+                : 'border-dashed border-gray-300 dark:border-gray-600 bg-transparent'
               }`}>
                 {isPresent && <span className="text-xs font-bold leading-none">✓</span>}
               </div>
@@ -86,22 +114,42 @@ export function EVAssetCheck({
                 type="checkbox"
                 className="sr-only"
                 checked={isPresent}
+                // From `unset`, a tap means "I'm looking at it and it's here" — the reason he'd
+                // reach for a box he'd previously cleared.
                 onChange={() => { hapticLight(); set(isPresent ? 'missing' : 'present'); }}
               />
               <span className={`text-sm font-medium transition-colors ${
-                isPresent
-                  ? 'text-gray-700 dark:text-gray-300'
-                  : 'text-red-600 dark:text-red-400'
+                state === 'present' ? 'text-gray-700 dark:text-gray-300'
+                : state === 'missing' ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-400 dark:text-gray-500'
               }`}>
                 {label}
               </span>
-              {val === 'missing' && (
+              {state === 'missing' && (
                 <span className="text-[10px] text-red-500 dark:text-red-400 font-semibold ml-auto">Missing</span>
+              )}
+              {state === 'unset' && (
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold ml-auto">Not checked</span>
               )}
             </label>
           );
         })}
       </div>
+
+      {/* The escape hatch, and it only exists where "not assessed" is a real answer (registration).
+          Hidden once used — with both already cleared there is nothing left to withdraw, and a live
+          button that no-ops is worse than no button. */}
+      {allowNotChecked && (cableStatus !== null || adapterStatus !== null) && (
+        <div className="px-4 pb-3 -mt-1">
+          <button
+            type="button"
+            onClick={() => { hapticLight(); onCableChange(null); onAdapterChange(null); }}
+            className="text-[11px] text-blue-700/70 dark:text-blue-300/70 underline cursor-pointer"
+          >
+            Didn&apos;t check — register as not assessed
+          </button>
+        </div>
+      )}
 
       {cableStatus === 'missing' && adapterStatus === 'missing' && (
         <div className="mx-3 mb-3 rounded-lg bg-red-600 dark:bg-red-700 px-4 py-3 text-center">

@@ -351,6 +351,22 @@ encoding is what makes it hold.
   `tests/hooks/useShareText.test.ts`, `tests/components/ShareAction.test.tsx`, and
   `tests/components/ShareTextButton.test.tsx` guard the contract.
 
+- **The EV asset check is one control: `<EVAssetCheck>`** (`src/components/movement/`). Two
+  checkboxes — ticked = present, unticked = missing — defaulted to present on mount so the normal
+  case costs **zero taps**. Six surfaces use it: trip start, driver live, the airport flip, the EV
+  Assets tab, quick-add Tesla, and registration. **A cable is a cable whichever screen you're
+  standing on.**
+  Registration passes **`allowNotChecked`**, and it is the only surface that may: a car can be
+  registered off a tag away from its trunk, so *not assessed* (null) has to stay reachable there.
+  It's an **escape** ("Didn't check"), never a gate.
+  *Why this is written down:* registration shipped its own dialect — a `✓ I checked them` gate in
+  front of four Present/Missing buttons — and Aaron found it in use (2026-08-25): *"why is the Tesla
+  EV asset registration a different design language… tap to check is redundant. I've already
+  checked. I want to register it with the knowledge I have on it."* The constraint was real; the
+  private control wasn't. **When a shared control can't express your case, add the state to the
+  shared control — don't fork it.** And check the tap arithmetic: an opt-IN gate taxes the common
+  case to protect the rare one, which is backwards. Guarded by `tests/components/EVAssetCheck.test.tsx`.
+
 **Colour lanes — never cross them.** Action = `fg-yellow` (the accent: PrimaryAction,
 focus rings). Status = red / green / amber (urgency, success, state). Share = amber
 (`ShareAction` only — its own affordance, not a status). A red "add" button reads as

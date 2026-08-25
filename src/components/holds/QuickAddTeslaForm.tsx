@@ -36,7 +36,14 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
   const [error, setError]           = useState('');
 
   const bothMissing = cable === 'missing' && adapter === 'missing';
-  const canSubmit   = unitNumber.trim() !== '' && plate.trim() !== '' && cable != null && adapter != null;
+  // ⚠️ Deliberately does NOT test `cable != null && adapter != null`. It used to, as a "did you
+  // answer the asset check" guard — but `EVAssetCheck` fills both with 'present' in a mount effect,
+  // so the condition was already satisfied before he touched anything. A guard that cannot fail
+  // isn't a safety check, it's a comment that looks like one, and leaving it invited the reader to
+  // trust a protection that was never there. This form intends the zero-tap default (he's on the
+  // EV Assets tab, looking at the car); registration is the only surface where "not assessed"
+  // survives, via `allowNotChecked`.
+  const canSubmit   = unitNumber.trim() !== '' && plate.trim() !== '';
 
   const doCreate = async () => {
     if (!user || !canSubmit) return;

@@ -5,8 +5,8 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 import { hapticMedium } from '../../lib/haptics';
 import { useVehicleByPlate } from '../../hooks/useVehicleByPlate';
 import { plausibleYearOr } from '../../lib/vehicles';
-import { teachClassCode } from '../../hooks/useUnknownClassCode';
-import type { ScannedIdentity } from '../../types';
+import { runRegisterFollowUps } from '../../context/registerFollowUps';
+import type { ScannedIdentity, EvAssetStatus } from '../../types';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { useUnitConflict } from '../../hooks/useUnitConflict';
@@ -14,8 +14,9 @@ import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
 import { UnitConflictNotice } from './UnitConflictNotice';
-import { RegisterEVAssets } from './RegisterEVAssets';
-import { useEvAssetCheck } from '../../hooks/useEvAssetCheck';
+import { RegisterResultBanners } from './RegisterResultBanners';
+import type { RegisterSuccessToast, RegisterReleaseWarning } from './RegisterResultBanners';
+import { EVAssetCheck } from '../movement/EVAssetCheck';
 
 interface Props {
   prefill?: string;
@@ -68,9 +69,13 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   // the real code stayed unknown, so the next Seltos would misread and teach again.
   const [classCode, setClassCode] = useState(scanned?.classCode ?? scanned?.teachClassCode ?? '');
   const [keyCount, setKeyCount] = useState<number | null>(null);
-  // ⚡ The EV asset check made at the car — closed by default, so ignoring it registers both
-  // assets as null exactly as before. See RegisterEVAssets for why it lives on this form at all.
-  const ev = useEvAssetCheck();
+  // ⚡ The EV asset check made at the car, on the SAME control as the other five surfaces
+  // (`EVAssetCheck`). Seeded null and filled to 'present' by that control on mount, so the common
+  // case — both there, which is nearly always — costs zero taps; "Didn't check" clears them back
+  // to null and registers as not assessed. This screen used to roll its own gate-plus-four-buttons
+  // dialect; see EVAssetCheck's `allowNotChecked` for why that inverted.
+  const [cable, setCable] = useState<EvAssetStatus | null>(null);
+  const [adapter, setAdapter] = useState<EvAssetStatus | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -92,17 +97,22 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
     setClassCode(s.classCode ?? s.teachClassCode ?? '');
     setIsHybrid(s.isHybrid ?? false);
     // The EV check belongs to the car he was looking at, not to the form. A new scan is a new
-    // car, so the assessment closes with it — otherwise car A's cable status rides onto car B,
+    // car, so the assessment resets with it — otherwise car A's cable status rides onto car B,
     // which is precisely the failure this whole re-seed exists to prevent.
-    ev.reset();
+    //
+    // Back to 'present', NOT null: the control's default is mount-only, and this component stays
+    // mounted across a re-scan, so seeding null here would leave car B stuck at "not assessed"
+    // with nothing to fill it — a silent downgrade of the zero-tap default.
+    setCable('present');
+    setAdapter('present');
   });
 
   // Carries its own tone: the registration can succeed while a follow-on write fails, and a
   // warning rendered in the green success toast would be a lie about what actually landed.
-  const [successToast, setSuccessToast] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+  const [successToast, setSuccessToast] = useState<RegisterSuccessToast | null>(null);
   // Set when the conflict reconciliation's release half failed — the new vehicle
   // is registered, but the OLD record still carries the unit#. Non-blocking warning.
-  const [releaseWarning, setReleaseWarning] = useState<{ old: string; vehicleId: string } | null>(null);
+  const [releaseWarning, setReleaseWarning] = useState<RegisterReleaseWarning | null>(null);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Recognize the plate as it's typed: a fleet match means it's already registered
   // (duplicate guard); a registry match means it was remembered earlier and
@@ -162,51 +172,18 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       // submission owns the success path; this one just stands down.
       if (!maybeId) return;
       const id = maybeId;
-      // Persist the key-tag photo the scan was read from onto the NEW vehicle. The scan-router only
-      // attaches for already-known cars, so a scan-to-register left the fresh record with no tag on
-      // file — the exact case where the source tag matters most (auditing the OCR'd identity later).
-      // (ticket-scan-register-keytag-photo, 2026-08-04.)
-      if (keytagPhoto) void attachKeytagPhotoIfMissing(id, keytagPhoto);
-      // ⚡ The check he made standing at the car, logged through the SAME path the EV Assets tab
-      // uses — so it arrives in the asset history with its source rather than as a silent column
-      // write. Source is 'vsa_washbay' because that is what EvSource answers: WHERE the check
-      // happened, not who did it. This is him, at the car, in the bay — the strongest evidence FG
-      // collects, and identical in kind to ticking the boxes on the record card.
-      //
-      // ⚠️ Never allowed to fail the registration. The vehicle insert has already succeeded by
-      // this line; an error that reset `submitting` would invite a second tap and mint a
-      // DUPLICATE CAR. A failed asset log costs one re-check in the tab; a duplicate costs a
-      // fleet record and the hunt to find it.
-      //
-      // ⚠️ Check the RETURN, not a thrown error. This was a try/catch, and
-      // `updateVehicleEVAssets` does not throw — it swallowed the Supabase error and returned —
-      // so the warning below was dead code and a lost assessment reported as a clean
-      // registration. Exactly the defect R61 found the night before, rebuilt here by hand.
-      let evLogFailed = false;
-      if (isTesla && ev.assessed) {
-        evLogFailed = !(await updateVehicleEVAssets(id, ev.hasCable, ev.hasAdapter, 'vsa_washbay'));
-      }
+      // Everything after the insert — tag photo, EV asset log, unit-number release, registry
+      // promotion, codex teach. All best-effort by design and NONE of them may fail the
+      // registration; the two whose failure he needs to know about come back reported.
+      const codeToTeach = classCode.trim().toUpperCase();
+      const { evLogFailed, releaseFailed } = await runRegisterFollowUps({
+        vehicleId: id, unit: unit.trim(), plate: plate.trim(), make, model, isTesla,
+        cable, adapter, keytagPhoto,
+        conflictVehicleId: armed && unitConflict ? unitConflict.id : undefined,
+        teachCode: scanned?.teachClassCode && codeToTeach ? codeToTeach : undefined,
+        userId: user?.id,
+      }, { attachKeytagPhotoIfMissing, updateVehicleEVAssets, releaseUnitNumber, remember });
       hapticMedium();
-      // Reconcile a confirmed unit# conflict: the new vehicle now carries the
-      // number, so release it from the record it was stapled to in error. The
-      // registration already succeeded — a failed release leaves a recoverable
-      // duplicate, not a lost unit#, so it must not block the success path.
-      let releaseFailed = false;
-      if (armed && unitConflict) {
-        // The release leaves a recoverable duplicate if it throws (caught on the
-        // next conflict check) — but "recoverable" only helps if the VSA knows to
-        // look, so surface it rather than swallowing it silently.
-        try { await releaseUnitNumber(unitConflict.id); } catch { releaseFailed = true; }
-      }
-      // Promotion bookkeeping: point any remembered registry sighting for this
-      // plate at the now-canonical vehicle (best-effort).
-      void remember(plate.trim(), { vehicleId: id, unitNumber: unit.trim() });
-      // The tag printed a code the codex couldn't resolve, and he just told us what the car IS —
-      // so learn it. Next scan of this code fills make/model on its own. Best-effort by design.
-      // Teach what he CONFIRMED, never what the reader guessed — and a blank box teaches nothing,
-    // because no entry beats a wrong one (a bad code resolves a future car to the wrong vehicle).
-    const codeToTeach = classCode.trim().toUpperCase();
-    if (scanned?.teachClassCode && codeToTeach) void teachClassCode(codeToTeach, make, model, user?.id);
       if (releaseFailed && unitConflict) {
         // Registration succeeded; only the old record's cleanup failed. Warn and
         // auto-proceed — non-blocking (the new vehicle is already correct).
@@ -428,10 +405,16 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
 
           </div>
 
-          {/* ⚡ Assessed at the car when he says he looked; otherwise registers as "Not assessed",
-              which is the behaviour this form has always had. The reasoning lives with the
-              component. */}
-          {make === 'Tesla' && <RegisterEVAssets check={ev} />}
+          {/* ⚡ The one EV control, same as trip start / the flip / the EV Assets tab / quick-add.
+              `allowNotChecked` is what lets registration still say "not assessed" — the only
+              surface that needs it, because a car can be registered off a tag away from its trunk. */}
+          {make === 'Tesla' && (
+            <EVAssetCheck
+              cableStatus={cable} adapterStatus={adapter}
+              onCableChange={setCable} onAdapterChange={setAdapter}
+              allowNotChecked
+            />
+          )}
 
           <div className="flex gap-2">
             <button
@@ -453,32 +436,16 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
         </form>
       </div>
 
-      {successToast && (
-        <div className="fixed bottom-6 inset-x-4 z-50 flex justify-center pointer-events-none">
-          <div className={`max-w-md px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl backdrop-blur-sm ${successToast.tone === 'warn' ? 'bg-amber-600/95' : 'bg-green-800/90'}`}>
-            {successToast.text}
-          </div>
-        </div>
-      )}
-
-      {releaseWarning && (
-        <div className="fixed bottom-6 inset-x-4 z-50 flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (navTimer.current) clearTimeout(navTimer.current);
-              const { vehicleId } = releaseWarning;
-              setReleaseWarning(null);
-              onSuccess(vehicleId);
-            }}
-            className="max-w-md px-5 py-3 rounded-2xl bg-amber-600/95 text-white text-sm font-medium text-left shadow-xl backdrop-blur-sm transition hover:bg-amber-600 cursor-pointer"
-          >
-            ⚠️ Registered — but unit #{unit.trim()} couldn&apos;t be cleared from old record{' '}
-            <span className="font-semibold">{releaseWarning.old}</span>. Check it and remove the unit# if
-            needed. <span className="underline whitespace-nowrap">Got it →</span>
-          </button>
-        </div>
-      )}
+      <RegisterResultBanners
+        successToast={successToast}
+        releaseWarning={releaseWarning}
+        unit={unit.trim()}
+        onAcknowledge={vehicleId => {
+          if (navTimer.current) clearTimeout(navTimer.current);
+          setReleaseWarning(null);
+          onSuccess(vehicleId);
+        }}
+      />
     </div>
   );
 }
