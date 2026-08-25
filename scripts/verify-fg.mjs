@@ -24,10 +24,17 @@ const EMP = ID === 'vsa' ? env.VERIFY_VSA_EMPLOYEE_ID : env.VERIFY_EMPLOYEE_ID;
 const PW  = ID === 'vsa' ? env.VERIFY_VSA_PASSWORD     : env.VERIFY_PASSWORD;
 if (!EMP || !PW) { console.error(`Missing creds for identity '${ID}' in .env.local`); process.exit(1); }
 
-// Default port, but overridable — Vite auto-bumps to 5174+ when another repo's
-// dev server already holds 5173 (e.g. running piggybank alongside). FG_URL lets a
-// caller point at the actual port without editing this file.
-const BASE = process.env.FG_URL || 'http://localhost:5173';
+// FG's dev server is PINNED to 5174 by `vite.config.ts` (`server.port`), so that is the default
+// here — it must track that config, not Vite's generic 5173.
+//
+// It said 5173 until 2026-08-25, on the old assumption that Vite would auto-bump off a busy port.
+// It doesn't need to: the port is explicit in the config. So the standing "always render-verify
+// visual work" cure failed on its very first command with a connection error, which is the worst
+// possible failure mode for a habit — friction on the step you already have to talk yourself into.
+// Found by a line-check actually running it, not by reading it.
+//
+// FG_URL still overrides, for a preview build or a non-default port.
+const BASE = process.env.FG_URL || 'http://localhost:5174';
 const verifyDir = fileURLToPath(new URL('.verify/', root));
 const statePath = fileURLToPath(new URL(`.verify/state-${ID}.json`, root));
 mkdirSync(verifyDir, { recursive: true });

@@ -9,6 +9,24 @@ import type { Hold, VehicleStatus } from '../types';
 export type HoldActivity = (h: Hold) => number;
 
 /**
+ * When a hold was last *touched*: repair → release → flagged, most recent wins.
+ *
+ * Hoisted here 2026-08-25 because it existed **twice**, byte-identical, in `HoldsView` (sorting
+ * the worklist) and `VehicleHoldContext.getHoldsForVehicle` (sorting a car's own holds). Harmless
+ * while they agreed — but "which record is newest" is one domain rule, and a copy of a rule is a
+ * rule that can drift. Change the ordering in one place and the holds list would silently disagree
+ * with the record it links to about which hold is current.
+ *
+ * The ladder is deliberate: a repair is the latest thing that happened to a hold, a release is the
+ * next-latest, and the flag is the floor — every hold has one, so this never returns NaN.
+ */
+export function holdLatestActivity(h: Hold): number {
+  if (h.repair?.repairedAt)  return new Date(h.repair.repairedAt).getTime();
+  if (h.release?.approvedAt) return new Date(h.release.approvedAt).getTime();
+  return new Date(h.flaggedAt).getTime();
+}
+
+/**
  * The hold that explains this vehicle's status.
  *
  * ⭐ Status-specific first, and that ordering is the point: a car reading PRE_EXISTING must show the

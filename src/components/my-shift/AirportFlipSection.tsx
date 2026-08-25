@@ -13,8 +13,8 @@ import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
 import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
-import { flipRowLine, flipClassSummary } from '../../lib/airportFlip';
 import { NeededClasses } from './NeededClasses';
+import { FlipRowsList } from './FlipRowsList';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
 import { parseOdometer, describeOdometer } from '../../lib/odometer';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
@@ -61,10 +61,6 @@ export function AirportFlipSection() {
   // plate. The scan is a speed layer; the plate is the real identity key, so the flip must not
   // stop just because vision is unavailable.
   const [manualPlate, setManualPlate] = useState('');
-  // Sent rows collapse into a tap-to-expand summary by default: once a car's dispatched it's done,
-  // and a shift of them buries the scan button + the still-to-send rows under dead scroll (Aaron,
-  // live 2026-07-28). Unsent rows stay expanded — those are the ones still needing a decision.
-  const [sentExpanded, setSentExpanded] = useState(false);
 
   // Diffed against what the car is SUPPOSED to carry, so FG says "a key short" instead of just
   // storing a number. Null keys = not counted; a car with no baseline seeds it from this count.
@@ -179,24 +175,6 @@ export function AirportFlipSection() {
       setTimeout(() => setToast(''), 3000);
     } catch { setToast('Copy failed — long-press the list to copy manually.'); }
   };
-
-  // One row renderer, reused for the always-open unsent list and the collapsed sent group.
-  const renderRow = (r: (typeof flip.rows)[number]) => (
-    <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition ${r.sent ? 'border-gray-100 dark:border-gray-800 opacity-55' : 'border-gray-200 dark:border-gray-700'}`}>
-      {r.sent ? (
-        <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 shrink-0 w-12">✓ Sent</span>
-      ) : (
-        <input type="checkbox" checked={r.checked} onChange={() => flip.toggleChecked(r.id)} className="w-4 h-4 accent-fg-yellow cursor-pointer shrink-0" />
-      )}
-      {r.rentalClass && (
-        <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">{r.rentalClass}</span>
-      )}
-      <span className="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-200">{flipRowLine(r)}</span>
-      {!r.sent && <button type="button" aria-label="Remove" onClick={() => flip.remove(r.id)} className="text-gray-300 dark:text-gray-600 hover:text-red-500 text-xs shrink-0 cursor-pointer">✕</button>}
-    </div>
-  );
-  const unsentRows = flip.rows.filter(r => !r.sent);
-  const sentRows = flip.rows.filter(r => r.sent);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3 transition-colors">
@@ -355,54 +333,7 @@ export function AirportFlipSection() {
 
       {toast && <p className="text-xs text-green-700 dark:text-green-400">{toast}</p>}
 
-      {flip.rows.length > 0 && (
-        <div className="space-y-1.5">
-          {/* Still-to-send rows stay open — the ones that still need a decision + drive the scan/copy flow. */}
-          {unsentRows.map(renderRow)}
-
-          {/* Sent rows collapse to a one-line summary so a shift of dispatched cars doesn't bury the
-              scan button under dead scroll. Tap to expand when you need to look one up. */}
-          {sentRows.length > 0 && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setSentExpanded(v => !v)}
-                className="w-full flex items-center justify-between rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800/40 cursor-pointer transition"
-              >
-                <span>✓ {sentRows.length} sent</span>
-                <span className="text-gray-400 dark:text-gray-500">{sentExpanded ? 'collapse ▲' : 'tap to expand ▼'}</span>
-              </button>
-              {sentExpanded && <div className="space-y-1.5 mt-1.5">{sentRows.map(renderRow)}</div>}
-            </div>
-          )}
-
-          {/* Aaron's own shift tally — what he turned around, by class. Not in the counter
-              copy-out (they search by plate). */}
-          {(() => {
-            const { byClass, unclassed } = flipClassSummary(flip.rows);
-            if (byClass.length === 0) return null;
-            return (
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                <span className="font-medium">Turned around:</span>
-                {byClass.map(c => (
-                  <span key={c.rentalClass} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 font-semibold text-gray-700 dark:text-gray-300">
-                    {c.rentalClass} ×{c.count}
-                  </span>
-                ))}
-                {unclassed > 0 && <span className="text-gray-400 dark:text-gray-500">· {unclassed} unclassed</span>}
-              </div>
-            );
-          })()}
-          <button
-            type="button"
-            onClick={() => void copyForCounter()}
-            disabled={flip.checkedUnsentCount === 0}
-            className="w-full rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-          >
-            📋 Copy {flip.checkedUnsentCount} for the counter
-          </button>
-        </div>
-      )}
+      <FlipRowsList flip={flip} onCopy={() => void copyForCounter()} />
     </div>
   );
 }

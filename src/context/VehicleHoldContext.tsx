@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { holdLatestActivity } from '../lib/displayHold';
 import type { UpdateFieldsResult } from './vehicleFieldsWrite';
 import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus } from '../types';
 import { useAuth } from './AuthContext';
@@ -209,15 +210,12 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber?.toLowerCase() === unitNumber.toLowerCase());
 
-  function latestActivity(hold: Hold): number {
-    if (hold.repair?.repairedAt)  return new Date(hold.repair.repairedAt).getTime();
-    if (hold.release?.approvedAt) return new Date(hold.release.approvedAt).getTime();
-    return new Date(hold.flaggedAt).getTime();
-  }
-
+  // `holdLatestActivity` is shared with the Holds worklist (lib/displayHold). It used to be defined
+  // here AND in HoldsView, byte-identical — one domain rule with two copies, which is a rule that
+  // can drift. Change it there and both a car's own hold order and the board's agree by construction.
   const getHoldsForVehicle = (vehicleId: string) =>
     holds.filter(h => h.vehicleId === vehicleId)
-         .sort((a, b) => latestActivity(b) - latestActivity(a));
+         .sort((a, b) => holdLatestActivity(b) - holdLatestActivity(a));
 
   const getActiveHold = (vehicleId: string) =>
     holds.find(h => h.vehicleId === vehicleId && h.status === 'ACTIVE');

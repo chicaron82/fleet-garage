@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoneBackfillCard } from '../holds/ZoneBackfillCard';
-import { displayHoldFor } from '../../lib/displayHold';
+import { useHoldsWorklist } from '../../hooks/useHoldsWorklist';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { canRelease, canManageVehicles } from '../../types';
 import { hapticLight } from '../../lib/haptics';
-import type { Hold, Vehicle, VehicleStatus } from '../../types';
+import type { Vehicle, VehicleStatus } from '../../types';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
@@ -71,8 +71,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     else sessionStorage.removeItem('dashboard_status_filter');
   }, [activeStatusFilter]);
 
-  const ITEMS_PER_PAGE = 15;
-
   const handleFilterChange = useCallback((status: VehicleStatus | null) => {
     setActiveStatusFilter(prev => (prev === status ? null : status));
     setCurrentPage(1);
@@ -122,68 +120,9 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     onUnrecognized: handleBarcodeUnrecognized,
   });
 
-  const held        = vehicles.filter(v => v.status === 'HELD').length;
-  const returned    = vehicles.filter(v => v.status === 'RETURNED').length;
-  const preExisting = vehicles.filter(v => v.status === 'PRE_EXISTING').length;
-  const cleared     = vehicles.filter(v => v.status === 'CLEAR').length;
-
-  // Latest meaningful timestamp for a hold: repair → release → creation
-  const holdLatestActivity = (h: Hold) => {
-    if (h.repair?.repairedAt)  return new Date(h.repair.repairedAt).getTime();
-    if (h.release?.approvedAt) return new Date(h.release.approvedAt).getTime();
-    return new Date(h.flaggedAt).getTime();
-  };
-
-  // Latest activity across all holds for a vehicle (0 = no holds)
-  const vehicleLatestActivity = (vehicleId: string) => {
-    const vh = holds.filter(h => h.vehicleId === vehicleId);
-    if (vh.length === 0) return 0;
-    return Math.max(...vh.map(holdLatestActivity));
-  };
-
-  const filtered = vehicles
-    .filter(v => {
-      const matchesSearch = search === '' ||
-        (v.unitNumber?.toUpperCase() ?? '').includes(search) ||
-        v.licensePlate.toUpperCase().includes(search) ||
-        v.make.toUpperCase().includes(search) ||
-        v.model.toUpperCase().includes(search) ||
-        holds.some(h => h.vehicleId === v.id && h.status === 'ACTIVE' && h.damageDescription.toUpperCase().includes(search));
-      if (!matchesSearch) return false;
-      // Exception vehicles live exclusively in ExceptionReturnSection — never in the main list
-      if (v.status === 'OUT_ON_EXCEPTION') return false;
-      if (activeStatusFilter !== null) return v.status === activeStatusFilter;
-      // CLEAR vehicles drop off the default list — searchable, accessible via "Repaired" card
-      if (v.status === 'CLEAR' && search === '') return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const aPinned = pinnedVehicleIds.has(a.id) ? 1 : 0;
-      const bPinned = pinnedVehicleIds.has(b.id) ? 1 : 0;
-      if (aPinned !== bPinned) return bPinned - aPinned;
-      return vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id);
-    });
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-  // Typed ≥2 chars with nothing matching: the search-row button flips from
-  // "scan" to "add to FG", and the list shows the not-found note.
-  const noMatch = filtered.length === 0 && search.trim().length >= 2;
-  // How many ARCHIVED cars the search matches — so a no-active-match search points at the archive
-  // (which auto-expands below) instead of a flat "not in the system" that hides a returning car.
-  const archivedMatchCount = search.trim().length >= 2
-    ? archivedVehicles.filter(v => {
-        const q = search.toUpperCase();
-        return (v.unitNumber?.toUpperCase() ?? '').includes(q) ||
-          v.licensePlate.toUpperCase().includes(q) ||
-          v.make.toUpperCase().includes(q) ||
-          v.model.toUpperCase().includes(q);
-      }).length
-    : 0;
-
-  const getDisplayHold = (vehicleId: string, status: VehicleStatus) =>
-    displayHoldFor(holds, vehicleId, status, holdLatestActivity);
+  // Which cars the board shows, in what order, on which page — all derived, never captured.
+  const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, getDisplayHold } =
+    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage });
 
   const { getName } = useUserResolver();
 
@@ -236,10 +175,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
         {/* Summary Cards — role-aware, tap to filter (Management) */}
         <DashboardSummaryCards
           role={user!.role}
-          held={held}
-          preExisting={preExisting}
-          returned={returned}
-          cleared={cleared}
+          held={counts.held}
+          preExisting={counts.preExisting}
+          returned={counts.returned}
+          cleared={counts.cleared}
           activeFilter={activeStatusFilter}
           onFilterChange={handleFilterChange}
         />
