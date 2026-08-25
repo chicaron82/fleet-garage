@@ -219,6 +219,10 @@ export interface Vehicle {
    *  ⚠️ Never render it without `odometerAt` — a km figure is a claim about a moment. */
   odometer?: number | null;
   odometerAt?: string | null;
+  /** Last 9 of the VIN, read off the key tag (migration 126). NOT a full VIN — the first 8
+   *  (manufacturer, attributes) are not printed on the tag, so nothing may decode a make from it.
+   *  Immutable per car: first good read wins. The one identity key that survives a re-plate. */
+  vinLast9?: string | null;
   isTesla: boolean;
   // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
   // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.

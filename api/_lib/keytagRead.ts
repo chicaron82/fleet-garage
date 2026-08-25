@@ -14,6 +14,10 @@ export interface KeytagRead {
   plate?: string;
   /** "Veh #", digit groups joined (e.g. "542 0427" → "5420427"). */
   unitNumber?: string;
+  /** The nine characters after "Last9vin:" on a printed tag. NOT a full VIN — no manufacturer,
+   *  plant or model-year digits are present, so nothing may be decoded from it. Immutable per
+   *  car, which is what makes it the one key that survives a re-plate (migration 126). */
+  vinLast9?: string;
   /** The class-line code (e.g. "CCVL"). make/model are DERIVED from this via a fleet
    *  class lookup — they are not printed on the tag, so the raw read leaves them empty
    *  and a downstream class-resolution step fills them in. */

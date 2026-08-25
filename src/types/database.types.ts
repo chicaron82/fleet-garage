@@ -1625,6 +1625,7 @@ export type Database = {
           status: string
           unit_number: string | null
           updated_at: string | null
+          vin_last9: string | null
           year: number
         }
         Insert: {
@@ -1665,6 +1666,7 @@ export type Database = {
           status: string
           unit_number?: string | null
           updated_at?: string | null
+          vin_last9?: string | null
           year: number
         }
         Update: {
@@ -1705,6 +1707,7 @@ export type Database = {
           status?: string
           unit_number?: string | null
           updated_at?: string | null
+          vin_last9?: string | null
           year?: number
         }
         Relationships: []

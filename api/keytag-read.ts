@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './_lib/keytagEscalation.js';
 import { normalizeOwning } from './_lib/owningArea.js';
+import { normalizeVinLast9 } from './_lib/vinLast9.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
@@ -42,6 +43,7 @@ Fields the tag MAY carry (read the ones present):
   • RENTAL CLASS: the short 1–3 char size/type group beside it ("Q4", "P4", "T", "L2", "B").
   Printed: "WINNIPEG / 08199  Q4" → owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B". Do NOT put the branch number in rentalClass.
 - UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
+- LAST 9 OF THE VIN: printed tags label it "Last9vin:" and print exactly NINE characters ("9TR289777", "8NF258345"). Report those nine EXACTLY as shown, with no spaces. It is the last nine of the VIN, never the whole VIN — do not pad it, extend it, or infer the missing characters. VINs never contain the letters I, O or Q, so a character that looks like one is a 1 or a 0. Handwritten tags rarely carry it; leave it empty when absent.
 - LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
 - MAKE / MODEL — the ONE real difference between the two formats:
   • PRINTED tags do NOT write the make/model — they print a 4-char CLASS CODE ("CCVL", "CVRS") resolved to a model elsewhere. Report it as classCode; leave make/model empty.
@@ -60,6 +62,7 @@ const REPORT_TOOL: Anthropic.Tool = {
     properties: {
       plate: { type: 'string', description: 'License plate ("Lic Plate"), exactly as printed. "" if not legible.' },
       unitNumber: { type: 'string', description: 'Unit number ("Veh #"), digit groups joined. "" if not legible.' },
+      vinLast9: { type: 'string', description: 'The NINE characters printed after "Last9vin:", exactly as shown, no spaces. Never the full VIN and never padded. "" if not present or not legible.' },
       classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
       rentalClass: { type: 'string', description: 'The rental class beside the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
       owningArea: { type: 'string', description: 'The 4–5 digit OWNING branch number on that same top line, e.g. "08199", "8193". Digits only. "" if not legible.' },
@@ -77,6 +80,7 @@ interface RawKeytag {
   plate?: string;
   owningArea?: string;
   unitNumber?: string;
+  vinLast9?: string;
   classCode?: string;
   rentalClass?: string;
   make?: string;
@@ -99,6 +103,9 @@ function toKeytagRead(input: unknown): KeytagRead {
   return {
     plate: s(r.plate),
     unitNumber: s(r.unitNumber),
+    // Normalized to the write's own rule, so an unusable partial never leaves this function
+    // wearing the shape of an identity key. '' → undefined.
+    vinLast9: normalizeVinLast9(r.vinLast9) || undefined,
     classCode,
     rentalClass: s(r.rentalClass)?.toUpperCase(),
     // Normalized here (leading zero stripped) so the stored value is one shape regardless of

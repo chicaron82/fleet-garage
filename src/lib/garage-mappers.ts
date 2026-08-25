@@ -55,6 +55,7 @@ export function mapVehicle(row: Row): Vehicle {
     classCode:    optStr(row, 'class_code') ?? null,
     odometer:     (row['odometer'] as number | null) ?? null,
     odometerAt:   optStr(row, 'odometer_at') ?? null,
+    vinLast9:     optStr(row, 'vin_last9') ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
     note:           nullableStr(row, 'note'),
     noteAt:         nullableStr(row, 'note_at'),

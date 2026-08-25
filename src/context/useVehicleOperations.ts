@@ -16,6 +16,7 @@ import { makeSetVehicleNote } from './vehicleNoteWrite';
 import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
+import { makeRecordVinLast9 } from './vinWrite';
 import { makeRecordOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
@@ -140,6 +141,12 @@ export function useVehicleOperations({
 
   // Records the class code off a scanned tag, if-missing. See ./classCodeWrite.
   const recordClassCode = makeRecordClassCode({
+    setAllVehicles,
+    currentVehicle: id => allVehicles.find(v => v.id === id),
+  });
+
+  // The last 9 of the VIN off a scanned tag, if-missing. Immutable — see ./vinWrite.
+  const recordVinLast9 = makeRecordVinLast9({
     setAllVehicles,
     currentVehicle: id => allVehicles.find(v => v.id === id),
   });
@@ -361,6 +368,7 @@ export function useVehicleOperations({
     attachKeytagPhotoIfMissing,
     recordOwningArea,
     recordClassCode,
+    recordVinLast9,
     recordOdometer,
     releaseUnitNumber,
     addHold,

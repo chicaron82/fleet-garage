@@ -9,6 +9,7 @@ import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
+import { ScanOdometerCapture } from './ScanOdometerCapture';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
@@ -40,7 +41,7 @@ let scanSeq = 0;
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error, errorRef } = useKeytagRead();
   const { user } = useAuth();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode, recordVinLast9, recordOdometer } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const { scan, pickedFileRef, pickedNonce } = useScanRouter();
@@ -118,6 +119,14 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
         && (!seen.vehicle.classCode || seen.vehicle.fieldSources?.classCode === 'derived')) {
       void recordClassCode(seen.vehicle.id, read.classCode);
     }
+    // The last 9 of the VIN — printed on every printed tag, and read straight past for the whole
+    // life of the scanner. Same if-missing, fire-and-forget shape, and the strictest version of the
+    // rule: a VIN is immutable, so the first good read is the only one that will ever be taken.
+    // It is the one key that survives Aaron's out-of-province → MB conversions, where the plate
+    // (what FG searches by) changes and everything else stays. See context/vinWrite.
+    if (read.vinLast9 && seen.vehicle && !seen.vehicle.vinLast9) {
+      void recordVinLast9(seen.vehicle.id, read.vinLast9);
+    }
     // ── The codex's missing drain ── A class code the codex can't resolve is why registration
     // degrades. Two outcomes, and only one of them used to exist:
     //   • The car is ALREADY on record with a make/model → the record IS the answer. Teach the
@@ -136,7 +145,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
         void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
       }
     }
-  }, [readKeytag, errorRef, error, vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode]);
+  }, [readKeytag, errorRef, error, vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode, recordVinLast9]);
 
   // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,
   // so the photo arrives AFTER mount rather than from a button in here. Keyed on the nonce, not on
@@ -304,6 +313,15 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         ))}
                       </div>
                     </div>
+                    {/* The odometer, in the same beat as the key count — he is at the dash. Until
+                        now this column had ONE writer (the airport flip) and stood at 0 of 683. */}
+                    <ScanOdometerCapture
+                      vehicleId={vehicle.id}
+                      scanNonce={scanNonce}
+                      currentKm={vehicle.odometer}
+                      currentAt={vehicle.odometerAt}
+                      onSave={recordOdometer}
+                    />
                   </>
                 ) : result && result.unitCandidates.length > 0 ? (
                   /* Two live cars carry the scanned unit and the plate was unreadable, so nothing
