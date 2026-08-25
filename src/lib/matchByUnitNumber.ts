@@ -50,9 +50,40 @@ export function matchByUnitNumber(unitRaw: string | null | undefined, vehicles: 
 }
 
 /** The show-your-work line for a card identified WITHOUT a plate — FG never resolves silently by a
- *  weaker key without saying so. '' when the plate did the work, which is the normal case. */
-export function matchedByUnitLabel(matchedByUnit: boolean, unitRaw: string | null | undefined): string {
+ *  weaker key without saying so. '' when the plate did the work, which is the normal case.
+ *
+ *  ⚠️ TWO CAUSES, and this used to assert the wrong one. The line was hardcoded to "the plate
+ *  wasn't readable on the tag" — true when the tag is torn, and **false** when the tag is crisp but
+ *  carries a plate FG doesn't have on file. That second case is a **re-plate**, and it is the more
+ *  interesting of the two: an out-of-province car converted to MB plates keeps its unit number and
+ *  owning area but changes the only key FG searches by (Aaron, 2026-08-25 — a Calgary-owned
+ *  Suburban on `0GK641`, due for MB plates). FG would have resolved it correctly by unit, then
+ *  explained itself with a confident lie and buried the actual news.
+ *
+ *  So the cause is DERIVED, never assumed: if the tag gave us a plate and it differs from the
+ *  record's, say that instead. It's the difference between silently-wrong and known-and-fixable —
+ *  and the fix is one tap away in the identity modal, where migration 118's trigger logs
+ *  `license_plate: {from → to}` so the old plate survives in the car's own history. */
+export function matchedByUnitLabel(
+  matchedByUnit: boolean,
+  unitRaw: string | null | undefined,
+  tagPlate?: string | null,
+  recordPlate?: string | null,
+): string {
   const unit = normalizeUnit(unitRaw);
   if (!matchedByUnit || !unit) return '';
+  const tag = (tagPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
+  const record = (recordPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
+  if (tag && record && tag !== record) {
+    return `Matched by unit #${unit} — the tag reads ${tag}, but this car is on file as ${record}. Re-plated? Open the record to update the plate.`;
+  }
   return `Matched by unit #${unit} — the plate wasn't readable on the tag.`;
+}
+
+/** True when the unit-number match was caused by a plate CHANGE rather than an unreadable tag.
+ *  Drives the tone: a torn tag is an FYI, a re-plate is a thing to act on. */
+export function isPlateMismatch(tagPlate?: string | null, recordPlate?: string | null): boolean {
+  const tag = (tagPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
+  const record = (recordPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
+  return !!tag && !!record && tag !== record;
 }

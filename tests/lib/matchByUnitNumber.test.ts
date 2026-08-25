@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchByUnitNumber, normalizeUnit, matchedByUnitLabel } from '../../src/lib/matchByUnitNumber';
+import { matchByUnitNumber, normalizeUnit, matchedByUnitLabel, isPlateMismatch } from '../../src/lib/matchByUnitNumber';
 import type { Vehicle } from '../../src/types';
 
 const car = (o: Partial<Vehicle> = {}): Vehicle => ({
@@ -63,5 +63,44 @@ describe('matchedByUnitLabel', () => {
 
   it('stays silent on the normal plate-matched path', () => {
     expect(matchedByUnitLabel(false, '5424940')).toBe('');
+  });
+});
+
+// ── The re-plate case, 2026-08-25 ─────────────────────────────────────────────
+// The label used to hardcode "the plate wasn't readable on the tag". That's ONE of two causes,
+// and the other is the interesting one: an out-of-province car converted to MB plates keeps its
+// unit number and owning area but changes the only key FG searches by. The unit fallback resolves
+// it correctly — and then the line explained itself with a confident lie.
+describe('matchedByUnitLabel — deriving WHY the unit did the work', () => {
+  it('still blames the tag when the plate genuinely was not read', () => {
+    expect(matchedByUnitLabel(true, '5769880', null, '0GK641')).toMatch(/wasn't readable/);
+    expect(matchedByUnitLabel(true, '5769880', '', '0GK641')).toMatch(/wasn't readable/);
+  });
+
+  it('names BOTH plates when the tag was perfectly legible and simply disagrees', () => {
+    const label = matchedByUnitLabel(true, '576 9880', 'LZM123', '0GK641');
+    expect(label).toContain('5769880');
+    expect(label).toContain('LZM123');    // what the tag says now
+    expect(label).toContain('0GK641');    // what FG still believes
+    expect(label).toMatch(/Re-plated/);
+    expect(label).not.toMatch(/wasn't readable/);   // the lie must be gone
+  });
+
+  it('does not cry re-plate over spacing or case', () => {
+    expect(matchedByUnitLabel(true, '5769880', 'lzm 123', 'LZM123')).toMatch(/wasn't readable/);
+  });
+
+  it('says nothing at all when the plate did the work', () => {
+    expect(matchedByUnitLabel(false, '5769880', 'LZM123', 'LZM123')).toBe('');
+  });
+});
+
+describe('isPlateMismatch', () => {
+  it('is true only when both plates exist and differ', () => {
+    expect(isPlateMismatch('LZM123', '0GK641')).toBe(true);
+    expect(isPlateMismatch('LZM123', 'LZM123')).toBe(false);
+    expect(isPlateMismatch('  lzm123 ', 'LZM123')).toBe(false);   // normalised, not a mismatch
+    expect(isPlateMismatch(null, '0GK641')).toBe(false);          // unreadable tag is not a mismatch
+    expect(isPlateMismatch('LZM123', null)).toBe(false);
   });
 });

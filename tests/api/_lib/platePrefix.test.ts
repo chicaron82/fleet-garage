@@ -94,3 +94,50 @@ describe('correctManitobaPlate — digits behind a confirmed MB prefix', () => {
     expect(correctManitobaPlate('LFFL43')).toBe('LFFL43');
   });
 });
+
+// ── MCM / MCN, added 2026-08-25 ───────────────────────────────────────────────
+// MCN was missing while 43 active cars wore it — the fleet's 5th-largest prefix, with no
+// misread protection at all, and nothing anywhere warned about it. Aaron named both from
+// the lot. These tests exist because the list's staleness is otherwise INVISIBLE: an
+// unlisted prefix simply gets no correction, and every existing test keeps passing.
+describe('the MCM / MCN series', () => {
+  it('corrects the digit body now that the prefixes are known', () => {
+    // Before they were listed, these fell straight through the province gate untouched.
+    expect(correctManitobaPlate('MCN1O5')).toBe('MCN105');   // O→0
+    expect(correctManitobaPlate('MCM55I')).toBe('MCM551');   // I→1, a real F-150
+    expect(correctManitobaPlate('MCNS43')).toBe('MCN543');   // S→5
+  });
+
+  it('leaves both untouched when already valid', () => {
+    expect(correctManitobaPlate('MCN443')).toBe('MCN443');
+    expect(correctManitobaPlate('MCM557')).toBe('MCM557');
+  });
+
+  it('snaps to whichever of the pair is the UNIQUE one-off match', () => {
+    expect(correctManitobaPlate('NCM557')).toBe('MCM557');   // one-off from MCM only
+    expect(correctManitobaPlate('MCN557')).toBe('MCN557');   // already valid, not "corrected" to MCM
+  });
+
+  // THE PAIR HAZARD. MCM and MCN are one character apart — the first such pair in this list.
+  // A read sitting one char from BOTH is genuinely ambiguous between two real cars, so it must
+  // be handed back untouched rather than guessed. Same contract as LFJ/LJF.
+  it('refuses to guess between MCM and MCN', () => {
+    expect(correctManitobaPlate('MCH557')).toBe('MCH557');   // one-off from both
+    expect(correctManitobaPlate('MCR557')).toBe('MCR557');
+  });
+
+  // A deliberate, documented COST of adding MCM: MZM is now one char from LZM and from MCM,
+  // so it stops snapping to LZM. Pinned so a future reader sees intent, not an oversight.
+  it('gives up correcting MZM → LZM, because MCM made it ambiguous', () => {
+    expect(correctManitobaPlate('MZM123')).toBe('MZM123');
+  });
+
+  // The province gate must still hold: the Suburban being converted wears an Alberta plate,
+  // and the singleton MB-shaped plates on file are unverified — none may be dragged toward
+  // a known prefix.
+  it('still never touches an out-of-province plate', () => {
+    for (const plate of ['0GK641', '0HC426', 'DEYT759', 'NW129N', '407PFI']) {
+      expect(correctManitobaPlate(plate)).toBe(plate);
+    }
+  });
+});

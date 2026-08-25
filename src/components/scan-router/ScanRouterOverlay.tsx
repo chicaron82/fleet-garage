@@ -22,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { logUnknownClassCode, teachClassCode } from '../../hooks/useUnknownClassCode';
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import { classCodeLessonFromScan, classCodeLearnedLabel } from '../../lib/classCodeLesson';
-import { matchedByUnitLabel } from '../../lib/matchByUnitNumber';
+import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -334,8 +334,14 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {/* Which key did the work. FG never resolves by the weaker key silently — if the
                     plate was unreadable and the unit number found the car, say so. */}
                 {result?.matchedByUnit && (
-                  <p className="text-xs font-semibold mt-1 text-blue-700 dark:text-blue-400">
-                    🔎 {matchedByUnitLabel(true, scanRead?.unitNumber)}
+                  /* Amber when the plate CHANGED (a re-plate needs a decision), blue when the tag
+                     was simply unreadable (an FYI). Same lane rule as everywhere: status vs info. */
+                  <p className={`text-xs font-semibold mt-1 ${
+                    isPlateMismatch(result.plate, vehicle?.licensePlate)
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-blue-700 dark:text-blue-400'
+                  }`}>
+                    🔎 {matchedByUnitLabel(true, scanRead?.unitNumber, result.plate, vehicle?.licensePlate)}
                   </p>
                 )}
                 {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at

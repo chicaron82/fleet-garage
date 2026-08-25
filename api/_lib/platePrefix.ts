@@ -21,9 +21,28 @@
 // — Aaron's call, so foreign plates are never "corrected" toward an MB prefix.
 
 /** The known Manitoba plate prefixes in this fleet. Extend as new prefixes appear.
+ *
  *  LFJ and LJF are BOTH real (a letter swap, not a typo) — two chars apart, so a read
- *  between them is ambiguous and left uncorrected rather than guessed. */
-export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LJF', 'LZM'] as const;
+ *  between them is ambiguous and left uncorrected rather than guessed.
+ *
+ *  ⚠️ THIS LIST GOES STALE, AND THE STALENESS IS INVISIBLE. It is the province gate for the whole
+ *  function: an unlisted prefix gets no snap AND no digit correction, so newly-fleeted cars quietly
+ *  lose the safety net while every test keeps passing. Nothing warns you. **MCN was missing while
+ *  43 active cars wore it** — the fleet's 5th-largest prefix, unprotected (found 2026-08-25, when
+ *  Aaron named MCN + MCM from the lot: *"there are a couple new prefixes but you didn't list them"*).
+ *  Counts at that moment: LUR 286 · LFJ 74 · LZM 59 · LJF 50 · MCN 43 · KUR 3 · MCM 3.
+ *  Re-ground it against the live fleet whenever plates come up, and especially during an
+ *  out-of-province → MB conversion, which is exactly what introduces new prefixes.
+ *
+ *  MCM and MCN differ by ONE character — the first such pair here. That is safe by construction:
+ *  `snapPrefix` only corrects on a UNIQUE hit, so a read sitting one char from both is left alone.
+ *  The knock-on is deliberate and worth knowing: `MZM` is now one-off from LZM *and* MCM, so it
+ *  stops snapping to LZM. Losing a correction beats guessing between two real cars.
+ *
+ *  KUR is the old series — 3 active records plus the shuttle (Aaron, 2026-08-25: *"KUR is a very
+ *  old plate prefix. only the shuttle carries that."*). Kept: the shuttle is scanned like anything
+ *  else, and a prefix costs nothing to keep but loses a real correction to remove. */
+export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LJF', 'LZM', 'MCM', 'MCN'] as const;
 
 /** Letters a vision read produces where a digit belongs.
  *
