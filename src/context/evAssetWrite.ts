@@ -19,7 +19,7 @@ export function makeUpdateVehicleEVAssets(deps: {
     hasJ1772Adapter: boolean,
     source: EvSource,
     notes?: string,
-  ) => {
+  ): Promise<boolean> => {
     const now = new Date().toISOString();
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({
@@ -32,7 +32,14 @@ export function makeUpdateVehicleEVAssets(deps: {
     // Gate the optimistic update on success. `vehicles` has no realtime channel
     // (only `holds` does), so a silently-failed write here would not self-heal —
     // local state would diverge from the DB until a full reload.
-    if (error) return;
+    //
+    // ⭐ Returns whether the canonical status actually landed. It used to return void and swallow
+    // the failure, which meant a CALLER could not tell a saved assessment from a lost one — and
+    // RegisterVehicleForm's `try/catch` around this call was dead code, because nothing here ever
+    // throws. Its "⚠️ the EV asset check didn't save" warning could not fire, so a failed write
+    // reported as a clean registration (Reflection 62, 2026-08-24 — the same defect R61 found the
+    // night before: a success message claiming a write that never happened).
+    if (error) return false;
     // Append to the unified EV timeline. Best-effort: a failed log row shouldn't
     // undo the profile update that already landed.
     await writeWithRefresh(() => supabase.from('ev_asset_updates').insert({
@@ -50,5 +57,6 @@ export function makeUpdateVehicleEVAssets(deps: {
         ? { ...v, hasMobileCable, hasJ1772Adapter, evLastUpdatedBy: userId, evLastUpdatedAt: now }
         : v
     ));
+    return true;
   };
 }

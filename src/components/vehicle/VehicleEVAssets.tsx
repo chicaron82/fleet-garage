@@ -12,7 +12,7 @@ interface VehicleEVAssetsProps {
     hasJ1772Adapter: boolean,
     source: EvSource,
     notes?: string
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }
 
 export function VehicleEVAssets({

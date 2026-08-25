@@ -173,14 +173,18 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       // happened, not who did it. This is him, at the car, in the bay — the strongest evidence FG
       // collects, and identical in kind to ticking the boxes on the record card.
       //
-      // ⚠️ Caught locally and never allowed to reach the outer catch. The vehicle insert has
-      // already succeeded by this line; a throw that reset `submitting` would invite a second tap
-      // and mint a DUPLICATE CAR. A failed asset log costs one re-check in the tab; a duplicate
-      // costs a fleet record and the hunt to find it.
+      // ⚠️ Never allowed to fail the registration. The vehicle insert has already succeeded by
+      // this line; an error that reset `submitting` would invite a second tap and mint a
+      // DUPLICATE CAR. A failed asset log costs one re-check in the tab; a duplicate costs a
+      // fleet record and the hunt to find it.
+      //
+      // ⚠️ Check the RETURN, not a thrown error. This was a try/catch, and
+      // `updateVehicleEVAssets` does not throw — it swallowed the Supabase error and returned —
+      // so the warning below was dead code and a lost assessment reported as a clean
+      // registration. Exactly the defect R61 found the night before, rebuilt here by hand.
       let evLogFailed = false;
       if (isTesla && ev.assessed) {
-        try { await updateVehicleEVAssets(id, ev.hasCable, ev.hasAdapter, 'vsa_washbay'); }
-        catch { evLogFailed = true; }
+        evLogFailed = !(await updateVehicleEVAssets(id, ev.hasCable, ev.hasAdapter, 'vsa_washbay'));
       }
       hapticMedium();
       // Reconcile a confirmed unit# conflict: the new vehicle now carries the

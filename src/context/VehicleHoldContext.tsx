@@ -29,7 +29,8 @@ export interface VehicleHoldContextValue {
   returnEvAssetLoan: (loan: EvAssetLoan) => Promise<void>;
   /** Resolves the new vehicle id — or `undefined` when a same-plate call was in flight (dropped re-entrant, see submit lock). */
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
-  updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<void>;
+  /** Resolves false when the canonical status write failed — callers that report success must check it. */
+  updateVehicleEVAssets: (vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string) => Promise<boolean>;
   updateVehicleFields: (vehicleId: string, fills: KeytagFill[]) => Promise<UpdateFieldsResult>;
   /** Record the owning branch read off a tag, if the vehicle has none yet. See owningAreaWrite. */
   recordOwningArea: (vehicleId: string, owningArea: string) => Promise<void>;
