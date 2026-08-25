@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { NewHoldDamageZones } from './NewHoldDamageZones';
 import type { RefObject } from 'react';
 import type { useNewHold } from '../../hooks/useNewHold';
 import { hapticLight } from '../../lib/haptics';
@@ -125,6 +126,19 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
             setCustomDamage={h.setCustomDamage}
           />
         </div>
+      )}
+
+      {/* Where on the car — directly under "what is it", because that is the order he answers them
+          in at the car. Hidden entirely for faults with no place on the inspection diagram; the
+          gate is the backfill queue's own predicate, not a second opinion. */}
+      {h.zonesApplicable && (
+        <NewHoldDamageZones
+          holdTypes={h.holdTypes}
+          zones={h.zones}
+          onToggleZone={h.toggleZone}
+          noPanelApplies={h.noPanelApplies}
+          onNoPanelApplies={h.setNoPanelApplies}
+        />
       )}
 
       {/* Detail Reason */}

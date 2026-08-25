@@ -1,7 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DAMAGE_ZONES, DAMAGE_ZONE_IDS, isDamageZoneId, zoneLabel, orderZones, toggleZone, summariseZones, vehicleDamageZones, zoneBackfillQueue, zonesSetAside, presetFor,
+  DAMAGE_ZONES,
+  DAMAGE_ZONE_IDS,
+  holdIsMappable,
+  isDamageZoneId,
+  orderZones,
+  presetFor,
+  summariseZones,
+  toggleZone,
   type QueueHold,
+  vehicleDamageZones,
+  zoneBackfillQueue,
+  zoneLabel,
+  zonesSetAside,
 } from '../../src/lib/damageZones';
 
 describe('the zone catalogue', () => {
@@ -372,5 +383,40 @@ describe('zonesReviewedAt — holds a human has set aside', () => {
       q({ id: 'mechanical', holdTypes: ['mechanical'], zonesReviewedAt: REVIEWED }),
       q({ id: 'accessory',  damageDescription: 'Missing part / accessory', zonesReviewedAt: REVIEWED }),
     ])).toEqual([]);
+  });
+});
+
+// ── holdIsMappable ────────────────────────────────────────────────────────────
+// ⭐ ONE predicate, two callers. The backfill queue and the new-hold form both have to decide
+// whether a hold has somewhere on the car to point at, and if they ever answer differently a hold
+// could have its zones collected at flag time and STILL enqueue — or be dropped by each on the
+// other's assumption. Exported for exactly that reason (2026-08-24).
+describe('holdIsMappable — does this hold have a place on the diagram?', () => {
+  it('body damage and hail are mappable', () => {
+    expect(holdIsMappable(['damage'], 'Scratch — paint surface')).toBe(true);
+    expect(holdIsMappable(['hail'], 'Hail damage')).toBe(true);
+  });
+
+  it('a hold with no mappable type is not', () => {
+    expect(holdIsMappable(['detail'], 'Interior detail')).toBe(false);
+    expect(holdIsMappable(['mechanical'], 'Check engine light')).toBe(false);
+    expect(holdIsMappable(['sale_car'], 'Sale car')).toBe(false);
+  });
+
+  it('⭐ a missing part is a real fault with NO body location', () => {
+    // Aaron's paper-slip rule: the map mirrors the DIAGRAM on Vehicle Inspection #9000501, and a
+    // missing cigarette lighter never gets circled because nothing on the body happened.
+    expect(holdIsMappable(['damage'], 'Missing part / accessory')).toBe(false);
+  });
+
+  it('a mixed hold keeps its map — one of its faults still has a panel', () => {
+    expect(holdIsMappable(['damage', 'mechanical'], 'Dent — panel')).toBe(true);
+  });
+
+  it('missing or empty inputs are not mappable rather than throwing', () => {
+    expect(holdIsMappable(undefined, 'Scratch')).toBe(false);
+    expect(holdIsMappable([], 'Scratch')).toBe(false);
+    expect(holdIsMappable(['damage'], null)).toBe(true);
+    expect(holdIsMappable(['damage'], undefined)).toBe(true);
   });
 });

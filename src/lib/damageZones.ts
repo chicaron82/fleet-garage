@@ -245,6 +245,27 @@ const NOT_ON_THE_DIAGRAM: ReadonlySet<string> = new Set(['Missing part / accesso
  *  hidden — it is accounted for. */
 const MAPPABLE_TYPES: ReadonlySet<string> = new Set(['damage', 'hail']);
 
+/**
+ * Does this hold have somewhere on the car to point at?
+ *
+ * The zone map mirrors the DIAGRAM on Vehicle Inspection #9000501 — Aaron's rule, in his words:
+ * *"i don't need zones for them as they don't exist on the manual sheet."* A missing cigarette
+ * lighter is a real fault with NO body location, because nothing on the body happened.
+ *
+ * ⭐ EXPORTED so the backfill queue and the new-hold form ask the SAME question. They were about to
+ * ask it separately (2026-08-24, collecting zones at flag time), and two copies of this rule
+ * disagreeing is the worst outcome available: a hold whose zones the form collected could still
+ * enqueue, or one both consider unmappable could be dropped by each on the other's assumption.
+ * One predicate, two callers.
+ */
+export function holdIsMappable(
+  holdTypes: readonly string[] | undefined,
+  damageDescription?: string | null,
+): boolean {
+  return !!holdTypes?.some(type => MAPPABLE_TYPES.has(type))
+    && !NOT_ON_THE_DIAGRAM.has(damageDescription ?? '');
+}
+
 export function zoneBackfillQueue<T extends QueueHold>(
   holds: readonly T[],
   rank: (h: T) => number,
@@ -253,9 +274,8 @@ export function zoneBackfillQueue<T extends QueueHold>(
     !CLEARED_STATUSES.has(h.status)
     && !h.zonesReviewedAt                       // already answered: nothing on the diagram applies
     && (h.damageZones?.length ?? 0) === 0
-    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type))
-    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX)
-    && !NOT_ON_THE_DIAGRAM.has(h.damageDescription ?? ''));
+    && holdIsMappable(h.holdTypes, h.damageDescription)
+    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX));
 
   // ⭐ GROUP BY CAR FIRST. The queue counts HOLDS; he experiences CARS — so when a car with two
   // separate damage records came round a second time for its other hold, it read as "my tag didn't
@@ -327,7 +347,6 @@ export function zonesSetAside<T extends QueueHold>(holds: readonly T[]): T[] {
     !!h.zonesReviewedAt
     && !CLEARED_STATUSES.has(h.status)
     && (h.damageZones?.length ?? 0) === 0
-    && h.holdTypes.some(type => MAPPABLE_TYPES.has(type))
-    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX)
-    && !NOT_ON_THE_DIAGRAM.has(h.damageDescription ?? ''));
+    && holdIsMappable(h.holdTypes, h.damageDescription)
+    && !h.unitNumber?.startsWith(MOCK_UNIT_PREFIX));
 }

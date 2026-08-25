@@ -19,6 +19,8 @@ const VEHICLE: Vehicle = {
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const addHoldSpy    = vi.fn().mockResolvedValue(undefined);
+const editZonesSpy  = vi.fn().mockResolvedValue(undefined);
+const markReviewSpy = vi.fn().mockResolvedValue(undefined);
 const addVehicleSpy = vi.fn().mockResolvedValue('v-new');
 const compressImageSpy = vi.fn().mockResolvedValue('data:image/jpeg;base64,STUB');
 
@@ -38,6 +40,9 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
     getActiveHolds:   (id: string) => getActiveHoldsImpl(id),
     addHold:          addHoldSpy,
     addVehicle:       addVehicleSpy,
+    setCoverPhoto:    vi.fn(),
+    editHoldDamageZones: editZonesSpy,
+    markZonesReviewed:   markReviewSpy,
   }),
 }));
 
@@ -112,6 +117,9 @@ function addPhoto(file: File) {
 
 beforeEach(() => {
   addHoldSpy.mockClear();
+  addHoldSpy.mockResolvedValue(undefined);
+  editZonesSpy.mockClear();
+  markReviewSpy.mockClear();
   compressImageSpy.mockClear();
   BASE_PROPS.onBack = vi.fn();
   BASE_PROPS.onSuccess = vi.fn();
@@ -252,5 +260,82 @@ describe('NewHoldForm — photo upload + compressImage', () => {
     await user.click(submitBtn);
 
     await waitFor(() => expect(BASE_PROPS.onSuccess).toHaveBeenCalledWith('v-1'));
+  });
+});
+
+// ── Damage zones, collected at the car ───────────────────────────────────────
+// Aaron, 2026-08-24: *"right now i flag it, then when i go back to the hold i have to add it to the
+// map."* The queue that catches un-zoned holds exists ONLY because they weren't collected here, so
+// the safety property matters more than the feature: an untouched map must STILL enqueue.
+
+describe('NewHoldForm — where on the car', () => {
+  const flagged = { holdId: 'h-new', photoUrls: [] as string[] };
+
+  async function readyToSubmit(user: ReturnType<typeof userEvent.setup>) {
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+    await user.click(screen.getByTestId('damage-preset-stub'));
+    addPhoto(new File(['img'], 'damage.jpg', { type: 'image/jpeg' }));
+    await waitFor(() => expect(compressImageSpy).toHaveBeenCalled());
+  }
+
+  it('offers the map once the hold has a mappable fault', async () => {
+    const user = userEvent.setup();
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+    await user.click(screen.getByTestId('damage-preset-stub'));
+    expect(screen.getByText(/Where on the car/i)).toBeInTheDocument();
+  });
+
+  it('⭐ never pre-selects a panel — nothing is marked until he taps', async () => {
+    const user = userEvent.setup();
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+    await user.click(screen.getByTestId('damage-preset-stub'));
+    expect(screen.queryByText(/\d+ marked/)).not.toBeInTheDocument();
+  });
+
+  it('⭐⭐ an untouched map still enqueues — neither zone write fires', async () => {
+    const user = userEvent.setup();
+    addHoldSpy.mockResolvedValue(flagged);
+    await readyToSubmit(user);
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    await waitFor(() => expect(addHoldSpy).toHaveBeenCalled());
+    // Silence means "not yet", never "nothing applies" — the backfill queue is the only thing
+    // that will ever ask again, and it must still be given the chance.
+    expect(editZonesSpy).not.toHaveBeenCalled();
+    expect(markReviewSpy).not.toHaveBeenCalled();
+  });
+
+  it('records "no panel applies" as a deliberate answer', async () => {
+    const user = userEvent.setup();
+    addHoldSpy.mockResolvedValue(flagged);
+    await readyToSubmit(user);
+    await user.click(screen.getByRole('checkbox', { name: /No panel applies/i }));
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    await waitFor(() => expect(markReviewSpy).toHaveBeenCalledWith('h-new'));
+    expect(editZonesSpy).not.toHaveBeenCalled();
+  });
+
+  it('saves the panels he marked, against the hold just created', async () => {
+    const user = userEvent.setup();
+    addHoldSpy.mockResolvedValue(flagged);
+    await readyToSubmit(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Roof' }));
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    await waitFor(() => expect(editZonesSpy).toHaveBeenCalledWith('h-new', ['roof']));
+    expect(markReviewSpy).not.toHaveBeenCalled();
+  });
+
+  it('marking a panel retracts "no panel applies" — they cannot both be true', async () => {
+    const user = userEvent.setup();
+    addHoldSpy.mockResolvedValue(flagged);
+    await readyToSubmit(user);
+    await user.click(screen.getByRole('checkbox', { name: /No panel applies/i }));
+    await user.click(screen.getByRole('checkbox', { name: /No panel applies/i }));  // untick
+    await user.click(screen.getByRole('checkbox', { name: 'Roof' }));
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    await waitFor(() => expect(editZonesSpy).toHaveBeenCalledWith('h-new', ['roof']));
+    expect(markReviewSpy).not.toHaveBeenCalled();
   });
 });

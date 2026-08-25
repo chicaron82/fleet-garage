@@ -106,14 +106,21 @@ export function makeEditHoldDescription({ holds, setAllHolds }: EditDeps) {
  *  Like the description, zones are pure metadata: they never drive vehicle status, so there is no
  *  reconcile cascade. An EMPTY array is legal and meaningful — it is how a mistagged hold is
  *  cleared, so this must not borrow the description's non-empty guard. */
-export function makeEditHoldDamageZones({ holds, setAllHolds }: EditDeps) {
+export function makeEditHoldDamageZones({ setAllHolds }: EditDeps) {
   return async (holdId: string, zones: string[]): Promise<void> => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
     const next = orderZones(zones);   // stable on write, whatever order he tapped
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').update({ damage_zones: next }).eq('id', holdId));
+    // ⚠️ EXISTENCE IS CHECKED AGAINST THE DATABASE, not the local array. This used to do
+    // `holds.find(...)` first — a lookup in a closure captured at RENDER time. That is fine for a
+    // hold the screen is already showing, and wrong for one created moments ago: `addHold`'s
+    // `setAllHolds` is asynchronous, so writing zones on the line after it created the hold looked
+    // up an array that predates it and threw "Hold not found" for a hold that plainly exists.
+    // Found while wiring zone collection into the new-hold form (2026-08-24) — the local lookup was
+    // standing in for "does this hold exist?", and the proxy went false while the property stayed
+    // true. `.select('id')` asks the only authority that can actually answer.
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ damage_zones: next }).eq('id', holdId).select('id'));
     if (error) throw new Error(`Failed to save damage zones: ${(error as { message?: string }).message}`);
+    if (!(data as unknown[] | null)?.length) throw new Error(`Hold not found: ${holdId}`);
     setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, damageZones: next })));
   };
 }
@@ -128,14 +135,16 @@ export function makeEditHoldDamageZones({ holds, setAllHolds }: EditDeps) {
  *  Passing `false` clears it and puts the hold back in the queue, because a tap made in error must
  *  be as cheap to undo as it was to make. Like zones and descriptions: pure metadata, no vehicle
  *  status cascade. */
-export function makeMarkZonesReviewed({ holds, setAllHolds }: EditDeps) {
+export function makeMarkZonesReviewed({ setAllHolds }: EditDeps) {
   return async (holdId: string, reviewed = true): Promise<void> => {
-    const hold = holds.find(h => h.id === holdId);
-    if (!hold) throw new Error(`Hold not found: ${holdId}`);
     const at = reviewed ? new Date().toISOString() : null;
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('holds').update({ zones_reviewed_at: at }).eq('id', holdId));
+    // Same DB-grounded existence check as editHoldDamageZones, and for the same reason: the form
+    // marks "no panel applies" on a hold it created a moment earlier, which the render-time array
+    // has not seen yet.
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('holds').update({ zones_reviewed_at: at }).eq('id', holdId).select('id'));
     if (error) throw new Error(`Failed to save: ${(error as { message?: string }).message}`);
+    if (!(data as unknown[] | null)?.length) throw new Error(`Hold not found: ${holdId}`);
     setAllHolds(prev => prev.map(h => (h.id !== holdId ? h : { ...h, zonesReviewedAt: at })));
   };
 }

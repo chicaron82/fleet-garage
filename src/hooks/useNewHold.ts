@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useRoutedProp } from './useRoutedProp';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
+import { holdIsMappable, toggleZone as toggleZoneIds } from '../lib/damageZones';
 import { compressImage } from '../lib/image';
 import { MECHANICAL_PRESET_META } from '../lib/hold-presets';
 import { findActiveTypeOverlap } from '../lib/holdFilters';
@@ -12,7 +13,7 @@ const MAX_PHOTOS = 4;
 
 export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   const { user } = useAuth();
-  const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto } = useVehicleHoldContext();
+  const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto, editHoldDamageZones, markZonesReviewed } = useVehicleHoldContext();
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
@@ -41,6 +42,11 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   const [customMechanical, setCustomMechanical] = useState('');
   const [mechanicalSubType, setMechanicalSubType] = useState<MechanicalSubType | null>(null);
   const [safetyRecallBypassChecked, setSafetyRecallBypassChecked] = useState(false);
+  // ⚡ Where on the car, asked while he is still standing at it. Empty is a legitimate answer and
+  // means NOT YET — the backfill queue still picks the hold up. Only an explicit `noPanelApplies`
+  // tap says "there is nowhere to point"; see NewHoldDamageZones for why silence must not count.
+  const [zones, setZones] = useState<string[]>([]);
+  const [noPanelApplies, setNoPanelApplies] = useState(false);
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   // Which photo (by index) to pin as the vehicle's card photo. Applied after the
@@ -97,6 +103,17 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     holdTypes.includes('detail')     ? detailDesc     : '',
     holdTypes.includes('mechanical') ? mechanicalDesc : '',
   ].filter(Boolean);
+  // The two answers are exclusive by meaning, so make them exclusive by construction rather than
+  // letting a stale one ride along: marking a panel retracts "nothing applies", and vice versa.
+  const toggleZone = (id: string) => {
+    setNoPanelApplies(false);
+    setZones(prev => toggleZoneIds(prev, id));
+  };
+  const chooseNoPanelApplies = (v: boolean) => {
+    setNoPanelApplies(v);
+    if (v) setZones([]);
+  };
+
   const finalDamage = isSaleCarOnly
     ? (notes.trim() ? `Sale car — ${notes.trim()}` : 'Sale car')
     : parts.join('; ');
@@ -209,6 +226,20 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
       setSubmitError(null);
       setSubmitting(true);
       const result = await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
+      // ⚠️ Written AFTER the hold exists, not as an 11th parameter to addHold — it takes ten
+      // already, and six callers would have to change for one of them. `holdIsMappable` is the
+      // queue's own predicate, so the form and the backfill can never disagree about whether this
+      // hold should have had a zone.
+      //
+      // Best-effort by design: the hold is already created and is the record that matters. A lost
+      // zone costs one pass through the backfill queue — which is exactly where an unanswered hold
+      // goes anyway — while failing the submit here would strand a flagged car behind an error.
+      if (result?.holdId && holdIsMappable(holdTypes, finalDamage)) {
+        try {
+          if (zones.length > 0) await editHoldDamageZones(result.holdId, zones);
+          else if (noPanelApplies) await markZonesReviewed(result.holdId);
+        } catch { /* the hold stands; the queue will ask again */ }
+      }
       // Pin the chosen photo as the vehicle's card photo, using the final uploaded
       // URL. Length guard: if an upload failed it's filtered out of photoUrls and
       // indices would shift, so only pin when the counts match. Best-effort — a pin
@@ -240,6 +271,8 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     customMechanical, setCustomMechanical,
     mechanicalSubType, setMechanicalSubType,
     safetyRecallBypassChecked, setSafetyRecallBypassChecked, safetyRecallBypassActive,
+    zones, toggleZone, noPanelApplies, setNoPanelApplies: chooseNoPanelApplies,
+    zonesApplicable: holdIsMappable(holdTypes, finalDamage),
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
     pinnedPhotoIndex, togglePinPhoto,
