@@ -15,6 +15,7 @@ import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
 import { UnitConflictNotice } from './UnitConflictNotice';
 import { RegisterResultBanners } from './RegisterResultBanners';
+import { RegisterClassCode } from './RegisterClassCode';
 import type { RegisterSuccessToast, RegisterReleaseWarning } from './RegisterResultBanners';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 
@@ -363,31 +364,18 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               onHybrid={setIsHybrid}
             />
 
-            {/* The class code — shown because registering with it WRITES it into the codex.
-                Every other field on this form only describes this one car; this one teaches FG a
-                rule it will apply to every future car wearing the same code. That asymmetry is why
-                it has to be visible and correctable. */}
-            {scanned?.teachClassCode && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
-                <label htmlFor="class-code" className="text-xs text-amber-800 dark:text-amber-300 shrink-0">
-                  🏷️ Class code
-                </label>
-                <input
-                  id="class-code"
-                  value={classCode}
-                  onChange={e => setClassCode(e.target.value.toUpperCase())}
-                  maxLength={6}
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  placeholder="CKSE"
-                  className="w-24 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm font-mono font-semibold tracking-wider text-gray-900 dark:text-gray-100"
-                />
-                <span className="text-[11px] text-amber-700 dark:text-amber-400">
-                  {classCode.trim()
-                    ? `New to FG — registering teaches ${classCode.trim()} = this make and model. Check it against the tag.`
-                    : 'Left blank, FG learns nothing from this tag — safer than learning it wrong.'}
-                </span>
-              </div>
+            {/* ⚠️ SHOWN WHENEVER THERE IS A CODE — not only when the codex missed. It used to be
+                gated on `teachClassCode`, i.e. on FAILURE, so a misread code that happened to
+                RESOLVE was invisible: make and model filled in, looked right, and nothing said the
+                four characters underneath were wrong. The case that most needs confirming was the
+                one that was hidden. Aaron, 2026-08-26: "the model code isn't here to confirm it was
+                read correctly." See RegisterClassCode. */}
+            {classCode.trim() && (
+              <RegisterClassCode
+                code={classCode}
+                onChange={setClassCode}
+                teaching={!!scanned?.teachClassCode}
+              />
             )}
 
             {/* Rental class is READ off the tag, not typed — show what FG captured (show-your-work)
