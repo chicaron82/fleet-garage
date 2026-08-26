@@ -11,6 +11,9 @@
 
 export interface Sighting {
   seenAt: string; // ISO
+  /** Who was standing at the car. The washbay is shared — "2 scans" means nothing if one of them
+   *  was somebody else's. Optional because the column is nullable on older rows. */
+  seenByName?: string | null;
 }
 
 export interface SightingSummary {
@@ -126,4 +129,42 @@ export function isStaleSighting(summary: SightingSummary, now: Date = new Date()
  */
 export function actionImpliesPresence(kind: string): boolean {
   return kind !== 'view';
+}
+
+/**
+ * One line of the history list: when, at what time, and who.
+ *
+ * ⭐ Aaron, 2026-08-26: *"tapping the last seen reveals its full history."* — and it is the better
+ * answer than the one I was reaching for. The chip had been trying to pick THE one right date, and
+ * every candidate was defensible and none was complete: the newest is his own scan, the prior one
+ * ignores that he may not have scanned at all, and a count with no dates says nothing. Showing all
+ * of them on demand dissolves the argument instead of settling it — the summary leads, the detail
+ * is one tap away. Same shape as tapping a damage zone for its photo.
+ *
+ * Date and time stay SEPARATE fields rather than one string, so the list can group by day without
+ * re-parsing what it just formatted.
+ */
+export interface SightingLine {
+  /** ISO date, for grouping — "2026-08-25". */
+  day: string;
+  /** Local 24h clock, the way the washbay reads times — "13:18". */
+  time: string;
+  who: string;
+}
+
+export function sightingLines(rows: readonly Sighting[]): SightingLine[] {
+  return [...rows]
+    // Newest first: the most recent visit is the one he is checking against.
+    .sort((a, b) => (a.seenAt < b.seenAt ? 1 : a.seenAt > b.seenAt ? -1 : 0))
+    .map(r => {
+      const d = new Date(r.seenAt);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return {
+        day: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+        time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+        // ⚠️ Never blank. An unattributed row is a real historical state (the column is nullable),
+        // and an empty cell reads as a rendering fault rather than as missing data.
+        who: (r.seenByName ?? '').trim() || 'unknown',
+      };
+    });
 }

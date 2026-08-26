@@ -5,7 +5,7 @@
 // (what's wrong with it). Its own small hook keeps both readable.
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { summariseSightings, type SightingSummary } from '../lib/sightings';
+import { summariseSightings, type SightingSummary , type Sighting } from '../lib/sightings';
 
 const EMPTY: SightingSummary = { lastSeenAt: null, priorSeenAt: null, count: 0, neverSeen: true };
 
@@ -36,14 +36,16 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  * the car was registered still counts — he scans first and registers second, so the sighting that
  * created a vehicle should show up in that vehicle's own history (see migrations/114).
  */
-export function useVehicleSightings(plate: string | null | undefined): SightingSummary {
+export function useVehicleSightings(
+  plate: string | null | undefined,
+): SightingSummary & { rows: Sighting[] } {
   // The loaded rows are STAMPED WITH THE PLATE they belong to, and the summary is DERIVED from
   // that stamp — two reasons, and the second is the real one:
   //   1. No synchronous setState in the effect body (react-hooks/set-state-in-effect).
   //   2. ⚠️ Correctness: holding a bare row array would show the PREVIOUS car's count for the
   //      moment between navigating to a new vehicle and its fetch landing. Derived state can't
   //      drift; captured state always can. Stamping makes a mismatch unrenderable rather than brief.
-  const [loaded, setLoaded] = useState<{ plate: string; rows: { seenAt: string }[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ plate: string; rows: Sighting[] } | null>(null);
   const key = plate ? plate.toUpperCase() : null;
 
   useEffect(() => {
@@ -52,12 +54,15 @@ export function useVehicleSightings(plate: string | null | undefined): SightingS
     async function load() {
       const { data } = await supabase
         .from('vehicle_sightings')
-        .select('seen_at')
+        .select('seen_at, seen_by_name')
         .eq('plate', key!)
         .order('seen_at', { ascending: false })
         .limit(500);
       if (cancelled) return;
-      setLoaded({ plate: key!, rows: (data ?? []).map(r => ({ seenAt: r.seen_at as string })) });
+      setLoaded({ plate: key!, rows: (data ?? []).map(r => ({
+        seenAt: r.seen_at as string,
+        seenByName: (r as { seen_by_name?: string | null }).seen_by_name ?? null,
+      })) });
     }
     void load();
     // A late response for a car he's already navigated away from must not paint its count onto
@@ -65,8 +70,10 @@ export function useVehicleSightings(plate: string | null | undefined): SightingS
     return () => { cancelled = true; };
   }, [key]);
 
-  if (!key || loaded?.plate !== key) return EMPTY;
-  return summariseSightings(loaded.rows, mineFor(key));
+  // ⭐ The ROWS ride along with the summary so the record can reveal the full history on a tap
+  // (Aaron, 2026-08-26) without a second fetch — they were already loaded to compute the summary.
+  if (!key || loaded?.plate !== key) return { ...EMPTY, rows: [] };
+  return { ...summariseSightings(loaded.rows, mineFor(key)), rows: loaded.rows };
 }
 
 /**

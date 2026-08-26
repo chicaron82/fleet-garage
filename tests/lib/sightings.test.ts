@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting, actionImpliesPresence } from '../../src/lib/sightings';
+import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting, actionImpliesPresence, sightingLines } from '../../src/lib/sightings';
 
 const at = (iso: string): Sighting => ({ seenAt: iso });
 
@@ -151,5 +151,47 @@ describe('actionImpliesPresence', () => {
   // sighting loses information silently while over-recording is visible and correctable.
   it('defaults an unrecognised action to presence', () => {
     expect(actionImpliesPresence('some-future-route')).toBe(true);
+  });
+});
+
+describe('sightingLines — the full history, on demand', () => {
+  it('is newest first, whatever order the rows arrive in', () => {
+    const rows = [
+      { seenAt: '2026-08-25T18:18:00Z', seenByName: 'Aaron S.' },
+      { seenAt: '2026-08-26T12:21:00Z', seenByName: 'Aaron S.' },
+    ];
+    expect(sightingLines(rows).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
+    expect(sightingLines([...rows].reverse()).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
+  });
+
+  it('splits day and time so a list can group without re-parsing', () => {
+    const [l] = sightingLines([{ seenAt: new Date(2026, 7, 25, 13, 18).toISOString(), seenByName: 'x' }]);
+    expect(l.day).toBe('2026-08-25');
+    expect(l.time).toBe('13:18');   // 24h, the way the washbay reads times
+  });
+
+  it('zero-pads so the column stays aligned', () => {
+    const [l] = sightingLines([{ seenAt: new Date(2026, 0, 5, 9, 7).toISOString(), seenByName: 'x' }]);
+    expect(l).toMatchObject({ day: '2026-01-05', time: '09:07' });
+  });
+
+  // ⚠️ Never blank. The column is nullable, so an unattributed row is a real historical state —
+  // and an empty cell reads as a rendering fault rather than as missing data.
+  it('names an unattributed scan rather than leaving a hole', () => {
+    for (const who of [null, undefined, '', '   ']) {
+      expect(sightingLines([{ seenAt: '2026-08-25T18:18:00Z', seenByName: who }])[0].who).toBe('unknown');
+    }
+  });
+
+  it('is empty for a car nobody has scanned', () => {
+    expect(sightingLines([])).toEqual([]);
+  });
+
+  // ⚠️ Must not mutate the caller's array — the same rows feed the summary.
+  it('leaves the rows it was given alone', () => {
+    const rows = [{ seenAt: '2026-08-25T18:18:00Z' }, { seenAt: '2026-08-26T12:21:00Z' }];
+    const before = rows.map(r => r.seenAt);
+    sightingLines(rows);
+    expect(rows.map(r => r.seenAt)).toEqual(before);
   });
 });

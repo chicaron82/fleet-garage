@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
-import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
+import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { describeOdometer } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
@@ -64,6 +64,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   const { recordKeyCount, recordOdometer } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
   const [zoom, setZoom] = useState(false);
+  const [seenOpen, setSeenOpen] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
   const [editingOdo, setEditingOdo] = useState(false);
 
@@ -187,8 +188,20 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
           the tag in his hand". Read-only: it's a record of what happened, not a field to set.
           Going-forward only (nothing logged scans before 2026-08-16), so "never scanned" is the
           honest day-one state for most of the fleet and reads as *not yet*, not as broken. */}
-      <span
-        className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+      <button
+        type="button"
+        onClick={() => setSeenOpen(o => !o)}
+        disabled={sightings.neverSeen}
+        data-testid="seen-chip"
+        /* ⭐ TAP REVEALS THE WHOLE HISTORY (Aaron, 2026-08-26: "tapping the last seen reveals its
+           full history") — and it is a better answer than the one I was reaching for. The chip had
+           been trying to pick THE one right date, and every candidate was defensible and none was
+           complete: the newest is his own scan, the prior one assumes he scanned at all, a bare
+           count says nothing. Showing them all on demand dissolves the argument instead of settling
+           it. Disabled when there is nothing to reveal, so a dead tap never happens. */
+        className={`rounded-lg border px-2.5 py-1.5 text-xs text-left ${
+          sightings.neverSeen ? '' : 'cursor-pointer hover:border-gray-400 dark:hover:border-gray-500'
+        } ${
           isStaleSighting(sightings)
             ? 'border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400'
             : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
@@ -221,7 +234,23 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
                phone width during /reflect 63; no test could see it, because every test asserted on
                the function's output rather than the sentence it lands in. */
             : `Last here ${describeLastSeen(sightings.priorSeenAt)} · ${sightings.count} scans`}
-      </span>
+        {!sightings.neverSeen && <span className="ml-1 opacity-50">{seenOpen ? '▴' : '▾'}</span>}
+      </button>
+
+      {/* Every visit, newest first. `basis-full` so it drops to its own row inside the chip wrap
+          rather than squeezing between two chips. */}
+      {seenOpen && !sightings.neverSeen && (
+        <div className="basis-full rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-2"
+             data-testid="seen-history">
+          {sightingLines(sightings.rows).map((l, i) => (
+            <div key={`${l.day}-${l.time}-${i}`} className="flex items-baseline gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <span className="font-mono tabular-nums">{l.day}</span>
+              <span className="font-mono tabular-nums">{l.time}</span>
+              <span className="truncate">{l.who}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {zoom && keytagPhotoUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
