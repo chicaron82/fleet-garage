@@ -31,13 +31,31 @@ export function nextAttendance(current: Attendance | undefined): Attendance | un
 /** Who else is working today (excludes me + full-day/off types), soonest start first.
  *  Chips show the first name; when two teammates share one (e.g. utility "Larry C"
  *  vs driver "Larry J"), the colliding ones fall back to their full roster name so
- *  same-first-name people are distinguishable at a glance. */
+ *  same-first-name people are distinguishable at a glance.
+ *
+ *  ⚠️ THE COLLISION IS COUNTED ACROSS THE WHOLE ROSTER, NOT JUST WHO IS IN (2026-08-26).
+ *  This used to count only `onToday` — the people actually working. Aaron, from the floor:
+ *  *"forgot to have Larry display as Larry C (diff from Larry J, driver)."* Larry J was on
+ *  DAY-OFF, so he was filtered out before the count, "Larry" looked unique, and the initial
+ *  was dropped — on exactly the day it mattered.
+ *
+ *  ⭐ The check asked *"does another Larry work today?"* when it means *"is 'Larry' ambiguous
+ *  to Aaron?"* Ambiguity is a property of the ROSTER, not of today's line-up: Larry J exists
+ *  whether or not he is scheduled, and a chip reading "Larry" is unreadable either way. Worse,
+ *  the days the two are NOT both in are the days a single "Larry" is most likely to be read as
+ *  the wrong one. The comment above already named this pair; only the scope was too narrow. */
 export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayISO: string): TeamMate[] {
   const onToday = shifts
     .filter(s => s.date === todayISO && s.userId !== userId && !isFullDayShift(s.shiftType))
     .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  // Count over EVERY roster row for the day — day-offs, PTO and sick included — because those
+  // people still exist and their names still collide. One row per roster member per day is how
+  // the schedule import writes them, so this is the roster without needing a second source.
   const firstNameCounts = new Map<string, number>();
-  for (const s of onToday) {
+  const seen = new Set<string>();
+  for (const s of shifts) {
+    if (s.date !== todayISO || seen.has(s.user.name)) continue;
+    seen.add(s.user.name);   // one vote per PERSON, not per shift row
     const fn = s.user.name.split(' ')[0];
     firstNameCounts.set(fn, (firstNameCounts.get(fn) ?? 0) + 1);
   }

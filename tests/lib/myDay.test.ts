@@ -76,6 +76,56 @@ describe('teammatesOnToday', () => {
     expect(teammatesOnToday(larrys, 'me', today).map(t => t.displayName)).toEqual(['Larry C', 'Larry J', 'Robert']);
   });
 
+  // ⭐⭐ THE CASE HE ACTUALLY HIT (2026-08-26), and the one the test above could never catch:
+  // it had BOTH Larrys working. On his real Wednesday, Larry C opened and **Larry J was on
+  // day-off** — so Larry J was filtered out before the collision was counted, "Larry" looked
+  // unique, and the chip dropped the initial. *"forgot to have Larry display as Larry C (diff
+  // from Larry J, driver)."*
+  //
+  // ⚠️ Ambiguity is a property of the ROSTER, not of today's line-up. And the day only ONE of
+  // them is in is the day a bare "Larry" is most likely to be read as the wrong man.
+  it('still disambiguates when the other Larry is OFF today', () => {
+    const larrys: ShiftWithUser[] = [
+      shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
+      shift({ userId: 'lc', date: today, shiftType: 'opening', startTime: '08:00:00', name: 'Larry C' }),
+      shift({ userId: 'lj', date: today, shiftType: 'day-off', name: 'Larry J' }),
+    ];
+    expect(teammatesOnToday(larrys, 'me', today).map(t => t.displayName)).toEqual(['Larry C']);
+  });
+
+  it('disambiguates against someone on PTO or off sick too — they still exist', () => {
+    for (const off of ['pto', 'sick'] as const) {
+      const larrys: ShiftWithUser[] = [
+        shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
+        shift({ userId: 'lc', date: today, shiftType: 'opening', startTime: '08:00:00', name: 'Larry C' }),
+        shift({ userId: 'lj', date: today, shiftType: off, name: 'Larry J' }),
+      ];
+      expect(teammatesOnToday(larrys, 'me', today).map(t => t.displayName)).toEqual(['Larry C']);
+    }
+  });
+
+  // ⚠️ Widening the count must not make it trigger on a namesake who is not on the roster TODAY,
+  // or every chip would wear a surname for no reason.
+  it('does not disambiguate against a namesake rostered on a different day', () => {
+    const larrys: ShiftWithUser[] = [
+      shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
+      shift({ userId: 'lc', date: today, shiftType: 'opening', startTime: '08:00:00', name: 'Larry C' }),
+      shift({ userId: 'lj', date: '2026-07-02', shiftType: 'opening', name: 'Larry J' }),
+    ];
+    expect(teammatesOnToday(larrys, 'me', today).map(t => t.displayName)).toEqual(['Larry']);
+  });
+
+  // ⚠️ One vote per PERSON. A teammate with two rows on one day (a split shift) must not collide
+  // with himself and start wearing his own surname.
+  it('a teammate with two shifts in one day does not collide with himself', () => {
+    const split: ShiftWithUser[] = [
+      shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
+      shift({ userId: 'lc', date: today, shiftType: 'opening', startTime: '08:00:00', name: 'Larry C' }),
+      shift({ userId: 'lc', date: today, shiftType: 'closing', startTime: '18:00:00', name: 'Larry C' }),
+    ];
+    expect(teammatesOnToday(split, 'me', today).map(t => t.displayName)).toEqual(['Larry', 'Larry']);
+  });
+
   it('carries each mate\'s attendance through (undefined when unmarked)', () => {
     const withAtt: ShiftWithUser[] = [
       shift({ userId: 'me', date: today, shiftType: 'opening', name: 'Aaron S' }),
