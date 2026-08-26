@@ -18,7 +18,7 @@ import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
-import { makeRecordOdometer } from './odometerWrite';
+import { makeRecordOdometer, makeClearOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import type { Vehicle, Hold, BranchId, VehicleStatus } from '../types';
@@ -157,6 +157,7 @@ export function useVehicleOperations({
     setAllVehicles,
     currentOdometer: id => allVehicles.find(v => v.id === id)?.odometer,
   });
+  const clearOdometer = makeClearOdometer({ setAllVehicles });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
     setAllVehicles,
     currentKeytagUrl: id => allVehicles.find(v => v.id === id)?.keytagPhotoUrl,
@@ -325,6 +326,7 @@ export function useVehicleOperations({
     recordClassCode,
     recordVinLast9,
     recordOdometer,
+    clearOdometer,
     releaseUnitNumber,
     addHold,
     addRelease,

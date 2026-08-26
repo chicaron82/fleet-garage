@@ -61,7 +61,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
   const [zoom, setZoom] = useState(false);
   const [seenOpen, setSeenOpen] = useState(false);
@@ -133,6 +133,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
           currentKm={odometer}
           currentAt={odometerAt}
           onSave={async (id, km) => { await recordOdometer(id, km); setEditingOdo(false); }}
+          /* Closes the editor on a successful clear, the same as a save — the row underneath then
+             reads "Odometer not logged", which IS the confirmation. */
+          onClear={async (id) => { const ok = await clearOdometer(id); if (ok) setEditingOdo(false); return ok; }}
         />
       ) : (
         <button

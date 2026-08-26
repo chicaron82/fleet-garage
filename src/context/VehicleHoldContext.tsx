@@ -42,6 +42,8 @@ export interface VehicleHoldContextValue {
   recordVinLast9: (vehicleId: string, vinLast9: string) => Promise<void>;
   /** Record the odometer read off a flip. Latest reading wins. See odometerWrite. */
   recordOdometer: (vehicleId: string, km: number) => Promise<void>;
+  /** Back to "not logged" — the escape the forward-only guard was missing. See odometerWrite. */
+  clearOdometer: (vehicleId: string) => Promise<boolean>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;
