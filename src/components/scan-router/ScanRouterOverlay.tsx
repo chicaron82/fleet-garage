@@ -20,6 +20,9 @@ import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { useAuth } from '../../context/AuthContext';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import { ScanManualPlate } from './ScanManualPlate';
+import { ScanPlateWatch } from './ScanPlateWatch';
+import { usePlateWatches } from '../../hooks/usePlateWatches';
+import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { isUnknownClassCode } from '../../lib/partialRegister';
@@ -43,6 +46,8 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const { scan, pickedFileRef, pickedNonce } = useScanRouter();
+  const { watches, clearWatch } = usePlateWatches();
+  const [clearingWatch, setClearingWatch] = useState(false);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
   const pendingSightingRef = useRef<Parameters<typeof recordSighting>[0] | null>(null);
@@ -173,6 +178,27 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
           {/* Always offered, not just after a failure — see ScanManualPlate. */}
           <ScanManualPlate onSubmit={p => void onManualPlate(p)} busy={reading} />
+
+          {/* ✋ THE AMBUSH — leads the sheet, and renders WITH OR WITHOUT A RESOLVED VEHICLE.
+              Both halves matter. Leading, because a watch is the one thing that changes what he
+              does with the car in his hand, and reading it under the status line is reading it too
+              late. Vehicle-independently, because the car this exists FOR is the one FG has never
+              seen — on an unresolved read the rest of this sheet has nothing to say and would walk
+              him straight to "register it". ⚠️ Matched on the READ plate, not the record's, since
+              a watched stranger car has no record to take a plate from. */}
+          {(() => {
+            const hit = result && watchFor(result.plate, watches);
+            return hit ? (
+              <ScanPlateWatch
+                watch={hit}
+                clearing={clearingWatch}
+                onClear={() => {
+                  setClearingWatch(true);
+                  void clearWatch(hit.id).finally(() => setClearingWatch(false));
+                }}
+              />
+            ) : null;
+          })()}
 
           {result && (
             <>

@@ -48,6 +48,13 @@ import { resolve, join } from 'node:path';
 //  - useRentalClasses.ts: the chip "Other" add. `code` is the PK, so a double-tap
 //    can't mint two rows — it's a key conflict, and the hook swallows the
 //    duplicate. Keyed-and-converges like usePendingWrites; a lock adds nothing.
+//  - usePlateWatches.ts: adding a plate to the watch board. migration 128 carries a
+//    PARTIAL unique index on (branch_id, plate) WHERE resolved_at IS NULL, so a
+//    double-tap cannot mint two LIVE watches for one car — it's a key conflict, and
+//    addWatch reports it as false rather than swallowing it. Same shape as
+//    useRentalClasses. The partial-ness is deliberate: the same plate may be watched
+//    again later, and that history is kept, so a plain unique index would have been
+//    wrong in the other direction.
 
 const INSERT_CENSUS: Record<string, number> = {
   'src/context/ProfilesContext.tsx':    1, // addRosterStaff — locked
@@ -68,6 +75,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/hooks/useUnknownClassCode.ts':   1, // EXEMPT: append-only sighting log (see above)
   'src/hooks/useVehicleSightings.ts':   1, // EXEMPT: append-only last-seen log (see above)
   'src/hooks/useRentalClasses.ts':      1, // EXEMPT: chip "Other" add, PK-keyed on code (see above)
+  'src/hooks/usePlateWatches.ts':       1, // EXEMPT: partial-unique keyed on live plate (see above)
 };
 
 function walk(dir: string): string[] {

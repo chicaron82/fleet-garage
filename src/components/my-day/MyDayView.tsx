@@ -4,6 +4,7 @@ import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
+import { PlateWatchCard } from './PlateWatchCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import { nextAttendance } from '../../lib/myDay';
 import type { Screen } from '../../types';
@@ -155,6 +156,12 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           </ul>
         </section>
       )}
+
+      {/* ── Plates on watch ─────────────────────────────────────────────────
+          The whiteboard by the off-standard sheets, in FG. Sits with the heads-ups
+          because that is what it is. ⚠️ The SCAN is what makes a watch work
+          (ScanPlateWatch) — this is where one is set and seen, not where it is caught. */}
+      <PlateWatchCard />
 
       {/* ── First action — the ritual: fleet balance, else check-in ──────── */}
       {day.working && (
