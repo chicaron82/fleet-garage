@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { OdometerCapture } from '../shared/OdometerCapture';
 import { ScanEvAssets } from './ScanEvAssets';
+import { ScanFlipCapture } from './ScanFlipCapture';
 import type { Vehicle } from '../../types';
 import type { EvSource } from '../../types';
 
@@ -12,9 +13,11 @@ import type { EvSource } from '../../types';
 // deleted documentation. And the three belong together for a reason beyond size — they are the
 // same beat. He has the tag in his hand, the trunk open and the dash lit, and each of them is a
 // fact he can only supply from exactly there.
-export function ScanVehicleCapture({ vehicle, scanNonce, recordKeyCount, recordOdometer, updateVehicleEVAssets }: {
+export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyCount, recordOdometer, updateVehicleEVAssets }: {
   vehicle: Vehicle;
   scanNonce: number;
+  /** Rental class off THIS tag read; the flip list tallies classes turned around. */
+  rentalClass: string;
   recordKeyCount: (vehicleId: string, n: number) => Promise<void>;
   recordOdometer: (vehicleId: string, km: number) => Promise<void>;
   updateVehicleEVAssets: (
@@ -92,6 +95,11 @@ export function ScanVehicleCapture({ vehicle, scanNonce, recordKeyCount, recordO
                       currentAt={vehicle.odometerAt}
                       onSave={recordOdometer}
                     />
+                    {/* ⭐ LAST in the beat, and that order is the argument: everything above is
+                        already captured, so the flip only has to ask for what this sheet does not
+                        know — fuel and a note. Aaron, 2026-08-26: "odo/keys already captured. so
+                        add a button to flip which captures fuel via slider and notes." */}
+                    <ScanFlipCapture vehicle={vehicle} rentalClass={rentalClass} />
     </>
   );
 }

@@ -270,6 +270,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     <ScanVehicleCapture
                       vehicle={vehicle}
                       scanNonce={scanNonce}
+                      rentalClass={(scanRead?.rentalClass ?? vehicle.rentalClass ?? '').trim()}
                       recordKeyCount={recordKeyCount}
                       recordOdometer={recordOdometer}
                       updateVehicleEVAssets={updateVehicleEVAssets}
