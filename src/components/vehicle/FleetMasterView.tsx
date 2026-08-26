@@ -111,7 +111,15 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           onChange={e => setSearch(e.target.value.toUpperCase())}
           className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
         />
-        <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew()} />
+        {/* ⚠️ CARRIES THE SEARCH TERM, and it did not until 2026-08-26. Aaron, on a faded tag he
+            could not scan: *"entered the plate, no match. register. get to the form but the plate
+            didn't transfer. so had to enter it again."* The no-match CTA below always passed it —
+            but this button sits RIGHT BESIDE the box he just typed into, at thumb level, labelled
+            the more obvious thing, while the CTA that keeps his typing is further down the page.
+            Two controls that do nearly the same job, and the one that DISCARDS his input is the one
+            closest to where he made it. There is no case where throwing away what he just typed is
+            what he wanted, so the difference is deleted rather than explained. */}
+        <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew(term || undefined)} />
       </div>
 
       {/* Records that contradict each other — silent unless there are any. Sits ABOVE the health
