@@ -1,3 +1,6 @@
+import { TeamRoster } from './TeamRoster';
+import { useOpeningQuickStart } from '../../hooks/useOpeningQuickStart';
+import { shouldShowOpeningQuickStart } from '../../lib/openingQuickStart';
 import { useMyDay } from '../../hooks/useMyDay';
 import { useScanRouter } from '../../context/scanRouter';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -6,7 +9,6 @@ import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
 import { PlateWatchCard } from './PlateWatchCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
-import { nextAttendance } from '../../lib/myDay';
 import type { Screen } from '../../types';
 
 // The "My Day" cockpit: Aaron's at-a-glance landing. A thin renderer over
@@ -23,6 +25,10 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
   const day = useMyDay();
   const scanRouter = useScanRouter();
   const { signalOpeningDuties, setMovementTab } = useActiveSessions();
+  const { logged, dismissed, dismiss: dismissOpeningCard } = useOpeningQuickStart(day.user.id, day.todayISO);
+  const showOpeningCard = shouldShowOpeningQuickStart({
+    shiftType: day.myShift?.shiftType, working: day.working, logged, dismissed,
+  });
 
   // Punch in → one tap starts the Opening Duties timer, no trip to the Off-Standard tab to
   // hunt the quick-tap. Signal + land him on the running timer; the module still does the work.
@@ -57,19 +63,34 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           Opening shifts only: the first thing he does after punching in. One tap
           starts the Opening Duties timer (the off-standard module owns the write —
           this just signals + routes). Never clobbers a timer already running. */}
-      {day.working && day.myShift?.shiftType === 'opening' && (
-        <button
-          type="button"
-          onClick={startOpeningDuties}
-          className={`${CARD} w-full px-4 py-3.5 flex items-center gap-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 transition`}
-        >
-          <span className="text-xl leading-none">🌅</span>
-          <span className="flex-1">
-            <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">Start opening duties</span>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">Starts the timer — gas, keys, boards</span>
-          </span>
-          <span className="text-gray-300 dark:text-gray-600">→</span>
-        </button>
+      {showOpeningCard && (
+        <div className={`${CARD} w-full px-4 py-3.5 flex items-center gap-3`}>
+          <button
+            type="button"
+            onClick={startOpeningDuties}
+            className="flex-1 flex items-center gap-3 text-left cursor-pointer"
+          >
+            <span className="text-xl leading-none">🌅</span>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">Start opening duties</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">Starts the timer — gas, keys, boards</span>
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">→</span>
+          </button>
+          {/* ⚠️ A SEPARATE EXIT FOR A CASE NOTHING CAN DETECT. If his partner got in first and did
+              the gas, keys and boards, the work happened but left no row under HIS name — so the
+              logged-check can never retire this card. Only he knows, so he needs somewhere to say
+              it. Deliberately quiet: it is the rarer of the two paths, and it must not compete with
+              the action itself. */}
+          <button
+            type="button"
+            onClick={dismissOpeningCard}
+            aria-label="Dismiss opening duties — already done"
+            className="shrink-0 h-11 px-3 -mr-1 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer transition"
+          >
+            Dismiss
+          </button>
+        </div>
       )}
 
       {/* ── Your shift today ─────────────────────────────────────────────── */}
@@ -103,38 +124,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-2 mb-0.5">
               On with you today · {day.team.length}
             </p>
-            {day.team.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500">Nobody else scheduled.</p>
-            ) : (
-              <>
-                <p className="mb-1.5 text-[11px] text-gray-400 dark:text-gray-500">Tap a name: scheduled → present → no-show.</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {day.team.map(mate => {
-                    const att = mate.attendance;
-                    const tone = att === 'present'
-                      ? 'bg-green-100 text-green-800 ring-1 ring-green-300 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
-                      : att === 'absent'
-                        ? 'bg-red-100 text-red-700 ring-1 ring-red-300 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-                    return (
-                      <button
-                        key={mate.id}
-                        type="button"
-                        onClick={() => day.setShiftAttendance(mate.id, nextAttendance(att) ?? null)}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition cursor-pointer ${tone}`}
-                      >
-                        {att === 'present' && <span aria-hidden className="font-bold">✓</span>}
-                        {att === 'absent' && <span aria-hidden className="font-bold">✗</span>}
-                        <span className={att === 'absent' ? 'line-through' : ''}>{mate.displayName}</span>
-                        {/* Default shows START (who I begin the shift with). Marking present flips it
-                            to "til END" — the overlap question once I know they're actually here. */}
-                        <span className="tabular-nums opacity-60">{att === 'present' ? `til ${mate.end}` : mate.start}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+            <TeamRoster team={day.team} setShiftAttendance={day.setShiftAttendance} />
           </div>
         )}
       </section>

@@ -25,12 +25,28 @@ interface ActiveSessionsValue {
   refresh:        () => void;
   movementTab:    FocusTab;
   setMovementTab: (tab: FocusTab) => void;
-  /** Bumped to auto-start the Opening Duties timer from outside the module (the My Day
-   *  quick-start). Lives here because it must cross screens — the same reason movementTab does.
-   *  OffStandardTimeLog consumes it through the shared shouldAutoStartTimer gate, so it can
-   *  never clobber a timer already running. */
-  openingDutiesTrigger: number;
+  /** ⚠️ A PENDING INTENT, NOT A COUNTER — and the difference is the whole bug.
+   *
+   *  This was `openingDutiesTrigger: number`, bumped on tap and compared by the consumer against a
+   *  `useRef` snapshot. That works for the airport-flip sibling, whose trigger is a prop bumped on a
+   *  screen ALREADY MOUNTED. It cannot work here: the My Day quick-start bumps the number and then
+   *  NAVIGATES, so OffStandardTimeLog mounts afterwards and seeds its ref to the already-bumped
+   *  value — the effect sees "no change" and returns. **The ref's initialisation consumed the very
+   *  signal it existed to detect**, and the card's own "Starts the timer" subtitle was a promise the
+   *  code could not keep (Aaron, 2026-08-26: *"start opening duties is supposed to start the timer,
+   *  but currently doesn't"*).
+   *
+   *  A boolean the CONSUMER clears is immune to mount order: the intent survives the navigation and
+   *  is extinguished by the thing that acts on it, not by a snapshot taken at an arbitrary moment.
+   *
+   *  ⚠️ And it must NOT simply be "trigger > 0", which would auto-start a timer every time he walks
+   *  into the movement log for his own reasons. */
+  openingDutiesPending: boolean;
   signalOpeningDuties:  () => void;
+  /** Called by whoever acts on the intent — always, even when the gate refuses to start a timer,
+   *  so a signal fired while he is mid-task is dropped rather than firing late (the same
+   *  consume-regardless rule the flip auto-start documents). */
+  consumeOpeningDuties: () => void;
 }
 
 const ActiveSessionsContext = createContext<ActiveSessionsValue | null>(null);
@@ -54,8 +70,9 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   const [trip, setTrip]               = useState<ActiveSession | null>(null);
   const [oth, setOth]                 = useState<ActiveSession | null>(null);
   const [movementTab, setMovementTab] = useState<FocusTab>('movement-log');
-  const [openingDutiesTrigger, setOpeningDutiesTrigger] = useState(0);
-  const signalOpeningDuties = useCallback(() => setOpeningDutiesTrigger(n => n + 1), []);
+  const [openingDutiesPending, setOpeningDutiesPending] = useState(false);
+  const signalOpeningDuties  = useCallback(() => setOpeningDutiesPending(true), []);
+  const consumeOpeningDuties = useCallback(() => setOpeningDutiesPending(false), []);
   const [nowMs, setNowMs]             = useState(() => Date.now());
 
   // One elapsed-time tick shared across all pill consumers — no duplicate intervals.
@@ -101,7 +118,7 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
 
   return (
     <ActiveSessionsContext.Provider
-      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab, openingDutiesTrigger, signalOpeningDuties }}
+      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab, openingDutiesPending, signalOpeningDuties, consumeOpeningDuties }}
     >
       {children}
     </ActiveSessionsContext.Provider>

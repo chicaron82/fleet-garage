@@ -34,7 +34,8 @@ const mockContext = (overrides: {
   refresh: vi.fn(),
   movementTab: overrides.movementTab ?? 'movement-log',
   setMovementTab: vi.fn(),
-  openingDutiesTrigger: 0,
+  openingDutiesPending: false,
+  consumeOpeningDuties: vi.fn(),
   signalOpeningDuties: vi.fn(),
 });
 

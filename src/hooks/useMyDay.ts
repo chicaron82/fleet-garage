@@ -29,6 +29,8 @@ export interface UseMyDay extends MyDayModel {
   /** Cars counted at that check-in, or null when none logged today. */
   checkInCarsToday: number | null;
   balanceLogged: boolean;
+  /** Today's business date — the key the My Day surfaces scope per-day state to. */
+  todayISO: string;
   todayEntry: FleetBalanceEntry | undefined;
   projection: FleetBalanceProjection | null;
   logBalance: (out: number, inc: number) => Promise<boolean>;
@@ -81,6 +83,7 @@ export function useMyDay(): UseMyDay {
 
   return {
     ...model,
+    todayISO: toISO(now),
     insights: [...eventInsights(todayEvents, toISO(now)), ...anomalies, ...model.insights],
     dateLabel,
     checkInDoneToday: !!checkInToday,

@@ -1,7 +1,7 @@
 // Pure derivations for the "My Day" cockpit. Kept out of the component + hook so
 // the shift/team/greeting logic is testable without React or context. The hook
 // (useMyDay) assembles the live inputs; the view just renders this model.
-import type { ShiftWithUser, HandoffNote, Attendance, ShiftType } from '../types';
+import type { ShiftWithUser, HandoffNote, Attendance, ShiftType, UserRole } from '../types';
 import { isFullDayShift } from '../types';
 import { SHIFT_TYPE_LABEL, fmtTime24, shiftTimeRange } from './shiftTypeMeta';
 import { deriveScheduleInsights, type ScheduleInsight } from './scheduleInsights';
@@ -18,7 +18,12 @@ export function carsCleaned(h: Pick<HandoffNote, 'fullPages' | 'lastPageEntries'
   return h.fullPages * 19 + h.lastPageEntries;
 }
 
-export interface TeamMate { id: string; displayName: string; start: string; end: string; attendance?: Attendance; }
+export interface TeamMate {
+  id: string; displayName: string; start: string; end: string;
+  attendance?: Attendance;
+  /** Their roster role — what makes a driver a different kind of teammate than a VSA. */
+  role: UserRole;
+}
 
 /** The attendance state a coworker pill cycles to on tap:
  *  scheduled (undefined) → present → absent → scheduled. */
@@ -67,6 +72,7 @@ export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayI
       start: fmtTime24(s.startTime),
       end: fmtTime24(s.endTime),
       attendance: s.attendance,
+      role: s.user.role,
     };
   });
 }
