@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting } from '../../src/lib/sightings';
+import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting, actionImpliesPresence } from '../../src/lib/sightings';
 
 const at = (iso: string): Sighting => ({ seenAt: iso });
 
@@ -74,5 +74,26 @@ describe('isStaleSighting', () => {
     // On day one that's nearly the whole fleet — flagging it would make the signal meaningless
     // in exactly the window where the log is youngest.
     expect(isStaleSighting(summariseSightings([]), now)).toBe(false);
+  });
+});
+
+// Aaron, 2026-08-25: "typing something in just to look it up won't count as seen."
+describe('actionImpliesPresence', () => {
+  it('treats a plain look-up as NO evidence of being at the car', () => {
+    expect(actionImpliesPresence('view')).toBe(false);
+  });
+
+  // Each of these is an act performed ON the car — not something done from the office.
+  it('treats every acting-on-the-car route as presence', () => {
+    for (const kind of ['flag', 'trip', 'lnf', 'repair', 'register', 'register-and-flag']) {
+      expect(actionImpliesPresence(kind)).toBe(true);
+    }
+  });
+
+  // Defaulting an unknown kind to TRUE is deliberate: a new route is far more likely to be another
+  // way of acting on a car than another way of reading about one, and under-recording a real
+  // sighting loses information silently while over-recording is visible and correctable.
+  it('defaults an unrecognised action to presence', () => {
+    expect(actionImpliesPresence('some-future-route')).toBe(true);
   });
 });

@@ -3,28 +3,28 @@
 // pre-filled. One shared flow behind both entry points (My Day card + header icon).
 // Thin-hub law: this resolves and ROUTES — every action hands off to the module that owns it.
 // The action menu itself is pure + tested (lib/scanRouterActions); this is just its surface.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { OdometerCapture } from '../shared/OdometerCapture';
-import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
 import { ScanDamageZones } from './ScanDamageZones';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
-import { recordSighting } from '../../hooks/useVehicleSightings';
 import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { useAuth } from '../../context/AuthContext';
-import { logUnknownClassCode, teachClassCode } from '../../hooks/useUnknownClassCode';
-import { isUnknownClassCode } from '../../lib/partialRegister';
-import { classCodeLessonFromScan, classCodeLearnedLabel } from '../../lib/classCodeLesson';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import { ScanManualPlate } from './ScanManualPlate';
+import { useScanPipeline } from '../../hooks/useScanPipeline';
+import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
+import { isUnknownClassCode } from '../../lib/partialRegister';
+import { recordSighting } from '../../hooks/useVehicleSightings';
+import { actionImpliesPresence } from '../../lib/sightings';
 import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
@@ -35,10 +35,6 @@ interface Props {
 }
 
 // Monotonic across the whole app lifetime — NOT per-mount. The overlay unmounts on close, so a
-// per-mount counter would restart at the same value each open and two separate scans of the same
-// tag would collide (re-introducing the no-op re-seed). Module scope guarantees every scan, in any
-// open, gets a distinct nonce.
-let scanSeq = 0;
 
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error, errorRef } = useKeytagRead();
@@ -49,6 +45,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { scan, pickedFileRef, pickedNonce } = useScanRouter();
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
+  const pendingSightingRef = useRef<Parameters<typeof recordSighting>[0] | null>(null);
   // The compressed key-tag photo, kept so a REGISTER (new vehicle) can attach it to the freshly
   // created record — the known-vehicle attach below can't, the car doesn't exist yet at scan time.
   const [scanPhoto, setScanPhoto] = useState<string | null>(null);
@@ -61,82 +58,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // Wrapped rather than suppressed: this is the consume-effect's only caller, so an identity
   // that changed every render would re-enter that effect on every render of a busy overlay.
   // ⭐ ONE PIPELINE, TWO ENTRY POINTS. Everything that happens once we have a KeytagRead — resolve,
-  // record the sighting, backfill the record, offer the actions — lives here, so the camera path
-  // and the TYPED-PLATE fallback below cannot drift into two half-implementations. That is the
-  // same mistake the register form's EV dialect was, caught earlier today.
-  const applyRead = useCallback(async (read: KeytagRead, base64?: string) => {
-    setScanRead(read);
-    setScanNonce(++scanSeq); // distinct per scan → each "Start trip"/"Log L&F" re-seeds the destination
-
-    // ── "Last seen" ── The scan IS the sighting: he's physically holding the car right now, which
-    // is a thing nothing else in FG records (a trip means someone drove it, a hold means someone
-    // flagged it). Logged HERE, at the read, rather than on an action — because most scans end in
-    // "look and walk away", and those still mean he had the car in his hands. Resolve first so a
-    // mis-read plate lands on the right car, and so a known vehicle's id rides along.
-    // Fire-and-forget by contract: a bookkeeping failure must never cost him a scan.
-    const seen = resolveKeytagScan(read, vehicles);
-    // The plate the rest of this function should use. On a unit-number match the TAG had no
-    // readable plate, but the car we resolved to does — and both `recordSighting` and the geotab
-    // check guard on a non-empty plate, so passing the tag's blank would have made a unit-matched
-    // scan silently skip its sighting AND its geotab lookup. Widening the resolver reached these.
-    const effectivePlate = seen.plate || seen.vehicle?.licensePlate || '';
-    void recordSighting({
-      plate: effectivePlate,
-      vehicleId: seen.vehicle?.id ?? null,
-      seenById: user?.id ?? null,
-      seenByName: user?.name ?? null,
-      branchId: seen.vehicle?.branchId ?? null,
-    });
-
-    setGeotabPending(await checkGeotab(effectivePlate));
-    // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
-    // he routes to below (hold / view / trip) already sees a complete record. Blanks-only. Passing
-    // the photo also lets backfill attach the tag to a known car that lacks one (universal capture,
-    // if-missing) — one choke-point instead of a separate attach call here.
-    void backfillFromRead(read, base64);
-    // The owning branch — read off the tag's class line, discarded by this app until 2026-08-18.
-    // If-missing and fire-and-forget: it accumulates as he scans, and a car's owning survives a
-    // re-plate, so the first good read is the one that counts. See context/owningAreaWrite.
-    if (read.owningArea && seen.vehicle && !seen.vehicle.owningArea) {
-      void recordOwningArea(seen.vehicle.id, read.owningArea);
-    }
-    // The class code itself — same if-missing, fire-and-forget shape. FG resolved this code into a
-    // make and model on every scan and then threw the code away, so a record's identity could never
-    // be checked against what produced it. A car's code doesn't change, so the first good read wins
-    // and a later misread can't rewrite it. See context/classCodeWrite.
-    // Fires when there's no code OR when the stored one was only DERIVED (migration 121's backfill).
-    // Skipping on any stored value would mean a deduction outranks a reading — see classCodeWrite.
-    if (read.classCode && seen.vehicle
-        && (!seen.vehicle.classCode || seen.vehicle.fieldSources?.classCode === 'derived')) {
-      void recordClassCode(seen.vehicle.id, read.classCode);
-    }
-    // The last 9 of the VIN — printed on every printed tag, and read straight past for the whole
-    // life of the scanner. Same if-missing, fire-and-forget shape, and the strictest version of the
-    // rule: a VIN is immutable, so the first good read is the only one that will ever be taken.
-    // It is the one key that survives Aaron's out-of-province → MB conversions, where the plate
-    // (what FG searches by) changes and everything else stays. See context/vinWrite.
-    if (read.vinLast9 && seen.vehicle && !seen.vehicle.vinLast9) {
-      void recordVinLast9(seen.vehicle.id, read.vinLast9);
-    }
-    // ── The codex's missing drain ── A class code the codex can't resolve is why registration
-    // degrades. Two outcomes, and only one of them used to exist:
-    //   • The car is ALREADY on record with a make/model → the record IS the answer. Teach the
-    //     codex from it and say so. Until this, learning happened ONLY in the register form, so a
-    //     known car could never resolve its code and re-logged the same complaint every scan
-    //     (CTAC, a Tacoma, logged three times before anything could close it).
-    //   • Genuinely unknown → log it, so codes self-report instead of waiting for someone to get
-    //     stuck at a car and ask.
-    // Fire-and-forget both ways: neither a lesson nor a log may cost him the scan.
-    if (isUnknownClassCode(read)) {
-      const lesson = classCodeLessonFromScan(read, seen.vehicle);
-      if (lesson) {
-        void teachClassCode(lesson.code, lesson.make, lesson.model, user?.id);
-        setCodexToast(classCodeLearnedLabel(lesson));
-      } else {
-        void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
-      }
-    }
-  }, [vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode, recordVinLast9]);
+  const applyRead = useScanPipeline({
+    vehicles, user, checkGeotab, backfillFromRead,
+    recordOwningArea, recordClassCode, recordVinLast9,
+    setScanRead, setScanNonce, setGeotabPending, setCodexToast,
+    pendingSightingRef,
+  });
 
   const resetScanState = () => { setErrMsg(''); setScanRead(null); setGeotabPending(false); setCodexToast(''); };
 
@@ -210,7 +137,15 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
   const evScan = vehicle ? evAssetScanStatus(vehicle) : null;
 
-  const go = (screen: Screen) => { navigate(screen); onClose(); };
+  // Set only by the typed-plate path, and consumed at most once — by an action that implies he was
+  // actually at the car. Closing the overlay without acting simply drops it, which is the point.
+  const go = (screen: Screen, kind?: string) => {
+    const held = pendingSightingRef.current;
+    if (held && kind && actionImpliesPresence(kind)) void recordSighting(held);
+    pendingSightingRef.current = null;
+    navigate(screen);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="Scan a key tag">
@@ -446,6 +381,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                       a.screen.name === 'register-vehicle' && scanPhoto
                         ? { ...a.screen, scannedPhoto: scanPhoto }
                         : a.screen,
+                      a.kind,
                     )}
                     className="w-full flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-3 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer text-left"
                   >

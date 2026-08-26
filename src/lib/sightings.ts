@@ -76,3 +76,25 @@ export function isStaleSighting(summary: SightingSummary, now: Date = new Date()
   if (Number.isNaN(then)) return false;
   return now.getTime() - then > 90 * DAY_MS;
 }
+
+/**
+ * Does taking this action imply the operator was PHYSICALLY AT the car?
+ *
+ * ⭐ Aaron, 2026-08-25: *"what about typing and then doing an action. so typing something in just to
+ * look it up won't count as seen."*
+ *
+ * This exists because I got the reasoning wrong first. I let a TYPED plate record a sighting
+ * immediately, arguing it "makes the identical claim as reading the tag". It doesn't. A photo of a
+ * key tag is evidence of presence **because you must be holding the tag to take it** — the camera
+ * isn't incidental, it's the proof. Typing carries none of that: he could be at the desk, on the
+ * bus, or reading a plate off a text message.
+ *
+ * So a typed plate earns its sighting by what he does NEXT. Flagging, starting a trip, logging a
+ * found item, registering, marking repaired — each is an act performed ON the car, and you do not
+ * do them from the office. **Looking a record up is the one thing you plainly can.**
+ *
+ * A scan still records its sighting at the read, unconditionally: the photo already proved it.
+ */
+export function actionImpliesPresence(kind: string): boolean {
+  return kind !== 'view';
+}
