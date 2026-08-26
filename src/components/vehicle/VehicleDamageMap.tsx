@@ -7,10 +7,15 @@
 // at the vehicle with paper Vehicle Inspection #9000501 in hand, deciding what to circle. Per-hold
 // tagging is data entry; this is the thing that makes the tagging pay, on every car, every time.
 //
-// Read-only on purpose. Tagging belongs to a hold — a panel means nothing without the record that
-// explains it — so this never accepts a tap. It reports.
+// Read-only about the RECORD. Tagging belongs to a hold — a panel means nothing without the record
+// that explains it — so nothing here ever writes a zone.
+//
+// ⭐ But it is NOT read-only about READING (2026-08-25). Tapping a panel opens the damage photo
+// behind it, because the map answered WHERE and never WHICH, and "which" is what he needs while
+// deciding what to circle on the slip. Reporting and editing are different axes; this one reports,
+// interactively. See DamageZoneInspector.
 import { vehicleDamageZones, zoneLabel } from '../../lib/damageZones';
-import { DamageZoneMap } from '../holds/DamageZoneMap';
+import { DamageZoneInspector } from '../holds/DamageZoneInspector';
 import type { Hold } from '../../types';
 
 const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900';
@@ -47,8 +52,10 @@ export function VehicleDamageMap({ holds }: { holds: readonly Hold[] }) {
               </span>
             ))}
           </div>
+          {/* Read-only about the RECORD, interactive about READING it: tapping a panel opens the
+              damage photo behind it, and still never edits a zone. Tagging belongs to a hold. */}
           <div className="mt-2 max-w-sm mx-auto">
-            <DamageZoneMap selected={zones} onToggle={() => {}} disabled />
+            <DamageZoneInspector holds={holds} zones={zones} />
           </div>
         </>
       )}

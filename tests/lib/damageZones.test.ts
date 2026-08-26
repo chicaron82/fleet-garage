@@ -11,6 +11,7 @@ import {
   type QueueHold,
   vehicleDamageZones,
   zoneBackfillQueue,
+  zoneEvidence,
   zoneLabel,
   zonesSetAside,
 } from '../../src/lib/damageZones';
@@ -418,5 +419,78 @@ describe('holdIsMappable — does this hold have a place on the diagram?', () =>
     expect(holdIsMappable([], 'Scratch')).toBe(false);
     expect(holdIsMappable(['damage'], null)).toBe(true);
     expect(holdIsMappable(['damage'], undefined)).toBe(true);
+  });
+});
+
+
+// ── zoneEvidence — the WHICH the map never answered ───────────────────────────────────────────
+// Aaron, 2026-08-25: "i could tap the zone and it would show me the photo of the damage at that
+// zone." The join was already on the row — `damage_zones` and `photos` are columns on the same
+// hold — so this stores nothing new and cannot drift from the map beside it.
+describe('zoneEvidence — what is actually on that panel', () => {
+  const h = (
+    id: string, status: string, zones: string[], photos: string[] = [],
+    damageDescription = 'Scratch', flaggedAt = '2026-08-01T00:00:00Z',
+  ) => ({ id, status, damageZones: zones, photos, damageDescription, flaggedAt });
+
+  it('indexes a hold under the panel it sits on, with its photos', () => {
+    const e = zoneEvidence([h('a', 'ACTIVE', ['hood'], ['p1.jpg', 'p2.jpg'])]);
+    expect(e.hood).toHaveLength(1);
+    expect(e.hood[0]).toMatchObject({ holdId: 'a', photos: ['p1.jpg', 'p2.jpg'] });
+  });
+
+  // ⭐ A hold spanning three panels is ONE damage event, and every photo of it is a photo of that
+  // event — so it appears under each panel in full rather than being split or picked between.
+  it('a multi-zone hold appears under every panel it covers', () => {
+    const e = zoneEvidence([h('a', 'ACTIVE', ['hood', 'front-bumper'], ['p1.jpg'])]);
+    expect(e.hood[0].holdId).toBe('a');
+    expect(e['front-bumper'][0].holdId).toBe('a');
+  });
+
+  // ⚠️⚠️ THE LUR184 CASE, and the reason this feature exists. Three holds on one car all described
+  // "Windshield chip"; the picker showed that shared field and hid the two that differed, and a
+  // live bumper scratch got marked repaired. Both holds on a contested panel must come back — the
+  // moment this picks one for him, it has rebuilt the defect.
+  it('returns EVERY hold on a contested panel, never picks one', () => {
+    const e = zoneEvidence([
+      h('old', 'ACTIVE', ['rear-bumper'], ['old.jpg'], 'Windshield chip', '2026-07-01T00:00:00Z'),
+      h('new', 'ACTIVE', ['rear-bumper'], ['new.jpg'], 'Windshield chip', '2026-08-01T00:00:00Z'),
+    ]);
+    expect(e['rear-bumper'].map(x => x.holdId)).toEqual(['new', 'old']);   // newest first
+  });
+
+  // ⭐ ONE PREDICATE with vehicleDamageZones, or the map paints a panel the inspector calls empty.
+  it('clears a panel exactly when the map does — REPAIRED and VOIDED, and nothing else', () => {
+    for (const status of ['REPAIRED', 'VOIDED']) {
+      const holds = [h('a', status, ['hood'], ['p.jpg'])];
+      expect(vehicleDamageZones(holds).zones).toEqual([]);
+      expect(zoneEvidence(holds).hood).toBeUndefined();
+    }
+    for (const status of ['ACTIVE', 'RELEASED', 'RETURNED']) {
+      const holds = [h('a', status, ['hood'], ['p.jpg'])];
+      expect(vehicleDamageZones(holds).zones).toEqual(['hood']);
+      expect(zoneEvidence(holds).hood).toHaveLength(1);
+    }
+  });
+
+  // ⚠️ Every panel the map paints MUST have evidence, on any input — that equivalence is what makes
+  // an unpainted panel safe to leave inert and a painted one safe to make tappable.
+  it('painted and explained are the same set', () => {
+    const holds = [
+      h('a', 'ACTIVE', ['hood'], ['p.jpg']),
+      h('b', 'REPAIRED', ['roof'], ['q.jpg']),
+      h('c', 'RELEASED', ['rear-bumper'], []),
+      h('d', 'ACTIVE', [], ['r.jpg']),
+    ];
+    expect(Object.keys(zoneEvidence(holds)).sort()).toEqual([...vehicleDamageZones(holds).zones].sort());
+  });
+
+  it('a zoned hold with no photos still reports — the description is the discriminator', () => {
+    const e = zoneEvidence([h('a', 'ACTIVE', ['roof'], [], 'Hail dents')]);
+    expect(e.roof[0]).toMatchObject({ photos: [], damageDescription: 'Hail dents' });
+  });
+
+  it('a hold with photos but no zone is unreachable from the map, and says so by absence', () => {
+    expect(zoneEvidence([h('a', 'ACTIVE', [], ['p.jpg'])])).toEqual({});
   });
 });

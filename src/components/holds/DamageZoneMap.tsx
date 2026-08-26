@@ -22,9 +22,18 @@ interface Props {
    *  ⚠️ Visually distinct from `selected` on purpose: a proposal that looks like a selection is a
    *  proposal that gets confirmed without being read, which is how a guess becomes a record. */
   candidates?: readonly string[];
+  /** The panel currently being INSPECTED (its evidence is open below the map). Drawn with a heavier
+   *  ring so the diagram and the drawer under it visibly refer to each other — without it, a tap on
+   *  a red panel produces text somewhere else on screen with nothing tying the two together. */
+  focused?: string | null;
+  /** Override the diagram's own description. The default says "tap to record damage here", which is
+   *  a lie in read/inspect mode — and it is the label a screen reader announces. */
+  label?: string;
 }
 
-export function DamageZoneMap({ selected, onToggle, disabled = false, candidates = [] }: Props) {
+export function DamageZoneMap({
+  selected, onToggle, disabled = false, candidates = [], focused = null, label,
+}: Props) {
   const isOn = (id: string) => selected.includes(id);
   const isCandidate = (id: string) => !selected.includes(id) && candidates.includes(id);
 
@@ -33,7 +42,7 @@ export function DamageZoneMap({ selected, onToggle, disabled = false, candidates
       viewBox={CAR_OUTLINE.viewBox}
       className="w-full h-auto select-none"
       role="group"
-      aria-label="Car diagram — tap a panel to record damage there"
+      aria-label={label ?? 'Car diagram — tap a panel to record damage there'}
       data-testid="damage-zone-map"
     >
       {/* Orientation. Without these the diagram is just a grid of boxes — this is the bit that
@@ -62,6 +71,7 @@ export function DamageZoneMap({ selected, onToggle, disabled = false, candidates
       {DAMAGE_ZONES.map(z => {
         const on = isOn(z.id);
         const suggested = isCandidate(z.id);
+        const open = focused === z.id;
         return (
           <rect
             key={z.id}
@@ -72,7 +82,8 @@ export function DamageZoneMap({ selected, onToggle, disabled = false, candidates
             aria-disabled={disabled || undefined}
             data-zone={z.id}
             onClick={disabled ? undefined : () => onToggle(z.id)}
-            strokeWidth={on || suggested ? 3 : 1.5}
+            strokeWidth={open ? 6 : on || suggested ? 3 : 1.5}
+            data-focused={open || undefined}
             strokeDasharray={suggested ? '10 7' : undefined}
             data-suggested={suggested || undefined}
             className={[

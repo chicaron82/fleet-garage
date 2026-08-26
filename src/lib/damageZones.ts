@@ -161,14 +161,84 @@ export interface VehicleDamage {
   lastFlaggedAt: string | null;
 }
 
+/** Holds whose panels are still painted on the diagram.
+ *
+ *  ⭐ ONE PREDICATE, because two surfaces now ask about the same panel: the map paints it and the
+ *  inspector explains it. If they filtered separately, the map could paint a panel the inspector
+ *  then calls empty — a tap that does nothing, on a car that visibly has damage. Same rule that put
+ *  `holdIsMappable` on the module: a copied rule is a rule that can drift. */
+function standingZonedHolds<T extends ZoneHoldFacts>(holds: readonly T[]): T[] {
+  return holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) > 0);
+}
+
 /** Merge a vehicle's holds into "what is wrong with this car, right now, and where".
  *  A hold flipping to REPAIRED clears its panels with no second action from anyone. */
 export function vehicleDamageZones(holds: readonly ZoneHoldFacts[]): VehicleDamage {
-  const standing = holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) > 0);
+  const standing = standingZonedHolds(holds);
   const zones = orderZones(standing.flatMap(h => h.damageZones ?? []));
   const lastFlaggedAt = standing.reduce<string | null>(
     (latest, h) => (latest === null || h.flaggedAt > latest ? h.flaggedAt : latest), null);
   return { zones, lastFlaggedAt };
+}
+
+// ── What is actually ON that panel ─────────────────────────────────────────────────────────────
+// The map answers WHERE. It has never answered WHICH — and "which" is the question that cost real
+// data on LUR184: three holds on one car all described "Windshield chip", a picker that showed the
+// identical field and hid the two that differed, and a live bumper scratch marked repaired. The
+// photo is the discriminator, and it is already sitting on the same row as the zone.
+
+/** One hold's worth of evidence behind a panel. Everything a person needs to tell it from the hold
+ *  next to it — which is the failure LUR184 was made of. */
+export interface ZoneEvidence {
+  holdId: string;
+  damageDescription: string;
+  status: string;
+  flaggedAt: string;
+  photos: string[];
+}
+
+/** The facts the inspector needs on top of what the map needs. */
+export interface ZoneEvidenceFacts extends ZoneHoldFacts {
+  id: string;
+  damageDescription: string;
+  photos?: string[];
+}
+
+/**
+ * zone id → the standing holds carrying it, newest first.
+ *
+ * ⭐ THE JOIN ALREADY EXISTED. `damage_zones` and `photos` are columns on the SAME hold row, so a
+ * zone is an index into the holds, and a hold's photos are the pictures of that damage. There is no
+ * photo→zone mapping to build, no migration and no backfill — which is also why this can't drift
+ * out of sync: nothing new is being stored.
+ *
+ * ⚠️ A multi-zone hold appears under EVERY zone it covers, deliberately. A hold spanning three
+ * panels is ONE damage event, and every photo of it is a photo of that event — so there is nothing
+ * to disambiguate and nothing may be hidden. (Measured 2026-08-25: 59 of 185 zoned holds are
+ * multi-zone, and 0 zone-slots on the live fleet are contested by two active holds. N>1 is still
+ * returned in full rather than picked between — picking for him is the LUR184 defect again.)
+ */
+export function zoneEvidence(
+  holds: readonly ZoneEvidenceFacts[],
+): Record<string, ZoneEvidence[]> {
+  const byZone: Record<string, ZoneEvidence[]> = {};
+  for (const h of standingZonedHolds(holds)) {
+    const entry: ZoneEvidence = {
+      holdId: h.id,
+      damageDescription: h.damageDescription,
+      status: h.status,
+      flaggedAt: h.flaggedAt,
+      photos: h.photos ?? [],
+    };
+    for (const zone of h.damageZones ?? []) {
+      (byZone[zone] ??= []).push(entry);
+    }
+  }
+  // Newest first: the most recent look at a panel is the one that describes it now.
+  for (const list of Object.values(byZone)) {
+    list.sort((a, b) => (a.flaggedAt < b.flaggedAt ? 1 : a.flaggedAt > b.flaggedAt ? -1 : 0));
+  }
+  return byZone;
 }
 
 // ── The backfill queue ─────────────────────────────────────────────────────────────────────────

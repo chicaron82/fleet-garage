@@ -14,14 +14,20 @@
 // clear cars, and a blank diagram on every one of them trains him to scroll past the sheet. Nothing
 // renders unless a panel is actually recorded.
 //
-// Compact on purpose — "Start trip" and "Scan another" must stay reachable without scrolling, and
-// they are what the sheet is for. The chips carry the location in one line; the map is the glance.
+// "Start trip" and "Scan another" must stay reachable without scrolling — they are what the sheet
+// is for. The chips carry the location in one line; the map is the glance.
+//
+// ⭐ And since 2026-08-25 the map is also the WAY IN: tap a marked panel and the photo of the damage
+// on it opens right here, instead of a navigation step away on the vehicle screen. That is why the
+// diagram is no longer width-capped — it stopped being a picture and became a target. The fold is
+// protected by the interaction rather than by shrinking: nothing reveals until he asks for it.
 import { vehicleDamageZones, zoneLabel } from '../../lib/damageZones';
-import { DamageZoneMap } from '../holds/DamageZoneMap';
+import { DamageZoneInspector } from '../holds/DamageZoneInspector';
 import type { Hold } from '../../types';
 
 export function ScanDamageZones({ holds, vehicleId }: { holds: readonly Hold[]; vehicleId: string }) {
-  const { zones } = vehicleDamageZones(holds.filter(h => h.vehicleId === vehicleId));
+  const mine = holds.filter(h => h.vehicleId === vehicleId);
+  const { zones } = vehicleDamageZones(mine);
   if (zones.length === 0) return null;
 
   return (
@@ -38,10 +44,14 @@ export function ScanDamageZones({ holds, vehicleId }: { holds: readonly Hold[]; 
           </span>
         ))}
       </div>
-      {/* Capped narrow rather than full-width: the diagram only has to be readable, and every pixel
-          it takes is a pixel between him and the action he opened the sheet to tap. */}
-      <div className="mx-auto mt-1.5 max-w-[13rem]">
-        <DamageZoneMap selected={zones} onToggle={() => {}} disabled />
+      {/* ⚠️ The 13rem cap is GONE (2026-08-25). It was defensible while the diagram was a `disabled`
+          picture — "every pixel it takes is a pixel between him and the action he opened the sheet
+          to tap." Tapping a panel now OPENS THE DAMAGE PHOTO, so it is an input, hit with nitrile
+          gloves on, and every other input-mode map in FG is full width. The fold argument is
+          answered by the interaction instead: nothing reveals until he asks, so the buttons don't
+          move on the common path. */}
+      <div className="mt-1.5">
+        <DamageZoneInspector holds={mine} zones={zones} compact />
       </div>
     </div>
   );

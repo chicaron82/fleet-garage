@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { VehicleDamageMap } from '../../src/components/vehicle/VehicleDamageMap';
 import type { Hold, HoldStatus } from '../../src/types';
@@ -50,9 +50,33 @@ describe('VehicleDamageMap', () => {
     expect(screen.queryByText(/last flagged/)).toBeNull();
   });
 
-  it('⭐ is read-only — a tap here must not edit anything', () => {
-    // Tagging belongs to a hold; a panel means nothing without the record that explains it.
+  // ⭐⭐ THIS TEST CHANGED ON 2026-08-25, AND THE REASON MATTERS. It used to assert
+  // `aria-disabled="true"` on the panel — the mechanism that happened to enforce read-only while
+  // the diagram was an untappable picture. Tapping now OPENS THE DAMAGE PHOTO, so that attribute is
+  // gone and the old assertion fails.
+  //
+  // The INTENT is unchanged and still worth guarding: reporting and editing are different axes, and
+  // this surface must never write a zone. So the guard now asserts the property instead of the
+  // proxy — tap a panel and the RECORD is untouched. Weakening this to "it renders" would be
+  // deleting a guard to make a change pass; asserting the record is what the guard was always for.
+  it('⭐ a tap READS — it must never edit the record', () => {
     render(<VehicleDamageMap holds={[hold('ACTIVE', ['hood'])]} />);
-    expect(zone('hood')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(zone('hood'));
+    // The evidence opened…
+    expect(screen.getByTestId('zone-evidence')).toBeInTheDocument();
+    // …and the car's damage is exactly what it was: hood still lit, nothing else newly tagged.
+    expect(zone('hood')).toHaveAttribute('aria-checked', 'true');
+    expect(document.querySelectorAll('[aria-checked="true"]')).toHaveLength(1);
+    // …and the drawer names the panel it belongs to, so the diagram and the text refer to the
+    // same thing. (Scoped: 'Hood' legitimately appears twice — the chip above and this heading.)
+    expect(within(screen.getByTestId('zone-evidence')).getByText('Hood')).toBeInTheDocument();
+  });
+
+  // ⚠️ An unpainted panel carries nothing, so it must stay INERT rather than opening an empty
+  // drawer — a tap that produces a blank box reads as broken software.
+  it('a panel with no damage does not open anything', () => {
+    render(<VehicleDamageMap holds={[hold('ACTIVE', ['hood'])]} />);
+    fireEvent.click(zone('roof'));
+    expect(screen.queryByTestId('zone-evidence')).toBeNull();
   });
 });
