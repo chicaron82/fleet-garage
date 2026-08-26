@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { writeVehicleIdentity, type VehicleIdentityEdit } from './vehicleIdentityWrite';
 import { makeRevertVehicleChange } from './vehicleChangeRevert';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus, openSaleCarHolds } from '../lib/vehicle-status';
@@ -20,7 +21,7 @@ import { makeRecordVinLast9 } from './vinWrite';
 import { makeRecordOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
-import type { Vehicle, Hold, BranchId, VehicleStatus, FieldSource } from '../types';
+import type { Vehicle, Hold, BranchId, VehicleStatus } from '../types';
 
 interface VehicleOperationsProps {
   allVehicles: Vehicle[];
@@ -291,54 +292,8 @@ export function useVehicleOperations({
     vehicleId: string,
     unit: string | null,
     plate: string,
-    // Optional: a human correcting the make/model/year/colour/CLASS they mis-selected at
-    // registration, or fixing what a wrong tag mapped to. This is a deliberate OVERWRITE and it
-    // LOCKS those fields (field_sources 'manual') — the operator standing at the car outranks any
-    // scan, so no future tag read overrides his edit (the CCLH-should-be-CCMH case). Omitted →
-    // unit/plate-only edit, as before.
-    identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; classCode?: string | null; isHybrid?: boolean },
-  ) => {
-    // Manual edit = the operator's confirmed truth → stamp 'manual' on every field he set, so the
-    // provenance ladder (inferred < tag < manual) blocks a later scan from clobbering it. Merge into
-    // the existing sources (read-modify-write; single-operator tool, no concurrent writers).
-    const stamps: Record<string, FieldSource> = {};
-    if (unit) stamps.unitNumber = 'manual';
-    if (identity) {
-      stamps.make = 'manual'; stamps.model = 'manual'; stamps.year = 'manual'; stamps.color = 'manual';
-      stamps.isHybrid = 'manual';  // a human's hybrid call outranks a later tag read
-      if (identity.rentalClass && identity.rentalClass.trim() !== '') stamps.rentalClass = 'manual';
-      // ⚠️ A hand-corrected class code must outrank BOTH a later tag read and the migration-121
-      // backfill. Without this stamp his correction would still read as 'derived' and the very next
-      // scan would overwrite it — the exact loop the editable field exists to break.
-      if (identity.classCode && identity.classCode.trim() !== '') stamps.classCode = 'manual';
-    }
-    const { data: cur } = await supabase.from('vehicles').select('field_sources').eq('id', vehicleId).maybeSingle();
-    const existingSources = (cur && typeof cur.field_sources === 'object' && cur.field_sources)
-      ? (cur.field_sources as Record<string, FieldSource>) : {};
-    const mergedSources = { ...existingSources, ...stamps };
-
-    const { error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({
-        unit_number:          unit,
-        license_plate:        plate,
-        ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rental_class: identity.rentalClass, class_code: identity.classCode ?? null, is_hybrid: identity.isHybrid ?? false } : {}),
-        field_sources:        mergedSources,
-        edit_status:          null,
-        edit_suggested_unit:  null,
-        edit_suggested_plate: null,
-        edit_suggested_by:    null,
-        edit_suggested_at:    null,
-        edit_suggestion_note: null,
-        edit_reviewed_by:     null,
-        edit_reviewed_at:     null,
-      }).eq('id', vehicleId)
-    );
-    if (error) return;
-    setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
-      ...v, unitNumber: unit, licensePlate: plate, editStatus: null, fieldSources: mergedSources,
-      ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rentalClass: identity.rentalClass } : {}),
-    }));
-  };
+    identity?: VehicleIdentityEdit,
+  ) => { await writeVehicleIdentity(vehicleId, unit, plate, identity, setAllVehicles); };
 
   const applyVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
     const now = new Date().toISOString();

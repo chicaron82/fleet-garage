@@ -99,18 +99,24 @@ export type Database = {
         Row: {
           code: string
           learned_by: string | null
+          pinned_at: string | null
+          pinned_by: string | null
           rental_class: string
           updated_at: string
         }
         Insert: {
           code: string
           learned_by?: string | null
+          pinned_at?: string | null
+          pinned_by?: string | null
           rental_class: string
           updated_at?: string
         }
         Update: {
           code?: string
           learned_by?: string | null
+          pinned_at?: string | null
+          pinned_by?: string | null
           rental_class?: string
           updated_at?: string
         }

@@ -11,6 +11,7 @@ import { normalizeVinLast9 } from './_lib/vinLast9.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
 import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
+import { resolveRentalClass } from './_lib/classPin.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
 import { priceUsage } from './_lib/apiSpend.js';
 import { recordSpend } from './_lib/recordSpend.js';
@@ -248,21 +249,29 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
     if (read.classCode) {
       const codeKey = normalizeClassCode(read.classCode);
       try {
-        if (codeKey && read.rentalClass) {
+        // ⭐⭐ A HUMAN PIN OUTRANKS THE TAG (migration 127, 2026-08-25). The rule itself lives in
+        // api/_lib/classPin.ts as a pure function, because a rule that only exists inline in a
+        // handler is a rule nothing can test — which is exactly how "the real class is E6" sat in
+        // a code comment for five weeks while this endpoint re-taught Q4 on every scan.
+        const { data: known } = codeKey
+          ? await supabase
+              .from('class_code_rental_class')
+              .select('rental_class, pinned_at')
+              .eq('code', codeKey)
+              .maybeSingle()
+          : { data: null };
+
+        const decision = resolveRentalClass(known, read.rentalClass);
+        if (decision.rentalClass) read.rentalClass = decision.rentalClass;
+        if (decision.rentalClassOnTag) read.rentalClassOnTag = decision.rentalClassOnTag;
+        if (decision.rentalClassPinned) read.rentalClassPinned = true;
+        if (decision.rentalClassInferred) read.rentalClassInferred = true;
+
+        if (codeKey && decision.teach && decision.rentalClass) {
           await supabase.from('class_code_rental_class').upsert(
-            { code: codeKey, rental_class: read.rentalClass, learned_by: userData.user.id, updated_at: new Date().toISOString() },
+            { code: codeKey, rental_class: decision.rentalClass, learned_by: userData.user.id, updated_at: new Date().toISOString() },
             { onConflict: 'code' },
           );
-        } else if (codeKey && !read.rentalClass) {
-          const { data: learned } = await supabase
-            .from('class_code_rental_class')
-            .select('rental_class')
-            .eq('code', codeKey)
-            .maybeSingle();
-          if (learned?.rental_class) {
-            read.rentalClass = learned.rental_class;
-            read.rentalClassInferred = true;
-          }
         }
       } catch { /* learning/inferring must never break the read */ }
     }

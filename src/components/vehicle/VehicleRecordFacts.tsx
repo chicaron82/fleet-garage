@@ -30,11 +30,18 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // the identical defect — stored, editable in the ✏️ modal, invisible on the card — so it comes too
 // rather than leaving an arbitrary half.
 //
-// Display-only: editing both already lives in the identity modal, and a second edit path for one
-// field is how two surfaces start disagreeing. Silent when absent — 155 of the fleet legitimately
-// have no code, and a "set me" prompt on every one of them is noise, not a nudge.
+// ⭐ TAPPABLE since 2026-08-25, and the original objection survives intact. This header used to say
+// "display-only… a second edit path for one field is how two surfaces start disagreeing" — a good
+// rule, and it still holds, because `onEdit` opens THE SAME identity modal. A second DOOR to one
+// path is not a second path. Aaron: *"to be able to edit the class and/or code right there (if
+// needed) by tapping the 'CRHX - Q4'."* He is standing at the car; the chip is where he noticed the
+// wrong value, so it is where the fix belongs.
+//
+// Silent when absent — 155 of the fleet legitimately have no code, and a "set me" prompt on every
+// one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
+// simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9 }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -51,6 +58,8 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   rentalClass?: string | null;
   /** Last 9 of the VIN (migration 126). Never the full VIN — nothing may decode a make from it. */
   vinLast9?: string | null;
+  /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
+  onEditCodes?: () => void;
 }) {
   const { recordKeyCount, recordOdometer } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
@@ -147,17 +156,32 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
         </span>
       )}
 
-      {(classCode || rentalClass) && (
-        <span
-          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 font-mono"
-          title={[
-            classCode ? `Model code ${classCode} — what the tag's corner reads` : null,
-            rentalClass ? `Rental class ${rentalClass} — how the branch groups it` : null,
-          ].filter(Boolean).join('\n')}
-        >
-          🚘 {[classCode, rentalClass].filter(Boolean).join(' · ')}
-        </span>
-      )}
+      {(classCode || rentalClass) && (() => {
+        const label = `🚘 ${[classCode, rentalClass].filter(Boolean).join(' · ')}`;
+        const title = [
+          classCode ? `Model code ${classCode} — what the tag's corner reads` : null,
+          rentalClass ? `Rental class ${rentalClass} — how the branch groups it` : null,
+          onEditCodes ? 'Tap to correct either — a correction also pins the code→class mapping' : null,
+        ].filter(Boolean).join('\n');
+        const base = 'rounded-lg border px-2.5 py-1.5 text-xs font-mono';
+        return onEditCodes ? (
+          <button
+            type="button"
+            onClick={onEditCodes}
+            title={title}
+            data-testid="vehicle-codes-chip"
+            /* Same 44px-class target as the other tappable chips on this row — gloves on. */
+            className={`${base} border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-pointer hover:border-gray-400 hover:text-gray-700 dark:hover:border-gray-500 dark:hover:text-gray-200 transition`}
+          >
+            {label}
+          </button>
+        ) : (
+          <span className={`${base} border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400`}
+                title={title} data-testid="vehicle-codes-chip">
+            {label}
+          </span>
+        );
+      })()}
 
       {/* Last seen — a SCAN is the only event in FG that means "he was standing at this car with
           the tag in his hand". Read-only: it's a record of what happened, not a field to set.

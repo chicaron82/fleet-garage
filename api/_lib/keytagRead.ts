@@ -33,6 +33,15 @@ export interface KeytagRead {
    *  field 'inferred' (a later clean tag read outranks + self-corrects it) and flags it to the
    *  operator. Absent/false = read straight off the tag. */
   rentalClassInferred?: boolean;
+  /** Set when `rentalClass` came from a PINNED code→class mapping — a person decided it, and the
+   *  scan is forbidden from re-teaching over it (migration 127). Outranks both the tag and any
+   *  learned value. `CRHX` is the first: the tag prints Q4, the real class is E6, and every scan
+   *  used to un-teach the correction. */
+  rentalClassPinned?: boolean;
+  /** What the TAG said, when a pin overrode it and the two disagree. Kept so the surface can show
+   *  "E6 · pinned (tag says Q4)" instead of silently rewriting the artifact — FG's rule is that
+   *  when two signals disagree you surface it, never lean. Absent when they agree. */
+  rentalClassOnTag?: string;
   make?: string;
   model?: string;
   /** Hybrid — set when the resolved class code is a hybrid variant (the codex's isHybrid hint,
