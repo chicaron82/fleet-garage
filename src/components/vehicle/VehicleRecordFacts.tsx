@@ -193,15 +193,34 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
             ? 'border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400'
             : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
         }`}
+        /* The exact newest scan stays in the tooltip — including this visit's. The chip answers
+           "when did I have it before now"; the tooltip keeps the raw fact available. */
         title={sightings.lastSeenAt ? `Last scanned ${new Date(sightings.lastSeenAt).toLocaleString('en-CA')}` : 'No key-tag scan on record yet'}
       >
+        {/* ⚠️ A BARE COUNT BESIDE A BARE DATE RECOMPOSES INTO ONE FALSE FACT, whatever the values.
+            This read `Seen ${count}× · ${describeLastSeen(lastSeenAt)}` — an ALL-TIME count welded
+            to the LATEST date by a middot. On LUR330 (one scan yesterday 13:18, one today 07:21)
+            that rendered "Seen 2× · today", which claims both happened today. Aaron, 2026-08-26:
+            *"how this reads is kinda deceiving… fairly confident I cleaned it yesterday."* He had.
+            ⚠️ And it worsens with age — the number climbs while the date stays "today" on every
+            scan, drifting toward "Seen 47× · today".
+
+            So the two halves are separate CLAIMS now: a complete sentence, then a total.
+
+            ⭐ And the date is `priorSeenAt`, not `lastSeenAt` — his own scan is what opened this
+            record, so "last seen" was reporting his act of looking back to him as news. The
+            question worth answering while standing at the car is the one BEFORE this. */}
         👁️ {sightings.neverSeen
           ? 'Never scanned'
-          /* NOT "last ${…}" — describeLastSeen returns a COMPLETE phrase, so the prefix produced
-             "last last week", "last 3 days ago", "last yesterday". Found by rendering the card at
-             phone width during /reflect 63; no test could see it, because every test asserted on
-             the function's output rather than the sentence it lands in. */
-          : `Seen ${sightings.count}× · ${describeLastSeen(sightings.lastSeenAt)}`}
+          : sightings.priorSeenAt === null
+            /* Scanned for the first time ever — there is no "before this", and inventing one by
+               falling back to lastSeenAt would just print "today" again. */
+            ? 'First scan · here now'
+            /* NOT "last ${…}" — describeLastSeen returns a COMPLETE phrase, so the prefix produced
+               "last last week", "last 3 days ago", "last yesterday". Found by rendering the card at
+               phone width during /reflect 63; no test could see it, because every test asserted on
+               the function's output rather than the sentence it lands in. */
+            : `Last here ${describeLastSeen(sightings.priorSeenAt)} · ${sightings.count} scans`}
       </span>
 
       {zoom && keytagPhotoUrl && (

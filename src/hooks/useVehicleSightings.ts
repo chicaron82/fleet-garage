@@ -7,7 +7,29 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { summariseSightings, type SightingSummary } from '../lib/sightings';
 
-const EMPTY: SightingSummary = { lastSeenAt: null, count: 0, neverSeen: true };
+const EMPTY: SightingSummary = { lastSeenAt: null, priorSeenAt: null, count: 0, neverSeen: true };
+
+/**
+ * The sightings THIS SESSION recorded, by plate — the exact `seen_at` strings it sent.
+ *
+ * ⭐ This is what makes "not counting right now" answerable without a time window. Aaron scans a
+ * car, the record opens, and its own scan is the newest row — so "last seen" reports his own act of
+ * looking back to him as news. Skipping it needs an identity, not a guess, so `recordSighting`
+ * sends an explicit `seen_at` and files the string here; a row is this visit's iff it MATCHES one.
+ *
+ * ⚠️ A threshold would have been the easy version and it drifts both ways: he can be pulled off a
+ * car for half an hour (the scan stops counting as "now" while he is still standing there), or
+ * legitimately scan the same car twice inside ten minutes (a real prior visit gets swallowed).
+ *
+ * Module-scoped, so it lives exactly as long as the app session — which is the right lifetime: a
+ * reload genuinely IS a new visit, and after one the newest row is the honest answer again.
+ */
+const sightingsThisSession = new Map<string, Set<string>>();
+
+function mineFor(plate: string): ReadonlySet<string> {
+  return sightingsThisSession.get(plate.toUpperCase()) ?? EMPTY_SET;
+}
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
  * Sighting summary for one plate. Keyed on PLATE rather than vehicle id so a scan taken *before*
@@ -44,7 +66,7 @@ export function useVehicleSightings(plate: string | null | undefined): SightingS
   }, [key]);
 
   if (!key || loaded?.plate !== key) return EMPTY;
-  return summariseSightings(loaded.rows);
+  return summariseSightings(loaded.rows, mineFor(key));
 }
 
 /**
@@ -63,9 +85,19 @@ export async function recordSighting(input: {
   branchId?: string | null;
 }): Promise<void> {
   if (!input.plate) return;
+  const plate = input.plate.toUpperCase();
+  // ⭐ SEND the timestamp rather than letting the column default fill it, so this session can
+  // recognise its own row by equality later (see sightingsThisSession). Filed BEFORE the await:
+  // the record can render while the insert is still in flight, and a sighting we made but haven't
+  // filed yet would show up as a "prior" visit — the exact thing this is meant to exclude.
+  const seenAt = new Date().toISOString();
+  const mine = sightingsThisSession.get(plate) ?? new Set<string>();
+  mine.add(seenAt);
+  sightingsThisSession.set(plate, mine);
   try {
     const { error } = await supabase.from('vehicle_sightings').insert({
-      plate: input.plate.toUpperCase(),
+      seen_at: seenAt,
+      plate,
       vehicle_id: input.vehicleId ?? null,
       seen_by_id: input.seenById ?? null,
       seen_by_name: input.seenByName ?? null,

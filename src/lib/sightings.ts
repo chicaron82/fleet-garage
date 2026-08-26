@@ -16,20 +16,49 @@ export interface Sighting {
 export interface SightingSummary {
   /** ISO of the most recent scan; null when this car has never been scanned. */
   lastSeenAt: string | null;
-  /** How many times it's been scanned. 0 when never. */
+  /**
+   * ⭐ The most recent scan that is NOT from the current visit — *when did I have this car BEFORE
+   * now* — and the one the record should actually show him.
+   *
+   * Aaron, 2026-08-26: *"wouldn't every time I scan and open it be last seen today? fairly
+   * confident I cleaned it yesterday."* He was right: the scan RECORDS the sighting, so by the
+   * time the record renders, "last seen" is always "today". His own act of looking made the data.
+   * Standing at the car, "when did I last see it" has a useless answer — thirty seconds ago. The
+   * question worth answering is the one before that, and on his car it said *yesterday*.
+   *
+   * Null when there is nothing before this visit (a car scanned for the first time).
+   */
+  priorSeenAt: string | null;
+  /** How many times it's been scanned, ALL TIME — including the scan that opened this record. */
   count: number;
   /** True when there are no sightings at all — the day-one state, not a failure. */
   neverSeen: boolean;
 }
 
-export function summariseSightings(rows: readonly Sighting[]): SightingSummary {
+/**
+ * @param mine ISO timestamps this SESSION recorded for this car — its scans, exactly. Passing them
+ *   is what lets `priorSeenAt` skip the current visit.
+ *
+ * ⚠️ IDENTIFIED BY EQUALITY, NEVER BY A TIME WINDOW. "Is this sighting mine, right now?" proxied as
+ * "is it less than N minutes old?" drifts in both directions — he can be pulled off a car for half
+ * an hour, or legitimately scan the same car twice inside ten. So `recordSighting` sends an explicit
+ * `seen_at` and remembers that exact string; a row is this visit's iff it matches one. No window,
+ * no threshold, nothing to tune.
+ */
+export function summariseSightings(
+  rows: readonly Sighting[],
+  mine: ReadonlySet<string> = new Set(),
+): SightingSummary {
   let lastSeenAt: string | null = null;
+  let priorSeenAt: string | null = null;
   for (const r of rows) {
     // Max by timestamp, not by array position — the caller may fetch in either order, and a
     // summary that depends on the query's ORDER BY is a bug waiting for someone to change it.
     if (lastSeenAt === null || r.seenAt > lastSeenAt) lastSeenAt = r.seenAt;
+    if (mine.has(r.seenAt)) continue;
+    if (priorSeenAt === null || r.seenAt > priorSeenAt) priorSeenAt = r.seenAt;
   }
-  return { lastSeenAt, count: rows.length, neverSeen: rows.length === 0 };
+  return { lastSeenAt, priorSeenAt, count: rows.length, neverSeen: rows.length === 0 };
 }
 
 const DAY_MS = 86_400_000;

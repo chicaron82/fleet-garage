@@ -21,7 +21,63 @@ describe('summariseSightings', () => {
 
   it('reports NEVER SEEN for an empty log — the day-one state, not an error', () => {
     const s = summariseSightings([]);
-    expect(s).toEqual({ lastSeenAt: null, count: 0, neverSeen: true });
+    expect(s).toEqual({ lastSeenAt: null, priorSeenAt: null, count: 0, neverSeen: true });
+  });
+
+  // ── priorSeenAt: "when did I have this car BEFORE now" ───────────────────────────────────────
+  // Aaron, 2026-08-26: "wouldn't every time I scan and open it be last seen today? fairly confident
+  // I cleaned it yesterday." He was right — the scan RECORDS the sighting, so by the time the record
+  // renders, its own scan is the newest row and "last seen" reports his act of looking back to him.
+  describe('priorSeenAt — skips the visit that is happening right now', () => {
+    const YESTERDAY = '2026-08-25T18:18:00Z';
+    const NOW = '2026-08-26T12:21:00Z';
+
+    // ⭐⭐ THE LIVE CASE. LUR330 had exactly these two rows and the chip said "Seen 2× · today".
+    it('reports the scan BEFORE this one when this session made the newest', () => {
+      const s = summariseSightings([at(YESTERDAY), at(NOW)], new Set([NOW]));
+      expect(s.lastSeenAt).toBe(NOW);        // the raw fact survives, for the tooltip
+      expect(s.priorSeenAt).toBe(YESTERDAY); // …and the chip answers the useful question
+      expect(s.count).toBe(2);               // the total is still the total
+    });
+
+    // ⭐ The fallback that keeps the ORIGINAL feature working: he reached the record from Fleet or a
+    // deep link, nothing was scanned, so there is nothing to exclude and the newest IS the answer.
+    // This is the "where has that one been" case the whole feature was built for.
+    it('reports the newest when this session scanned nothing', () => {
+      const s = summariseSightings([at(YESTERDAY), at(NOW)]);
+      expect(s.priorSeenAt).toBe(NOW);
+    });
+
+    it('skips EVERY scan this session made, not just the newest', () => {
+      const s = summariseSightings(
+        [at(YESTERDAY), at(NOW), at('2026-08-26T12:40:00Z')],
+        new Set([NOW, '2026-08-26T12:40:00Z']),
+      );
+      expect(s.priorSeenAt).toBe(YESTERDAY);
+    });
+
+    // ⚠️ A car scanned for the first time ever has no "before this". It must say so rather than
+    // falling back to lastSeenAt, which would print "today" again — the very bug being fixed.
+    it('is null when this visit is the only scan there has ever been', () => {
+      const s = summariseSightings([at(NOW)], new Set([NOW]));
+      expect(s.priorSeenAt).toBeNull();
+      expect(s.lastSeenAt).toBe(NOW);
+      expect(s.neverSeen).toBe(false);
+    });
+
+    // ⚠️ Matched by EQUALITY, never a time window. A stamp from this session that isn't in the rows
+    // yet (insert still in flight) must not swallow a real prior visit.
+    it('a session stamp that matches no row changes nothing', () => {
+      const s = summariseSightings([at(YESTERDAY)], new Set(['2026-08-26T12:21:00.001Z']));
+      expect(s.priorSeenAt).toBe(YESTERDAY);
+    });
+
+    it('finds the prior by TIMESTAMP, not array position', () => {
+      const mine = new Set([NOW]);
+      const rows = [at(NOW), at('2026-08-01T10:00:00Z'), at(YESTERDAY)];
+      expect(summariseSightings(rows, mine).priorSeenAt).toBe(YESTERDAY);
+      expect(summariseSightings([...rows].reverse(), mine).priorSeenAt).toBe(YESTERDAY);
+    });
   });
 });
 
