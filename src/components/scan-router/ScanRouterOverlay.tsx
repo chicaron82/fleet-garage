@@ -9,7 +9,7 @@ import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { compressImage } from '../../lib/image';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
-import { ScanOdometerCapture } from './ScanOdometerCapture';
+import { OdometerCapture } from '../shared/OdometerCapture';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
@@ -24,6 +24,8 @@ import { logUnknownClassCode, teachClassCode } from '../../hooks/useUnknownClass
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import { classCodeLessonFromScan, classCodeLearnedLabel } from '../../lib/classCodeLesson';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
+import { ScanManualPlate } from './ScanManualPlate';
+import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -58,22 +60,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
 
   // Wrapped rather than suppressed: this is the consume-effect's only caller, so an identity
   // that changed every render would re-enter that effect on every render of a busy overlay.
-  const onFile = useCallback(async (file: File | undefined) => {
-    if (!file) return;
-    setErrMsg('');
-    setScanRead(null);
-    setGeotabPending(false);
-    setCodexToast('');
-    const base64 = await compressImage(file);
-    setScanPhoto(base64);
-    const read = await readKeytag(base64);
-    // Bail only when the tag gave us NEITHER identity key. It used to bail on a missing plate
-    // alone — so a crumpled tag whose "Veh #" was perfectly legible reported "Could not read that
-    // key tag", about a car FG had on record. The scan hadn't failed; the check had.
-    if (!read?.plate && !read?.unitNumber?.trim()) {
-      setErrMsg(errorRef.current ?? error ?? 'Could not read that key tag — try again.');
-      return;
-    }
+  // ⭐ ONE PIPELINE, TWO ENTRY POINTS. Everything that happens once we have a KeytagRead — resolve,
+  // record the sighting, backfill the record, offer the actions — lives here, so the camera path
+  // and the TYPED-PLATE fallback below cannot drift into two half-implementations. That is the
+  // same mistake the register form's EV dialect was, caught earlier today.
+  const applyRead = useCallback(async (read: KeytagRead, base64?: string) => {
     setScanRead(read);
     setScanNonce(++scanSeq); // distinct per scan → each "Start trip"/"Log L&F" re-seeds the destination
 
@@ -145,7 +136,49 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
         void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
       }
     }
-  }, [readKeytag, errorRef, error, vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode, recordVinLast9]);
+  }, [vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode, recordVinLast9]);
+
+  const resetScanState = () => { setErrMsg(''); setScanRead(null); setGeotabPending(false); setCodexToast(''); };
+
+  const onFile = useCallback(async (file: File | undefined) => {
+    if (!file) return;
+    resetScanState();
+    const base64 = await compressImage(file);
+    setScanPhoto(base64);
+    const read = await readKeytag(base64);
+    // Bail only when the tag gave us NEITHER identity key. It used to bail on a missing plate
+    // alone — so a crumpled tag whose "Veh #" was perfectly legible reported "Could not read that
+    // key tag", about a car FG had on record. The scan hadn't failed; the check had.
+    if (!read?.plate && !read?.unitNumber?.trim()) {
+      setErrMsg(errorRef.current ?? error ?? 'Could not read that key tag — try again.');
+      return;
+    }
+    await applyRead(read, base64);
+  }, [readKeytag, errorRef, error, applyRead]);
+
+  // ⭐ THE FALLBACK. Aaron, 2026-08-25 — after my backfill drained the API credits and left him at a
+  // car with a dead scanner: *"how bout a fall back to enter plate if the scanner goes down too and
+  // it would count it as being seen."*
+  //
+  // The airport flip has had this since July ("or type a plate — if the scan's down"); the HEADER
+  // scanner, the surface he reaches for most, had no way out at all. Vision down meant dead end.
+  //
+  // ⭐ AND IT COUNTS AS A SIGHTING, which is the sharp part of his ask. A sighting is not evidence
+  // that the CAMERA worked — it is evidence that HE WAS AT THE CAR. Typing the plate makes exactly
+  // the same claim as reading the tag: same person, same car, same moment. `recordSighting` has no
+  // source field for precisely that reason, so this is honest rather than a shortcut.
+  //
+  // A bare plate is a legitimate KeytagRead with one field. Everything downstream already degrades
+  // correctly: `resolveKeytagScan` matches it, `newVehicleFromRead` returns null (too partial to
+  // mint a car), and `canRegisterPartially` offers "Register — add make/model". Degrade, never
+  // dead-end.
+  const onManualPlate = useCallback(async (typed: string) => {
+    const plate = correctManitobaPlate(typed);
+    if (!plate) return;
+    resetScanState();
+    setScanPhoto(null);   // no tag was photographed — nothing to attach, and a stale one would lie
+    await applyRead({ plate });
+  }, [applyRead]);
 
   // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,
   // so the photo arrives AFTER mount rather than from a button in here. Keyed on the nonce, not on
@@ -203,6 +236,8 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
           )}
 
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
+          {/* Always offered, not just after a failure — see ScanManualPlate. */}
+          <ScanManualPlate onSubmit={p => void onManualPlate(p)} busy={reading} />
 
           {result && (
             <>
@@ -315,9 +350,9 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     </div>
                     {/* The odometer, in the same beat as the key count — he is at the dash. Until
                         now this column had ONE writer (the airport flip) and stood at 0 of 683. */}
-                    <ScanOdometerCapture
+                    <OdometerCapture
                       vehicleId={vehicle.id}
-                      scanNonce={scanNonce}
+                      resetKey={scanNonce}
                       currentKm={vehicle.odometer}
                       currentAt={vehicle.odometerAt}
                       onSave={recordOdometer}

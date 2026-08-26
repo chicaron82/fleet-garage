@@ -19,10 +19,14 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 // "47,200 km" ages into a lie; a figure from April describes a car that has since done a summer of
 // rentals. And a lower reading than the one on file is a misread or the wrong car — `recordOdometer`
 // refuses it server-side rather than rewriting a good record, so this says so BEFORE he taps.
-export function ScanOdometerCapture({ vehicleId, scanNonce, currentKm, currentAt, onSave }: {
+export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onSave }: {
   vehicleId: string;
-  /** Bumped per scan, so moving to the next car clears the box (see Screen.prefillNonce). */
-  scanNonce: number;
+  /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
+   *  things by it. The SCAN passes its per-scan nonce, because a scan is an EVENT and re-scanning
+   *  the same car must still clear the box. The RECORD CARD passes the vehicle id, because there is
+   *  no repeat event there — the card simply shows one car, and switching cars is the only reset
+   *  worth having. Same control, two honest reset semantics, no second copy. */
+  resetKey: string | number;
   currentKm?: number | null;
   currentAt?: string | null;
   onSave: (vehicleId: string, km: number) => Promise<void>;
@@ -30,10 +34,7 @@ export function ScanOdometerCapture({ vehicleId, scanNonce, currentKm, currentAt
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // A scan is an EVENT, not a value — so this re-seeds on the NONCE, never on the vehicle id.
-  // Re-scanning the same car produces an identical id, and a value-keyed reset would silently
-  // no-op on the repeat, leaving the previous car's number in the box.
-  useRoutedProp(scanNonce, () => { setDraft(''); setSaved(false); });
+  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); });
 
   const km = parseOdometer(draft);
   // The write refuses a lower reading; saying so here turns a silent no-op into a caught typo.

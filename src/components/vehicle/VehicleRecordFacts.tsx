@@ -5,6 +5,7 @@ import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting } from '../../lib/sightings';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { describeOdometer } from '../../lib/odometer';
+import { OdometerCapture } from '../shared/OdometerCapture';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -49,10 +50,11 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   /** The branch's rental grouping (Q4, B4, C…) — a different axis from the model code. */
   rentalClass?: string | null;
 }) {
-  const { recordKeyCount } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
   const [zoom, setZoom] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
+  const [editingOdo, setEditingOdo] = useState(false);
 
   const setCount = (n: number) => {
     hapticLight();
@@ -102,11 +104,33 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
 
       {/* The odometer, always with its age — the airport's "high km?" question is about a number
           whose meaning decays. A bare figure from April would invite a decision on a stale fact. */}
-      {odometer ? (
-        <span className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400">
-          🛣️ {describeOdometer(odometer, odometerAt)}
-        </span>
-      ) : null}
+      {/* ⭐ TAP TO SET — the same interaction the key-count chip beside it already uses, rather
+          than a third shape for the same idea. Aaron, 2026-08-25: *"I think the odometer capture
+          should exist on the vehicle record too not just on the initial header scan."*
+          It shipped able to be written from ONE surface (the airport flip), which is how it stood
+          at 0 of 683 while this very chip rendered a slot for it. The record card is where he
+          looks when he is NOT mid-scan.
+          Rendered even when BLANK now: an invisible affordance can't be the answer to "there's no
+          way to enter this", and a car with no reading is exactly the one worth offering. */}
+      {editingOdo ? (
+        <OdometerCapture
+          vehicleId={vehicleId}
+          /* The card shows ONE car, so switching cars is the only reset worth having — no event
+             here to key on, unlike the scan. See OdometerCapture's `resetKey`. */
+          resetKey={vehicleId}
+          currentKm={odometer}
+          currentAt={odometerAt}
+          onSave={async (id, km) => { await recordOdometer(id, km); setEditingOdo(false); }}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => { hapticLight(); setEditingOdo(true); }}
+          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer"
+        >
+          🛣️ {odometer ? `${describeOdometer(odometer, odometerAt)} · tap to update` : 'Log odometer'}
+        </button>
+      )}
 
       {(classCode || rentalClass) && (
         <span

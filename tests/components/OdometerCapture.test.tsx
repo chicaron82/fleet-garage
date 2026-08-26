@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ScanOdometerCapture } from '../../src/components/scan-router/ScanOdometerCapture';
+import { OdometerCapture } from '../../src/components/shared/OdometerCapture';
 
 // Odometer capture at the scan (2026-08-25). Migration 123 gave the column exactly ONE writer —
 // the airport flip — whose sync hadn't fired since Aug 5, so it stood at 0 of 683 cars while the
@@ -10,10 +10,10 @@ import { ScanOdometerCapture } from '../../src/components/scan-router/ScanOdomet
 const onSave = vi.fn().mockResolvedValue(undefined);
 beforeEach(() => onSave.mockClear());
 
-const setup = (over: Partial<Parameters<typeof ScanOdometerCapture>[0]> = {}) =>
-  render(<ScanOdometerCapture vehicleId="veh-1" scanNonce={1} onSave={onSave} {...over} />);
+const setup = (over: Partial<Parameters<typeof OdometerCapture>[0]> = {}) =>
+  render(<OdometerCapture vehicleId="veh-1" resetKey={1} onSave={onSave} {...over} />);
 
-describe('ScanOdometerCapture', () => {
+describe('OdometerCapture', () => {
   it('says the odometer is unlogged when the car has none', () => {
     setup();
     expect(screen.getByText(/Odometer not logged/)).toBeInTheDocument();
@@ -64,13 +64,13 @@ describe('ScanOdometerCapture', () => {
   // value-keyed reset would silently no-op on the repeat and leave the previous number in the box —
   // the exact trap the prefillNonce was invented for (2026-07-21).
   it('clears on the next scan, including a re-scan of the SAME car', async () => {
-    const { rerender } = setup({ scanNonce: 1 });
+    const { rerender } = setup({ resetKey: 1 });
     fireEvent.change(screen.getByLabelText('Odometer reading'), { target: { value: '110451' } });
     fireEvent.click(screen.getByRole('button', { name: 'Log' }));
     await screen.findByText(/saved/);
 
     // same vehicleId, new scan → must reset
-    rerender(<ScanOdometerCapture vehicleId="veh-1" scanNonce={2} onSave={onSave} />);
+    rerender(<OdometerCapture vehicleId="veh-1" resetKey={2} onSave={onSave} />);
     expect(screen.getByLabelText('Odometer reading')).toHaveValue('');
     expect(screen.queryByText(/saved/)).not.toBeInTheDocument();
   });
