@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import type { MessageTone, ToneMessage } from '../lib/messageTone';
 import { newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../lib/resolveKeytagScan';
 import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
@@ -19,11 +20,19 @@ export function useRegisterOnScan(deps: {
   user: ReturnType<typeof useAuth>['user'];
 }) {
   const { vehicles, addVehicle, updateVehicleFields, user } = deps;
-  const [registerToast, setRegisterToast] = useState<string | null>(null);
+  // ⭐ The MESSAGE and its KIND travel together. Before, this was a bare string and the renderer
+  // took Toast's default — which meant "✨ Registered …" announced a success on alert red. Only the
+  // code that knows what just happened can say what kind of news it is.
+  const [registerToast, setRegisterToast] = useState<ToneMessage | null>(null);
 
   const handleScanRead = useCallback(async (read: KeytagRead) => {
     if (!user) return;
-    const flash = (msg: string) => { setRegisterToast(msg); setTimeout(() => setRegisterToast(null), 3000); };
+    // ⚠️ `tone` is REQUIRED — no default. A default is exactly what caused this bug: an omitted
+    // variant silently meant "alert", so nobody ever had to decide.
+    const flash = (message: string, tone: MessageTone) => {
+      setRegisterToast({ message, tone });
+      setTimeout(() => setRegisterToast(null), 3000);
+    };
 
     const nv = newVehicleToRegisterOnScan(read, vehicles);
     if (nv) {
@@ -33,7 +42,7 @@ export function useRegisterOnScan(deps: {
           year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
         });
-        flash(`✨ Registered ${nv.plate} · ${nv.year} ${nv.make} ${nv.model}`);
+        flash(`✨ Registered ${nv.plate} · ${nv.year} ${nv.make} ${nv.model}`, 'success');
       } catch { /* non-blocking: the trip can still start without the fleet record */ }
       return;
     }
@@ -47,12 +56,13 @@ export function useRegisterOnScan(deps: {
         // than swallowed — this path had been silent about it entirely.
         const applied = res?.unitConflict ? bf.fills.filter(f => f.field !== 'unitNumber') : bf.fills;
         if (res?.unitConflict) {
-          flash(`⚠️ Unit already on ${res.unitConflict.licensePlate} — not applied to ${bf.plate}`);
+          // A real conflict: the unit number was NOT applied, so this stays red.
+          flash(`⚠️ Unit already on ${res.unitConflict.licensePlate} — not applied to ${bf.plate}`, 'alert');
           return;
         }
         const filled = applied.length ? `filled ${applied.map(f => f.field).join(', ')}` : '';
         const changed = bf.changes.length ? `corrected ${bf.changes.map(c => c.field).join(', ')}` : '';
-        flash(`✨ Updated ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`);
+        flash(`✨ Updated ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`, 'success');
       } catch { /* non-blocking */ }
     }
   }, [vehicles, addVehicle, updateVehicleFields, user]);

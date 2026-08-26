@@ -1,16 +1,26 @@
+import type { MessageTone } from '../../lib/messageTone';
+
 interface ToastProps {
   message: string;
-  /** Colour tone. 'default' = the original red (alerts); 'success' = green — a
-   *  confirmation reads as "✓ it worked", not as something being wrong. */
-  variant?: 'default' | 'success';
+  /**
+   * What KIND of message this is — see lib/messageTone. Declared by the caller, because only the
+   * caller knows whether the thing that just happened was good news.
+   *
+   * ⚠️ THIS USED TO BE CALLED 'default', AND THE NAME IS WHY THE BUG EXISTED. A variant named
+   * `default` invites a call site to omit it, and omitting it silently meant "this is an alert" —
+   * which is how `✨ Registered LUR330 · 2026 Nissan Kicks` came to render on alert red for months.
+   * Calling the fallback `alert` makes leaving it out visible as a claim rather than as a shrug.
+   */
+  variant?: MessageTone;
 }
 
-const TOAST_BG: Record<NonNullable<ToastProps['variant']>, string> = {
-  default: 'rgba(153, 27, 27, 0.85)', // red-900 — the original tone
+const TOAST_BG: Record<MessageTone, string> = {
+  alert:   'rgba(153, 27, 27, 0.85)', // red-900 — something went wrong
+  notice:  'rgba(180, 83, 9, 0.88)',  // amber-700 — happened, but worth knowing
   success: 'rgba(21, 128, 61, 0.9)',  // green-700 — logged / done
 };
 
-export function Toast({ message, variant = 'default' }: ToastProps) {
+export function Toast({ message, variant = 'alert' }: ToastProps) {
   return (
     <div
       role="status"

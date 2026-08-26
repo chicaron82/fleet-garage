@@ -159,7 +159,9 @@ export function TripStartForm({
           />
         )}
       </div>
-      {registerToast && <Toast message={registerToast} />}
+      {/* The tone comes from whoever set the message — see useRegisterOnScan. Omitting it here is
+          what used to render "✨ Registered …" on alert red. */}
+      {registerToast && <Toast message={registerToast.message} variant={registerToast.tone} />}
     </div>
   );
 }

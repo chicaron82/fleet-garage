@@ -6,6 +6,8 @@
 // list, and copy a minimal plate-keyed block for the counter. Thin: resolve + route; the fleet
 // writes and the re-hold machinery keep their own homes.
 import { useState } from 'react';
+import { MESSAGE_TONE, type MessageTone, type ToneMessage } from '../../lib/messageTone';
+import { TONE_TEXT } from '../../lib/scanStatusLine';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAirportFlip } from '../../hooks/useAirportFlip';
@@ -56,7 +58,12 @@ export function AirportFlipSection() {
   const [keys, setKeys] = useState<number | null>(null);
   const [damaged, setDamaged] = useState(false);
   const [notes, setNotes] = useState('');
-  const [toast, setToast] = useState('');
+  // ⭐ The KIND of message travels with it. This used to be a bare string rendered in HARD-CODED
+  // green, so "Could not read that tag — try again." and "Enter a plate to continue." were painted
+  // as successes. `say` takes the tone explicitly — no default, because a default is what let the
+  // sibling surface (TripStartForm) announce a registration on alert red for months.
+  const [toast, setToast] = useState<ToneMessage | null>(null);
+  const say = (message: string, tone: MessageTone) => setToast({ message, tone });
   // Manual plate entry — the fallback when the AI scan is down (Anthropic busy) or misreads a
   // plate. The scan is a speed layer; the plate is the real identity key, so the flip must not
   // stop just because vision is unavailable.
@@ -82,7 +89,7 @@ export function AirportFlipSection() {
   // then open the capture card. New cars / too-partial reads no-op the fleet write; never blocks.
   const onScan = async (read: KeytagRead, photo: string) => {
     const { plate, vehicle } = resolveKeytagScan(read, vehicles);
-    if (!plate) { setToast('Could not read that tag — try again.'); return; }
+    if (!plate) { say('Could not read that tag — try again.', 'alert'); return; }
     let registeredId: string | undefined;
     try {
       const nv = newVehicleToRegisterOnScan(read, vehicles);
@@ -121,7 +128,7 @@ export function AirportFlipSection() {
   // identity" rule (a bare plate is too partial to mint a real vehicle record).
   const submitManualPlate = () => {
     const plate = correctManitobaPlate(manualPlate);
-    if (!plate) { setToast('Enter a plate to continue.'); return; }
+    if (!plate) { say('Enter a plate to continue.', 'alert'); return; }
     const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null;
     void openCapture({
       plate,
@@ -133,7 +140,10 @@ export function AirportFlipSection() {
       vehicleId: vehicle?.id ?? null,
     }, vehicle);
     setManualPlate('');
-    if (!vehicle) setToast(`${plate} — not on file, capturing for the counter.`);
+    // ⚠️ NOTICE, not alert — nothing failed here. The flip proceeds and the car is captured; he
+    // just needs to know it isn't on file. Forcing this red would be the same lie in the other
+    // direction, which is why the tone axis has three values instead of two.
+    if (!vehicle) say(`${plate} — not on file, capturing for the counter.`, 'notice');
   };
 
   const addToList = () => {
@@ -171,9 +181,9 @@ export function AirportFlipSection() {
     try {
       await navigator.clipboard.writeText(text);
       flip.markSent();
-      setToast(`Copied ${text.split('\n').length} for the counter · marked sent`);
-      setTimeout(() => setToast(''), 3000);
-    } catch { setToast('Copy failed — long-press the list to copy manually.'); }
+      say(`Copied ${text.split('\n').length} for the counter · marked sent`, 'success');
+      setTimeout(() => setToast(null), 3000);
+    } catch { say('Copy failed — long-press the list to copy manually.', 'alert'); }
   };
 
   return (
@@ -331,7 +341,10 @@ export function AirportFlipSection() {
         </div>
       )}
 
-      {toast && <p className="text-xs text-green-700 dark:text-green-400">{toast}</p>}
+      {/* ⚠️ The colour follows the MESSAGE now. This line was hard-coded green, so the two
+          error paths above rendered as confirmations. Reuses FG's existing colour vocabulary
+          (scanStatusLine's TONE_TEXT) rather than growing a second one. */}
+      {toast && <p className={`text-xs ${TONE_TEXT[MESSAGE_TONE[toast.tone]]}`}>{toast.message}</p>}
 
       <FlipRowsList flip={flip} onCopy={() => void copyForCounter()} />
     </div>
