@@ -16,7 +16,7 @@ import { FgAssistantFab } from './components/assistant/FgAssistantFab';
 import { LoginScreen } from './components/shared/LoginScreen';
 import { LogoutConfirm } from './components/shared/LogoutConfirm';
 import { getActiveModule, getDefaultScreenForRole, canAccessScreen, resolveLandingScreen } from './lib/navigation';
-import { screenToPath, pathToScreen, backAction, depthOf, type HistoryDepth } from './lib/screenRouting';
+import { screenToPath, pathToScreen, backAction, depthOf, historyWrite, type HistoryDepth } from './lib/screenRouting';
 import { AppErrorBoundary } from './components/shared/AppErrorBoundary';
 import { useOfflineQueueFlush } from './hooks/useOfflineQueueFlush';
 import { usePreferences } from './context/PreferencesContext';
@@ -53,10 +53,18 @@ export default function App() {
   // Drain any queued offline writes on mount / refocus / reconnect (see hook).
   useOfflineQueueFlush();
 
-  const navigate = useCallback((next: Screen) => {
+  const navigate = useCallback((next: Screen, opts?: { replace?: boolean }) => {
     // Stamp the depth so "is there anywhere to go back to" stays a readable fact across pushes,
     // pops and refreshes, instead of a counter we would have to keep in sync (see lib/screenRouting).
-    window.history.pushState({ ...next, _depth: depthOf(window.history.state) + 1 }, '', screenToPath(next));
+    //
+    // ⭐ `replace` SWAPS the current entry instead of stacking on it, and keeps the SAME depth —
+    // replacing does not descend. It exists for ONE-SHOT screens: a submitted register form has no
+    // remaining valid action, and leaving it in the stack means "back" returns him to a form whose
+    // only possible outcome is a duplicate car (Aaron, 2026-08-26).
+    const { method, depth } = historyWrite(window.history.state, opts?.replace);
+    const entry = { ...next, _depth: depth };
+    if (method === 'replace') window.history.replaceState(entry, '', screenToPath(next));
+    else window.history.pushState(entry, '', screenToPath(next));
     setScreen(next);
   }, []);
 
@@ -74,7 +82,10 @@ export default function App() {
    */
   const goBack = useCallback((fallback: Screen) => {
     if (backAction(window.history.state) === 'pop') window.history.back();
-    else navigate(fallback);
+    // ⚠️ The fallback REPLACES rather than pushes. Pushing it stacked the fallback on top of the
+    // screen he had just backed out of, so the hardware back button walked him FORWARDS into it
+    // again — verbatim the defect described above, surviving in the one branch that still pushed.
+    else navigate(fallback, { replace: true });
   }, [navigate]);
 
   // Seed the initial history entry on login (derived state — avoids setState-in-effect)
@@ -193,12 +204,18 @@ export default function App() {
             keytagPhoto={screen.scannedPhoto}
             returnTo={screen.fromHold ? 'hold' : 'fleet'}
             onBack={() => goBack(screen.fromHold ? { name: 'new-hold' } : { name: 'fleet-master' })}
+            /* ⭐ The completed form must leave the stack — the two paths are different journeys and
+               get different answers. From a hold he is going FORWARD, carrying the new vehicleId
+               into the hold form, so the entry is replaced. From Fleet he is RETURNING, so it pops
+               — the same primitive this form's own ← Back uses one line above. (Replacing on the
+               Fleet path would leave fleet-master at two depths and his first back-tap would look
+               like it did nothing.) */
             onSuccess={(vehicleId) => {
               if (screen.fromHold) {
-                navigate({ name: 'new-hold', vehicleId, fromRegister: true });
+                navigate({ name: 'new-hold', vehicleId, fromRegister: true }, { replace: true });
               } else {
                 setFleetRefreshKey(k => k + 1);
-                navigate({ name: 'fleet-master' });
+                goBack({ name: 'fleet-master' });
               }
             }}
           />

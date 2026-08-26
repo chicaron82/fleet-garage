@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { screenToPath, pathToScreen } from '../../src/lib/screenRouting';
+import { screenToPath, pathToScreen, historyWrite, depthOf } from '../../src/lib/screenRouting';
 import type { Screen } from '../../src/types';
 
 describe('screenToPath', () => {
@@ -143,4 +143,54 @@ describe('round-trip: pathToScreen(screenToPath(screen))', () => {
       expect(pathToScreen(screenToPath(screen))).toEqual(screen);
     });
   }
+});
+
+
+// ── historyWrite ───────────────────────────────────────────────────────────────────────────────
+// Aaron, 2026-08-26: "after registering a vehicle… when I hit back, it takes me back into the form
+// I completed where it tells me that something already exists with this info." `navigate` only ever
+// PUSHED, so a submitted register form stayed in the stack — and a submitted register form is a
+// one-shot whose only remaining action is creating a duplicate of the car it just made.
+describe('historyWrite — push descends, replace does not', () => {
+  it('a normal navigation pushes one level deeper', () => {
+    expect(historyWrite({ _depth: 1 })).toEqual({ method: 'push', depth: 2 });
+    expect(historyWrite({ _depth: 0 })).toEqual({ method: 'push', depth: 1 });
+  });
+
+  // ⭐⭐ THE LOAD-BEARING ONE. backAction reads this depth to decide whether there is anywhere to go
+  // back to. A replace that incremented would make the stack look one level deeper than it is, and
+  // strand him at a fallback that never fires.
+  it('a replace keeps the depth of the entry it is swapping', () => {
+    expect(historyWrite({ _depth: 2 }, true)).toEqual({ method: 'replace', depth: 2 });
+    expect(historyWrite({ _depth: 1 }, true)).toEqual({ method: 'replace', depth: 1 });
+  });
+
+  it('defaults to pushing when nothing is said', () => {
+    expect(historyWrite({ _depth: 3 }).method).toBe('push');
+    expect(historyWrite({ _depth: 3 }, false).method).toBe('push');
+  });
+
+  it('treats a missing or junk state as the app root', () => {
+    expect(historyWrite(null)).toEqual({ method: 'push', depth: 1 });
+    expect(historyWrite(undefined)).toEqual({ method: 'push', depth: 1 });
+    expect(historyWrite({})).toEqual({ method: 'push', depth: 1 });
+    expect(historyWrite(null, true)).toEqual({ method: 'replace', depth: 0 });
+  });
+
+  // ⭐ The property that makes the fix work: replacing NEVER grows the stack, however many times a
+  // one-shot screen resolves. Pushing the same journey twice would put two entries behind him.
+  it('repeated replaces stay at one depth; repeated pushes do not', () => {
+    let state: { _depth: number } = { _depth: 1 };
+    for (let i = 0; i < 5; i++) state = { _depth: historyWrite(state, true).depth };
+    expect(state._depth).toBe(1);
+
+    let pushed: { _depth: number } = { _depth: 1 };
+    for (let i = 0; i < 5; i++) pushed = { _depth: historyWrite(pushed).depth };
+    expect(pushed._depth).toBe(6);
+  });
+
+  it('agrees with depthOf about what it wrote', () => {
+    const w = historyWrite({ _depth: 4 });
+    expect(depthOf({ _depth: w.depth })).toBe(5);
+  });
 });

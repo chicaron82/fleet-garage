@@ -75,6 +75,30 @@ export function depthOf(state: unknown): number {
 }
 
 /**
+ * What to write to the history stack for a navigation.
+ *
+ * ⭐ REPLACING DOES NOT DESCEND. A push goes one level deeper; a replace swaps the entry you are
+ * standing on and therefore keeps its depth. Getting that wrong is not cosmetic — `backAction`
+ * reads the depth to decide whether there is anywhere to go back to, so a replace that incremented
+ * would make the stack look one deeper than it is and strand him at a fallback that never fires.
+ *
+ * ⚠️ WHY REPLACE EXISTS AT ALL (Aaron, 2026-08-26): *"after registering a vehicle… when I hit back,
+ * it takes me back into the form I completed where it tells me that something already exists with
+ * this info."* A submitted register form is a ONE-SHOT — its only remaining action is creating a
+ * duplicate of the car it just made. Screens like that must leave the stack behind them, not sit in
+ * it waiting to be reached by a back-tap.
+ */
+export function historyWrite(
+  currentState: unknown,
+  replace = false,
+): { method: 'push' | 'replace'; depth: number } {
+  const depth = depthOf(currentState);
+  return replace
+    ? { method: 'replace', depth }
+    : { method: 'push', depth: depth + 1 };
+}
+
+/**
  * What "← Back" should do from here.
  *
  * `pop` whenever there is a real previous screen — that is what returns him to the module he came
