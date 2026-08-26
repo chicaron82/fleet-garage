@@ -34,7 +34,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // field is how two surfaces start disagreeing. Silent when absent — 155 of the fleet legitimately
 // have no code, and a "set me" prompt on every one of them is noise, not a nudge.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9 }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -49,6 +49,8 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   classCode?: string | null;
   /** The branch's rental grouping (Q4, B4, C…) — a different axis from the model code. */
   rentalClass?: string | null;
+  /** Last 9 of the VIN (migration 126). Never the full VIN — nothing may decode a make from it. */
+  vinLast9?: string | null;
 }) {
   const { recordKeyCount, recordOdometer } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
@@ -132,6 +134,19 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
         </button>
       )}
 
+      {/* The last 9 of the VIN (migration 126). Stored on 380 cars and, until now, visible on
+          none — a writer with no reader, the mirror of the odometer's reader with no writer.
+          It earns a chip because it is the one identifier that survives a re-plate, and because
+          a value you cannot SEE is one you can never notice is wrong. */}
+      {vinLast9 && (
+        <span
+          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 font-mono"
+          title="Last 9 of the VIN, read off the key tag — not the full VIN"
+        >
+          🔖 {vinLast9}
+        </span>
+      )}
+
       {(classCode || rentalClass) && (
         <span
           className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 font-mono"
@@ -158,7 +173,11 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
       >
         👁️ {sightings.neverSeen
           ? 'Never scanned'
-          : `Seen ${sightings.count}× · last ${describeLastSeen(sightings.lastSeenAt)}`}
+          /* NOT "last ${…}" — describeLastSeen returns a COMPLETE phrase, so the prefix produced
+             "last last week", "last 3 days ago", "last yesterday". Found by rendering the card at
+             phone width during /reflect 63; no test could see it, because every test asserted on
+             the function's output rather than the sentence it lands in. */
+          : `Seen ${sightings.count}× · ${describeLastSeen(sightings.lastSeenAt)}`}
       </span>
 
       {zoom && keytagPhotoUrl && (
