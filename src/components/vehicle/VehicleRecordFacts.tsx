@@ -66,7 +66,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer, clearOdometer } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer, recordWinterTires } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate);
   const [zoom, setZoom] = useState(false);
   const [seenOpen, setSeenOpen] = useState(false);
@@ -131,6 +131,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
           way to enter this", and a car with no reading is exactly the one worth offering. */}
       {editingOdo ? (
         <OdometerCapture
+          isUs={isUs}
           vehicleId={vehicleId}
           /* The card shows ONE car, so switching cars is the only reset worth having — no event
              here to key on, unlike the scan. See OdometerCapture's `resetKey`. */
@@ -166,15 +167,38 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
           `null` means never checked, which is NOT "no", and a chip saying "no" for a car nobody has
           inspected would be a confident lie. The date is the half that stops it aging: a tick from
           February is wrong by the following winter, and only the date can say so. */}
+      {/* ⚠️ TAPPABLE, because the field is SEASONAL and shipped this morning with the registration form
+          as its only writer — a value designed to change twice a year, settable exactly once, at
+          birth. Tapping flips it and re-stamps the date, so the answer is always "what he last saw",
+          never "what someone said in August".
+
+          Shown only once someone has looked: `null` means nobody has, which is NOT "no", and a chip
+          asserting "no winter tires" for an uninspected car would be a confident lie. He starts it
+          from the register form or from an explicit tap here. */}
       {winterTires != null && (
-        <span className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-          winterTires
-            ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300'
-            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
-        }`}>
+        <button
+          type="button"
+          onClick={() => { hapticLight(); void recordWinterTires(vehicleId, !winterTires); }}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
+            winterTires
+              ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300 hover:border-sky-400'
+              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
+          }`}
+        >
           ❄️ {winterTires ? 'Winter tires' : 'No winter tires'}
           {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
-        </span>
+        </button>
+      )}
+      {/* The first observation for a car nobody has checked — quiet, and only on a US car or in the
+          months it matters would be over-engineering, so it simply sits with the other chips. */}
+      {winterTires == null && (
+        <button
+          type="button"
+          onClick={() => { hapticLight(); void recordWinterTires(vehicleId, true); }}
+          className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer transition"
+        >
+          ❄️ Winter tires?
+        </button>
       )}
 
       {/* The last 9 of the VIN (migration 126). Stored on 380 cars and, until now, visible on

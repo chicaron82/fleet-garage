@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { parseOdometer, describeOdometer } from '../../lib/odometer';
+import { parseOdometer, describeOdometer, odometerUnitFor } from '../../lib/odometer';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 
 // The odometer, captured where he's already standing (2026-08-25).
@@ -19,7 +19,7 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 // "47,200 km" ages into a lie; a figure from April describes a car that has since done a summer of
 // rentals. And a lower reading than the one on file is a misread or the wrong car — `recordOdometer`
 // refuses it server-side rather than rewriting a good record, so this says so BEFORE he taps.
-export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onSave, onClear }: {
+export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, onSave, onClear }: {
   vehicleId: string;
   /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
    *  things by it. The SCAN passes its per-scan nonce, because a scan is an EVENT and re-scanning
@@ -29,6 +29,12 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onS
   resetKey: string | number;
   currentKm?: number | null;
   currentAt?: string | null;
+  /** ⚠️ THE CAPTURE CONTROL HAD TO LEARN THIS TOO, and it did not on the first pass. When FG met its
+   *  first US car (2026-08-27) I taught the record's odometer CHIP to say "mi" and left this — the
+   *  control he actually TYPES INTO, on the scan sheet — hard-coded to "km on the dash". So the Jeep's
+   *  record read 23,175 mi while the box under it asked him for kilometres. Fixed the reader I was
+   *  looking at and not the one beside it, which is the same defect I spent the week writing up. */
+  isUs?: boolean;
   onSave: (vehicleId: string, km: number) => Promise<void>;
   /** Clears a mis-typed reading back to "not logged". Omitted → no clear offered (read-only hosts). */
   onClear?: (vehicleId: string) => Promise<boolean>;
@@ -36,6 +42,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onS
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const unit = odometerUnitFor(isUs);
 
   useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); });
 
@@ -62,10 +69,10 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onS
   return (
     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
       <span className="text-xs text-gray-500 dark:text-gray-400">
-        🧭 {currentKm != null ? describeOdometer(currentKm, currentAt) : 'Odometer not logged'} —
+        🧭 {currentKm != null ? describeOdometer(currentKm, currentAt, new Date(), unit) : 'Odometer not logged'} —
       </span>
       {saved ? (
-        <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} km saved</span>
+        <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} {unit} saved</span>
       ) : (
         <div className="flex items-center gap-2">
           <input
@@ -73,7 +80,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onS
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void save(); }}
             inputMode="numeric"
-            placeholder="km on the dash"
+            placeholder={`${unit} on the dash`}
             aria-label="Odometer reading"
             className="w-32 h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
           />
@@ -126,8 +133,8 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, onS
           sameAsFile ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400'
         }`}>
           {sameAsFile
-            ? `Already on file at ${currentKm?.toLocaleString()} km — nothing to update.`
-            : `Lower than the ${currentKm?.toLocaleString()} km on file — check the reading.`}
+            ? `Already on file at ${currentKm?.toLocaleString()} ${unit} — nothing to update.`
+            : `Lower than the ${currentKm?.toLocaleString()} ${unit} on file — check the reading.`}
         </span>
       )}
     </div>

@@ -91,6 +91,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
                     {/* The odometer, in the same beat as the key count — he is at the dash. Until
                         now this column had ONE writer (the airport flip) and stood at 0 of 683. */}
                     <OdometerCapture
+                      isUs={vehicle.isUs}
                       vehicleId={vehicle.id}
                       resetKey={scanNonce}
                       currentKm={vehicle.odometer}

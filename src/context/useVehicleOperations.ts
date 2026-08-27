@@ -19,6 +19,7 @@ import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
 import { makeAdoptPlate } from './plateWrite';
+import { makeRecordWinterTires } from './winterTiresWrite';
 import { makeRecordOdometer, makeClearOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
@@ -140,6 +141,9 @@ export function useVehicleOperations({
   // See ./fieldUnlockWrite.
   const unlockVehicleField = makeUnlockVehicleField({ setAllVehicles });
   const recordKeyCount = makeRecordKeyCount({ setAllVehicles });
+  // ⚠️ Seasonal state needs a SECOND writer — the register form was the only one, so a field designed
+  // to change twice a year could only ever be set at birth. See ./winterTiresWrite.
+  const recordWinterTires = makeRecordWinterTires({ setAllVehicles });
   const setVehicleNote = makeSetVehicleNote({ setAllVehicles });
   // Records the owning branch off a scanned tag, if-missing. See ./owningAreaWrite.
   const recordOwningArea = makeRecordOwningArea({
@@ -337,6 +341,7 @@ export function useVehicleOperations({
     updateVehicleFields,
     unlockVehicleField,
     recordKeyCount,
+    recordWinterTires,
     setVehicleNote,
     attachKeytagPhotoIfMissing,
     retakeKeytagPhoto,
