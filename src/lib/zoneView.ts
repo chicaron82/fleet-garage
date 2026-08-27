@@ -2,10 +2,24 @@ import { INTERIOR_ZONE_IDS, thirdRowTaggedIn } from './interiorZones';
 
 // Which map to open on — Aaron, 2026-08-26, once the interior map existed alongside the exterior one.
 //
-// ⚠️ THIS EXISTS TO STOP A TAG BECOMING INVISIBLE. A hold whose only tag is `seat-second-passenger`
-// opening on the EXTERIOR map shows an empty car with nothing selected, which reads as "no zones
-// recorded" — the recorded-but-not-knowable defect, reintroduced by the very feature meant to fix it.
-// The view has to follow the data rather than default blindly.
+// ⚠️ THIS FILE ONCE AUTO-SWITCHED TO THE CABIN when every tag was interior, to stop such a hold
+// opening on an empty exterior map and reading as "no zones recorded". Aaron killed that the same
+// day, scanning a car with a cig burn on the 2nd-row seat and no exterior damage:
+//
+//   *"I would rather it show me exterior clear first and 'interior - 1' on the toggle … because I may
+//    accidentally read that interior damage on the rear passenger seat zone as exterior damage on the
+//    rear passenger door. and until I tap that zone to look at the photo I wouldn't have known
+//    what/where it was"*
+//
+// ⭐⭐ Both maps share a silhouette AND the FRONT/REAR/PASSENGER/DRIVER labels — deliberately, so they
+// agree about orientation. The cost is that a red square in the cabin's 2nd row sits almost exactly
+// where the rear passenger DOOR sits outside. Landing on a map he did not choose, he has no cue which
+// one he is on until he taps a zone for its photo.
+//
+// ⭐⭐⭐ AND I HAD BUILT TWO SOLUTIONS TO ONE PROBLEM. `countOnView` already prevents the empty-map
+// misread — the inactive tab carries a count, so the same hold reads "[Exterior] (clear) [Interior·1]",
+// which says BOTH true things at once and never moves him. The badge was the better half all along;
+// the auto-switch was the weaker one that also carried a hazard.
 
 export type ZoneView = 'exterior' | 'interior';
 
@@ -13,20 +27,6 @@ const INTERIOR = new Set<string>(INTERIOR_ZONE_IDS);
 
 export function isInteriorZone(id: string): boolean {
   return INTERIOR.has(id);
-}
-
-/**
- * The view a picker should open on, given what is already tagged.
- *
- * ⭐ EXTERIOR WINS A TIE, deliberately. It is the overwhelmingly common case and the one every
- * existing hold uses, so a mixed hold opens where the operator expects and the interior is one tap
- * away. Only a hold that is PURELY interior opens on the cabin — the case that would otherwise
- * render as empty.
- */
-export function initialZoneView(selected: readonly string[]): ZoneView {
-  if (selected.length === 0) return 'exterior';
-  const anyExterior = selected.some(id => !isInteriorZone(id));
-  return anyExterior ? 'exterior' : 'interior';
 }
 
 /**

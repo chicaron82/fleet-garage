@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DamageZoneMap } from './DamageZoneMap';
-import { initialZoneView, initialThirdRow, countOnView, type ZoneView } from '../../lib/zoneView';
+import { initialThirdRow, countOnView, type ZoneView } from '../../lib/zoneView';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 
 // The "where" question, with two views — Aaron, 2026-08-26.
@@ -20,15 +20,23 @@ export function ZoneMapPicker({ selected, onToggle, disabled = false, candidates
   focused?: string | null;
   label?: string;
 }) {
-  const [view, setView] = useState<ZoneView>(() => initialZoneView(selected));
+  // ⭐ ALWAYS EXTERIOR. This used to auto-switch to the cabin when every tag was interior — Aaron
+  // killed it: landing on a map he did not choose risks reading a 2nd-row seat as a rear passenger
+  // door, since both maps share a silhouette and the same side labels. The count badge below already
+  // says there is something on the other map, which is what the auto-switch was invented for.
+  const [view, setView] = useState<ZoneView>('exterior');
   const [hasThirdRow, setHasThirdRow] = useState(() => initialThirdRow(selected));
 
   // ⚠️ Re-seed when the SUBJECT changes, not on every render. `useState` alone seeds once at mount,
-  // so moving from a dented car to a headrest-only one would keep showing the exterior — the same
-  // frozen-initial-state bug fixed in the opening-duties signal earlier today, one component over.
+  // so moving from one car to another would carry the previous car's toggles across — the same
+  // frozen-initial-state bug fixed in the opening-duties signal, one component over.
+  //
+  // ⚠️ The VIEW resets to exterior too. Leaving it on whichever map he last looked at would land him
+  // on the cabin for a car he has not opened yet — the very misread this default exists to prevent,
+  // arriving by a different door.
   const subject = selected.join('|');
   useRoutedProp(subject, () => {
-    setView(initialZoneView(selected));
+    setView('exterior');
     setHasThirdRow(initialThirdRow(selected));
   });
 

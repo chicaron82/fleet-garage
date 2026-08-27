@@ -19,12 +19,16 @@ describe('ZoneMapPicker', () => {
     expect(zone('hood')).not.toBeInTheDocument();
   });
 
-  // ⭐⭐⭐ THE ONE THAT MATTERS. A hold whose only tag is a headrest must not open on the exterior
-  // map showing an empty car — that reads as "nothing recorded" and re-creates the very defect this
-  // feature exists to fix, inside the feature.
-  it('opens on the CABIN when every existing tag is interior', () => {
+  // ⭐⭐⭐ THE ONE THAT MATTERS, and it INVERTED on 2026-08-27. It used to assert the picker opened on
+  // the cabin when every tag was interior — Aaron rejected that from the floor: both maps share a
+  // silhouette and the same side labels, so a 2nd-row seat reads as a rear passenger door on a map he
+  // did not choose. It must open on the EXTERIOR, visibly clear, and let the badge say the rest.
+  it('opens on the EXTERIOR even when every tag is interior, and says so on the badge', () => {
     render(<ZoneMapPicker selected={['seat-second-passenger']} onToggle={vi.fn()} />);
-    expect(zone('2nd row — passenger')).toBeInTheDocument();
+    expect(zone('hood')).toBeInTheDocument();                      // exterior map is what he sees
+    expect(zone('2nd row — passenger')).not.toBeInTheDocument();    // never moved without asking
+    // …and the two true things at once: nothing selected out here, one thing in there.
+    expect(screen.getByRole('button', { name: /interior/i }).textContent).toMatch(/1/);
   });
 
   it('opens on the exterior for a mixed hold — interior is one tap away', () => {
@@ -49,10 +53,12 @@ describe('ZoneMapPicker', () => {
     expect(zone('3rd row — bench')).toBeInTheDocument();
   });
 
-  // ⭐⭐ A tag already on the bench must render, not sit hidden behind a toggle he has to think to
-  // flip. Same shape as the vanishing correction path.
-  it('starts with the third row revealed when it is already tagged', () => {
+  // ⭐⭐ A tag already on the bench must render the moment he reaches the cabin — not sit hidden
+  // behind a toggle he has to think to flip. (He still has to switch views, by design; what must not
+  // happen is arriving on the interior map with an existing tag invisible.)
+  it('has the third row already revealed when he reaches the cabin', async () => {
     render(<ZoneMapPicker selected={['seat-third-bench']} onToggle={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: /interior/i }));
     expect(zone('3rd row — bench')).toBeInTheDocument();
   });
 
@@ -64,12 +70,15 @@ describe('ZoneMapPicker', () => {
     expect(onToggle).toHaveBeenCalledWith('centre-console');
   });
 
-  // ⚠️ The frozen-initial-state bug, one component over from where it bit today. useState seeds once
-  // at mount, so re-rendering with a different hold must re-derive the view rather than keep the old.
-  it('re-derives the view when the subject changes', () => {
+  // ⚠️ The frozen-initial-state bug. useState seeds once at mount, so switching to another car must
+  // RESET the view — otherwise he lands on the cabin for a car he has not opened yet, which is the
+  // exact misread the exterior default exists to prevent, arriving through a different door.
+  it('resets to the exterior when the subject changes', async () => {
     const { rerender } = render(<ZoneMapPicker selected={['hood']} onToggle={vi.fn()} />);
-    expect(zone('hood')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /interior/i }));
+    expect(zone('2nd row — centre')).toBeInTheDocument();          // he switched, deliberately
     rerender(<ZoneMapPicker selected={['cargo-area']} onToggle={vi.fn()} />);
-    expect(zone('cargo area')).toBeInTheDocument();
+    expect(zone('hood')).toBeInTheDocument();                      // new car → back to exterior
+    expect(zone('cargo area')).not.toBeInTheDocument();
   });
 });
