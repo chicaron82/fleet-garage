@@ -75,15 +75,37 @@ describe('the form shows it whenever there is a code', () => {
     expect(FORM).toContain('<RegisterClassCode');
   });
 
-  // ⭐⭐ THE REGRESSION. Gating on teachClassCode means gating on FAILURE — the resolved-but-misread
-  // code, which is the dangerous one, goes invisible again.
-  it('does not gate the field on the codex having FAILED', () => {
+  // ⭐⭐ THE REGRESSION. Gating on teachClassCode ALONE means gating on FAILURE — the
+  // resolved-but-misread code, which is the dangerous one, goes invisible again.
+  //
+  // ⚠️ THIS GUARD USED TO BAN THE SUBSTRING `teachClassCode` anywhere in the condition, which is
+  // cruder than its own stated intent and fired on a correct fix (/line-check 2026-08-27). The
+  // contract is not "never mention that field" — it is "show it whenever the SCAN carried a code,
+  // from EITHER field". Banning the substring also permitted a second, opposite regression:
+  // `{scanned?.classCode && …}` alone would have passed while hiding the unresolvable code, since
+  // a codex MISS leaves `classCode` undefined and only `teachClassCode` set.
+  //
+  // So it asserts both halves explicitly. Stricter than the ban it replaces, and it forbids the
+  // original defect (`{scanned?.teachClassCode && …}`) by requiring the resolved field too.
+  it('shows the field whenever the scan carried a code — resolved OR unresolvable', () => {
     const at = FORM.indexOf('<RegisterClassCode');
     const before = FORM.slice(Math.max(0, at - 400), at);
-    // The nearest preceding JSX condition must be the presence of a code, not teachClassCode.
     const cond = before.slice(before.lastIndexOf('{'));
-    expect(cond, 'the model code is gated on a failed read again').not.toContain('teachClassCode');
-    expect(cond).toContain('classCode');
+    expect(cond, 'a RESOLVED code must still be shown — the misread-but-resolvable case is the dangerous one')
+      .toContain('scanned?.classCode');
+    expect(cond, 'an UNRESOLVABLE code must still be shown — that registration teaches the codex')
+      .toContain('scanned?.teachClassCode');
+  });
+
+  // ⭐ And it must NOT be gated on the live draft. `{classCode.trim() && …}` unmounted the control
+  // the moment he cleared the box — an input that vanishes mid-edit — and made the component's own
+  // blank-state message ("FG learns nothing from this tag") unreachable dead code: the child had a
+  // branch for empty, the parent guaranteed non-empty. Gate on the READ, edit freely.
+  it('is gated on the scan, not on the draft the operator is still typing', () => {
+    const at = FORM.indexOf('<RegisterClassCode');
+    const cond = FORM.slice(Math.max(0, at - 400), at);
+    const gate = cond.slice(cond.lastIndexOf('{'));
+    expect(gate, 'clearing the box must not unmount the field').not.toMatch(/\bclassCode\.trim\(\)/);
   });
 
   // `teaching` still has to REACH it, or the amber "FG will learn this" state silently disappears.

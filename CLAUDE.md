@@ -423,6 +423,23 @@ the "nothing here yet" placeholder; the persistent create-action is the header p
 
 ## Build & Test
 
+⚠️ **THREE things call themselves "the gate", and only ONE runs the flow tests.**
+
+| | `tsc -b` | lint | vitest | **flows** |
+|---|---|---|---|---|
+| `scripts/gate.sh` | ✓ | ✓ | ✓ | **✓** |
+| `.git/hooks/pre-push` | ✓ | ✓ | ✓ | **✗** |
+| `.github/workflows/ci.yml` | ✓ | ✓ | ✓ | **✗** |
+
+So a broken **journey** is invisible to `git push` and to CI, and the pre-push hook still prints
+"✓ CI gate green locally" — true of CI, false of the gate this file names. It cost real time:
+`e040f6f` (2026-08-26) renamed a label from "Class code" to "Model code" and the scan-router flow
+spec, last touched 2026-08-21, went red. It stayed red across **30 commits and two days** while
+every push reported green, and was found by a cold /line-check running `gate.sh` by hand.
+
+**So: "gates green" in a commit message means `bash scripts/gate.sh`.** A push that only survived
+the hook has not run the journeys, and the journeys are the only thing that sees the seam.
+
 ```bash
 # Run all gates from the repo root (structural — no ambient-cwd risk):
 bash /home/ronnie/Kitchen/fleet-garage/scripts/gate.sh

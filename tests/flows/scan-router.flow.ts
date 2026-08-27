@@ -58,7 +58,7 @@ test('⭐ an UNKNOWN class code is shown and editable — it teaches the codex',
       year: 2025, color: 'Blue', rentalClass: 'B5', teachClassCode: 'CKSP',
     },
   });
-  const code = page.getByLabel(/Class code/);
+  const code = page.getByLabel(/Model code/);
   await expect(code).toBeVisible();
   await expect(code).toHaveValue('CKSP');
   await expect(page.getByText(/registering teaches CKSP/)).toBeVisible();
@@ -72,11 +72,16 @@ test('⭐ an UNKNOWN class code is shown and editable — it teaches the codex',
   await expect(page.getByText(/FG learns nothing from this tag/)).toBeVisible();
 });
 
-test('⭐ a code the codex KNOWS is still stored — it just is not up for teaching', async ({ page }) => {
-  // The 2026-08-21 regression: the form seeded its field from `teachClassCode`, which is set ONLY
-  // when the codex missed. So CALE (a known code — GMC Acadia) resolved into a make and model and
-  // was then discarded, storing class_code as null. Exactly backwards: the codes FG knows are the
-  // ones it can trust most. `classCode` now carries the read code always.
+test('⭐ a code the codex KNOWS is shown for confirmation — but is not up for teaching', async ({ page }) => {
+  // Two eras of behaviour, both deliberate:
+  //   2026-08-21: the form seeded from `teachClassCode` (set only on a codex MISS), so CALE — a
+  //   known code — resolved into make/model and was then discarded, storing class_code null.
+  //   2026-08-26 (`e040f6f`): shown WHENEVER there is a code, not only on failure. A misread that
+  //   happens to RESOLVE was invisible — make/model filled in, looked right, and nothing said the
+  //   four characters underneath were wrong. The case that most needed confirming was hidden.
+  // ⚠️ This test previously asserted the field was ABSENT for a known code — and after the label
+  // rename it passed VACUOUSLY (queried the old label, found nothing, count 0 "succeeded"). A
+  // stale selector turned a behavioural assertion into a tautology; it asserts the real element now.
   await injectScreen(page, {
     name: 'register-vehicle', prefill: 'LUR541',
     scanned: {
@@ -85,21 +90,23 @@ test('⭐ a code the codex KNOWS is still stored — it just is not up for teach
     },
   });
   await expect(page.getByRole('button', { name: 'Add to FG' })).toBeVisible();
-  // No amber teach box — nothing is being learned…
-  await expect(page.getByLabel(/Class code/)).toHaveCount(0);
-  // …but the value rides along and is stored. Asserted via the submitted payload's own field.
+  // Shown, carrying the read code — he can confirm the four characters against the tag…
+  await expect(page.getByLabel(/Model code/)).toHaveValue('CALE');
+  // …resolving is show-your-work, not a lesson: it names the mapping and teaches nothing.
+  await expect(page.getByText(/CALE → GMC Acadia/)).toBeVisible();
+  await expect(page.getByText(/registering teaches/)).toHaveCount(0);
   await expect(page.getByRole('combobox').nth(1)).toHaveValue('Acadia');
 });
 
-test('a code the codex already knows stays out of the way', async ({ page }) => {
-  // No teachClassCode means nothing is being learned, so there is nothing to confirm — an amber
-  // field on every registration would be noise, and noise is how a real warning gets ignored.
+test('a scan with NO code shows no code field at all', async ({ page }) => {
+  // A handwritten tag often carries no 4-char code. Nothing read → nothing to confirm → no field.
+  // (Known codes DO render now — see the CALE test above — so absence is only for the truly blank.)
   await injectScreen(page, {
     name: 'register-vehicle', prefill: 'ABX931',
     scanned: { unitNumber: '5429931', plate: 'ABX931', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White', rentalClass: 'C' },
   });
   await expect(page.getByRole('button', { name: 'Add to FG' })).toBeVisible();
-  await expect(page.getByLabel(/Class code/)).toHaveCount(0);
+  await expect(page.getByLabel(/Model code/)).toHaveCount(0);
 });
 
 test('scan → Flag/hold opens the flag form on the scanned vehicle', async ({ page }) => {

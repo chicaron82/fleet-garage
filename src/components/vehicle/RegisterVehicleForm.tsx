@@ -381,13 +381,21 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               onWinterTires={setWinterTires}
             />
 
-            {/* ⚠️ SHOWN WHENEVER THERE IS A CODE — not only when the codex missed. It used to be
-                gated on `teachClassCode`, i.e. on FAILURE, so a misread code that happened to
+            {/* ⚠️ SHOWN WHENEVER THE READ CARRIED A CODE — not only when the codex missed. It used
+                to be gated on `teachClassCode`, i.e. on FAILURE, so a misread code that happened to
                 RESOLVE was invisible: make and model filled in, looked right, and nothing said the
                 four characters underneath were wrong. The case that most needs confirming was the
                 one that was hidden. Aaron, 2026-08-26: "the model code isn't here to confirm it was
-                read correctly." See RegisterClassCode. */}
-            {classCode.trim() && (
+                read correctly." See RegisterClassCode.
+
+                ⚠️ Gated on the SCAN's fields, not the live draft. It briefly read
+                `classCode.trim() &&` — which unmounted the control the moment he cleared the box
+                (an input that vanishes mid-edit), and made RegisterClassCode's own blank-state
+                message ("FG learns nothing from this tag") unreachable dead code: the child had a
+                branch for empty, the parent guaranteed non-empty. A truly code-less read (a
+                handwritten tag) still renders nothing. Found by the flow suite, /line-check
+                2026-08-27. */}
+            {(scanned?.classCode || scanned?.teachClassCode) && (
               <RegisterClassCode
                 code={classCode}
                 onChange={setClassCode}
