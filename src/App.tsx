@@ -231,7 +231,20 @@ export default function App() {
                 navigate({ name: 'new-hold', vehicleId, fromRegister: true }, { replace: true });
               } else {
                 setFleetRefreshKey(k => k + 1);
-                goBack({ name: 'fleet-master' });
+                /* ⭐ LAND ON THE CAR HE JUST MADE. Aaron, 2026-08-27: *"i'd register one but then i'd
+                   have to search for it again just so i could add it's odo reading."* Registering is
+                   never the end of the task — he is standing at the car, and the odometer, key count
+                   and EV kit all live on the record. The register-from-a-hold path above already
+                   carried the new vehicleId forward for exactly this reason; the Fleet path treated
+                   registration as an errand that ends, and it isn't one.
+
+                   ⚠️ REPLACE, never push. A push would stack the record on top of the completed form
+                   and Back would walk him into it — the defect `08ead1b` fixed and `00526ad` widened
+                   a contract to prevent. Replacing leaves [fleet-master, vehicle], so Back returns
+                   him to Fleet and the form is gone. (The older comment warning against replacing on
+                   this path was about replacing with FLEET-MASTER itself, which would have left it at
+                   two depths — the hazard was the destination, not the verb.) */
+                navigate({ name: 'vehicle', vehicleId }, { replace: true });
               }
             }}
           />

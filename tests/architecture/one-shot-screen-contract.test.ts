@@ -47,16 +47,40 @@ describe('the submitted register form must not stay in the stack', () => {
 
   // ⭐⭐ THE REGRESSION. A bare `navigate({ name: 'fleet-master' })` here is exactly the line that
   // stacked a second Fleet entry on top of the form instead of leaving it.
-  it('never pushes its way out — the Fleet path pops, the hold path replaces', () => {
+  //
+  // ⚠️ THIS ASSERTION WAS LOOSENED ON 2026-08-27, DELIBERATELY, AND THE RULE DID NOT MOVE. It used
+  // to also demand `goBack(` — i.e. that the Fleet path POPS. That was the route, not the rule.
+  // Aaron: *"can we have it so after registering it shows me the record of what I had just
+  // registered? i'd register one but then i'd have to search for it again just so i could add it's
+  // odo reading."* So the Fleet path now REPLACES with the new car's record instead of popping to
+  // the list. Both leave the stack; only the destination changed.
+  //
+  // ⭐ The guard against the ORIGINAL defect is untouched, and it is the loop below: a bare
+  // `navigate({...})` — the exact line that stacked a second entry on top of the submitted form —
+  // still fails, because every navigate in this handler must carry `replace: true`. Dropping the
+  // goBack requirement removed a claim about WHICH exit, not the requirement that there BE one.
+  it('never pushes its way out — every exit replaces or pops', () => {
     const body = registerOnSuccess();
-    // Every navigate call in this handler must be a replace; anything else has to be goBack.
     const navCalls = [...body.matchAll(/navigate\(/g)];
+    expect(navCalls.length, 'no navigate at all — did the handler stop routing?').toBeGreaterThan(0);
     for (const m of navCalls) {
       const call = body.slice(m.index, body.indexOf('\n', m.index));
       expect(call, `a push survives in the register success path: ${call.trim()}`)
         .toContain('replace: true');
     }
-    expect(body, 'the Fleet path must return him, not stack a new entry').toContain('goBack(');
+    // It must still LEAVE, by one route or the other — never by falling through.
+    expect(body.includes('goBack(') || body.includes('replace: true'),
+      'the register form must leave the stack, by pop or by replace').toBe(true);
+  });
+
+  // ⭐ And the new intent, pinned so it is not "fixed" back into a pop by someone reading the old
+  // comment: he lands on the CAR, not the list, because registering is never the end of the task.
+  it('lands him on the car he just registered, not back on the list', () => {
+    const body = registerOnSuccess();
+    const fleetBranch = body.slice(body.indexOf('} else {'));
+    expect(fleetBranch).toContain("name: 'vehicle'");
+    expect(fleetBranch).toContain('vehicleId');
+    expect(fleetBranch).toContain('replace: true');
   });
 
   // ⚠️ The hold path is a FORWARD move carrying the new vehicleId — a pop would land him on the
