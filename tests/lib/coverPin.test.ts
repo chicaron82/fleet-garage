@@ -7,10 +7,13 @@ describe('effectivePinnedIndex', () => {
     expect(effectivePinnedIndex(null, 1)).toBe(0);
   });
 
-  // ⚠️ Two or more is a real judgement about which damage represents the car. FG must not guess.
-  it('pins nothing when there is a genuine choice to make', () => {
-    expect(effectivePinnedIndex(null, 2)).toBeNull();
-    expect(effectivePinnedIndex(null, 5)).toBeNull();
+  // ⭐ WIDENED 2026-08-27 by Aaron: *"just marking the first photo if there are multiple. I can
+  // always change it later too."* A wrong cover costs one tap; NO cover leaves the row looking like
+  // a hold with no photos at all. Something beats nothing, and the first photo is the one he chose
+  // to take first. It also makes this agree with Effie's path, which always did it this way.
+  it('pins the FIRST photo when there are several, as a changeable default', () => {
+    expect(effectivePinnedIndex(null, 2)).toBe(0);
+    expect(effectivePinnedIndex(null, 5)).toBe(0);
   });
 
   it('pins nothing when there are no photos', () => {
@@ -33,8 +36,8 @@ describe('coverPhotoUrlFor', () => {
     expect(coverPhotoUrlFor(1, ['a', 'b', 'c'], ['ua', 'ub', 'uc'])).toBe('ub');
   });
 
-  it('returns nothing when several photos and no tap', () => {
-    expect(coverPhotoUrlFor(null, ['a', 'b'], ['ua', 'ub'])).toBeNull();
+  it('falls back to the first photo when several and no tap', () => {
+    expect(coverPhotoUrlFor(null, ['a', 'b'], ['ua', 'ub'])).toBe('ua');
   });
 
   // ⚠️⚠️ THE SAFETY PROPERTY THE ORIGINAL CODE HAD, PRESERVED. A failed upload is filtered out of the
