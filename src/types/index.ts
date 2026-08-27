@@ -424,7 +424,12 @@ export type Screen =
   // the header can offer prev/next through the worklist he is actually walking. In memory only, not
   // in the URL: a refresh drops it and the arrows go away, which is the honest degradation.
   | { name: 'vehicle'; vehicleId: string; openRepair?: boolean; openRepairNonce?: number; cohort?: string[] }
-  | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; prefillNonce?: number }
+  /** ⚠️ `fromVehicle` exists because a submitted flag form has TWO honest destinations. Reached from
+   *  a car's record he is RETURNING, so the form pops and he lands back on the car. Reached from the
+   *  scan overlay — which is not a history entry — the form sits on top of whatever screen he was on,
+   *  so popping would take him THERE instead of to the car he just flagged, and the entry is replaced
+   *  instead. Same shape as `register-vehicle`'s `fromHold`. */
+  | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; fromVehicle?: boolean; prefillNonce?: number }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity; scannedPhoto?: string }
   // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that
   // compares equal across two scans of the same tag, so a value-keyed re-seed would fire only

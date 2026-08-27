@@ -170,7 +170,7 @@ export default function App() {
             openRepair={screen.openRepair}
             openRepairNonce={screen.openRepairNonce}
             onBack={() => goBack({ name: 'dashboard' })}
-            onNewHold={(vehicleId) => navigate({ name: 'new-hold', vehicleId })}
+            onNewHold={(vehicleId) => navigate({ name: 'new-hold', vehicleId, fromVehicle: true })}
             cohort={screen.cohort}
             /* Stepping keeps the SAME cohort — that is the whole point: he is walking one list. */
             onOpenVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId, cohort: screen.cohort })}
@@ -182,6 +182,12 @@ export default function App() {
             vehicleId={screen.vehicleId}
             prefillNonce={screen.prefillNonce}
             onBack={() => goBack({ name: 'dashboard' })}
+            /* ⭐ A SUBMITTED FORM MUST LEAVE THE STACK — and the three journeys here get three
+               different answers, because "back" means something different from each origin.
+               Aaron, 2026-08-27: *"looked up lur212, flagged it for PM. hit back and took me to the
+               form."* That was the plain flag path, which still PUSHED the vehicle record on top of
+               the completed form. `08ead1b` fixed this for the register form a day earlier; this
+               form has the same shape and never got it. */
             onSuccess={(vehicleId) => {
               // If this hold came from a fresh registration, clean the history stack
               if (screen.fromRegister) {
@@ -189,8 +195,18 @@ export default function App() {
                 window.history.pushState({ name: 'dashboard', _depth: 1 }, '', '/');
                 window.history.pushState({ name: 'vehicle', vehicleId, _depth: 2 }, '', `/vehicle/${vehicleId}`);
                 setScreen({ name: 'vehicle', vehicleId });
+              } else if (screen.fromVehicle) {
+                /* He came FROM the car's record, so he is RETURNING: pop, and the record he lands on
+                   already shows the hold he just made. Replacing here would put the vehicle screen at
+                   two depths and his first back-tap would look like it did nothing — the exact hazard
+                   the register form's own comment names. */
+                goBack({ name: 'vehicle', vehicleId });
               } else {
-                navigate({ name: 'vehicle', vehicleId });
+                /* From the SCAN overlay, which is not a history entry — the form is sitting on top of
+                   whatever screen he was on (My Day, usually). Popping would take him back THERE
+                   rather than to the car he just flagged, so the form's entry is replaced by the
+                   record instead. */
+                navigate({ name: 'vehicle', vehicleId }, { replace: true });
               }
             }}
             onRegisterNew={(prefill) => navigate({ name: 'register-vehicle', fromHold: true, prefill })}

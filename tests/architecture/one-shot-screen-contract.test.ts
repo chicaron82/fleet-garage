@@ -80,3 +80,59 @@ describe('the submitted register form must not stay in the stack', () => {
     expect(body).toContain('replace: true');
   });
 });
+
+// ⚠️⚠️ THE CONTRACT ABOVE IS NAMED FOR A CLASS AND WAS IMPLEMENTED FOR AN INSTANCE.
+//
+// It inspects `case 'register-vehicle':` and nothing else — and its own extractor comment NOTICES
+// the other one-shot screen while walking straight past it: *"the new-hold screen has one too, and
+// it appears FIRST in the file."* It saw a second submit-once form and treated it purely as a
+// string-matching hazard to avoid, never as a screen that needed the same guarantee.
+//
+// Aaron then hit the identical bug on that exact form, one day later: *"looked up lur212, flagged it
+// for PM. hit back and took me to the form. pretty sure we did something earlier to prevent this
+// from happening."* He was right — we had, on the other form.
+//
+// ⭐ So this half asserts the RULE over EVERY one-shot screen, found by enumeration rather than by
+// name. A form added next month is covered the day it lands, and the next person cannot fix the
+// reported instance while leaving its class behind.
+describe('EVERY one-shot screen leaves the stack, not just the one that was reported', () => {
+  /** Every `onSuccess={(vehicleId) => {` handler in App.tsx, with the case label above it. */
+  function oneShotHandlers(): { label: string; body: string }[] {
+    const out: { label: string; body: string }[] = [];
+    for (const m of APP.matchAll(/onSuccess=\{\(vehicleId\) => \{/g)) {
+      const before = APP.slice(0, m.index);
+      const caseAt = before.lastIndexOf("case '");
+      const label = APP.slice(caseAt, APP.indexOf(':', caseAt) + 1);
+      const end = APP.indexOf('\n            }}', m.index!);
+      out.push({ label, body: APP.slice(m.index!, end) });
+    }
+    return out;
+  }
+
+  // ⭐ The enumeration is asserted first. If App.tsx is reshaped so nothing matches, every check
+  // below would pass vacuously — the failure mode that makes a source contract worthless.
+  it('finds more than one one-shot screen — this is why it exists', () => {
+    const handlers = oneShotHandlers();
+    expect(handlers.length, 'no onSuccess handlers found — did App.tsx change shape?').toBeGreaterThanOrEqual(2);
+    expect(handlers.map(h => h.label).join(' ')).toContain("case 'new-hold':");
+    expect(handlers.map(h => h.label).join(' ')).toContain("case 'register-vehicle':");
+  });
+
+  // ⭐⭐ THE RULE ITSELF. A submitted form must not be reachable by Back, so every route out of a
+  // success handler either POPS (he is returning) or REPLACES (he is going forward). A bare
+  // `navigate({...})` pushes the destination on TOP of the completed form, which is the whole defect.
+  it.each(oneShotHandlers())('$label routes out without pushing', ({ label, body }) => {
+    for (const m of [...body.matchAll(/navigate\(/g)]) {
+      const call = body.slice(m.index, body.indexOf('\n', m.index));
+      expect(call, `a PUSH survives in ${label} — it will stack on top of the submitted form: ${call.trim()}`)
+        .toContain('replace: true');
+    }
+  });
+
+  // ⚠️ Popping and replacing are not interchangeable, and choosing wrong is a different bug wearing
+  // the same fix. Each handler must therefore make a visible CHOICE rather than defaulting.
+  it.each(oneShotHandlers())('$label decides between returning and going forward', ({ label, body }) => {
+    const decides = body.includes('goBack(') || body.includes('replace: true') || body.includes('replaceState');
+    expect(decides, `${label} leaves the stack to chance — no goBack, no replace`).toBe(true);
+  });
+});
