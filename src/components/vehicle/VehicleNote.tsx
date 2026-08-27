@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import { fmtRelativeDate } from '../../lib/lostFoundDate';
+import { NoteHistory } from './NoteHistory';
 
 // The note on the car — the tier BELOW a hold (Aaron, 2026-08-20, from the lot).
 //
@@ -94,17 +95,24 @@ export function VehicleNote({ vehicleId, note, noteAt }: {
     // Quiet when there's nothing to say — most cars have no note, and a loud empty state on every
     // record teaches him to scroll past the one car that does.
     return (
-      <button
-        type="button"
-        onClick={open}
-        className="mt-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-      >
-        📝 Leave a note
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={open}
+          className="mt-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+        >
+          📝 Leave a note
+        </button>
+        {/* ⚠️ The no-note branch needs this MORE than the other one. A note gets cleared precisely
+            when the thing it described is over, so the car whose history he wants is almost always
+            a car with nothing on it right now — LZM533 exactly. */}
+        <NoteHistory vehicleId={vehicleId} />
+      </>
     );
   }
 
   return (
+    <>
     <button
       type="button"
       onClick={open}
@@ -117,5 +125,7 @@ export function VehicleNote({ vehicleId, note, noteAt }: {
         </p>
       )}
     </button>
+      <NoteHistory vehicleId={vehicleId} />
+    </>
   );
 }
