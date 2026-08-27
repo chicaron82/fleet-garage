@@ -40,3 +40,50 @@ export function makeAttachKeytagPhotoIfMissing(deps: {
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, keytagPhotoUrl: url } : v)));
   };
 }
+
+/** RETAKES the key tag photo — the deliberate replace the if-missing rule above always deferred to.
+ *
+ *  Aaron, 2026-08-27: *"can we just make the keytag editable? like if the original keytag is a bad
+ *  photo it can be retaken/replaced by something new."*
+ *
+ *  ⭐ ATTACH-IF-MISSING GETS ONE THING WRONG, and this is it. That rule exists to stop a WORSE photo
+ *  clobbering a GOOD one — but it cannot tell worse from better, so it assumes the FIRST one was
+ *  best. It is right about automatic writes and wrong about a person. Aaron tapping "retake" is the
+ *  only thing in the system that has actually looked at both. The comment above already said as
+ *  much — *"re-capturing a tag is a deliberate identity-edit action"* — and then there was nowhere
+ *  to do it.
+ *
+ *  Covers every case in one control: a blurry original, a tag faded past reading (he sent me one he
+ *  could not read with his own eyes), a re-print, and a re-plate — where the car wears a genuinely
+ *  new tag and the stored one is now a picture of the past.
+ *
+ *  ⚠️ THE OLD PHOTO IS NOT DELETED, and needs no new storage to survive. Migration 118's trigger
+ *  already logs every `keytag_photo_url` change, so the previous URL is in `vehicle_changes` with
+ *  its date, and the file itself stays in the bucket. A superseded tag is evidence of what the car
+ *  used to wear — for the Suburban that came from Calgary, its Alberta tag is the ONLY record of its
+ *  old plate. Same reasoning as a cleared note keeping its history: a correction that erases what it
+ *  corrected is a second, tidier lie.
+ *
+ *  ⚠️ SWAPS THE PICTURE, NEVER RE-READS IT. Aaron's call, and the right one: re-reading would spend a
+ *  model call and let a worse photo overwrite good fields. A retake is about the EVIDENCE; the scan
+ *  path already owns the reading and all its provenance rules.
+ *
+ *  Returns false when nothing was written, so no caller can report a success that did not happen. */
+export function makeRetakeKeytagPhoto(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+
+  return async (vehicleId: string, photo: string): Promise<boolean> => {
+    const url = await uploadPhoto(photo, `keytag-${vehicleId}`);
+    if (!url) return false;
+    // ⚠️ No `.is(null)` guard here, and that is the entire difference from the write above. This one
+    // is MEANT to overwrite — the guard is the operator, not the query.
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ keytag_photo_url: url }).eq('id', vehicleId).select('id')
+    );
+    if (error || !data?.length) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, keytagPhotoUrl: url } : v)));
+    return true;
+  };
+}

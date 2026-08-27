@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
@@ -256,9 +257,17 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
       )}
 
       {zoom && keytagPhotoUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
+        /* flex-col: the retake controls sit UNDER the tag, not beside it. The backdrop is absolute
+           so it stays out of the flow. */
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4" onClick={() => setZoom(false)}>
           <div className="absolute inset-0 bg-black/80" />
-          <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[85dvh] max-w-full rounded-lg object-contain" />
+          <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
+          {/* ⭐ The fix belongs where the problem is DISCOVERED. He opens this to check a tag; if it
+              is unreadable, the retake is right here rather than on another screen. stopPropagation
+              because the backdrop closes on click and a file picker must not dismiss its own modal. */}
+          <div className="relative mt-3" onClick={e => e.stopPropagation()}>
+            <KeytagRetake vehicleId={vehicleId} onReplaced={() => setZoom(false)} />
+          </div>
           <button
             type="button"
             aria-label="Close"

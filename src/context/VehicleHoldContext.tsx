@@ -56,6 +56,9 @@ export interface VehicleHoldContextValue {
   setVehicleNote: (vehicleId: string, note: string | null) => Promise<void>;
   /** Upload the scanned key tag and keep it on the vehicle as the read's evidence. */
   attachKeytagPhotoIfMissing: (vehicleId: string, photo: string) => Promise<void>;
+  /** Replace the stored key tag with a fresh photo. Deliberate, operator-initiated, and the one
+   *  keytag write that overwrites — the old URL survives in vehicle_changes. False when nothing wrote. */
+  retakeKeytagPhoto: (vehicleId: string, photo: string) => Promise<boolean>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
