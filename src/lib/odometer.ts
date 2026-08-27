@@ -40,6 +40,20 @@ export function describeOdometerAge(iso: string | null | undefined, now: Date = 
   return `${MONTHS[then.getMonth()]} ${then.getDate()}`;
 }
 
+/** What a car's dash reads in. FG assumed `km` everywhere until a Florida Jeep turned up from Fargo
+ *  on 2026-08-27 reading 23,175 MILES.
+ *
+ *  ⚠️ NOTHING IS EVER CONVERTED. Aaron: *"no conversion. but example for this it would show x miles
+ *  instead of x km."* The stored number is what he typed off that dash; this only says which unit it
+ *  is in. A round-trip through km loses precision and hands back a figure he never read — a small lie
+ *  in the one field whose whole job is recording an observation. */
+export type OdometerUnit = 'km' | 'mi';
+
+/** A US-plated car reads miles. One flag, because a US dash has never been anything else. */
+export function odometerUnitFor(isUs?: boolean | null): OdometerUnit {
+  return isUs ? 'mi' : 'km';
+}
+
 /**
  * The one string every surface should render. Never the number alone.
  *
@@ -55,9 +69,12 @@ export function describeOdometer(
    *  Every sibling formatter in FG already takes `now` — describeLastSeen, describeChangeTime,
    *  describeOdometerAge below. This one silently didn't, and the inconsistency was the bug. */
   now: Date = new Date(),
+  /** ⚠️ Defaults to km so every existing caller keeps its exact behaviour — the fleet is Canadian and
+   *  one Jeep is not a reason to make 700 call sites think about units. */
+  unit: OdometerUnit = 'km',
 ): string {
   if (km === null || km === undefined || km <= 0) return '';
   const pretty = km.toLocaleString('en-CA');
   const age = describeOdometerAge(at, now);
-  return age ? `${pretty} km · ${age}` : `${pretty} km`;
+  return age ? `${pretty} ${unit} · ${age}` : `${pretty} ${unit}`;
 }

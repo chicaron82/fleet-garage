@@ -1,3 +1,4 @@
+import { RegisterVehicleFlags } from './RegisterVehicleFlags';
 import { useState, useRef } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
@@ -60,6 +61,10 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   // Hybrid flag — an attribute now, not a "<Base> Hybrid" model. Pre-checked when the scanned tag's
   // class code is a hybrid variant (codex hint); otherwise operator-checked, defaults off.
   const [isHybrid, setIsHybrid] = useState(scanned?.isHybrid ?? false);
+  // ⚠️ `winterTires` starts NULL, not false — an untouched control writes nothing (the EV-asset
+  // rule). Otherwise every car he registers and walks away from would report its tyres as summer.
+  const [isUs, setIsUs] = useState(false);
+  const [winterTires, setWinterTires] = useState<boolean | null>(null);
   // Rental class is read off the tag, not operator-typed — carried through to the insert.
   const [rentalClass, setRentalClass] = useState(scanned?.rentalClass ?? '');
   // ⚠️ EDITABLE, and that is the whole point. `teachClassCode` is present only when the codex
@@ -158,6 +163,11 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
         branchId:       user?.branchId,
         isTesla,
         isHybrid,
+        isUs,
+        // Only an OBSERVED value travels, with the moment he made it. Null stays null all the way
+        // to the column, where it honestly means "nobody has looked".
+        winterTires,
+        winterTiresAt: winterTires === null ? null : new Date().toISOString(),
         // EV assets register as "not assessed" (null) — never assume present. The insert NEVER
         // carries a status, even when he assessed them on the form: an assessment is a logged
         // observation with a source, so it goes through updateVehicleEVAssets below and lands in
@@ -362,6 +372,13 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               onColor={setColor}
               isHybrid={isHybrid}
               onHybrid={setIsHybrid}
+            />
+
+            <RegisterVehicleFlags
+              isUs={isUs}
+              onIsUs={setIsUs}
+              winterTires={winterTires}
+              onWinterTires={setWinterTires}
             />
 
             {/* ⚠️ SHOWN WHENEVER THERE IS A CODE — not only when the codex missed. It used to be

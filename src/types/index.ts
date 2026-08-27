@@ -223,6 +223,14 @@ export interface Vehicle {
    *  (manufacturer, attributes) are not printed on the tag, so nothing may decode a make from it.
    *  Immutable per car: first good read wins. The one identity key that survives a re-plate. */
   vinLast9?: string | null;
+  /** US-plated (2026-08-27, FG's first — a Florida Jeep up from Fargo). Drives the 🇺🇸 badge and
+   *  makes every odometer surface read MILES. Aaron also knows it means "not rentable locally";
+   *  he declined a louder treatment because the car has a route home (driven back to Fargo). */
+  isUs?: boolean;
+  /** Winter tires as last OBSERVED. `undefined`/null = never checked, which is not the same as "no". */
+  winterTires?: boolean | null;
+  /** When winterTires was seen. Seasonal state — a value without this ages into a lie by spring. */
+  winterTiresAt?: string | null;
   isTesla: boolean;
   // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
   // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.

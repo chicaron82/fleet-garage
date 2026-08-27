@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge } from '../../src/lib/odometer';
+import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge , odometerUnitFor } from '../../src/lib/odometer';
 
 describe('shouldReplaceOdometer — latest wins, but only forward', () => {
   it('fills a blank', () => {
@@ -66,5 +66,35 @@ describe('describeOdometer — never the number alone', () => {
 
   it('survives a reading with no date rather than inventing one', () => {
     expect(describeOdometer(47200, null, now)).toBe('47,200 km');
+  });
+});
+
+// ── Units, added 2026-08-27 with FG's first US car ────────────────────────────────────────────
+describe('odometer units', () => {
+  it('reads km by default — the whole Canadian fleet, unchanged', () => {
+    expect(odometerUnitFor(false)).toBe('km');
+    expect(odometerUnitFor(null)).toBe('km');
+    expect(odometerUnitFor(undefined)).toBe('km');
+    expect(describeOdometer(16232, null)).toBe('16,232 km');
+  });
+
+  it('reads miles for a US car', () => {
+    expect(odometerUnitFor(true)).toBe('mi');
+    expect(describeOdometer(23175, null, new Date(), 'mi')).toBe('23,175 mi');
+  });
+
+  // ⭐⭐⭐ NOTHING IS CONVERTED. 23,175 mi is 37,296 km — if the number ever moved, this would fail.
+  // Aaron's rule: the stored figure is what he read off that dash, and the unit only labels it.
+  it('never converts the number — the figure is the observation', () => {
+    const asMiles = describeOdometer(23175, null, new Date(), 'mi');
+    const asKm = describeOdometer(23175, null, new Date(), 'km');
+    expect(asMiles).toContain('23,175');
+    expect(asKm).toContain('23,175');   // same number, different label — never a conversion
+  });
+
+  it('still carries the age, which is the half that stops it aging into a lie', () => {
+    const at = new Date('2026-08-20T12:00:00Z').toISOString();
+    const now = new Date('2026-08-27T12:00:00Z');
+    expect(describeOdometer(23175, at, now, 'mi')).toBe('23,175 mi · 7d ago');
   });
 });

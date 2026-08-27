@@ -5,7 +5,7 @@ import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
-import { describeOdometer } from '../../lib/odometer';
+import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
@@ -42,7 +42,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -59,6 +59,10 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   rentalClass?: string | null;
   /** Last 9 of the VIN (migration 126). Never the full VIN — nothing may decode a make from it. */
   vinLast9?: string | null;
+  /** US-plated: 🇺🇸 badge, and every odometer figure on this record reads MILES. */
+  isUs?: boolean;
+  winterTires?: boolean | null;
+  winterTiresAt?: string | null;
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
@@ -144,8 +148,33 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
           onClick={() => { hapticLight(); setEditingOdo(true); }}
           className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer"
         >
-          🛣️ {odometer ? `${describeOdometer(odometer, odometerAt)} · tap to update` : 'Log odometer'}
+          🛣️ {odometer ? `${describeOdometer(odometer, odometerAt, new Date(), odometerUnitFor(isUs))} · tap to update` : `Log odometer${isUs ? ' (mi)' : ''}`}
         </button>
+      )}
+
+      {/* 🇺🇸 A US-plated car, plain and small — Aaron declined anything louder. It is doing more work
+          than it looks: it is also why the odometer above says "mi", and he reads it as "cannot be
+          rented here, goes back to Fargo". The flag is enough because HE knows what it means; the
+          record does not need to lecture him about his own fleet. */}
+      {isUs && (
+        <span className="rounded-lg border border-blue-300 dark:border-blue-700/60 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
+          🇺🇸 US plates · miles
+        </span>
+      )}
+
+      {/* ❄️ Winter tires as last OBSERVED. ⚠️ Rendered only when someone has actually looked —
+          `null` means never checked, which is NOT "no", and a chip saying "no" for a car nobody has
+          inspected would be a confident lie. The date is the half that stops it aging: a tick from
+          February is wrong by the following winter, and only the date can say so. */}
+      {winterTires != null && (
+        <span className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+          winterTires
+            ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300'
+            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+        }`}>
+          ❄️ {winterTires ? 'Winter tires' : 'No winter tires'}
+          {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
+        </span>
       )}
 
       {/* The last 9 of the VIN (migration 126). Stored on 380 cars and, until now, visible on

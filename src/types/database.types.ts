@@ -1650,6 +1650,7 @@ export type Database = {
           id: string
           is_hybrid: boolean
           is_tesla: boolean
+          is_us: boolean
           key_count: number | null
           keytag_photo_url: string | null
           license_plate: string
@@ -1665,6 +1666,8 @@ export type Database = {
           unit_number: string | null
           updated_at: string | null
           vin_last9: string | null
+          winter_tires: boolean | null
+          winter_tires_at: string | null
           year: number
         }
         Insert: {
@@ -1691,6 +1694,7 @@ export type Database = {
           id: string
           is_hybrid?: boolean
           is_tesla?: boolean
+          is_us?: boolean
           key_count?: number | null
           keytag_photo_url?: string | null
           license_plate: string
@@ -1706,6 +1710,8 @@ export type Database = {
           unit_number?: string | null
           updated_at?: string | null
           vin_last9?: string | null
+          winter_tires?: boolean | null
+          winter_tires_at?: string | null
           year: number
         }
         Update: {
@@ -1732,6 +1738,7 @@ export type Database = {
           id?: string
           is_hybrid?: boolean
           is_tesla?: boolean
+          is_us?: boolean
           key_count?: number | null
           keytag_photo_url?: string | null
           license_plate?: string
@@ -1747,6 +1754,8 @@ export type Database = {
           unit_number?: string | null
           updated_at?: string | null
           vin_last9?: string | null
+          winter_tires?: boolean | null
+          winter_tires_at?: string | null
           year?: number
         }
         Relationships: []

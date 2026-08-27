@@ -112,6 +112,12 @@ export function useVehicleOperations({
           is_hybrid:         vehicle.isHybrid ?? false,
           has_mobile_cable:  vehicle.hasMobileCable ?? null,
           has_j1772_adapter: vehicle.hasJ1772Adapter ?? null,
+          is_us:             vehicle.isUs ?? false,
+          // ⚠️ `?? null` and NOT `?? false` — an untouched winter-tires control must land as NULL,
+          // meaning nobody looked. Defaulting it to false would record a confident "no winters" for
+          // every car ever registered, which is the EV-asset defect in a new field.
+          winter_tires:      vehicle.winterTires ?? null,
+          winter_tires_at:   vehicle.winterTiresAt ?? null,
         })
       );
       if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
