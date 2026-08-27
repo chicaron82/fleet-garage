@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { ScanReplateOffer } from './ScanReplateOffer';
 import { compressImage } from '../../lib/image';
 import { scanRouterActions } from '../../lib/scanRouterActions';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
@@ -41,7 +42,7 @@ interface Props {
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error, errorRef } = useKeytagRead();
   const { user } = useAuth();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode, recordVinLast9, recordOdometer, clearOdometer, updateVehicleEVAssets } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode, recordVinLast9, recordOdometer, clearOdometer, updateVehicleEVAssets, adoptPlate } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const { scan, pickedFileRef, pickedNonce } = useScanRouter();
@@ -315,6 +316,17 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                   }`}>
                     🔎 {matchedByUnitLabel(true, scanRead?.unitNumber, result.plate, vehicle?.licensePlate)}
                   </p>
+                )}
+                {/* ⭐ The unit fallback already RESOLVED the car; this is the one case where the
+                    difference between the tag's plate and the record's is a real-world event rather
+                    than a bad read. Renders itself away unless it classifies as a re-plate. */}
+                {vehicle && (
+                  <ScanReplateOffer
+                    vehicle={vehicle}
+                    tagPlate={result?.plate}
+                    scanNonce={scanNonce}
+                    adoptPlate={adoptPlate}
+                  />
                 )}
                 {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at
                     the car so a missing one gets caught the moment the tag is read, not at dispatch. */}

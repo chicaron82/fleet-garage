@@ -18,6 +18,7 @@ import { makeAttachKeytagPhotoIfMissing } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
+import { makeAdoptPlate } from './plateWrite';
 import { makeRecordOdometer, makeClearOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
@@ -148,6 +149,13 @@ export function useVehicleOperations({
 
   // The last 9 of the VIN off a scanned tag, if-missing. Immutable — see ./vinWrite.
   const recordVinLast9 = makeRecordVinLast9({
+    setAllVehicles,
+    currentVehicle: id => allVehicles.find(v => v.id === id),
+  });
+
+  // ⚠️ The ONE tag write that overwrites a good value, gated twice: it must classify as a RE-PLATE
+  // rather than a misread, and the operator must have tapped. See ./plateWrite.
+  const adoptPlate = makeAdoptPlate({
     setAllVehicles,
     currentVehicle: id => allVehicles.find(v => v.id === id),
   });
@@ -325,6 +333,7 @@ export function useVehicleOperations({
     recordOwningArea,
     recordClassCode,
     recordVinLast9,
+    adoptPlate,
     recordOdometer,
     clearOdometer,
     releaseUnitNumber,

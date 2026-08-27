@@ -40,6 +40,9 @@ export interface VehicleHoldContextValue {
   /** Record the last 9 of the VIN read off a tag, if the vehicle has none yet. Immutable — the
    *  first good read stands. See vinWrite. */
   recordVinLast9: (vehicleId: string, vinLast9: string) => Promise<void>;
+  /** Adopt a new plate off the tag after a RE-PLATE. Returns false when refused — including when the
+   *  difference classifies as a misread, so nothing can claim a plate changed that didn't. */
+  adoptPlate: (vehicleId: string, tagPlate: string) => Promise<boolean>;
   /** Record the odometer read off a flip. Latest reading wins. See odometerWrite. */
   recordOdometer: (vehicleId: string, km: number) => Promise<void>;
   /** Back to "not logged" — the escape the forward-only guard was missing. See odometerWrite. */
