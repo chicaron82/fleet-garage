@@ -19,6 +19,8 @@
 
 /** Every zone id. Stored verbatim in `holds.damage_zones`, so these strings are DATA:
  *  renaming one silently orphans every hold already tagged with it. Add freely; never rename. */
+import { INTERIOR_ZONES } from './interiorZones';
+
 export const DAMAGE_ZONE_IDS = [
   'front-bumper', 'hood', 'windshield', 'roof', 'rear-glass', 'trunk-liftgate', 'rear-bumper',
   'passenger-front-quarter', 'passenger-front-door', 'passenger-rear-door', 'passenger-rear-quarter',
@@ -30,14 +32,21 @@ export const DAMAGE_ZONE_IDS = [
 
 export type DamageZoneId = (typeof DAMAGE_ZONE_IDS)[number];
 
-export interface DamageZone {
-  id: DamageZoneId;
+/** A tappable region on either map. ⚠️ `id` is a plain string HERE on purpose: the interior zones
+ *  (lib/interiorZones) share this shape but are not members of `DamageZoneId`, and a hold stores one
+ *  array containing both. The narrow union stays on `DamageZone` below, where it still buys something. */
+export interface ZoneShape {
+  id: string;
   /** What a human calls it — the chip text, and the words in his own notes. */
   name: string;
   /** Drawing + hit box on the 900x700 canvas. */
   x: number; y: number; w: number; h: number;
   /** Rounded like the part it stands for: bumpers are capsules, wheels and mirrors are pills. */
   rx: number;
+}
+
+export interface DamageZone extends ZoneShape {
+  id: DamageZoneId;
 }
 
 /** Ordered front → back, centre line first, then passenger side, driver side, wheels, mirrors.
@@ -77,8 +86,14 @@ export const DAMAGE_ZONES: readonly DamageZone[] = [
   { id: 'rocker-driver',    name: 'Side skirt — driver',    x: 366, y: 508, w: 170, h: 26, rx: 6 },
 ];
 
-const BY_ID = new Map<string, DamageZone>(DAMAGE_ZONES.map(z => [z.id, z]));
-const ORDER = new Map<string, number>(DAMAGE_ZONES.map((z, i) => [z.id, i]));
+// ⚠️ EXTERIOR AND INTERIOR ARE ONE VOCABULARY. A hold stores a single zone array and a car can be
+// dented AND missing a headrest, so every reader below — labels, ordering, summaries, the record's
+// damage map — has to speak both. Building the lookups from both lists is what keeps `zoneLabel`
+// from rendering a raw `seat-second-passenger` at the operator, and `isDamageZoneId` from rejecting
+// a tag this build wrote itself. Exterior first so the display order stays nose-to-tail, then cabin.
+const ALL_ZONES: readonly ZoneShape[] = [...DAMAGE_ZONES, ...INTERIOR_ZONES];
+const BY_ID = new Map<string, ZoneShape>(ALL_ZONES.map(z => [z.id, z]));
+const ORDER = new Map<string, number>(ALL_ZONES.map((z, i) => [z.id, i]));
 
 /** The static body outline — drawn under the zones so the shape reads as a car, not a grid. */
 export const CAR_OUTLINE = {
@@ -97,9 +112,13 @@ export const CAR_OUTLINE = {
   ] as ReadonlyArray<readonly [number, number, number, number]>,
 } as const;
 
-/** True when `id` is a zone this build knows. Guards data read back from a row: an unknown id
- *  means the DB is ahead of the client, which must not crash a hold card. */
-export function isDamageZoneId(id: string): id is DamageZoneId {
+/** True when `id` is a zone this build knows — EITHER map. Guards data read back from a row: an
+ *  unknown id means the DB is ahead of the client, which must not crash a hold card.
+ *
+ *  ⚠️ Returns a plain boolean rather than narrowing to `DamageZoneId`, because since 2026-08-26 it
+ *  also answers yes for interior ids, which are not members of that union. A guard that narrowed to
+ *  the exterior type while accepting cabin ids would be a lie the compiler then believed. */
+export function isDamageZoneId(id: string): boolean {
   return BY_ID.has(id);
 }
 

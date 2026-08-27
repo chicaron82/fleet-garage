@@ -1,4 +1,4 @@
-import { DamageZoneMap } from './DamageZoneMap';
+import { ZoneMapPicker } from './ZoneMapPicker';
 import { zoneLabel, presetFor } from '../../lib/damageZones';
 import { hapticLight } from '../../lib/haptics';
 
@@ -50,7 +50,7 @@ export function NewHoldDamageZones({ holdTypes, zones, onToggleZone, noPanelAppl
           fold, but the answer to a long form is scrolling, not shrinking the target he has to hit
           with gloves on — and the backfill view proves full width works on his phone. */}
       <div>
-        <DamageZoneMap
+        <ZoneMapPicker
           selected={zones}
           onToggle={id => { hapticLight(); onToggleZone(id); }}
           disabled={noPanelApplies}

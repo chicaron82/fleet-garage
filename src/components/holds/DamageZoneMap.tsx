@@ -10,6 +10,8 @@
 // No labels on the diagram itself: at phone width they render smaller than a fingernail. The chips
 // beside it name what is selected, which is where a name is actually legible.
 import { DAMAGE_ZONES, CAR_OUTLINE, zoneLabel } from '../../lib/damageZones';
+import { CABIN_OUTLINE, interiorZonesFor } from '../../lib/interiorZones';
+import type { ZoneView } from '../../lib/zoneView';
 
 interface Props {
   /** Currently tagged zone ids. */
@@ -29,20 +31,32 @@ interface Props {
   /** Override the diagram's own description. The default says "tap to record damage here", which is
    *  a lie in read/inspect mode — and it is the label a screen reader announces. */
   label?: string;
+  /** Which map to draw. Both views share one canvas and one selection array — a hold can carry a
+   *  dent AND a missing headrest, and that is one hold with two tags. Defaults to the exterior so
+   *  every existing caller behaves exactly as before. */
+  view?: ZoneView;
+  /** Interior only: reveal the third-row bench. Aaron: *"toggle if exists."* Stores nothing. */
+  hasThirdRow?: boolean;
 }
 
 export function DamageZoneMap({
   selected, onToggle, disabled = false, candidates = [], focused = null, label,
+  view = 'exterior', hasThirdRow = false,
 }: Props) {
+  const interior = view === 'interior';
+  const outline = interior ? CABIN_OUTLINE : CAR_OUTLINE;
+  const zones = interior ? interiorZonesFor(hasThirdRow) : DAMAGE_ZONES;
   const isOn = (id: string) => selected.includes(id);
   const isCandidate = (id: string) => !selected.includes(id) && candidates.includes(id);
 
   return (
     <svg
-      viewBox={CAR_OUTLINE.viewBox}
+      viewBox={outline.viewBox}
       className="w-full h-auto select-none"
       role="group"
-      aria-label={label ?? 'Car diagram — tap a panel to record damage there'}
+      aria-label={label ?? (interior
+        ? 'Cabin diagram — tap an area to record what is damaged or missing there'
+        : 'Car diagram — tap a panel to record damage there')}
       data-testid="damage-zone-map"
     >
       {/* Orientation. Without these the diagram is just a grid of boxes — this is the bit that
@@ -57,18 +71,18 @@ export function DamageZoneMap({
             className="fill-gray-400 text-[15px] font-semibold tracking-wide">DRIVER SIDE</text>
 
       {/* Body shell + cabin, under everything — the shape that makes it read as a car. */}
-      {CAR_OUTLINE.shells.map((s, i) => (
+      {outline.shells.map((s, i) => (
         <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} rx={s.rx}
               className="fill-none stroke-gray-300 dark:stroke-gray-600" strokeWidth={3} />
       ))}
-      {CAR_OUTLINE.seams.map(([x1, y1, x2, y2], i) => (
+      {outline.seams.map(([x1, y1, x2, y2], i) => (
         <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
               className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={2} />
       ))}
 
       {/* The zones themselves are the hit boxes — nothing is layered over them, because a
           decorative dot that eats a tap is a bug you only find on a real phone. */}
-      {DAMAGE_ZONES.map(z => {
+      {zones.map(z => {
         const on = isOn(z.id);
         const suggested = isCandidate(z.id);
         const open = focused === z.id;

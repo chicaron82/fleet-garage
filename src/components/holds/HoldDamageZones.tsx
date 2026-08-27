@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { orderZones, toggleZone, zoneLabel, presetFor } from '../../lib/damageZones';
-import { DamageZoneMap } from './DamageZoneMap';
+import { ZoneMapPicker } from './ZoneMapPicker';
 import type { Hold } from '../../types';
 
 export function HoldDamageZones({ hold }: { hold: Hold }) {
@@ -67,7 +67,7 @@ export function HoldDamageZones({ hold }: { hold: Hold }) {
           {hold.notes.trim() && (
             <p className="mb-1 text-xs italic text-gray-500 dark:text-gray-400">"{hold.notes.trim()}"</p>
           )}
-          <DamageZoneMap selected={draft} onToggle={id => setDraft(d => toggleZone(d, id))} disabled={busy} />
+          <ZoneMapPicker selected={draft} onToggle={id => setDraft(d => toggleZone(d, id))} disabled={busy} />
           {/* A preset is a SHAPE the damage takes, not a guess — hail falls downward, so a hail hold
               is nearly always the same three panels. Still one deliberate tap. */}
           {preset && (

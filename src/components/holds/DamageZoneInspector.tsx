@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { zoneEvidence, zoneLabel } from '../../lib/damageZones';
-import { DamageZoneMap } from './DamageZoneMap';
+import { ZoneMapPicker } from './ZoneMapPicker';
 import { PhotoLightbox } from '../shared/PhotoLightbox';
 import type { Hold } from '../../types';
 
@@ -56,7 +56,7 @@ export function DamageZoneInspector({ holds, zones, compact = false }: Props) {
           shrink on 2026-08-25 — "may i ask why it was made smaller than the regular map" — and
           keeping the cap here would re-commit it one file over. Scrolling is what a long sheet is
           for; a target he has to hit accurately is not the thing to shrink. */}
-      <DamageZoneMap
+      <ZoneMapPicker
         selected={zones}
         onToggle={tap}
         focused={openZone}

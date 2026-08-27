@@ -197,11 +197,16 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
                 >
                   Log Verbal Override
                 </button>
-                <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-400 text-sm rounded-lg">
-                  {canMarkPreExisting(h.user.role)
-                    ? 'Exception release needs management approval'
-                    : 'Held — management approval required to release'}
-                </div>
+                {/* ⚠️ REMOVED 2026-08-26 — an inert red banner where a control should be.
+                    It was a <div>: no onClick, no path forward, pure explainer text sitting between
+                    two working buttons and rendered in the colour of a problem. Aaron: *"i don't
+                    have active management using FG so this line is kinda useless."* Exception
+                    releases ARE live (203 of them, latest that same afternoon) and none ever went
+                    through it, because there was nothing to go through.
+
+                    Its sibling branch — "Held — management approval required to release" — went with
+                    it: it explained an absence to roles that do not log into a trusted-crew tool,
+                    and an absent button is already its own message. */}
               </>
             )}
             {h.holds.length > 0 && (
