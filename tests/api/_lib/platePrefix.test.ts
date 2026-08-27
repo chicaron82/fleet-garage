@@ -141,3 +141,43 @@ describe('the MCM / MCN series', () => {
     }
   });
 });
+
+// ── All-or-nothing, added 2026-08-27 ──────────────────────────────────────────────────────────
+//
+// Aaron, from the scan sheet: *"why is it if I typed it incorrectly and hit look up it comes up as
+// 'LFJK947' even if I typed it as 'DFJK947'?"* Every early return handed back the ALREADY-SNAPPED
+// string, including the branch whose own comment said "leave it be". So a plate could have its
+// prefix rewritten, then be correctly declared unqualified, and keep the rewrite.
+describe('a correction is all-or-nothing', () => {
+  // ⭐⭐⭐ THE REPORTED BUG. `DFJ` is one character from `LFJ` and uniquely so, so pass 1 snapped it;
+  // the 4-character body then disqualified it; and the snapped value came back regardless.
+  it('does not half-correct a plate whose shape disqualifies it', () => {
+    expect(correctManitobaPlate('DFJK947')).toBe('DFJK947');
+  });
+
+  // ⚠️ NOT A TYPING-ONLY BUG — the scan path ran the same code. These two survived by LUCK, not by
+  // the shape gate the old comment claimed: DFD sits near no prefix, and DUR is one char from BOTH
+  // LUR and KUR so snapPrefix refuses on ambiguity. Pinned so the luck becomes a rule.
+  it('leaves out-of-province plates alone by DESIGN, not coincidence', () => {
+    for (const p of ['DFDA712', 'DUR143', 'SPHV03', '0GK641', 'DFKJ947']) {
+      expect(correctManitobaPlate(p)).toBe(p);
+    }
+  });
+
+  // ⭐ And the corrector must still do the job it exists for — a hand-drawn U misread as M or N, and
+  // a letter sitting in a digit slot. Losing these to fix the above would be the wrong trade.
+  it('still corrects the misreads it was built for', () => {
+    expect(correctManitobaPlate('LMR143')).toBe('LUR143');   // U read as M
+    expect(correctManitobaPlate('LNR143')).toBe('LUR143');   // U read as N
+    expect(correctManitobaPlate('KMR700')).toBe('KUR700');
+    expect(correctManitobaPlate('LURL43')).toBe('LUR143');   // L sitting in a digit slot
+    expect(correctManitobaPlate('DFJ143')).toBe('LFJ143');   // a REAL MB-shaped misread still snaps
+  });
+
+  // ⚠️ The distinction the whole fix turns on: the same wrong prefix is corrected when the rest of
+  // the plate says "this is one of ours", and left alone when it doesn't.
+  it('snaps DFJ143 but not DFJK947 — the body is what decides', () => {
+    expect(correctManitobaPlate('DFJ143')).toBe('LFJ143');
+    expect(correctManitobaPlate('DFJK947')).toBe('DFJK947');
+  });
+});

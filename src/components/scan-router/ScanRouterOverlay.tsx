@@ -28,7 +28,6 @@ import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import { recordSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
-import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 
@@ -105,7 +104,18 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // mint a car), and `canRegisterPartially` offers "Register — add make/model". Degrade, never
   // dead-end.
   const onManualPlate = useCallback(async (typed: string) => {
-    const plate = correctManitobaPlate(typed);
+    // ⚠️ NOT `correctManitobaPlate`. That corrector is a safety net UNDER A VISION READ — its own
+    // header says so. These characters were typed by Aaron with his thumbs; they are not a misread,
+    // they are what he meant. Silently re-prefixing them showed him a plate he never entered with no
+    // way to see why: typing `DFJK947` searched for `LFJK947`, because `DFJ` is one character from
+    // `LFJ` (2026-08-27). `plateWatch` had already written the principle down for its own surface —
+    // *"a watch must never silently rewrite a plate into a different car's"* — and it applies here
+    // with more force, because here the plate came from HIM.
+    //
+    // A fuzzy LOOKUP downstream is welcome and does good work (his own screenshot shows `DFJK947`
+    // finding `DFKJ947` through a transposition). Searching flexibly is help; rewriting the input
+    // before searching is not.
+    const plate = typed.trim().toUpperCase().replace(/\s+/g, '');
     if (!plate) return;
     resetScanState();
     setScanPhoto(null);   // no tag was photographed — nothing to attach, and a stale one would lie

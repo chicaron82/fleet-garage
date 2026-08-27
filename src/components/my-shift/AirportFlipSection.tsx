@@ -14,7 +14,6 @@ import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
-import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import { NeededClasses } from './NeededClasses';
 import { FlipRowsList } from './FlipRowsList';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
@@ -127,7 +126,9 @@ export function AirportFlipSection() {
   // just not auto-registered as a new fleet car, matching the scan path's "only register a complete
   // identity" rule (a bare plate is too partial to mint a real vehicle record).
   const submitManualPlate = () => {
-    const plate = correctManitobaPlate(manualPlate);
+    // ⚠️ Typed, therefore never corrected — see ScanRouterOverlay.onManualPlate. The misread
+    // corrector belongs under a camera, not under his thumbs.
+    const plate = manualPlate.trim().toUpperCase().replace(/\s+/g, '');
     if (!plate) { say('Enter a plate to continue.', 'alert'); return; }
     const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null;
     void openCapture({

@@ -100,13 +100,33 @@ function snapPrefix(norm: string): string {
  *    rather than emit something half-corrected that looks authoritative
  */
 export function correctManitobaPlate(plate: string): string {
-  const norm = snapPrefix(plate.trim().toUpperCase().replace(/\s+/g, ''));
+  // ⚠️⚠️ A CORRECTION IS ALL-OR-NOTHING, and it was not. Every early return below used to hand back
+  // `norm` — the ALREADY-PREFIX-SNAPPED string — including the branch whose own comment says "leave
+  // it be". So a plate could have its prefix rewritten and then be declared unqualified, and the
+  // rewrite survived anyway.
+  //
+  // Aaron typed `DFJK947` into the manual lookup on 2026-08-27 and the screen searched for
+  // `LFJK947`: `DFJ` is one character from `LFJ` and uniquely so, so pass 1 snapped it; the 4-char
+  // body then correctly disqualified it; and the snapped value came back regardless.
+  //
+  // ⚠️ NOT A TYPING-ONLY BUG — the SCAN path ran the identical code. Any out-of-province plate whose
+  // first three letters sit one character from an MB prefix was silently re-prefixed. `DFDA712` and
+  // `DUR143` survived by LUCK, not design: `DFD` is near no prefix, and `DUR` is one char from both
+  // `LUR` and `KUR`, so snapPrefix refuses on ambiguity.
+  //
+  // `raw` is what came in. Nothing but a fully-qualified MB correction may displace it.
+  const raw = plate.trim().toUpperCase().replace(/\s+/g, '');
+  const norm = snapPrefix(raw);
   const prefix = norm.slice(0, 3);
-  if (!(MB_PLATE_PREFIXES as readonly string[]).includes(prefix)) return norm;
+  if (!(MB_PLATE_PREFIXES as readonly string[]).includes(prefix)) return raw;
 
   const body = norm.slice(3);
-  if (body.length !== MB_BODY_LEN) return norm;   // not the AAA111 shape — leave it be
+  // ⚠️ `raw`, not `norm` — this is the branch that used to say "leave it be" while returning a plate
+  // it had already changed. Leaving it be means giving back what arrived.
+  if (body.length !== MB_BODY_LEN) return raw;   // not the AAA111 shape — leave it be
 
   const fixed = body.split('').map((c) => (/\d/.test(c) ? c : LETTER_TO_DIGIT[c] ?? c)).join('');
-  return /^\d{3}$/.test(fixed) ? prefix + fixed : norm;
+  // Same rule at the last gate: a body we cannot confidently turn into three digits means no
+  // correction happened, not a half of one.
+  return /^\d{3}$/.test(fixed) ? prefix + fixed : raw;
 }

@@ -24,10 +24,15 @@ export interface PlateWatch {
  * The watch a scanned plate hits, or null.
  *
  * ⚠️ MATCHES ON `normalizePlate` ONLY — upper-cased, alphanumerics kept. It deliberately does NOT
- * run the read through `correctManitobaPlate`. That corrector is safe where it is used because it
- * is gated on a known MB prefix AND the AAA111 shape (so it leaves `DFDA712` untouched), but the
- * principle matters more than today's behaviour: **a watch must never silently rewrite a plate into
- * a different car's.** The cost of a missed watch is a car that should have been held going out
+ * run the read through `correctManitobaPlate`.
+ *
+ * ⚠️ THIS USED TO SAY the corrector was "safe where it is used because it is gated on a known MB
+ * prefix AND the AAA111 shape (so it leaves `DFDA712` untouched)". **That was false.** The shape
+ * gate only guarded the digit pass; the prefix snap ran first and its result was returned anyway, so
+ * `DFJK947` came back as `LFJK947` (fixed 2026-08-27). `DFDA712` survived by coincidence — `DFD`
+ * happens to sit near no known prefix. Declining the corrector here was right for the stated reason
+ * and right for a reason the comment got wrong, which is exactly why the principle beats the audit:
+ * **a watch must never silently rewrite a plate into a different car's.** The cost of a missed watch is a car that should have been held going out
  * once. The cost of a wrongly-corrected match is telling him to hold the WRONG car, on a surface
  * whose entire job is to be believed.
  *
