@@ -1,3 +1,4 @@
+import { coverPhotoUrlFor, effectivePinnedIndex } from '../lib/coverPin';
 import { useState, useRef } from 'react';
 import { useRoutedProp } from './useRoutedProp';
 import { useAuth } from '../context/AuthContext';
@@ -244,8 +245,15 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
       // URL. Length guard: if an upload failed it's filtered out of photoUrls and
       // indices would shift, so only pin when the counts match. Best-effort — a pin
       // failure must not fail the (already-created) hold.
-      if (result && pinnedPhotoIndex !== null && result.photoUrls.length === photos.length) {
-        try { await setCoverPhoto(selectedVehicle.id, result.photoUrls[pinnedPhotoIndex]); }
+      // ⭐ A SINGLE PHOTO PINS ITSELF. The tap exists to answer "which of these?" — with one photo
+      // there is nothing to choose between, so he never tapped, so nothing pinned, and three live
+      // holds sat in the worklist with no thumbnail beside cars that had one (Aaron, 2026-08-27:
+      // *"pretty sure we made it so if only 1 photo is used for a hold, that's the one that gets
+      // automatically pinned"* — right about the intent). The index/bounds guard that used to live
+      // in this condition now lives in lib/coverPin, so the auto-pin cannot skip it.
+      const coverUrl = result ? coverPhotoUrlFor(pinnedPhotoIndex, photos, result.photoUrls) : null;
+      if (coverUrl) {
+        try { await setCoverPhoto(selectedVehicle.id, coverUrl); }
         catch { /* the hold is created; the card-photo pin is a nicety */ }
       }
       return selectedVehicle.id;
@@ -275,7 +283,10 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     zonesApplicable: holdIsMappable(holdTypes, finalDamage),
     notes, setNotes,
     photos, removePhoto, handlePhotoAdd,
-    pinnedPhotoIndex, togglePinPhoto,
+    // ⚠️ The EFFECTIVE index, not the raw one — so a lone photo renders as pinned while he is still
+    // on the form. An automatic behaviour he only discovers afterwards on the list is a surprise;
+    // one he can see is a default.
+    pinnedPhotoIndex: effectivePinnedIndex(pinnedPhotoIndex, photos.length), togglePinPhoto,
     submitting, submitError, canSubmit, photosOk,
     selectVehicle, clearVehicle,
     submit,
