@@ -271,6 +271,43 @@ keyed upserts converge harmlessly and don't need it. *(This lesson recurred thre
 times — `useState(async)` sweep, the `addHold` shared guard, the app-wide sweep — each
 time the fix was "move it to where paths converge.")*
 
+## Fix the class, not the instance — ask "what else has this shape?"
+
+Counted at /reflect 65 (2026-08-27): **seven times in three days** a fix landed on the instance in
+front of me and left its twin untouched. None of them changed a signature, so no consumer-sweep was
+ever triggered — they were **behaviour fixes and new fields**, and a defect in shared logic has as
+many instances as the thing has callers.
+
+- The register form's model code was gated on the codex FAILING, so a **confidently wrong** read
+  showed nothing at all. The reported half got fixed; the quieter half stayed (`e040f6f`).
+- `one-shot-screen-contract` was titled for a CLASS — *"a one-shot screen must leave the history
+  stack"* — and inspected ONE screen. **Its own comment named the second screen and walked past it.**
+  Aaron hit the identical bug there a day later (`00526ad`).
+- `plateWatch` wrote the principle down — *"never silently rewrite a plate into a different car's"* —
+  and the corrector went on rewriting plates Aaron **typed**, in a different caller (`8b63f1e`).
+- The odometer learned `mi` on the record CHIP and stayed hard-coded to km on the CAPTURE control he
+  actually types into, in the same feature, the same afternoon (`7ed0b8c`).
+- `winter_tires` shipped with a reader and exactly one writer — at registration — for a value whose
+  entire design point is that it changes twice a year.
+
+**Before shipping a fix, ask it out loud: _what else has this shape?_** Grep the other callers, name
+the twin, and say why it does or does not need the same change. Three shapes always worth the grep:
+
+1. **A shared function fixed** → every caller inherited that bug.
+2. **A field added** → does it have a reader AND a writer, and can the writer fire more than once?
+3. **A rule written into a comment** → it describes a CLASS. Go and find the class.
+
+⚠️ **The DATA version cost real damage.** Re-parenting a hold to another vehicle (2026-08-26) carried
+its foreign keys (the release points at `hold_id`) and its storage paths (photos are keyed by hold),
+and left a **denormalised copy** — `vehicles.cover_photo_url` — pointing at another car's photo for
+sixteen hours. **Foreign keys and paths follow a move; copies do not.** Sweep the data, not just the code.
+
+⚠️ This is **look at the twin and decide out loud**, not *fix everything that rhymes*. A real finding
+is still not a mandate — see the LZM533 note history, where three true discoveries produced three
+wrong proposals before Aaron scaled it back to what he actually asked for.
+
+---
+
 ## Routed props — derive or re-seed, never seed-once
 
 A prop that arrives across a module boundary (a `Screen` prop from `navigate`, a context
