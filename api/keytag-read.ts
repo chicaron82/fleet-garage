@@ -36,6 +36,31 @@ interface FgResponse {
 const FAST_MODEL   = 'claude-haiku-4-5';
 const STRONG_MODEL = 'claude-opus-4-8'; // a smudged/angled tag → the strong vision model.
 
+// ⭐ AVAILABILITY IS A DIFFERENT REASON TO CHANGE MODEL THAN QUALITY, and FG only had the second one.
+// Aaron, 2026-08-27, after a shift of it: *"the scanner was down… that was happening a lot for me
+// today"* — and the message he named was "the scanner is busy right now", which has exactly one
+// source: this file returning 503 on a transient Anthropic failure. Not a bad photo, not his network.
+// The fast model was saturated.
+//
+// ⚠️ AND HE HAD ALREADY BEEN RETRIED FIFTEEN TIMES. The SDK does 4 with backoff, the client does 3 on
+// top. More retrying was never the fix — it would only make him wait longer for the same answer. But
+// a DIFFERENT MODEL IS A DIFFERENT CAPACITY POOL, and the escalation path was sitting in this very
+// file, gated on whether the read corroborated against the fleet — a branch a thrown call never
+// reaches.
+//
+// ⚠️ NOT the strong model for this. Opus on the availability path puts the most expensive model on
+// the branch that fires most often, which is [[feedback_shared_budget_is_a_shared_resource]] waiting
+// to happen. Sonnet is what this codebase already names FALLBACK_VISION_MODEL in
+// api/_lib/scheduleVisionRequest.ts, for precisely this job.
+const FALLBACK_MODEL = 'claude-sonnet-5';
+
+/** Is this the model being unavailable, rather than the photo being unreadable? */
+function isTransient(err: unknown): boolean {
+  const status = (err as { status?: number })?.status;
+  const msg = err instanceof Error ? err.message : String(err);
+  return status === 529 || status === 503 || status === 429 || /overload/i.test(msg);
+}
+
 const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
 Fields the tag MAY carry (read the ones present):
@@ -187,11 +212,28 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
       m.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')?.input;
 
     // ── Pass 1: the cheap read ──
-    const fast = await askModel(FAST_MODEL);
+    // ⚠️ Wrapped, because an OVERLOADED fast model is not an unreadable tag. A throw here used to
+    // fall straight to the catch and tell him the scanner was busy, without the other model ever
+    // being asked. If the fallback also fails, the original error is re-thrown so the catch below
+    // still reports honestly — "busy" stays exactly right when everything really is busy.
+    let usedFallback = false;
+    let fast: Anthropic.Message;
+    try {
+      fast = await askModel(FAST_MODEL);
+    } catch (err) {
+      if (!isTransient(err)) throw err;
+      console.warn('[keytag-read] fast model unavailable — falling over to', FALLBACK_MODEL);
+      fast = await askModel(FALLBACK_MODEL);   // a throw here reaches the catch, as it should
+      usedFallback = true;
+    }
     // Every call is logged the moment it returns, escalation or not — a failed parse still burned
     // the tokens, and the ledger has to be honest about spend the operator got nothing for.
-    const spend = [priceUsage(FAST_MODEL, fast.usage)];
-    let usedModel = FAST_MODEL;
+    // ⚠️ Priced against the model that ACTUALLY ran. A fallback that spends invisibly is the exact
+    // defect that drained the account and broke his scanner mid-shift once already; the ledger has to
+    // name what it cost, not what it meant to cost.
+    const firstModel = usedFallback ? FALLBACK_MODEL : FAST_MODEL;
+    const spend = [priceUsage(firstModel, fast.usage)];
+    let usedModel = firstModel;
     let input = toolInput(fast);
     let read = input ? toKeytagRead(input) : null;
 
