@@ -133,7 +133,20 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   //
   // Strictly a FALLBACK: the plate is the primary key and wins whenever it matched, so a scan that
   // resolves today keeps resolving to the same car. The unit is consulted only when the plate gave
-  // us nothing, and only an unambiguous hit is accepted — units are not unique in this fleet.
+  // us nothing, and only an unambiguous hit is accepted.
+  //
+  // ⚠️ THAT GUARD USED TO SAY "units are not unique in this fleet". THAT WAS FALSE, and Aaron said so
+  // flatly: *"unit numbers are unique."* The three shared units I could find were all ARCHIVED
+  // duplicates from plate misreads (LUR143/LURL43, LUR254/LUR234, 0EJ761/OEJ761), every one already
+  // resolved by him weeks earlier — and the scanner never sees archived cars anyway, because
+  // VehicleHoldContext filters `!v.archivedAt` (see lib/fleet-master). Among LIVE records, no unit is
+  // shared. The sentence generalised a fleet RULE out of dirty data that had since been cleaned.
+  //
+  // ⭐ The ambiguity guard STAYS — it costs nothing and it is honest about what it can prove from the
+  // rows in hand. What is gone is the false reason. A comment that asserts a property of the FLEET
+  // reads as domain knowledge, so nobody re-checks it: within an hour of reading this one I had
+  // written a query that forgot to filter `archived_at`, "confirmed" it, and built a whole theory on
+  // top. A wrong comment does not sit still; it steers the next reader into a wrong question.
   const unitMatch = byPlate ? { kind: 'none' as const } : matchByUnitNumber(read.unitNumber, vehicles);
   const vehicle = byPlate ?? (unitMatch.kind === 'one' ? unitMatch.vehicle : null);
   const matchedByUnit = !byPlate && unitMatch.kind === 'one';

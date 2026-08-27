@@ -15,8 +15,18 @@ export interface KeytagRead {
   /** "Veh #", digit groups joined (e.g. "542 0427" → "5420427"). */
   unitNumber?: string;
   /** The nine characters after "Last9vin:" on a printed tag. NOT a full VIN — no manufacturer,
-   *  plant or model-year digits are present, so nothing may be decoded from it. Immutable per
-   *  car, which is what makes it the one key that survives a re-plate (migration 126). */
+   *  plant or model-year digits are present, so nothing may be decoded from it.
+   *
+   *  ⚠️ THIS USED TO CLAIM IT IS "the one key that survives a re-plate". IT IS NOT, and the claim
+   *  misdescribes the job. Aaron, 2026-08-26: *"everything on that keytag survives. the only change
+   *  is the plate."* A re-plated car keeps its unit number, its VIN, its class code, its colour and
+   *  its options — it crosses provinces carrying every field but one. Five of the six things on that
+   *  tag survive, so surviving is not what makes this field special.
+   *
+   *  ⭐ What actually makes it the strongest key: it is the only one that is BOTH PERMANENT AND
+   *  UNIQUE. The plate is unique but does not survive a re-plate. The unit number survives and is
+   *  unique across the live fleet, but it is a fleet-assignment number rather than a property of the
+   *  physical car. The VIN is stamped on the vehicle itself and never changes. (migration 126) */
   vinLast9?: string;
   /** The class-line code (e.g. "CCVL"). make/model are DERIVED from this via a fleet
    *  class lookup — they are not printed on the tag, so the raw read leaves them empty

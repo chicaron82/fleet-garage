@@ -42,7 +42,19 @@
  *  KUR is the old series — 3 active records plus the shuttle (Aaron, 2026-08-25: *"KUR is a very
  *  old plate prefix. only the shuttle carries that."*). Kept: the shuttle is scanned like anything
  *  else, and a prefix costs nothing to keep but loses a real correction to remove. */
-export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LJF', 'LZM', 'MCM', 'MCN'] as const;
+export const MB_PLATE_PREFIXES = ['LUR', 'KUR', 'LFJ', 'LJF', 'LZM', 'MCM', 'MCN', 'KGE'] as const;
+//                                                                                    ^^^^^
+// KGE added 2026-08-27. Aaron, from the lot: *"KGE is MB, most of those ones are old. but the place
+// that issued us the plates gave us that one. so probably the only one of our newer cars in
+// circulation that holds it."* Found while auditing the five live prefixes absent from this list —
+// the other four turned out NOT to be ours (a Toronto-owned Tesla on Newfoundland plates, a Seltos
+// owned by branch 8198, a Halifax Versa, and `OGK191` which is `0GK191` misread). KGE was the only
+// real gap, and the car wearing it had no correction at all.
+//
+// ⚠️ Verified collision-free before adding, per the warning above: KGE's nearest neighbour is KUR at
+// TWO characters, and adding it creates no new one-apart pair. `plate-prefix-collisions.test.ts`
+// now checks that property for the whole list, so the next addition cannot quietly disable an
+// existing prefix's snap the way MCM/MCN cost MZM its correction.
 
 /** Letters a vision read produces where a digit belongs.
  *
