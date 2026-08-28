@@ -38,6 +38,13 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
 
 vi.mock('../../src/lib/image', () => ({
   compressImage: vi.fn().mockResolvedValue('data:image/jpeg;base64,STUB'),
+  // usePhotoIntake routes batches through compressBatch — see NewHoldForm.test for why it must
+  // stay honest rather than being stubbed to a constant.
+  compressBatch: async (files: File[]) => ({
+    photos: files.map(() => 'data:image/jpeg;base64,STUB'),
+    failed: 0,
+  }),
+  ImageDecodeError: class ImageDecodeError extends Error {},
 }));
 
 const importHook = async () => (await import('../../src/hooks/useNewHold')).useNewHold;

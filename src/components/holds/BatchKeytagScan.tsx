@@ -4,18 +4,20 @@
 // capture + the result list. Lives on My Shift by the pending queue: the staged rows land
 // right below for a one-pass approve/reject. Collapsed by default — an action you invoke.
 import { useRef, useState } from 'react';
-import { compressImage } from '../../lib/image';
 import { useBatchKeytagStage, type BatchResult } from '../../hooks/useBatchKeytagStage';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../../components/shared/PhotoError';
 
 export function BatchKeytagScan() {
   const { running, progress, results, stagedCount, runBatch, reset } = useBatchKeytagStage();
   const [collapsed, setCollapsed] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { photoError, takeMany } = usePhotoIntake();
 
   const onFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const base64s = await Promise.all(Array.from(files).map(compressImage));
-    void runBatch(base64s);
+    const base64s = await takeMany(Array.from(files));
+    if (base64s.length) void runBatch(base64s);
   };
 
   const open = !collapsed;
@@ -33,6 +35,7 @@ export function BatchKeytagScan() {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Attach a stack of key tags — each is read and staged (register or backfill) into the queue below.
           </p>
+          <PhotoError message={photoError} />
 
           <input
             ref={fileRef}

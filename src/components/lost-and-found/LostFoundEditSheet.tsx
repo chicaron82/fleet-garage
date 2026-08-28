@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { compressImage } from '../../lib/image';
 import { LOST_FOUND_LOCATION_LABELS } from '../../types';
 import type { LostFoundItem, LostFoundLocation } from '../../types';
 import { PlateInput } from '../shared/VehicleFields';
 import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../../lib/lostFoundSourcePills';
 import type { SourceTag } from '../../lib/lostFoundSourcePills';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 const LOCATION_ORDER: LostFoundLocation[] = [
   'visor', 'front_seat', 'back_seat', 'trunk', 'under_seat', 'other',
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: Props) {
+  const { photoError, takeOne } = usePhotoIntake();
   const [editDesc,     setEditDesc]     = useState(item.description ?? '');
   const [editLocation, setEditLocation] = useState<LostFoundLocation | null>(item.location ?? null);
   const [editPlate,    setEditPlate]    = useState(item.licensePlate ?? '');
@@ -63,7 +65,8 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setter(await compressImage(file));
+    const photo = await takeOne(file);
+    if (photo) setter(photo);
     e.target.value = '';
   };
 
@@ -124,6 +127,7 @@ export function LostFoundEditSheet({ item, currentUserName, onSave, onClose }: P
               className="hidden"
               onChange={e => handlePhotoChange(e, setter)}
             />
+            <PhotoError message={photoError} />
           </label>
         </div>
       </div>

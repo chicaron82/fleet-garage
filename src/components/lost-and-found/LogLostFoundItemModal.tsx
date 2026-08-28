@@ -6,6 +6,7 @@ import { useLostFoundItemForm } from '../../hooks/useLostFoundItemForm';
 import type { LostFoundLocation, User } from '../../types';
 import { LostFoundPhotoStep } from './LostFoundPhotoStep';
 import { LostFoundDetailsStep } from './LostFoundDetailsStep';
+import { PhotoError } from '../shared/PhotoError';
 
 interface LogLostFoundItemModalProps {
   user: User | null;
@@ -50,6 +51,7 @@ export function LogLostFoundItemModal({ user, initialPlate, initialPlateNonce, o
 
         <div className="p-4 space-y-5">
           {form.step === 1 ? <LostFoundPhotoStep form={form} /> : <LostFoundDetailsStep form={form} user={user} />}
+          <PhotoError message={form.photoError} />
         </div>
       </div>
     </div>

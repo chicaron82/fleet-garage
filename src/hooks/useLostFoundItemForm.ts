@@ -7,12 +7,12 @@ import { useState } from 'react';
 import { buildLostFoundItemInput } from '../lib/lostFoundItem';
 import { useRoutedProp } from './useRoutedProp';
 import { hapticLight, hapticMedium } from '../lib/haptics';
-import { compressImage } from '../lib/image';
 import type { LostFoundLocation } from '../types';
 import { usePlateRecognition } from './usePlateRecognition';
 import { useKeytagScan } from './useKeytagScan';
 import { SOURCE_PILLS, appendSourceText, removeSourceText } from '../lib/lostFoundSourcePills';
 import type { SourceTag } from '../lib/lostFoundSourcePills';
+import { usePhotoIntake } from './usePhotoIntake';
 
 interface Options {
   initialPlate?: string;
@@ -32,6 +32,7 @@ interface Options {
 export function useLostFoundItemForm({ initialPlate, initialPlateNonce, onSubmit, onClose }: Options) {
   // A scan-routed open (initialPlate present) already did Step 1's job — identify the vehicle — so
   // it lands straight on Step 2 (item details + photo). A manual "+ Log" starts at Step 1 (photos).
+  const { photoError, takeOne } = usePhotoIntake();
   const [step, setStep] = useState<1 | 2>(initialPlate ? 2 : 1);
   const [keyTagPhoto, setKeyTagPhoto] = useState<string | null>(null);
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
@@ -77,9 +78,10 @@ export function useLostFoundItemForm({ initialPlate, initialPlateNonce, onSubmit
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const photo = await compressImage(file);
-      setter(photo);
+      const photo = await takeOne(file);
       e.target.value = '';
+      if (!photo) return;
+      setter(photo);
       after?.(photo);
     };
 
@@ -101,6 +103,7 @@ export function useLostFoundItemForm({ initialPlate, initialPlateNonce, onSubmit
   const canAdvance = !!(keyTagPhoto || itemPhoto);
 
   return {
+    photoError,
     step, setStep,
     keyTagPhoto, setKeyTagPhoto, itemPhoto, setItemPhoto,
     description, setDescription, location, setLocation,

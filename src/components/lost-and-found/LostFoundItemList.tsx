@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LostFoundLocation } from '../../types';
-import { compressImage } from '../../lib/image';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 export interface InlineFoundItem {
   id: string;
@@ -33,6 +34,7 @@ interface Props {
  * the check-in row.
  */
 export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpdate }: Props) {
+  const { photoError, takeOne } = usePhotoIntake();
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
   if (!show) {
@@ -110,11 +112,12 @@ export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpda
                     onChange={async e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const compressed = await compressImage(file);
-                      onUpdate(item.id, { additionalPhoto: compressed });
+                      const compressed = await takeOne(file);
+                      if (compressed) onUpdate(item.id, { additionalPhoto: compressed });
                       e.target.value = '';
                     }}
                   />
+                  <PhotoError message={photoError} />
                 </label>
               )}
             </div>

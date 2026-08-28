@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useIssueContext } from '../../context/IssueContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { compressImage } from '../../lib/image';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 import { IssueCard } from './IssueCard';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 const SEVERITY_CONFIG: Record<IssueSeverity, { icon: string; label: string }> = {
   low:    { icon: '🟢', label: 'Low' },
@@ -18,6 +19,7 @@ const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border
 
 export function IssueLogView() {
   const { facilityIssues, addIssue, attachPhoto, clearIssue, reopenIssue, loadError, reload } = useIssueContext();
+  const { photoError, takeOne } = usePhotoIntake();
   const { getName: getUserName } = useUserResolver();
 
   const [showCleared, setShowCleared]       = useState(false);
@@ -60,7 +62,8 @@ export function IssueLogView() {
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setNewPhoto(await compressImage(file));
+    const photo = await takeOne(file);
+    if (photo) setNewPhoto(photo);
     e.target.value = '';
   };
 
@@ -222,6 +225,7 @@ export function IssueLogView() {
                 <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
                   Gallery
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                  <PhotoError message={photoError} />
                 </label>
               </div>
             )}

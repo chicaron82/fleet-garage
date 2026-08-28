@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { compressImage } from '../../lib/image';
 import { DAMAGE_PRESETS } from '../../lib/hold-presets';
 import { buildReHoldSubmission, reHoldPhotoBypassActive, canSubmitReHold, type ReHoldDraft } from '../../lib/reHoldDescription';
 import { ReHoldPhotosField } from './ReHoldPhotosField';
 import type { HoldType, User } from '../../types';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../../components/shared/PhotoError';
 
 const MAX_PHOTOS = 4;
 
@@ -31,6 +32,7 @@ export function NewIssueReHoldForm({
   reHoldContext,
 }: NewIssueReHoldFormProps) {
   const [newIssueHoldType, setNewIssueHoldType] = useState<HoldType>('damage');
+  const { photoError, takeMany } = usePhotoIntake();
   const [damageTypes, setDamageTypes] = useState<string[]>([]);
   const [customDamage, setCustomDamage] = useState('');
   const [reHoldNotes, setReHoldNotes] = useState('');
@@ -53,8 +55,8 @@ export function NewIssueReHoldForm({
     if (!files.length) return;
     const remaining = MAX_PHOTOS - photos.length;
     const toAdd = files.slice(0, remaining);
-    const compressed = await Promise.all(toAdd.map(compressImage));
-    setPhotos((prev) => [...prev, ...compressed]);
+    const compressed = await takeMany(toAdd);
+    if (compressed.length) setPhotos((prev) => [...prev, ...compressed]);
     e.target.value = '';
   };
 
@@ -288,6 +290,7 @@ export function NewIssueReHoldForm({
         onAdd={handlePhotoAdd}
         onRemove={(i) => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
       />
+      <PhotoError message={photoError} />
 
       {/* Entering as */}
       <p className="text-xs text-gray-500 dark:text-gray-400">

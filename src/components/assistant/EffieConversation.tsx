@@ -20,12 +20,13 @@ import { HoldProposalCard } from './HoldProposalCard';
 import { EffieImageStrip } from './EffieImageStrip';
 import { moduleGreeting } from '../../lib/assistantGreeting';
 import { photosForProposalConfirm } from '../../lib/photosForProposal';
-import { compressImage } from '../../lib/image';
 import { stripForSpeech } from '../../lib/speechText';
 import { photoCaptionFor, photoButtonLabel } from '../../../api/_lib/photoRequest';
 import { isAffirmation } from '../../lib/affirmation';
 import { SendIcon, CameraIcon, PaperclipIcon, MicIcon, TypingDots } from './AssistantIcons';
 import type { Screen } from '../../types';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../../components/shared/PhotoError';
 
 export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }: {
   module: string;
@@ -44,6 +45,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   const { draft, setDraft, images, setImages, pendingPhotoContext, setPendingPhotoContext } = composer;
   const speech = useSpeechRecognition((t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t)));
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { photoError, takeMany } = usePhotoIntake();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);     // gallery / files — multi-select attach
   const cameraRef = useRef<HTMLInputElement>(null);   // live camera — one shot, direct (no chooser)
@@ -78,8 +80,8 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
     const files = Array.from(e.target.files ?? []);
     e.target.value = ''; // let the same file(s) be picked again
     if (files.length === 0) return;
-    const compressed = await Promise.all(files.map(compressImage));
-    setImages((prev) => [...prev, ...compressed]); // append — a second attach adds, not replaces
+    const compressed = await takeMany(files);
+    if (compressed.length) setImages((prev) => [...prev, ...compressed]); // append — a second attach adds, not replaces
   };
 
   const submit = () => {
@@ -196,6 +198,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
         <div className="flex items-end gap-2">
           {/* Gallery/files (multi) and live camera (direct, single) — split so each modality is one
               tap. Both feed onPickImage, which appends, so live snaps + gallery picks accumulate. */}
+          <PhotoError message={photoError} />
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} className="hidden" />
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
           <button

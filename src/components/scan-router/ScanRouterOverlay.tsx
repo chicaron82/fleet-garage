@@ -73,7 +73,16 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const onFile = useCallback(async (file: File | undefined) => {
     if (!file) return;
     resetScanState();
-    const base64 = await compressImage(file);
+    let base64: string;
+    try {
+      base64 = await compressImage(file);
+    } catch {
+      // The photo never decoded — say so on the surface he is already looking at rather than
+      // leaving the sheet blank. Before this, compressImage could not fail at all: an unreadable
+      // file simply never settled and the overlay waited forever.
+      setErrMsg('That photo could not be read — try the shot again.');
+      return;
+    }
     setScanPhoto(base64);
     const read = await readKeytag(base64);
     // Bail only when the tag gave us NEITHER identity key. It used to bail on a missing plate

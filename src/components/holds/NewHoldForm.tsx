@@ -10,6 +10,7 @@ import { fmtRelativeDate } from '../../lib/lostFoundDate';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { canRelease } from '../../types';
 import { NewHoldDetailsSection } from './NewHoldDetailsSection';
+import { PhotoError } from '../shared/PhotoError';
 
 
 interface Props {
@@ -124,6 +125,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
+        <PhotoError message={h.photoError} />
         <form onSubmit={handleSubmit} className="space-y-5">
 
           {/* Vehicle Selection */}

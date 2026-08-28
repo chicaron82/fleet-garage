@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
-import { compressImage } from '../../lib/image';
 import { daysOpen } from './issueDate';
 import { ShareAction } from '../shared';
 import type { FacilityIssue, IssueSeverity } from '../../types';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 interface IssueEvent {
   id: string;
@@ -44,6 +45,7 @@ interface IssueCardProps {
 }
 
 export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachPhoto, getUserName }: IssueCardProps) {
+  const { photoError, takeOne } = usePhotoIntake();
   const [isClearing, setIsClearing]       = useState(false);
   const [clearNote, setClearNote]         = useState('');
   const [isReopening, setIsReopening]     = useState(false);
@@ -95,8 +97,8 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
     if (!file) return;
     setUploadingPhoto(true);
     hapticMedium();
-    const compressed = await compressImage(file);
-    await onAttachPhoto(issue.id, compressed);
+    const compressed = await takeOne(file);
+    if (compressed) await onAttachPhoto(issue.id, compressed);
     setIsAddingPhoto(false);
     setUploadingPhoto(false);
     e.target.value = '';
@@ -206,6 +208,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
                 <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
                   Gallery
                   <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+                  <PhotoError message={photoError} />
                 </label>
                 <button
                   type="button"

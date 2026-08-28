@@ -5,9 +5,10 @@
 // vehicle from the plate is the caller's job (onPlate → search).
 import { useRef } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
-import { compressImage } from '../../lib/image';
 import { correctManitobaPlate } from '../../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
   /** The read + MB-corrected plate — the caller feeds it into the search. */
@@ -20,11 +21,13 @@ export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
 }) {
   const { readKeytag, status, error } = useKeytagRead();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { photoError, takeOne } = usePhotoIntake();
   const reading = status === 'reading';
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    const base64 = await compressImage(file);
+    const base64 = await takeOne(file);
+    if (!base64) return;
     const read = await readKeytag(base64);
     const plate = correctManitobaPlate(read?.plate ?? '');
     if (plate) onPlate(plate);
@@ -51,6 +54,7 @@ export function KeytagSearchScan({ onPlate, onRead, disabled = false }: {
         {reading ? 'Reading…' : 'Scan Key Tag'}
       </button>
       {status === 'error' && <span className="text-[11px] text-red-500">{error ?? 'Could not read the tag'}</span>}
+      <PhotoError message={photoError} />
     </div>
   );
 }

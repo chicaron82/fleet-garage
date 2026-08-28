@@ -4,7 +4,8 @@
 // read is a later slice; this proves the READ in isolation.
 import { useRef, useState } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
-import { compressImage } from '../../lib/image';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 const FIELD_LABELS = [
   ['plate', 'Plate'],
@@ -21,12 +22,14 @@ export function KeytagReaderPreview() {
   const { status, read, error, readKeytag } = useKeytagRead();
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { photoError, takeOne } = usePhotoIntake();
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const img = await compressImage(file);
+    const img = await takeOne(file);
+    if (!img) return;
     setPreview(img);
     await readKeytag(img);
   };
@@ -38,6 +41,7 @@ export function KeytagReaderPreview() {
       <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
         Key-tag reader (preview)
       </label>
+      <PhotoError message={photoError} />
       <input ref={fileRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
       <div className="flex items-center gap-2">
         <button

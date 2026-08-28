@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { compressImage } from '../../lib/image';
 import type { Hold, User } from '../../types';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../../components/shared/PhotoError';
 
 const MAX_PHOTOS = 4;
 
@@ -29,14 +30,15 @@ export function PriorDamageReHoldForm({
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const { photoError, takeMany } = usePhotoIntake();
 
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     const remaining = MAX_PHOTOS - photos.length;
     const toAdd = files.slice(0, remaining);
-    const compressed = await Promise.all(toAdd.map(compressImage));
-    setPhotos((prev) => [...prev, ...compressed]);
+    const compressed = await takeMany(toAdd);
+    if (compressed.length) setPhotos((prev) => [...prev, ...compressed]);
     setReattachPhotos(false); // new photos take precedence
     e.target.value = '';
   };
@@ -178,6 +180,7 @@ export function PriorDamageReHoldForm({
               onChange={handlePhotoAdd}
               className="hidden"
             />
+            <PhotoError message={photoError} />
           </div>
         )}
       </div>

@@ -32,7 +32,15 @@ export function KeytagRetake({ vehicleId, onReplaced }: {
     e.target.value = '';
     if (!file) return;
     setState('busy');
-    const photo = await compressImage(file);
+    let photo: string;
+    try {
+      photo = await compressImage(file);
+    } catch {
+      // Same 'failed' state the write already uses — a photo that cannot be decoded and a photo
+      // that cannot be uploaded are the same story to him: it didn't take, shoot it again.
+      setState('failed');
+      return;
+    }
     const ok = await retakeKeytagPhoto(vehicleId, photo);
     setState(ok ? 'idle' : 'failed');
     if (ok) onReplaced?.();

@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
-import { compressImage } from '../lib/image';
 import { useUserResolver } from './useUserResolver';
 import { hapticMedium } from '../lib/haptics';
 import { isClearableSaleFlag } from '../lib/holdGrouping';
 import type { Hold, RepairOutcome } from '../types';
+import { usePhotoIntake } from './usePhotoIntake';
 
 export function useVehicleHistory(vehicleId: string) {
+  // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
+  const { photoError, takeMany } = usePhotoIntake();
   const { user } = useAuth();
   const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
@@ -75,8 +77,8 @@ export function useVehicleHistory(vehicleId: string) {
     if (!files.length || !pendingHoldId.current) return;
     const holdId = pendingHoldId.current;
     setUploadingFor(holdId);
-    const compressed = await Promise.all(files.map(compressImage));
-    await addPhotosToHold(holdId, compressed);
+    const compressed = await takeMany(files);
+    if (compressed.length) await addPhotosToHold(holdId, compressed);
     setUploadingFor(null);
     e.target.value = '';
   };
@@ -196,6 +198,7 @@ export function useVehicleHistory(vehicleId: string) {
 
   return {
     user: user!,
+    photoError,
     vehicle, holds, activeHold, activeHolds, repairableHolds, saleHold,
     confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,

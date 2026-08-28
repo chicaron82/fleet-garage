@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { compressImage } from '../../lib/image';
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { PhotoError } from '../shared/PhotoError';
 
 interface Props {
   /** Compressed base64 of the chosen photo, or null. Owned by the parent form so it travels with
@@ -28,23 +29,24 @@ interface Props {
 export function ShiftLogPhotoField({ value, onChange, existingUrl }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const { photoError, takeOne } = usePhotoIntake();
 
   const preview = value ?? existingUrl ?? null;
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
-    try {
-      onChange(await compressImage(file));
-    } catch {
-      // A failed compress must not strand the form: he keeps whatever he had and can retry.
-    } finally {
-      setBusy(false);
-    }
+    // ⚠️ THE CATCH HERE USED TO BE EMPTY — "a failed compress must not strand the form" was right,
+    // and silence was the wrong way to honour it: the photo vanished and the field looked untouched,
+    // so he would believe it saved. Not stranding him means TELLING him, then letting him retry.
+    const photo = await takeOne(file);
+    if (photo) onChange(photo);
+    setBusy(false);
   };
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 space-y-2">
+      <PhotoError message={photoError} />
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-gray-500 dark:text-gray-400">
           📷 Photo <span className="opacity-70">— optional context, e.g. the key board</span>

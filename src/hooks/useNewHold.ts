@@ -4,15 +4,17 @@ import { useRoutedProp } from './useRoutedProp';
 import { useAuth } from '../context/AuthContext';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { holdIsMappable, toggleZone as toggleZoneIds } from '../lib/damageZones';
-import { compressImage } from '../lib/image';
 import { MECHANICAL_PRESET_META } from '../lib/hold-presets';
 import { findActiveTypeOverlap } from '../lib/holdFilters';
 import type { HoldType, DetailReason, MechanicalSubType } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
+import { usePhotoIntake } from './usePhotoIntake';
 
 const MAX_PHOTOS = 4;
 
 export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
+  // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
+  const { photoError, takeMany } = usePhotoIntake();
   const { user } = useAuth();
   const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto, editHoldDamageZones, markZonesReviewed } = useVehicleHoldContext();
 
@@ -192,8 +194,8 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     if (!files.length) return;
     const remaining = MAX_PHOTOS - photos.length;
     const toAdd = files.slice(0, remaining);
-    const compressed = await Promise.all(toAdd.map(compressImage));
-    setPhotos(prev => [...prev, ...compressed]);
+    const compressed = await takeMany(toAdd);
+    if (compressed.length) setPhotos(prev => [...prev, ...compressed]);
     e.target.value = '';
   };
 
@@ -268,6 +270,7 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
 
   return {
     user: user!,
+    photoError,
     unitSearch, setUnitSearch,
     selectedVehicle, alreadyHeld, duplicateTypeOverlaps, preselectedId,
     searchResults, noResults,

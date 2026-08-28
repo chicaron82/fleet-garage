@@ -19,6 +19,7 @@ import { VehicleNote } from './VehicleNote';
 import { VehicleChangeLog } from './VehicleChangeLog';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
+import { PhotoError } from '../shared/PhotoError';
 
 
 interface Props {
@@ -320,6 +321,8 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
           getRole={h.getRole}
         />
       </div>
+
+      <PhotoError message={h.photoError} />
 
       {/* Lightbox */}
       {h.lightboxPhotos.length > 0 && (

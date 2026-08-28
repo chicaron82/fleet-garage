@@ -75,8 +75,17 @@ vi.mock('../../src/lib/vehicleRegistry', () => ({
   createOrEnrichRegistry: vi.fn().mockResolvedValue({}),
 }));
 
+// ⚠️ `compressBatch` MUST delegate to the same spy. `usePhotoIntake` routes multi-file adds through
+// compressBatch (Promise.allSettled) rather than Promise.all, so one bad photo can't discard the
+// good ones — and a mock that stubbed compressBatch independently would leave the assertions below
+// asserting nothing. This keeps "compressImage is what compresses" true through the new layer.
 vi.mock('../../src/lib/image', () => ({
   compressImage: compressImageSpy,
+  compressBatch: async (files: File[]) => ({
+    photos: await Promise.all(files.map(f => compressImageSpy(f))),
+    failed: 0,
+  }),
+  ImageDecodeError: class ImageDecodeError extends Error {},
 }));
 
 vi.mock('../../src/lib/haptics', () => ({

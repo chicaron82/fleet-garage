@@ -1,11 +1,12 @@
 // "Log overflow sends" — the client-side overflow entry in the Movement Log tab. Pick a spot,
 // scan a stack of key tags (each registers/backfills the car from the read so the send isn't an
 // orphan), then log them all as one-way trips. State + writes live in useOverflowSend.
+import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useRef } from 'react';
-import { compressImage } from '../../lib/image';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
 import { OVERFLOW_DESTINATIONS } from '../../../api/_lib/overflowProposal';
 import { Toast } from '../shared/Toast';
+import { PhotoError } from '../../components/shared/PhotoError';
 
 const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
   registered:   { label: '✨ Registered', cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -17,11 +18,12 @@ const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
 export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
   const ov = useOverflowSend(onLogged);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { photoError, takeOne } = usePhotoIntake();
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    const base64 = await compressImage(file);
-    await ov.scanPhoto(base64);
+    const base64 = await takeOne(file);
+    if (base64) await ov.scanPhoto(base64);
   };
 
   return (
@@ -55,6 +57,7 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
         className="hidden"
         onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
       />
+      <PhotoError message={photoError} />
       <button
         type="button"
         disabled={ov.reading}

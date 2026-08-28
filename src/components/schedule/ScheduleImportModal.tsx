@@ -42,6 +42,8 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   const [nameOverrides, setNameOverrides] = useState<Record<number, string | null>>(restored?.nameOverrides ?? {});
   const [cellOverrides, setCellOverrides] = useState<Record<string, ParsedShiftType>>(restored?.cellOverrides ?? {});
   const [writeState, setWriteState] = useState<'idle' | 'writing' | 'done' | 'error'>('idle');
+  /** A file that never decoded — distinct from a parse that failed (`status === 'error'`). */
+  const [pickError, setPickError] = useState('');
   const [writeMsg, setWriteMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -130,7 +132,17 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     // A PDF goes as-is (Claude reads it natively, crisper than a photo); an image is
     // compressed at document detail.
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-    const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressDocumentImage(file);
+    let dataUrl: string;
+    try {
+      dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressDocumentImage(file);
+    } catch {
+      // A schedule that cannot be decoded used to hang here forever — compressDocumentImage had no
+      // error path at all. Say so on the modal he is already looking at; "Try another photo" is
+      // already the right next action and it is already on screen.
+      setPickError("That file couldn't be read — try another photo or the PDF.");
+      return;
+    }
+    setPickError('');
     resetAll();
     setImage(dataUrl);
     void parse(dataUrl);
@@ -225,6 +237,13 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
             <div className="flex flex-col items-center gap-3 py-12">
               {thumb('max-h-48 rounded-lg border border-gray-200 dark:border-gray-700')}
               <p className="animate-pulse text-sm text-gray-500 dark:text-gray-400">Reading the schedule…</p>
+            </div>
+          )}
+
+          {pickError && (
+            <div className="flex flex-col items-center gap-3 py-10">
+              <p className="text-sm text-amber-700 dark:text-amber-400">⚠️ {pickError}</p>
+              <button onClick={retake} className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs dark:border-gray-700">Try another photo</button>
             </div>
           )}
 
