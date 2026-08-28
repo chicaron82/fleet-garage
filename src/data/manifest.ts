@@ -1,3 +1,27 @@
+// ⚠️ THIS MODULE IS A DEMO. ITS DATA IS FICTION, AND THAT IS DELIBERATE — DO NOT "FIX" IT.
+//
+// `generateDayManifest` is a seeded PRNG over MOCK_NAMES. There is no reservation feed behind it and
+// there never will be: the outbound manifest is COUNTER-side data Aaron cannot see. He works the
+// washbay, away from the computers and the customers, and has no access to the system that says
+// what is coming in or going out. A GM once ran a print-it-daily process for exactly this; it lived
+// a few weeks and died, because it needed someone else to do a chore every day for Aaron's benefit.
+// See `reference_fg_data_blind_spots`.
+//
+// ⭐ KEPT ON PURPOSE, as a PITCH SURFACE. Aaron, 2026-08-27: *"let it collect dust, who knows maybe
+// i can show it off to someone higher up personally and having it still wired would be good."* It is
+// the same "keep the substrate" insurance as the unreachable role modules — wired and working, so a
+// conversation with someone senior can be had with a screen instead of a description.
+//
+// ⭐⭐ AND THE FAKE NAMES ARE THE CORRECT IMPLEMENTATION, not a shortcut. FG holds ZERO customer data
+// — verified 2026-08-27 across all 46 public tables; every name column is CREW (flagged_by_name,
+// found_by_name, auditor_name…). Aaron's own line: *"sticking to cars and keytags with no customer
+// info attached is the lane we stay."* A demo showing REAL customer names would be the privacy
+// problem. Invented ones are what you build on purpose for this job.
+//
+// ⚠️ So: a cold /line-check WILL find this and want to flag it as fake data in a live nav. It is not
+// a defect. It is a demo, deliberately wired, deliberately fictional. (This header exists because a
+// line-check did exactly that on 2026-08-27 and cost an evening's attention.)
+
 // ── Rental Classes ────────────────────────────────────────────────────────────
 
 export type RentalClass =
