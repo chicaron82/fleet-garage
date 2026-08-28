@@ -67,7 +67,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
   onEditCodes?: () => void;
 }) {
   const { recordKeyCount, recordOdometer, clearOdometer, recordWinterTires } = useVehicleHoldContext();
-  const sightings = useVehicleSightings(plate);
+  const sightings = useVehicleSightings(plate, vehicleId);
   const [zoom, setZoom] = useState(false);
   const [seenOpen, setSeenOpen] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
@@ -250,10 +250,14 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
         );
       })()}
 
-      {/* Last seen — a SCAN is the only event in FG that means "he was standing at this car with
-          the tag in his hand". Read-only: it's a record of what happened, not a field to set.
-          Going-forward only (nothing logged scans before 2026-08-16), so "never scanned" is the
-          honest day-one state for most of the fleet and reads as *not yet*, not as broken. */}
+      {/* Last seen — two kinds of evidence, one chip: a KEY-TAG SCAN (he held the tag), and an
+          INTERACTION derived from `vehicle_changes` (he wrote something to this car). Read-only.
+
+          ⚠️ THE NOUN IS "INTERACTIONS", NOT "SCANS", and it is load-bearing. His key count and his
+          odometer landed six seconds apart on LUR224 — one visit, two interactions. Counting
+          interactions makes the number LITERALLY TRUE with no merging, so no time window has to
+          exist (see lib/sightings.sightingsFromChanges). Aaron's own word, from the report that
+          started this: *"scanned 2x or however many interactions were done."* */}
       <button
         type="button"
         onClick={() => setSeenOpen(o => !o)}
@@ -274,7 +278,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
         }`}
         /* The exact newest scan stays in the tooltip — including this visit's. The chip answers
            "when did I have it before now"; the tooltip keeps the raw fact available. */
-        title={sightings.lastSeenAt ? `Last scanned ${new Date(sightings.lastSeenAt).toLocaleString('en-CA')}` : 'No key-tag scan on record yet'}
+        title={sightings.lastSeenAt ? `Last here ${new Date(sightings.lastSeenAt).toLocaleString('en-CA')}` : 'Nothing on record for this car yet'}
       >
         {/* ⚠️ A BARE COUNT BESIDE A BARE DATE RECOMPOSES INTO ONE FALSE FACT, whatever the values.
             This read `Seen ${count}× · ${describeLastSeen(lastSeenAt)}` — an ALL-TIME count welded
@@ -290,16 +294,18 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
             record, so "last seen" was reporting his act of looking back to him as news. The
             question worth answering while standing at the car is the one BEFORE this. */}
         👁️ {sightings.neverSeen
-          ? 'Never scanned'
+          /* Not "never scanned" — the chip no longer only counts scans, and a car FG has genuinely
+             never touched is a different claim from one he simply hasn't photographed. */
+          ? 'Never here'
           : sightings.priorSeenAt === null
             /* Scanned for the first time ever — there is no "before this", and inventing one by
                falling back to lastSeenAt would just print "today" again. */
-            ? 'First scan · here now'
+            ? 'First time on record · here now'
             /* NOT "last ${…}" — describeLastSeen returns a COMPLETE phrase, so the prefix produced
                "last last week", "last 3 days ago", "last yesterday". Found by rendering the card at
                phone width during /reflect 63; no test could see it, because every test asserted on
                the function's output rather than the sentence it lands in. */
-            : `Last here ${describeLastSeen(sightings.priorSeenAt)} · ${sightings.count} scans`}
+            : `Last here ${describeLastSeen(sightings.priorSeenAt)} · ${sightings.count} interaction${sightings.count === 1 ? '' : 's'}`}
         {!sightings.neverSeen && <span className="ml-1 opacity-50">{seenOpen ? '▴' : '▾'}</span>}
       </button>
 

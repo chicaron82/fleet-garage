@@ -5,7 +5,7 @@
 // (what's wrong with it). Its own small hook keeps both readable.
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { summariseSightings, type SightingSummary , type Sighting } from '../lib/sightings';
+import { summariseSightings, sightingsFromChanges, type SightingSummary, type Sighting } from '../lib/sightings';
 
 const EMPTY: SightingSummary = { lastSeenAt: null, priorSeenAt: null, count: 0, neverSeen: true };
 
@@ -38,6 +38,11 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  */
 export function useVehicleSightings(
   plate: string | null | undefined,
+  /** ⭐ The change log is keyed on VEHICLE ID while sightings are keyed on PLATE — deliberately, so
+   *  a scan taken before the car was registered still counts. Both are needed: the scans he made,
+   *  and the interactions FG watched him make. Optional, because a plate with no registered car has
+   *  no change history to union in. */
+  vehicleId?: string | null,
 ): SightingSummary & { rows: Sighting[] } {
   // The loaded rows are STAMPED WITH THE PLATE they belong to, and the summary is DERIVED from
   // that stamp — two reasons, and the second is the real one:
@@ -52,23 +57,41 @@ export function useVehicleSightings(
     if (!key) return;
     let cancelled = false;
     async function load() {
-      const { data } = await supabase
-        .from('vehicle_sightings')
-        .select('seen_at, seen_by_name')
-        .eq('plate', key!)
-        .order('seen_at', { ascending: false })
-        .limit(500);
+      // Both halves in parallel: the scans he made, and the interactions FG watched him make.
+      const [sight, changes] = await Promise.all([
+        supabase
+          .from('vehicle_sightings')
+          .select('seen_at, seen_by_name')
+          .eq('plate', key!)
+          .order('seen_at', { ascending: false })
+          .limit(500),
+        vehicleId
+          ? supabase
+              .from('vehicle_changes')
+              .select('changed_at, changed')
+              .eq('vehicle_id', vehicleId)
+              .order('changed_at', { ascending: false })
+              .limit(500)
+          : Promise.resolve({ data: null }),
+      ]);
       if (cancelled) return;
-      setLoaded({ plate: key!, rows: (data ?? []).map(r => ({
+      const scanned: Sighting[] = (sight.data ?? []).map(r => ({
         seenAt: r.seen_at as string,
         seenByName: (r as { seen_by_name?: string | null }).seen_by_name ?? null,
-      })) });
+      }));
+      const derived = sightingsFromChanges(
+        (changes.data ?? []).map(r => ({
+          changedAt: (r as { changed_at: string }).changed_at,
+          fields: Object.keys(((r as { changed?: Record<string, unknown> }).changed) ?? {}),
+        })),
+      );
+      setLoaded({ plate: key!, rows: [...scanned, ...derived] });
     }
     void load();
     // A late response for a car he's already navigated away from must not paint its count onto
     // the new record — cheap guard, invisible bug without it.
     return () => { cancelled = true; };
-  }, [key]);
+  }, [key, vehicleId]);
 
   // ⭐ The ROWS ride along with the summary so the record can reveal the full history on a tap
   // (Aaron, 2026-08-26) without a second fetch — they were already loaded to compute the summary.

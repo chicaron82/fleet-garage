@@ -36,7 +36,7 @@ describe('the last-seen chip', () => {
     show({ lastSeenAt: NOW, priorSeenAt: YESTERDAY, count: 2, neverSeen: false });
     expect(chip()).not.toHaveTextContent('2× · today');
     expect(chip()).toHaveTextContent('Last here yesterday');
-    expect(chip()).toHaveTextContent('2 scans');
+    expect(chip()).toHaveTextContent('2 interactions');
   });
 
   // ⭐ The date answers "before this visit", because his own scan is what opened the record.
@@ -47,15 +47,30 @@ describe('the last-seen chip', () => {
 
   // ⚠️ A car scanned for the first time has no "before this" — it must say so rather than falling
   // back to the newest, which would print "today" again and rebuild the bug.
-  it('says so on a first-ever scan instead of inventing a prior visit', () => {
+  it('says so on a first-ever visit instead of inventing a prior one', () => {
     show({ lastSeenAt: NOW, priorSeenAt: null, count: 1, neverSeen: false });
-    expect(chip()).toHaveTextContent('First scan');
+    expect(chip()).toHaveTextContent('First time on record');
     expect(chip()).not.toHaveTextContent('today');
   });
 
-  it('still reads "never scanned" on day one — not an error, and most of the fleet', () => {
+  it('still reads as day-one, not an error — and for most of the fleet it is', () => {
     show({ lastSeenAt: null, priorSeenAt: null, count: 0, neverSeen: true });
-    expect(chip()).toHaveTextContent('Never scanned');
+    expect(chip()).toHaveTextContent('Never here');
+  });
+
+  // ⚠️ THE NOUN. A key count and an odometer six seconds apart are ONE visit and TWO interactions;
+  // saying "interactions" is what makes the number true without a merge window. If this ever reads
+  // "scans" again the count becomes a claim the data cannot support.
+  it('counts INTERACTIONS, never scans — the word carries the whole design', () => {
+    show({ lastSeenAt: NOW, priorSeenAt: YESTERDAY, count: 3, neverSeen: false });
+    expect(chip()).toHaveTextContent('3 interactions');
+    expect(chip()).not.toHaveTextContent('scan');
+  });
+
+  it('says "1 interaction", not "1 interactions"', () => {
+    show({ lastSeenAt: NOW, priorSeenAt: YESTERDAY, count: 1, neverSeen: false });
+    expect(chip()).toHaveTextContent('1 interaction');
+    expect(chip()).not.toHaveTextContent('1 interactions');
   });
 
   // ⭐ The stale case is the whole reason the feature exists — reached from Fleet with nothing
@@ -64,7 +79,7 @@ describe('the last-seen chip', () => {
     const longAgo = new Date(Date.now() - 120 * 86_400_000).toISOString();
     show({ lastSeenAt: longAgo, priorSeenAt: longAgo, count: 3, neverSeen: false });
     expect(chip()).toHaveTextContent('Last here 4 months ago');
-    expect(chip()).toHaveTextContent('3 scans');
+    expect(chip()).toHaveTextContent('3 interactions');
   });
 
   // ⚠️ describeLastSeen returns a COMPLETE phrase, so a "last" prefix once produced "last

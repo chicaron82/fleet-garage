@@ -5,9 +5,18 @@
 // hands. Nothing else in FG means that: a trip means someone drove it, a hold means someone flagged
 // it, but only a scan means *he was standing at it with the tag*.
 //
-// ⚠️ GOING-FORWARD ONLY. Scans were never logged before 2026-08-16, and there is no honest way to
-// reconstruct them (see migrations/114). So "never seen" is the correct, common state for most of
-// the fleet on day one — the UI must read it as *not yet scanned*, never as *missing data* or an error.
+// ⚠️ SCANS are going-forward only. They were never logged before 2026-08-16 (migrations/114).
+//
+// ⭐ BUT THE CHANGE LOG REMEMBERS MORE THAN THE SCAN LOG DOES. Aaron, 2026-08-28, looking at a Jetta
+// that read "Never scanned" above four record changes from that same day: *"shouldn't it be showing
+// last seen today 13:53... however many interactions were done since we started keeping track."*
+// `vehicle_changes` has watched him work since 2026-08-19, and every write he makes at a car is an
+// interaction FG can already prove. See `sightingsFromChanges` below — this file used to say there
+// was "no honest way to reconstruct them", which was true of scans and wrong about the record.
+//
+// Even so, most of the fleet's history is gone and always will be: *"its a rental i'm sure i've seen
+// this vehicle at least 50 already before FG was born."* The count is **times FG noticed**, never
+// times he was there — the UI must read a low number as *not yet observed*, never as *rarely used*.
 
 export interface Sighting {
   seenAt: string; // ISO
@@ -167,4 +176,60 @@ export function sightingLines(rows: readonly Sighting[]): SightingLine[] {
         who: (r.seenByName ?? '').trim() || 'unknown',
       };
     });
+}
+
+// ── Interactions, derived from the change log ─────────────────────────────────────────────────
+
+/**
+ * Change fields that a SCRIPT wrote, not Aaron. Excluded from derived interactions.
+ *
+ * ⚠️ THE WHOLE DESIGN TURNS ON THIS LIST. `vehicle_changes` is a proxy for presence and it drifts
+ * hard: fleet-wide the three largest categories are backfills — `class_code` (659 rows / 613 cars),
+ * `vin_last9` (428 / 426), `owning_area` (293 / 291) — roughly 1,380 rows written by scripts I ran.
+ * Derive naively and FG reports that he toured six hundred cars on 2026-08-25.
+ *
+ * ⭐ A BLOCKLIST, NOT A WHITELIST — and the reason is Aaron's. My first cut gated on "could this
+ * have been done from a desk?", which is a MULTI-USER question about a single-user personal tool.
+ * *"are you forgetting that FG is my personal tool. and its ONLY user."* There is no someone. There
+ * is Aaron, and he does not sit at a desk marking statuses. So the line is not desk-vs-car, it is
+ * **script-vs-him**, and everything not on this list is him.
+ *
+ * `field_sources` rides along with other writes as bookkeeping; `cover_photo_url` is mixed (~64 of
+ * its 88 rows came from a backfill), so it stays out rather than half-counting.
+ */
+export const SCRIPT_WRITTEN_FIELDS: ReadonlySet<string> = new Set([
+  'field_sources', 'class_code', 'vin_last9', 'owning_area', 'cover_photo_url',
+]);
+
+/** One row of `vehicle_changes`, as much of it as this file needs. */
+export interface VehicleChange {
+  changedAt: string;             // ISO
+  fields: readonly string[];     // the keys of `changed`
+}
+
+/**
+ * Change rows → the interactions they prove.
+ *
+ * ⚠️ CALLED INTERACTIONS, NOT SCANS, and the noun is load-bearing. Two saves six seconds apart (his
+ * key count then his odometer) are one visit but two interactions — and calling them interactions
+ * makes the count LITERALLY TRUE with no merging, so no time window has to exist. `summariseSightings`
+ * identifies rows by equality and never by a window; this keeps that promise instead of quietly
+ * introducing the first threshold.
+ *
+ * ✅ And precision is explicitly not the point. Aaron: *"even if the count is slightly inaccurate
+ * because i'm performing an action at home with my feet up and pants off, its totally fine."* The
+ * number is already an order of magnitude short of the truth; do not add heuristics to defend its
+ * last decimal.
+ *
+ * No actor: `vehicle_changes` has no `changed_by`. A derived interaction carries WHEN, never WHO —
+ * fine when there is one user, but the UI must not claim a name it does not have.
+ */
+export function sightingsFromChanges(rows: readonly VehicleChange[]): Sighting[] {
+  const out: Sighting[] = [];
+  for (const r of rows) {
+    if (!r.changedAt) continue;
+    if (!r.fields.some(f => !SCRIPT_WRITTEN_FIELDS.has(f))) continue;
+    out.push({ seenAt: r.changedAt, seenByName: null });
+  }
+  return out;
 }
