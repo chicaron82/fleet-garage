@@ -37,6 +37,9 @@ const CODEX: Record<string, VehicleClass> = {
   CCRC: { make: 'Toyota', model: 'Corolla Cross' },
   CCRH: { make: 'Toyota', model: 'Corolla Hatchback' },
   CCLH: { make: 'Toyota', model: 'Corolla', isHybrid: true },
+  // Surfaced live 2026-08-28 on two cars (LUR433, FVJ1788) that had both registered as NON-hybrid
+  // because no codex entry existed to pre-check the toggle. The Prius is hybrid-only.
+  CPHE: { make: 'Toyota', model: 'Prius', isHybrid: true },
   CRVB: { make: 'Toyota', model: 'RAV4' },
   CRHX: { make: 'Toyota', model: 'RAV4', isHybrid: true }, // surfaced live 2026-07-22 (Aaron, keytag photo) —
   // the boss's #1 poach target. Tag prints correct CRHX but the rental class is mislabeled Q4 (gas
@@ -149,6 +152,35 @@ const EV_MODELS: ReadonlySet<string> = new Set(
 /** True when a model is a battery-EV — used by the airport flip to show a charge % gauge. */
 export function isEvModel(model: string | undefined | null): boolean {
   return !!model && EV_MODELS.has(model.trim().toLowerCase());
+}
+
+/**
+ * The rental classes that are hybrid-only groups. **E6 is Hertz's powertrain-hybrid group** — every
+ * one of the 40 E6 cars in the fleet is a hybrid, zero exceptions.
+ *
+ * ⭐ WHY THIS EXISTS, when the codex already carries `isHybrid`. The codex hint only fires for a
+ * class code it KNOWS, and four cars proved that insufficient on 2026-08-28:
+ *
+ *   - Two 2026 Priuses on `CPHE` — a code the codex had never seen, so no hint, so the register
+ *     form defaulted the toggle off and both went in as non-hybrids.
+ *   - Two 2026 Sportage hybrids whose tags were printed with `CSPT`, the **ICE** Sportage code.
+ *     No codex entry can ever fix those: the code on the tag is simply wrong.
+ *
+ * Both mis-printed tags still carried the RIGHT rental class. Aaron on the tag mismatches: *"usually
+ * just laziness... it's not important. what's important to me is having FG be truthful on what type
+ * of vehicle it is."* Reading the rental class routes around the wrong code entirely — the tag was
+ * truthful the whole time, FG was reading the wrong field.
+ *
+ * ⚠️ RETURNS `true` OR `undefined` — **never `false`.** Not-E6 does not mean not-hybrid: large and
+ * premium hybrids keep their segment class (Aaron: *"that sienna, stays an R but hybrid is checked;
+ * several Volvo's are hybrids but keep whatever class they are"*). This is a one-way hint that fires
+ * or stays silent, so it can pre-check the toggle but can never un-check it.
+ */
+const HYBRID_RENTAL_CLASSES: ReadonlySet<string> = new Set(['E6']);
+
+export function hybridFromRentalClass(rentalClass: string | undefined | null): true | undefined {
+  if (!rentalClass) return undefined;
+  return HYBRID_RENTAL_CLASSES.has(rentalClass.trim().toUpperCase()) ? true : undefined;
 }
 
 export function normalizeClassCode(code: string | undefined | null): string {

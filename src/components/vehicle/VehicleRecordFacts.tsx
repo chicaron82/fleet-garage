@@ -81,16 +81,25 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {keytagPhotoUrl && (
-        <button
-          type="button"
-          onClick={() => setZoom(true)}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
-        >
+      {/* ⚠️ THE CHIP RENDERS EITHER WAY. It used to be gated on the URL, so a car with no tag on
+          file showed NOTHING — and "there is no tag" looked exactly like "there is a chip and I
+          didn't look at it". Aaron, 2026-08-28: *"to reduce my API calls I type it in. problem: it
+          doesn't tell me if it's missing a keytag."* Same shape as a blank inspection slip: an
+          absence that reads as fine. 137 cars are in this state and none of them could say so.
+          Dashed + "tap to add", matching the winter-tires empty state, and it opens the same modal
+          so the capture is one tap from the discovery. */}
+      <button
+        type="button"
+        onClick={() => setZoom(true)}
+        className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${keytagPhotoUrl ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-300 dark:border-gray-600'}`}
+      >
+        {keytagPhotoUrl && (
           <img src={keytagPhotoUrl} alt="Key tag" className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">🏷️ Key tag as read — tap to check</span>
-        </button>
-      )}
+        )}
+        <span className={`text-xs ${keytagPhotoUrl ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
+          {keytagPhotoUrl ? '🏷️ Key tag as read — tap to check' : '🏷️ No key tag on file — tap to add'}
+        </span>
+      </button>
 
       {editingKeys ? (
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5">
@@ -309,12 +318,17 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
         </div>
       )}
 
-      {zoom && keytagPhotoUrl && (
+      {zoom && (
         /* flex-col: the retake controls sit UNDER the tag, not beside it. The backdrop is absolute
-           so it stays out of the flow. */
+           so it stays out of the flow. Opens with NO photo too — that is the whole point of the
+           dashed chip above; `KeytagRetake` is a first capture as readily as a replacement. */
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4" onClick={() => setZoom(false)}>
           <div className="absolute inset-0 bg-black/80" />
-          <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
+          {keytagPhotoUrl ? (
+            <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
+          ) : (
+            <p className="relative text-white/70 text-sm">No key tag photo on file for this car.</p>
+          )}
           {/* ⭐ The fix belongs where the problem is DISCOVERED. He opens this to check a tag; if it
               is unreadable, the retake is right here rather than on another screen. stopPropagation
               because the backdrop closes on click and a file picker must not dismiss its own modal. */}

@@ -3,7 +3,7 @@
 // pre-filled. One shared flow behind both entry points (My Day card + header icon).
 // Thin-hub law: this resolves and ROUTES — every action hands off to the module that owns it.
 // The action menu itself is pure + tested (lib/scanRouterActions); this is just its surface.
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useKeytagRead } from '../../hooks/useKeytagRead';
 import { useScanRouter } from '../../context/scanRouter';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
@@ -26,7 +26,7 @@ import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { isUnknownClassCode } from '../../lib/partialRegister';
-import { recordSighting } from '../../hooks/useVehicleSightings';
+import { commitPendingSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
@@ -49,7 +49,6 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const [clearingWatch, setClearingWatch] = useState(false);
   const [scanRead, setScanRead] = useState<KeytagRead | null>(null);
   const [scanNonce, setScanNonce] = useState(0);
-  const pendingSightingRef = useRef<Parameters<typeof recordSighting>[0] | null>(null);
   // The compressed key-tag photo, kept so a REGISTER (new vehicle) can attach it to the freshly
   // created record — the known-vehicle attach below can't, the car doesn't exist yet at scan time.
   const [scanPhoto, setScanPhoto] = useState<string | null>(null);
@@ -66,7 +65,6 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     vehicles, user, checkGeotab, backfillFromRead,
     recordOwningArea, recordClassCode, recordVinLast9,
     setScanRead, setScanNonce, setGeotabPending, setCodexToast,
-    pendingSightingRef,
   });
 
   const resetScanState = () => { setErrMsg(''); setScanRead(null); setGeotabPending(false); setCodexToast(''); };
@@ -155,9 +153,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   // Set only by the typed-plate path, and consumed at most once — by an action that implies he was
   // actually at the car. Closing the overlay without acting simply drops it, which is the point.
   const go = (screen: Screen, kind?: string) => {
-    const held = pendingSightingRef.current;
-    if (held && kind && actionImpliesPresence(kind)) void recordSighting(held);
-    pendingSightingRef.current = null;
+    // ⭐ `view` no longer DROPS the held sighting — it leaves it held. Aaron's rule ("typing
+    // something in just to look it up won't count as seen") is about *looking*, not about the route
+    // he took to get there: viewing the record and then reading the odometer off the dash is an act
+    // of presence, it just happens one screen later. The writes redeem it — see commitSightingFor.
+    if (kind && actionImpliesPresence(kind)) commitPendingSighting();
     navigate(screen);
     onClose();
   };

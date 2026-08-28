@@ -10,7 +10,7 @@ import { normalizeOwning } from './_lib/owningArea.js';
 import { normalizeVinLast9 } from './_lib/vinLast9.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
-import { lookupVehicleClass, normalizeClassCode } from './_lib/vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode, hybridFromRentalClass } from './_lib/vehicleClassCodex.js';
 import { resolveRentalClass } from './_lib/classPin.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
 import { priceUsage } from './_lib/apiSpend.js';
@@ -141,7 +141,9 @@ function toKeytagRead(input: unknown): KeytagRead {
     // but the model is written directly — fall back to the read's own make/model.
     make: vc?.make ?? s(r.make),
     model: vc?.model ?? s(r.model),
-    isHybrid: vc?.isHybrid,
+    // Codex hint first (it names the exact variant); rental class as the fallback that catches a
+    // code the codex doesn't know AND a tag printed with the wrong code. One-way: never un-checks.
+    isHybrid: vc?.isHybrid ?? hybridFromRentalClass(s(r.rentalClass)),
     year,
     color: s(r.color),
     bodyStyle: s(r.bodyStyle),

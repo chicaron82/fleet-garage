@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { shouldReplaceOdometer } from '../lib/odometer';
+import { commitSightingFor } from '../hooks/useVehicleSightings';
 import type { Vehicle } from '../types';
 
 /** Records the odometer the airport flip already collects (migrations/123).
@@ -22,6 +23,12 @@ export function makeRecordOdometer(deps: {
   const { setAllVehicles, currentOdometer } = deps;
 
   return async (vehicleId: string, km: number): Promise<void> => {
+    // ⭐ HE WAS AT THE CAR. Reading a dash is not a proxy for presence, it IS presence — you
+    // cannot read an odometer from a desk. So a typed-plate lookup's held sighting is redeemed
+    // here, BEFORE the value guard: whether the reading is new or matches what's on file, he still
+    // walked up and read it. (No-op when nothing is held, so a scanned car — whose sighting was
+    // already recorded at the read — can never be double-counted.) Aaron, 2026-08-28.
+    commitSightingFor(vehicleId);
     if (!shouldReplaceOdometer(currentOdometer(vehicleId), km)) return;
     const at = new Date().toISOString();
     const { data, error } = await writeWithRefresh(() =>

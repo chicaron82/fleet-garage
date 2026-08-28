@@ -115,3 +115,67 @@ export async function recordSighting(input: {
     console.error('[recordSighting] insert threw:', err);
   }
 }
+
+/**
+ * ── THE HELD SIGHTING ──────────────────────────────────────────────────────────────────────────
+ *
+ * Aaron's rule, which is right and stays: *"typing something in just to look it up won't count as
+ * seen."* A photographed tag proves he was holding the car; a typed plate proves nothing about
+ * where he is. So a typed lookup's sighting is HELD, and only recorded once he does something that
+ * could only be done AT the car.
+ *
+ * ⚠️ WHAT WAS BROKEN (Aaron, 2026-08-28, mid-shift): *"when I type it in to update the odo or flag
+ * it FG doesn't count those actions as 'seen'. I saw this vehicle twice today. both interactions
+ * weren't counted."*
+ *
+ * The held sighting lived in a `useRef` inside `ScanRouterOverlay`, and the overlay's `go()` cleared
+ * it on EVERY route — including `view`, which `actionImpliesPresence` deliberately excludes. So
+ * "View unit" dropped the sighting on the floor, and the odometer reading and the flag he then made
+ * ON THE RECORD had nothing left to redeem. **The rule was never wrong; the evidence just could not
+ * survive a navigation.**
+ *
+ * ⭐ AND THE ACTION IS THE BETTER PROOF ANYWAY. Which button he taps in a routing sheet is a *proxy*
+ * for being at the car. Reading an odometer is not a proxy — **you cannot read a dash from a desk.**
+ * So the commit belongs on the write, not on the route.
+ *
+ * Module-scoped for the same reason as `sightingsThisSession`: a reload is genuinely a new visit.
+ * At most one is ever held — a new lookup replaces the last — and it is scoped to its vehicle, so
+ * an action on a DIFFERENT car can never redeem it.
+ */
+let pendingSighting: (Parameters<typeof recordSighting>[0]) | null = null;
+
+/** Hold a typed lookup's sighting until an act of presence redeems it. Replaces any previous. */
+export function holdSighting(input: Parameters<typeof recordSighting>[0]): void {
+  pendingSighting = input;
+}
+
+/** Drop it unredeemed — he looked the car up and walked away without touching it. */
+export function dropPendingSighting(): void {
+  pendingSighting = null;
+}
+
+/**
+ * Redeem the held sighting for THIS car, if there is one. Called from the writes that can only
+ * happen at the vehicle (odometer, hold). Fire-and-forget and idempotent: consumed at most once,
+ * and a no-op when nothing is held — so a scanned car, whose sighting was already recorded at the
+ * read, can never be double-counted by the odometer he types in straight afterwards.
+ */
+export function commitSightingFor(vehicleId: string): void {
+  const held = pendingSighting;
+  if (!held) return;
+  if (held.vehicleId && held.vehicleId !== vehicleId) return;
+  pendingSighting = null;
+  void recordSighting(held);
+}
+
+/**
+ * Redeem it without naming a car — for the scan router, where he has just PICKED an action on the
+ * very car he looked up, so there is nothing to disambiguate. (The scoped version above exists for
+ * the writes, which fire on cars he may have reached any number of ways.)
+ */
+export function commitPendingSighting(): void {
+  const held = pendingSighting;
+  if (!held) return;
+  pendingSighting = null;
+  void recordSighting(held);
+}

@@ -8,6 +8,7 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto, pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { withSubmitLock } from '../lib/submitLock';
+import { commitSightingFor } from '../hooks/useVehicleSightings';
 import type {
   Vehicle, Hold, Release,
   HoldType, DetailReason, MechanicalSubType, BranchId,
@@ -36,6 +37,10 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
     linkedHoldId?: string,
     flaggedSource?: string | null, // null = hand-flagged; 'effie' when written through Effie
   ) => {
+    // ⭐ Presence, same as the odometer: flagging damage means he looked at the car. Redeems a
+    // typed-plate lookup's held sighting; a no-op if nothing is held. See useVehicleSightings.
+    commitSightingFor(vehicleId);
+
     // Double-submit guard at the convergence point: every addHold caller (six and
     // counting) is protected here, not per-form. Keyed per vehicle — a re-entrant
     // flag for the same vehicle while the first is in flight is dropped. Returns the

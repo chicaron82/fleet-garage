@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { resolveKeytagScan } from '../lib/resolveKeytagScan';
-import { recordSighting } from './useVehicleSightings';
+import { recordSighting, holdSighting } from './useVehicleSightings';
 import { logUnknownClassCode, teachClassCode } from './useUnknownClassCode';
 import { isUnknownClassCode } from '../lib/partialRegister';
 import { classCodeLessonFromScan, classCodeLearnedLabel } from '../lib/classCodeLesson';
@@ -39,12 +39,11 @@ export function useScanPipeline(deps: {
   setGeotabPending: (v: boolean) => void;
   setCodexToast: (s: string) => void;
   /** Holds a TYPED plate's sighting until an action earns it — see lib/sightings.actionImpliesPresence. */
-  pendingSightingRef: { current: Parameters<typeof recordSighting>[0] | null };
 }) {
   const {
     vehicles, user, checkGeotab, backfillFromRead,
     recordOwningArea, recordClassCode, recordVinLast9,
-    setScanRead, setScanNonce, setGeotabPending, setCodexToast, pendingSightingRef,
+    setScanRead, setScanNonce, setGeotabPending, setCodexToast,
   } = deps;
 
   return useCallback(async (read: KeytagRead, base64?: string) => {
@@ -75,8 +74,11 @@ export function useScanPipeline(deps: {
     // he could be at the desk — so it is HELD and only recorded if the action he picks next is an
     // act performed ON the car (Aaron: "typing something in just to look it up won't count as
     // seen"). See lib/sightings.actionImpliesPresence.
+    // ⚠️ HELD IN A MODULE, NOT A COMPONENT REF. The ref died the moment he navigated away, so
+    // "View unit" → update the odometer on the record recorded nothing (2026-08-28). See
+    // useVehicleSightings.holdSighting.
     if (base64) void recordSighting(sighting);
-    else pendingSightingRef.current = sighting;
+    else holdSighting(sighting);
 
     setGeotabPending(await checkGeotab(effectivePlate));
     // An on-record car with blank fields gets them filled HERE, at the scan — so whichever action
@@ -129,5 +131,5 @@ export function useScanPipeline(deps: {
     // The setters and the ref are referentially stable (useState setters / useRef), so listing them
     // costs nothing and keeps the rule honest rather than suppressed.
   }, [vehicles, user, checkGeotab, backfillFromRead, recordOwningArea, recordClassCode, recordVinLast9,
-      setScanRead, setScanNonce, setGeotabPending, setCodexToast, pendingSightingRef]);
+      setScanRead, setScanNonce, setGeotabPending, setCodexToast]);
 }
