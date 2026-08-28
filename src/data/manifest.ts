@@ -18,9 +18,20 @@
 // info attached is the lane we stay."* A demo showing REAL customer names would be the privacy
 // problem. Invented ones are what you build on purpose for this job.
 //
-// ⚠️ So: a cold /line-check WILL find this and want to flag it as fake data in a live nav. It is not
-// a defect. It is a demo, deliberately wired, deliberately fictional. (This header exists because a
-// line-check did exactly that on 2026-08-27 and cost an evening's attention.)
+// ⭐ AND IT IS NOT IN HIS SIDEBAR. He hid it himself: `user_preferences.sidebar.hidden` is
+// `["manifest"]` — ONE entry, and this is it. (Role-wise `manifest` is still in VSA's ROLE_MODULES,
+// so it stays reachable; the hide is the per-user layer behind ⚙️ Edit Menu.) Aaron, 2026-08-27:
+// *"everything i use is fully wired, live and used often. that's pretty much the only demo thing i
+// have access to incase i want to show off without having to logout and logging into a mock
+// account."* So the point of keeping it wired is precisely that he can reach it WITHOUT switching
+// accounts — hidden from the daily surface, one toggle from a demo.
+//
+// ⚠️ So: a cold /line-check WILL find this and want to flag it as fake data shipped to a live user.
+// It is not a defect, and it is not on his working surface either. It is a demo, deliberately
+// wired, deliberately fictional, deliberately hidden. (This header exists because a line-check did
+// exactly that on 2026-08-27 — and note the correction: my first version of this comment claimed it
+// sat "in his live nav", which was already untrue when I wrote it. Check the preference row, not the
+// role map.)
 
 // ── Rental Classes ────────────────────────────────────────────────────────────
 
