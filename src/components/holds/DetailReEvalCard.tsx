@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useReEval } from '../../hooks/useReEval';
 import { DETAIL_REASON_LABELS } from '../../types';
 import type { ReEvalItem } from '../../hooks/useReEval';
+import { VehicleName } from '../shared/VehicleName';
 
 type DispatchStatus = 'idle' | 'dispatching' | 'dispatched';
 
@@ -49,7 +50,7 @@ export function DetailReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook })
               </span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
-              {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}
+              <VehicleName vehicle={vehicle} /> · {vehicle.color}
             </p>
           </div>
           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 transition-colors ${

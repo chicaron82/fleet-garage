@@ -122,6 +122,12 @@ export interface VehicleSearchResult {
   model: string;
   year: number;
   color: string;
+  /** ⚡🔋 The powertrain flags, so the trip pickers can badge what they are offering. Added
+   *  2026-08-28 with `VehicleName`: without them these two surfaces could render no badge, and a
+   *  missing badge on a screen where every other car shows one reads as "this one is petrol" —
+   *  an absence asserting a fact. Selecting them is cheaper than that lie. */
+  is_hybrid: boolean;
+  is_tesla: boolean;
 }
 
 export async function searchVehicles(query: string): Promise<VehicleSearchResult[]> {
@@ -130,7 +136,7 @@ export async function searchVehicles(query: string): Promise<VehicleSearchResult
 
   const { data } = await supabase
     .from('vehicles')
-    .select('license_plate, make, model, year, color')
+    .select('license_plate, make, model, year, color, is_hybrid, is_tesla')
     .ilike('license_plate', `${trimmed}%`)
     .limit(5);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Vehicle } from '../../types';
 import { hapticLight } from '../../lib/haptics';
+import { VehicleName } from '../shared/VehicleName';
 
 interface Props {
   archivedVehicles: Vehicle[];
@@ -64,7 +65,7 @@ export function ArchivedVehiclesSection({ archivedVehicles, onRestore, search = 
                   {v.unitNumber}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {v.year} {v.make} {v.model} · {v.licensePlate}
+                  <VehicleName vehicle={v} /> · {v.licensePlate}
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   Archived {v.archivedAt

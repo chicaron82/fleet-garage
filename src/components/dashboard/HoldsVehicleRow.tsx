@@ -2,6 +2,7 @@ import type { Hold, Vehicle } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
 import { holdContextEmojis, unresolvedHoldTypes } from '../../lib/holdBadge';
+import { VehicleName } from '../shared/VehicleName';
 
 interface Props {
   vehicle: Vehicle;
@@ -64,7 +65,7 @@ export function HoldsVehicleRow({
                 <span className="text-sm leading-none tracking-tight">{emojis.join(' ')}</span>
               )}
             </div>
-            <p className="text-base font-medium text-gray-800 dark:text-gray-200 transition-colors">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+            <p className="text-base font-medium text-gray-800 dark:text-gray-200 transition-colors"><VehicleName vehicle={vehicle} /> · {vehicle.color}</p>
             {latestHold && (
               <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold mt-1.5 truncate transition-colors">
                 {latestHold.damageDescription.slice(0, 40)}{latestHold.damageDescription.length > 40 ? '…' : ''}

@@ -10,6 +10,7 @@ import { DriverLiveTransitView } from './DriverLiveTransitView';
 import { DriverLiveCompleteView } from './DriverLiveCompleteView';
 import { useDriverLiveTrip, LOCATIONS } from '../../hooks/useDriverLiveTrip';
 import { PlateInput } from '../shared/VehicleFields';
+import { VehicleName } from '../shared/VehicleName';
 
 interface Props {
   flaggedClasses: RentalClass[];
@@ -138,7 +139,8 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                   className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
                 >
                   <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.license_plate}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
+                  <VehicleName vehicle={{ year: v.year, make: v.make, model: v.model, isHybrid: v.is_hybrid, isTesla: v.is_tesla }}
+                              className="text-xs text-gray-500 dark:text-gray-400" />
                 </button>
               ))}
             </div>

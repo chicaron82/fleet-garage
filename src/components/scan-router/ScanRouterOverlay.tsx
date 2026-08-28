@@ -30,6 +30,7 @@ import { commitPendingSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
+import { VehicleName } from '../shared/VehicleName';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -305,7 +306,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                         className="block w-full text-left rounded-lg border border-amber-300 dark:border-amber-700 px-2 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition cursor-pointer"
                       >
                         <span className="font-mono font-semibold">{v.licensePlate}</span>
-                        <span className="opacity-80"> · {v.year} {v.make} {v.model} · {v.color}</span>
+                        <span className="opacity-80"> · <VehicleName vehicle={v} /> · {v.color}</span>
                       </button>
                     ))}
                   </div>

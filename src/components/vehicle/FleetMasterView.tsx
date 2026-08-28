@@ -11,6 +11,7 @@ import { useFleetAudit } from '../../hooks/useFleetAudit';
 import { useFleetTrend } from '../../hooks/useFleetTrend';
 import { cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
 import type { Screen } from '../../types';
+import { VehicleName } from '../shared/VehicleName';
 
 interface Props {
   onNavigate: (screen: Screen) => void;
@@ -224,11 +225,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                               ⚡
                             </span>
                           )}
-                          {v.isHybrid && (
-                            <span className="text-[10px] font-bold shrink-0 text-green-500" title="Hybrid">🔋</span>
-                          )}
                           <span className="text-sm text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap truncate">
-                            {v.make} {v.model} {v.year} · {v.color}
+                            <VehicleName vehicle={v} order="model-first" /> · {v.color}
                           </span>
                         </div>
                         {(status === 'held' || status === 'pre-existing' || status === 'on-exception' || status === 'sale-car' || status === 'auction-short-term') && v.holdSummary.length > 0 && (
