@@ -50,6 +50,17 @@ const KNOWN: Record<string, string> = {
   '8890': 'Vancouver',
 };
 
+/** ⚠️ WHY 8199 SWAMPS EVERYTHING, and why that is permanent. Aaron, 2026-08-28: *"8199 is the
+ *  dominant owning because.. well we're in manitoba haha of course our fleet will be mainly MB
+ *  vehicles. any out of province cars we have came here via one way and just happened to stay."*
+ *  284 of 365 — seven to one — and it will stay that way for as long as FG runs in Winnipeg.
+ *
+ *  ⭐ The consequence is load-bearing for anything that reasons about owning areas: a
+ *  single-character misread TOWARD 8199 hides inside the majority. Three were found on 2026-08-28,
+ *  all invisible for the same reason (8193→8199 is 3↔9; 8198→8199 is 8↔9), and every one was caught
+ *  by a human reading the tag rather than by any check over the data. **No frequency-based check
+ *  can catch this** — see docs/ticket-the-tag-is-a-redundant-document.md. */
+
 /** FG's home branch. A car owned here is the unremarkable case; everything else is worth flagging. */
 export const HOME_OWNING = '8199';
 
