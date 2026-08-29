@@ -79,11 +79,28 @@ export function makeRetakeKeytagPhoto(deps: {
     if (!url) return false;
     // ⚠️ No `.is(null)` guard here, and that is the entire difference from the write above. This one
     // is MEANT to overwrite — the guard is the operator, not the query.
+    // ⭐⭐ THE RETAKE ALSO CLEARS THE AUDIT STAMP, and until 2026-08-29 it did not — while migration
+    // 130's own comment claimed it did: "a retake later clears it back to NULL, putting the car back
+    // in line for its audit." The code never did that. A car flagged `unreadable` would have kept the
+    // flag through a fresh photo, stayed on the retake watchlist forever, and never re-entered the
+    // audit queue — the retake would have fixed the evidence and changed nothing about the record.
+    //
+    // ⚠️ Clears the STAMP, not the fields. Whatever he confirmed on the old photo stays `manual` and
+    // stays locked; only "has a person read THIS photo" is reset, which a new photo makes true by
+    // definition. Same reasoning as reopenKeytagAudit.
     const { data, error } = await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ keytag_photo_url: url }).eq('id', vehicleId).select('id')
+      supabase.from('vehicles').update({
+        keytag_photo_url: url,
+        keytag_audited_at: null,
+        keytag_audited_by: null,
+        keytag_audit_result: null,
+      }).eq('id', vehicleId).select('id')
     );
     if (error || !data?.length) return false;
-    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, keytagPhotoUrl: url } : v)));
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? {
+      ...v, keytagPhotoUrl: url,
+      keytagAuditedAt: null, keytagAuditedBy: null, keytagAuditResult: null,
+    } : v)));
     return true;
   };
 }

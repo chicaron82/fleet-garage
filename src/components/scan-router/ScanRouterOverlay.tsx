@@ -15,7 +15,7 @@ import { ScanDamageZones } from './ScanDamageZones';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
-import { checkOwningCity, owningLabel } from '../../../api/_lib/owningArea';
+import { ScanNotices } from './ScanNotices';
 import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { useAuth } from '../../context/AuthContext';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
@@ -26,7 +26,6 @@ import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
-import { isUnknownClassCode } from '../../lib/partialRegister';
 import { commitPendingSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -377,36 +376,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {codexToast && (
                   <p className="text-[11px] font-semibold mt-1 text-green-700 dark:text-green-400">{codexToast}</p>
                 )}
-                {/* Say WHY registration degraded. Before this the scan just quietly offered less
-                    and the operator had to infer the cause from the shape of the failure.
-                    Suppressed when the scan TAUGHT the code instead — asking him to add by hand
-                    what FG just learned by itself is the exact confusion this pair replaced. */}
-                {scanRead && isUnknownClassCode(scanRead) && !codexToast && (
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-                    Model code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
-                    make/model need adding by hand. Logged for DiZee.
-                  </p>
-                )}
-                {/* ⭐⭐ THE TAG DISAGREEING WITH ITSELF. The top line carries a city AND a number,
-                    and until tonight FG read both and kept only the number. That matters because
-                    8199 is 284 of 365 cars — seven to one, permanently, because the branch is in
-                    Manitoba — so a single-character misread toward it (8193→8199 is 3↔9; 8198→8199
-                    is 8↔9) is one more vote for the majority it hides in. No check that counts can
-                    see it. Aaron found three by eye on 2026-08-28, off the stored photos.
-
-                    ⚠️ It reports, it never corrects. The tag holds both halves and only a person
-                    can say which one won — and an unknown city is a new branch, not a conflict. */}
-                {(() => {
-                  const c = scanRead && checkOwningCity(scanRead.owningCity, scanRead.owningArea);
-                  return c && c.kind === 'conflict' ? (
-                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-                      ⚠️ This tag disagrees with itself — it reads{' '}
-                      <span className="font-mono font-semibold">{c.city}</span> but the number is{' '}
-                      <span className="font-mono font-semibold">{c.owningArea}</span> ({owningLabel(c.owningArea)}).{' '}
-                      {c.city} is {c.expected.map(e => owningLabel(e)).join(' or ')}. Check the tag before this is stored.
-                    </p>
-                  ) : null;
-                })()}
+                <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} />
               </div>
 
               <div className="space-y-1.5">
