@@ -187,6 +187,24 @@ export function normalizeClassCode(code: string | undefined | null): string {
   return (code ?? '').trim().toUpperCase().split(/\s+/)[0] ?? '';
 }
 
+/** A real model code is FOUR characters. Aaron, 2026-08-28: *"a two character code is too vague to
+ *  be a real model code. i've only ever seen 4, or displayed in full."*
+ *
+ *  ⚠️⚠️ WHY THIS IS A GATE ON TEACHING AND NOT A VALIDATION ANYWHERE ELSE. The codex held `CN =
+ *  Nissan Sentra` — taught by FG itself from a TRUNCATED read of `CNSS`. Thirteen Sentras carry
+ *  CNSS; zero carry CN; CNSS was not in the codex at all, which is precisely why a short read had
+ *  room to become the mapping. And it is the dangerous kind of wrong: `CN` resolves to the CORRECT
+ *  make and model, so every later truncation lands cleanly, looks right, and the error never
+ *  surfaces. **An error that legitimises itself.**
+ *
+ *  ⚠️ It gates only what FG LEARNS. It must never be used to judge what Aaron TYPES: plenty of tags
+ *  carry no code at all and spell the model out in full (DEWN854 says SELTOS, the US Compass says
+ *  COMPASS, FVB4297 says Model Y). A length rule pointed at a person warns him about tags he has
+ *  read perfectly; pointed at the teach path it stops FG memorising its own misreads. */
+export function isTeachableClassCode(code: string | undefined | null): boolean {
+  return normalizeClassCode(code).length === 4;
+}
+
 export function lookupVehicleClass(code: string | undefined | null): VehicleClass | null {
   const key = normalizeClassCode(code);
   return key ? (CODEX[key] ?? null) : null;

@@ -9,7 +9,7 @@
 //
 // Append-only and fire-and-forget — a failed log must never interfere with the scan.
 import { supabase } from '../lib/supabase';
-import { normalizeClassCode } from '../../api/_lib/vehicleClassCodex';
+import { normalizeClassCode, isTeachableClassCode } from '../../api/_lib/vehicleClassCodex';
 
 export async function logUnknownClassCode(code: string, plate: string): Promise<void> {
   const trimmed = normalizeClassCode(code);
@@ -32,6 +32,12 @@ export async function logUnknownClassCode(code: string, plate: string): Promise<
 export async function teachClassCode(code: string, make: string, model: string, taughtBy?: string): Promise<void> {
   const key = normalizeClassCode(code);
   if (!key || !make.trim() || !model.trim()) return;
+  // ⚠️ A code that is not four characters is a MISREAD, not a mapping — FG taught itself
+  // `CN = Nissan Sentra` from a truncated `CNSS` and would have gone on resolving every future
+  // truncation cleanly. Refuse to learn it. Deliberately returns BEFORE the
+  // `unknown_class_codes` delete below, so the code stays on the self-reported gap list instead of
+  // vanishing: a code FG declines to learn is exactly the thing a person should see.
+  if (!isTeachableClassCode(key)) return;
   try {
     await supabase.from('vehicle_class_codex').upsert({
       code: key,
