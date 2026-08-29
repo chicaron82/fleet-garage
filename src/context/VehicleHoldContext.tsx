@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { holdLatestActivity } from '../lib/displayHold';
 import type { UpdateFieldsResult } from './vehicleFieldsWrite';
+import type { KeytagAuditEdits, KeytagAuditSaveResult } from './keytagAuditWrite';
 import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -40,6 +41,14 @@ export interface VehicleHoldContextValue {
   /** Record the last 9 of the VIN read off a tag, if the vehicle has none yet. Immutable — the
    *  first good read stands. See vinWrite. */
   recordVinLast9: (vehicleId: string, vinLast9: string) => Promise<void>;
+  /** The auditor's write: a HUMAN read the stored tag photo. May CORRECT any tag field (a VIN
+   *  included — the one place that is allowed) and stamps every non-blank field 'manual', which
+   *  locks it against later misreads. Returns a unit# conflict when that one field was blocked.
+   *  See keytagAuditWrite. */
+  saveKeytagAudit: (vehicleId: string, edits: KeytagAuditEdits) => Promise<KeytagAuditSaveResult>;
+  /** "I can't read this one." Stamps the car unreadable — which IS the retake watchlist, not a
+   *  separate table. Writes no identity fields; he did not read them. See keytagAuditWrite. */
+  flagKeytagUnreadable: (vehicleId: string) => Promise<void>;
   /** Adopt a new plate off the tag after a RE-PLATE. Returns false when refused — including when the
    *  difference classifies as a misread, so nothing can claim a plate changed that didn't. */
   adoptPlate: (vehicleId: string, tagPlate: string) => Promise<boolean>;

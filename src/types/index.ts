@@ -163,6 +163,12 @@ export type VehicleEditStatus = 'pending' | 'approved' | 'denied';
 /** How an identity field's current value was set — provenance for the key-tag ladder
  *  (inferred < tag < manual). Absent from a vehicle's `fieldSources` means inferred/unknown. */
 export type FieldSource = 'tag' | 'manual' | 'derived';
+
+/** How a stored key-tag photo was resolved by a human in the auditor (migration 130).
+ *  'verified'   — he read the tag and the record now agrees with it.
+ *  'unreadable' — the stored photo defeated him; the car needs a fresh capture.
+ *  absent/null  — nobody has looked yet. */
+export type KeytagAuditResult = 'verified' | 'unreadable';
 /* 'derived' (2026-08-19, migration 121): the value was DEDUCED from other fields FG already held —
  * a class code inferred from make + model + hybrid + year — rather than read off a tag or typed by a
  * person. It is deliberately weaker than both: a real tag reading OVERWRITES a derived value, where
@@ -231,6 +237,14 @@ export interface Vehicle {
   winterTires?: boolean | null;
   /** When winterTires was seen. Seasonal state — a value without this ages into a lie by spring. */
   winterTiresAt?: string | null;
+  /** When a PERSON last read this car's stored key-tag photo (migration 130). NULL = never audited,
+   *  which is exactly what puts the car in the auditor's queue — the stamp is what makes a pass
+   *  resumable, so four cars in a lull converges instead of re-serving the same cars forever. */
+  keytagAuditedAt?: string | null;
+  keytagAuditedBy?: string | null;
+  /** How that read went. ⭐ There is no separate retake-watchlist table: 'unreadable' IS the
+   *  watchlist, written by the same tap that advances the queue, so the two can never drift apart. */
+  keytagAuditResult?: KeytagAuditResult | null;
   isTesla: boolean;
   // Hybrid is an attribute (a checkbox), not a hard-coded "<Base> Hybrid" model — mirrors isTesla.
   // Optional in the app model; the DB column is NOT NULL DEFAULT false, so reads coalesce to false.

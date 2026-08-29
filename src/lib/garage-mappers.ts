@@ -1,4 +1,4 @@
-import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation, ShiftCheckpoint, FieldSource } from '../types';
+import type { Vehicle, Hold, Release, Repair, RepairOutcome, VehicleStatus, VehicleEditStatus, HoldStatus, HoldType, DetailReason, MechanicalSubType, ReleaseType, ReleaseMethod, BranchId, FacilityIssue, IssueSeverity, WashbayLog, HandoffNote, LotStatus, LostFoundItem, LostFoundStatus, LostFoundLocation, ShiftCheckpoint, FieldSource, KeytagAuditResult } from '../types';
 
 // ── Lean runtime guards ────────────────────────────────────────────────────
 // Trust boundary between Supabase rows and typed app models. If the schema
@@ -59,6 +59,9 @@ export function mapVehicle(row: Row): Vehicle {
     isUs:          row.is_us === true,
     winterTires:   (row.winter_tires as boolean | null | undefined) ?? null,
     winterTiresAt: optStr(row, 'winter_tires_at') ?? null,
+    keytagAuditedAt:   nullableStr(row, 'keytag_audited_at'),
+    keytagAuditedBy:   nullableStr(row, 'keytag_audited_by'),
+    keytagAuditResult: (row['keytag_audit_result'] as KeytagAuditResult | null) ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
     note:           nullableStr(row, 'note'),
     noteAt:         nullableStr(row, 'note_at'),

@@ -4,6 +4,7 @@ import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
+import type { KeytagAuditResult } from '../../types';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
@@ -42,11 +43,14 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
   keytagPhotoUrl?: string | null;
+  /** The human audit stamp (migration 130), grouped as ONE prop rather than three — this strip is
+   *  already at thirteen and the trio only ever means something together. */
+  keytagAudit?: { at?: string | null; by?: string | null; result?: KeytagAuditResult | null };
   keyCount?: number | null;
   /** Drives what the key picker may offer — a Tesla has one card and no alternatives. */
   isTesla?: boolean;
@@ -79,6 +83,21 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
     void recordKeyCount(vehicleId, n);
   };
 
+  // ⭐ FOUR STATES IN ONE CHIP, because they are four answers to the same question — *what does FG
+  // know about this car's tag?* A separate "audited" chip would have split that question across two
+  // controls and spent a slot on the strip; the audit is a property OF the tag, not a fact beside it.
+  //   verified   — a person read the photo against the record; its fields are now locked 'manual'.
+  //   unreadable — the photo defeated him (migration 130). THIS is the retake watchlist surfacing.
+  //   photo, unaudited — the old default: a model read it and nobody has checked.
+  //   no photo   — the dashed first-capture state.
+  const tagChip = !keytagPhotoUrl
+    ? { label: '🏷️ No key tag on file — tap to add', border: 'border-dashed border-gray-300 dark:border-gray-600', text: 'text-gray-400 dark:text-gray-500' }
+    : keytagAudit?.result === 'unreadable'
+    ? { label: '🏷️ Key tag needs a retake — tap to replace', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
+    : keytagAudit?.result === 'verified'
+    ? { label: '🏷️ Key tag verified — tap to view', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' }
+    : { label: '🏷️ Key tag as read — tap to check', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' };
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* ⚠️ THE CHIP RENDERS EITHER WAY. It used to be gated on the URL, so a car with no tag on
@@ -91,14 +110,13 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keyCount,
       <button
         type="button"
         onClick={() => setZoom(true)}
-        className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${keytagPhotoUrl ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-300 dark:border-gray-600'}`}
+        title={keytagAudit?.at ? `${keytagAudit.result === 'unreadable' ? 'Flagged unreadable' : 'Verified'} by ${keytagAudit.by ?? 'someone'} on ${new Date(keytagAudit.at).toLocaleDateString()}` : undefined}
+        className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${tagChip.border}`}
       >
         {keytagPhotoUrl && (
           <img src={keytagPhotoUrl} alt="Key tag" className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
         )}
-        <span className={`text-xs ${keytagPhotoUrl ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
-          {keytagPhotoUrl ? '🏷️ Key tag as read — tap to check' : '🏷️ No key tag on file — tap to add'}
-        </span>
+        <span className={`text-xs ${tagChip.text}`}>{tagChip.label}</span>
       </button>
 
       {editingKeys ? (

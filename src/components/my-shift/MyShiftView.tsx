@@ -19,6 +19,7 @@ import { PendingWritesSection } from '../pending/PendingWritesSection';
 import { EffieAuditSection } from '../pending/EffieAuditSection';
 import { EffieMisfiresSection } from '../pending/EffieMisfiresSection';
 import { BatchKeytagScan } from '../holds/BatchKeytagScan';
+import { KeytagAuditSection } from './KeytagAuditSection';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
@@ -181,6 +182,9 @@ export function MyShiftView() {
 
       {/* Batch key-tag register — stage a stack of tags into the queue below in one pass */}
       <BatchKeytagScan />
+
+      {/* Read the tags FG couldn't — one car at a time, between cars, no API spend */}
+      <KeytagAuditSection />
 
       {/* Effie's staged writes — review/approve when you have a minute (self-hides when empty) */}
       <PendingWritesSection />

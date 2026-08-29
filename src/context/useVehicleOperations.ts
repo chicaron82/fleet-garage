@@ -18,6 +18,7 @@ import { makeAttachKeytagPhotoIfMissing, makeRetakeKeytagPhoto } from './keytagP
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
+import { makeSaveKeytagAudit, makeFlagKeytagUnreadable } from './keytagAuditWrite';
 import { makeAdoptPlate } from './plateWrite';
 import { makeRecordWinterTires } from './winterTiresWrite';
 import { makeRecordOdometer, makeClearOdometer } from './odometerWrite';
@@ -162,6 +163,12 @@ export function useVehicleOperations({
     setAllVehicles,
     currentVehicle: id => allVehicles.find(v => v.id === id),
   });
+
+  // ⭐ The auditor's own door: a HUMAN read the stored tag photo. Unlike every write above it may
+  // CORRECT a value (a VIN included) and stamps 'manual', because he is the top of the provenance
+  // ladder — the scan/batch guards stay exactly as strict as they are. See ./keytagAuditWrite.
+  const saveKeytagAudit = makeSaveKeytagAudit({ setAllVehicles, allVehicles, userId });
+  const flagKeytagUnreadable = makeFlagKeytagUnreadable({ setAllVehicles, userId });
 
   // ⚠️ The ONE tag write that overwrites a good value, gated twice: it must classify as a RE-PLATE
   // rather than a misread, and the operator must have tapped. See ./plateWrite.
@@ -348,6 +355,8 @@ export function useVehicleOperations({
     recordOwningArea,
     recordClassCode,
     recordVinLast9,
+    saveKeytagAudit,
+    flagKeytagUnreadable,
     adoptPlate,
     recordOdometer,
     clearOdometer,
