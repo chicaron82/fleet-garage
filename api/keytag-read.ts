@@ -64,10 +64,11 @@ function isTransient(err: unknown): boolean {
 const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
 Fields the tag MAY carry (read the ones present):
-- OWNING AREA + RENTAL CLASS — the top line carries BOTH, report them separately:
+- OWNING CITY + OWNING AREA + RENTAL CLASS — the top line carries all three, report them separately:
+  • OWNING CITY: the branch's CITY NAME printed above or beside the number ("WINNIPEG", "CALGARY", "HALIFAX", "VAN DTG"). Report it exactly as shown, even partially — if it is cropped or cut off, report the letters you can actually see and nothing more. Never complete it from the number, and never infer a city you cannot read.
   • OWNING AREA: the 4–5 digit branch number that owns the vehicle ("08199", "8193"). Report the digits.
   • RENTAL CLASS: the short 1–3 char size/type group beside it ("Q4", "P4", "T", "L2", "B").
-  Printed: "WINNIPEG / 08199  Q4" → owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B". Do NOT put the branch number in rentalClass.
+  Printed: "WINNIPEG / 08199  Q4" → owningCity "WINNIPEG", owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B", owningCity "". Do NOT put the branch number in rentalClass, and do NOT put the city in either.
 - UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
 - LAST 9 OF THE VIN: printed tags label it "Last9vin:" and print exactly NINE characters ("9TR289777", "8NF258345"). Report those nine EXACTLY as shown, with no spaces. It is the last nine of the VIN, never the whole VIN — do not pad it, extend it, or infer the missing characters. VINs never contain the letters I, O or Q, so a character that looks like one is a 1 or a 0. Handwritten tags rarely carry it; leave it empty when absent.
 - LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
@@ -92,6 +93,7 @@ const REPORT_TOOL: Anthropic.Tool = {
       classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
       rentalClass: { type: 'string', description: 'The rental class beside the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
       owningArea: { type: 'string', description: 'The 4–5 digit OWNING branch number on that same top line, e.g. "08199", "8193". Digits only. "" if not legible.' },
+      owningCity: { type: 'string', description: 'The branch CITY printed on that same top line, e.g. "WINNIPEG", "CALGARY", "HALIFAX", "VAN DTG". Exactly as shown — report a partial reading if it is cropped, and never complete or infer it from the number. "" if absent or not legible.' },
       make: { type: 'string', description: 'Make — ONLY when written on the tag (handwritten) or unambiguous from a written model (Versa→Nissan). "" on a printed tag (make is derived from the class code downstream).' },
       model: { type: 'string', description: 'Model — when written DIRECTLY on the tag (handwritten, e.g. "Versa"). "" on a printed tag (derived from the class code).' },
       year: { type: 'integer', description: 'Model year from the class line (e.g. 2025). 0 if not legible.' },
@@ -105,6 +107,7 @@ const REPORT_TOOL: Anthropic.Tool = {
 interface RawKeytag {
   plate?: string;
   owningArea?: string;
+  owningCity?: string;
   unitNumber?: string;
   vinLast9?: string;
   classCode?: string;
@@ -137,6 +140,10 @@ function toKeytagRead(input: unknown): KeytagRead {
     // Normalized here (leading zero stripped) so the stored value is one shape regardless of
     // whether the tag printed "08199" or "8199".
     owningArea: normalizeOwning(r.owningArea) || undefined,
+    // ⚠️ RAW, and deliberately NOT normalised against the number. The city's whole job is to be
+    // INDEPENDENT evidence for the owning area — reconciling them here would destroy the one thing
+    // that makes it useful. `checkOwningCity` compares them and a person decides.
+    owningCity: s(r.owningCity),
     // Printed tag: make/model DERIVED from the class code (codex wins). Handwritten tag: no code,
     // but the model is written directly — fall back to the read's own make/model.
     make: vc?.make ?? s(r.make),

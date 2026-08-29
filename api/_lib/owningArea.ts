@@ -48,7 +48,17 @@ const KNOWN: Record<string, string> = {
   '8190': 'Saskatchewan',
   '8194': 'Montreal',
   '8890': 'Vancouver',
+
+  // Added 2026-08-28 — CONFIRMED, not guessed, and confirmed by the artifact rather than by
+  // inference. HNM262 was stored as 8199; Aaron opened its tag photo and read the city: *"the city
+  // name is cutoff. halifax. definitely not winnipeg. so it wouldn't be 8199, it would be 8198."*
+  // Its block-mate HMT717 already carried 8198, so the unit prefix agreed with him independently.
+  '8198': 'Halifax',
 };
+
+// ⚠️ STILL UNNAMED, deliberately: 8892, and 2294 (the US branch on the Florida Compass). Neither has
+// been confirmed by Aaron and neither is guessable — this map's whole rule is that an entry is
+// confirmed or absent, and an unknown code displays as a bare number rather than a wrong name.
 
 /** ⚠️ WHY 8199 SWAMPS EVERYTHING, and why that is permanent. Aaron, 2026-08-28: *"8199 is the
  *  dominant owning because.. well we're in manitoba haha of course our fleet will be mainly MB
@@ -68,6 +78,63 @@ export const HOME_OWNING = '8199';
 export function normalizeOwning(raw: string | null | undefined): string {
   const digits = (raw ?? '').replace(/\D/g, '').replace(/^0+/, '');
   return digits.length >= 4 ? digits : '';
+}
+
+/** City name → every owning number that carries it. DERIVED from KNOWN rather than hand-written,
+ *  because two maps of the same fact drift: Winnipeg is both 8199 and 8999 (the pre-renumber
+ *  number), Vancouver is both 8191 and 8890. A second hand-maintained table would have to be
+ *  remembered on every future rename. */
+const CITY_TO_OWNINGS: ReadonlyMap<string, readonly string[]> = (() => {
+  const m = new Map<string, string[]>();
+  for (const [num, name] of Object.entries(KNOWN)) {
+    const key = name.trim().toUpperCase();
+    const list = m.get(key);
+    if (list) list.push(num); else m.set(key, [num]);
+  }
+  return m;
+})();
+
+/** What the tag's city line says about the tag's owning number. */
+export type OwningCityCheck =
+  | { kind: 'agree'; city: string; owningArea: string }
+  /** The city is one FG knows and the number belongs to a DIFFERENT branch. Surfaced, never
+   *  auto-corrected: the tag carries both halves and only a person should decide which half won. */
+  | { kind: 'conflict'; city: string; owningArea: string; expected: readonly string[] }
+  /** Either half missing, or a city string FG has no name for. NOT a disagreement. */
+  | { kind: 'unknown' };
+
+/**
+ * Cross-check the two halves of a key tag's top line.
+ *
+ * ⭐⭐ WHY THIS EXISTS. On 2026-08-28 Aaron read three stored tags and found three owning areas
+ * wrong: a HALIFAX tag stored as 8199, and two CALGARY tags stored as 8199. Every one is a
+ * single-character misread (8198→8199 is 8↔9; 8193→8199 is 3↔9) landing on the fleet's dominant
+ * value — 284 of 365, seven to one, and structurally permanent because the branch is in Manitoba.
+ *
+ * ⭐⭐⭐ Which is exactly why no check that reasons from FREQUENCY can catch this class of error: a
+ * misread toward the majority is one more vote FOR the majority. The city is the only independent
+ * evidence on the tag, and FG has been reading that line and discarding half of it — the same thing
+ * it did with the owning number itself until 2026-08-18.
+ *
+ * ⚠️ AND THE COMPOUNDING DETAIL: on the Halifax tag the city name was CUT OFF. The condition that
+ * damages one field is often the condition that makes the other worth reading.
+ *
+ * ⚠️ UNKNOWN IS NEVER DISAGREEMENT. A city FG has no name for is a new branch, not a conflict —
+ * the 8890 tags print "VAN DTG", which is not the string "Vancouver" and must never be flagged.
+ * KNOWN is built by confirming entries with Aaron, one at a time, and this inherits that discipline.
+ */
+export function checkOwningCity(
+  rawCity: string | null | undefined,
+  rawOwning: string | null | undefined,
+): OwningCityCheck {
+  const city = (rawCity ?? '').trim().toUpperCase();
+  const owningArea = normalizeOwning(rawOwning);
+  if (!city || !owningArea) return { kind: 'unknown' };
+
+  const expected = CITY_TO_OWNINGS.get(city);
+  if (!expected) return { kind: 'unknown' };          // a city FG cannot name is not a contradiction
+  if (expected.includes(owningArea)) return { kind: 'agree', city, owningArea };
+  return { kind: 'conflict', city, owningArea, expected };
 }
 
 /** "Calgary (8193)" when known, "8193" when not, '' when absent. Never guesses a branch name. */

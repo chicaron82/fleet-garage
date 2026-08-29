@@ -9,6 +9,19 @@ export interface KeytagRead {
    *  normalized to digits without the printed leading zero. Undefined when not legible.
    *  Captured 2026-08-18 — the line was always read and the number always discarded. */
   owningArea?: string;
+  /** The CITY printed above the owning number ("WINNIPEG", "CALGARY", "HALIFAX"), exactly as
+   *  shown. Captured 2026-08-28 — and the confession is identical to the one above it: the line was
+   *  always read and the city always discarded. The prompt has literally been showing the model
+   *  `"WINNIPEG / 08199  Q4"` and asking for nothing from the first word.
+   *
+   *  ⭐⭐ It is NOT decoration. It is the only INDEPENDENT evidence on the tag for a field whose
+   *  errors are otherwise undetectable: 8199 is 284 of 365 cars — seven to one, and permanent,
+   *  because the branch is in Manitoba — so a single-character misread toward it is one more vote
+   *  for the majority it hides in. Aaron found three that way on 2026-08-28, by eye, off the photos.
+   *
+   *  ⚠️ Reported RAW, never resolved against the number. `checkOwningCity` compares them and a
+   *  person decides; nothing here corrects one half from the other. */
+  owningCity?: string;
   /** License plate ("Lic Plate") — the match key. The caller normalizes
    *  (correctManitobaPlate) and looks up an existing vehicle by this before resolving. */
   plate?: string;
