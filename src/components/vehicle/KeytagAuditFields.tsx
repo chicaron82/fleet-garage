@@ -55,12 +55,14 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
             }`}>
               {AUDIT_FIELD_LABELS[f]}
             </span>
-            {/* ⚠️ NUMERIC PAD ON THE OWNING AREA ONLY. Every owning area on the fleet is digits with
-                no exception, so a numeric keyboard costs nothing and saves a mode switch on the field
-                he types most. The UNIT NUMBER is deliberately excluded: one real car carries
-                "4374 7498", with a space, and a numeric pad has no space key.
-                ⚠️ And it is a HINT, not a rule — a no-op on a hardware keyboard, exactly like
-                autoCapitalize. The digits-only guarantee lives on the write, in normalizeOwning. */}
+            {/* ⚠️ NUMERIC PAD ON THE TWO ALL-DIGIT FIELDS — the owning area and the unit number.
+                ⭐ The unit number was EXCLUDED for a day on a false premise: one car appeared to
+                carry "4374 7498", with a space, so a numeric pad seemed to lock him out of it. Aaron
+                looked it up and it was a SCANNER MISREAD — the tag reads "574 7498", seven digits in
+                two groups, and he had already corrected it. All 704 real units are seven digits; the
+                only longer values are HRZ- mock rows. A bug had become a design constraint.
+                ⚠️ Still a HINT, not a rule — a no-op on a hardware keyboard, exactly like
+                autoCapitalize. Nothing here guarantees digits; that lives on the write. */}
             <input
               type="text"
               value={edits[f] ?? ''}
@@ -68,7 +70,7 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
               placeholder={blank ? 'read it off the tag' : ''}
               {...(f === 'vinLast9' ? { maxLength: 9 } : {})}
               autoCapitalize="characters"
-              inputMode={f === 'owningArea' ? 'numeric' : undefined}
+              inputMode={f === 'owningArea' || f === 'unitNumber' ? 'numeric' : undefined}
               autoCorrect="off"
               spellCheck={false}
               className={`w-full rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${

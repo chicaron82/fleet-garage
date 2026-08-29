@@ -29,7 +29,8 @@ describe('owningFromUnit — the confident block', () => {
   });
 
   it('reads the prefix off the digits, ignoring a stored space', () => {
-    // 0EL762 carries "4374 7498"; a unit is not always clean.
+    // A stored unit is not always clean. 0EL762 held "4374 7498" for a while — a scanner misread of
+    // "574 7498" that Aaron later corrected — so this tolerates junk without depending on it.
     const g = owningFromUnit('542 9999', fleet);
     expect(g.prefix).toBe('542');
     expect(g.suggestion).toBe('8199');
@@ -77,6 +78,7 @@ describe('owningFromUnit — a record must not corroborate itself', () => {
   });
 
   it('excludes it by digits, so a stored space cannot smuggle a vote back in', () => {
+    // The shape a bad scan produces, not a real car: every real unit is seven clean digits.
     const fleet = [car('4374 7498', '8199'), ...many(5, 4374000, '8193')];
     const g = owningFromUnit('4374 7498', fleet, '43747498');
     expect(g.tally.find(t => t.owningArea === '8199')).toBeUndefined();

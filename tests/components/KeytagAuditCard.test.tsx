@@ -254,9 +254,11 @@ describe('KeytagAuditCard — nothing is required, and only one field is capped'
     expect(screen.getByLabelText(/VIN \(last 9\)/).getAttribute('maxLength')).toBe('9');
   });
 
-  it('⚠️ does NOT cap the unit number — one live car carries 8 digits, not 7', () => {
-    // 703 units are 7 characters and 4374 7498 is not. A cap that is right about 703 of 708 rows
-    // still blocks real work — the same trap as the model-code shape rule.
+  it('⚠️ does NOT cap the unit number — a fleet convention is not a definition', () => {
+    // All 704 real units are 7 digits (the "8-digit car" turned out to be a scanner misread Aaron
+    // corrected). Still no cap: a VIN's last-9 is nine BY DEFINITION, while a unit number's length
+    // is a Hertz convention — and those rotate. "The numbers ROTATE... both the owning and the
+    // prefix list have already changed once in his tenure."
     setup();
     expect(screen.getByLabelText(/Unit #/).getAttribute('maxLength')).toBeNull();
   });
@@ -417,9 +419,11 @@ describe('KeytagAuditCard — the numeric keypad', () => {
     expect(screen.getByLabelText(/Owning area/).getAttribute('inputmode')).toBe('numeric');
   });
 
-  it('⚠️ NOT on the unit number — one real car carries "4374 7498", with a space', () => {
+  it('⭐ and on the unit number too — every real one is seven digits', () => {
+    // Excluded for a day on a false premise: a car that looked like it carried "4374 7498" was a
+    // scanner misread of "574 7498". A bug had become a design constraint.
     setup();
-    expect(screen.getByLabelText(/Unit #/).getAttribute('inputmode')).toBeNull();
+    expect(screen.getByLabelText(/Unit #/).getAttribute('inputmode')).toBe('numeric');
   });
 
   it('nor on the alphanumeric fields', () => {
