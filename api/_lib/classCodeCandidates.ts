@@ -1,4 +1,15 @@
-// A truncated class code is not a failure — it is a PREFIX.
+// What FG already knows that is close to a code it does not recognise.
+//
+// ⭐⭐ THE MODULE HANDS BACK CANDIDATES, NEVER A DECISION — Aaron's rule, 2026-08-29: *"do what it
+// can from the info its given. then leave the rest to me. whatever FG can't confidentally figure out
+// from the info. instead of assuming, just to leave it for me to handle."* He is always the
+// fallback and a good one; a gap he can see costs a glance, and a confident wrong value costs trust
+// in the whole column.
+//
+// Two routes in, one rule out:
+//   • TRUNCATED read (2–3 chars) → prefix completion.
+//   • FULL read (4 chars) that is not a known code → NEAR MISS, one character away.
+// Either way: exactly one candidate is offered, several are listed, and none is ever applied.
 //
 // ⭐ AARON'S IDEA, 2026-08-28, after finding FG had taught itself `CN = Nissan Sentra` from a
 // truncated read of `CNSS`:
@@ -97,4 +108,78 @@ export function describePrefixResolution(r: PrefixResolution): string {
   }
   if (r.candidates.length === 0) return `${r.prefix}… matches no code FG knows`;
   return `${r.prefix}… could be ${r.candidates.join(', ')}`;
+}
+
+
+/** How far apart two same-length codes are. Positions only — a truncation is the other route's job. */
+function charDistance(a: string, b: string): number {
+  if (a.length !== b.length) return Number.MAX_SAFE_INTEGER;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
+}
+
+/** A full-length read that is not a known code, and what it is one character from. */
+export interface NearMiss {
+  /** The code as read. */
+  read: string;
+  /** Known codes exactly one character away, alphabetical. */
+  candidates: readonly string[];
+  /** The single candidate, when there is exactly one. Null when none or several. */
+  suggestion: string | null;
+}
+
+/**
+ * A four-character read that FG does not know, measured against the codes it does.
+ *
+ * ⭐⭐⭐ THIS IS THE FAILURE THAT ACTUALLY HAPPENS. A 25-photo probe on 2026-08-29 found every class
+ * code read at exactly four characters — no truncations at all, which is why the prefix route above
+ * turned out to solve a problem that does not occur. But TWO of those 25 disagreed with the stored
+ * value, and **neither misread is a real code**: `CJCL` read as `CJCI` (one character, L→I) and
+ * `CKSE` read as `CRSR` (two). Both would be logged as unknown, and the teach path would then invite
+ * Aaron to enshrine them — which is exactly how `CC59`, `CK45` and `CN` were born.
+ *
+ * ⚠️⚠️ ITS JOB IS TO RAISE DOUBT, NOT TO CORRECT — and the difference is load-bearing, because the
+ * nearest code is often the WRONG one. Measured on the two real misreads: `CJCI` is one character
+ * from `CJCL`, which is right; but `CRSR` (a misread of `CKSE`, a Kia Seltos) is one character from
+ * `CRSV`, which is a different car entirely. **A two-character misread can sit one character from a
+ * code that has nothing to do with the vehicle.**
+ *
+ * ⭐ So the message must never be "did you mean CRSV?". It is "this is not a code FG knows, and it
+ * is one character from one it does — read the tag again before teaching this as new." That is TRUE
+ * in both cases, and it is the thing that actually matters: the teach path is how `CC59`, `CK45` and
+ * `CN` were born, and every one of them was a misread enshrined at the moment of doubt.
+ *
+ * ⚠️ AND IT NEVER PICKS. Two codes a single character away means the evidence does not settle it;
+ * both are handed back and neither is preferred.
+ */
+export function nearMissClassCode(
+  read: string | null | undefined,
+  taughtCodes: readonly string[] = [],
+): NearMiss {
+  const code = normalizeClassCode(read);
+  const empty: NearMiss = { read: code, candidates: [], suggestion: null };
+  if (code.length !== CODE_LENGTH) return empty;
+
+  const all = new Set<string>([...curatedClassCodes(), ...taughtCodes.map(c => normalizeClassCode(c))]);
+  if (all.has(code)) return empty;              // FG knows it — nothing to rescue
+
+  const candidates = [...all]
+    .filter(c => c.length === CODE_LENGTH && charDistance(c, code) === 1)
+    .sort();
+  return { read: code, candidates, suggestion: candidates.length === 1 ? candidates[0] : null };
+}
+
+/**
+ * One line for the operator, phrased as DOUBT rather than as a correction.
+ *
+ * ⚠️ Deliberately never "did you mean X". The nearest code is wrong often enough to make a
+ * recommendation dangerous — and the useful content is not the candidate, it is the warning that
+ * this looks like a misread of something FG already has, at the exact moment the teach path would
+ * otherwise invite him to enshrine it.
+ */
+export function describeNearMiss(m: NearMiss): string {
+  if (!m.read || m.candidates.length === 0) return '';
+  const near = m.candidates.join(' and ');
+  return `${m.read} isn't a code FG knows, and it's one character from ${near} — read the tag again before teaching it as new`;
 }

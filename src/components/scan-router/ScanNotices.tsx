@@ -1,5 +1,6 @@
 import { isUnknownClassCode } from '../../lib/partialRegister';
 import { checkOwningCity, owningLabel } from '../../../api/_lib/owningArea';
+import { nearMissClassCode, describeNearMiss } from '../../../api/_lib/classCodeCandidates';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Vehicle } from '../../types';
 
@@ -29,7 +30,26 @@ export function ScanNotices({ scanRead, vehicle, codexToast }: {
               and the operator had to infer the cause from the shape of the failure.
               Suppressed when the scan TAUGHT the code instead — asking him to add by hand
               what FG just learned by itself is the exact confusion this pair replaced. */}
-          {scanRead && isUnknownClassCode(scanRead) && !codexToast && (
+          {/* ⭐⭐ A CODE FG DOES NOT KNOW IS SOMETIMES A MISREAD OF ONE IT DOES. Measured 2026-08-29:
+          of 25 stored tags re-read, two disagreed with the record and NEITHER misread was a real
+          code — CJCL read as CJCI (one character, L→I), CKSE as CRSR. Both would land here, on the
+          notice that invites him to add the code by hand, which is precisely how CC59, CK45 and CN
+          were born: a misread enshrined at the moment of doubt.
+
+          ⚠️ It raises doubt and never corrects. The nearest code is often the WRONG one — CRSR is
+          one character from CRSV, a different car entirely — so "did you mean" would be confidently
+          wrong. "Read the tag again" is true either way, and it is the part that matters.
+
+          ⚠️ Curated codes only: a TAUGHT code one character away is not seen from the client. That
+          errs toward silence, which is the correct direction for a warning. */}
+      {scanRead && isUnknownClassCode(scanRead) && !codexToast
+        && nearMissClassCode(scanRead.classCode).candidates.length > 0 && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+          ⚠️ {describeNearMiss(nearMissClassCode(scanRead.classCode))}.
+        </p>
+      )}
+      {scanRead && isUnknownClassCode(scanRead) && !codexToast
+        && nearMissClassCode(scanRead.classCode).candidates.length === 0 && (
             <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
               Model code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
               make/model need adding by hand. Logged for DiZee.

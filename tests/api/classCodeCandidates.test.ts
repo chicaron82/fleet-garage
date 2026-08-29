@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveClassCodePrefix, describePrefixResolution } from '../../api/_lib/classPrefix';
+import { resolveClassCodePrefix, describePrefixResolution, nearMissClassCode, describeNearMiss } from '../../api/_lib/classCodeCandidates';
 
 // ⭐ AARON'S IDEA, after FG taught itself `CN = Nissan Sentra` from a truncated read of `CNSS`:
 // "if CN was the only thing that was picked up. what class is it, C? what C class has CN** Sentra!
@@ -109,5 +109,77 @@ describe('describePrefixResolution', () => {
 
   it('says nothing at all about an unusable input', () => {
     expect(describePrefixResolution(resolveClassCodePrefix('C', null, CLASSES))).toBe('');
+  });
+});
+
+describe('nearMissClassCode — the failure that actually happens', () => {
+  // ⭐⭐⭐ A 25-photo probe on 2026-08-29 found EVERY class code read at exactly four characters —
+  // no truncations at all, which is why the prefix route solves a problem that does not occur. But
+  // TWO of those 25 disagreed with the stored value, and neither misread is a real code:
+  //   LUR278  stored CJCL  read CJCI   (one character, L→I)
+  //   HMT717  stored CKSE  read CRSR   (two characters)
+  // Both would be logged as unknown, and the teach path would invite Aaron to enshrine them —
+  // exactly how CC59, CK45 and CN were born.
+
+  it('⭐ CJCI is one character from CJCL — the real misread, measured', () => {
+    const m = nearMissClassCode('CJCI');
+    expect(m.suggestion).toBe('CJCL');
+    expect(m.candidates).toEqual(['CJCL']);
+  });
+
+  it('⚠️⚠️ the nearest code is often the WRONG one — which is why it raises doubt, not a fix', () => {
+    // HMT717's CKSE was read as CRSR: two characters from the truth, but ONE character from CRSV,
+    // a different car entirely. A "did you mean CRSV?" would be confidently wrong. The message has
+    // to be "read the tag again", which is true in both cases.
+    const m = nearMissClassCode('CRSR');
+    expect(m.candidates).toEqual(['CRSV']);
+    expect(describeNearMiss(m)).toMatch(/read the tag again before teaching it as new/);
+    expect(describeNearMiss(m)).not.toMatch(/did you mean/i);
+  });
+
+  it('⭐ stays silent on a code FG already knows — there is nothing to rescue', () => {
+    expect(nearMissClassCode('CJCL')).toMatchObject({ suggestion: null, candidates: [] });
+    expect(nearMissClassCode('CRVB')).toMatchObject({ suggestion: null, candidates: [] });
+  });
+
+  it('⚠️ NEVER PICKS between two codes a single character away', () => {
+    // CKSR sits one character from BOTH CKSE and CKSV. The evidence does not settle it, so both are
+    // handed back and neither is preferred.
+    const m = nearMissClassCode('CKSR');
+    expect(m.candidates).toEqual(['CKSE', 'CKSV']);
+    expect(m.suggestion).toBeNull();
+  });
+
+  it('says nothing about a genuinely new code that resembles nothing', () => {
+    expect(nearMissClassCode('ZZZZ')).toMatchObject({ suggestion: null, candidates: [] });
+  });
+
+  it('only considers full-length reads — a truncation is the prefix route\'s job', () => {
+    expect(nearMissClassCode('CJC')).toMatchObject({ suggestion: null, candidates: [] });
+    expect(nearMissClassCode('')).toMatchObject({ suggestion: null, candidates: [] });
+  });
+
+  it('counts a code FG taught itself as known, both as a match and as a candidate', () => {
+    expect(nearMissClassCode('CTMY', ['CTMY']).candidates).toEqual([]);   // known → nothing to say
+    expect(nearMissClassCode('QQAC', ['QQAB']).suggestion).toBe('QQAB');  // taught → a candidate
+  });
+
+  it('normalizes first, as every codex entry point does', () => {
+    expect(nearMissClassCode('  cjci 25 ').suggestion).toBe('CJCL');
+  });
+});
+
+describe('describeNearMiss', () => {
+  it('names what he may have meant, and never what FG did about it', () => {
+    expect(describeNearMiss(nearMissClassCode('CJCI')))
+      .toBe("CJCI isn't a code FG knows, and it's one character from CJCL — read the tag again before teaching it as new");
+  });
+
+  it('lists both when it cannot choose', () => {
+    expect(describeNearMiss(nearMissClassCode('CKSR'))).toMatch(/one character from CKSE and CKSV/);
+  });
+
+  it('says nothing when there is nothing to say', () => {
+    expect(describeNearMiss(nearMissClassCode('ZZZZ'))).toBe('');
   });
 });

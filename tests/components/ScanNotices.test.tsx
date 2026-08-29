@@ -67,9 +67,24 @@ describe('ScanNotices — the tag disagreeing with itself', () => {
 });
 
 describe('ScanNotices — the unknown model code', () => {
-  it('says why registration degraded', () => {
+  it('says why registration degraded, for a code that resembles nothing', () => {
     show({ scanRead: { classCode: 'CZZZ' } as KeytagRead });
     expect(screen.getByText(/isn’t in the codex yet/i)).toBeTruthy();
+  });
+
+  it('⭐⭐ raises DOUBT instead, when the unknown code is one character from a known one', () => {
+    // Measured 2026-08-29: CJCL was read as CJCI. Without this, that lands on the notice inviting
+    // him to add the code by hand — which is exactly how CC59, CK45 and CN were born.
+    show({ scanRead: { classCode: 'CJCI' } as KeytagRead });
+    expect(screen.getByText(/read the tag again before teaching it as new/i)).toBeTruthy();
+    expect(screen.queryByText(/isn’t in the codex yet/i)).toBeNull();
+  });
+
+  it('⚠️ never says "did you mean" — the nearest code is often the wrong one', () => {
+    // CRSR is a misread of CKSE and sits one character from CRSV, a different car entirely.
+    show({ scanRead: { classCode: 'CRSR' } as KeytagRead });
+    expect(screen.getByText(/read the tag again/i)).toBeTruthy();
+    expect(screen.queryByText(/did you mean/i)).toBeNull();
   });
 
   it('⚠️ stays quiet when this scan TAUGHT the code — asking him to add what FG just learned is the confusion it replaced', () => {
