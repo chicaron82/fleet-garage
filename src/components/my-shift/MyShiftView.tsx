@@ -20,6 +20,7 @@ import { EffieAuditSection } from '../pending/EffieAuditSection';
 import { EffieMisfiresSection } from '../pending/EffieMisfiresSection';
 import { BatchKeytagScan } from '../holds/BatchKeytagScan';
 import { KeytagAuditSection } from './KeytagAuditSection';
+import { HybridGapsSection } from './HybridGapsSection';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
@@ -185,6 +186,10 @@ export function MyShiftView() {
 
       {/* Read the tags FG couldn't — one car at a time, between cars, no API spend */}
       <KeytagAuditSection />
+
+      {/* Cars the fleet's own data says are hybrids that nobody flagged — found without him having
+          handled the car. Self-hides when empty. */}
+      <HybridGapsSection />
 
       {/* Effie's staged writes — review/approve when you have a minute (self-hides when empty) */}
       <PendingWritesSection />
