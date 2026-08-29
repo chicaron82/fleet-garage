@@ -1,4 +1,5 @@
 import { AUDIT_FIELDS, AUDIT_FIELD_LABELS, AUDIT_FIELD_HINTS, type AuditField, type AuditWarning } from '../../lib/keytagAuditQueue';
+import { describeOwningGuess, type OwningGuess } from '../../lib/owningFromUnit';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
 
 /**
@@ -13,7 +14,7 @@ import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
  * The fix is not a bigger thumbnail — it is the same inputs living in both places, which means ONE
  * definition. Two copies of a form is how one of them quietly grows a sixth field the other lacks.
  */
-export function KeytagAuditFields({ edits, missing, warnings, tone, onChange }: {
+export function KeytagAuditFields({ edits, missing, warnings, owningGuess, tone, onChange }: {
   edits: KeytagAuditEdits;
   /** Fields blank on the record — marked so his eye lands on what needs reading, not on a wall of
    *  pre-filled text. The honest cost of showing FG's current value is anchoring; this is the
@@ -23,6 +24,9 @@ export function KeytagAuditFields({ edits, missing, warnings, tone, onChange }: 
    *  he typed E9 from KNOWING the car rather than reading it, and a rule that refuses a value he is
    *  certain of is worse than the bug it prevents. */
   warnings: readonly AuditWarning[];
+  /** What the fleet's own unit numbers say about this car's branch — offered under the owning-area
+   *  field, never written into it. */
+  owningGuess: OwningGuess;
   /** 'dark' is over the photo, where the ground is black and the light palette disappears. */
   tone: 'light' | 'dark';
   onChange: (field: AuditField, value: string) => void;
@@ -71,6 +75,29 @@ export function KeytagAuditFields({ edits, missing, warnings, tone, onChange }: 
             }`}>
               {warning ? `⚠️ ${warning.message}` : AUDIT_FIELD_HINTS[f]}
             </span>
+            {/* ⭐ AARON'S OWN SHORTCUT, OFFERED BACK. He reads a unit prefix and knows the branch
+                — "anything with unit number 542**** or 549**** enter owning 8199". This is that,
+                computed live from the fleet so it moves when the numbering rotates.
+                ⚠️ A BUTTON, NEVER A PREFILL. Three of the fleet's 29 prefixes map to two branches,
+                and those minority rows came off scanned tags — so an autofill would eventually
+                write the wrong branch and stamp it 'manual', locked, off a tap he made without
+                looking. When the block is split it shows the split and offers nothing. */}
+            {f === 'owningArea' && owningGuess.seen > 0 && (
+              owningGuess.suggestion && owningGuess.suggestion !== (edits.owningArea ?? '').trim() ? (
+                <button type="button" onClick={() => onChange('owningArea', owningGuess.suggestion!)}
+                  className={`mt-1 block text-left text-[10px] leading-snug underline cursor-pointer ${
+                    owningGuess.ambiguous
+                      ? (dark ? 'text-amber-300' : 'text-amber-700 dark:text-amber-400')
+                      : (dark ? 'text-sky-300' : 'text-sky-700 dark:text-sky-400')
+                  }`}>
+                  {owningGuess.ambiguous ? '⚠️ ' : '↩ '}use {owningGuess.suggestion} · {describeOwningGuess(owningGuess)}
+                </button>
+              ) : !owningGuess.suggestion ? (
+                <span className={`mt-1 block text-[10px] leading-snug ${dark ? 'text-amber-300/80' : 'text-amber-700 dark:text-amber-500'}`}>
+                  ⚠️ split block — {describeOwningGuess(owningGuess)}
+                </span>
+              ) : null
+            )}
           </label>
         );
       })}

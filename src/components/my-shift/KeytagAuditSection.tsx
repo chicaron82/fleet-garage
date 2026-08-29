@@ -8,7 +8,7 @@ import { useKeytagAudit } from '../../hooks/useKeytagAudit';
 import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
 
 export function KeytagAuditSection() {
-  const { current, remaining, stats, knownRentalClasses, knownModelCodes, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
+  const { current, remaining, stats, knownRentalClasses, knownModelCodes, guessOwning, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
   const open = !collapsed;
 
@@ -67,6 +67,7 @@ export function KeytagAuditSection() {
                 saving={saving}
                 knownRentalClasses={knownRentalClasses}
                 knownModelCodes={knownModelCodes}
+                guessOwning={guessOwning}
                 onSave={save}
                 onSkip={skip}
                 onFlagUnreadable={flagUnreadable}

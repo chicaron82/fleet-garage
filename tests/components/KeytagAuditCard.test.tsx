@@ -25,9 +25,12 @@ const onSkip = vi.fn();
 const onFlag = vi.fn();
 const KNOWN_CLASSES = new Set(['Q4', 'E9', 'P4', 'C', 'T']);
 const KNOWN_CODES = new Set(['CRVB', 'CTMY']);
-const setup = () => render(
+// Default: FG has never seen this unit's block, so no suggestion appears and the existing
+// assertions stay about what they were about.
+const noGuess = () => ({ prefix: '', tally: [], seen: 0, suggestion: null, ambiguous: false });
+const setup = (guessOwning: Parameters<typeof KeytagAuditCard>[0]['guessOwning'] = noGuess) => render(
   <KeytagAuditCard candidate={candidate} saving={false}
-    knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES}
+    knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
     onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />,
 );
 
@@ -246,5 +249,73 @@ describe('KeytagAuditCard — nothing is required, and only one field is capped'
     setup();
     openZoom();
     expect(within(overlay()).getByText(/Nothing here is required/)).toBeTruthy();
+  });
+});
+
+describe('KeytagAuditCard — the owning-area suggestion', () => {
+  // Aaron, working the queue: "anything with unit number 542**** or 549**** enter owning 8199,
+  // vancouver 8191 and so on. the ones that i'll stop on are ones i'm unsure of."
+  const confident = () => ({
+    prefix: '557', tally: [{ owningArea: '8191', count: 11 }], seen: 11,
+    suggestion: '8191', ambiguous: false,
+  });
+  const split = () => ({
+    prefix: '577',
+    tally: [{ owningArea: '8193', count: 6 }, { owningArea: '8199', count: 1 }],
+    seen: 7, suggestion: '8193', ambiguous: true,
+  });
+  const evenSplit = () => ({
+    prefix: '711',
+    tally: [{ owningArea: '8198', count: 1 }, { owningArea: '8199', count: 1 }],
+    seen: 2, suggestion: null, ambiguous: true,
+  });
+
+  it('⭐ offers the branch with its evidence, and does NOT touch the field', () => {
+    // The fixture already holds 8199 and the block suggests 8191 — so this also proves the
+    // suggestion cannot silently overwrite a value the record already has. An autofill here would
+    // have replaced a real owning area and stamped the replacement 'manual', locked.
+    setup(confident);
+    const area = screen.getByLabelText(/Owning area/) as HTMLInputElement;
+    expect(area.value).toBe('8199');
+    expect(screen.getByText(/use 8191/)).toBeTruthy();
+    expect(screen.getByText(/11 of 11 cars on 557/)).toBeTruthy();
+  });
+
+  it('replaces the value only when he taps', () => {
+    setup(confident);
+    expect((screen.getByLabelText(/Owning area/) as HTMLInputElement).value).toBe('8199');
+    fireEvent.click(screen.getByText(/use 8191/));
+    expect((screen.getByLabelText(/Owning area/) as HTMLInputElement).value).toBe('8191');
+  });
+
+  it('⭐ names the dissent on a split block — the one he should stop on', () => {
+    setup(split);
+    expect(screen.getByText(/1 say 8199/)).toBeTruthy();
+  });
+
+  it('⭐⭐ offers NOTHING on an even split, and says why', () => {
+    // A silent autofill here would write the wrong branch and stamp it 'manual', locked.
+    setup(evenSplit);
+    expect(screen.queryByText(/use 8198/)).toBeNull();
+    expect(screen.queryByText(/use 8199/)).toBeNull();
+    expect(screen.getByText(/split block/)).toBeTruthy();
+  });
+
+  it('says nothing about a block FG has never seen', () => {
+    setup();
+    expect(screen.queryByText(/cars on/)).toBeNull();
+    expect(screen.queryByText(/split block/)).toBeNull();
+  });
+
+  it('stops offering once the field already holds the suggestion', () => {
+    setup(confident);
+    fireEvent.click(screen.getByText(/use 8191/));
+    expect(screen.queryByText(/use 8191/)).toBeNull();
+  });
+
+  it('reaches the overlay too, where he actually types', () => {
+    setup(confident);
+    openZoom();
+    expect(within(overlay()).getByText(/use 8191/)).toBeTruthy();
   });
 });

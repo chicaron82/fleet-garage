@@ -6,6 +6,7 @@ import {
   type AuditCandidate,
   type AuditQueueStats,
 } from '../lib/keytagAuditQueue';
+import { owningFromUnit, type OwningGuess } from '../lib/owningFromUnit';
 import type { KeytagAuditEdits } from '../context/keytagAuditWrite';
 import type { Vehicle } from '../types';
 
@@ -35,6 +36,10 @@ export interface KeytagAuditState {
   knownRentalClasses: ReadonlySet<string>;
   /** Every model code in use, MINUS anything that is also a rental class. */
   knownModelCodes: ReadonlySet<string>;
+  /** What the fleet's own unit numbers say about a branch. A FUNCTION rather than a precomputed
+   *  value, so it answers about the unit currently in the box — if he corrects the unit, the
+   *  suggestion follows him instead of describing the number he replaced. */
+  guessOwning: (unitNumber: string) => OwningGuess;
   saving: boolean;
   /** A failed write, said out loud rather than swallowed. */
   error: string;
@@ -117,8 +122,16 @@ export function useKeytagAudit(): KeytagAuditState {
 
   const dismissConflict = useCallback(() => setUnitConflict(null), []);
 
+  // ⚠️ The car being audited is excluded from its own evidence — otherwise a record corroborates
+  // itself, which stays invisible until the day it is wrong.
+  const currentUnit = current?.vehicle.unitNumber ?? null;
+  const guessOwning = useCallback(
+    (unitNumber: string) => owningFromUnit(unitNumber, allVehicles, currentUnit),
+    [allVehicles, currentUnit],
+  );
+
   return {
-    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes,
+    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes, guessOwning,
     saving, error, unitConflict,
     save, skip, flagUnreadable, dismissConflict,
   };
