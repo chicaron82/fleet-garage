@@ -67,7 +67,11 @@ export function mapVehicle(row: Row): Vehicle {
     noteAt:         nullableStr(row, 'note_at'),
     owningArea:     nullableStr(row, 'owning_area'),
     status:       reqStr(row, 'status',        'mapVehicle') as VehicleStatus,
-    branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId, // Mock fallback
+    // There is one branch. `branch_id` exists because FG was first shaped as a
+    // scale-out proof of concept; it is now Aaron's personal tool that HAPPENS to
+    // still scale, so YWG is the correct answer for a branchless row, not a stand-in
+    // for missing data. Pinned by 'falls back to YWG for legacy branchless rows'.
+    branchId:       (optStr(row, 'branch_id')    ?? 'YWG') as BranchId,
     isTesla:        (row['is_tesla'] as boolean)          ?? false,
     isHybrid:       (row['is_hybrid'] as boolean)         ?? false,
     hasMobileCable: (row['has_mobile_cable'] as boolean | null) ?? null,
