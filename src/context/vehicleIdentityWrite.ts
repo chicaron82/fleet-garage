@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pinClassMapping } from './classPinWrite';
+import type { ClassPinContradiction } from '../../api/_lib/vehicleClassCodex';
 import type { Vehicle, FieldSource } from '../types';
 
 // The operator's CONFIRMED TRUTH about a car's identity — a deliberate overwrite, not a suggestion.
@@ -21,6 +22,9 @@ export interface IdentityWriteResult {
    *  carried no code/class pair to teach, or when that write failed — reported rather than
    *  assumed, so nothing upstream can claim a mapping it did not store. */
   pinned: boolean;
+  /** Set when the mapping was REFUSED because the codex contradicts it — the car's own edit still
+   *  landed. Carries the code he probably meant. */
+  pinBlocked?: ClassPinContradiction;
 }
 
 /**
@@ -56,8 +60,11 @@ export async function writeVehicleIdentity(
     // next different CRHX still resolves to Q4, because api/keytag-read.ts re-teaches the code→class
     // table from every tag it reads. Same ladder, one level down (migration 127).
     let pinned = false;
+    let pinBlocked: ClassPinContradiction | undefined;
     if (identity?.classCode && identity.rentalClass) {
-      pinned = await pinClassMapping(identity.classCode, identity.rentalClass);
+      const outcome = await pinClassMapping(identity.classCode, identity.rentalClass);
+      pinned = outcome.pinned;
+      pinBlocked = outcome.contradiction;
     }
 
     const { data: cur } = await supabase.from('vehicles').select('field_sources').eq('id', vehicleId).maybeSingle();
@@ -81,10 +88,10 @@ export async function writeVehicleIdentity(
         edit_reviewed_at:     null,
       }).eq('id', vehicleId)
     );
-    if (error) return { ok: false, pinned };
+    if (error) return { ok: false, pinned, pinBlocked };
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : {
       ...v, unitNumber: unit, licensePlate: plate, editStatus: null, fieldSources: mergedSources,
       ...(identity ? { make: identity.make, model: identity.model, year: identity.year, color: identity.color, rentalClass: identity.rentalClass } : {}),
     }));
-    return { ok: true, pinned };
+    return { ok: true, pinned, pinBlocked };
 }

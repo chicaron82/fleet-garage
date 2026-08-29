@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode } from '../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode, hybridSiblingFor, classPinContradiction } from '../../api/_lib/vehicleClassCodex';
 
 describe('curated codex — codes must match what the tags actually print', () => {
   it('⭐ CVTA is the Volkswagen Taos code, and CTVA is not a code at all', () => {
@@ -65,5 +65,57 @@ describe('isTeachableClassCode — what FG is allowed to LEARN', () => {
     expect(isTeachableClassCode('')).toBe(false);
     expect(isTeachableClassCode(null)).toBe(false);
     expect(isTeachableClassCode(undefined)).toBe(false);
+  });
+});
+
+describe('hybridSiblingFor / classPinContradiction — the pin that locked a mistake', () => {
+  // ⭐ THE EVENT, 2026-08-28 13:05. MCN141 and MCN144 are Sportage HYBRIDS whose tags were printed
+  // with CSPT, the ICE code. Aaron corrected the car the only way the form allowed — "me flipping
+  // the hybrid checkbox but forgetting to change the model code" — and the edit pinned CSPT → E6.
+  // True of the car in his hand. False of the eleven genuine petrol Sportages. And PINNED, so no
+  // scan was permitted to undo it: the wrong mapping was the locked one.
+  it('⭐ finds the hybrid sibling of a petrol code', () => {
+    expect(hybridSiblingFor('CSPT')).toBe('CSEH');
+  });
+
+  it('returns null for the hybrid code itself — it has no hybrid sibling', () => {
+    expect(hybridSiblingFor('CSEH')).toBeNull();
+  });
+
+  it('returns null for a model with no hybrid variant, and for an unknown code', () => {
+    expect(hybridSiblingFor('CSOL')).toBeNull();
+    expect(hybridSiblingFor('ZZZZ')).toBeNull();
+    expect(hybridSiblingFor('')).toBeNull();
+  });
+
+  it('⭐⭐ flags CSPT + E6 — the exact pin that shipped a locked error', () => {
+    const c = classPinContradiction('CSPT', 'E6');
+    expect(c).toEqual({ code: 'CSPT', rentalClass: 'E6', hybridCode: 'CSEH' });
+  });
+
+  it('does NOT flag the correct pairing', () => {
+    expect(classPinContradiction('CSEH', 'E6')).toBeNull();
+    expect(classPinContradiction('CSPT', 'Q4')).toBeNull();
+  });
+
+  it('⚠️ only E6 decides — every other class says nothing about powertrain', () => {
+    // hybridFromRentalClass is one-way by design: a premium hybrid keeps its segment class, so
+    // "not E6" can never mean "not hybrid" and must never produce a contradiction.
+    expect(classPinContradiction('CSPT', 'R')).toBeNull();
+    expect(classPinContradiction('CSPT', 'B5')).toBeNull();
+  });
+
+  it('⚠️ says nothing about a code the codex does not know — silence, not accusation', () => {
+    expect(classPinContradiction('ZZZZ', 'E6')).toBeNull();
+  });
+
+  it('says nothing when either half is missing', () => {
+    expect(classPinContradiction('CSPT', '')).toBeNull();
+    expect(classPinContradiction('', 'E6')).toBeNull();
+    expect(classPinContradiction(null, null)).toBeNull();
+  });
+
+  it('normalizes before deciding, as every other codex entry point does', () => {
+    expect(classPinContradiction('  cspt 25 ', ' e6 ')).toMatchObject({ hybridCode: 'CSEH' });
   });
 });

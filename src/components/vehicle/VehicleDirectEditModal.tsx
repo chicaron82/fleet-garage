@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { classPinContradiction } from '../../../api/_lib/vehicleClassCodex';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
@@ -197,6 +198,28 @@ export function VehicleDirectEditModal({
               placeholder="Not recorded"
               className="w-32 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-mono font-semibold tracking-wider text-gray-900 dark:text-gray-100"
             />
+            {/* ⭐⭐ THE SLIP THIS CATCHES, IN HIS WORDS: *"me flipping the hybrid checkbox but
+                forgetting to change the model code."* On 2026-08-28 that edit pinned `CSPT → E6`
+                from a Sportage hybrid wearing a mis-printed ICE tag — true of the car in his hand,
+                false of the eleven petrol Sportages, and LOCKED so no scan could undo it.
+
+                ⚠️ Shown WHILE HE EDITS, not after saving: this modal closes on save, so a message
+                on the result is a message nobody reads. And it only ever OFFERS — the tag may
+                genuinely be mis-printed, which is precisely why he is in here correcting the car. */}
+            {(() => {
+              const c = classPinContradiction(editClassCode, editClass);
+              return c ? (
+                <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  ⚠️ <span className="font-mono font-semibold">{c.rentalClass}</span> is the hybrid class, but{' '}
+                  <span className="font-mono font-semibold">{c.code}</span> is the petrol code for this model.{' '}
+                  <button type="button" onClick={() => setEditClassCode(c.hybridCode)}
+                    className="font-semibold underline cursor-pointer">
+                    use {c.hybridCode}
+                  </button>
+                  {' '}— or leave it, and the shared code→class mapping just won't be pinned.
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
         <div className="flex gap-3 pt-1">

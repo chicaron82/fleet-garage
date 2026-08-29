@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { classPinContradiction, type ClassPinContradiction } from '../../api/_lib/vehicleClassCodex';
 
 // PIN a class code → rental class mapping, because a person just decided it.
 //
@@ -19,15 +20,34 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 // asked for — the car's own record is the thing he came to fix; the mapping is the bonus. It
 // returns whether it landed so the caller can be honest rather than assume (the R61/R62 lesson:
 // a success message that claims a write which never happened).
+/** What the pin did, and when it refused, why. Richer than the old boolean because "did not pin"
+ *  and "REFUSED to pin, and here is the code you probably meant" are different things to tell him —
+ *  a silent skip is the catch-that-said-nothing shape. */
+export interface PinOutcome {
+  pinned: boolean;
+  /** Set when the pin was refused because the codex contradicts it. */
+  contradiction?: ClassPinContradiction;
+}
+
 export async function pinClassMapping(
   classCode: string | null | undefined,
   rentalClass: string | null | undefined,
-): Promise<boolean> {
+): Promise<PinOutcome> {
   const code = (classCode ?? '').trim().toUpperCase();
   const cls = (rentalClass ?? '').trim().toUpperCase();
   // BOTH or nothing. A code with no class teaches nothing, and a class with no code has no key —
   // writing either would put a half-row in a table the scanner reads as authority.
-  if (!code || !cls) return false;
+  if (!code || !cls) return { pinned: false };
+
+  // ⭐⭐ REFUSE A PIN THE CODEX CONTRADICTS. On 2026-08-28 this exact path pinned `CSPT → E6` from a
+  // Sportage hybrid wearing a mis-printed ICE tag — true of that car, false of the eleven petrol
+  // Sportages, and LOCKED, so no scan could undo it. A per-car observation must not become a
+  // per-code rule when FG already holds the fact that makes it wrong.
+  //
+  // ⚠️ It blocks only the SHARED mapping. The car's own edit still lands in full — that is the thing
+  // he came to fix, and this write has always been the bonus.
+  const contradiction = classPinContradiction(code, cls);
+  if (contradiction) return { pinned: false, contradiction };
 
   // The module owns "who pinned it" — the caller shouldn't have to fetch an identity just to
   // record one, and a caller that forgets would silently write an anonymous pin.
@@ -44,5 +64,5 @@ export async function pinClassMapping(
       },
       { onConflict: 'code' },
     ));
-  return !error;
+  return { pinned: !error };
 }

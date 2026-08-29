@@ -213,6 +213,62 @@ export function normalizeClassCode(code: string | undefined | null): string {
  *  carry no code at all and spell the model out in full (DEWN854 says SELTOS, the US Compass says
  *  COMPASS, FVB4297 says Model Y). A length rule pointed at a person warns him about tags he has
  *  read perfectly; pointed at the teach path it stops FG memorising its own misreads. */
+/** The HYBRID variant of the same make and model, when the codex knows one. `CSPT` (Kia Sportage)
+ *  → `CSEH` (Kia Sportage, hybrid). Null when there is no sibling, or when `code` IS the hybrid one.
+ *
+ *  Derived from CODEX by make+model rather than listed, so a pair added later is found for free. */
+export function hybridSiblingFor(code: string | undefined | null): string | null {
+  const key = normalizeClassCode(code);
+  const self = key ? CODEX[key] : undefined;
+  if (!self || self.isHybrid) return null;
+  for (const [other, v] of Object.entries(CODEX)) {
+    if (other === key) continue;
+    if (v.isHybrid && v.make === self.make && v.model === self.model) return other;
+  }
+  return null;
+}
+
+/** A code→class pin that contradicts the codex, with the code that would not. */
+export interface ClassPinContradiction {
+  code: string;
+  rentalClass: string;
+  /** The code that DOES mean the hybrid variant of this model. */
+  hybridCode: string;
+}
+
+/**
+ * A pin that the codex says cannot be right.
+ *
+ * ⭐⭐ THE EXACT EVENT THIS EXISTS FOR, 2026-08-28 13:05. MCN141 and MCN144 are Sportage HYBRIDS
+ * whose tags were physically printed with `CSPT`, the ICE code. Aaron corrected the car the only way
+ * the form allowed — in his words, *"me flipping the hybrid checkbox but forgetting to change the
+ * model code"* — and the edit pinned `CSPT → E6`.
+ *
+ * ⭐⭐⭐ That pin was TRUE ABOUT THE CAR IN HIS HAND and false about the eleven genuine petrol
+ * Sportages. A per-car observation became a per-code rule, and because it was PINNED, no scan was
+ * permitted to correct it: the wrong mapping was the locked one. The sibling defect is `CSEH → Q4`,
+ * learned ten days earlier from a tag whose CLASS was mis-printed instead.
+ *
+ * ⚠️ The contradiction is visible without asking anyone: E6 is Hertz's powertrain-hybrid group, and
+ * the codex already knows `CSPT` is the petrol Sportage and `CSEH` is the hybrid one. FG held both
+ * halves and never compared them — the same shape as the tag's city and its owning number.
+ */
+export function classPinContradiction(
+  code: string | undefined | null,
+  rentalClass: string | undefined | null,
+): ClassPinContradiction | null {
+  const key = normalizeClassCode(code);
+  const cls = (rentalClass ?? '').trim().toUpperCase();
+  if (!key || !cls) return null;
+  // Only the hybrid group is decidable here. E6 ⇒ hybrid; every other class says nothing about
+  // powertrain, exactly as `hybridFromRentalClass` documents.
+  if (hybridFromRentalClass(cls) !== true) return null;
+  const entry = CODEX[key];
+  if (!entry || entry.isHybrid) return null;   // unknown code, or already the hybrid variant
+  const hybridCode = hybridSiblingFor(key);
+  return hybridCode ? { code: key, rentalClass: cls, hybridCode } : null;
+}
+
 export function isTeachableClassCode(code: string | undefined | null): boolean {
   return normalizeClassCode(code).length === 4;
 }
