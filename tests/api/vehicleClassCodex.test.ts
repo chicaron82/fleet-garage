@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode, hybridSiblingFor, classPinContradiction } from '../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode, hybridSiblingFor, classPinContradiction, modelCodeMismatch } from '../../api/_lib/vehicleClassCodex';
 
 describe('curated codex — codes must match what the tags actually print', () => {
   it('⭐ CVTA is the Volkswagen Taos code, and CTVA is not a code at all', () => {
@@ -117,5 +117,42 @@ describe('hybridSiblingFor / classPinContradiction — the pin that locked a mis
 
   it('normalizes before deciding, as every other codex entry point does', () => {
     expect(classPinContradiction('  cspt 25 ', ' e6 ')).toMatchObject({ hybridCode: 'CSEH' });
+  });
+});
+
+describe('modelCodeMismatch — a record disagreeing with its own code', () => {
+  // ⭐ MEASURED BEFORE BUILT, 2026-08-29: of 637 fleet cars checkable against the curated codex, 636
+  // agree exactly. The single outlier was a Camry recorded as "Camry SE" — a trim suffix, not an
+  // error — which is why this is trim-tolerant. It keeps a clean thing clean; the register form
+  // derives make/model FROM the code, but the direct-edit modal lets all three drift apart.
+
+  it('⭐ flags a record whose model is a different car from its code', () => {
+    const m = modelCodeMismatch('CSPT', 'Kia', 'Seltos');   // CSPT is the Sportage code
+    expect(m).toMatchObject({ code: 'CSPT', codexMake: 'Kia', codexModel: 'Sportage' });
+  });
+
+  it('flags a make that does not belong to the code', () => {
+    expect(modelCodeMismatch('CRVB', 'Honda', 'RAV4')).toBeTruthy();
+  });
+
+  it('⚠️ TOLERATES A TRIM — "Camry SE" is not a disagreement with "Camry"', () => {
+    // The live outlier. A warning that cries at trim level is one he learns to dismiss.
+    expect(modelCodeMismatch('CCMH', 'Toyota', 'Camry SE')).toBeNull();
+    expect(modelCodeMismatch('CCMH', 'Toyota', 'Camry')).toBeNull();
+  });
+
+  it('says nothing when the code is one the codex does not know', () => {
+    expect(modelCodeMismatch('ZZZZ', 'Kia', 'Seltos')).toBeNull();
+  });
+
+  it('says nothing when there is no model to compare — a gap is not a conflict', () => {
+    expect(modelCodeMismatch('CRVB', 'Toyota', '')).toBeNull();
+    expect(modelCodeMismatch('CRVB', '', 'RAV4')).toBeNull();   // no make → model alone decides
+    expect(modelCodeMismatch(null, null, null)).toBeNull();
+  });
+
+  it('is case- and punctuation-insensitive, as the fleet actually stores names', () => {
+    expect(modelCodeMismatch('CX30', 'Mazda', 'cx-30')).toBeNull();
+    expect(modelCodeMismatch('CTMY', 'Tesla', 'model y')).toBeNull();
   });
 });

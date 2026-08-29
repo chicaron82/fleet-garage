@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { classPinContradiction } from '../../../api/_lib/vehicleClassCodex';
+import { classPinContradiction, modelCodeMismatch } from '../../../api/_lib/vehicleClassCodex';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
@@ -206,6 +206,22 @@ export function VehicleDirectEditModal({
                 ⚠️ Shown WHILE HE EDITS, not after saving: this modal closes on save, so a message
                 on the result is a message nobody reads. And it only ever OFFERS — the tag may
                 genuinely be mis-printed, which is precisely why he is in here correcting the car. */}
+            {/* ⭐ THE SIBLING OF THE HYBRID CHECK, one field over. The register form derives make and
+                model FROM the code so they agree by construction; this modal lets all three be
+                edited independently, with nothing comparing them. Measured 2026-08-29: 636 of 637
+                fleet cars agree with their own code, so this keeps a clean thing clean rather than
+                cleaning up a mess.
+                ⚠️ Reports, never corrects — the tag itself can be mis-printed. */}
+            {(() => {
+              const m = modelCodeMismatch(editClassCode, editMake, editModel);
+              return m ? (
+                <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  ⚠️ <span className="font-mono font-semibold">{m.code}</span> is the code for a{' '}
+                  <strong>{m.codexMake} {m.codexModel}</strong>, but this record says{' '}
+                  <strong>{editMake} {editModel}</strong>. One of the two is wrong — the tag can be mis-printed.
+                </p>
+              ) : null;
+            })()}
             {(() => {
               const c = classPinContradiction(editClassCode, editClass);
               return c ? (

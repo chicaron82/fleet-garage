@@ -235,6 +235,49 @@ export function hybridSiblingFor(code: string | undefined | null): string | null
   return null;
 }
 
+/** A car whose stored identity disagrees with its own class code. */
+export interface ModelCodeMismatch {
+  code: string;
+  /** What the codex says that code is. */
+  codexMake: string;
+  codexModel: string;
+}
+
+/**
+ * Does this car's make/model disagree with what its own class code says?
+ *
+ * ⭐ MEASURED BEFORE BUILT, 2026-08-29: of 637 fleet cars checkable against the curated codex, 636
+ * agree exactly. The single outlier is a Camry recorded as "Camry SE" — a trim suffix, not an error.
+ * So this is not cleaning up a mess; it is keeping a clean thing clean.
+ *
+ * ⚠️ WHERE A DISAGREEMENT CAN STILL BE BORN. The register form derives make and model FROM the code,
+ * so they agree by construction. The direct-edit modal does not: it lets a person change the make,
+ * the model and the code independently, with nothing comparing them. Same hole the hybrid checkbox
+ * had — *"me flipping the hybrid checkbox but forgetting to change the model code"* — one field over.
+ *
+ * ⚠️ Trim-tolerant, deliberately. "Camry SE" must not be flagged against "Camry": the codex names a
+ * MODEL and a record may carry a trim. It fires only when the model is a genuinely different word,
+ * because a warning that cries at a trim level is a warning he learns to dismiss.
+ *
+ * ⚠️ And it REPORTS. The tag can be mis-printed — two Sportage hybrids wear a petrol code — so a
+ * disagreement is a question, never a correction.
+ */
+export function modelCodeMismatch(
+  classCode: string | undefined | null,
+  make: string | undefined | null,
+  model: string | undefined | null,
+): ModelCodeMismatch | null {
+  const vc = lookupVehicleClass(classCode);
+  if (!vc || !model?.trim()) return null;
+  const norm = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const recModel = norm(model), codexModel = norm(vc.model);
+  // A record may carry a trim the codex does not name ("Camry SE" vs "Camry"), and a codex model may
+  // be the longer form. Either containing the other is agreement.
+  const modelOk = recModel.startsWith(codexModel) || codexModel.startsWith(recModel);
+  const makeOk = !make?.trim() || norm(make) === norm(vc.make);
+  return modelOk && makeOk ? null : { code: normalizeClassCode(classCode), codexMake: vc.make, codexModel: vc.model };
+}
+
 /** A code→class pin that contradicts the codex, with the code that would not. */
 export interface ClassPinContradiction {
   code: string;
