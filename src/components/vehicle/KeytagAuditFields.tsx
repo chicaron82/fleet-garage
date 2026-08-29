@@ -55,6 +55,12 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
             }`}>
               {AUDIT_FIELD_LABELS[f]}
             </span>
+            {/* ⚠️ NUMERIC PAD ON THE OWNING AREA ONLY. Every owning area on the fleet is digits with
+                no exception, so a numeric keyboard costs nothing and saves a mode switch on the field
+                he types most. The UNIT NUMBER is deliberately excluded: one real car carries
+                "4374 7498", with a space, and a numeric pad has no space key.
+                ⚠️ And it is a HINT, not a rule — a no-op on a hardware keyboard, exactly like
+                autoCapitalize. The digits-only guarantee lives on the write, in normalizeOwning. */}
             <input
               type="text"
               value={edits[f] ?? ''}
@@ -62,6 +68,7 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
               placeholder={blank ? 'read it off the tag' : ''}
               {...(f === 'vinLast9' ? { maxLength: 9 } : {})}
               autoCapitalize="characters"
+              inputMode={f === 'owningArea' ? 'numeric' : undefined}
               autoCorrect="off"
               spellCheck={false}
               className={`w-full rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${

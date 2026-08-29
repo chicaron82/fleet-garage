@@ -10,6 +10,11 @@ import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
 export function KeytagAuditSection() {
   const { current, remaining, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
+  // ⭐ HELD HERE, ABOVE THE PER-CAR `key`. The card remounts on every save so its edits and zoom
+  // scale reset; if the zoom FLAG lived there too it would reset as well, dropping him out of the
+  // full-screen view on every single vehicle. This is the one piece of that state that belongs to
+  // the sitting rather than to the car.
+  const [zoomed, setZoomed] = useState(false);
   const open = !collapsed;
 
   return (
@@ -69,6 +74,8 @@ export function KeytagAuditSection() {
                 knownModelCodes={knownModelCodes}
                 guessOwning={guessOwning}
                 owningPresets={owningPresets}
+                zoomed={zoomed}
+                onZoomChange={setZoomed}
                 onSave={save}
                 onSkip={skip}
                 onFlagUnreadable={flagUnreadable}

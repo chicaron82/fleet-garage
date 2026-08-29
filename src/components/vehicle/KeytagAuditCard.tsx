@@ -26,7 +26,7 @@ import type { Vehicle } from '../../types';
  * is tedious."* Five fields was five round trips per car. Neither layout owns the inputs; they both
  * render `KeytagAuditFields`, so the two can never disagree about what a tag holds.
  */
-export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, onSave, onSkip, onFlagUnreadable }: {
+export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, zoomed, onZoomChange, onSave, onSkip, onFlagUnreadable }: {
   candidate: AuditCandidate<Vehicle>;
   saving: boolean;
   /** The two vocabularies FG already holds — the guard catches a value from one landing in the
@@ -38,6 +38,13 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   guessOwning: (unitNumber: string) => OwningGuess;
   /** Named branches this fleet carries — one tap instead of four digits. */
   owningPresets: readonly OwningPreset[];
+  /** ⭐ ZOOM IS CONTROLLED FROM ABOVE THE `key`, deliberately. This component remounts per car so
+   *  the edits and the zoom SCALE reset — correct for both. But local zoom state meant Save & next
+   *  dropped him out of the full-screen view on EVERY vehicle, so he had to tap the tag again for
+   *  each one. Aaron: *"when i save to go next, the view stays as zoomed, rather than me tapping to
+   *  go back."* Lifting only this one flag keeps him in the view he chose. */
+  zoomed: boolean;
+  onZoomChange: (zoomed: boolean) => void;
   onSave: (edits: KeytagAuditEdits) => void;
   onSkip: () => void;
   onFlagUnreadable: () => void;
@@ -50,7 +57,6 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
     unitNumber:  vehicle.unitNumber  ?? '',
     vinLast9:    vehicle.vinLast9    ?? '',
   }));
-  const [zoomed, setZoomed] = useState(false);
   // Panel edge is HIS choice, not my guess: on a phone the keyboard rises from the bottom and can
   // sit over a bottom panel, but a top panel covers the tag's own top line — which edge is right
   // depends on the phone and on where the field he is reading sits. One tap to move it.
@@ -115,7 +121,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       </div>
 
       {vehicle.keytagPhotoUrl && (
-        <button type="button" onClick={() => setZoomed(true)} className="block w-full cursor-zoom-in">
+        <button type="button" onClick={() => onZoomChange(true)} className="block w-full cursor-zoom-in">
           <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}`}
             className="w-full rounded-lg border border-gray-200 dark:border-gray-700 object-contain max-h-72 bg-gray-50 dark:bg-gray-950" />
           <span className="mt-1 block text-[11px] text-gray-400">Tap the tag to read and type without leaving it</span>
@@ -146,7 +152,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
             <div className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-2 py-1 text-[11px] text-white/70 tabular-nums">
               {scale}× · tap the tag to zoom
             </div>
-            <button type="button" onClick={() => setZoomed(false)} aria-label="Close the full-size tag"
+            <button type="button" onClick={() => onZoomChange(false)} aria-label="Close the full-size tag"
               className="absolute top-2 right-2 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white/80 hover:bg-black/80 cursor-pointer">✕</button>
           </div>
 

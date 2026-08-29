@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { KeytagAuditCard } from '../../src/components/vehicle/KeytagAuditCard';
 import type { AuditCandidate } from '../../src/lib/keytagAuditQueue';
@@ -32,15 +33,27 @@ const PRESETS = [
   { code: '8199', label: 'Winnipeg (8199)', count: 284 },
   { code: '8193', label: 'Calgary (8193)', count: 39 },
 ];
+// ⭐ A STATEFUL WRAPPER, because zoom is CONTROLLED from above the card's `key`. Passing a static
+// prop would test a component that cannot exist in the app; this mirrors what KeytagAuditSection
+// actually does — and it is what makes the survives-a-car-change case testable at all.
+function Harness({ guessOwning = noGuess, presets = PRESETS, candidateOverride = candidate }: {
+  guessOwning?: Parameters<typeof KeytagAuditCard>[0]['guessOwning'];
+  presets?: Parameters<typeof KeytagAuditCard>[0]['owningPresets'];
+  candidateOverride?: AuditCandidate<Vehicle>;
+}) {
+  const [zoomed, setZoomed] = useState(false);
+  return (
+    <KeytagAuditCard key={candidateOverride.vehicle.id} candidate={candidateOverride} saving={false}
+      knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
+      owningPresets={presets} zoomed={zoomed} onZoomChange={setZoomed}
+      onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />
+  );
+}
+
 const setup = (
   guessOwning: Parameters<typeof KeytagAuditCard>[0]['guessOwning'] = noGuess,
   presets: Parameters<typeof KeytagAuditCard>[0]['owningPresets'] = PRESETS,
-) => render(
-  <KeytagAuditCard candidate={candidate} saving={false}
-    knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
-    owningPresets={presets}
-    onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />,
-);
+) => render(<Harness guessOwning={guessOwning} presets={presets} />);
 
 const openZoom = () => fireEvent.click(screen.getByAltText(`Key tag for ${vehicle.licensePlate}`));
 const overlay = () => screen.getByRole('dialog');
@@ -361,5 +374,58 @@ describe('KeytagAuditCard — the owning presets', () => {
     setup();
     openZoom();
     expect(within(overlay()).getByTitle('Winnipeg (8199)')).toBeTruthy();
+  });
+});
+
+describe('KeytagAuditCard — staying in the full-screen view', () => {
+  // ⚠️ THE REGRESSION. Zoom used to live inside this component, which remounts per car — so
+  // Save & next dropped him out of the full-screen view on EVERY vehicle and he had to tap the tag
+  // again for each one. Aaron: "when i save to go next, the view stays as zoomed, rather than me
+  // tapping to go back."
+  it('⭐⭐ the overlay SURVIVES a change of car', () => {
+    const next: AuditCandidate<Vehicle> = { vehicle: { ...vehicle, id: 'v2', licensePlate: 'LUR999' }, missing: [] };
+    const { rerender } = render(<Harness />);
+    openZoom();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    rerender(<Harness candidateOverride={next} />);          // the card remounts on the new key
+    expect(screen.getByRole('dialog'), 'zoom must not reset per car').toBeTruthy();
+    expect(within(overlay()).getByAltText(/LUR999/)).toBeTruthy();
+  });
+
+  it('⭐ the zoom SCALE still resets for the new tag, so it opens whole', () => {
+    // Scale stays inside the card on purpose: a new tag should be seen in full before he zooms in.
+    const next: AuditCandidate<Vehicle> = { vehicle: { ...vehicle, id: 'v2', licensePlate: 'LUR999' }, missing: [] };
+    const { rerender } = render(<Harness />);
+    openZoom();
+    fireEvent.click(within(overlay()).getByAltText(/full size/));
+    expect((within(overlay()).getByAltText(/full size/) as HTMLElement).style.width).toBe('200%');
+    rerender(<Harness candidateOverride={next} />);
+    expect((within(overlay()).getByAltText(/full size/) as HTMLElement).style.width).toBe('100%');
+  });
+
+  it('closing it still closes it', () => {
+    setup();
+    openZoom();
+    fireEvent.click(screen.getByLabelText('Close the full-size tag'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('KeytagAuditCard — the numeric keypad', () => {
+  it('⭐ asks for a number pad on the owning area', () => {
+    setup();
+    expect(screen.getByLabelText(/Owning area/).getAttribute('inputmode')).toBe('numeric');
+  });
+
+  it('⚠️ NOT on the unit number — one real car carries "4374 7498", with a space', () => {
+    setup();
+    expect(screen.getByLabelText(/Unit #/).getAttribute('inputmode')).toBeNull();
+  });
+
+  it('nor on the alphanumeric fields', () => {
+    setup();
+    for (const label of [/Model code/, /VIN \(last 9\)/, /Rental class/]) {
+      expect(screen.getByLabelText(label).getAttribute('inputmode')).toBeNull();
+    }
   });
 });
