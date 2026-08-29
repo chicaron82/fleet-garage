@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle } from '../types';
+import { normalizeOwning } from '../../api/_lib/owningArea';
 
 /** Records the OWNING branch read off a key tag — but only onto a vehicle that has none yet.
  *
@@ -27,7 +28,12 @@ export function makeRecordOwningArea(deps: {
 }) {
   const { setAllVehicles, currentOwning } = deps;
 
-  return async (vehicleId: string, owningArea: string): Promise<void> => {
+  return async (vehicleId: string, rawOwning: string): Promise<void> => {
+    // Normalised here as well as in the read. Today's only caller hands over an already-normalised
+    // value from `keytag-read`, but that is a guarantee living in the CALLER — and a rule that lives
+    // in the caller is a rule the next caller does not inherit. Costs nothing when it is already
+    // clean. (The auditor's hand-typed path is the caller that proved it.)
+    const owningArea = normalizeOwning(rawOwning);
     if (!owningArea) return;
     if (currentOwning(vehicleId)) return; // already known — never clobber
     const { data, error } = await writeWithRefresh(() =>

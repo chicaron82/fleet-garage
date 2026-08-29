@@ -56,7 +56,7 @@ export const AUDIT_FIELD_LABELS: Readonly<Record<AuditField, string>> = {
  * Describing the value survives a format change; describing its location does not.
  */
 export const AUDIT_FIELD_HINTS: Readonly<Record<AuditField, string>> = {
-  owningArea:  'the branch number — 8199 is Winnipeg',
+  owningArea:  'the branch number — 8199 is Winnipeg; a printed leading zero is dropped',
   rentalClass: 'the short size/type group — Q4, E9, P4',
   classCode:   'the 4-letter code (CRVB, CTMY) — not every tag has one; leave it blank if the model is spelled out',
   unitNumber:  'the Veh # — usually 7 digits, not capped (one car carries 8)',

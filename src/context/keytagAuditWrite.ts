@@ -1,6 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle, FieldSource } from '../types';
 import { AUDIT_FIELDS, isBlankField, type AuditField } from '../lib/keytagAuditQueue';
+import { normalizeOwning } from '../../api/_lib/owningArea';
 import { findUnitConflict } from '../lib/identityConflict';
 
 /** What the auditor read off the photo, field by field. A blank means he could not read that one
@@ -90,7 +91,17 @@ export function makeSaveKeytagAudit(deps: {
       // that lives in a component is a rule the next caller does not inherit — the whole reason
       // this file exists is that provenance and shape belong to the WRITE. Costs nothing when the
       // value already arrives upper.
-      const value = (edits[field] ?? '').trim().toUpperCase();
+      const raw = (edits[field] ?? '').trim().toUpperCase();
+      // ⚠️ THE LEADING ZERO IS A PRINT CONVENTION, NOT PART OF THE NUMBER. Tags print "08191" and
+      // "08890"; the branch is 8191 and 8890. Aaron: *"the leading zero i usually would drop anyway,
+      // as some older owning ones have 08890, 08999, 08898."* `normalizeOwning` has always known
+      // this — and until now **no writer called it**. It was wired into the scan read alone, so a
+      // hand-typed owning went to the database exactly as printed. That is how SPHV03 came to hold
+      // `02294` for a branch that is 2294.
+      //
+      // ⭐ It strips only LEADING zeros, so a genuinely five-digit branch that does not begin with
+      // one survives intact — Aaron's own caveat that overseas numbering may run to five digits.
+      const value = field === 'owningArea' ? normalizeOwning(raw) : raw;
       if (isBlankField(value)) continue;          // he couldn't read it either — not a fact
       if (field === 'unitNumber' && conflict) continue;  // blocked, and reported back
 

@@ -166,3 +166,34 @@ describe('reopenKeytagAudit — the auditor\'s undo', () => {
     expect(updates[0].keytag_audit_result).toBeNull();
   });
 });
+
+describe('saveKeytagAudit — the owning area is normalised on the way in', () => {
+  // Aaron: "the leading zero i usually would drop anyway, as some older owning ones have 08890,
+  // 08999, 08898. that handwritten seltos has 08197 but its still just 8197 so 4."
+  //
+  // ⚠️ `normalizeOwning` has always known this, and until now NO WRITER CALLED IT — it was wired
+  // into the scan read alone, so a hand-typed owning went to the database exactly as printed. That
+  // is how SPHV03 came to hold `02294` for a branch that is 2294.
+  it('⭐ drops a printed leading zero — 08191 IS 8191', async () => {
+    await save([car({ id: 'me', owningArea: null })])('me', { ...FULL, owningArea: '08191' });
+    expect(updates[0]).toMatchObject({ owning_area: '8191' });
+  });
+
+  it('treats a printed 08199 as a CONFIRMATION of a stored 8199, not a change', async () => {
+    await save([car({ id: 'me', owningArea: '8199' })])('me', { ...FULL, owningArea: '08199' });
+    expect(updates[0]).not.toHaveProperty('owning_area');
+    expect((updates[0].field_sources as Record<string, string>).owningArea).toBe('manual');
+  });
+
+  it('⭐ keeps a genuine five-digit branch that does not start with a zero', async () => {
+    // His own caveat: overseas numbering may legitimately run to five digits. Only LEADING zeros
+    // are stripped, so such a number survives intact.
+    await save([car({ id: 'me', owningArea: null })])('me', { ...FULL, owningArea: '12294' });
+    expect(updates[0]).toMatchObject({ owning_area: '12294' });
+  });
+
+  it('refuses a stub too short to be a branch rather than storing a fragment', async () => {
+    await save([car({ id: 'me', owningArea: null })])('me', { ...FULL, owningArea: '081' });
+    expect(updates[0]).not.toHaveProperty('owning_area');
+  });
+});
