@@ -35,15 +35,24 @@ export function KeytagAuditFields({ edits, missing, warnings, tone, onChange }: 
         const warning = warnings.find(w => w.field === f);
         return (
           <label key={f} className={f === 'vinLast9' ? 'col-span-2' : ''}>
-            <span className={`block text-[11px] font-semibold mb-0.5 ${dark ? 'text-white/60' : 'text-gray-500 dark:text-gray-400'}`}>
+            {/* ⚠️ THERE WAS A `•` HERE AND IT LIED BY POSITION. It meant "blank on the record" — me
+                pointing at what needs reading — but it sat exactly where a required-field asterisk
+                goes, so Aaron read it as "you must fill this" and asked whether he was allowed to
+                leave a field he couldn't read. NOTHING here is required. Tinting the label itself
+                carries the same signal and cannot be mistaken for a rule. */}
+            <span className={`block text-[11px] font-semibold mb-0.5 ${
+              blank
+                ? (dark ? 'text-amber-300/80' : 'text-amber-700 dark:text-amber-500')
+                : (dark ? 'text-white/60' : 'text-gray-500 dark:text-gray-400')
+            }`}>
               {AUDIT_FIELD_LABELS[f]}
-              {blank && <span className={`ml-1 ${dark ? 'text-amber-300' : 'text-amber-600 dark:text-amber-400'}`} title="blank on the record">•</span>}
             </span>
             <input
               type="text"
               value={edits[f] ?? ''}
               onChange={e => onChange(f, e.target.value)}
               placeholder={blank ? 'read it off the tag' : ''}
+              {...(f === 'vinLast9' ? { maxLength: 9 } : {})}
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
@@ -79,6 +88,14 @@ export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreada
 }) {
   const dark = tone === 'dark';
   return (
+    <div className="space-y-1.5">
+    {/* ⭐ SAID OUT LOUD, because he had to ask: *"the asterisks are required, if i don't know it or
+        can't read it, can i still leave it blank"*. He can. A blank is never written and never
+        stamped — "I couldn't see it" is not a fact about the car. A tool whose permissions have to
+        be inferred from a glyph is a tool that will be obeyed wrongly. */}
+    <p className={`text-[10px] ${dark ? 'text-white/40' : 'text-gray-400 dark:text-gray-500'}`}>
+      Nothing here is required — leave anything you can't read blank.
+    </p>
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" disabled={saving} onClick={onSave}
         className="rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed px-3.5 py-2 text-sm font-bold text-gray-900 transition cursor-pointer">
@@ -101,6 +118,7 @@ export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreada
         }`}>
         Can't read this
       </button>
+    </div>
     </div>
   );
 }

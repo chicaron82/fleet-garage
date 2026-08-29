@@ -208,3 +208,43 @@ describe('KeytagAuditCard — every value on a tag is uppercase', () => {
     expect(area.value).toBe('8191');
   });
 });
+
+describe('KeytagAuditCard — nothing is required, and only one field is capped', () => {
+  it('⭐ says out loud that a blank is allowed', () => {
+    // Aaron read the blank-marker dot as a required-field asterisk and had to ask: *"if i don't
+    // know it or can't read it, can i still leave it blank"*. A permission he has to infer from a
+    // glyph is a permission he will get wrong.
+    setup();
+    expect(screen.getByText(/Nothing here is required/)).toBeTruthy();
+  });
+
+  it('⭐ no longer marks blank fields with a dot that reads as "required"', () => {
+    setup();
+    // The marker meant "blank on the record" but sat exactly where an asterisk goes. The label
+    // tint carries the same signal and cannot be mistaken for a rule.
+    expect(screen.queryByTitle('blank on the record')).toBeNull();
+  });
+
+  it('caps the VIN at 9 — 426 stored VINs, every one exactly that length', () => {
+    setup();
+    expect(screen.getByLabelText(/VIN \(last 9\)/).getAttribute('maxLength')).toBe('9');
+  });
+
+  it('⚠️ does NOT cap the unit number — one live car carries 8 digits, not 7', () => {
+    // 703 units are 7 characters and 4374 7498 is not. A cap that is right about 703 of 708 rows
+    // still blocks real work — the same trap as the model-code shape rule.
+    setup();
+    expect(screen.getByLabelText(/Unit #/).getAttribute('maxLength')).toBeNull();
+  });
+
+  it('⚠️ does NOT cap the owning area — one is 5 characters (02294)', () => {
+    setup();
+    expect(screen.getByLabelText(/Owning area/).getAttribute('maxLength')).toBeNull();
+  });
+
+  it('the nothing-is-required line reaches the overlay too', () => {
+    setup();
+    openZoom();
+    expect(within(overlay()).getByText(/Nothing here is required/)).toBeTruthy();
+  });
+});

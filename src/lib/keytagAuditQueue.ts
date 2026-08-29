@@ -59,8 +59,8 @@ export const AUDIT_FIELD_HINTS: Readonly<Record<AuditField, string>> = {
   owningArea:  'the branch number — 8199 is Winnipeg',
   rentalClass: 'the short size/type group — Q4, E9, P4',
   classCode:   'the 4-letter code (CRVB, CTMY) — not every tag has one; leave it blank if the model is spelled out',
-  unitNumber:  'the Veh # — 7 digits',
-  vinLast9:    'the last 9 of the VIN',
+  unitNumber:  'the Veh # — usually 7 digits, not capped (one car carries 8)',
+  vinLast9:    'the last 9 of the VIN — capped at 9, every stored VIN is exactly that',
 };
 
 /** A field whose value looks like it landed in the wrong box — said out loud, never enforced. */
