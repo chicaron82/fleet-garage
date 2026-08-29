@@ -7,6 +7,7 @@ import {
   type AuditQueueStats,
 } from '../lib/keytagAuditQueue';
 import { owningFromUnit, type OwningGuess } from '../lib/owningFromUnit';
+import { owningPresets, type OwningPreset } from '../lib/owningPresets';
 import type { KeytagAuditEdits } from '../context/keytagAuditWrite';
 import type { Vehicle } from '../types';
 
@@ -40,6 +41,8 @@ export interface KeytagAuditState {
    *  value, so it answers about the unit currently in the box — if he corrects the unit, the
    *  suggestion follows him instead of describing the number he replaced. */
   guessOwning: (unitNumber: string) => OwningGuess;
+  /** Named Canadian branches this fleet carries, commonest first — the one-tap shortcut. */
+  owningPresets: readonly OwningPreset[];
   saving: boolean;
   /** A failed write, said out loud rather than swallowed. */
   error: string;
@@ -125,13 +128,14 @@ export function useKeytagAudit(): KeytagAuditState {
   // ⚠️ The car being audited is excluded from its own evidence — otherwise a record corroborates
   // itself, which stays invisible until the day it is wrong.
   const currentUnit = current?.vehicle.unitNumber ?? null;
+  const presets = useMemo(() => owningPresets(allVehicles), [allVehicles]);
   const guessOwning = useCallback(
     (unitNumber: string) => owningFromUnit(unitNumber, allVehicles, currentUnit),
     [allVehicles, currentUnit],
   );
 
   return {
-    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes, guessOwning,
+    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
     saving, error, unitConflict,
     save, skip, flagUnreadable, dismissConflict,
   };

@@ -28,9 +28,17 @@ const KNOWN_CODES = new Set(['CRVB', 'CTMY']);
 // Default: FG has never seen this unit's block, so no suggestion appears and the existing
 // assertions stay about what they were about.
 const noGuess = () => ({ prefix: '', tally: [], seen: 0, suggestion: null, ambiguous: false });
-const setup = (guessOwning: Parameters<typeof KeytagAuditCard>[0]['guessOwning'] = noGuess) => render(
+const PRESETS = [
+  { code: '8199', label: 'Winnipeg (8199)', count: 284 },
+  { code: '8193', label: 'Calgary (8193)', count: 39 },
+];
+const setup = (
+  guessOwning: Parameters<typeof KeytagAuditCard>[0]['guessOwning'] = noGuess,
+  presets: Parameters<typeof KeytagAuditCard>[0]['owningPresets'] = PRESETS,
+) => render(
   <KeytagAuditCard candidate={candidate} saving={false}
     knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
+    owningPresets={presets}
     onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />,
 );
 
@@ -317,5 +325,41 @@ describe('KeytagAuditCard — the owning-area suggestion', () => {
     setup(confident);
     openZoom();
     expect(within(overlay()).getByText(/use 8191/)).toBeTruthy();
+  });
+});
+
+describe('KeytagAuditCard — the owning presets', () => {
+  // Aaron, 2026-08-29: "typing them out is tedious and repetitive lol so i can only do them in
+  // batches before i go do something else." Eight keystrokes a car is exactly the tax that turns a
+  // session into a batch.
+  it('⭐ one tap fills the owning area', () => {
+    setup();
+    fireEvent.click(screen.getByTitle('Calgary (8193)'));
+    expect((screen.getByLabelText(/Owning area/) as HTMLInputElement).value).toBe('8193');
+  });
+
+  it('⭐ shows them commonest-first, so the one he needs most is nearest', () => {
+    setup();
+    const chips = screen.getAllByTitle(/\(\d{4}\)$/);
+    expect(chips.map(c => c.textContent)).toEqual(['8199', '8193']);
+  });
+
+  it('⚠️ is a shortcut, never a constraint — the field still takes anything', () => {
+    // A US car or a branch FG cannot name is typed, and nothing stops it.
+    setup();
+    const area = screen.getByLabelText(/Owning area/) as HTMLInputElement;
+    fireEvent.change(area, { target: { value: '2294' } });
+    expect(area.value).toBe('2294');
+  });
+
+  it('renders no chips at all when the fleet offers none', () => {
+    setup(noGuess, []);
+    expect(screen.queryByTitle(/\(\d{4}\)$/)).toBeNull();
+  });
+
+  it('reaches the overlay too, where he actually types', () => {
+    setup();
+    openZoom();
+    expect(within(overlay()).getByTitle('Winnipeg (8199)')).toBeTruthy();
   });
 });

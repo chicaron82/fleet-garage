@@ -3,6 +3,7 @@ import { VehicleName } from '../shared/VehicleName';
 import { KeytagAuditFields, KeytagAuditActions } from './KeytagAuditFields';
 import { auditWarnings, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
 import type { OwningGuess } from '../../lib/owningFromUnit';
+import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
 import type { Vehicle } from '../../types';
 
@@ -25,7 +26,7 @@ import type { Vehicle } from '../../types';
  * is tedious."* Five fields was five round trips per car. Neither layout owns the inputs; they both
  * render `KeytagAuditFields`, so the two can never disagree about what a tag holds.
  */
-export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, onSave, onSkip, onFlagUnreadable }: {
+export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, onSave, onSkip, onFlagUnreadable }: {
   candidate: AuditCandidate<Vehicle>;
   saving: boolean;
   /** The two vocabularies FG already holds — the guard catches a value from one landing in the
@@ -35,6 +36,8 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   knownModelCodes: ReadonlySet<string>;
   /** What the fleet's unit numbers say about the branch — Aaron's own shortcut, computed. */
   guessOwning: (unitNumber: string) => OwningGuess;
+  /** Named branches this fleet carries — one tap instead of four digits. */
+  owningPresets: readonly OwningPreset[];
   onSave: (edits: KeytagAuditEdits) => void;
   onSkip: () => void;
   onFlagUnreadable: () => void;
@@ -91,7 +94,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       </div>
       {panelOpen && (
         <div className="px-3 pb-3 space-y-2.5">
-          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} tone="dark" onChange={set} />
+          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" onChange={set} />
           <KeytagAuditActions saving={saving} tone="dark" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
         </div>
       )}
@@ -119,7 +122,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
         </button>
       )}
 
-      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} tone="light" onChange={set} />
+      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" onChange={set} />
       <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500">

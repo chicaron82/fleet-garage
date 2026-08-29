@@ -71,6 +71,12 @@ const KNOWN: Record<string, string> = {
  *  by a human reading the tag rather than by any check over the data. **No frequency-based check
  *  can catch this** — see docs/ticket-the-tag-is-a-redundant-document.md. */
 
+/** Every owning number FG can put a name to. Exported so a caller can offer them as choices without
+ *  reaching into the map — and so "known" means exactly one thing: an entry Aaron confirmed. */
+export function knownOwningCodes(): readonly string[] {
+  return Object.keys(KNOWN);
+}
+
 /** FG's home branch. A car owned here is the unremarkable case; everything else is worth flagging. */
 export const HOME_OWNING = '8199';
 

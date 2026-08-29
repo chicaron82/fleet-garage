@@ -1,5 +1,6 @@
 import { AUDIT_FIELDS, AUDIT_FIELD_LABELS, AUDIT_FIELD_HINTS, type AuditField, type AuditWarning } from '../../lib/keytagAuditQueue';
 import { describeOwningGuess, type OwningGuess } from '../../lib/owningFromUnit';
+import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
 
 /**
@@ -14,7 +15,7 @@ import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
  * The fix is not a bigger thumbnail — it is the same inputs living in both places, which means ONE
  * definition. Two copies of a form is how one of them quietly grows a sixth field the other lacks.
  */
-export function KeytagAuditFields({ edits, missing, warnings, owningGuess, tone, onChange }: {
+export function KeytagAuditFields({ edits, missing, warnings, owningGuess, owningPresets, tone, onChange }: {
   edits: KeytagAuditEdits;
   /** Fields blank on the record — marked so his eye lands on what needs reading, not on a wall of
    *  pre-filled text. The honest cost of showing FG's current value is anchoring; this is the
@@ -27,6 +28,9 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, tone,
   /** What the fleet's own unit numbers say about this car's branch — offered under the owning-area
    *  field, never written into it. */
   owningGuess: OwningGuess;
+  /** Named Canadian branches this fleet carries, commonest first. A shortcut, never a constraint —
+   *  the text field still takes anything, which is how a US car or an unknown branch gets in. */
+  owningPresets: readonly OwningPreset[];
   /** 'dark' is over the photo, where the ground is black and the light palette disappears. */
   tone: 'light' | 'dark';
   onChange: (field: AuditField, value: string) => void;
@@ -82,6 +86,32 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, tone,
                 and those minority rows came off scanned tags — so an autofill would eventually
                 write the wrong branch and stamp it 'manual', locked, off a tap he made without
                 looking. When the block is split it shows the split and offers nothing. */}
+            {/* ⭐ ONE TAP INSTEAD OF FOUR DIGITS. Aaron: *"typing them out is tedious and
+                repetitive lol so i can only do them in batches before i go do something else."*
+                Ordered by how common each branch is on the live fleet, so the one he needs most is
+                first and the order follows the fleet rather than a hardcoded list — the branch
+                numbers have already rotated once in his tenure.
+                ⚠️ A shortcut, never a constraint: the field above still accepts anything, which is
+                how a US car or a branch FG cannot name gets entered. */}
+            {f === 'owningArea' && owningPresets.length > 0 && (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {owningPresets.map(p => {
+                  const on = (edits.owningArea ?? '').trim() === p.code;
+                  return (
+                    <button key={p.code} type="button" title={p.label}
+                      onClick={() => onChange('owningArea', p.code)}
+                      className={`rounded px-1.5 py-0.5 text-[11px] font-mono font-semibold tabular-nums transition cursor-pointer ${
+                        on
+                          ? (dark ? 'bg-fg-yellow text-gray-900' : 'bg-fg-yellow text-gray-900')
+                          : (dark ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700')
+                      }`}>
+                      {p.code}
+                    </button>
+                  );
+                })}
+              </span>
+            )}
             {f === 'owningArea' && owningGuess.seen > 0 && (
               owningGuess.suggestion && owningGuess.suggestion !== (edits.owningArea ?? '').trim() ? (
                 <button type="button" onClick={() => onChange('owningArea', owningGuess.suggestion!)}
