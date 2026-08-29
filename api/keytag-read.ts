@@ -10,7 +10,7 @@ import { normalizeOwning } from './_lib/owningArea.js';
 import { normalizeVinLast9 } from './_lib/vinLast9.js';
 import { isAllowed } from './_lib/assistantAccess.js';
 import { parseImageDataUrl } from './_lib/imageData.js';
-import { lookupVehicleClass, normalizeClassCode, hybridFromRentalClass } from './_lib/vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode, hybridFromRentalClass, hybridFromModel } from './_lib/vehicleClassCodex.js';
 import { resolveRentalClass } from './_lib/classPin.js';
 import type { KeytagRead } from './_lib/keytagRead.js';
 import { priceUsage } from './_lib/apiSpend.js';
@@ -178,7 +178,11 @@ function toKeytagRead(input: unknown): KeytagRead {
     model: vc?.model ?? s(r.model),
     // Codex hint first (it names the exact variant); rental class as the fallback that catches a
     // code the codex doesn't know AND a tag printed with the wrong code. One-way: never un-checks.
-    isHybrid: vc?.isHybrid ?? hybridFromRentalClass(s(r.rentalClass)),
+    // ⭐ MODEL FIRST, then the code, then the class. A model that is only ever a hybrid is a fact
+    // about the car; a code is a fact about a printed label, and labels are wrong often enough that
+    // Aaron corrects them by hand rather than chase a reprint. All three are one-way — none can
+    // ever un-check the box.
+    isHybrid: hybridFromModel(vc?.model ?? s(r.model)) ?? vc?.isHybrid ?? hybridFromRentalClass(s(r.rentalClass)),
     year,
     color: s(r.color),
     bodyStyle: s(r.bodyStyle),

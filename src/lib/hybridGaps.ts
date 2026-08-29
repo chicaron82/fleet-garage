@@ -14,10 +14,10 @@
 // but because **a finding delivered in conversation has nowhere to live.** This is the home.
 //
 // Pure: no DB, no React. The caller hands in the fleet it already holds.
-import { lookupVehicleClass } from '../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, hybridFromModel } from '../../api/_lib/vehicleClassCodex';
 
 /** What asserted that this car is a hybrid. */
-export type HybridGapReason = 'rental-class' | 'model-code';
+export type HybridGapReason = 'model' | 'rental-class' | 'model-code';
 
 /** The narrow shape this needs — a subset of Vehicle, keeping the module decoupled. */
 export interface HybridGapVehicle {
@@ -56,6 +56,10 @@ export function hybridFlagGaps<V extends HybridGapVehicle>(vehicles: readonly V[
   for (const vehicle of vehicles) {
     if (vehicle.isHybrid) continue;                 // never second-guess a flag he has set
     const reasons: HybridGapReason[] = [];
+    // ⭐ The model comes first because it is the sturdiest evidence — a Sienna is class R, so the
+    // E6 rule missed every one of them until this existed. Aaron: "siennas are all listed as R even
+    // though they're hybrids."
+    if (hybridFromModel(vehicle.model)) reasons.push('model');
     if ((vehicle.rentalClass ?? '').trim().toUpperCase() === 'E6') reasons.push('rental-class');
     if (lookupVehicleClass(vehicle.classCode)?.isHybrid) reasons.push('model-code');
     if (reasons.length) out.push({ vehicle, reasons });
@@ -66,6 +70,10 @@ export function hybridFlagGaps<V extends HybridGapVehicle>(vehicles: readonly V[
 /** What said so, in words — the evidence, never a verdict. */
 export function describeHybridGap(gap: HybridGap): string {
   const parts = gap.reasons.map(r =>
-    r === 'rental-class' ? 'its rental class is E6' : `its model code ${gap.vehicle.classCode} is a hybrid code`);
-  return parts.length === 2 ? `${parts[0]} and ${parts[1]}` : parts[0] ?? '';
+    r === 'model' ? `every ${gap.vehicle.model} is a hybrid`
+    : r === 'rental-class' ? 'its rental class is E6'
+    : `its model code ${gap.vehicle.classCode} is a hybrid code`);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }

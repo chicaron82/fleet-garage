@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode, hybridSiblingFor, classPinContradiction, modelCodeMismatch } from '../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, normalizeClassCode, isTeachableClassCode, hybridSiblingFor, classPinContradiction, modelCodeMismatch, hybridFromModel } from '../../api/_lib/vehicleClassCodex';
 
 describe('curated codex — codes must match what the tags actually print', () => {
   it('⭐ CVTA is the Volkswagen Taos code, and CTVA is not a code at all', () => {
@@ -154,5 +154,45 @@ describe('modelCodeMismatch — a record disagreeing with its own code', () => {
   it('is case- and punctuation-insensitive, as the fleet actually stores names', () => {
     expect(modelCodeMismatch('CX30', 'Mazda', 'cx-30')).toBeNull();
     expect(modelCodeMismatch('CTMY', 'Tesla', 'model y')).toBeNull();
+  });
+});
+
+describe('hybridFromModel — models that are only ever hybrids', () => {
+  // ⭐ Aaron, 2026-08-29: "there is no such thing as a pure ICE prius" and, of the Siennas, "all
+  // listed as R even though they're hybrids." Not a pattern in the fleet — a fact about the car.
+  it('⭐ settles a Prius and a Sienna without a code or a class', () => {
+    expect(hybridFromModel('Prius')).toBe(true);
+    expect(hybridFromModel('Sienna')).toBe(true);
+  });
+
+  it('⭐ survives a trim, because a record carries model + trim', () => {
+    expect(hybridFromModel('Prius Prime')).toBe(true);
+    expect(hybridFromModel('Sienna LE')).toBe(true);
+  });
+
+  it('⚠️⚠️ says NOTHING about a Volvo — "many volvos... are actually hybrids" is MANY, not all', () => {
+    // 24 Volvos on the fleet, none flagged, and he says many of them are. A rule here would be FG
+    // asserting a powertrain from a pattern rather than a fact. Those stay his call.
+    for (const m of ['XC40', 'XC60', 'XC90']) expect(hybridFromModel(m), m).toBeUndefined();
+  });
+
+  it('⚠️ one-way, exactly like the rental-class hint — never false', () => {
+    // A model absent from the list is UNKNOWN, not petrol: most hybrids here are models that also
+    // ship as ICE.
+    expect(hybridFromModel('Corolla')).toBeUndefined();
+    expect(hybridFromModel('')).toBeUndefined();
+    expect(hybridFromModel(null)).toBeUndefined();
+  });
+
+  it('⚠️ matches the LEADING word, so a different model merely containing it does not count', () => {
+    expect(hybridFromModel('Grand Sienna Something')).toBeUndefined();
+  });
+
+  it('is case- and space-insensitive', () => {
+    expect(hybridFromModel('  prius  ')).toBe(true);
+  });
+
+  it('⭐ the Sienna code now carries the flag too, so a scan pre-checks it', () => {
+    expect(lookupVehicleClass('CSLE')?.isHybrid).toBe(true);
   });
 });

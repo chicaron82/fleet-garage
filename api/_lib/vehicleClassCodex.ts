@@ -45,7 +45,7 @@ const CODEX: Record<string, VehicleClass> = {
   // the boss's #1 poach target. Tag prints correct CRHX but the rental class is mislabeled Q4 (gas
   // RAV4's class); the real class is E6 (powertrain-hybrid group, per the Hertz chart he photographed
   // 2026-07-20). First live test of the field-provenance ladder shipped same session (8a60f43).
-  CSLE: { make: 'Toyota', model: 'Sienna' },
+  CSLE: { make: 'Toyota', model: 'Sienna', isHybrid: true },   // every Sienna is a hybrid — Aaron, 2026-08-29
   // Hyundai
   CELA: { make: 'Hyundai', model: 'Elantra' },
   CHVP: { make: 'Hyundai', model: 'Venue' },
@@ -185,6 +185,42 @@ export function hybridFromRentalClass(rentalClass: string | undefined | null): t
 
 export function normalizeClassCode(code: string | undefined | null): string {
   return (code ?? '').trim().toUpperCase().split(/\s+/)[0] ?? '';
+}
+
+/**
+ * ⭐⭐⭐ MODELS THAT ARE ONLY EVER HYBRIDS. Not a code, not a class — a fact about the car.
+ *
+ * Aaron, 2026-08-29: *"there is no such thing as a pure ICE prius"* and, of the Siennas,
+ * *"all listed as R even though they're hybrids."*
+ *
+ * ⚠️ WHY THIS OUTRANKS THE CODE. A key tag can be wrong and often is, and chasing a reprint is not
+ * a thing that happens: *"the tag can have inaccurate info on it. there are many. not my job to
+ * chase someone to have one printed out. that car needs to get rented."* So the model is the sturdier
+ * evidence — it survives a mis-printed code, which is the exact case he keeps having to correct by
+ * hand. His ask, verbatim: *"i want FG to know what i know. this tag reads ICE, i'm at the vehicle.
+ * its a hybrid. make FG reflect the truth in front of me."*
+ *
+ * ⚠️⚠️ ADD A MODEL HERE ONLY WHEN IT IS TRUE OF EVERY EXAMPLE, EVER. Volvo is the counter-case and
+ * the reason this list is short: *"many volvos... retain their model code/class, but are actually
+ * hybrids."* **Many, not all** — so no Volvo belongs here, and its 24 unflagged cars stay his call.
+ * A model in this list is FG asserting a powertrain without being asked; the bar is a fact about the
+ * world, never a pattern in the fleet.
+ */
+const HYBRID_ONLY_MODELS: ReadonlySet<string> = new Set(['PRIUS', 'SIENNA']);
+
+/**
+ * True when the MODEL settles the powertrain by itself, undefined when it says nothing.
+ *
+ * ⚠️ One-way, exactly like `hybridFromRentalClass`: never `false`. A model absent from the list is
+ * unknown, not petrol — most hybrids in this fleet are models that also ship as ICE.
+ */
+export function hybridFromModel(model: string | undefined | null): true | undefined {
+  const key = (model ?? '').trim().toUpperCase();
+  if (!key) return undefined;
+  // Matched on the leading word so a trim survives: "Sienna LE" and "Prius Prime" both count, while
+  // a different model that merely contains the word does not lead with it.
+  const first = key.split(/[^A-Z0-9]+/)[0];
+  return HYBRID_ONLY_MODELS.has(first) ? true : undefined;
 }
 
 /** A real model code is FOUR characters. Aaron, 2026-08-28: *"a two character code is too vague to
