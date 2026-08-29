@@ -18,7 +18,7 @@ import { makeAttachKeytagPhotoIfMissing, makeRetakeKeytagPhoto } from './keytagP
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
-import { makeSaveKeytagAudit, makeFlagKeytagUnreadable } from './keytagAuditWrite';
+import { makeSaveKeytagAudit, makeFlagKeytagUnreadable, makeReopenKeytagAudit } from './keytagAuditWrite';
 import { makeAdoptPlate } from './plateWrite';
 import { makeRecordWinterTires } from './winterTiresWrite';
 import { makeRecordOdometer, makeClearOdometer } from './odometerWrite';
@@ -169,6 +169,7 @@ export function useVehicleOperations({
   // ladder — the scan/batch guards stay exactly as strict as they are. See ./keytagAuditWrite.
   const saveKeytagAudit = makeSaveKeytagAudit({ setAllVehicles, allVehicles, userId });
   const flagKeytagUnreadable = makeFlagKeytagUnreadable({ setAllVehicles, userId });
+  const reopenKeytagAudit = makeReopenKeytagAudit({ setAllVehicles });
 
   // ⚠️ The ONE tag write that overwrites a good value, gated twice: it must classify as a RE-PLATE
   // rather than a misread, and the operator must have tapped. See ./plateWrite.
@@ -357,6 +358,7 @@ export function useVehicleOperations({
     recordVinLast9,
     saveKeytagAudit,
     flagKeytagUnreadable,
+    reopenKeytagAudit,
     adoptPlate,
     recordOdometer,
     clearOdometer,

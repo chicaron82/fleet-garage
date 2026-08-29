@@ -5,7 +5,7 @@ describe('summarizeMisfires', () => {
   it('splits read misfires from non-misread rejects, each counted', () => {
     const s = summarizeMisfires(['wrong_class_code', 'wrong_class_code', 'duplicate', 'wrong_plate']);
     expect(s.misfires).toEqual([
-      { id: 'wrong_class_code', label: 'Wrong class code', count: 2, tunes: 'class codex' },
+      { id: 'wrong_class_code', label: 'Wrong model code', count: 2, tunes: 'class codex' },
       { id: 'wrong_plate', label: 'Wrong plate', count: 1, tunes: 'plate prefix' },
     ]);
     expect(s.other).toEqual([{ id: 'duplicate', label: 'Duplicate', count: 1 }]);

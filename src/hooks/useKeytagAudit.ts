@@ -29,6 +29,12 @@ export interface KeytagAuditState {
   remaining: number;
   /** Fleet-wide counts for the collapsed headline. */
   stats: AuditQueueStats;
+  /** Every rental class in use, upper-cased — feeds the wrong-box guard. Derived rather than
+   *  hard-coded: a class FG has never seen cannot be flagged as one, and a list I typed by hand
+   *  would go stale the first time the fleet gained a group. */
+  knownRentalClasses: ReadonlySet<string>;
+  /** Every model code in use, MINUS anything that is also a rental class. */
+  knownModelCodes: ReadonlySet<string>;
   saving: boolean;
   /** A failed write, said out loud rather than swallowed. */
   error: string;
@@ -51,6 +57,26 @@ export function useKeytagAudit(): KeytagAuditState {
   const queue = useMemo(() => buildAuditQueue(allVehicles), [allVehicles]);
   const stats = useMemo(() => auditQueueStats(allVehicles), [allVehicles]);
   const pending = useMemo(() => queue.filter(c => !skipped.has(c.vehicle.id)), [queue, skipped]);
+  const knownRentalClasses = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of allVehicles) if (v.rentalClass) set.add(v.rentalClass.trim().toUpperCase());
+    return set;
+  }, [allVehicles]);
+
+  // ⚠️ RENTAL CLASSES ARE SUBTRACTED, and that is load-bearing rather than tidy. A misfiled value
+  // lands in `class_code` and immediately makes itself a "known model code" — so E9, sitting in the
+  // wrong column on FVB4297, would teach the guard that E9 is a legitimate code and switch off the
+  // check for the very mistake that put it there. An error that legitimises itself is the same trap
+  // as a bogus mapping taught into the codex. Subtracting the rental classes means the guard heals
+  // instead of learning the wrong lesson.
+  const knownModelCodes = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of allVehicles) {
+      const code = v.classCode?.trim().toUpperCase();
+      if (code && !knownRentalClasses.has(code)) set.add(code);
+    }
+    return set;
+  }, [allVehicles, knownRentalClasses]);
   const current = pending[0] ?? null;
 
   const save = useCallback(async (edits: KeytagAuditEdits) => {
@@ -92,7 +118,7 @@ export function useKeytagAudit(): KeytagAuditState {
   const dismissConflict = useCallback(() => setUnitConflict(null), []);
 
   return {
-    current, remaining: pending.length, stats,
+    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes,
     saving, error, unitConflict,
     save, skip, flagUnreadable, dismissConflict,
   };

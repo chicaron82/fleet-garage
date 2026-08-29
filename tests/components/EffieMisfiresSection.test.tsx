@@ -24,7 +24,7 @@ describe('EffieMisfiresSection', () => {
     reasonIds.mockReturnValue(['wrong_class_code', 'wrong_class_code', 'wrong_plate']);
     render(<EffieMisfiresSection />);
     fireEvent.click(screen.getByText(/where she misfires/));
-    expect(screen.getByText('Wrong class code')).toBeInTheDocument();
+    expect(screen.getByText('Wrong model code')).toBeInTheDocument();
     expect(screen.getByText('×2')).toBeInTheDocument();
     expect(screen.getByText('→ class codex')).toBeInTheDocument();
     expect(screen.getByText('→ plate prefix')).toBeInTheDocument();

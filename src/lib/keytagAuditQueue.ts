@@ -29,14 +29,88 @@ export const AUDIT_FIELDS: readonly AuditField[] = [
   'owningArea', 'rentalClass', 'classCode', 'unitNumber', 'vinLast9',
 ];
 
-/** Human labels, kept beside the field list so a new field cannot ship without one. */
+/** Human labels, kept beside the field list so a new field cannot ship without one.
+ *
+ *  ⭐⭐ "MODEL CODE", NOT "CLASS CODE" — Aaron, first sitting, after putting a rental class in the
+ *  wrong box: *"both use 'class' that's why i asked. class code, should have been 'model code'."*
+ *  The FVB4297 tag prints the heading `Class` above `E9`, and FG's field was called `Class code`, so
+ *  the word pulled him straight to the wrong field. He had the domain exactly right — *"i know this
+ *  class is an E9, because its a model y"* — and the label still sent it to the wrong column. That
+ *  is a label doing damage, not an operator slip. The DB column stays `class_code`; only what a
+ *  person reads changes. */
 export const AUDIT_FIELD_LABELS: Readonly<Record<AuditField, string>> = {
   owningArea:  'Owning area',
   rentalClass: 'Rental class',
-  classCode:   'Class code',
+  classCode:   'Model code',
   unitNumber:  'Unit #',
   vinLast9:    'VIN (last 9)',
 };
+
+/**
+ * What each value LOOKS like — deliberately not where it sits on the tag.
+ *
+ * ⚠️ POSITION IS A PROXY AND IT BREAKS ACROSS FORMATS. The first hint I offered was *"top line,
+ * beside the branch number"*, which is true of the printed Hertz tag and **wrong on the very tag
+ * that caused the mix-up**: FVB4297's is a labelled list (Own Area / Veh # / Lic # / Model /
+ * Color-YR / Last9vin / Class) whose model is a NAME and which carries no model code at all.
+ * Describing the value survives a format change; describing its location does not.
+ */
+export const AUDIT_FIELD_HINTS: Readonly<Record<AuditField, string>> = {
+  owningArea:  'the branch number — 8199 is Winnipeg',
+  rentalClass: 'the short size/type group — Q4, E9, P4',
+  classCode:   'the 4-letter code (CRVB, CTMY) — not every tag has one; leave it blank if the model is spelled out',
+  unitNumber:  'the Veh # — 7 digits',
+  vinLast9:    'the last 9 of the VIN',
+};
+
+/** A field whose value looks like it landed in the wrong box — said out loud, never enforced. */
+export interface AuditWarning { field: AuditField; message: string; }
+
+/**
+ * The wrong-box guard.
+ *
+ * ⚠️⚠️ THERE IS NO SHAPE RULE HERE, AND THE FIRST DRAFT'S WAS THE BUG. It read *"a model code is 4
+ * characters starting with C"* — true of 79 of the fleet's 79 codes, and still wrong, because
+ * **not every tag carries a model code at all.** DEWN854 is handwritten and spells `SELTOS` out in
+ * full; the US Compass says `COMPASS`; FVB4297 says `Model Y`. A shape rule warns him about tags he
+ * has read perfectly, which is worse than the mistake it guards. Aaron killed it on sight.
+ *
+ * ⭐ So the check is MEMBERSHIP, not shape — and only in the two sets FG already holds. It fires on
+ * exactly one thing: a value that is definitely the OTHER field's kind. A brand-new model code, a
+ * spelled-out model name, an empty box — none of them trip anything, because none of them are a
+ * known rental class.
+ *
+ * ⭐ And it warns, never blocks. He typed E9 from KNOWING the car rather than reading it
+ * (*"because its covered up"*), and a rule that refuses a value he is certain of is worse than the
+ * bug it prevents. E9 was never malformed — it is a perfectly good rental class that landed one
+ * box down.
+ */
+export function auditWarnings(
+  edits: Partial<Record<AuditField, string>>,
+  /** Every rental class in use on the fleet. */
+  knownRentalClasses: ReadonlySet<string>,
+  /** Every model code in use, with the rental classes removed — see `useKeytagAudit`. A value that
+   *  is both cannot accuse either field, so it is excluded rather than guessed at. */
+  knownModelCodes: ReadonlySet<string>,
+): AuditWarning[] {
+  const out: AuditWarning[] = [];
+  const model  = (edits.classCode   ?? '').trim().toUpperCase();
+  const rental = (edits.rentalClass ?? '').trim().toUpperCase();
+
+  if (model && knownRentalClasses.has(model) && !knownModelCodes.has(model)) {
+    out.push({
+      field: 'classCode',
+      message: `“${model}” is a rental class — did it belong in the field above?`,
+    });
+  }
+  if (rental && knownModelCodes.has(rental) && !knownRentalClasses.has(rental)) {
+    out.push({
+      field: 'rentalClass',
+      message: `“${rental}” is a model code — the rental class is the short group (Q4, E9).`,
+    });
+  }
+  return out;
+}
 
 /** The narrow shape the queue needs — a subset of Vehicle, so this module stays decoupled from
  *  the full row type (same reasoning as `KeytagExistingVehicle` in resolveKeytag.ts). */

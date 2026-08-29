@@ -70,7 +70,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer, clearOdometer, recordWinterTires } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer, recordWinterTires, reopenKeytagAudit } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate, vehicleId);
   const [zoom, setZoom] = useState(false);
   const [seenOpen, setSeenOpen] = useState(false);
@@ -356,8 +356,23 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
           {/* ⭐ The fix belongs where the problem is DISCOVERED. He opens this to check a tag; if it
               is unreadable, the retake is right here rather than on another screen. stopPropagation
               because the backdrop closes on click and a file picker must not dismiss its own modal. */}
-          <div className="relative mt-3" onClick={e => e.stopPropagation()}>
+          <div className="relative mt-3 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
             <KeytagRetake vehicleId={vehicleId} onReplaced={() => setZoom(false)} />
+            {/* ⭐⭐ THE AUDITOR'S UNDO, and it belongs here rather than in the auditor — an audited
+                car has already LEFT the queue, so the auditor has no screen on which to offer it.
+                Without this the first wrong entry (FVB4297, a rental class typed into the model-code
+                box because that tag's own heading reads `Class`) could only be undone with
+                hand-written SQL. A surface that writes at the top of the provenance ladder needs a
+                way back, or every one of its mistakes is permanent. */}
+            {keytagAudit?.at && (
+              <button
+                type="button"
+                onClick={() => { void reopenKeytagAudit(vehicleId); setZoom(false); }}
+                className="text-xs font-semibold text-white/70 hover:text-white underline cursor-pointer"
+              >
+                Re-audit this tag — put it back in the queue
+              </button>
+            )}
           </div>
           <button
             type="button"

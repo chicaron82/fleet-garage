@@ -8,6 +8,8 @@ import {
   buildAuditQueue,
   retakeWatchlist,
   auditQueueStats,
+  auditWarnings,
+  AUDIT_FIELD_HINTS,
   type AuditableVehicle,
 } from '../../src/lib/keytagAuditQueue';
 
@@ -167,5 +169,89 @@ describe('auditQueueStats', () => {
   it('never counts a photo-less car as pending work', () => {
     const stats = auditQueueStats([car({ keytagPhotoUrl: null, owningArea: null, vinLast9: null })]);
     expect(stats).toEqual({ pending: 0, verified: 0, unreadable: 0, noPhoto: 1, gaps: 0 });
+  });
+});
+
+describe('auditWarnings — the wrong-box guard', () => {
+  // Aaron, after putting E9 in the model-code box: *"having the word 'class' in two places is the
+  // mistake! i read class and put E9 into the class code."* FG's columns were right; the SCREEN
+  // made him disambiguate two things that share a word, in the one app whose whole thesis is
+  // removing ambiguity.
+  const CLASSES = new Set(['Q4', 'E9', 'P4', 'C', 'B', 'T', 'L2', 'E1', 'E6']);
+  const CODES   = new Set(['CRVB', 'CTMY', 'C3UL', 'CK45', 'CX30']);
+  const warn = (e: Parameters<typeof auditWarnings>[0]) => auditWarnings(e, CLASSES, CODES);
+
+  it('⭐ names a rental class sitting in the model-code field — the mistake that happened', () => {
+    const [w] = warn({ classCode: 'E9' });
+    expect(w.field).toBe('classCode');
+    expect(w.message).toMatch(/is a rental class/);
+  });
+
+  it('⭐ flags the mirror — a model code in the rental-class field', () => {
+    const [w] = warn({ rentalClass: 'CRVB' });
+    expect(w.field).toBe('rentalClass');
+    expect(w.message).toMatch(/is a model code/);
+  });
+
+  it('⚠️⚠️ says NOTHING about a model spelled out in full — many tags have no code at all', () => {
+    // The first draft enforced "4 characters starting with C" and would have warned on every one
+    // of these. DEWN854 is handwritten and says SELTOS; the US Compass says COMPASS; FVB4297 says
+    // Model Y. Warning him about a tag he read perfectly is worse than the bug being guarded.
+    for (const name of ['SELTOS', 'COMPASS', 'MODEL Y', 'SIENNA']) {
+      expect(warn({ classCode: name }), `${name} must not warn`).toEqual([]);
+    }
+  });
+
+  it('⚠️ says nothing about a model code FG has never seen — a new car is not a mistake', () => {
+    expect(warn({ classCode: 'CZZZ' })).toEqual([]);
+    expect(warn({ classCode: 'XY12' })).toEqual([]);
+  });
+
+  it('⚠️ never flags a bare "C" — C is itself a rental class on this fleet', () => {
+    expect(warn({ rentalClass: 'C' })).toEqual([]);
+  });
+
+  it('⭐ stays silent when a value belongs to BOTH vocabularies — it cannot accuse either box', () => {
+    const both = new Set(['E9']);
+    expect(auditWarnings({ classCode: 'E9' }, CLASSES, both)).toEqual([]);
+    expect(auditWarnings({ rentalClass: 'E9' }, CLASSES, both)).toEqual([]);
+  });
+
+  it('accepts every correct pairing without comment', () => {
+    expect(warn({ classCode: 'CRVB', rentalClass: 'Q4' })).toEqual([]);
+    expect(warn({ classCode: 'CTMY', rentalClass: 'E9' })).toEqual([]);
+  });
+
+  it('is case- and whitespace-insensitive, matching what the save does', () => {
+    expect(warn({ classCode: '  e9  ' })[0].message).toMatch(/rental class/);
+    expect(warn({ classCode: ' crvb ' })).toEqual([]);
+  });
+
+  it('says nothing about an empty field — a blank is not a mistake', () => {
+    expect(warn({ classCode: '', rentalClass: '   ' })).toEqual([]);
+    expect(warn({})).toEqual([]);
+  });
+
+  it('can flag both fields at once', () => {
+    expect(warn({ classCode: 'Q4', rentalClass: 'CRVB' })).toHaveLength(2);
+  });
+});
+
+describe('AUDIT_FIELD_HINTS', () => {
+  it('has a hint for every auditable field', () => {
+    for (const f of AUDIT_FIELDS) expect(AUDIT_FIELD_HINTS[f], `no hint for ${f}`).toBeTruthy();
+  });
+
+  it("⚠️ describes the VALUE, never its position — the tag formats differ", () => {
+    // The first hint drafted was "top line, beside the branch number" — true of the printed Hertz
+    // tag and wrong on the very tag that caused the mix-up.
+    for (const f of AUDIT_FIELDS) {
+      expect(AUDIT_FIELD_HINTS[f], `${f} hint describes a location`)
+        .not.toMatch(/top |bottom|corner|line above|line below|under the/i);
+    }
+  });
+
+  it('⭐ tells him a blank model code is a legitimate answer, not a gap', () => {
+    expect(AUDIT_FIELD_HINTS.classCode).toMatch(/blank/i);
   });
 });

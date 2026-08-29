@@ -49,6 +49,9 @@ export interface VehicleHoldContextValue {
   /** "I can't read this one." Stamps the car unreadable — which IS the retake watchlist, not a
    *  separate table. Writes no identity fields; he did not read them. See keytagAuditWrite. */
   flagKeytagUnreadable: (vehicleId: string) => Promise<void>;
+  /** Put an audited car back in the queue — the auditor's undo. Clears only the audit stamp; the
+   *  'manual' locks on its fields stay, so nothing can overwrite them in the meantime. */
+  reopenKeytagAudit: (vehicleId: string) => Promise<void>;
   /** Adopt a new plate off the tag after a RE-PLATE. Returns false when refused — including when the
    *  difference classifies as a misread, so nothing can claim a plate changed that didn't. */
   adoptPlate: (vehicleId: string, tagPlate: string) => Promise<boolean>;

@@ -382,7 +382,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                     what FG just learned by itself is the exact confusion this pair replaced. */}
                 {scanRead && isUnknownClassCode(scanRead) && !codexToast && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-                    Class code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
+                    Model code <span className="font-mono font-semibold">{scanRead.classCode}</span> isn’t in the codex yet —
                     make/model need adding by hand. Logged for DiZee.
                   </p>
                 )}

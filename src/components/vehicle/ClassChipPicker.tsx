@@ -139,7 +139,7 @@ export function ClassChipPicker({ value, onChange }: { value: string; onChange: 
             maxLength={5}
             placeholder="CODE"
             className="w-16 bg-transparent outline-none placeholder-gray-400 text-sm"
-            aria-label="New class code"
+            aria-label="New model code"
           />
           <button type="button" onClick={() => void commitAdd()} className="text-emerald-600 hover:text-emerald-500 cursor-pointer" title="Add">✓</button>
           <button type="button" onClick={cancelAdd} className="text-gray-400 hover:text-gray-600 cursor-pointer" title="Cancel">✕</button>

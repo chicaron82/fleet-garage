@@ -153,3 +153,38 @@ export function makeFlagKeytagUnreadable(deps: {
     } : v)));
   };
 }
+
+/**
+ * Put an audited car back in the queue.
+ *
+ * ⭐⭐ WHY THIS HAD TO EXIST. The auditor could not fix its own mistakes. An audited car leaves the
+ * queue permanently, so the first wrong entry — FVB4297, a rental class typed into the model-code
+ * box because the tag's own heading says `Class` — could only be corrected with hand-written SQL.
+ * A tool that writes at the TOP of the provenance ladder and has no way back is a tool whose every
+ * error is permanent, and this one shipped with a documented anchoring risk. The undo is not a
+ * nicety; it is the counterweight to `manual` being the strongest stamp FG has.
+ *
+ * ⚠️ Clears ONLY the audit stamp. The `manual` provenance on the fields stays put, deliberately:
+ * re-opening the audit does not un-make what he confirmed, and dropping those locks would let the
+ * next scan overwrite good values in the window before he gets back to the car. Saving the re-audit
+ * re-stamps them anyway.
+ */
+export function makeReopenKeytagAudit(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+
+  return async (vehicleId: string): Promise<void> => {
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({
+        keytag_audited_at: null,
+        keytag_audited_by: null,
+        keytag_audit_result: null,
+      }).eq('id', vehicleId)
+    );
+    if (error) throw new Error(`Failed to reopen the audit: ${(error as { message?: string }).message}`);
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? {
+      ...v, keytagAuditedAt: null, keytagAuditedBy: null, keytagAuditResult: null,
+    } : v)));
+  };
+}

@@ -18,7 +18,7 @@ export interface RejectReason {
 }
 
 export const REJECT_REASONS: RejectReason[] = [
-  { id: 'wrong_class_code', label: 'Wrong class code', misfire: true,  tunes: 'class codex' },
+  { id: 'wrong_class_code', label: 'Wrong model code', misfire: true,  tunes: 'class codex' },
   { id: 'wrong_plate',      label: 'Wrong plate',      misfire: true,  tunes: 'plate prefix' },
   { id: 'wrong_details',    label: 'Wrong details',    misfire: true,  tunes: 'read/prompt' },
   { id: 'duplicate',        label: 'Duplicate',        misfire: false, tunes: '' },

@@ -54,5 +54,5 @@ export function classCodeLessonFromScan(
  *  "isn't in the codex yet" warning, and worth saying out loud: the next scan of this code
  *  resolves without him doing anything. */
 export function classCodeLearnedLabel(lesson: ClassCodeLesson): string {
-  return `Class code ${lesson.code} was new — learned it as ${lesson.make} ${lesson.model} from this car's record.`;
+  return `Model code ${lesson.code} was new — learned it as ${lesson.make} ${lesson.model} from this car's record.`;
 }

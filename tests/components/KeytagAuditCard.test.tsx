@@ -23,8 +23,12 @@ const candidate: AuditCandidate<Vehicle> = { vehicle, missing: ['vinLast9'] };
 const onSave = vi.fn();
 const onSkip = vi.fn();
 const onFlag = vi.fn();
+const KNOWN_CLASSES = new Set(['Q4', 'E9', 'P4', 'C', 'T']);
+const KNOWN_CODES = new Set(['CRVB', 'CTMY']);
 const setup = () => render(
-  <KeytagAuditCard candidate={candidate} saving={false} onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />,
+  <KeytagAuditCard candidate={candidate} saving={false}
+    knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES}
+    onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />,
 );
 
 const openZoom = () => fireEvent.click(screen.getByAltText(`Key tag for ${vehicle.licensePlate}`));
@@ -105,5 +109,62 @@ describe('KeytagAuditCard — typing on top of the zoomed tag', () => {
     expect(tag.style.width).toBe('300%');
     fireEvent.click(tag);
     expect(tag.style.width).toBe('100%');
+  });
+});
+
+describe('KeytagAuditCard — the wrong-box guard', () => {
+  it('⭐ names a rental class typed into the model-code box', () => {
+    // The defect that produced it: FVB4297's tag prints the heading `Class` above `E9`, and FG's
+    // field used to be called `Class code`. Aaron had the domain exactly right and the label sent
+    // it to the wrong column.
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'E9' } });
+    expect(screen.getByText(/is a rental class/)).toBeTruthy();
+  });
+
+  it('⭐ warns but never blocks — Save still fires with what he typed', () => {
+    // He typed E9 from KNOWING the car, not from reading it ("because its covered up"). A rule
+    // that refuses a value he is certain of is worse than the bug it prevents.
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'E9' } });
+    fireEvent.click(screen.getByText('✓ Save & next'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ classCode: 'E9' }));
+  });
+
+  it('⚠️ does NOT flag a bare "C" in the rental class — C is a real rental class', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Rental class/), { target: { value: 'C' } });
+    expect(screen.queryByText(/is a model code/)).toBeNull();
+  });
+
+  it('⚠️⚠️ does NOT flag a spelled-out model — plenty of tags carry no code at all', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'SELTOS' } });
+    expect(screen.queryByText(/⚠️/)).toBeNull();
+  });
+
+  it('flags a model code typed into the rental-class box — the same mistake, mirrored', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Rental class/), { target: { value: 'CRVB' } });
+    expect(screen.getByText(/is a model code/)).toBeTruthy();
+  });
+
+  it('says nothing about a correct pair', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'CRVB' } });
+    expect(screen.queryByText(/⚠️/)).toBeNull();
+  });
+
+  it('the hint describes the VALUE, not where it sits — the tag formats differ', () => {
+    setup();
+    expect(screen.getByText(/not every tag has one/)).toBeTruthy();
+    expect(screen.getByText(/short size\/type group/)).toBeTruthy();
+  });
+
+  it('the guard reaches the overlay too, where he actually types', () => {
+    setup();
+    openZoom();
+    fireEvent.change(within(overlay()).getByLabelText(/Model code/), { target: { value: 'E9' } });
+    expect(within(overlay()).getByText(/is a rental class/)).toBeTruthy();
   });
 });

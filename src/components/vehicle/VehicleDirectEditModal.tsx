@@ -185,7 +185,7 @@ export function VehicleDirectEditModal({
               from. Empty on any car registered before 2026-08-19; it fills in as tags are scanned. */}
           <div>
             <label htmlFor="edit-class-code" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-              Class Code <span className="normal-case font-normal text-gray-400">(read off the tag — what the codex resolves)</span>
+              Model Code <span className="normal-case font-normal text-gray-400">(the 4-letter code — NOT the rental class)</span>
             </label>
             <input
               id="edit-class-code"

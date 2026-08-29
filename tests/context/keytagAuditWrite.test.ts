@@ -20,7 +20,7 @@ vi.mock('../../src/lib/supabase', () => ({
   writeWithRefresh: (fn: () => unknown) => fn(),
 }));
 
-import { makeSaveKeytagAudit, makeFlagKeytagUnreadable } from '../../src/context/keytagAuditWrite';
+import { makeSaveKeytagAudit, makeFlagKeytagUnreadable, makeReopenKeytagAudit } from '../../src/context/keytagAuditWrite';
 
 const car = (over: Partial<Vehicle> & { id: string }): Vehicle => ({
   unitNumber: '5420427', licensePlate: 'LUR202', make: 'Toyota', model: 'RAV4', year: 2026,
@@ -140,5 +140,29 @@ describe('flagKeytagUnreadable', () => {
     for (const col of ['owning_area', 'rental_class', 'class_code', 'unit_number', 'vin_last9', 'field_sources']) {
       expect(updates[0], `unreadable must not write ${col}`).not.toHaveProperty(col);
     }
+  });
+});
+
+describe('reopenKeytagAudit — the auditor\'s undo', () => {
+  // ⭐ WHY IT EXISTS: an audited car leaves the queue permanently, so the first wrong entry could
+  // only be corrected with hand-written SQL. A surface that writes at the TOP of the provenance
+  // ladder needs a way back, or every one of its mistakes is permanent.
+  const reopen = () => makeReopenKeytagAudit({ setAllVehicles: setAll });
+
+  it('clears the audit stamp so the car re-enters the queue', async () => {
+    await reopen()('me');
+    expect(updates[0]).toEqual({ keytag_audited_at: null, keytag_audited_by: null, keytag_audit_result: null });
+  });
+
+  it('⚠️ leaves the manual locks alone — reopening is not un-confirming', async () => {
+    // Dropping them would let the next scan overwrite good values in the window before he gets
+    // back to the car.
+    await reopen()('me');
+    expect(updates[0]).not.toHaveProperty('field_sources');
+  });
+
+  it('clears an unreadable flag too — a car off the retake list goes back in line', async () => {
+    await reopen()('me');
+    expect(updates[0].keytag_audit_result).toBeNull();
   });
 });
