@@ -61,7 +61,11 @@ function isTransient(err: unknown): boolean {
   return status === 529 || status === 503 || status === 429 || /overload/i.test(msg);
 }
 
-const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
+// ⭐ EXPORTED so a probe can measure the REAL read. A script that copies this prompt measures a
+// copy, and the first time the two drift the measurement quietly becomes fiction — which is the
+// whole reason Aaron's "how much API would this cost" question needed a number from the ledger
+// rather than an estimate.
+export const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
 Fields the tag MAY carry (read the ones present):
 - OWNING CITY + OWNING AREA + RENTAL CLASS — the top line carries all three, report them separately:
@@ -70,7 +74,7 @@ Fields the tag MAY carry (read the ones present):
   • RENTAL CLASS: the short 1–3 char size/type group beside it ("Q4", "P4", "T", "L2", "B").
   Printed: "WINNIPEG / 08199  Q4" → owningCity "WINNIPEG", owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B", owningCity "". Do NOT put the branch number in rentalClass, and do NOT put the city in either.
 - UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
-- LAST 9 OF THE VIN: printed tags label it "Last9vin:" and print exactly NINE characters ("9TR289777", "8NF258345"). Report those nine EXACTLY as shown, with no spaces. It is the last nine of the VIN, never the whole VIN — do not pad it, extend it, or infer the missing characters. VINs never contain the letters I, O or Q, so a character that looks like one is a 1 or a 0. Handwritten tags rarely carry it; leave it empty when absent.
+- LAST 9 OF THE VIN: printed tags label it "Last9vin:" and print exactly NINE characters ("9TR289777", "8NF258345"). Report those nine EXACTLY as shown, with no spaces. It is the last nine of the VIN, never the whole VIN — do not pad it, extend it, or infer the missing characters. VINs never contain the letters I, O or Q, so a character that looks like one is a 1 or a 0. Handwritten tags rarely carry it; leave it empty when absent. ⚠️ NEVER output either example value above, or any other value from these instructions — if you cannot read the nine characters on THIS tag, return an empty string. An empty field is correct; a remembered example is a fabricated vehicle identity.
 - LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
 - MAKE / MODEL — the ONE real difference between the two formats:
   • PRINTED tags do NOT write the make/model — they print a 4-char CLASS CODE ("CCVL", "CVRS") resolved to a model elsewhere. Report it as classCode; leave make/model empty.
@@ -81,7 +85,7 @@ Fields the tag MAY carry (read the ones present):
 
 Push through an angled, low-contrast, handwritten, or partial tag and read what you can. Only if the image is NOT a key tag at all, call report_keytag with everything empty. Call report_keytag with what you read.`;
 
-const REPORT_TOOL: Anthropic.Tool = {
+export const REPORT_TOOL: Anthropic.Tool = {
   name: 'report_keytag',
   description: 'Report the fields read off the vehicle key tag.',
   input_schema: {
@@ -120,6 +124,26 @@ interface RawKeytag {
 }
 
 /** Normalize the tool output → KeytagRead: empty strings → undefined, 2-digit year → 4-digit. */
+/**
+ * ⚠️⚠️ EVERY LITERAL THIS PROMPT SHOWS THE MODEL AS AN EXAMPLE.
+ *
+ * On 2026-08-29 a 158-photo VIN backfill wrote `9TR289777` onto THREE different cars, and a check
+ * for duplicate VINs is the only reason anyone noticed. That string is the sample value printed in
+ * this file's own LAST 9 OF THE VIN instruction: when the model could not read the field, it echoed
+ * the example. `8NF258345` — the other sample — had been sitting on LJF679 since 2026-08-25 from an
+ * earlier backfill, so the pathway had been writing fiction into the fleet for four days.
+ *
+ * ⭐ The prompt now says not to echo an example, and that instruction is a WISH. This set is the
+ * MECHANISM: a read equal to a documented sample is treated as unread, whatever the prompt says and
+ * whatever a future model does with it. A value that appears in the instructions can never be
+ * evidence, because the model was shown it.
+ *
+ * ⚠️ VIN values only, deliberately. The other examples are drawn from REAL cars — unit `5424882` is
+ * LUR243's actual number — so blanking those would discard true readings. That is also precisely why
+ * an echoed example is so hard to spot: it looks exactly like fleet data.
+ */
+const PROMPT_EXAMPLE_VINS: ReadonlySet<string> = new Set(['9TR289777', '8NF258345']);
+
 function toKeytagRead(input: unknown): KeytagRead {
   const r = (input ?? {}) as RawKeytag;
   const s = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
@@ -134,7 +158,11 @@ function toKeytagRead(input: unknown): KeytagRead {
     unitNumber: s(r.unitNumber),
     // Normalized to the write's own rule, so an unusable partial never leaves this function
     // wearing the shape of an identity key. '' → undefined.
-    vinLast9: normalizeVinLast9(r.vinLast9) || undefined,
+    // ⚠️ An echoed example is not a reading — see PROMPT_EXAMPLE_VINS above.
+    vinLast9: (() => {
+      const v = normalizeVinLast9(r.vinLast9) || undefined;
+      return v && PROMPT_EXAMPLE_VINS.has(v) ? undefined : v;
+    })(),
     classCode,
     rentalClass: s(r.rentalClass)?.toUpperCase(),
     // Normalized here (leading zero stripped) so the stored value is one shape regardless of
