@@ -190,12 +190,24 @@ export function normalizeClassCode(code: string | undefined | null): string {
 /** A real model code is FOUR characters. Aaron, 2026-08-28: *"a two character code is too vague to
  *  be a real model code. i've only ever seen 4, or displayed in full."*
  *
- *  ⚠️⚠️ WHY THIS IS A GATE ON TEACHING AND NOT A VALIDATION ANYWHERE ELSE. The codex held `CN =
- *  Nissan Sentra` — taught by FG itself from a TRUNCATED read of `CNSS`. Thirteen Sentras carry
- *  CNSS; zero carry CN; CNSS was not in the codex at all, which is precisely why a short read had
- *  room to become the mapping. And it is the dangerous kind of wrong: `CN` resolves to the CORRECT
- *  make and model, so every later truncation lands cleanly, looks right, and the error never
- *  surfaces. **An error that legitimises itself.**
+ *  ⚠️⚠️ WHY THIS IS A GATE ON TEACHING AND NOT A VALIDATION ANYWHERE ELSE. The taught table held
+ *  `CN = Nissan Sentra`, learned by FG from a TRUNCATED read of `CNSS`. It is the dangerous kind of
+ *  wrong because it is nearly RIGHT: `CN` resolves to the correct make and model, so every later
+ *  truncation lands cleanly, looks right, and the error never surfaces. An error that legitimises
+ *  itself.
+ *
+ *  ⓘ CORRECTION (2026-08-28, same evening): I first wrote here that `CNSS` "was not in the codex at
+ *  all, which is precisely why a short read had room to become the mapping." **That was false.**
+ *  `CNSS` is curated three lines above `CSEN`, and the curated table is consulted FIRST. I had
+ *  queried `vehicle_class_codex` — the 29-row TAUGHT overflow — and called it "the codex", when the
+ *  codex is this 73-entry curated map plus that overflow. Measuring the smaller half and reporting
+ *  it as the whole.
+ *
+ *  ⭐ And the truth is a sharper diagnosis than the error was: across the fleet's 80 distinct codes,
+ *  the number FG does not know is **ZERO**. There is no knowledge gap. There is a READ gap — every
+ *  "unknown code" is a code already in this file, arriving truncated or misread, and the teach path
+ *  then memorises the corruption. Aaron had been telling sessions for weeks that he had already fed
+ *  FG these codes. He had. They were here the whole time.
  *
  *  ⚠️ It gates only what FG LEARNS. It must never be used to judge what Aaron TYPES: plenty of tags
  *  carry no code at all and spell the model out in full (DEWN854 says SELTOS, the US Compass says
