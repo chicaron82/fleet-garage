@@ -213,6 +213,13 @@ export function normalizeClassCode(code: string | undefined | null): string {
  *  carry no code at all and spell the model out in full (DEWN854 says SELTOS, the US Compass says
  *  COMPASS, FVB4297 says Model Y). A length rule pointed at a person warns him about tags he has
  *  read perfectly; pointed at the teach path it stops FG memorising its own misreads. */
+/** Every code the CURATED map knows. Exported so the prefix resolver can ask what a partial read
+ *  could have been without reaching into the map itself — the accessor keeps CODEX module-local,
+ *  which is what stops a caller mutating the chart it is reading. */
+export function curatedClassCodes(): readonly string[] {
+  return Object.keys(CODEX);
+}
+
 /** The HYBRID variant of the same make and model, when the codex knows one. `CSPT` (Kia Sportage)
  *  → `CSEH` (Kia Sportage, hybrid). Null when there is no sibling, or when `code` IS the hybrid one.
  *
