@@ -86,7 +86,11 @@ export function makeSaveKeytagAudit(deps: {
     const conflict = unitChanged ? findUnitConflict(typedUnit, allVehicles, vehicleId) : undefined;
 
     for (const field of AUDIT_FIELDS) {
-      const value = (edits[field] ?? '').trim();
+      // ⚠️ UPPERCASED HERE TOO, not only in the form. The card is today's only caller, and a rule
+      // that lives in a component is a rule the next caller does not inherit — the whole reason
+      // this file exists is that provenance and shape belong to the WRITE. Costs nothing when the
+      // value already arrives upper.
+      const value = (edits[field] ?? '').trim().toUpperCase();
       if (isBlankField(value)) continue;          // he couldn't read it either — not a fact
       if (field === 'unitNumber' && conflict) continue;  // blocked, and reported back
 

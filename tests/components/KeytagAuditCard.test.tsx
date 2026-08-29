@@ -168,3 +168,43 @@ describe('KeytagAuditCard — the wrong-box guard', () => {
     expect(within(overlay()).getByText(/is a rental class/)).toBeTruthy();
   });
 });
+
+describe('KeytagAuditCard — every value on a tag is uppercase', () => {
+  // ⚠️ autoCapitalize="characters" steers a MOBILE keyboard and nothing else. On a real keyboard
+  // `crvb` would have been stored lowercase beside two RAV4s carrying `CRVB` — codex lookups
+  // normalise and would still resolve, but every exact match would silently miss the car.
+  it('⭐ upper-cases as he types, in the card', () => {
+    setup();
+    const code = screen.getByLabelText(/Model code/) as HTMLInputElement;
+    fireEvent.change(code, { target: { value: 'crvb' } });
+    expect(code.value).toBe('CRVB');
+  });
+
+  it('⭐ upper-cases in the overlay too, where he actually types', () => {
+    setup();
+    openZoom();
+    const vin = within(overlay()).getByLabelText(/VIN \(last 9\)/) as HTMLInputElement;
+    fireEvent.change(vin, { target: { value: '3sc554212' } });
+    expect(vin.value).toBe('3SC554212');
+  });
+
+  it('saves the upper-cased value, not what the keystrokes were', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'ctmy' } });
+    fireEvent.click(screen.getByText('✓ Save & next'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ classCode: 'CTMY' }));
+  });
+
+  it('⭐ the guard sees what he SEES — a lower-cased rental class still trips it', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Model code/), { target: { value: 'e9' } });
+    expect(screen.getByText(/is a rental class/)).toBeTruthy();
+  });
+
+  it('leaves digits alone — an owning area has no case to change', () => {
+    setup();
+    const area = screen.getByLabelText(/Owning area/) as HTMLInputElement;
+    fireEvent.change(area, { target: { value: '8191' } });
+    expect(area.value).toBe('8191');
+  });
+});

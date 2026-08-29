@@ -54,7 +54,16 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   // phones, so pinch would look available and do nothing.
   const [scale, setScale] = useState(1);
 
-  const set = (f: AuditField, v: string) => setEdits(prev => ({ ...prev, [f]: v }));
+  // ⭐ EVERY VALUE ON A KEY TAG IS UPPERCASE — a branch number, a rental class, a model code, a unit
+  // number, nine VIN characters. None of the five has a lowercase form, so uppercasing as he types
+  // is not a preference, it is the field's actual alphabet.
+  //
+  // ⚠️ `autoCapitalize="characters"` steers a MOBILE keyboard and nothing else. On a real keyboard
+  // it does nothing, so `crvb` would have been stored lowercase beside two RAV4s carrying `CRVB` —
+  // codex lookups normalise and would still resolve, but any exact match (the fleet queries, the
+  // wrong-box guard's own vocabulary) would silently miss the car. Uppercasing here also means the
+  // guard compares what he SEES rather than a value it quietly re-cased behind him.
+  const set = (f: AuditField, v: string) => setEdits(prev => ({ ...prev, [f]: v.toUpperCase() }));
   const save = () => onSave(edits);
   // Recomputed every keystroke — it is a pure read of what is in the boxes right now, and he should
   // see the mix-up while the tag is still in front of him, not after Save.
