@@ -11,7 +11,7 @@ import type { ScannedIdentity, EvAssetStatus } from '../../types';
 import { usePlateRecognition } from '../../hooks/usePlateRecognition';
 import { describeKnownPlate } from '../../lib/vehicleByPlate';
 import { useUnitConflict } from '../../hooks/useUnitConflict';
-import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
+import { UnitNumberInput, PlateInput, KeyCountSelector } from '../shared/VehicleFields';
 import { VehicleIdentityFields } from '../shared/VehicleIdentityFields';
 import { INPUT } from '../shared/vehicleCatalogue';
 import { UnitConflictNotice } from './UnitConflictNotice';
@@ -263,18 +263,15 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
               </span>
               {/* 44px, the Apple/Google minimum touch target — swept here at the same time as the
                   scan card's row (2026-08-18). These were 32px, 4px apart, and this row is now the
-                  FIRST thing he touches on the form, tapped with nitrile gloves on. Same buttons,
-                  same hands, same standard. */}
-              <div className="flex gap-2">
-                {[1, 2, 3, 4].map(n => (
-                  <button key={n} type="button" onClick={() => setKeyCount(effectiveKeyCount === n ? null : n)}
-                    aria-pressed={effectiveKeyCount === n}
-                    aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
-                    className={`w-11 h-11 rounded-lg text-sm font-semibold border transition cursor-pointer ${effectiveKeyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
+                  FIRST thing he touches on the form, tapped with nitrile gloves on.
+                  ⚠️ SHARED WITH THE KEY-TAG AUDITOR since 2026-08-30 — this markup had been copied
+                  into `KeytagAuditFields` rather than reached for, which is how one control became
+                  two definitions of the same 44px row. Same buttons, same hands, same standard, and
+                  now literally the same component. */}
+              <KeyCountSelector
+                value={effectiveKeyCount === null ? '' : String(effectiveKeyCount)}
+                onValueChange={v => setKeyCount(v === '' ? null : Number(v))}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

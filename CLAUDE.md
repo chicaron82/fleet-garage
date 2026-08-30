@@ -154,6 +154,44 @@ written down here instead.
 ⭐ **Exceptions are dark-only containers.** The sidebar is `bg-green-900`, so a bare
 `hover:text-yellow-400` there is correct and needs no light partner.
 
+## Form controls — reach for the primitive, don't rebuild it
+
+Aaron, 2026-08-30, listing the times he had to ask for a behaviour FG already had:
+
+> *"when registering a vehicle, the unit number defaults to numberpad / when editing the model code
+> it defaults to uppercase / editing the license plate also displays uppercase, so the VIN should
+> have followed the same since its both letters and numbers"* — and then the question underneath:
+> *"for consistency should it be a rule that when building something new to check if a design for it
+> exists?"*
+
+**A weaker version of that rule was already written twice** — `feedback_check_before_building`
+(2026-07-21) says *"before building a new UI control/pattern, grep for the concept first"* — and it
+did not fire. The key-tag auditor, built five weeks later, hand-rolled its own `<input>` **and** a
+second copy of the register form's 44px key-count row. "Remember to check" is not a rule; it is a
+hope, and it fails at exactly the moment you feel confident.
+
+**The rule with teeth, because it is greppable:**
+
+> **A vehicle form control is not a raw `<input>`.** It comes from `src/components/shared/VehicleFields.tsx`.
+> If the primitive you need isn't there, **you add it there** — you do not hand-roll it in your component.
+
+| Need | Use | Not |
+|---|---|---|
+| Plate, VIN last-9, model code, rental class | `CodeInput` (alias `PlateInput`) | a raw input + `autoCapitalize` |
+| Unit number, owning area | `DigitsInput` (alias `UnitNumberInput`) | a raw input + `inputMode` |
+| Keys on the ring (1–4) | `KeyCountSelector` | four hand-written 44px buttons |
+
+⚠️ **`autoCapitalize="characters"` is not uppercasing.** It steers a *soft* keyboard and does
+nothing on a hardware one — and Aaron audits tags from couch command (PC into the TV). Only a
+`.toUpperCase()` on the way in actually holds. `CodeInput` does both.
+
+⚠️ **NOT for search fields.** A combined "unit # or plate" lookup must accept letters and serve
+search, not vehicle-identity entry. `VehicleFields`' own header says so; don't sweep those in.
+
+⭐ **Why aliases rather than two implementations:** `PlateInput === CodeInput` is asserted in
+`tests/components/VehicleFields.test.tsx`. The field-named export says *which field this is* at the
+call site; the shared object means the two can never drift into two behaviours.
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and

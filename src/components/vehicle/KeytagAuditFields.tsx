@@ -2,6 +2,7 @@ import { AUDIT_FIELDS, AUDIT_FIELD_LABELS, AUDIT_FIELD_HINTS, type AuditField, t
 import { describeOwningGuess, type OwningGuess } from '../../lib/owningFromUnit';
 import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
+import { CodeInput, DigitsInput, KeyCountSelector } from '../shared/VehicleFields';
 
 /**
  * The five tag fields and the three things he can do with them — rendered identically under the
@@ -62,21 +63,8 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
           <span className={`text-xs font-semibold ${dark ? 'text-gray-200' : 'text-gray-600 dark:text-gray-300'}`}>
             🔑 Keys on the ring
           </span>
-          <div className="flex gap-2 mt-1">
-            {[1, 2, 3, 4].map(n => (
-              <button key={n} type="button"
-                onClick={() => onKeyCountChange(keys === String(n) ? '' : String(n))}
-                aria-pressed={keys === String(n)}
-                aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
-                className={`w-11 h-11 rounded-lg text-sm font-semibold border transition cursor-pointer ${
-                  keys === String(n)
-                    ? 'bg-fg-yellow border-fg-yellow text-black'
-                    : dark
-                      ? 'border-white/25 text-gray-300'
-                      : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                {n}
-              </button>
-            ))}
+          <div className="mt-1">
+            <KeyCountSelector value={keys} onValueChange={onKeyCountChange} dark={dark} />
           </div>
           <span className={`mt-1 block text-[11px] ${dark ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
             counted off the ring, not printed on the tag — leave it blank if the keys aren't in shot
@@ -86,6 +74,15 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
       {AUDIT_FIELDS.map(f => {
         const blank = missing.includes(f);
         const warning = warnings.find(w => w.field === f);
+        // ⚠️ NUMERIC PAD ON THE TWO ALL-DIGIT FIELDS — the owning area and the unit number.
+        // ⭐ The unit number was EXCLUDED for a day on a false premise: one car appeared to carry
+        // "4374 7498", with a space, so a numeric pad seemed to lock him out of it. Aaron looked it
+        // up and it was a SCANNER MISREAD — the tag reads "574 7498", seven digits in two groups,
+        // and he had already corrected it. All 704 real units are seven digits; the only longer
+        // values are HRZ- mock rows. A bug had become a design constraint.
+        // ⚠️ Still a HINT, not a rule — a no-op on a hardware keyboard. Nothing here guarantees
+        // digits; that lives on the write.
+        const Field = f === 'owningArea' || f === 'unitNumber' ? DigitsInput : CodeInput;
         return (
           <label key={f} className={f === 'vinLast9' ? 'col-span-2' : ''}>
             {/* ⚠️ THERE WAS A `•` HERE AND IT LIED BY POSITION. It meant "blank on the record" — me
@@ -100,24 +97,20 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
             }`}>
               {AUDIT_FIELD_LABELS[f]}
             </span>
-            {/* ⚠️ NUMERIC PAD ON THE TWO ALL-DIGIT FIELDS — the owning area and the unit number.
-                ⭐ The unit number was EXCLUDED for a day on a false premise: one car appeared to
-                carry "4374 7498", with a space, so a numeric pad seemed to lock him out of it. Aaron
-                looked it up and it was a SCANNER MISREAD — the tag reads "574 7498", seven digits in
-                two groups, and he had already corrected it. All 704 real units are seven digits; the
-                only longer values are HRZ- mock rows. A bug had become a design constraint.
-                ⚠️ Still a HINT, not a rule — a no-op on a hardware keyboard, exactly like
-                autoCapitalize. Nothing here guarantees digits; that lives on the write. */}
-            <input
-              type="text"
+            {/* ⚠️ THE SHARED PRIMITIVE, not a raw <input>. `shared/VehicleFields` was built in June
+                (77d7faa, *"keyboard/caps can't re-drift"*) and this file — written ten weeks later —
+                hand-rolled its own anyway.
+                ⭐ NOTHING WAS BROKEN BY IT: `KeytagAuditCard`'s `set` already uppercases every
+                keystroke into state, so the box has always displayed upper. What changes is WHERE
+                the guarantee lives. Caps and keyboard were a property of this one caller; they are
+                now a property of the control, so the next surface that types a VIN inherits them
+                instead of re-deriving them. Aaron, on the pattern: *"editing the license plate also
+                displays uppercase, so the VIN should have followed the same."* */}
+            <Field
               value={edits[f] ?? ''}
-              onChange={e => onChange(f, e.target.value)}
+              onValueChange={v => onChange(f, v)}
               placeholder={blank ? 'read it off the tag' : ''}
               {...(f === 'vinLast9' ? { maxLength: 9 } : {})}
-              autoCapitalize="characters"
-              inputMode={f === 'owningArea' || f === 'unitNumber' ? 'numeric' : undefined}
-              autoCorrect="off"
-              spellCheck={false}
               className={`w-full rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
                 dark
                   ? `bg-white/10 text-white placeholder-white/30 ${blank ? 'border-amber-400/60' : 'border-white/20'}`
