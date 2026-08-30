@@ -112,7 +112,11 @@ function StepSection({ title, open, onToggle, children }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MyShiftView() {
+export function MyShiftView({ onOpenVehicle }: {
+  /** Threaded from App.tsx exactly as AnalyticsView's is — the cards that NAME a car should be able
+   *  to open it. Optional so the view still renders anywhere it isn't wired. */
+  onOpenVehicle?: (vehicleId: string) => void;
+}) {
   const { user, activeBranch } = useAuth();
   const { latestHandoff, getTodayCheckpoint, loadError, reload } = useWashbayContext();
   const { shifts } = useSchedule();
@@ -185,11 +189,11 @@ export function MyShiftView() {
       <BatchKeytagScan />
 
       {/* Read the tags FG couldn't — one car at a time, between cars, no API spend */}
-      <KeytagAuditSection />
+      <KeytagAuditSection onOpenVehicle={onOpenVehicle} />
 
       {/* Cars the fleet's own data says are hybrids that nobody flagged — found without him having
           handled the car. Self-hides when empty. */}
-      <HybridGapsSection />
+      <HybridGapsSection onOpenVehicle={onOpenVehicle} />
 
       {/* Effie's staged writes — review/approve when you have a minute (self-hides when empty) */}
       <PendingWritesSection />

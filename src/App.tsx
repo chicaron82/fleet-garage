@@ -256,7 +256,7 @@ export default function App() {
       case 'schedule':
         return <ScheduleScreen openImport={screen.openImport} />;
       case 'my-shift':
-        return <MyShiftView />;
+        return <MyShiftView onOpenVehicle={(vehicleId) => navigate({ name: 'vehicle', vehicleId })} />;
       case 'lost-and-found':
         return <LostAndFoundView prefillPlate={screen.prefillPlate} prefillNonce={screen.prefillNonce} />;
       case 'audits':

@@ -8,7 +8,10 @@ import { useKeytagAudit } from '../../hooks/useKeytagAudit';
 import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
 import { KeytagRereadRow } from './KeytagRereadRow';
 
-export function KeytagAuditSection() {
+export function KeytagAuditSection({ onOpenVehicle }: {
+  /** So the unit-conflict notice can OPEN the other car it names — see the notice below. */
+  onOpenVehicle?: (vehicleId: string) => void;
+}) {
   const { current, remaining, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
   // ⭐ HELD HERE, ABOVE THE PER-CAR `key`. The card remounts on every save so its edits and zoom
@@ -53,8 +56,21 @@ export function KeytagAuditSection() {
               tag can, and he is looking at it right now. */}
           {unitConflict && (
             <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 space-y-1">
+              {/* ⭐ THE PLATE OPENS THE OTHER CAR. This notice exists to send him to a second record
+                  — "one of those two records has the wrong unit, and only the tags can say which" —
+                  and until now it named that record and made him go find it by hand. Same defect
+                  Aaron caught on the hybrid card the same afternoon: *"this isn't tappable. so i
+                  have to look this up to make the correction."* A card that names a car and can't
+                  open it is a to-do list that can't open its own items. */}
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                Unit # not applied — {unitConflict.licensePlate} already carries it.
+                Unit # not applied —{' '}
+                {onOpenVehicle ? (
+                  <button type="button" onClick={() => onOpenVehicle(unitConflict.id)}
+                    className="underline underline-offset-2 font-bold cursor-pointer">
+                    {unitConflict.licensePlate}
+                  </button>
+                ) : unitConflict.licensePlate}
+                {' '}already carries it.
               </p>
               <p className="text-[11px] text-amber-700 dark:text-amber-400">
                 Everything else you read was saved. One of those two records has the wrong unit, and only the tags can say which.

@@ -13,7 +13,11 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hybridFlagGaps, describeHybridGap } from '../../lib/hybridGaps';
 import { VehicleName } from '../shared/VehicleName';
 
-export function HybridGapsSection() {
+export function HybridGapsSection({ onOpenVehicle }: {
+  /** Optional, exactly like ChronicIssuesSection's — the row is a button when a caller can
+   *  navigate and plain text when it can't, so the card never depends on being wired up. */
+  onOpenVehicle?: (vehicleId: string) => void;
+}) {
   const { allVehicles } = useVehicleHoldContext();
   const gaps = useMemo(() => hybridFlagGaps(allVehicles), [allVehicles]);
   if (gaps.length === 0) return null;
@@ -26,19 +30,38 @@ export function HybridGapsSection() {
       <p className="text-[11px] text-amber-700 dark:text-amber-400">
         Found from the fleet's own data, not from a scan — so these are cars you may never have handled.
       </p>
-      {/* ⚠️ NOT TAPPABLE, and that is a scope decision rather than an oversight. MyShiftView takes
-          no props and holds no navigation, so linking to a car would mean threading a navigate
-          callback through a view that has none — more plumbing than the feature. The plate is the
-          useful part; he opens a car the way he opens any car. Revisit if this list ever stops
-          being short. */}
+      {/* ⭐ TAPPABLE NOW — the "revisit if this list stops being short" clause, cashed in. The old
+          note called the plumbing "more than the feature", and it was wrong about the cost on the
+          wrong side of the ledger: what it actually cost was AARON, once per car, every time.
+          Aaron, 2026-08-30, on LZM541: *"this isn't tappable. so i have to look this up to make the
+          correction."* The card names a car and then makes him go find it by hand — a to-do list
+          that can't open its own items.
+
+          ⚠️ Still NO flag button. That part of the original note stands and is unrelated: flipping
+          a powertrain from two fields would be FG deciding, and "usually right" is not a licence to
+          write. He taps THROUGH to the car and decides there.
+
+          The optional-callback shape is ChronicIssuesSection's, not a new one. */}
       <ul className="space-y-1.5">
-        {gaps.map(g => (
-          <li key={g.vehicle.id}>
-            <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{g.vehicle.licensePlate}</span>{' '}
-            <VehicleName vehicle={g.vehicle} className="text-xs text-gray-600 dark:text-gray-400" />
-            <span className="block text-[11px] text-amber-700 dark:text-amber-400">{describeHybridGap(g)}</span>
-          </li>
-        ))}
+        {gaps.map(g => {
+          const inner = (
+            <>
+              <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{g.vehicle.licensePlate}</span>{' '}
+              <VehicleName vehicle={g.vehicle} className="text-xs text-gray-600 dark:text-gray-400" />
+              <span className="block text-[11px] text-amber-700 dark:text-amber-400">{describeHybridGap(g)}</span>
+            </>
+          );
+          return (
+            <li key={g.vehicle.id}>
+              {onOpenVehicle ? (
+                <button type="button" onClick={() => onOpenVehicle(g.vehicle.id)}
+                  className="w-full text-left px-2 py-1 -mx-2 rounded-lg hover:bg-amber-100/70 dark:hover:bg-amber-900/30 transition cursor-pointer">
+                  {inner}
+                </button>
+              ) : inner}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
