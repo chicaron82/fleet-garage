@@ -17,6 +17,7 @@ import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { ScanNotices } from './ScanNotices';
 import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
+import { consolidateDamage, cycleLabel } from '../../lib/consolidateDamage';
 import { useAuth } from '../../context/AuthContext';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import { ScanManualPlate } from './ScanManualPlate';
@@ -150,7 +151,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const result = scanRead ? resolveKeytagScan(scanRead, vehicles) : null;
 
   const vehicle = result?.vehicle ?? null;
-  const holdLines = vehicle ? scanHoldLines(holds, vehicle.id) : [];
+  // ⭐ ONE LINE PER DEFECT, not per hold. Aaron, standing at a repeatedly-held car: *"i had one on
+  // my last shift that gave me a wall of like 4 of the same damage."* The repeats are deliberate —
+  // each hold/release pair records a real cycle, because one long hold would claim the car was off
+  // the road the whole time — so the merge keeps the CYCLE COUNT and the FIRST date rather than
+  // hiding them. See consolidateDamage.
+  const holdLines = vehicle ? consolidateDamage(scanHoldLines(holds, vehicle.id)) : [];
   // NOT "active" — holdLines is ACTIVE **or RELEASED** since 2026-08-17. The old name is what let
   // a released hold speak as though it were holding the car. Count only; never the label.
   const liveHolds = holdLines.length;
@@ -274,7 +280,12 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                           }`}>
                             <p className="font-semibold">
                               {l.onException ? '⚠️ Out on exception' : '🔧'} {l.typeLabel}
-                              <span className="font-normal opacity-70"> · flagged {flaggedOnLabel(l.flaggedAt)}</span>
+                              {/* One cycle reads as before. Several say so, with the date it was
+                                  FIRST put on record — which is what "pre-existing" actually means,
+                                  and the history his re-flagging deliberately created. */}
+                              <span className="font-normal opacity-70">
+                                {' · '}{cycleLabel(l, flaggedOnLabel) || `flagged ${flaggedOnLabel(l.lastFlaggedAt)}`}
+                              </span>
                             </p>
                             {l.detail && <p className="mt-0.5">{l.detail}</p>}
                           </div>

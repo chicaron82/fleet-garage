@@ -22,6 +22,9 @@ export interface ScanHoldLine {
   flaggedAt: string;
   /** Released as an EXCEPTION and not yet returned — i.e. the car is out WITH this damage. */
   onException: boolean;
+  /** Panels this damage sits on. Empty on older holds and on types with no place on the car
+   *  (a "Geotab not installed" has no panel). `consolidateDamage` keys on these. */
+  zones: readonly string[];
 }
 
 /**
@@ -56,6 +59,7 @@ export function scanHoldLines(holds: readonly Hold[], vehicleId: string): ScanHo
       // case he most needs named at the tag — it's the [[old-damage amnesia]] the whole app exists
       // to prevent: damage approved once, then circulating unrepaired and un-re-flagged.
       onException: h.release?.releaseType === 'EXCEPTION' && !h.release?.actualReturn,
+      zones: h.damageZones ?? [],
     }))
     .sort((a, b) => (a.flaggedAt < b.flaggedAt ? 1 : -1));
 }
