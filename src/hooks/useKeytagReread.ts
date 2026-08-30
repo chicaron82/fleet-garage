@@ -26,6 +26,9 @@ export interface RereadState {
   /** Cars where the fresh read DISAGREES with a value already on the record. Never applied; worth
    *  his eyes, and they stay in the audit queue where his eyes already go. */
   disagreed: number;
+  /** ⚠️ Cars whose stored photo is a tag for a DIFFERENT car. Nothing written — the finding is the
+   *  product, and it is the one worth stopping for. */
+  wrongPhoto: { plate: string; readPlate: string }[];
   /** Photos that could not be fetched or read at all. */
   failed: number;
   /** How many cars a run would cover right now — shown BEFORE he taps, because each one is a
@@ -43,6 +46,7 @@ export function useKeytagReread(): RereadState {
   const [fieldsFilled, setFieldsFilled] = useState(0);
   const [disagreed, setDisagreed] = useState(0);
   const [failed, setFailed] = useState(0);
+  const [wrongPhoto, setWrongPhoto] = useState<{ plate: string; readPlate: string }[]>([]);
 
   // ⚠️ THE SAME PREDICATE THE AUDIT QUEUE USES, not a second definition of "worth re-reading". A
   // car with no photo has nothing to re-read; a car he has already audited holds MANUAL values that
@@ -52,7 +56,7 @@ export function useKeytagReread(): RereadState {
   const run = useCallback(async () => {
     if (running) return;
     setRunning(true);
-    setFilled(0); setFieldsFilled(0); setDisagreed(0); setFailed(0);
+    setFilled(0); setFieldsFilled(0); setDisagreed(0); setFailed(0); setWrongPhoto([]);
     // Snapshot the list: `allVehicles` is rewritten by every successful fill, and iterating a list
     // that reshuffles under the loop is how a run silently skips cars.
     const queue: Vehicle[] = allVehicles.filter(v => !v.archivedAt && isAuditable(v));
@@ -67,6 +71,9 @@ export function useKeytagReread(): RereadState {
           setFailed(n => n + 1);
         } else {
           const plan = planKeytagReread(read, v);
+          // ⚠️ Reported and skipped, never written. A tag that belongs to another car is not
+          // evidence about this one — see planKeytagReread's wrongPhotoCheck (LUR243).
+          if (plan.wrongPhoto) setWrongPhoto(l => [...l, { plate: v.licensePlate, readPlate: plan.wrongPhoto!.readPlate }]);
           if (plan.disagreements.length > 0) setDisagreed(n => n + 1);
           if (plan.fills.length > 0) {
             await updateVehicleFields(v.id, plan.fills);
@@ -85,7 +92,7 @@ export function useKeytagReread(): RereadState {
   }, [running, allVehicles, readKeytag, updateVehicleFields]);
 
   return {
-    running, progress, filled, fieldsFilled, disagreed, failed,
+    running, progress, filled, fieldsFilled, disagreed, failed, wrongPhoto,
     candidates: targets.length,
     run,
   };

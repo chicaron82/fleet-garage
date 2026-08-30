@@ -10,7 +10,7 @@
 import { useKeytagReread } from '../../hooks/useKeytagReread';
 
 export function KeytagRereadRow() {
-  const { running, progress, filled, fieldsFilled, disagreed, failed, candidates, run } = useKeytagReread();
+  const { running, progress, filled, fieldsFilled, disagreed, failed, wrongPhoto, candidates, run } = useKeytagReread();
   const ran = progress !== null && !running;
 
   if (candidates === 0 && !ran) return null;
@@ -34,6 +34,21 @@ export function KeytagRereadRow() {
         VIN. It never overwrites a value that is already there, and never touches the key count:
         that one is counted off the ring, so it stays yours.
       </p>
+      {/* ⚠️⚠️ THE ONE WORTH STOPPING FOR, so it gets its own block rather than a clause in the
+          summary line. A tag stored on the wrong record is a record whose IDENTITY is unverified —
+          it says nothing about that car, and the car it DOES describe may be missing its tag. */}
+      {wrongPhoto.length > 0 && (
+        <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 space-y-0.5">
+          <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+            {wrongPhoto.length} car{wrongPhoto.length === 1 ? ' has' : 's have'} the wrong key tag on file — nothing was written to {wrongPhoto.length === 1 ? 'it' : 'them'}.
+          </p>
+          {wrongPhoto.map(w => (
+            <p key={w.plate} className="text-[11px] text-amber-700 dark:text-amber-400 tabular-nums">
+              {w.plate} — the stored tag reads {w.readPlate}
+            </p>
+          ))}
+        </div>
+      )}
       {ran && (
         <p role="status" className="text-[11px] text-gray-600 dark:text-gray-300 tabular-nums">
           Filled <strong>{fieldsFilled}</strong> field{fieldsFilled === 1 ? '' : 's'} across <strong>{filled}</strong> car{filled === 1 ? '' : 's'}.
