@@ -13,15 +13,43 @@ export type { KeytagAuditResult };
 /** The fields actually PRINTED on a Hertz key tag, and therefore the only ones a person can
  *  confirm from a photo of one.
  *
- *  ⚠️ Deliberately excludes two fields the ticket's gap table listed:
- *   • `keyCount` — counted at the car, off the ring. A tag photo may happen to show keys and may
- *     just as easily not; asking him to confirm it from this photo asks him to certify something
- *     the evidence does not carry. Five cars are missing it, and they are missing it correctly.
+ *  ⚠️⚠️ `keyCount` WAS EXCLUDED HERE AND THAT WAS TOO STRONG — reversed 2026-08-30. The old note
+ *  read: *"a tag photo may happen to show keys and may just as easily not; asking him to confirm it
+ *  from this photo asks him to certify something the evidence does not carry. Five cars are missing
+ *  it, and they are missing it correctly."*
+ *
+ *  Aaron, auditing a fresh batch: *"some keytags have keys with them, is it possible to add the
+ *  keycount to the ones that have a tag and are missing a keycount as part of the audit?"*
+ *
+ *  ⭐ He is right, and the flaw was mine: this card's own footer already says **"Nothing here is
+ *  required — leave anything you can't read blank."** The whole surface is built on *fill what you
+ *  can see*. I held one field to a stricter standard than the card itself does — treating "sometimes
+ *  unanswerable" as "never askable" on a form where every field is already optional.
+ *
+ *  📊 And the number moved: five cars when that note was written, **55** after the 2026-08-30 batch
+ *  fix landed 57 photos. So it is now the single largest gap the audit could close.
+ *
+ *  ⚠️ It stays CONDITIONAL — offered only when the car has no key count at all (see
+ *  `auditKeyCountOffered`), never as a sixth field on all 642 cards. And it is never pre-filled from
+ *  a model read: keys are counted by eye, off a ring, in a photo that may not show them.
+ *
+ *  ⚠️ Still excluded, and this one stands:
  *   • `licensePlate` — it is the MATCH KEY that found this record, and changing it is a re-plate,
  *     which `plateWrite` already owns with its own overwrite semantics and its own warning.
  *  See `KeytagRead` in api/_lib/keytagRead.ts: make and model are DERIVED from the class code, not
  *  printed, so they are not auditable off a tag either. */
 export type AuditField = 'owningArea' | 'rentalClass' | 'classCode' | 'unitNumber' | 'vinLast9';
+
+/**
+ * Should this car's audit card offer a key count?
+ *
+ * ⚠️ ONLY WHEN IT HAS NONE. A car that already has a count is not asked again — the number came off
+ * a ring in someone's hand, and re-asking from a photo invites a worse answer to overwrite a better
+ * one. 55 of 642 tagged cars qualify today, so this keeps a sixth field off ~92% of cards.
+ */
+export function auditKeyCountOffered(v: { keyCount?: number | null }): boolean {
+  return v.keyCount === null || v.keyCount === undefined;
+}
 
 /** Queue order within a car — the reading order on the tag itself (top line down), so his eye
  *  moves the same way every time and the form stops being a form. */

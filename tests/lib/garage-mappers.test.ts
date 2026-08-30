@@ -264,7 +264,7 @@ const fullVehicleRow = {
   key_count: 2, class_code: 'CSLE', odometer: 41230, odometer_at: '2026-08-20T10:00:00Z',
   vin_last9: '0XX111111', is_us: false, winter_tires: true, winter_tires_at: '2026-01-05',
   keytag_audited_at: '2026-08-29T15:00:00Z', keytag_audited_by: 'u-aaron',
-  keytag_audit_result: 'verified', keytag_photo_url: 'https://cdn/kt.jpg',
+  keytag_audit_result: 'verified', keytag_photo_url: 'https://cdn/kt.jpg', keytag_photo_rotation: 90,
   note: 'Purge valve deferred', note_at: '2026-08-01T12:00:00Z', owning_area: '8199',
   is_tesla: false, is_hybrid: true, has_mobile_cable: null, has_j1772_adapter: null,
   ev_last_updated_by: null, ev_last_updated_at: null, cover_photo_url: 'https://cdn/c.jpg',
@@ -282,7 +282,7 @@ const VEHICLE_KEYS = [
   'editSuggestedPlate', 'editSuggestedUnit', 'editSuggestionNote', 'evLastUpdatedAt',
   'evLastUpdatedBy', 'fieldSources', 'hasJ1772Adapter', 'hasMobileCable', 'id', 'isHybrid',
   'isTesla', 'isUs', 'keyCount', 'keytagAuditResult', 'keytagAuditedAt', 'keytagAuditedBy',
-  'keytagPhotoUrl', 'licensePlate', 'make', 'model', 'note', 'noteAt', 'odometer',
+  'keytagPhotoRotation', 'keytagPhotoUrl', 'licensePlate', 'make', 'model', 'note', 'noteAt', 'odometer',
   'odometerAt', 'owningArea', 'rentalClass', 'status', 'unitNumber', 'vinLast9',
   'winterTires', 'winterTiresAt', 'year',
 ];
@@ -300,7 +300,7 @@ describe('mapVehicle — the full field contract', () => {
       keyCount: 2, classCode: 'CSLE', odometer: 41230, odometerAt: '2026-08-20T10:00:00Z',
       vinLast9: '0XX111111', isUs: false, winterTires: true, winterTiresAt: '2026-01-05',
       keytagAuditedAt: '2026-08-29T15:00:00Z', keytagAuditedBy: 'u-aaron',
-      keytagAuditResult: 'verified', keytagPhotoUrl: 'https://cdn/kt.jpg',
+      keytagAuditResult: 'verified', keytagPhotoUrl: 'https://cdn/kt.jpg', keytagPhotoRotation: 90,
       note: 'Purge valve deferred', noteAt: '2026-08-01T12:00:00Z', owningArea: '8199',
       isTesla: false, isHybrid: true, hasMobileCable: null, hasJ1772Adapter: null,
       evLastUpdatedBy: null, evLastUpdatedAt: null, coverPhotoUrl: 'https://cdn/c.jpg',
@@ -324,6 +324,7 @@ describe('mapVehicle — the full field contract', () => {
       'editStatus'] as const) {
       expect(v[k], `${k} must be null when absent, not undefined`).toBeNull();
     }
+    expect(v.keytagPhotoRotation).toBe(0);   // absent → as captured, never undefined
     for (const k of ['coverPhotoUrl', 'archivedAt', 'archivedById', 'editSuggestedPlate',
       'editSuggestedBy', 'editSuggestedAt', 'editSuggestionNote', 'editReviewedBy',
       'editReviewedAt'] as const) {

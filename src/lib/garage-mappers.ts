@@ -63,6 +63,7 @@ export function mapVehicle(row: Row): Vehicle {
     keytagAuditedBy:   nullableStr(row, 'keytag_audited_by'),
     keytagAuditResult: (row['keytag_audit_result'] as KeytagAuditResult | null) ?? null,
     keytagPhotoUrl: nullableStr(row, 'keytag_photo_url'),
+    keytagPhotoRotation: (row['keytag_photo_rotation'] as number | null) ?? 0,
     note:           nullableStr(row, 'note'),
     noteAt:         nullableStr(row, 'note_at'),
     owningArea:     nullableStr(row, 'owning_area'),

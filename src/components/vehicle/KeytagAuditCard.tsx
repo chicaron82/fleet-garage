@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { hapticLight } from '../../lib/haptics';
 import { VehicleName } from '../shared/VehicleName';
 import { KeytagAuditFields, KeytagAuditActions } from './KeytagAuditFields';
-import { auditWarnings, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
+import { auditWarnings, auditKeyCountOffered, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
+import { asRotation, nextRotation, rotationStyle } from '../../lib/keytagPhotoRotation';
 import type { OwningGuess } from '../../lib/owningFromUnit';
 import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
@@ -76,7 +78,13 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   // wrong-box guard's own vocabulary) would silently miss the car. Uppercasing here also means the
   // guard compares what he SEES rather than a value it quietly re-cased behind him.
   const set = (f: AuditField, v: string) => setEdits(prev => ({ ...prev, [f]: v.toUpperCase() }));
-  const save = () => onSave(edits);
+  // ⭐ A quarter-turn for a sideways tag. Local until he saves, so a stray tap costs nothing — and
+  // the stored FILE is never re-encoded; this is display metadata only (migration 133).
+  const [rotation, setRotation] = useState(() => asRotation(vehicle.keytagPhotoRotation));
+  const rotate = () => { hapticLight(); setRotation(r => nextRotation(r)); };
+  const setKeyCount = (v: string) => setEdits(prev => ({ ...prev, keyCount: v }));
+
+  const save = () => onSave({ ...edits, photoRotation: rotation });
   // Recomputed every keystroke — it is a pure read of what is in the boxes right now, and he should
   // see the mix-up while the tag is still in front of him, not after Save.
   const warnings = auditWarnings(edits, knownRentalClasses, knownModelCodes);
@@ -121,14 +129,51 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       </div>
 
       {vehicle.keytagPhotoUrl && (
-        <button type="button" onClick={() => onZoomChange(true)} className="block w-full cursor-zoom-in">
-          <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}`}
-            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 object-contain max-h-72 bg-gray-50 dark:bg-gray-950" />
-          <span className="mt-1 block text-[11px] text-gray-400">Tap the tag to read and type without leaving it</span>
-        </button>
+        <div className="relative">
+          <button type="button" onClick={() => onZoomChange(true)} className="block w-full cursor-zoom-in">
+            <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}`}
+              style={rotationStyle(rotation)}
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 object-contain max-h-72 bg-gray-50 dark:bg-gray-950" />
+            <span className="mt-1 block text-[11px] text-gray-400">Tap the tag to read and type without leaving it</span>
+          </button>
+          {/* ⭐ Aaron, 2026-08-30: *"some are shown on its side is there a way to rotate them here in
+              the audit, and the saved photo as well?"* Four taps return it exactly as captured — the
+              file is never touched, so a wrong turn costs a tap rather than image quality. */}
+          <button type="button" onClick={rotate} aria-label="Rotate the tag"
+            className="absolute top-1.5 right-1.5 rounded-lg bg-gray-900/70 hover:bg-gray-900/90 text-white w-8 h-8 text-sm transition cursor-pointer">
+            ↻
+          </button>
+        </div>
       )}
 
       <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" onChange={set} />
+
+      {/* ⭐ KEY COUNT — offered ONLY on a car that has none. Aaron, 2026-08-30: *"some keytags have
+          keys with them, is it possible to add the keycount to the ones that have a tag and are
+          missing a keycount as part of the audit?"*
+
+          ⚠️ I had excluded this deliberately, and the exclusion was too strong: I argued a photo
+          "may just as easily not" show the keys, on a card whose own footer already says leave what
+          you can't read blank. Every field here is optional; I held this one to a stricter standard
+          than the surface itself. 55 of 642 tagged cars qualify today.
+
+          ⚠️ A car that ALREADY has a count is never asked again — that number came off a ring in
+          someone's hand, and re-asking from a photo invites a worse answer over a better one. */}
+      {auditKeyCountOffered(vehicle) && (
+        <label className="block">
+          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Keys on the ring</span>
+          <input
+            type="number" inputMode="numeric" min={0} max={9}
+            placeholder="only if the photo shows them"
+            value={edits.keyCount ?? ''}
+            onChange={e => setKeyCount(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-base text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-fg-yellow transition"
+          />
+          <span className="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">
+            counted off the ring, not printed on the tag — leave it blank if the keys aren't in shot
+          </span>
+        </label>
+      )}
       <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500">

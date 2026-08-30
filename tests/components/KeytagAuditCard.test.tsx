@@ -433,3 +433,56 @@ describe('KeytagAuditCard — the numeric keypad', () => {
     }
   });
 });
+
+
+// ⭐⭐ TWO ASKS FROM THE AUDIT CARD, 2026-08-30 — and the first is a reversal of my own exclusion.
+describe('KeytagAuditCard — key count and rotation', () => {
+  const withVehicle = (over: Partial<Vehicle>) =>
+    render(<Harness candidateOverride={{ vehicle: { ...vehicle, ...over } as Vehicle, missing: [] }} />);
+  const saveIt = () => fireEvent.click(screen.getAllByRole('button', { name: /Save & next/i })[0]);
+
+  // ⚠️ I EXCLUDED KEY COUNT ON PURPOSE and wrote down why: a tag photo "may just as easily not" show
+  // the keys. Too strong — this card's own footer already says leave what you can't read blank, so
+  // every field is optional and I held one to a stricter standard than the surface itself. Aaron:
+  // *"some keytags have keys with them, is it possible to add the keycount to the ones that … are
+  // missing a keycount as part of the audit?"* It was 5 cars when I excluded it. It is 55 now.
+  it('⭐ offers a key count on a car that has none', () => {
+    withVehicle({ keyCount: null });
+    expect(screen.getByLabelText(/Keys on the ring/i)).toBeInTheDocument();
+  });
+
+  // ⚠️ A car that already has one is NEVER asked again — that number came off a ring in someone's
+  // hand, and re-asking from a photo invites a worse answer to overwrite a better one.
+  it('⚠️ never asks a car that already has a key count', () => {
+    withVehicle({ keyCount: 2 });
+    expect(screen.queryByLabelText(/Keys on the ring/i)).not.toBeInTheDocument();
+  });
+
+  it('sends the typed count through on save', () => {
+    withVehicle({ keyCount: null });
+    fireEvent.change(screen.getByLabelText(/Keys on the ring/i), { target: { value: '3' } });
+    saveIt();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ keyCount: '3' }));
+  });
+
+  // ⭐ Rotation — four taps return the photo exactly as captured, because the FILE is never
+  // re-encoded. A control with no way back would make a mistake permanent.
+  it('⭐ rotates, and four taps are a no-op', () => {
+    withVehicle({ keytagPhotoRotation: 0 });
+    const rotate = screen.getByRole('button', { name: /Rotate the tag/i });
+    fireEvent.click(rotate);
+    saveIt();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 90 }));
+
+    onSave.mockClear();
+    for (let i = 0; i < 3; i++) fireEvent.click(rotate);
+    saveIt();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 0 }));
+  });
+
+  it('seeds the rotation from the record', () => {
+    withVehicle({ keytagPhotoRotation: 180 });
+    saveIt();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 180 }));
+  });
+});

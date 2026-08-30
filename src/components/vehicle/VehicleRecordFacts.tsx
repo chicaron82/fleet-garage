@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
+import { rotationStyle } from '../../lib/keytagPhotoRotation';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
@@ -44,11 +45,13 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
   keytagPhotoUrl?: string | null;
+  /** Quarter-turns to apply when rendering it (migration 133). The file is never re-encoded. */
+  keytagPhotoRotation?: number | null;
   /** The human audit stamp (migration 130), grouped as ONE prop rather than three — this strip is
    *  already at thirteen and the trio only ever means something together. */
   keytagAudit?: { at?: string | null; by?: string | null; result?: KeytagAuditResult | null };
@@ -117,7 +120,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
         className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${tagChip.border}`}
       >
         {keytagPhotoUrl && (
-          <img src={keytagPhotoUrl} alt="Key tag" className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
+          <img src={keytagPhotoUrl} alt="Key tag" style={rotationStyle(keytagPhotoRotation)} className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
         )}
         <span className={`text-xs ${tagChip.text}`}>{tagChip.label}</span>
       </button>
@@ -368,7 +371,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4" onClick={() => setZoom(false)}>
           <div className="absolute inset-0 bg-black/80" />
           {keytagPhotoUrl ? (
-            <img src={keytagPhotoUrl} alt="Key tag" className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
+            <img src={keytagPhotoUrl} alt="Key tag" style={rotationStyle(keytagPhotoRotation)} className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
           ) : (
             <p className="relative text-white/70 text-sm">No key tag photo on file for this car.</p>
           )}

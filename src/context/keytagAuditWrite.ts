@@ -6,7 +6,21 @@ import { findUnitConflict } from '../lib/identityConflict';
 
 /** What the auditor read off the photo, field by field. A blank means he could not read that one
  *  either — it is left alone rather than stamped, because "I couldn't see it" is not a fact. */
-export type KeytagAuditEdits = Partial<Record<AuditField, string>>;
+export type KeytagAuditEdits = Partial<Record<AuditField, string>> & {
+  /**
+   * ⭐ KEY COUNT, offered only on cars that have none — Aaron, 2026-08-30: *"some keytags have keys
+   * with them, is it possible to add the keycount to the ones that have a tag and are missing a
+   * keycount as part of the audit?"*
+   *
+   * ⚠️ It is NOT an `AuditField`, deliberately. The other five are printed ON the tag and are
+   * confirmed by reading; this one is COUNTED off a ring that a photo may or may not include. It
+   * never gets `manual` provenance from here and it is never pre-filled — a blank means he could
+   * not see the keys, which is the honest and common case.
+   */
+  keyCount?: string;
+  /** A quarter-turn for a sideways tag (migration 133). Display metadata; the file is untouched. */
+  photoRotation?: number;
+};
 
 /** What the save has to say for itself. `unitConflict` means the unit number was NOT applied
  *  because another live record already carries it — everything else he read still was. */
@@ -20,6 +34,8 @@ interface KeytagAuditUpdate {
   class_code?: string;
   unit_number?: string;
   vin_last9?: string;
+  key_count?: number;
+  keytag_photo_rotation?: number;
   field_sources?: Record<string, FieldSource>;
   keytag_audited_at: string;
   keytag_audited_by: string | null;
@@ -109,6 +125,27 @@ export function makeSaveKeytagAudit(deps: {
       // the 'manual' stamp — that stamp is the whole point of a confirmation.
       if (value !== (current[field] ?? '')) applyField(payload, patch, field, value);
       stamps[field] = 'manual';
+    }
+
+    // ⭐ KEY COUNT — a number, not a tag field, and never provenance-stamped. It is counted off a
+    // ring the photo may or may not show, so a blank is the honest and common answer. Only written
+    // when he typed one AND the car had none: re-asking a car that already has a count invites a
+    // worse answer (guessed from a photo) to overwrite a better one (counted in the hand).
+    const typedKeys = (edits.keyCount ?? '').trim();
+    if (typedKeys && current.keyCount === null) {
+      const n = Number(typedKeys);
+      if (Number.isFinite(n) && n >= 0 && n <= 9) {
+        payload.key_count = n;
+        patch.keyCount = n;
+      }
+    }
+
+    // ⭐ ROTATION — display metadata for a sideways tag (migration 133). Written whenever it differs,
+    // including back to 0, so four taps genuinely restore the photo as captured. The stored file is
+    // never re-encoded.
+    if (edits.photoRotation !== undefined && edits.photoRotation !== (current.keytagPhotoRotation ?? 0)) {
+      payload.keytag_photo_rotation = edits.photoRotation;
+      patch.keytagPhotoRotation = edits.photoRotation;
     }
 
     // Merge onto the existing provenance so a manual stamp accumulates rather than replacing what

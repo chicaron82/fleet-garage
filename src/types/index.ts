@@ -205,6 +205,9 @@ export interface Vehicle {
   /** The key tag photo the vision read was made FROM — evidence for auditing/correcting a
    *  misread, and the provenance for teaching the codex a new class code. Latest tag wins. */
   keytagPhotoUrl?: string | null;
+  /** Quarter-turns clockwise to apply when RENDERING the key tag (migration 133). The stored file
+   *  is never re-encoded — a wrong turn costs a tap, not image quality. See lib/keytagPhotoRotation. */
+  keytagPhotoRotation?: number | null;
   /** A free-text note about the car's CURRENT situation — the tier below a hold, for the facts
    *  that don't earn one ("sent to Speedy for windshield replacement"). One current note, not a
    *  log: clearing it is captured by the change trail (migrations/118), so the car keeps the
