@@ -6,7 +6,7 @@ import '@testing-library/jest-dom/vitest';
 // overwrote eleven fields; the log had every previous value and putting them back was hand work.
 
 const revertVehicleChange = vi.fn().mockResolvedValue(undefined);
-let ROWS: { changedAt: string; op: 'UPDATE' | 'DELETE'; changed: Record<string, unknown> }[] = [];
+let ROWS: { changedAt: string; op: 'UPDATE' | 'DELETE'; changed: Record<string, unknown>; actor?: string | null }[] = [];
 
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({ revertVehicleChange }),
@@ -17,6 +17,9 @@ vi.mock('../../src/hooks/useVehicleChanges', () => ({
   useVehicleChanges: (_id: string, refreshKey = 0) => { lastRefreshKey = refreshKey; return ROWS; },
 }));
 vi.mock('../../src/lib/haptics', () => ({ hapticLight: vi.fn() }));
+vi.mock('../../src/context/ProfilesContext', () => ({
+  useProfiles: () => new Map([['u-aaron', { id: 'u-aaron', name: 'Aaron S.' }]]),
+}));
 
 import { VehicleChangeLog } from '../../src/components/vehicle/VehicleChangeLog';
 
@@ -110,5 +113,33 @@ describe('VehicleChangeLog — the trail after an undo', () => {
     fireEvent.click(screen.getByRole('button', { name: /Undo these 2 changes\?/ }));
     await waitFor(() => expect(screen.getByText(/color has changed since/)).toBeInTheDocument());
     expect(lastRefreshKey).toBe(before);
+  });
+});
+
+// ⭐ WHO — migration 132, and the discipline that came with it.
+describe('VehicleChangeLog — naming the actor', () => {
+  it('⭐ says who made the change when the row knows', () => {
+    ROWS = [{ ...SCAN, actor: 'dizee' }];
+    render(<VehicleChangeLog vehicleId="v1" />);
+    openLog();
+    expect(screen.getByText(/· by DiZee/)).toBeInTheDocument();
+  });
+
+  it('resolves an app user id through the profiles map', () => {
+    ROWS = [{ ...SCAN, actor: 'u-aaron' }];
+    render(<VehicleChangeLog vehicleId="v1" />);
+    openLog();
+    expect(screen.getByText(/· by Aaron S\./)).toBeInTheDocument();
+  });
+
+  // ⚠️ THE RULE THAT OUTLIVED ITS OWN LIMITATION. Every row before 132 has a null actor, and a
+  // trail that quietly implies a person is worse than one that admits it does not know. So a
+  // historic row must render exactly as it always did — no "unknown", no "system", no raw id.
+  it('⚠️ says nothing at all for a historic row with no actor', () => {
+    ROWS = [{ ...SCAN, actor: null }];
+    const { container } = render(<VehicleChangeLog vehicleId="v1" />);
+    openLog();
+    expect(container.textContent).not.toMatch(/· by/);
+    expect(container.textContent).not.toMatch(/unknown|system/i);
   });
 });

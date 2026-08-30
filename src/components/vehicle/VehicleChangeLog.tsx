@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useVehicleChanges } from '../../hooks/useVehicleChanges';
-import { changeLines, describeChangeTime, changeCountLabel } from '../../lib/vehicleChanges';
+import { changeLines, describeChangeTime, changeCountLabel, describeActor } from '../../lib/vehicleChanges';
+import { useProfiles } from '../../context/ProfilesContext';
 import { hapticLight } from '../../lib/haptics';
 
 // What this record has been edited to, and when (migrations/118).
@@ -16,6 +17,7 @@ import { hapticLight } from '../../lib/haptics';
 export function VehicleChangeLog({ vehicleId }: { vehicleId: string }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const rows = useVehicleChanges(vehicleId, refreshKey);
+  const profiles = useProfiles();
   const { revertVehicleChange } = useVehicleHoldContext();
   const [open, setOpen] = useState(false);
   // Armed by key, so one confirm can be showing at a time and a stray tap never writes.
@@ -60,6 +62,14 @@ export function VehicleChangeLog({ vehicleId }: { vehicleId: string }) {
               <li key={key} className="text-xs">
                 <div className="text-gray-400 dark:text-gray-500">
                   {describeChangeTime(row.changedAt)}
+                  {/* ⭐ WHO, at last — migration 132. ⚠️ And silent when there is nobody to name:
+                      every row before 132, and any script that did not name itself, renders exactly
+                      as it always did. A trail that quietly implies a person is worse than one that
+                      admits it does not know, and that rule outlived the limitation that created it. */}
+                  {(() => {
+                    const who = describeActor(row.actor, id => profiles.get(id)?.name);
+                    return who ? <span className="ml-1">· by {who}</span> : null;
+                  })()}
                   {row.op === 'DELETE' && <span className="ml-1 text-red-500 font-semibold">· record deleted</span>}
                 </div>
                 {lines.map(l => (

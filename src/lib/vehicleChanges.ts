@@ -5,14 +5,37 @@
 // touched that one row." The DB now records what changed; this file turns that into something a
 // person reads at a glance.
 //
-// ⚠️ THE LOG NEVER NAMES WHO. FG writes with the anon key under allow-all RLS, so no trigger can
-// honestly attribute a change. Nothing here should invent an actor, imply one, or phrase a line as
-// though somebody did it — the trail answers WHAT and WHEN, and stays silent on WHO on purpose.
+// ⚠️ IT USED TO NEVER NAME WHO, and the reason was real: FG writes with the anon key under allow-all
+// RLS, so no trigger could honestly attribute a change. Migration 132 (2026-08-30) made it possible
+// without touching a line of client code — PostgREST publishes the caller's JWT as
+// `request.jwt.claims` on every request, so the trigger reads `sub` for free, and a non-app writer
+// names itself through the `app.actor` GUC.
+//
+// ⚠️⚠️ BUT THE ORIGINAL RULE SURVIVES INTACT, because it was never really about the anon key: a
+// trail that quietly implies a person is worse than one that admits it does not know. So `actor`
+// is NULLABLE and null is an ANSWER — a backfill script, a psql session, or anything predating 132
+// records nothing rather than inheriting whoever happened to be signed in. **Never invent an actor,
+// never imply one, and never phrase a line as though somebody did it when the actor is null.**
+//
+// Aaron asked for this on 2026-08-30 — *"you know i'd love that (totally biased towards my maid
+// afterall)"* — after settling the adjacent question himself: a DiZee read and an Effie read are
+// the same act, so PROVENANCE needed no new tier. What was missing was never a tier. It was an
+// actor.
 
 export interface VehicleChangeRow {
   changedAt: string;                 // ISO
   op: 'UPDATE' | 'DELETE';
   changed: Record<string, unknown>;  // UPDATE: { col: {from,to} }. DELETE: the whole row.
+  /**
+   * ⭐ WHO caused it — the half this trail could never carry. Migration 132: the signed-in user's
+   * id from the JWT, a named non-app writer via `app.actor` (e.g. `dizee`), or NULL.
+   *
+   * ⚠️ NULL IS AN ANSWER, not a gap. A backfill script or a psql session records nothing rather
+   * than inheriting whoever happened to be signed in — because a trail that quietly implies a
+   * person is worse than one that admits it does not know. Every row before 132 is null and stays
+   * null; nothing is retro-attributed.
+   */
+  actor?: string | null;
 }
 
 export interface ChangeLine {
@@ -162,4 +185,23 @@ export function changeCountLabel(rows: readonly VehicleChangeRow[]): string {
   const n = rows.length;
   if (n === 0) return 'No record changes logged';
   return n === 1 ? '1 record change' : `${n} record changes`;
+}
+
+/**
+ * The actor as a person reads it — or '' when there is honestly nobody to name.
+ *
+ * ⚠️ RETURNS EMPTY, NEVER "unknown" or "system". The caller renders nothing at all for a null
+ * actor, which is the whole discipline of this file: every row before migration 132, and every
+ * write from a script that did not name itself, must look exactly like it did before — silent on
+ * WHO — rather than acquiring a vague label that reads like an answer.
+ */
+export function describeActor(
+  actor: string | null | undefined,
+  nameFor: (id: string) => string | undefined,
+): string {
+  const a = (actor ?? '').trim();
+  if (!a) return '';
+  // The crew write through `app.actor` by name; app users arrive as a JWT `sub` uuid.
+  if (a === 'dizee') return 'DiZee';
+  return nameFor(a) ?? '';   // an unresolvable id is still nobody we can honestly name
 }

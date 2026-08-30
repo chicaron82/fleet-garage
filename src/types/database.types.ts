@@ -1394,6 +1394,7 @@ export type Database = {
       }
       vehicle_changes: {
         Row: {
+          actor: string | null
           changed: Json
           changed_at: string
           id: string
@@ -1401,6 +1402,7 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          actor?: string | null
           changed: Json
           changed_at?: string
           id?: string
@@ -1408,6 +1410,7 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          actor?: string | null
           changed?: Json
           changed_at?: string
           id?: string

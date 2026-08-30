@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   changeLines, formatValue, fieldLabel, describeChangeTime, changeCountLabel,
-  type VehicleChangeRow,
-} from '../../src/lib/vehicleChanges';
+  type VehicleChangeRow, describeActor } from '../../src/lib/vehicleChanges';
 
 const row = (changed: Record<string, unknown>, op: VehicleChangeRow['op'] = 'UPDATE'): VehicleChangeRow =>
   ({ changedAt: '2026-08-18T22:14:00.000Z', op, changed });
@@ -159,5 +158,35 @@ describe('changeLines — note_at', () => {
     });
     expect(lines).toHaveLength(1);
     expect(lines[0].label).toBe('Note');
+  });
+});
+
+// ⭐ WHO — migration 132. The trail could never carry an actor because FG writes with the anon key;
+// PostgREST's `request.jwt.claims` and the `app.actor` GUC made it possible with no client change.
+// ⚠️ But the ORIGINAL rule survives: a trail that quietly implies a person is worse than one that
+// admits it does not know. So null renders as NOTHING — never "unknown", never "system".
+describe('describeActor', () => {
+  const names = new Map([['u-aaron', 'Aaron S.'], ['u-geoff', 'Geoff']]);
+  const nameFor = (id: string) => names.get(id);
+
+  it('names a crew writer that named itself', () => {
+    expect(describeActor('dizee', nameFor)).toBe('DiZee');
+  });
+
+  it('resolves an app user id to their name', () => {
+    expect(describeActor('u-aaron', nameFor)).toBe('Aaron S.');
+  });
+
+  // ⚠️ THE WHOLE DISCIPLINE. Every row before 132, and any script that did not name itself.
+  it('⚠️ returns EMPTY for null — never a label that reads like an answer', () => {
+    for (const a of [null, undefined, '', '   ']) {
+      expect(describeActor(a, nameFor)).toBe('');
+    }
+  });
+
+  // ⚠️ An id we cannot resolve is still nobody we can honestly name. Printing the raw uuid would
+  // be worse than silence — it looks like an answer and identifies nobody.
+  it('⚠️ stays silent on an id it cannot resolve, rather than printing it', () => {
+    expect(describeActor('8f2c-unknown-uuid', nameFor)).toBe('');
   });
 });

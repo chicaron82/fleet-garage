@@ -26,7 +26,7 @@ export function useVehicleChanges(vehicleId: string | null | undefined, refreshK
     async function load() {
       const { data } = await supabase
         .from('vehicle_changes')
-        .select('changed_at, op, changed')
+        .select('changed_at, op, changed, actor')
         .eq('vehicle_id', vehicleId!)
         .order('changed_at', { ascending: false })
         .limit(MAX_ROWS);
@@ -37,6 +37,7 @@ export function useVehicleChanges(vehicleId: string | null | undefined, refreshK
           changedAt: r.changed_at as string,
           op: (r.op === 'DELETE' ? 'DELETE' : 'UPDATE') as VehicleChangeRow['op'],
           changed: (r.changed ?? {}) as Record<string, unknown>,
+          actor: (r.actor as string | null) ?? null,
         })),
       });
     }
