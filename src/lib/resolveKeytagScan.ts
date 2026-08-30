@@ -26,6 +26,42 @@ export function newVehicleFromRead(read: KeytagRead, plate: string): NewVehicle 
   return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '', rentalClass: read.rentalClass };
 }
 
+/**
+ * ⭐ THE SAME CAR, REGISTERED ON WHAT THE TAG ACTUALLY GAVE UP — for when the read fell short of a
+ * full vehicle but the PHOTO is perfectly legible.
+ *
+ * Aaron, batch-uploading his camera roll, 2026-08-30: *"the tag should upload, and i can add the
+ * details myself from the tag by hand."* Until now a short read produced a `skip`, a skip carries no
+ * proposal, and the key-tag photo rides through on the proposal — **so the model's failure threw
+ * away the one artifact that had not failed.** He can read that photo with his own eyes.
+ *
+ * ⚠️ The blanks are FG's existing plate-only shape, not an invention: the 26 geotab-watchlist rows
+ * created 2026-07-18 carry exactly `year: 0`, `make: ''`, `model: ''`. Those are not broken records
+ * — they are cars FG knows OF and has never MET. `make`/`model`/`year` are NOT NULL in the schema,
+ * so this is the only honest way to say "unknown", and it is already the way FG says it.
+ *
+ * ⭐ A car registered this way carries its photo and no audit stamp, which is precisely
+ * `isAuditable` — so it queues itself for the key-tag auditor with no extra plumbing. The audit
+ * fills the five tag fields; make/model/year still need the record's own edit, which is where Aaron
+ * said he was happy to do them.
+ */
+export function plateOnlyVehicleFromRead(read: KeytagRead, plate: string): NewVehicle {
+  return {
+    unitNumber: read.unitNumber ?? '',
+    plate,
+    make: read.make ?? '',
+    model: read.model ?? '',
+    year: read.year ?? 0,
+    color: read.color ?? '',
+    rentalClass: read.rentalClass,
+  };
+}
+
+/** Does this record still have the blanks a plate-only register leaves behind? */
+export function isPlateOnly(v: { make?: string | null; model?: string | null; year?: number | null }): boolean {
+  return !v.make?.trim() || !v.model?.trim() || !v.year;
+}
+
 export interface KeytagScanResult {
   /** Exactly what the tag read (pre-normalize) — shown when the prefix was corrected. */
   rawPlate: string | undefined;

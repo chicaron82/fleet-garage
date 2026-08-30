@@ -38,7 +38,39 @@ describe('planBatchStage', () => {
   it('new but an incomplete read → skip (needs the missing fields)', () => {
     const p = planBatchStage({ plate: 'LZM999' }, result({}));
     expect(p.action).toBe('skip');
-    expect(p.detail).toMatch(/couldn't read enough/);
+    expect(p.detail).toMatch(/short of make\/model\/unit\/year/);
+  });
+
+  // ⭐⭐ ...BUT THE ROW IS NO LONGER A DEAD END. Aaron, batch-uploading his camera roll on
+  // 2026-08-30: *"the tag should upload, and i can add the details myself from the tag by hand."*
+  // The photo rides on the proposal, so a skip with NO proposal threw it away — the model's failure
+  // costing him the one artifact that hadn't failed. Now the skip carries an OFFER.
+  it('⭐ offers a plate-only register so the photo survives a short read', () => {
+    const p = planBatchStage({ plate: 'LZM999' }, result({}));
+    expect(p.offer).toBeTruthy();
+    expect(p.offer!.label).toMatch(/keeps the tag photo/);
+    const nv = (p.offer!.proposal as { newVehicle: { plate: string; make: string; year: number } }).newVehicle;
+    expect(nv).toMatchObject({ plate: 'LZM999', make: '', year: 0 });
+  });
+
+  // ⚠️ OFFERED, NEVER TAKEN. The plan stays a `skip` and stages nothing — the batch is exactly where
+  // a misread PLATE goes unnoticed, and auto-registering would mint a junk car from one.
+  it('⚠️ still reports skip — the offer is his to take, not the planner\'s', () => {
+    const p = planBatchStage({ plate: 'LZM999' }, result({}));
+    expect(p.action).toBe('skip');
+    expect(p.proposal).toBeUndefined();
+  });
+
+  // ⚠️ No plate means nothing to register ON. That skip must stay a dead end.
+  it('⚠️ offers nothing when the PLATE itself could not be read', () => {
+    const p = planBatchStage({}, { ...result({}), plate: '' } as Parameters<typeof planBatchStage>[1]);
+    expect(p.action).toBe('skip');
+    expect(p.offer).toBeUndefined();
+  });
+
+  it('offers nothing on a car already in the fleet', () => {
+    const p = planBatchStage({ plate: 'LZM999' }, result({ resolution: { kind: 'complete' } }));
+    expect(p.offer).toBeUndefined();
   });
 
   it('complete match → skip, nothing to add', () => {

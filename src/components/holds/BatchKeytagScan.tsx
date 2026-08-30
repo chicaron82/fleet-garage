@@ -9,7 +9,7 @@ import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { PhotoError } from '../../components/shared/PhotoError';
 
 export function BatchKeytagScan() {
-  const { running, progress, results, stagedCount, runBatch, reset } = useBatchKeytagStage();
+  const { running, progress, results, stagedCount, runBatch, stageOffer, reset } = useBatchKeytagStage();
   const [collapsed, setCollapsed] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
   const { photoError, takeMany } = usePhotoIntake();
@@ -61,7 +61,7 @@ export function BatchKeytagScan() {
 
           {results.length > 0 && (
             <ul className="space-y-1.5">
-              {results.map(r => <ResultRow key={r.index} r={r} />)}
+              {results.map(r => <ResultRow key={r.index} r={r} onAddAnyway={stageOffer} />)}
             </ul>
           )}
 
@@ -78,7 +78,7 @@ export function BatchKeytagScan() {
   );
 }
 
-function ResultRow({ r }: { r: BatchResult }) {
+function ResultRow({ r, onAddAnyway }: { r: BatchResult; onAddAnyway: (i: number) => void }) {
   const { plan, staged, stageError } = r;
   const tone = stageError
     ? 'text-red-600 dark:text-red-400'
@@ -95,7 +95,26 @@ function ResultRow({ r }: { r: BatchResult }) {
         )}
         <span className="text-gray-500 dark:text-gray-400"> · {plan.detail}</span>
       </span>
-      <span className={`text-[11px] font-bold uppercase shrink-0 ${tone}`}>{badge}</span>
+      {/* ⭐ "Add anyway" — the read fell short, but the PHOTO is fine and he can read it himself.
+          Aaron, 2026-08-30: *"the tag should upload, and i can add the details myself from the tag
+          by hand."* Without this the row is a dead end and the photo is discarded because the MODEL
+          failed, which costs him the one artifact that didn't.
+
+          ⚠️ It replaces the SKIP badge rather than sitting beside it, so the row still reads as one
+          outcome. And it is per-row on purpose — a "stage all skips" button would mint a junk car
+          out of every misread plate in the stack, in one tap. */}
+      {plan.offer && !staged && !stageError ? (
+        <button
+          type="button"
+          onClick={() => onAddAnyway(r.index)}
+          className="shrink-0 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi px-2.5 py-1 text-[11px] font-bold text-gray-900 transition cursor-pointer"
+          title={plan.offer.label}
+        >
+          Add anyway
+        </button>
+      ) : (
+        <span className={`text-[11px] font-bold uppercase shrink-0 ${tone}`}>{badge}</span>
+      )}
     </li>
   );
 }

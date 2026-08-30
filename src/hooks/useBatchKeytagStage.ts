@@ -3,7 +3,7 @@
 // actionable ones (register / backfill) into the pending queue for a one-pass review. No new
 // read/resolve/stage logic; batch is that producer, looped. The per-read decision is the pure
 // planBatchStage; this hook owns the sequential run + the result list.
-import { useCallback, useState } from 'react';
+import { useCallback, useState , useRef } from 'react';
 import { useKeytagRead } from './useKeytagRead';
 import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { usePendingWritesContext } from '../context/PendingWritesContext';
@@ -28,6 +28,8 @@ export interface BatchKeytagState {
   stagedCount: number;
   /** Read + resolve + stage a stack of key-tag photos (base64), in order. */
   runBatch: (base64s: string[]) => Promise<void>;
+  /** Stage ONE skipped row's plate-only fallback, on his tap. Per-row, never bulk. */
+  stageOffer: (index: number) => Promise<void>;
   reset: () => void;
 }
 
@@ -38,11 +40,15 @@ export function useBatchKeytagStage(): BatchKeytagState {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [results, setResults] = useState<BatchResult[]>([]);
+  // ⭐ The photos outlive the run, because "Add anyway" is tapped AFTER it finishes. The whole
+  // point of the offer is to keep the tag photo the read couldn't use, so it has to still be here.
+  const photosRef = useRef<string[]>([]);
 
   const runBatch = useCallback(async (base64s: string[]) => {
     if (running || base64s.length === 0) return;
     setRunning(true);
     setResults([]);
+    photosRef.current = base64s;
     setProgress({ done: 0, total: base64s.length });
     const out: BatchResult[] = [];
 
@@ -75,7 +81,23 @@ export function useBatchKeytagStage(): BatchKeytagState {
     setRunning(false);
   }, [running, readKeytag, vehicles, stage]);
 
-  const reset = useCallback(() => { setResults([]); setProgress(null); }, []);
+  /**
+   * ⭐ Stage the plate-only fallback for ONE row, on his tap. Aaron, 2026-08-30: *"the tag should
+   * upload, and i can add the details myself from the tag by hand."*
+   *
+   * ⚠️ Deliberately per-row and never bulk. The batch is exactly where a misread PLATE goes
+   * unnoticed, so this stays a decision he makes while looking at that row — not a "stage all the
+   * skips" button that would mint junk cars from bad plate reads in one tap.
+   */
+  const stageOffer = useCallback(async (index: number) => {
+    const row = results.find(r => r.index === index);
+    if (!row?.plan.offer || row.staged) return;
+    const photo = photosRef.current[index];
+    const ok = await stage(row.plan.offer.proposal, 'keytag-batch', photo ? [photo] : [], false);
+    setResults(prev => prev.map(r => (r.index === index ? { ...r, staged: ok, stageError: !ok } : r)));
+  }, [results, stage]);
 
-  return { running, progress, results, stagedCount: results.filter(r => r.staged).length, runBatch, reset };
+  const reset = useCallback(() => { setResults([]); setProgress(null); photosRef.current = []; }, []);
+
+  return { running, progress, results, stagedCount: results.filter(r => r.staged).length, runBatch, stageOffer, reset };
 }

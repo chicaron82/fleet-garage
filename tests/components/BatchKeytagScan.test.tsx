@@ -14,12 +14,19 @@ vi.mock('../../src/hooks/useBatchKeytagStage', () => ({
 
 const base: BatchKeytagState = {
   running: false, progress: null, results: [], stagedCount: 0,
-  runBatch: vi.fn(), reset: vi.fn(),
+  runBatch: vi.fn(), stageOffer: vi.fn(), reset: vi.fn(),
 };
 
 beforeEach(() => state.mockReset().mockReturnValue(base));
 
 function expand() { fireEvent.click(screen.getByText(/Batch register key tags/)); }
+
+/** Render with a patched hook state, already expanded — the result rows only exist when open. */
+function mountWith(over: Partial<BatchKeytagState>) {
+  state.mockReturnValue({ ...base, ...over });
+  render(<BatchKeytagScan />);
+  expand();
+}
 
 describe('BatchKeytagScan', () => {
   it('is collapsed by default — the attach button is hidden until expanded', () => {
@@ -65,5 +72,49 @@ describe('BatchKeytagScan', () => {
     render(<BatchKeytagScan />);
     expand();
     expect(screen.getByText(/Nothing staged/)).toBeInTheDocument();
+  });
+});
+
+// ⭐⭐ "ADD ANYWAY" — the row that used to be a dead end. Aaron, batch-uploading his camera roll on
+// 2026-08-30: *"the tag should upload, and i can add the details myself from the tag by hand."* The
+// key-tag photo rides through on the proposal, so a skip with no proposal discarded it — the MODEL's
+// failure costing him the one artifact that hadn't failed.
+describe('BatchKeytagScan — Add anyway', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    index: 0, staged: false, stageError: false,
+    plan: {
+      plate: 'LPU213', wasCorrected: false, action: 'skip' as const,
+      detail: 'not in fleet, and the read is short of make/model/unit/year',
+      offer: { proposal: {} as never, label: 'Add anyway — keeps the tag photo' },
+    },
+    ...over,
+  });
+
+  it('⭐ offers the button on a short read instead of a dead SKIP', () => {
+    mountWith({ results: [row()] });
+    expect(screen.getByRole('button', { name: /Add anyway/i })).toBeInTheDocument();
+    // ⚠️ lowercase in the DOM — the uppercase is a CSS class. Matching 'SKIP' here would
+    //    pass vacuously and assert nothing, which it did until this was caught.
+    expect(screen.queryByText('skip')).not.toBeInTheDocument();
+  });
+
+  it('stages that ONE row when tapped', () => {
+    const stageOffer = vi.fn();
+    mountWith({ results: [row()], stageOffer });
+    fireEvent.click(screen.getByRole('button', { name: /Add anyway/i }));
+    expect(stageOffer).toHaveBeenCalledWith(0);
+  });
+
+  // ⚠️ A skip with nothing to offer must stay a plain skip — an already-in-fleet car has no photo
+  // problem to solve, and a button there would invite a duplicate registration.
+  it('⚠️ shows no button on a skip that carries no offer', () => {
+    mountWith({ results: [row({ plan: { plate: 'LUR302', wasCorrected: false, action: 'skip' as const, detail: 'already in the fleet — nothing to add' } })] });
+    expect(screen.queryByRole('button', { name: /Add anyway/i })).not.toBeInTheDocument();
+    expect(screen.getByText('skip')).toBeInTheDocument();
+  });
+
+  it('the button goes away once the row is staged', () => {
+    mountWith({ results: [row({ staged: true })] });
+    expect(screen.queryByRole('button', { name: /Add anyway/i })).not.toBeInTheDocument();
   });
 });
