@@ -1,4 +1,5 @@
 import { isUnknownClassCode } from '../../lib/partialRegister';
+import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
 import { checkOwningCity, owningLabel } from '../../../api/_lib/owningArea';
 import { nearMissClassCode, describeNearMiss } from '../../../api/_lib/classCodeCandidates';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -77,6 +78,29 @@ export function ScanNotices({ scanRead, vehicle, codexToast }: {
               Retaking it also puts the car back in the audit queue.
             </p>
           )}
+          {/* ⭐⭐ TELL HIM AT THE CAR, WHICH IS THE ONLY PLACE THIS IS ACTIONABLE. Aaron, 2026-08-30,
+              after I had put the VIN checks on the vehicle record instead: *"the scanner worked
+              perfectly, i just needed the flag on it so the next time i see it, the scan will tell
+              me to recheck the VIN."*
+
+              He is right, and the record was the wrong surface. A VIN he can only see by opening a
+              record is a VIN he checks at a desk — where he cannot look at the door jamb. Standing
+              at the car with the tag in his hand is the one moment the fix costs nothing. Same
+              shape as the retake flag above, and the same reason.
+
+              ⚠️ It reads the STORED VIN, not this scan's. On LFJ400 the tag itself prints the bad
+              value, so a fresh read reproduces it exactly — the notice has to fire every time that
+              car comes through, not only when something changes. */}
+          {(() => {
+            const f = vehicle ? vinFindings(vehicle.vinLast9, vehicle.year)[0] : null;
+            return f ? (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                🔖 Recheck the VIN — stored as{' '}
+                <span className="font-mono font-semibold">{vehicle!.vinLast9}</span>. {f.detail}{' '}
+                {vinFindingHint(f)}
+              </p>
+            ) : null;
+          })()}
           {(() => {
             const c = scanRead && checkOwningCity(scanRead.owningCity, scanRead.owningArea);
             return c && c.kind === 'conflict' ? (

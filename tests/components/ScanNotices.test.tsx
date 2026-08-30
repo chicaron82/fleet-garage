@@ -92,3 +92,47 @@ describe('ScanNotices — the unknown model code', () => {
     expect(screen.queryByText(/isn’t in the codex yet/i)).toBeNull();
   });
 });
+
+// ⭐⭐ THE VIN FLAG, AND IT BELONGS HERE RATHER THAN ON THE RECORD. I shipped these checks onto the
+// vehicle record first; Aaron corrected the placement in one sentence, 2026-08-30: *"the scanner
+// worked perfectly, i just needed the flag on it so the next time i see it, the scan will tell me to
+// recheck the VIN."* A VIN he can only see by opening a record is one he checks at a desk, where the
+// door jamb is not reachable. Standing at the car is the only moment the fix is free.
+describe('ScanNotices — recheck the VIN', () => {
+  it('says nothing when the VIN agrees with the year', () => {
+    show({ vehicle: car({ vinLast9: '3S7792108', year: 2025 }) });
+    expect(screen.queryByText(/Recheck the VIN/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing when there is no VIN on file yet', () => {
+    show({ vehicle: car({ vinLast9: null, year: 2025 }) });
+    expect(screen.queryByText(/Recheck the VIN/)).not.toBeInTheDocument();
+  });
+
+  it('⭐ flags a misread year code, with both values named', () => {
+    show({ vehicle: car({ vinLast9: '68L484889', year: 2025 }) });   // 0ES628 — S read as 8
+    expect(screen.getByText(/Recheck the VIN/)).toBeInTheDocument();
+    expect(screen.getByText(/isn't a model-year code at all/)).toBeInTheDocument();
+  });
+
+  // ⚠️ LFJ400 — the tag itself prints VXSL47717, so a fresh read reproduces it exactly. The notice
+  // has to fire EVERY time that car comes through, and it must send him to the door jamb rather
+  // than to a scanner that is working perfectly.
+  it('⚠️ sends him to the car, not the scanner, on a framing error', () => {
+    show({ vehicle: car({ licensePlate: 'LFJ400', vinLast9: 'VXSL47717', year: 2025 }) });
+    expect(screen.getByText(/off the car itself — the door jamb/)).toBeInTheDocument();
+    expect(screen.queryByText(/re-?scan|scanner/i)).not.toBeInTheDocument();
+  });
+
+  // ⚠️ It reads the STORED VIN, not this scan's read — the whole point is that it keeps telling him
+  // on every future scan of that car until somebody fixes the record.
+  it('⚠️ fires on the stored VIN even with no fresh read in hand', () => {
+    show({ scanRead: null, vehicle: car({ vinLast9: 'VXSL47717', year: 2025 }) });
+    expect(screen.getByText(/Recheck the VIN/)).toBeInTheDocument();
+  });
+
+  it('is silent when the plate did not resolve to a car', () => {
+    show({ vehicle: null });
+    expect(screen.queryByText(/Recheck the VIN/)).not.toBeInTheDocument();
+  });
+});
