@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
@@ -43,7 +44,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -63,6 +64,8 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
   rentalClass?: string | null;
   /** Last 9 of the VIN (migration 126). Never the full VIN — nothing may decode a make from it. */
   vinLast9?: string | null;
+  /** Needed only to cross-check the VIN's model-year code against it. See vinChecks. */
+  year?: number | null;
   /** US-plated: 🇺🇸 badge, and every odometer figure on this record reads MILES. */
   isUs?: boolean;
   winterTires?: boolean | null;
@@ -232,14 +235,30 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagAud
           none — a writer with no reader, the mirror of the odometer's reader with no writer.
           It earns a chip because it is the one identifier that survives a re-plate, and because
           a value you cannot SEE is one you can never notice is wrong. */}
-      {vinLast9 && (
-        <span
-          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 font-mono"
-          title="Last 9 of the VIN, read off the key tag — not the full VIN"
-        >
-          🔖 {vinLast9}
-        </span>
-      )}
+      {vinLast9 && (() => {
+        /* ⭐ THE VIN CHECKS ITSELF. Aaron worked the rule out from two tags — *"'T' was 2026 so
+           pieced together that 'S' was 2025"* — and corrected two cars by hand before the
+           verification query finished. Position 10 is the model-year code and lands as the SECOND
+           character here; position 9 is the check digit and lands FIRST. Run over all 560 stored
+           VINs the pair finds 10 misread year codes and one framing error, and they need different
+           actions, so the chip says which. See lib/vinChecks.
+           ⚠️ It NEVER proposes a value: on LJF698 the VIN was right and the YEAR was the misread. */
+        const finding = vinFindings(vinLast9, year)[0] ?? null;
+        return (
+          <span
+            className={`rounded-lg border px-2.5 py-1.5 text-xs font-mono ${
+              finding
+                ? 'border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400'
+                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+            }`}
+            title={finding
+              ? `${finding.detail}\n${vinFindingHint(finding)}`
+              : 'Last 9 of the VIN, read off the key tag — not the full VIN'}
+          >
+            {finding ? '⚠️' : '🔖'} {vinLast9}
+          </span>
+        );
+      })()}
 
       {(classCode || rentalClass) && (() => {
         const label = `🚘 ${[classCode, rentalClass].filter(Boolean).join(' · ')}`;
