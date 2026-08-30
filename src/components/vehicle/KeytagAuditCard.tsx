@@ -83,6 +83,10 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   const [rotation, setRotation] = useState(() => asRotation(vehicle.keytagPhotoRotation));
   const rotate = () => { hapticLight(); setRotation(r => nextRotation(r)); };
   const setKeyCount = (v: string) => setEdits(prev => ({ ...prev, keyCount: v }));
+  // ⚠️ Offered only on a car with NO count. One that already has one is never re-asked — that
+  // number came off a ring in someone's hand, and re-asking from a photo invites a worse answer
+  // over a better one.
+  const keysOffered = auditKeyCountOffered(vehicle);
 
   const save = () => onSave({ ...edits, photoRotation: rotation });
   // Recomputed every keystroke — it is a pure read of what is in the boxes right now, and he should
@@ -108,7 +112,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       </div>
       {panelOpen && (
         <div className="px-3 pb-3 space-y-2.5">
-          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" onChange={set} />
+          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
           <KeytagAuditActions saving={saving} tone="dark" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
         </div>
       )}
@@ -146,34 +150,8 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
         </div>
       )}
 
-      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" onChange={set} />
+      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
 
-      {/* ⭐ KEY COUNT — offered ONLY on a car that has none. Aaron, 2026-08-30: *"some keytags have
-          keys with them, is it possible to add the keycount to the ones that have a tag and are
-          missing a keycount as part of the audit?"*
-
-          ⚠️ I had excluded this deliberately, and the exclusion was too strong: I argued a photo
-          "may just as easily not" show the keys, on a card whose own footer already says leave what
-          you can't read blank. Every field here is optional; I held this one to a stricter standard
-          than the surface itself. 55 of 642 tagged cars qualify today.
-
-          ⚠️ A car that ALREADY has a count is never asked again — that number came off a ring in
-          someone's hand, and re-asking from a photo invites a worse answer over a better one. */}
-      {auditKeyCountOffered(vehicle) && (
-        <label className="block">
-          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Keys on the ring</span>
-          <input
-            type="number" inputMode="numeric" min={0} max={9}
-            placeholder="only if the photo shows them"
-            value={edits.keyCount ?? ''}
-            onChange={e => setKeyCount(e.target.value)}
-            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-base text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-fg-yellow transition"
-          />
-          <span className="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">
-            counted off the ring, not printed on the tag — leave it blank if the keys aren't in shot
-          </span>
-        </label>
-      )}
       <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500">
@@ -191,8 +169,16 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
             <button type="button" onClick={() => setScale(s => (s >= 3 ? 1 : s + 1))}
               title="Zoom the tag" className="block w-full cursor-zoom-in">
               <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}, full size`}
-                style={{ width: `${scale * 100}%` }}
+                style={{ width: `${scale * 100}%`, ...rotationStyle(rotation) }}
                 className="max-w-none object-contain" />
+            </button>
+            {/* ⚠️ THE ROTATE CONTROL BELONGS HERE TOO, and for the same reason the key count does:
+                zoomed is where he is actually READING the tag, so it is exactly where a sideways one
+                needs turning. Leaving it only on the small card would repeat the split he just
+                reported — enter one thing here, tap away, finish there. */}
+            <button type="button" onClick={rotate} aria-label="Rotate the tag"
+              className="absolute top-2 left-2 mt-8 rounded-full bg-black/60 hover:bg-black/80 text-white/80 w-9 h-9 text-sm transition cursor-pointer">
+              ↻
             </button>
             <div className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-2 py-1 text-[11px] text-white/70 tabular-nums">
               {scale}× · tap the tag to zoom

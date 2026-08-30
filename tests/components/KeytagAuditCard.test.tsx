@@ -446,21 +446,47 @@ describe('KeytagAuditCard — key count and rotation', () => {
   // every field is optional and I held one to a stricter standard than the surface itself. Aaron:
   // *"some keytags have keys with them, is it possible to add the keycount to the ones that … are
   // missing a keycount as part of the audit?"* It was 5 cars when I excluded it. It is 55 now.
-  it('⭐ offers a key count on a car that has none', () => {
+  // ⚠️⚠️ TAPPABLE, NOT TYPEABLE — my first cut was a number input, which summons a keyboard for a
+  // value that is always 1-4. The register form has used four 44px buttons since 2026-08-18, sized
+  // for nitrile gloves; I invented a second dialect for the same question. Aaron: *"why isn't it a
+  // tappable like when registering"*.
+  it('⭐ offers TAPPABLE key counts on a car that has none', () => {
     withVehicle({ keyCount: null });
-    expect(screen.getByLabelText(/Keys on the ring/i)).toBeInTheDocument();
+    for (const n of [1, 2, 3, 4]) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${n} keys? on the ring$`) })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();   // no keyboard
+  });
+
+  // ⚠️⚠️ AND IT MUST SURVIVE THE ZOOM. I put it BESIDE the card instead of inside the fields
+  // component, so it vanished the moment he zoomed to read the tag — splitting one car's answers
+  // across two screens. His words: *"so currently if keys are shown, i'll enter the keycount, then
+  // tap the tag so its enlarged for me to read it and enter the remaining fields."*
+  it('⚠️ is still there when he zooms into the tag', () => {
+    withVehicle({ keyCount: null });
+    openZoom();
+    expect(within(overlay()).getByRole('button', { name: /^2 keys on the ring$/ })).toBeInTheDocument();
+  });
+
+  it('a tap sets it, and tapping the same number again clears it', () => {
+    withVehicle({ keyCount: null });
+    const two = screen.getByRole('button', { name: /^2 keys on the ring$/ });
+    fireEvent.click(two);
+    expect(two).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(two);
+    expect(two).toHaveAttribute('aria-pressed', 'false');
   });
 
   // ⚠️ A car that already has one is NEVER asked again — that number came off a ring in someone's
   // hand, and re-asking from a photo invites a worse answer to overwrite a better one.
   it('⚠️ never asks a car that already has a key count', () => {
     withVehicle({ keyCount: 2 });
-    expect(screen.queryByLabelText(/Keys on the ring/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /keys? on the ring/i })).not.toBeInTheDocument();
   });
 
   it('sends the typed count through on save', () => {
     withVehicle({ keyCount: null });
-    fireEvent.change(screen.getByLabelText(/Keys on the ring/i), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /^3 keys on the ring$/ }));
     saveIt();
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ keyCount: '3' }));
   });
@@ -478,6 +504,16 @@ describe('KeytagAuditCard — key count and rotation', () => {
     for (let i = 0; i < 3; i++) fireEvent.click(rotate);
     saveIt();
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 0 }));
+  });
+
+  // ⚠️ SAME CLASS AS THE KEY COUNT, fixed before he had to report it twice: zoomed is where he is
+  // actually reading the tag, so it is exactly where a sideways one needs turning.
+  it('⚠️ can rotate while zoomed, not only on the small card', () => {
+    withVehicle({ keytagPhotoRotation: 0 });
+    openZoom();
+    fireEvent.click(within(overlay()).getByRole('button', { name: /Rotate the tag/i }));
+    fireEvent.click(within(overlay()).getAllByRole('button', { name: /Save & next/i })[0]);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 90 }));
   });
 
   it('seeds the rotation from the record', () => {

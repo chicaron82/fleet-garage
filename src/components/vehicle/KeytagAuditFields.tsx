@@ -15,7 +15,7 @@ import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
  * The fix is not a bigger thumbnail — it is the same inputs living in both places, which means ONE
  * definition. Two copies of a form is how one of them quietly grows a sixth field the other lacks.
  */
-export function KeytagAuditFields({ edits, missing, warnings, owningGuess, owningPresets, tone, onChange }: {
+export function KeytagAuditFields({ edits, missing, warnings, owningGuess, owningPresets, keyCountOffered, tone, onChange, onKeyCountChange }: {
   edits: KeytagAuditEdits;
   /** Fields blank on the record — marked so his eye lands on what needs reading, not on a wall of
    *  pre-filled text. The honest cost of showing FG's current value is anchoring; this is the
@@ -31,13 +31,58 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
   /** Named Canadian branches this fleet carries, commonest first. A shortcut, never a constraint —
    *  the text field still takes anything, which is how a US car or an unknown branch gets in. */
   owningPresets: readonly OwningPreset[];
+  /** ⭐ Offer the key-count row — only for a car that has none. Aaron, 2026-08-30: *"the keys on
+   *  ring is an input, why isn't it a tappable like when registering — and the keycount isnt
+   *  available when zoomed."* Living HERE rather than beside the card is what puts it in both
+   *  tones: over the photo as well as under it. */
+  keyCountOffered: boolean;
   /** 'dark' is over the photo, where the ground is black and the light palette disappears. */
   tone: 'light' | 'dark';
   onChange: (field: AuditField, value: string) => void;
+  onKeyCountChange: (value: string) => void;
 }) {
   const dark = tone === 'dark';
+  const keys = edits.keyCount ?? '';
   return (
     <div className="grid grid-cols-2 gap-2">
+      {/* ⭐⭐ TAPPABLE, NOT TYPEABLE — and in BOTH tones, which is the half I got wrong first time.
+          Aaron, 2026-08-30: *"the keys on ring is an input, why isn't it a tappable like when
+          registering. and the keycount isnt available when zoomed. so currently if keys are shown,
+          i'll enter the keycount, then tap the tag so its enlarged."*
+
+          Two separate mistakes in one small field. A number input summons a keyboard for a value
+          that is always 1-4 — the register form has used four 44px buttons since 2026-08-18, sized
+          for nitrile gloves, and I invented a different dialect for the same question. And putting
+          it BESIDE the card instead of inside this component meant it vanished the moment he zoomed,
+          splitting one car's answers across two screens.
+
+          ⚠️ 44px and re-tappable to clear: the same control, the same standard, same hands. */}
+      {keyCountOffered && (
+        <div className="col-span-2">
+          <span className={`text-xs font-semibold ${dark ? 'text-gray-200' : 'text-gray-600 dark:text-gray-300'}`}>
+            🔑 Keys on the ring
+          </span>
+          <div className="flex gap-2 mt-1">
+            {[1, 2, 3, 4].map(n => (
+              <button key={n} type="button"
+                onClick={() => onKeyCountChange(keys === String(n) ? '' : String(n))}
+                aria-pressed={keys === String(n)}
+                aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
+                className={`w-11 h-11 rounded-lg text-sm font-semibold border transition cursor-pointer ${
+                  keys === String(n)
+                    ? 'bg-fg-yellow border-fg-yellow text-black'
+                    : dark
+                      ? 'border-white/25 text-gray-300'
+                      : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                {n}
+              </button>
+            ))}
+          </div>
+          <span className={`mt-1 block text-[11px] ${dark ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            counted off the ring, not printed on the tag — leave it blank if the keys aren't in shot
+          </span>
+        </div>
+      )}
       {AUDIT_FIELDS.map(f => {
         const blank = missing.includes(f);
         const warning = warnings.find(w => w.field === f);
