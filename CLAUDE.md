@@ -136,6 +136,24 @@ commit; a black *chip* is "this one is chosen". Do not sweep one into the other 
 
 ⚠️ **Yellow needs `text-gray-900`.** It is a light background; white text on it is unreadable.
 
+### ⚠️ Yellow TEXT is a different role, and it is a PAIR — not the button token
+
+`text-yellow-600 dark:text-yellow-400` is **attention text on a neutral surface** — 31 coherent
+pairs across the app, 23 plain and 8 on hover. It shares a hue with the button fill and nothing else.
+
+**Do not "tokenise" it to `text-fg-yellow`.** I opened a ticket on 2026-08-30 saying the brand token
+covered background and border but never text, and treated that as a gap. It is not: `--color-fg-yellow`
+is `#facc15`, which is a **button fill** meant to sit under `text-gray-900`. As *text* on white it is
+close to illegible — **which is exactly why the light half of the pair is `600`.** Converting the
+dark half to the token would leave a half-named pair and invite somebody to "finish the job" by
+breaking light mode.
+
+A single CSS custom property cannot express a light/dark pair, so the pair stays raw and stays
+written down here instead.
+
+⭐ **Exceptions are dark-only containers.** The sidebar is `bg-green-900`, so a bare
+`hover:text-yellow-400` there is correct and needs no light partner.
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and
