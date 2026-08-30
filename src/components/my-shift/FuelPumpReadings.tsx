@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useFuelPumpReadings } from '../../hooks/useFuelPumpReadings';
+import { hapticLight } from '../../lib/haptics';
 import type { User } from '../../types';
 
 const NUM_INPUT =
@@ -32,14 +34,60 @@ function Field({ label, value, onChange, decimal, placeholder }: {
  */
 export function FuelPumpReadings({ user }: { user: User }) {
   const f = useFuelPumpReadings(user);
+  // ⭐ COLLAPSE ONCE HE HAS ENTERED WHAT HE CAN. Aaron, 2026-08-29: *"after entering the pump
+  // values, can we have it collapsed, showing what was entered. if i open, i won't be around to
+  // enter the closing readings. that would be a VERY long shift lol"*.
+  //
+  // Six inputs, three of which the person looking at them structurally will not fill — the hook
+  // has said so in its own header the whole time (*"FG has one user, so a shift he OPENS has
+  // nobody to log its close"*). Three empty boxes sitting open read as work owed, and they are
+  // not his. Same defect as the Effie count badge, one screen over: a control implying an
+  // outstanding task that does not exist.
+  //
+  // `expanded` is null until he acts, so the DEFAULT follows the data: a saved row lands
+  // collapsed (he is coming back to look), a fresh day lands open (he is coming to enter).
+  const [expanded, setExpanded] = useState<boolean | null>(null);
+  const collapsible = f.saved && f.summary.length > 0;
+  // ⚠️ COLLAPSIBILITY GATES THE STATE, rather than the state deciding on its own. Written the
+  // other way round (`expanded ?? !collapsible`) a FAILED save would still collapse the form —
+  // he taps Save, the write errors, and the six fields he just typed fold away behind a summary
+  // that claims they are stored. Nothing is collapsible until something is actually saved.
+  const open = collapsible ? (expanded ?? false) : true;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+      <button
+        type="button"
+        disabled={!collapsible}
+        onClick={() => { hapticLight(); setExpanded(o => !(o ?? false)); }}
+        className="w-full px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between text-left disabled:cursor-default enabled:cursor-pointer"
+      >
         <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">⛽ Fuel Pump Readings</p>
-        {f.saved && <span className="text-xs font-semibold text-green-600 dark:text-green-400">✓ Saved</span>}
-      </div>
+        <span className="flex items-center gap-2">
+          {f.saved && <span className="text-xs font-semibold text-green-600 dark:text-green-400">✓ Saved</span>}
+          {collapsible && <span className="text-[10px] text-gray-400">{open ? '▲' : '▼'}</span>}
+        </span>
+      </button>
 
+      {/* The read-back. Every line is a STATEMENT — "opened at 12,345", never "12,345 → —" —
+          because a dash is an empty slot and an empty slot is a request. A gauge he never touched
+          is omitted entirely rather than shown blank, or the collapsed card quietly reintroduces
+          the three empty boxes it exists to put away. */}
+      {!open && (
+        <div className="px-4 py-3 space-y-1.5">
+          {f.summary.map(g => (
+            <div key={g.label} className="flex flex-wrap items-baseline gap-2 text-sm">
+              <span className="font-semibold text-gray-700 dark:text-gray-300 w-16 shrink-0">{g.label}</span>
+              <span className="font-mono text-gray-600 dark:text-gray-400">{g.text}</span>
+              {g.delta && <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-500">{g.delta}</span>}
+              {!g.closed && <span className="text-xs text-gray-400 dark:text-gray-500">· shift still open</span>}
+            </div>
+          ))}
+          <p className="pt-1 text-xs text-gray-400 dark:text-gray-500">Tap to edit</p>
+        </div>
+      )}
+
+      {open && (
       <div className="px-4 py-4 space-y-5">
         {/* Pump 1 — analog, metered */}
         <div>
@@ -108,13 +156,14 @@ export function FuelPumpReadings({ user }: { user: User }) {
 
         <button
           type="button"
-          onClick={f.handleSave}
+          onClick={async () => { await f.handleSave(); setExpanded(false); }}
           disabled={!f.canSave || f.saving}
           className="w-full py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 text-sm font-bold transition cursor-pointer"
         >
           {f.saving ? 'Saving…' : f.saved ? 'Saved ✓ — Save again' : 'Save Fuel Readings'}
         </button>
       </div>
+      )}
     </div>
   );
 }

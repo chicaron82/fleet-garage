@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { withSubmitLock } from '../lib/submitLock';
 import { localDateStr } from './useFleetBalance';
-import { analogPumped, digitalDelta, digitalWentUp, carryForwardOpenings, type FuelRow } from '../lib/fuelReadings';
+import { analogPumped, digitalDelta, digitalWentUp, carryForwardOpenings, fuelEntrySummary, type FuelRow } from '../lib/fuelReadings';
 import type { User } from '../types';
 
 /**
@@ -136,7 +136,19 @@ export function useFuelPumpReadings(user: User) {
     setSaved(true);
   };
 
+  // The saved entry read back as display lines — what the collapsed card shows. Derived from the
+  // live fields rather than from the persisted row so an edit updates the read-back immediately,
+  // and so it never claims a value the operator is still typing has been stored.
+  const num = (v: string) => (v.trim() === '' ? null : Number(v));
+  const summary = fuelEntrySummary({
+    pump1_open:    num(pump1Open),   pump1_close:   num(pump1Close),
+    pump2_open:    num(pump2Open),   pump2_close:   num(pump2Close),
+    digital_open:  num(digitalOpen), digital_close: num(digitalClose),
+    topup_note:    topupNote || null,
+  });
+
   return {
+    summary,
     pump1Open, setPump1Open, pump1Close, setPump1Close,
     pump2Open, setPump2Open, pump2Close, setPump2Close,
     digitalOpen, setDigitalOpen, digitalClose, setDigitalClose,

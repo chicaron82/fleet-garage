@@ -127,3 +127,45 @@ export function buildFuelReport(row: FuelRow | null | undefined): FuelReport | n
     topupNote:    row.topup_note ?? null,
   };
 }
+
+/** One gauge, as it should READ once the operator has entered what he can. */
+export interface GaugeLine {
+  label: string;
+  /** Fully entered → "12,345 → 12,890"; opening only → "opened at 12,345". */
+  text: string;
+  /** Litres pumped / net change, when both ends exist. */
+  delta: string | null;
+  /** True when a closing reading exists. Never rendered as a GAP when false. */
+  closed: boolean;
+}
+
+const fmt = (n: number) => n.toLocaleString('en-CA');
+
+function gauge(label: string, open: number | null, close: number | null, unit: string): GaugeLine | null {
+  if (open == null && close == null) return null;
+  if (open != null && close != null) {
+    const d = Math.round((close - open) * 10) / 10;
+    return { label, text: `${fmt(open)} → ${fmt(close)}`, delta: `${fmt(Math.abs(d))} ${unit}`, closed: true };
+  }
+  // ⚠️ ONE-SIDED IS A COMPLETE ANSWER, NOT A HALF-FILLED FORM. `useFuelPumpReadings` already says
+  // it in its own header — *"FG has one user, so a shift he OPENS has nobody to log its close."*
+  // Aaron, 2026-08-29: *"if i open, i won't be around to enter the closing readings. that would be
+  // a VERY long shift lol"*. So a missing closing is phrased as a fact about the shift, never as an
+  // empty slot with a dash in it: a blank waiting to be filled reads as work owed, and it isn't his.
+  return open != null
+    ? { label, text: `opened at ${fmt(open)}`, delta: null, closed: false }
+    : { label, text: `closed at ${fmt(close!)}`, delta: null, closed: false };
+}
+
+/**
+ * The collapsed read-back of a saved fuel entry — what he actually put in, in the order the paper
+ * card runs. Empty array when nothing has been entered at all, so the caller can stay expanded.
+ */
+export function fuelEntrySummary(row: FuelRow | null | undefined): GaugeLine[] {
+  if (!row) return [];
+  return [
+    gauge('Pump 1', row.pump1_open, row.pump1_close, 'L'),
+    gauge('Pump 2', row.pump2_open, row.pump2_close, 'L'),
+    gauge('Tank', row.digital_open, row.digital_close, 'L'),
+  ].filter((g): g is GaugeLine => g !== null);
+}

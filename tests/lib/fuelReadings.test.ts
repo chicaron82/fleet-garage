@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analogPumped, digitalDelta, digitalWentUp, buildFuelReport, carryForwardOpenings } from '../../src/lib/fuelReadings';
+import { analogPumped, digitalDelta, digitalWentUp, buildFuelReport, carryForwardOpenings, fuelEntrySummary } from '../../src/lib/fuelReadings';
 import type { FuelRow } from '../../src/lib/fuelReadings';
 
 describe('analogPumped', () => {
@@ -135,5 +135,62 @@ describe('carryForwardOpenings — the prefill that was silently never firing', 
   it('does not mistake a legitimate ZERO reading for "missing"', () => {
     // A gauge genuinely reading 0 is data. `!= null` (not falsy) is what makes that work.
     expect(carryForwardOpenings([row({ pump1_close: 0 })]).pump1Open).toBe(0);
+  });
+});
+
+// ⭐⭐ THE ONE-SIDED SHIFT. Aaron, 2026-08-29: *"if i open, i won't be around to enter the closing
+// readings. that would be a VERY long shift lol"* — and `useFuelPumpReadings` had already written
+// the same fact in its own header: *"FG has one user, so a shift he OPENS has nobody to log its
+// close."* Six input boxes, three of which structurally will not be filled by the person looking at
+// them, read as unfinished work. The summary's whole job is to phrase what he entered as COMPLETE.
+describe('fuelEntrySummary', () => {
+  const row = (o: Partial<FuelRow>): FuelRow => ({
+    pump1_open: null, pump1_close: null, pump2_open: null, pump2_close: null,
+    digital_open: null, digital_close: null, topup_note: null, ...o,
+  });
+
+  it('reads a fully-entered gauge as open → close, with the litres pumped', () => {
+    const [p1] = fuelEntrySummary(row({ pump1_open: 12345, pump1_close: 12890 }));
+    expect(p1).toEqual({ label: 'Pump 1', text: '12,345 → 12,890', delta: '545 L', closed: true });
+  });
+
+  // ⚠️ NOT "12,345 → —". A dash is an empty slot, and an empty slot is a request. This is a
+  // statement about a shift that is still running.
+  it('⭐ phrases an opening-only gauge as a FACT, never as a blank to fill', () => {
+    const [p1] = fuelEntrySummary(row({ pump1_open: 12345 }));
+    expect(p1).toEqual({ label: 'Pump 1', text: 'opened at 12,345', delta: null, closed: false });
+    expect(p1.text).not.toContain('—');
+    expect(p1.text).not.toContain('→');
+  });
+
+  it('handles a closing-only gauge the same way (he came in on the back half)', () => {
+    const [p1] = fuelEntrySummary(row({ pump1_close: 12890 }));
+    expect(p1).toEqual({ label: 'Pump 1', text: 'closed at 12,890', delta: null, closed: false });
+  });
+
+  // ⚠️ A gauge nobody touched is OMITTED, not shown empty — otherwise the collapsed card
+  // reintroduces exactly the three blank boxes it exists to put away.
+  it('⚠️ omits a gauge with nothing entered at all', () => {
+    const lines = fuelEntrySummary(row({ pump1_open: 1, digital_open: 2.5 }));
+    expect(lines.map(l => l.label)).toEqual(['Pump 1', 'Tank']);
+  });
+
+  it('keeps the paper card order: Pump 1, Pump 2, Tank', () => {
+    const lines = fuelEntrySummary(row({
+      pump1_open: 1, pump2_open: 2, digital_open: 3,
+    }));
+    expect(lines.map(l => l.label)).toEqual(['Pump 1', 'Pump 2', 'Tank']);
+  });
+
+  it('carries the tank decimal through the delta', () => {
+    const [tank] = fuelEntrySummary(row({ digital_open: 4200.5, digital_close: 4180.2 }));
+    expect(tank.delta).toBe('20.3 L');
+  });
+
+  // Empty means "stay expanded" to the caller — there is nothing to collapse into.
+  it('is empty for a blank row and for no row at all', () => {
+    expect(fuelEntrySummary(row({}))).toEqual([]);
+    expect(fuelEntrySummary(null)).toEqual([]);
+    expect(fuelEntrySummary(undefined)).toEqual([]);
   });
 });
