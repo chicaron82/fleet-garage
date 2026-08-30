@@ -6,14 +6,17 @@ import { checkVinFraming, checkVinYear, vinFindings, vinFindingHint } from '../.
 // before the verification query had finished running.
 
 describe('checkVinFraming — the check digit', () => {
-  // ⚠️ THE ONLY ONE IN 560 VINs, and it is not a misread character at all. Every Kicks in the fleet
-  // reads `?SL######` for 2025; LFJ400 was stored as `VXSL47717`. Drop the leading V and `XSL47717`
-  // matches its siblings exactly — the nine-character window started one position too early.
-  // Aaron had verified BOTH the X and the S on the tag. Both were correct; the window was not.
+  // ⚠️⚠️ THE ONLY ONE IN 560 VINs, and THE TAG ITSELF IS WRONG. Opening the photo on 2026-08-30
+  // settled it: the tag prints `Last9vin: VXSL47717` in nine characters, and every other field on
+  // it matches FG exactly (unit 5421995, LFJ400, CKSV, B4, 08199, RED 4DR, 25). The reader copied
+  // it faithfully. So the message must not blame the read — it says these nine characters cannot be
+  // a valid last-9 and leaves the cause open, because accusing the scanner would send him to
+  // re-photograph a tag that is already captured correctly.
   it('⭐ flags LFJ400 — a letter where the check digit belongs is a FRAMING error', () => {
     const f = checkVinFraming('VXSL47717');
     expect(f).toMatchObject({ kind: 'framing', got: 'V' });
-    expect(f!.detail).toMatch(/framed wrong, not misread/);
+    expect(f!.detail).toMatch(/aren't a valid last-9, whatever produced them/);
+    expect(f!.detail).not.toMatch(/read|scan/i);   // never blames the capture
   });
 
   it('passes a legal check digit, digit or X', () => {
@@ -105,7 +108,7 @@ describe('vinFindingHint — the two fixes are different actions', () => {
   // ⭐ A wrong character is one glyph to re-read. A bad check digit is the whole field to recapture.
   // Collapsing them into one message would send him to do the wrong job on LFJ400.
   it('asks for a recapture on framing and a tag check on a year code', () => {
-    expect(vinFindingHint(vinFindings('VXSL47717', 2025)[0])).toMatch(/Re-capture the VIN/);
+    expect(vinFindingHint(vinFindings('VXSL47717', 2025)[0])).toMatch(/off the car itself — the door jamb/);
     expect(vinFindingHint(vinFindings('9TB189231', 2025)[0])).toMatch(/either the VIN or the year/);
   });
 

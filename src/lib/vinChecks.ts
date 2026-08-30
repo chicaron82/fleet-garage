@@ -38,16 +38,23 @@ export type VinFinding =
  *
  * VIN position 9 is the check digit and can only ever be 0-9 or X. We store the last nine
  * characters, so it is the FIRST character of `vin_last9`. Anything else means the window was
- * framed wrong — the reader started a position too early or too late — rather than one glyph being
- * misread.
+ * framed wrong — the nine characters start a position too early or too late — rather than one glyph
+ * being misread.
  *
  * The live example, and the only one in 560 VINs: LFJ400, a 2025 Kicks stored as `VXSL47717`. Every
  * other Kicks reads `?SL######` for 2025 and `?TL######` for 2026, without exception across 54 cars.
- * Drop the leading `V` and `XSL47717` matches its siblings exactly. Aaron had verified both the `X`
- * and the `S` on the tag and **both were correct** — the window was not.
+ * Drop the leading `V` and `XSL47717` matches its siblings exactly.
+ *
+ * ⚠️⚠️ AND THE TAG ITSELF IS THE ONE THAT'S WRONG — confirmed by opening the photo (2026-08-30). It
+ * prints `Last9vin: VXSL47717` in nine characters, and every other field on that tag matches FG
+ * exactly: unit 5421995, plate LFJ400, CKSV, B4, 08199, RED 4DR, 25. **The reader copied it
+ * perfectly.** So this check must NOT blame the read — it says the nine characters cannot be a
+ * valid last-9, and leaves who produced them open. Aaron's own rule: *"the tag can have inaccurate
+ * info on it… i'm at the vehicle. make FG reflect the truth in front of me."*
  *
  * ⭐ A rule that only knows about wrong CHARACTERS would have called this a wrong character, and the
- * fix it implied (re-read one glyph) would not have worked. This one says re-capture the field.
+ * action it implies — re-read one glyph — sends him hunting for a character that is printed
+ * correctly. The car's own VIN plate is the only authority here.
  */
 export function checkVinFraming(vinLast9: string | null | undefined): VinFinding | null {
   const vin = (vinLast9 ?? '').trim().toUpperCase();
@@ -57,7 +64,10 @@ export function checkVinFraming(vinLast9: string | null | undefined): VinFinding
   return {
     kind: 'framing',
     got: first,
-    detail: `"${first}" can't be a check digit — the read is framed wrong, not misread. Re-capture the whole VIN.`,
+    // ⚠️ Deliberately silent about WHOSE fault it is. On LFJ400 the tag itself prints the bad
+    // value, so "the read is wrong" would have been a false accusation of the scanner and would
+    // have sent him to re-photograph a tag that is already faithfully captured.
+    detail: `"${first}" can't be a check digit — these nine characters aren't a valid last-9, whatever produced them.`,
   };
 }
 
@@ -111,6 +121,6 @@ export function vinFindings(
  */
 export function vinFindingHint(f: VinFinding): string {
   return f.kind === 'framing'
-    ? 'Re-capture the VIN off the door jamb — one character short or shifted.'
+    ? 'Read the VIN off the car itself — the door jamb, not the tag. The tag may be the wrong one.'
     : 'Check the tag: either the VIN or the year on this record is wrong.';
 }

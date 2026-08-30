@@ -43,8 +43,8 @@ describe('the VIN chip on the record', () => {
     mount('VXSL47717', 2025);                        // LFJ400 — the only one in 560
     const el = chip('VXSL47717');
     expect(el.textContent).toContain('⚠️');
-    expect(el.getAttribute('title')).toMatch(/framed wrong, not misread/);
-    expect(el.getAttribute('title')).toMatch(/Re-capture the VIN/);
+    expect(el.getAttribute('title')).toMatch(/aren't a valid last-9/);
+    expect(el.getAttribute('title')).toMatch(/off the car itself — the door jamb/);
   });
 
   // ⚠️ NEVER PROPOSES A VALUE — LJF698 is the proof: the VIN was right, the YEAR was the misread.
