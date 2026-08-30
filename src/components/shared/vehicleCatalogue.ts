@@ -15,7 +15,7 @@ export const MAKES_MODELS: Record<string, string[]> = {
   Kia:             ['Carnival', 'Forte', 'K4', 'K5', 'Niro', 'Niro EV', 'Seltos', 'Sorento', 'Soul', 'Sportage', 'Telluride'],
   Jeep:            ['Cherokee', 'Compass', 'Gladiator', 'Grand Cherokee', 'Wrangler'],
   Dodge:           ['Challenger', 'Charger', 'Durango', 'Grand Caravan', 'Ram 1500'],
-  Chrysler:        ['300', 'Pacifica'],
+  Chrysler:        ['300', 'Grand Caravan', 'Pacifica'],
   Buick:           ['Encore', 'Encore GX', 'Enclave', 'Envision', 'Envista'],
   GMC:             ['Acadia', 'Canyon', 'Sierra', 'Terrain', 'Yukon'],
   Cadillac:        ['CT4', 'CT5', 'Escalade', 'XT4', 'XT5', 'XT6'],

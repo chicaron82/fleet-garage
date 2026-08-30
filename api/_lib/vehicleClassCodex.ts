@@ -95,6 +95,7 @@ const CODEX: Record<string, VehicleClass> = {
   CTLT: { make: 'Chevrolet', model: 'Traverse' }, // surfaced live 2026-07-17 (Aaron) — L2 class
   CSBZ: { make: 'Chevrolet', model: 'Suburban' }, // surfaced live 2026-07-20 (Aaron, unit 5426945 / LUR375, rental class T6) — full-size SUV, T6 shares with Expedition
   // Tesla
+  CTMY: { make: 'Tesla', model: 'Model Y' }, // 6 on the fleet and absent from here until 2026-08-30 — Aaron: *"CTMY should have been [known] as its a model y tesla"*. Two of the six still read model 'Unknown'.
   CTM3: { make: 'Tesla', model: 'Model 3' },
   CM3L: { make: 'Tesla', model: 'Model 3' },
   C3US: { make: 'Tesla', model: 'Model 3' }, // 3rd Model 3 code — Aaron confirmed at the car, 2026-07-20 (unit 5515358 / LJF689, VAN DTG, rental class B9)
@@ -102,6 +103,7 @@ const CODEX: Record<string, VehicleClass> = {
   CX96: { make: 'Volvo', model: 'XC90' },
   C6CU: { make: 'Volvo', model: 'XC60' }, // surfaced live 2026-07-20 (Aaron, unit 5427752 / LJF700) — visually confirmed XC60
   CX4U: { make: 'Volvo', model: 'XC40' }, // surfaced live 2026-07-20 (Aaron, unit 5429683 / LUR478, rental class W4) — confirmed XC40
+  CXRU: { make: 'Volvo', model: 'XC40' }, // a SECOND XC40 code, off LUR478's own tag in the 2026-08-30 audit. Aaron on why Volvos lagged: *"volvos, buicks were absent from our fleet so i didn't have them in my own memory to confidently add them."*
   // Mazda
   CC5S: { make: 'Mazda', model: 'CX-5' },
   // Volkswagen
@@ -119,6 +121,12 @@ const CODEX: Record<string, VehicleClass> = {
   CTCF: { make: 'Volkswagen', model: 'Tiguan' }, // surfaced live 2026-07-20 (Aaron, unit 5429832 / LUR466, rental class Q4) — rare on the lot, confirmed Tiguan
   // Chrysler / Dodge
   CGCL: { make: 'Dodge', model: 'Grand Caravan' },
+  // ⭐ NOT a duplicate of CGCL and NOT a correction of it — two codes for two ERAS. The Canadian
+  // Grand Caravan became a CHRYSLER in 2021, and the one car carrying CGCT is a 2024. Aaron raised
+  // the make himself and hedged it — *"CGCT a chrysler grand caravan. we may have listed it under
+  // dodge instead of chrysler"* — so CGCL is left exactly as it is rather than rewritten on a
+  // hunch: an older Dodge-badged van is still a Dodge.
+  CGCT: { make: 'Chrysler', model: 'Grand Caravan' },
   CPCL: { make: 'Chrysler', model: 'Pacifica' },
   CDR8: { make: 'Dodge', model: 'Durango' },
   // Newer Durango class — confirmed off a real tag at the car (LUR437, unit 5429949,
@@ -127,6 +135,7 @@ const CODEX: Record<string, VehicleClass> = {
   C300: { make: 'Chrysler', model: '300' },
   // Buick
   CEVS: { make: 'Buick', model: 'Envista' }, // surfaced live 2026-07-08 — didn't resolve, Aaron told Effie by hand
+  CENA: { make: 'Buick', model: 'Envista' }, // a SECOND Envista code, off the tags in the 2026-08-30 audit (2 cars, both 2026)
   CGXA: { make: 'Buick', model: 'Encore' }, // surfaced live 2026-07-20 (Aaron, unit 5427851 / LUR575, rental class B5) — confirmed Encore
   CEGX: { make: 'Buick', model: 'Encore' }, // older Encore code — Aaron, 2026-07-20 (same model, earlier code)
   // GMC
@@ -239,11 +248,29 @@ export function hybridFromModel(model: string | undefined | null): true | undefi
  *  codex is this 73-entry curated map plus that overflow. Measuring the smaller half and reporting
  *  it as the whole.
  *
- *  ⭐ And the truth is a sharper diagnosis than the error was: across the fleet's 80 distinct codes,
- *  the number FG does not know is **ZERO**. There is no knowledge gap. There is a READ gap — every
- *  "unknown code" is a code already in this file, arriving truncated or misread, and the teach path
- *  then memorises the corruption. Aaron had been telling sessions for weeks that he had already fed
- *  FG these codes. He had. They were here the whole time.
+ *  ⭐ The sharper diagnosis that replaced it: most "unknown codes" are a READ gap, not a knowledge
+ *  gap — a code already in this file arriving truncated or misread, which the teach path then
+ *  memorises as corruption. Aaron had been telling sessions for weeks that he had already fed FG
+ *  these codes. He had. They were here the whole time.
+ *
+ *  ⓘ SECOND CORRECTION (2026-08-30) — AND THE SAME OVER-REACH, ONE STEP FURTHER OUT. That paragraph
+ *  originally closed with "across the fleet's 80 distinct codes, the number FG does not know is
+ *  **ZERO**. There is no knowledge gap." **That is false**, and Aaron said so plainly: *"FG doesn't
+ *  know every single one in the fleet. most of it was taught from me. the rest needed to be learned.
+ *  volvos, buicks were absent from our fleet so i didn't have them in my own memory to confidently
+ *  add them."*
+ *
+ *  ⚠️⚠️ This map is a RECORD OF WHAT ONE PERSON HAS SEEN, not a catalogue of what exists. Its
+ *  coverage tracks the fleet's history — the makes that were never on the lot were never learned,
+ *  and the fleet keeps changing. So "not in the map" is genuinely ambiguous between a misread and a
+ *  code nobody has met yet, and the confident version of this comment resolved that ambiguity the
+ *  wrong way for anyone who read it: it says every unknown IS a misread. A comment that asserts a
+ *  property of the FLEET reads as domain knowledge, so nobody re-checks it.
+ *
+ *  ⭐ How the over-reach happened, both times: a real finding ("CNSS was here all along") was
+ *  generalised into a claim about EVERYTHING, with the evidence for the specific case doing duty
+ *  for the general one. [[feedback_generalising_a_claim]]. The measured claim — most unknowns are
+ *  read gaps — is the one that survives, and it is enough to justify the teach gate.
  *
  *  ⚠️ It gates only what FG LEARNS. It must never be used to judge what Aaron TYPES: plenty of tags
  *  carry no code at all and spell the model out in full (DEWN854 says SELTOS, the US Compass says

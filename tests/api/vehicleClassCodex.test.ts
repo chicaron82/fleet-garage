@@ -196,3 +196,37 @@ describe('hybridFromModel — models that are only ever hybrids', () => {
     expect(lookupVehicleClass('CSLE')?.isHybrid).toBe(true);
   });
 });
+
+// ⭐ THE FOUR CODES THE 2026-08-30 AUDIT SURFACED — and the reason they were missing, which is the
+// part worth locking down. Aaron: *"FG doesn't know every single one in the fleet. most of it was
+// taught from me. the rest needed to be learned. volvos, buicks were absent from our fleet so i
+// didn't have them in my own memory to confidently add them."*
+//
+// ⚠️ That corrects a claim this map's own header used to make — "the number FG does not know is
+// ZERO. There is no knowledge gap." The map is a record of what ONE PERSON has seen, and its
+// coverage tracks the fleet's history. Codes will keep arriving that are new rather than misread.
+describe('codes learned from the 2026-08-30 key-tag audit', () => {
+  it('CTMY resolves to a Model Y — six on the fleet, absent from the map until then', () => {
+    expect(lookupVehicleClass('CTMY')).toEqual({ make: 'Tesla', model: 'Model Y' });
+  });
+
+  // ⚠️ SECOND codes for models already here, not corrections of the first. Same pattern as the
+  // three Model 3 codes — one model can be printed under more than one code.
+  it('CXRU is a second XC40 code, alongside CX4U', () => {
+    expect(lookupVehicleClass('CXRU')).toEqual({ make: 'Volvo', model: 'XC40' });
+    expect(lookupVehicleClass('CX4U')).toEqual({ make: 'Volvo', model: 'XC40' });
+  });
+
+  it('CENA is a second Envista code, alongside CEVS', () => {
+    expect(lookupVehicleClass('CENA')).toEqual({ make: 'Buick', model: 'Envista' });
+    expect(lookupVehicleClass('CEVS')).toEqual({ make: 'Buick', model: 'Envista' });
+  });
+
+  // ⚠️⚠️ TWO ERAS, NOT A MISTAKE. The Canadian Grand Caravan became a CHRYSLER in 2021 and the one
+  // car carrying CGCT is a 2024. Aaron raised the make and hedged it — *"we may have listed it under
+  // dodge instead of chrysler"* — so CGCL stays Dodge rather than being rewritten on a hunch.
+  it('⚠️ CGCT is a Chrysler and CGCL stays a Dodge', () => {
+    expect(lookupVehicleClass('CGCT')).toEqual({ make: 'Chrysler', model: 'Grand Caravan' });
+    expect(lookupVehicleClass('CGCL')).toEqual({ make: 'Dodge', model: 'Grand Caravan' });
+  });
+});
