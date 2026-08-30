@@ -35,7 +35,7 @@ export interface BatchKeytagState {
 
 export function useBatchKeytagStage(): BatchKeytagState {
   const { readKeytag } = useKeytagRead();
-  const { vehicles } = useVehicleHoldContext();
+  const { vehicles, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { stage } = usePendingWritesContext();
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -58,7 +58,27 @@ export function useBatchKeytagStage(): BatchKeytagState {
         // Endpoint/vision failure — nothing to plan; record an honest skip.
         out.push({ index: i, plan: { plate: '', wasCorrected: false, action: 'skip', detail: 'could not read the key tag' }, staged: false, stageError: false });
       } else {
-        const plan = planBatchStage(read, resolveKeytagScan(read, vehicles));
+        const resolved = resolveKeytagScan(read, vehicles);
+        const plan = planBatchStage(read, resolved);
+
+        // ⭐⭐ KEEP THE PHOTO ON EVERY MATCHED ROW, whatever the action was. Aaron, 2026-08-30:
+        // *"i don't think batch register is storing the keytag if its missing… i may be missing a
+        // keytag which the first batch probably has but was discarded."* He was right — and nine of
+        // the twenty-six cars in that batch had no tag on file while he was uploading photos of
+        // theirs.
+        //
+        // ⚠️ The photo rode ONLY on the proposal, and a `skip` has no proposal — so every
+        // "already in the fleet — nothing to add" row binned the tag it was holding. That detail was
+        // a false statement: the planner reasons about FIELDS, decided every column was full, and
+        // never had the ARTIFACT in its model of what a scan can contribute.
+        //
+        // Automatic here, unlike the `Add anyway` offer on an unmatched row: this fills a NULL on a
+        // car already matched by plate, cannot overwrite anything (attach-if-missing is guarded
+        // twice, including a race-safe `.is(null)` in the write), and needs no judgement. The
+        // junk-car hazard that made the other one a button does not exist when no record is created.
+        if (resolved.vehicle && !resolved.vehicle.keytagPhotoUrl) {
+          await attachKeytagPhotoIfMissing(resolved.vehicle.id, base64s[i]);
+        }
         if (plan.action === 'skip' || !plan.proposal) {
           out.push({ index: i, plan, staged: false, stageError: false });
         } else {
@@ -79,7 +99,7 @@ export function useBatchKeytagStage(): BatchKeytagState {
       setProgress({ done: i + 1, total: base64s.length });
     }
     setRunning(false);
-  }, [running, readKeytag, vehicles, stage]);
+  }, [running, readKeytag, vehicles, stage, attachKeytagPhotoIfMissing]);
 
   /**
    * ⭐ Stage the plate-only fallback for ONE row, on his tap. Aaron, 2026-08-30: *"the tag should

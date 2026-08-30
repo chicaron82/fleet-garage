@@ -63,8 +63,19 @@ export function planBatchStage(read: KeytagRead, result: KeytagScanResult): Batc
     return { ...base, action: 'register', proposal: buildRegisterVehicleProposal(nv, nv.make === 'Tesla'), detail: `register ${describeNewVehicle(nv)}` };
   }
 
+  // ⚠️ "NOTHING TO ADD" WAS A FALSE STATEMENT while the scan was holding a photo the car did not
+  // have. This function reasons about FIELDS; the artifact was never in its model of what a scan can
+  // contribute, so it said "nothing" and the hook binned the tag. Aaron caught it on LUR143, and
+  // nine of the twenty-six cars in that batch had no tag on file. The hook attaches it now
+  // (attach-if-missing); this line has to stop claiming otherwise.
+  const needsTag = !result.vehicle?.keytagPhotoUrl;
+
   if (resolution.kind === 'complete') {
-    return { ...base, action: 'skip', detail: 'already in the fleet — nothing to add' };
+    return {
+      ...base,
+      action: 'skip',
+      detail: needsTag ? 'already in the fleet — keeping the key tag photo' : 'already in the fleet — nothing to add',
+    };
   }
 
   // partial: fill blanks if there are any; conflicts alone aren't auto-applied.
@@ -76,5 +87,11 @@ export function planBatchStage(read: KeytagRead, result: KeytagScanResult): Batc
       detail: `backfill ${resolution.fills.map((f) => `${f.field} ${f.value}`).join(', ')}`,
     };
   }
-  return { ...base, action: 'skip', detail: 'in the fleet; the tag only disagrees — nothing to fill' };
+  return {
+    ...base,
+    action: 'skip',
+    detail: needsTag
+      ? 'in the fleet; the tag only disagrees — keeping the key tag photo'
+      : 'in the fleet; the tag only disagrees — nothing to fill',
+  };
 }

@@ -115,3 +115,38 @@ describe('planBatchStage', () => {
     expect(p.plate).toBe('LUR554');
   });
 });
+
+// ⚠️⚠️ "NOTHING TO ADD" WAS A LIE while the scan held a photo the car did not have. The tag rode on
+// the PROPOSAL and a skip has none, so every already-in-the-fleet row binned it. Aaron caught it on
+// LUR143 (2026-08-30), and NINE of the twenty-six cars in that batch had no key tag on file while he
+// was uploading photos of theirs. The planner reasons about FIELDS; the artifact was never in its
+// model of what a scan can contribute.
+describe('planBatchStage — the photo is something to add', () => {
+  it('⭐ a complete car with NO key tag says it is keeping the photo', () => {
+    const p = planBatchStage(FULL, result({ resolution: { kind: 'complete' }, vehicle: vehicle({ keytagPhotoUrl: null }) }));
+    expect(p.action).toBe('skip');
+    expect(p.detail).toBe('already in the fleet — keeping the key tag photo');
+  });
+
+  it('a complete car that already HAS one still says nothing to add', () => {
+    const p = planBatchStage(FULL, result({ resolution: { kind: 'complete' }, vehicle: vehicle({ keytagPhotoUrl: 'https://cdn/kt.jpg' }) }));
+    expect(p.detail).toBe('already in the fleet — nothing to add');
+  });
+
+  // The other skip branch had the same hole — a tag that only disagrees is still a tag.
+  it('⭐ the disagrees-only branch keeps it too', () => {
+    const p = planBatchStage(FULL, result({
+      resolution: { kind: 'partial', fills: [], conflicts: [] } as never,
+      vehicle: vehicle({ keytagPhotoUrl: null }),
+    }));
+    expect(p.detail).toBe('in the fleet; the tag only disagrees — keeping the key tag photo');
+  });
+
+  it('and says nothing to fill when the car already has one', () => {
+    const p = planBatchStage(FULL, result({
+      resolution: { kind: 'partial', fills: [], conflicts: [] } as never,
+      vehicle: vehicle({ keytagPhotoUrl: 'https://cdn/kt.jpg' }),
+    }));
+    expect(p.detail).toBe('in the fleet; the tag only disagrees — nothing to fill');
+  });
+});
