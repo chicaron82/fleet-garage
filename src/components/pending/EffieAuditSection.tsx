@@ -50,11 +50,16 @@ export function EffieAuditSection() {
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-4 py-3 cursor-pointer"
       >
+        {/* ⚠️ NO COUNT BADGE. This header used to carry the identical pill as the two ACTIONABLE
+            queues beside it — same size, same bold tabular number, differing only in colour
+            (orange = act, amber = look, grey = done). Aaron, 2026-08-29: *"having a badge persist
+            at 12 reads as if i still need to do something with them"*. Shape is queue grammar and
+            beats colour; no shade of grey talks a filled pill out of meaning "waiting". The number
+            also answered no question he had. The per-car trail lives on the vehicle record now
+            (VehicleEffieTrail), which is where "why does this record say that" gets asked. */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Effie — write history</span>
-          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
-            {rows.length}
-          </span>
+          <span className="text-sm font-bold text-gray-500 dark:text-gray-400">Effie — write history</span>
+          <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">archive</span>
         </div>
         <span className="text-xs text-gray-400">{open ? '▲' : '▼'}</span>
       </button>

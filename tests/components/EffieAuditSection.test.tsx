@@ -48,12 +48,19 @@ describe('EffieAuditSection', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the count and renders each resolved write when expanded', () => {
+  // ⚠️ THIS TEST USED TO ASSERT A COUNT BADGE, and the badge was the defect. It wore the identical
+  // pill as the two ACTIONABLE queues beside it — same size, same bold tabular number, differing
+  // only in colour (orange = act, amber = look, grey = done). Aaron, 2026-08-29: *"having a badge
+  // persist at 12 reads as if i still need to do something with them"*. Shape is queue grammar and
+  // beats colour. The header now says "archive" in words and never counts; the per-car trail moved
+  // to the vehicle record (VehicleEffieTrail), where the question actually gets asked.
+  it('⚠️ names itself an ARCHIVE and shows no count badge at all', () => {
     h.rows = [APPROVED_REGISTER, REJECTED_HOLD];
-    render(<EffieAuditSection />);
-    // Header + count badge always visible.
+    const { container } = render(<EffieAuditSection />);
     expect(screen.getByText('Effie — write history')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('archive')).toBeInTheDocument();
+    expect(container.querySelector('.rounded-full')).toBeNull();
+    expect(screen.queryByText('2')).not.toBeInTheDocument();
     // Collapsed by default — expand to see the rows.
     fireEvent.click(screen.getByText('Effie — write history'));
     expect(screen.getByText('APPROVED')).toBeInTheDocument();

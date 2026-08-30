@@ -17,6 +17,7 @@ import { VehicleArchiveModal } from './VehicleArchiveModal';
 import { VehicleRecordFacts } from './VehicleRecordFacts';
 import { VehicleNote } from './VehicleNote';
 import { VehicleChangeLog } from './VehicleChangeLog';
+import { VehicleEffieTrail } from './VehicleEffieTrail';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
 import { PhotoError } from '../shared/PhotoError';
@@ -281,6 +282,8 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
         <VehicleLostFoundSection vehicle={vehicle} />
 
         <VehicleChangeLog vehicleId={vehicle.id} />
+
+        <VehicleEffieTrail vehicleId={vehicle.id} licensePlate={vehicle.licensePlate} />
 
         {showArchiveConfirm && (
           <VehicleArchiveModal
