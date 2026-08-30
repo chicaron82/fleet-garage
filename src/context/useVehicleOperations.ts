@@ -106,6 +106,11 @@ export function useVehicleOperations({
           color:             vehicle.color,
           rental_class:      vehicle.rentalClass ?? null,
           class_code:        vehicle.classCode ?? null,
+          // ⚠️ The insert simply had no column for these two, so every path that mints a car — all
+          // eight of them — dropped whatever the tag said. Added 2026-08-30 with the rest of the
+          // chain; `?? null` because a tag that couldn't give one must record nothing, not ''.
+          owning_area:       vehicle.owningArea ?? null,
+          vin_last9:         vehicle.vinLast9 ?? null,
           key_count:         keyCount,
           keytag_photo_url:  vehicle.keytagPhotoUrl ?? null,
           branch_id:         branchId,

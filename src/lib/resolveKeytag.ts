@@ -17,6 +17,7 @@
 // a value the operator manually set outranks any scan. `locked` comes from the vehicle's
 // field_sources (a field marked 'manual'). Pure: never writes, never touches the DB.
 import type { KeytagRead } from '../../api/_lib/keytagRead';
+import { normalizeOwning } from '../../api/_lib/owningArea';
 
 /** The identity fields of an existing fleet vehicle a read can backfill — a subset of
  *  Vehicle, so the resolver stays decoupled from the full row type. */
@@ -27,11 +28,28 @@ export interface KeytagExistingVehicle {
   year: number;
   color: string;
   rentalClass: string | null;
+  /** ⭐ THE THREE THE READER HAS ALWAYS EXTRACTED AND NO WRITER EVER TOOK. Added 2026-08-30 after
+   *  Aaron dumped his camera roll into the batch register and asked the obvious question: *"were
+   *  the keytags in the audit really that unreadable? i feel most of them could have been read
+   *  easily."* They could. The queue he was left with was 45 cars, and 44 of them were missing
+   *  EXACTLY these — owning area and VIN — while not one was missing its unit number. That is not
+   *  a legibility shape; a smudged tag loses the big print with the small.
+   *
+   *  `api/keytag-read.ts` asks the model for all three by name. This resolver's FIELDS list did not
+   *  include them, so a scan could never fill them on a car FG already had. Same confession this
+   *  file's sibling already carries twice — *"the line was always read and the number always
+   *  discarded"* (Aug 18) and *"…and the city always discarded"* (Aug 28) — except those two were
+   *  fixed by teaching the READER, and nobody checked whether the WRITERS would take the answer. */
+  owningArea: string | null;
+  classCode: string | null;
+  vinLast9: string | null;
 }
 
 /** A backfillable field. Plate is the match key, never resolved here. rentalClass is read off
  *  the tag's corner — backfilling it is how the existing fleet gets classed as cars are scanned. */
-export type KeytagField = 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass';
+export type KeytagField =
+  | 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass'
+  | 'owningArea' | 'classCode' | 'vinLast9';
 
 /** A blank existing field the read can fill in. */
 export interface KeytagFill {
@@ -60,7 +78,26 @@ export type KeytagResolution =
   | { kind: 'complete' }
   | { kind: 'partial'; fills: KeytagFill[]; changes: KeytagChange[]; conflicts: KeytagConflict[] };
 
-const FIELDS: KeytagField[] = ['unitNumber', 'make', 'model', 'year', 'color', 'rentalClass'];
+const FIELDS: KeytagField[] = [
+  'unitNumber', 'make', 'model', 'year', 'color', 'rentalClass',
+  'owningArea', 'classCode', 'vinLast9',
+];
+
+/**
+ * The read's value for one field, in the form the DATABASE holds it.
+ *
+ * ⚠️ OWNING AREA IS THE REASON THIS EXISTS. Tags print the branch with a leading zero — "08199" —
+ * and FG stores it without one, because `normalizeOwning` has always stripped it ("the leading zero
+ * is a print convention, not part of the number", keytagAuditWrite). Comparing the raw read against
+ * the stored value would call 08199 ≠ 8199 a CHANGE on every single scan of a correctly-recorded
+ * car: a fleet-wide stream of false corrections, each one applied. Normalize before comparing, not
+ * after deciding.
+ */
+function readValue(read: KeytagRead, field: KeytagField): string | number | undefined {
+  if (field !== 'owningArea') return read[field];
+  const n = normalizeOwning(read.owningArea);
+  return n === '' ? undefined : n;
+}
 
 /** A value is "blank" (unknown) if it's null/undefined, an empty/whitespace string, or a
  *  non-positive year (0 is FG's unknown-year sentinel). */
@@ -91,7 +128,7 @@ export function resolveKeytag(
   const changes: KeytagChange[] = [];
   const conflicts: KeytagConflict[] = [];
   for (const field of FIELDS) {
-    const readVal = read[field];
+    const readVal = readValue(read, field);
     if (isBlank(readVal)) continue; // the read offers nothing for this field
     const existingVal = existing[field];
     if (isBlank(existingVal)) {

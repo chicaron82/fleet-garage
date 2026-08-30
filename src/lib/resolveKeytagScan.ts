@@ -8,6 +8,7 @@ import { matchByUnitNumber } from './matchByUnitNumber';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
+import { normalizeOwning } from '../../api/_lib/owningArea';
 import type { Vehicle, FieldSource } from '../types';
 
 /** A vehicle's field_sources → the fields the operator has LOCKED (source 'manual'). A locked
@@ -23,7 +24,15 @@ function lockedFromSources(fs: Record<string, FieldSource> | undefined): Partial
  *  planner share one definition. */
 export function newVehicleFromRead(read: KeytagRead, plate: string): NewVehicle | null {
   if (!read.make || !read.model || !read.unitNumber || !read.year) return null;
-  return { unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year, color: read.color ?? '', rentalClass: read.rentalClass };
+  return {
+    unitNumber: read.unitNumber, plate, make: read.make, model: read.model, year: read.year,
+    color: read.color ?? '', rentalClass: read.rentalClass,
+    // ⚠️ owningArea is NORMALIZED here for the same reason resolveKeytag normalizes it: tags print
+    // "08199" and the fleet stores 8199. A registration writing the printed form would seed a car
+    // that disagrees with every other record of the same branch.
+    classCode: read.classCode, owningArea: normalizeOwning(read.owningArea) || undefined,
+    vinLast9: read.vinLast9,
+  };
 }
 
 /**
@@ -54,6 +63,9 @@ export function plateOnlyVehicleFromRead(read: KeytagRead, plate: string): NewVe
     year: read.year ?? 0,
     color: read.color ?? '',
     rentalClass: read.rentalClass,
+    classCode: read.classCode,
+    owningArea: normalizeOwning(read.owningArea) || undefined,
+    vinLast9: read.vinLast9,
   };
 }
 
@@ -189,7 +201,15 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   const unitCandidates = unitMatch.kind === 'ambiguous' ? unitMatch.vehicles : [];
 
   const existing = vehicle
-    ? { unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model, year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null }
+    ? {
+        unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model,
+        year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null,
+        // ⚠️ These three must be projected or the resolver sees `undefined` and treats every car as
+        // blank — which would report a FILL for a value already on the record.
+        owningArea: vehicle.owningArea ?? null,
+        classCode: vehicle.classCode ?? null,
+        vinLast9: vehicle.vinLast9 ?? null,
+      }
     : null;
   return {
     rawPlate: read.plate,

@@ -132,6 +132,15 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           model: nv.model,
           year: nv.year,
           color: nv.color,
+          // ⚠️ FOUR FIELDS THE PROPOSAL HAS ALWAYS CARRIED AND THIS CALL DROPPED. `rentalClass` was
+          // on NewVehicle since the scan-register landed and never made it into addVehicle; the
+          // other three joined it 2026-08-30. A car registered from a batch therefore arrived
+          // knowing its colour and not its VIN, and queued itself into the key-tag auditor to be
+          // hand-typed off the photo FG had just read correctly.
+          rentalClass: nv.rentalClass ?? null,
+          classCode:   nv.classCode ?? null,
+          owningArea:  nv.owningArea ?? null,
+          vinLast9:    nv.vinLast9 ?? null,
           branchId: user.branchId,
           isTesla: proposal.isTesla,
           hasMobileCable: proposal.isTesla ? (extra?.cable ?? true) : null,
@@ -183,6 +192,15 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           model: nv.model,
           year: nv.year,
           color: nv.color,
+          // ⚠️ FOUR FIELDS THE PROPOSAL HAS ALWAYS CARRIED AND THIS CALL DROPPED. `rentalClass` was
+          // on NewVehicle since the scan-register landed and never made it into addVehicle; the
+          // other three joined it 2026-08-30. A car registered from a batch therefore arrived
+          // knowing its colour and not its VIN, and queued itself into the key-tag auditor to be
+          // hand-typed off the photo FG had just read correctly.
+          rentalClass: nv.rentalClass ?? null,
+          classCode:   nv.classCode ?? null,
+          owningArea:  nv.owningArea ?? null,
+          vinLast9:    nv.vinLast9 ?? null,
           branchId: user.branchId,
           isTesla: nv.make === 'Tesla',
           hasMobileCable: null,

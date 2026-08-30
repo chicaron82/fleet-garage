@@ -10,6 +10,11 @@ const known: KeytagExistingVehicle = {
   year: 2022,
   color: 'Silver',
   rentalClass: null, // realistic: an existing fleet car with no class yet
+  // Blank too, and realistically so: these three were unwritable by any scan path until
+  // 2026-08-30, so an existing car overwhelmingly has nothing in them.
+  owningArea: null,
+  classCode: null,
+  vinLast9: null,
 };
 
 const fullRead: KeytagRead = {
@@ -53,7 +58,7 @@ describe('resolveKeytag — complete', () => {
 
 describe('resolveKeytag — partial (fills)', () => {
   it('fills blank existing fields from the read', () => {
-    const sparse: KeytagExistingVehicle = { unitNumber: null, make: 'Toyota', model: '', year: 0, color: '', rentalClass: null };
+    const sparse: KeytagExistingVehicle = { unitNumber: null, make: 'Toyota', model: '', year: 0, color: '', rentalClass: null, owningArea: null, classCode: null, vinLast9: null };
     const read: KeytagRead = { plate: 'ABC123', unitNumber: '5-4321', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver' };
     const res = resolveKeytag(read, sparse);
     expect(res.kind).toBe('partial');
@@ -128,7 +133,7 @@ describe('resolveKeytag — partial (conflicts: locked fields block the tag)', (
 
 describe('resolveKeytag — fills + changes together', () => {
   it('fills the blanks and applies the unlocked corrections in one pass', () => {
-    const half: KeytagExistingVehicle = { unitNumber: null, make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', rentalClass: null };
+    const half: KeytagExistingVehicle = { unitNumber: null, make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', rentalClass: null, owningArea: null, classCode: null, vinLast9: null };
     const read: KeytagRead = { plate: 'ABC123', unitNumber: '5-9999', color: 'Blue' };
     const res = resolveKeytag(read, half);
     expect(res.kind).toBe('partial');
@@ -165,5 +170,63 @@ describe('resolveKeytag — rentalClass provenance ladder', () => {
 
   it('a read with no class offers nothing — no change on an unclassed car', () => {
     expect(resolveKeytag(fullRead, known)).toEqual({ kind: 'complete' }); // fullRead has no rentalClass
+  });
+});
+
+
+// ⭐⭐ THE THREE FIELDS THE READER ALWAYS GAVE AND NO WRITER TOOK. Aaron, after dumping his camera
+// roll into the batch register, 2026-08-30: *"were the keytags in the audit really that unreadable?
+// i feel most of them could have been read easily."* They were readable. Of the 45 cars the batch
+// left in his audit queue, 44 were missing owning area and 44 were missing the VIN — and NOT ONE was
+// missing its unit number. A smudged tag does not lose two specific lines on every car.
+describe('the tag fields a scan could never write', () => {
+  const bare: KeytagExistingVehicle = { ...known, unitNumber: null, make: '', model: '', year: 0, color: '' };
+
+  it('⭐ fills owning area, model code and VIN from the read', () => {
+    const r = resolveKeytag({ owningArea: '8199', classCode: 'CKSV', vinLast9: '3S7792108' } as KeytagRead, bare);
+    expect(r.kind).toBe('partial');
+    if (r.kind !== 'partial') return;
+    expect(r.fills).toEqual(expect.arrayContaining([
+      { field: 'owningArea', value: '8199' },
+      { field: 'classCode', value: 'CKSV' },
+      { field: 'vinLast9', value: '3S7792108' },
+    ]));
+  });
+
+  // ⚠️⚠️ THE TRAP THAT MAKES `readValue` EXIST. Tags PRINT the branch with a leading zero — "08199"
+  // — and FG stores 8199, because normalizeOwning has always stripped it. Comparing the printed
+  // form against the stored one calls a correctly-recorded car a CHANGE, and a change is APPLIED —
+  // so every scan of every car would have quietly rewritten its branch to the printed form.
+  it('⚠️ a printed "08199" against a stored "8199" is NOT a change', () => {
+    const r = resolveKeytag({ owningArea: '08199' } as KeytagRead, { ...known, owningArea: '8199' });
+    expect(r.kind).toBe('complete');
+  });
+
+  it('⚠️ and it fills in the stored form, never the printed one', () => {
+    const r = resolveKeytag({ owningArea: '08199' } as KeytagRead, bare);
+    if (r.kind !== 'partial') throw new Error('expected partial');
+    expect(r.fills).toContainEqual({ field: 'owningArea', value: '8199' });
+  });
+
+  // A branch number too short to be one is not a fact — normalizeOwning returns '', and a blank
+  // read must offer nothing rather than blanking the record.
+  it('⚠️ an unusable owning read offers nothing at all', () => {
+    const r = resolveKeytag({ owningArea: '81' } as KeytagRead, bare);
+    if (r.kind !== 'partial') { expect(r.kind).toBe('complete'); return; }
+    expect(r.fills.some(f => f.field === 'owningArea')).toBe(false);
+  });
+
+  // The provenance ladder applies to them exactly as it does to the older six: a value Aaron typed
+  // into the auditor is 'manual' and LOCKED, so a later misread reports a conflict instead of
+  // overwriting the VIN he checked against the tag in his hand.
+  it('⚠️ a manually-audited VIN blocks a disagreeing read', () => {
+    const r = resolveKeytag(
+      { vinLast9: '3S7792109' } as KeytagRead,
+      { ...known, vinLast9: '3S7792108' },
+      { vinLast9: true },
+    );
+    if (r.kind !== 'partial') throw new Error('expected partial');
+    expect(r.conflicts).toEqual([{ field: 'vinLast9', existing: '3S7792108', read: '3S7792109' }]);
+    expect(r.changes).toEqual([]);
   });
 });

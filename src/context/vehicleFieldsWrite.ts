@@ -16,6 +16,12 @@ interface VehicleFieldsUpdate {
   year?: number;
   color?: string;
   rental_class?: string;
+  // ⚠️ The three the reader has always extracted and this payload never carried (2026-08-30). A
+  // scan could fill a car's colour but not its VIN, so 44 of the 45 cars in Aaron's audit queue sat
+  // there missing exactly these two — off photos FG had already read correctly.
+  owning_area?: string;
+  class_code?: string;
+  vin_last9?: string;
   field_sources?: Record<string, FieldSource>;
 }
 
@@ -54,12 +60,17 @@ export function makeUpdateVehicleFields(deps: {
     if (applied.length === 0) return { unitConflict: conflict };
 
     const payload: VehicleFieldsUpdate = {};
-    const patch: Partial<Pick<Vehicle, 'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass'>> = {};
+    const patch: Partial<Pick<Vehicle,
+      'unitNumber' | 'make' | 'model' | 'year' | 'color' | 'rentalClass'
+      | 'owningArea' | 'classCode' | 'vinLast9'>> = {};
     const stamps: Record<string, FieldSource> = {};
     for (const f of applied) {
       if (f.field === 'unitNumber')       { payload.unit_number = f.value as string; patch.unitNumber = f.value as string; }
       else if (f.field === 'year')        { payload.year = f.value as number; patch.year = f.value as number; }
       else if (f.field === 'rentalClass') { payload.rental_class = f.value as string; patch.rentalClass = f.value as string; }
+      else if (f.field === 'owningArea')  { payload.owning_area = f.value as string; patch.owningArea = f.value as string; }
+      else if (f.field === 'classCode')   { payload.class_code = f.value as string; patch.classCode = f.value as string; }
+      else if (f.field === 'vinLast9')    { payload.vin_last9 = f.value as string; patch.vinLast9 = f.value as string; }
       else                                { payload[f.field] = f.value as string; patch[f.field] = f.value as string; }
       stamps[f.field] = 'tag';   // every field this path sets came from a scanned tag
     }
