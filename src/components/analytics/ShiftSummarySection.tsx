@@ -287,7 +287,12 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
             type="button"
             onClick={handleSave}
             disabled={saving || !hasActivity}
-            className="w-full py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-300"
+            /* ⚠️ YELLOW, not black. A primary action ON THE PAGE wears the app's action colour;
+               black is reserved for a commit inside a modal or action sheet (see CLAUDE.md,
+               "Button language"). This one sat inline directly under a yellow sibling and read as a
+               different kind of control — Aaron, 2026-08-30: *"action buttons in FG are yellow …
+               two here are black. breaking the design language"*. */
+            className="w-full py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 cursor-pointer"
           >
             {saving ? 'Saving…' : savedForDate ? 'Update Summary' : 'Save Summary'}
           </button>

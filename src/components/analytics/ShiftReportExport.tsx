@@ -361,7 +361,11 @@ export function ShiftReportExport({ date }: { date: string }) {
         type="button"
         onClick={handlePDFExport}
         disabled={busy}
-        className="flex-1 py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        /* ⚠️ YELLOW, not black — and this one shares a row with `ShareTextButton`, which is
+           already in the amber language, so the pair read as two different classes of control
+           sitting side by side. Page-level action = yellow; black belongs to a sheet commit.
+           See CLAUDE.md, "Button language". */
+        className="flex-1 py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {pdfLoading ? 'Building PDF…' : 'Download PDF ↓'}
       </button>

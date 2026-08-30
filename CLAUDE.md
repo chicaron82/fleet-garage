@@ -112,6 +112,30 @@ wrote a highlight for a state the filter made unreachable, and I render-verified
    their words. If the fix erased every real instance, manufacture one — and then **check the
    durable side effect (the row), not the visible one (the toast)**.
 
+## Button language — write it down, because neither of us remembered
+
+Aaron, 2026-08-30, on two black buttons in My Shift: *"action buttons in FG are yellow (other than
+the code red button in the movement log) two here are black. breaking the design language"* — and
+then, asked which way the rule ran: *"i don't remember if it was my call or a past you's
+recommendation."*
+
+**Neither of us knew.** The convention was real and consistently followed in 62 places across 57
+files, and it existed **nowhere in writing**, so it could only be recovered by grepping and guessing
+at intent. That is the actual defect; the two buttons were a symptom.
+
+| Where | Colour | Example |
+|---|---|---|
+| A primary action **on the page** | `bg-fg-yellow` + `hover:bg-fg-yellow-hi`, `text-gray-900` | Save Fuel Readings · Save Summary · Download PDF |
+| A commit **inside a modal / action sheet** | `bg-gray-900 dark:bg-gray-100` | Fill Schedule · Add to Roster · Request PTO |
+| A **selected state** in a picker or toggle | `bg-gray-900 dark:bg-gray-100` | ClockPicker · ScheduleFilterBar · ClassChipPicker |
+| **Destructive / code-red** | red | the Movement Log emergency action |
+
+⚠️ **The middle two rows look identical and are different rules.** A black *button* is a sheet
+commit; a black *chip* is "this one is chosen". Do not sweep one into the other — 12 of the 22
+`bg-gray-900` sites are selected-states and are correct as they are.
+
+⚠️ **Yellow needs `text-gray-900`.** It is a light background; white text on it is unreadable.
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and
