@@ -196,6 +196,19 @@ export function sightingLines(rows: readonly Sighting[]): SightingLine[] {
  *
  * `field_sources` rides along with other writes as bookkeeping; `cover_photo_url` is mixed (~64 of
  * its 88 rows came from a backfill), so it stays out rather than half-counting.
+ *
+ * ⭐⭐ ASKED AND ANSWERED — the `keytag_audit_*` fields do NOT belong here (2026-08-29). The audit
+ * shipped the day after this list was written and put 288 desk-audit changes on the fleet in one
+ * evening, so every one of those cars began reading "Last here today" while `vehicle_sightings`
+ * had zero rows for the day. I raised it as a defect. Aaron closed it as the design:
+ *
+ *   *"a change was made. so this change would reflect as such."*
+ *   *"couch work i'd still count. i can still see the interactions in detail if i expand it."*
+ *
+ * The chip answers *when did FG last notice this car*, and an audit is FG noticing. The expandable
+ * per-row list is what he opens when the summary is not enough — that is what it is for. So the
+ * line stays **script-vs-him**, exactly as written above, and a future reader wondering whether to
+ * add the audit fields has the answer here rather than re-deriving it from a scary-looking count.
  */
 export const SCRIPT_WRITTEN_FIELDS: ReadonlySet<string> = new Set([
   'field_sources', 'class_code', 'vin_last9', 'owning_area', 'cover_photo_url',
