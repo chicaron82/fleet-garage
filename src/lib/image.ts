@@ -116,3 +116,30 @@ export function readFileAsDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * A stored photo URL → the data-URL the key-tag reader takes.
+ *
+ * ⭐ The re-read path's one piece of IO. FG's tag photos live in Supabase storage under a public
+ * URL, and `/api/keytag-read` wants base64 — so a photo already on the record has to make the round
+ * trip before it can be read again. Aaron: *"can't it just be re-read and filled out?"*
+ *
+ * ⚠️ RESOLVES NULL RATHER THAN THROWING. It runs inside a loop over dozens of cars, and one photo
+ * that 404s or trips CORS must cost that car and nothing else — a throw here would end the run and
+ * leave the rest of the queue untouched with no way to tell how far it got.
+ */
+export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}

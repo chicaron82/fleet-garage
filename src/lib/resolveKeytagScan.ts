@@ -5,7 +5,7 @@
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPlate } from '../../api/_lib/platePrefix';
 import { matchByUnitNumber } from './matchByUnitNumber';
-import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField } from './resolveKeytag';
+import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField, type KeytagExistingVehicle } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
 import { normalizeOwning } from '../../api/_lib/owningArea';
@@ -13,10 +13,29 @@ import type { Vehicle, FieldSource } from '../types';
 
 /** A vehicle's field_sources → the fields the operator has LOCKED (source 'manual'). A locked
  *  field disagreeing with the tag becomes a conflict (blocked); everything else is fill/change. */
-function lockedFromSources(fs: Record<string, FieldSource> | undefined): Partial<Record<KeytagField, boolean>> {
+export function lockedFromSources(fs: Record<string, FieldSource> | undefined): Partial<Record<KeytagField, boolean>> {
   const locked: Partial<Record<KeytagField, boolean>> = {};
   if (fs) for (const [k, v] of Object.entries(fs)) if (v === 'manual') locked[k as KeytagField] = true;
   return locked;
+}
+
+/**
+ * A fleet row projected onto the shape the resolver compares against.
+ *
+ * ⚠️ ONE DEFINITION ON PURPOSE. A second copy of this projection is how a field gets added to
+ * `KeytagExistingVehicle` and silently stays blank on one of the two paths — which is precisely the
+ * failure that put owningArea and vinLast9 out of reach for months. A field missing here reads as
+ * `undefined`, which the resolver treats as BLANK, so it would report a FILL for a value the record
+ * already holds.
+ */
+export function keytagExistingFrom(vehicle: Vehicle): KeytagExistingVehicle {
+  return {
+    unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model,
+    year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null,
+    owningArea: vehicle.owningArea ?? null,
+    classCode: vehicle.classCode ?? null,
+    vinLast9: vehicle.vinLast9 ?? null,
+  };
 }
 
 /** A read complete enough to register from (the identity essentials) → a NewVehicle, else
@@ -200,17 +219,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   const matchedByUnit = !byPlate && unitMatch.kind === 'one';
   const unitCandidates = unitMatch.kind === 'ambiguous' ? unitMatch.vehicles : [];
 
-  const existing = vehicle
-    ? {
-        unitNumber: vehicle.unitNumber, make: vehicle.make, model: vehicle.model,
-        year: vehicle.year, color: vehicle.color, rentalClass: vehicle.rentalClass ?? null,
-        // ⚠️ These three must be projected or the resolver sees `undefined` and treats every car as
-        // blank — which would report a FILL for a value already on the record.
-        owningArea: vehicle.owningArea ?? null,
-        classCode: vehicle.classCode ?? null,
-        vinLast9: vehicle.vinLast9 ?? null,
-      }
-    : null;
+  const existing = vehicle ? keytagExistingFrom(vehicle) : null;
   return {
     rawPlate: read.plate,
     plate,

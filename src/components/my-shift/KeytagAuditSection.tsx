@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useKeytagAudit } from '../../hooks/useKeytagAudit';
 import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
+import { KeytagRereadRow } from './KeytagRereadRow';
 
 export function KeytagAuditSection() {
   const { current, remaining, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
@@ -42,6 +43,8 @@ export function KeytagAuditSection() {
             <span>⚠️ {stats.unreadable} need a retake</span>
             <span>📷 {stats.noPhoto} have no photo yet</span>
           </div>
+
+          <KeytagRereadRow />
 
           {error && <p role="status" className="text-xs text-amber-700 dark:text-amber-400">⚠️ {error}</p>}
 
