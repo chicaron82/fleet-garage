@@ -6,8 +6,25 @@ import { execSync } from 'node:child_process'
 
 // Build stamp: short commit SHA + build date, injected at build time.
 // Prefers Vercel's git env var (set during deploys), falls back to local git.
+//
+// ⚠️⚠️ `define` IS EVALUATED ONCE, WHEN THE SERVER STARTS — and a dev server runs for days. Found
+// 2026-08-30 during /reflect 68: a `vite` process that had been up 4d20h was stamping every page
+// `2026.08.26 · b96bfa9`, **81 commits behind HEAD**, while serving code Vite read fresh off disk on
+// every request. The code was current. The stamp was five days old and looked authoritative.
+//
+// ⭐ That is precisely backwards for the one thing this stamp exists to do — *"confirm at a glance
+// which deploy a screen is running"*. A frozen hash does not fail loudly; it answers confidently and
+// wrongly, in both directions: it can age out from under current code, and it can make a stale
+// screenshot look fresh. The authed-verify helper (`scripts/verify-fg.mjs`) points at this dev
+// server by default, so a verification pass would have inherited the lie.
+//
+// So DEV NEVER PRINTS A HASH. It prints `dev`, which is the honest answer: this is a live dev
+// server, its code is whatever is on disk right now, and no commit identity can be claimed for it.
+// A real SHA appears only where one is actually true — a Vercel deploy, or a local `vite build`.
 function buildSha() {
   if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+  // `vite build` sets NODE_ENV=production; `vite` (dev) does not.
+  if (process.env.NODE_ENV !== 'production') return 'dev'
   try { return execSync('git rev-parse --short HEAD').toString().trim() }
   catch { return 'dev' }
 }

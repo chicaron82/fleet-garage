@@ -76,5 +76,21 @@ if (clickText) {
 }
 await page.screenshot({ path: shot, fullPage: true });
 console.log('SHOT', shot);
+
+// ⚠️⚠️ SAY WHAT WAS ACTUALLY VERIFIED. Found during /reflect 68 (2026-08-30): this helper defaults
+// to a LOCAL DEV SERVER, and the one on :5174 had been running for four days and twenty hours. Its
+// build stamp — the single signal that says which code a screen is running — was frozen 81 commits
+// behind HEAD by vite's `define`, while the code it served was read fresh off disk. A screenshot
+// came back clean and said nothing about WHICH app it was a screenshot of.
+//
+// ⭐ A verification that does not name its target is not a verification. So every run now prints the
+// URL it hit and the stamp the page itself renders, and warns when it is a dev server — where `dev`
+// is now the honest stamp, because a live dev server has no commit identity to claim.
+const stamp = await page.locator('div.font-mono').last().textContent().catch(() => null);
+console.log('TARGET', BASE, '· stamp:', (stamp ?? 'not found').trim());
+if (/localhost|127\.0\.0\.1/.test(BASE)) {
+  console.log('NOTE  dev server — code is whatever is on disk NOW, not a released build.',
+              'Set FG_URL to verify a deploy.');
+}
 console.log('ERRORS', JSON.stringify(errs));
 await browser.close();
