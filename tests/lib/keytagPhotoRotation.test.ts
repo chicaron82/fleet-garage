@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { asRotation, nextRotation, rotationStyle, rotationLabel } from '../../src/lib/keytagPhotoRotation';
+import { asRotation, nextRotation, rotationLabel } from '../../src/lib/keytagPhotoRotation';
 
 // Aaron, 2026-08-30: *"some are shown on its side is there a way to rotate them here in the audit"*.
 // The angle is DISPLAY METADATA — the stored file is never re-encoded, because a JPEG round-trip
@@ -43,22 +43,11 @@ describe('nextRotation', () => {
   });
 });
 
-describe('rotationStyle', () => {
-  it('adds nothing at all for an upright photo', () => {
-    expect(rotationStyle(0)).toEqual({});
-    expect(rotationStyle(null)).toEqual({});
-  });
+// ⚠️ `rotationStyle` was tested here and is deleted (2026-08-30). Its unit tests all PASSED while
+// both of Aaron's rotation bugs were live, because they asserted the object it returned rather than
+// what that object did once a caller spread it next to its own width. The behaviour now lives in
+// `tests/components/KeytagPhoto.test.tsx`, against the rendered box.
 
-  // ⚠️ THE ONE THAT MATTERS. A quarter-turn swaps the axes, so a portrait photo rotated 90° inside a
-  // fixed box renders as a letterboxed sliver unless it is sized against the box's other dimension —
-  // defeating the feature on exactly the photos that need it.
-  it('⚠️ swaps the sizing on a quarter-turn, not on a half-turn', () => {
-    for (const deg of [90, 270]) {
-      expect(rotationStyle(deg)).toMatchObject({ transform: `rotate(${deg}deg)`, objectFit: 'contain' });
-    }
-    expect(rotationStyle(180)).toEqual({ transform: 'rotate(180deg)' });
-  });
-});
 
 describe('rotationLabel', () => {
   it('is silent when there is nothing to explain', () => {

@@ -3,7 +3,8 @@ import { hapticLight } from '../../lib/haptics';
 import { VehicleName } from '../shared/VehicleName';
 import { KeytagAuditFields, KeytagAuditActions } from './KeytagAuditFields';
 import { auditWarnings, auditKeyCountOffered, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
-import { asRotation, nextRotation, rotationStyle } from '../../lib/keytagPhotoRotation';
+import { asRotation, nextRotation } from '../../lib/keytagPhotoRotation';
+import { KeytagPhoto } from './KeytagPhoto';
 import type { OwningGuess } from '../../lib/owningFromUnit';
 import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
@@ -134,10 +135,11 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
 
       {vehicle.keytagPhotoUrl && (
         <div className="relative">
+          {/* ⚠️ A FIXED SQUARE THAT CLIPS. Aaron, 2026-08-30: *"rotating before zooming, goes over
+              the keycount."* A CSS transform does not affect layout, so the turned photo kept its
+              upright footprint in the flow and painted straight over the controls below it. */}
           <button type="button" onClick={() => onZoomChange(true)} className="block w-full cursor-zoom-in">
-            <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}`}
-              style={rotationStyle(rotation)}
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 object-contain max-h-72 bg-gray-50 dark:bg-gray-950" />
+            <KeytagPhoto src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}`} rotation={rotation} />
             <span className="mt-1 block text-[11px] text-gray-400">Tap the tag to read and type without leaving it</span>
           </button>
           {/* ⭐ Aaron, 2026-08-30: *"some are shown on its side is there a way to rotate them here in
@@ -166,12 +168,12 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
           {panelAtTop && panel}
 
           <div className="relative flex-1 min-h-0 overflow-auto">
-            <button type="button" onClick={() => setScale(s => (s >= 3 ? 1 : s + 1))}
-              title="Zoom the tag" className="block w-full cursor-zoom-in">
-              <img src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}, full size`}
-                style={{ width: `${scale * 100}%`, ...rotationStyle(rotation) }}
-                className="max-w-none object-contain" />
-            </button>
+            {/* ⚠️ Aaron: *"rotating after zooming, i can't zoom in further."* The rotation style was
+                spread AFTER this width and its `width: '100%'` clobbered the zoom — taps still moved
+                `scale`, nothing moved on screen. Sizing and turning now live in one place. */}
+            <KeytagPhoto src={vehicle.keytagPhotoUrl} alt={`Key tag for ${vehicle.licensePlate}, full size`}
+              rotation={rotation} scale={scale} title="Zoom the tag"
+              onClick={() => setScale(sc => (sc >= 3 ? 1 : sc + 1))} />
             {/* ⚠️ THE ROTATE CONTROL BELONGS HERE TOO, and for the same reason the key count does:
                 zoomed is where he is actually READING the tag, so it is exactly where a sideways one
                 needs turning. Leaving it only on the small card would repeat the split he just

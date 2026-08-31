@@ -26,22 +26,17 @@ export function nextRotation(v: number | null | undefined): Rotation {
   return asRotation(asRotation(v) + 90);
 }
 
-/**
- * The style for an `<img>` inside a fixed-size box.
- *
- * ⚠️ A QUARTER-TURN SWAPS THE AXES, so a portrait photo rotated 90° needs the box's HEIGHT as its
- * width or it renders letterboxed into a sliver — the whole point being defeated on exactly the
- * photos that need turning. Hence the swapped sizing on the odd turns.
- */
-export function rotationStyle(v: number | null | undefined): React.CSSProperties {
-  const deg = asRotation(v);
-  if (deg === 0) return {};
-  const swapped = deg === 90 || deg === 270;
-  return {
-    transform: `rotate(${deg}deg)`,
-    ...(swapped ? { width: '100%', height: '100%', objectFit: 'contain' as const } : {}),
-  };
-}
+// ⚠️⚠️ `rotationStyle()` LIVED HERE AND IS GONE (2026-08-30). It returned width/height/objectFit
+// alongside the transform, and both of Aaron's rotation bugs were that shape being wrong for the
+// job: *"rotating before zooming, goes over the keycount"* (a transform does not reserve LAYOUT, so
+// the turned photo painted over the controls below) and *"rotating after zooming, i can't zoom in
+// further"* (its `width: '100%'` was spread after the caller's zoom width and clobbered it).
+//
+// ⭐ The lesson is about the SEAM, not the arithmetic: a helper that hands back sizing properties
+// competes with whatever sizing the caller already set, and loses or wins by spread order — which
+// is invisible at the call site. Rotation needs a BOX that holds the turned footprint, so it is now
+// a component (`components/vehicle/KeytagPhoto`) and this module stayed what it always was: the
+// pure angle arithmetic. Nothing here touches the DOM.
 
 /** Screen-reader / tooltip text. Silent at 0 — an unrotated photo needs no explanation. */
 export function rotationLabel(v: number | null | undefined): string {

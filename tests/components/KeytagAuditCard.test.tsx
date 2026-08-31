@@ -122,17 +122,23 @@ describe('KeytagAuditCard — typing on top of the zoomed tag', () => {
     expect(within(overlay()).getAllByRole('textbox')).toHaveLength(5);
   });
 
+  // ⚠️ The zoom width moved off the <img> and onto the BOX that holds it (2026-08-30). That is the
+  // whole fix: sizing on the image competed with the rotation's own width and lost by spread order.
+  // Asserting the rendered zoom rather than which element carries it — `zoomBox` is the tag's
+  // parent, so this test survives the next time that seam moves.
+  const zoomBox = () => (within(overlay()).getByAltText(/full size/).parentElement as HTMLElement);
+
   it('steps the zoom 1× → 2× → 3× → 1× rather than pretending pinch works', () => {
     setup();
     openZoom();
     const tag = within(overlay()).getByAltText(/full size/);
-    expect(tag.style.width).toBe('100%');
+    expect(zoomBox().style.width).toBe('100%');
     fireEvent.click(tag);
-    expect(tag.style.width).toBe('200%');
+    expect(zoomBox().style.width).toBe('200%');
     fireEvent.click(tag);
-    expect(tag.style.width).toBe('300%');
+    expect(zoomBox().style.width).toBe('300%');
     fireEvent.click(tag);
-    expect(tag.style.width).toBe('100%');
+    expect(zoomBox().style.width).toBe('100%');
   });
 });
 
@@ -399,10 +405,11 @@ describe('KeytagAuditCard — staying in the full-screen view', () => {
     const next: AuditCandidate<Vehicle> = { vehicle: { ...vehicle, id: 'v2', licensePlate: 'LUR999' }, missing: [] };
     const { rerender } = render(<Harness />);
     openZoom();
+    const box = () => (within(overlay()).getByAltText(/full size/).parentElement as HTMLElement);
     fireEvent.click(within(overlay()).getByAltText(/full size/));
-    expect((within(overlay()).getByAltText(/full size/) as HTMLElement).style.width).toBe('200%');
+    expect(box().style.width).toBe('200%');
     rerender(<Harness candidateOverride={next} />);
-    expect((within(overlay()).getByAltText(/full size/) as HTMLElement).style.width).toBe('100%');
+    expect(box().style.width).toBe('100%');
   });
 
   it('closing it still closes it', () => {

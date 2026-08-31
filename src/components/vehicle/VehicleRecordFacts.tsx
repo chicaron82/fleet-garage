@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
-import { rotationStyle } from '../../lib/keytagPhotoRotation';
+import { asRotation } from '../../lib/keytagPhotoRotation';
+import { KeytagPhoto } from './KeytagPhoto';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
@@ -120,7 +121,12 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
         className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${tagChip.border}`}
       >
         {keytagPhotoUrl && (
-          <img src={keytagPhotoUrl} alt="Key tag" style={rotationStyle(keytagPhotoRotation)} className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700" />
+          /* A 32px SQUARE, so any quarter-turn fits with no sizing arithmetic — the transform is
+             all this one needs. `overflow-hidden` on the box keeps a turn inside the chip. */
+          <span className="block w-8 h-8 shrink-0 overflow-hidden rounded border border-gray-200 dark:border-gray-700">
+            <img src={keytagPhotoUrl} alt="Key tag" className="w-full h-full object-cover"
+              style={{ transform: `rotate(${asRotation(keytagPhotoRotation)}deg)` }} />
+          </span>
         )}
         <span className={`text-xs ${tagChip.text}`}>{tagChip.label}</span>
       </button>
@@ -371,7 +377,12 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4" onClick={() => setZoom(false)}>
           <div className="absolute inset-0 bg-black/80" />
           {keytagPhotoUrl ? (
-            <img src={keytagPhotoUrl} alt="Key tag" style={rotationStyle(keytagPhotoRotation)} className="relative max-h-[75dvh] max-w-full rounded-lg object-contain" />
+            /* ⚠️ THE SAME DEFECT AARON FOUND IN THE AUDITOR, in another room: a rotated image kept
+               its upright footprint and painted outside it — here, over the retake controls below.
+               `KeytagPhoto` carries the turned box, so the layout is honest at every angle. */
+            <div className="relative w-full max-w-md">
+              <KeytagPhoto src={keytagPhotoUrl} alt="Key tag" rotation={keytagPhotoRotation} />
+            </div>
           ) : (
             <p className="relative text-white/70 text-sm">No key tag photo on file for this car.</p>
           )}
