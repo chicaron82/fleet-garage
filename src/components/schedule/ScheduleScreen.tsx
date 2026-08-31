@@ -11,6 +11,7 @@ import { CalendarView } from './CalendarView';
 import { ScheduleFilterBar } from './ScheduleFilterBar';
 import { useMyShiftFilter } from './useMyShiftFilter';
 import { FillScheduleModal } from './FillScheduleModal';
+import { CopyWeekModal } from './CopyWeekModal';
 import { ScheduleImportModal } from './ScheduleImportModal';
 import { UpcomingClopensBanner } from './UpcomingClopensBanner';
 import { LogSickDaySheet } from './LogSickDaySheet';
@@ -55,6 +56,7 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
   const { user, activeBranch } = useAuth();
   const teamMembers = useTeamMembers();
   const [showFill,    setShowFill]    = useState(false);
+  const [showCopy,    setShowCopy]    = useState(false);
   // Deep-link from the assistant's "import the schedule?" bridge opens the importer —
   // but only for managers (same gate as the button); a non-manager deep-link no-ops.
   const [showImport,  setShowImport]  = useState(() => !!openImport && !!user && canManageSchedule(user.role));
@@ -308,6 +310,18 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
         >
           Fill range ↓
         </button>
+        {/* ⭐ Beside "Fill range" because they are the two bulk tools and they answer different
+            questions: Fill builds a shape from scratch (one type, chosen days-of-week), Repeat
+            carries a whole team's existing shapes forward. Aaron needed the second one and only the
+            first existed. Managers only — it writes other people's weeks. */}
+        {canSchedule && (
+          <button
+            onClick={() => setShowCopy(true)}
+            className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer whitespace-nowrap"
+          >
+            Repeat week ⟳
+          </button>
+        )}
         {canSchedule && (
           <button
             onClick={() => setShowImport(true)}
@@ -319,6 +333,7 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
       </div>
 
       {showFill    && <FillScheduleModal onClose={() => setShowFill(false)} />}
+      {showCopy    && <CopyWeekModal onClose={() => setShowCopy(false)} />}
       {showImport  && <ScheduleImportModal onClose={() => setShowImport(false)} />}
       {showLogSick && <LogSickDaySheet   onClose={() => setShowLogSick(false)} />}
       {showRoster  && <RosterStaffModal  onClose={() => setShowRoster(false)} />}
