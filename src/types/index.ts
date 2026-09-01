@@ -167,8 +167,20 @@ export type FieldSource = 'tag' | 'manual' | 'derived';
 /** How a stored key-tag photo was resolved by a human in the auditor (migration 130).
  *  'verified'   — he read the tag and the record now agrees with it.
  *  'unreadable' — the stored photo defeated him; the car needs a fresh capture.
- *  absent/null  — nobody has looked yet. */
-export type KeytagAuditResult = 'verified' | 'unreadable';
+ *  'stale'      — he can read it fine, and it is no longer this car's tag (migration 134).
+ *  absent/null  — nobody has looked yet.
+ *
+ *  ⚠️⚠️ 'unreadable' AND 'stale' ARE BOTH RETAKES AND DIFFERENT ERRANDS. Aaron, 2026-08-31, on a
+ *  Suburban whose tag photo was shot on its Alberta plate before it was re-plated in Manitoba:
+ *  *"i'd say just flag it for a retake the next time it comes in."* The only flag that existed was
+ *  'unreadable' — and that tag is perfectly legible. Using it would have sent the next person
+ *  hunting for a blur that is not there.
+ *
+ *    unreadable → a better photo of the SAME tag
+ *    stale      → a photo of a DIFFERENT tag
+ *
+ *  Both sit on the retake watchlist; the word only changes what he should expect to find. */
+export type KeytagAuditResult = 'verified' | 'unreadable' | 'stale';
 /* 'derived' (2026-08-19, migration 121): the value was DEDUCED from other fields FG already held —
  * a class code inferred from make + model + hybrid + year — rather than read off a tag or typed by a
  * person. It is deliberately weaker than both: a real tag reading OVERWRITES a derived value, where

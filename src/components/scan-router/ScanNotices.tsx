@@ -78,6 +78,17 @@ export function ScanNotices({ scanRead, vehicle, codexToast }: {
               Retaking it also puts the car back in the audit queue.
             </p>
           )}
+          {/* ⚠️ A DIFFERENT ERRAND, SO A DIFFERENT SENTENCE. 'stale' means the stored photo is
+              perfectly legible and belongs to a tag this car no longer wears — set automatically
+              when a re-plate is adopted (context/plateWrite). Telling him "you couldn't read this"
+              would send him looking for a blur that is not there; what he actually needs to know is
+              that the tag in his hand is the NEW one and the photo on file is not. */}
+          {vehicle?.keytagAuditResult === 'stale' && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+              🏷️ The photo on file is an older tag — this car was re-plated. Snap the one in your
+              hand while you're here; that clears the flag and re-queues the audit.
+            </p>
+          )}
           {/* ⭐⭐ TELL HIM AT THE CAR, WHICH IS THE ONLY PLACE THIS IS ACTIONABLE. Aaron, 2026-08-30,
               after I had put the VIN checks on the vehicle record instead: *"the scanner worked
               perfectly, i just needed the flag on it so the next time i see it, the scan will tell

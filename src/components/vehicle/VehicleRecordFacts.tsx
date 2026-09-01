@@ -95,12 +95,16 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   // controls and spent a slot on the strip; the audit is a property OF the tag, not a fact beside it.
   //   verified   — a person read the photo against the record; its fields are now locked 'manual'.
   //   unreadable — the photo defeated him (migration 130). THIS is the retake watchlist surfacing.
+  //   stale      — legible, but it is a tag this car no longer wears (migration 134). Same list,
+  //                different errand: a photo of a DIFFERENT tag, not a better one of the same.
   //   photo, unaudited — the old default: a model read it and nobody has checked.
   //   no photo   — the dashed first-capture state.
   const tagChip = !keytagPhotoUrl
     ? { label: '🏷️ No key tag on file — tap to add', border: 'border-dashed border-gray-300 dark:border-gray-600', text: 'text-gray-400 dark:text-gray-500' }
     : keytagAudit?.result === 'unreadable'
     ? { label: '🏷️ Key tag needs a retake — tap to replace', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
+    : keytagAudit?.result === 'stale'
+    ? { label: '🏷️ Tag photo is an older plate — tap to replace', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
     : keytagAudit?.result === 'verified'
     ? { label: '🏷️ Key tag verified — tap to view', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' }
     : { label: '🏷️ Key tag as read — tap to check', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' };
@@ -117,7 +121,10 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
       <button
         type="button"
         onClick={() => setZoom(true)}
-        title={keytagAudit?.at ? `${keytagAudit.result === 'unreadable' ? 'Flagged unreadable' : 'Verified'} by ${keytagAudit.by ?? 'someone'} on ${new Date(keytagAudit.at).toLocaleDateString()}` : undefined}
+        title={keytagAudit?.at ? `${
+          keytagAudit.result === 'unreadable' ? 'Flagged unreadable'
+          : keytagAudit.result === 'stale' ? 'Flagged as an older tag'
+          : 'Verified'} by ${keytagAudit.by ?? 'someone'} on ${new Date(keytagAudit.at).toLocaleDateString()}` : undefined}
         className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${tagChip.border}`}
       >
         {keytagPhotoUrl && (

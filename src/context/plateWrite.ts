@@ -42,17 +42,41 @@ export function makeAdoptPlate(deps: {
     if (!shouldOfferPlateUpdate(next, previous)) return false;
 
     const sources = { ...(vehicle.fieldSources ?? {}), licensePlate: 'manual' as const };
+
+    // ⭐⭐ THE STORED PHOTO IS NOW OUT OF DATE, AND THIS IS THE MOMENT WE KNOW IT. This offer only
+    // fires when the TAG is newer than the record — so the photo already on file was shot on the
+    // OLD plate, and `keytagPhotoWrite` is attach-if-missing, meaning this very scan will not
+    // replace it. FG has never said so: Aaron's Suburban carried an Alberta-plate photo for five
+    // days, through a full audit that verified all four surviving fields, and nothing anywhere
+    // mentioned that the plate line was wrong.
+    //
+    // ⚠️ 'stale', NOT 'unreadable'. That tag is perfectly legible; the errand is a photo of a
+    // DIFFERENT tag, not a better photo of the same one (migration 134, and see KeytagAuditResult).
+    // Aaron, 2026-08-31: *"i'd say just flag it for a retake the next time it comes in."*
+    //
+    // ⚠️ ONLY IF A PHOTO ALREADY EXISTS. A car with none is about to receive THIS scan's photo,
+    // which shows the new plate — flagging that as stale would be wrong the instant it landed.
+    // And `keytag_audited_at` is cleared so a fresh capture re-queues the audit rather than
+    // leaving a verified stamp sitting on top of a replaced tag.
+    const stale = !!vehicle.keytagPhotoUrl;
+    const patch = stale
+      ? { license_plate: next, field_sources: sources,
+          keytag_audit_result: 'stale' as const, keytag_audited_at: null }
+      : { license_plate: next, field_sources: sources };
+
     const { data, error } = await writeWithRefresh(() =>
       supabase
         .from('vehicles')
-        .update({ license_plate: next, field_sources: sources })
+        .update(patch)
         .eq('id', vehicleId)
         .eq('license_plate', previous)
         .select('id')
     );
     if (error || !data?.length) return false;
-    setAllVehicles(prev => prev.map(v =>
-      (v.id === vehicleId ? { ...v, licensePlate: next, fieldSources: sources } : v)));
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId
+      ? { ...v, licensePlate: next, fieldSources: sources,
+          ...(stale ? { keytagAuditResult: 'stale' as const, keytagAuditedAt: undefined } : {}) }
+      : v)));
     return true;
   };
 }

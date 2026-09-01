@@ -39,7 +39,7 @@ interface KeytagAuditUpdate {
   field_sources?: Record<string, FieldSource>;
   keytag_audited_at: string;
   keytag_audited_by: string | null;
-  keytag_audit_result: 'verified' | 'unreadable';
+  keytag_audit_result: 'verified' | 'unreadable' | 'stale';
 }
 
 /** Field → column, as an exhaustive switch rather than a lookup map. A `Record<AuditField, keyof

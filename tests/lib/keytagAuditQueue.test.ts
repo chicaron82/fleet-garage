@@ -155,7 +155,7 @@ describe('auditQueueStats', () => {
       car({ id: 'unreadable', keytagAuditedAt: '2026-08-28T18:00:00Z', keytagAuditResult: 'unreadable' }),
       car({ id: 'no-photo', keytagPhotoUrl: null }),
     ]);
-    expect(stats).toEqual({ pending: 2, verified: 1, unreadable: 1, noPhoto: 1, gaps: 3 });
+    expect(stats).toEqual({ pending: 2, verified: 1, unreadable: 1, stale: 0, noPhoto: 1, gaps: 3 });
   });
 
   it('counts an unreadable car as unreadable even though it is also stamped audited', () => {
@@ -168,7 +168,7 @@ describe('auditQueueStats', () => {
 
   it('never counts a photo-less car as pending work', () => {
     const stats = auditQueueStats([car({ keytagPhotoUrl: null, owningArea: null, vinLast9: null })]);
-    expect(stats).toEqual({ pending: 0, verified: 0, unreadable: 0, noPhoto: 1, gaps: 0 });
+    expect(stats).toEqual({ pending: 0, verified: 0, unreadable: 0, stale: 0, noPhoto: 1, gaps: 0 });
   });
 });
 
@@ -253,5 +253,56 @@ describe('AUDIT_FIELD_HINTS', () => {
 
   it('⭐ tells him a blank model code is a legitimate answer, not a gap', () => {
     expect(AUDIT_FIELD_HINTS.classCode).toMatch(/blank/i);
+  });
+});
+
+// ⚠️⚠️ 'unreadable' WAS DOING TWO JOBS. Aaron, 2026-08-31, on a Suburban whose tag photo was shot on
+// its Alberta plate before it was re-plated in Manitoba: *"i'd say just flag it for a retake the next
+// time it comes in."* The only flag that existed meant *a human could not read this photo* — and that
+// tag is perfectly legible. Migration 134 split them:
+//     unreadable → a better photo of the SAME tag
+//     stale      → a photo of a DIFFERENT tag
+describe('stale — the other reason to retake', () => {
+  const car = (over: Partial<AuditableVehicle> = {}): AuditableVehicle =>
+    ({ id: 'v', licensePlate: 'MCM560', keytagPhotoUrl: 'https://cdn/kt.jpg', ...over });
+
+  it('⭐ a stale tag is on the retake watchlist, same as an unreadable one', () => {
+    const list = retakeWatchlist([
+      car({ id: 'a', licensePlate: 'AAA111', keytagAuditResult: 'stale' }),
+      car({ id: 'b', licensePlate: 'BBB222', keytagAuditResult: 'unreadable' }),
+      car({ id: 'c', licensePlate: 'CCC333', keytagAuditResult: 'verified' }),
+    ]);
+    expect(list.map(v => v.licensePlate)).toEqual(['AAA111', 'BBB222']);
+  });
+
+  // ⚠️ ONE LIST, TWO WORDS. They share an errand — go to the car, take a photo — so they share a
+  // queue. They are counted apart because what he should EXPECT to find when he gets there differs,
+  // and a count that lumps them cannot say which.
+  it('⚠️ but it is counted apart from unreadable', () => {
+    const s = auditQueueStats([
+      car({ id: 'a', keytagAuditResult: 'stale' }),
+      car({ id: 'b', keytagAuditResult: 'stale' }),
+      car({ id: 'c', keytagAuditResult: 'unreadable' }),
+      car({ id: 'd', keytagAuditResult: 'verified', keytagAuditedAt: '2026-08-29T00:00:00Z' }),
+      car({ id: 'e' }),
+    ]);
+    expect(s.stale).toBe(2);
+    expect(s.unreadable).toBe(1);
+    expect(s.verified).toBe(1);
+    expect(s.pending).toBe(1);
+  });
+
+  // ⚠️ A stale car is NOT pending. It has been looked at; the verdict is "this photo is the wrong
+  // tag". Counting it as unread would put it back in the audit queue in front of a photo nobody
+  // can act on until it is replaced.
+  it('⚠️ a stale car is not counted as pending', () => {
+    expect(auditQueueStats([car({ keytagAuditResult: 'stale' })]).pending).toBe(0);
+  });
+
+  // A car with no photo at all can never be stale — there is nothing on file to be out of date.
+  it('no photo still beats every result', () => {
+    const s = auditQueueStats([car({ keytagPhotoUrl: null, keytagAuditResult: 'stale' })]);
+    expect(s.noPhoto).toBe(1);
+    expect(s.stale).toBe(0);
   });
 });

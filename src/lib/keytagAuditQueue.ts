@@ -208,7 +208,11 @@ export function buildAuditQueue<V extends AuditableVehicle>(vehicles: readonly V
 }
 
 /**
- * The retake watchlist — cars whose stored photo a human could not read.
+ * The retake watchlist — cars whose stored photo needs replacing, for either reason.
+ *
+ * ⚠️ 'unreadable' (cannot read it) and 'stale' (can read it, wrong tag) are ONE list because they
+ * are one errand: go to the car, take a photo. They stay two words because they are two different
+ * things to expect when you get there. See KeytagAuditResult.
  *
  * ⭐ There is no `keytag_retake_watchlist` table. This IS the watchlist, and it is the same column
  * that advances the audit queue (migration 130): auditing and flagging are one gesture, so the list
@@ -217,7 +221,7 @@ export function buildAuditQueue<V extends AuditableVehicle>(vehicles: readonly V
  */
 export function retakeWatchlist<V extends AuditableVehicle>(vehicles: readonly V[]): V[] {
   return vehicles
-    .filter(v => v.keytagAuditResult === 'unreadable')
+    .filter(v => v.keytagAuditResult === 'unreadable' || v.keytagAuditResult === 'stale')
     .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
 }
 
@@ -227,8 +231,11 @@ export interface AuditQueueStats {
   pending: number;
   /** Cars a human has read and confirmed. */
   verified: number;
-  /** Cars whose photo defeated him — the retake list. */
+  /** Cars whose photo defeated him. */
   unreadable: number;
+  /** Cars whose photo is legible but belongs to a tag the car no longer wears (migration 134).
+   *  Counted apart from `unreadable` because the errand differs; both are on the retake list. */
+  stale: number;
   /** Cars with no photo at all: not auditable, a capture backlog. */
   noPhoto: number;
   /** Total blank tag fields across the pending queue — what a full pass would recover. */
@@ -236,10 +243,11 @@ export interface AuditQueueStats {
 }
 
 export function auditQueueStats(vehicles: readonly AuditableVehicle[]): AuditQueueStats {
-  const stats: AuditQueueStats = { pending: 0, verified: 0, unreadable: 0, noPhoto: 0, gaps: 0 };
+  const stats: AuditQueueStats = { pending: 0, verified: 0, unreadable: 0, stale: 0, noPhoto: 0, gaps: 0 };
   for (const v of vehicles) {
     if (isBlankField(v.keytagPhotoUrl)) { stats.noPhoto++; continue; }
     if (v.keytagAuditResult === 'unreadable') { stats.unreadable++; continue; }
+    if (v.keytagAuditResult === 'stale') { stats.stale++; continue; }
     if (!isBlankField(v.keytagAuditedAt)) { stats.verified++; continue; }
     stats.pending++;
     stats.gaps += missingTagFields(v).length;
