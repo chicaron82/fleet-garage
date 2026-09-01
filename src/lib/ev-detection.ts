@@ -105,6 +105,7 @@ export async function detectTeslaByPlate(plate: string): Promise<TeslaDetectionR
     const { data } = await supabase
       .from('vsa_trips')
       .select('ev_cable_status, ev_adapter_status')
+      .is('voided_at', null)   // a voided send did not happen
       .ilike('vehicle_plate', trimmed)
       .not('ev_cable_status', 'is', null)
       .order('depart_time', { ascending: false })

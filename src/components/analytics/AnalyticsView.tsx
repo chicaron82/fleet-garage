@@ -44,6 +44,7 @@ export function AnalyticsView({ onOpenVehicle }: { onOpenVehicle?: (vehicleId: s
     let query = supabase
       .from('vsa_trips')
       .select('trip_type, driver_id')
+      .is('voided_at', null)   // a voided send did not happen
       .gte('depart_time', shiftDayStartISO(localDateStr(0)));
     if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
     query.then(({ data }) => setTodayTrips((data ?? []) as TripRow[]));

@@ -25,6 +25,7 @@ import {
   executeProposeReminder,
   executeProposeEvent,
   executeProposeOverflowLog,
+  executeProposeUnsend,
   executeProposeNavigation,
   executeLookupVehicleClass,
 } from '../effieExecutors.js';
@@ -118,6 +119,9 @@ export async function dispatchToolUse(
       return { content: out.toolResult, ...(out.proposal ? { proposal: out.proposal } : {}) };
     } else if (tu.name === 'propose_reminder') {
       const out = executeProposeReminder(tu.input as { text?: string });
+      return { content: out.toolResult, ...(out.proposal ? { proposal: out.proposal } : {}) };
+    } else if (tu.name === 'propose_unsend') {
+      const out = await executeProposeUnsend(supabase, tu.input as { plate?: string; destination?: string; date?: string; time?: string; reason?: string });
       return { content: out.toolResult, ...(out.proposal ? { proposal: out.proposal } : {}) };
     } else if (tu.name === 'propose_overflow_log') {
       const out = await executeProposeOverflowLog(supabase, tu.input as { plates?: string[]; destination?: string });

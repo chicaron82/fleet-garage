@@ -5,6 +5,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizePlate, resolveVehicleRow } from '../effieHelpers.js';
 import { shiftBusinessDate } from '../shiftDay.js';
 import {
+  buildUnsendProposal,
+  describeCandidate,
+  pickUnsendTarget,
+  type SentCandidate,
+  type UnsendProposal,
+} from '../unsendProposal.js';
+import {
   buildOverflowProposal,
   OVERFLOW_DESTINATIONS,
   type OverflowDestination,
@@ -103,6 +110,7 @@ export async function executeLookupSent(
   const { data, error } = await supabase
     .from('vsa_trips')
     .select('vehicle_plate, vehicle_unit, arrive_location, depart_time')
+    .is('voided_at', null)   // a voided send did not happen
     .in('arrive_location', [...OVERFLOW_DESTINATIONS])
     .order('depart_time', { ascending: false })
     .limit(1000);
@@ -170,6 +178,88 @@ export async function executeProposeOverflowLog(
       drafted: `${vehicles.length} vehicle(s) → ${destination}`,
       unresolved: vehicles.filter((v) => v.unresolved).map((v) => v.label),
       awaiting: 'user confirmation — a confirm card is shown; do NOT say it is logged, just that it is drafted to log on their tap',
+    }),
+  };
+}
+
+/**
+ * Draft the removal of a logged send that never happened.
+ *
+ * ⭐ Aaron, 2026-09-01: *"maybe a way for me to delete something that was 'sent'. I think the only
+ * way to do it is to ask you or hunt for it myself in supabase."* The record is written from the
+ * INTENDED manifest, so when a driver ignores the note on the board it keeps the plan rather than
+ * the reality — and until now the only correction was a human editing the database by hand.
+ *
+ * ⚠️⚠️ IT REFUSES RATHER THAN GUESSES. A car sent to FastAir in the morning and AV Flight in the
+ * afternoon is the exact case that produced this feature, and the row he wants gone is the
+ * EARLIER one — so "take the most recent" is wrong precisely where it matters. Worse, a wrong
+ * void is indistinguishable from a right one afterwards: nothing surfaces it, and the record ends
+ * up holding a different lie than the one it started with. So more than one match returns the
+ * candidates and NO proposal, and the model has to ask him which.
+ */
+export async function executeProposeUnsend(
+  supabase: SupabaseClient,
+  input: { plate?: string; destination?: string; date?: string; time?: string; reason?: string },
+): Promise<{ toolResult: string; proposal: UnsendProposal | null }> {
+  const raw = (input.plate ?? '').trim();
+  if (!raw) {
+    return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: 'Need the plate or unit number of the vehicle whose send should be removed.' }) };
+  }
+  // Accept a unit number as readily as a plate — he reads whichever the key tag shows him.
+  const row = await resolveVehicleRow(supabase, raw);
+  const plate = row?.license_plate ?? normalizePlate(raw);
+
+  const { data, error } = await supabase
+    .from('vsa_trips')
+    .select('id, vehicle_plate, vehicle_unit, arrive_location, depart_time')
+    .is('voided_at', null)   // a voided send did not happen
+    .in('arrive_location', [...OVERFLOW_DESTINATIONS])
+    .ilike('vehicle_plate', plate)
+    .order('depart_time', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+
+  let candidates: SentCandidate[] = (data ?? [])
+    .filter((r) => r.depart_time)
+    .map((r) => ({
+      id: r.id as string,
+      plate: (r.vehicle_plate as string) ?? plate,
+      unit: (r.vehicle_unit as string | null) ?? null,
+      destination: (r.arrive_location as string) ?? 'Unknown',
+      day: shiftBusinessDate(new Date(r.depart_time as string)),
+      time: hhmm(r.depart_time as string),
+    }));
+
+  // Narrow only by what he actually said. Each filter is optional; together they are usually
+  // enough to reach exactly one, and when they are not, the refusal below does its job.
+  const dest = (input.destination ?? '').trim().toLowerCase();
+  const day = (input.date ?? '').trim();
+  const time = (input.time ?? '').trim();
+  if (dest) candidates = candidates.filter((c) => c.destination.toLowerCase() === dest);
+  if (day) candidates = candidates.filter((c) => c.day === day);
+  if (time) candidates = candidates.filter((c) => c.time === time);
+
+  const target = pickUnsendTarget(candidates);
+  if (!target.ok && target.why === 'none') {
+    return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: `No logged send on record for ${plate} matching that. It may already have been removed, or it was logged under a different plate.` }) };
+  }
+  if (!target.ok) {
+    return {
+      proposal: null,
+      toolResult: JSON.stringify({
+        ok: false,
+        reason: 'more than one send matches — ASK which one, do not choose',
+        candidates: target.candidates.map(describeCandidate),
+      }),
+    };
+  }
+  const proposal = buildUnsendProposal(target.trip, input.reason);
+  return {
+    proposal,
+    toolResult: JSON.stringify({
+      ok: true,
+      drafted: describeCandidate(target.trip),
+      awaiting: 'user confirmation — a confirm card is shown; do NOT say it is removed, just that it is drafted to remove on their tap',
     }),
   };
 }

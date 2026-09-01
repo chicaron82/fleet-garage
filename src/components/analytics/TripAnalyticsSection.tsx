@@ -40,6 +40,7 @@ export function TripAnalyticsSection({ activeBranch }: Props) {
       let q = supabase
         .from('vsa_trips')
         .select('driver_id, depart_time, arrive_time')
+        .is('voided_at', null)   // a voided send did not happen
         .gte('depart_time', from);
       if (activeBranch !== 'ALL') q = q.eq('branch_id', activeBranch);
       return q;

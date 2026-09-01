@@ -118,6 +118,22 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         if (!allOk) throw new Error('Could not log all those sends — check connection and try again.');
         return;
       }
+      // Unsend → VOID the row, never DELETE it (migration 135). Every read filters
+      // voided_at IS NULL, so from his side it is gone from every manifest and count — which is
+      // exactly what he asked for ("I just need to know what was actually sent"). The row itself
+      // stays so a mis-tap from a phone in the washbay is recoverable.
+      // ⚠️ Scoped by trip id and nothing else. An unscoped or plate-scoped update here would void
+      // every send that car ever made.
+      if (proposal.kind === 'unsend') {
+        const { ok } = await writeOrEnqueue(
+          'update',
+          { voided_at: new Date().toISOString(), void_reason: proposal.reason ?? null },
+          'id',
+          proposal.trip.id,
+        );
+        if (!ok) throw new Error('Could not remove that send — check connection and try again.');
+        return;
+      }
       // Register-only → add the vehicle to the fleet, NO hold. addVehicle throws on
       // failure, which the card turns into its error state.
       if (proposal.kind === 'register_vehicle') {

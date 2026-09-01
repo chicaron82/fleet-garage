@@ -65,6 +65,7 @@ export function ShiftReportExport({ date }: { date: string }) {
 
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time, is_shuttle, reason, is_vsa_interruption, queue_at_departure')
+        .is('voided_at', null)   // a voided send did not happen
         .eq('driver_id', user.id)
         .gte('depart_time', dayStartISO).lt('depart_time', dayEndISO)
         .not('arrive_time', 'is', null)

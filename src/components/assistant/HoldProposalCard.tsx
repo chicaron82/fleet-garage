@@ -226,6 +226,33 @@ export function HoldProposalCard({ proposal, done = false, onConfirm, onDismiss,
     );
   }
 
+  // Unsend — remove a logged send that never actually happened. Amber, same weight as logging
+  // one: it is a correction to the ops record, not a destructive act (migration 135 voids the
+  // row rather than deleting it). The card names the plate, the spot, the day AND the time,
+  // because the whole hazard here is voiding the wrong row — a car sent to two spots in one day
+  // is the exact case that produced this feature.
+  if (proposal.kind === 'unsend') {
+    if (status === 'done') return <Receipt>Removed {proposal.trip.plate} → {proposal.trip.destination}.</Receipt>;
+    return (
+      <Shell tone="amber" kicker="Remove a logged send">
+        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+          {proposal.trip.plate} → {proposal.trip.destination}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {proposal.trip.day} at {proposal.trip.time}
+          {proposal.trip.unit ? ` · unit ${proposal.trip.unit}` : ''}
+        </p>
+        {proposal.reason && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">Reason: {proposal.reason}</p>
+        )}
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          It stops counting as sent — gone from the manifest, the Movement Log and "where's this car?".
+        </p>
+        <CardActions tone="amber" status={status} errMsg={errMsg} confirmLabel="Remove send" workingLabel="Removing…" onDismiss={onDismiss} onConfirm={confirm} onStage={stage} dismissLabel={dismissLabel} />
+      </Shell>
+    );
+  }
+
   // Register-only — new to fleet, NO hold. Amber (a fleet write), distinct from the
   // register+hold path below (which also opens a hold).
   if (proposal.kind === 'register_vehicle') {

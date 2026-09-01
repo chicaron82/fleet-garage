@@ -143,6 +143,7 @@ export function useSidebar() {
     let q = supabase
       .from('vsa_trips')
       .select('depart_time')
+      .is('voided_at', null)   // a voided send did not happen
       .eq('driver_id', user.id)
       .gte('depart_time', shiftDayStartISO(localDateStr(-6)));
     if (activeBranch !== 'ALL') q = q.eq('branch_id', activeBranch);

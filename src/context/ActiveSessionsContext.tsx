@@ -89,6 +89,7 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
     const [tripRes, othRes] = await Promise.all([
       supabase.from('vsa_trips')
         .select('id, depart_time')
+        .is('voided_at', null)   // a voided send did not happen
         .eq('driver_id', userId).eq('status', 'in_progress')
         .order('depart_time', { ascending: false }).limit(1),
       supabase.from('off_standard_entries')

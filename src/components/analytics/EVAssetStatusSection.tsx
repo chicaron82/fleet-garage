@@ -66,6 +66,7 @@ export function EVAssetStatusSection({ activeBranch }: Props) {
       const { data: tripData } = await supabase
         .from('vsa_trips')
         .select('vehicle_plate, ev_cable_status, ev_adapter_status, depart_time')
+        .is('voided_at', null)   // a voided send did not happen
         .in('vehicle_plate', plates)
         .not('ev_cable_status', 'is', null)
         .order('depart_time', { ascending: false });

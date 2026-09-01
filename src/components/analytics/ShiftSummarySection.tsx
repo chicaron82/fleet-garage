@@ -58,6 +58,7 @@ export function ShiftSummarySection({ activeBranch }: { activeBranch: string }) 
         .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved'),
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time')
+        .is('voided_at', null)   // a voided send did not happen
         .eq('driver_id', user.id)
         .gte('depart_time', dayStartISO)
         .lt('depart_time', dayEndISO)

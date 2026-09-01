@@ -10,6 +10,7 @@ import { describeMemoryProposal, type MemoryProposal } from './memoryProposal.js
 import { describeReminderProposal, type ReminderProposal } from './reminderProposal.js';
 import { describeEventProposal, type EventProposal } from './eventProposal.js';
 import { describeOverflowProposal, type OverflowLogProposal } from './overflowProposal.js';
+import { describeUnsendProposal, type UnsendProposal } from './unsendProposal.js';
 
 /** A single backfilled identity field from a keytag read — mirrors src/lib/resolveKeytag's
  *  KeytagFill shape. Duplicated (not imported) on purpose: this file is part of the deployed
@@ -108,7 +109,7 @@ export interface UpdateAndHoldProposal {
   damageDescription: string;
 }
 
-export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | UpdateVehicleProposal | UpdateAndHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | EventProposal | OverflowLogProposal;
+export type Proposal = HoldProposal | RegisterHoldProposal | RegisterVehicleProposal | UpdateVehicleProposal | UpdateAndHoldProposal | LostItemProposal | NavigateProposal | MemoryProposal | ReminderProposal | EventProposal | OverflowLogProposal | UnsendProposal;
 
 /** Build a hold proposal from a resolved vehicle. Pure — no I/O, no write. */
 export function buildHoldProposal(
@@ -165,6 +166,7 @@ export function describeProposal(p: Proposal): string {
   if (p.kind === 'reminder') return describeReminderProposal(p);
   if (p.kind === 'event') return describeEventProposal(p);
   if (p.kind === 'overflow_log') return describeOverflowProposal(p);
+  if (p.kind === 'unsend') return describeUnsendProposal(p);
   if (p.kind === 'register_vehicle') {
     return `register ${describeNewVehicle(p.newVehicle)} (new to fleet, no hold)`;
   }

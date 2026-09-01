@@ -95,6 +95,7 @@ export function DriverCoverageSection({ activeBranch }: Props) {
     const tripsQ = supabase
       .from('vsa_trips')
       .select('driver_id, arrive_time')
+      .is('voided_at', null)   // a voided send did not happen
       .in('driver_id', driverIds)
       .gte('depart_time', todayStart)
       .order('arrive_time', { ascending: false });
@@ -145,6 +146,7 @@ export function DriverCoverageSection({ activeBranch }: Props) {
       supabase
         .from('vsa_trips')
         .select('driver_id, arrive_time, depart_time')
+        .is('voided_at', null)   // a voided send did not happen
         .in('driver_id', driverIds)
         .gte('depart_time', thirtyDaysAgo),
     ]);

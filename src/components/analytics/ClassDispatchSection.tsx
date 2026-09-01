@@ -40,6 +40,7 @@ export function ClassDispatchSection({ activeBranch }: Props) {
       let query = supabase
         .from('vsa_trips')
         .select('vehicle_plate')
+        .is('voided_at', null)   // a voided send did not happen
         .ilike('arrive_location', 'airport%')
         .not('arrive_time', 'is', null)
         .gte('depart_time', view === 'daily' ? dayStart() : monthStart());

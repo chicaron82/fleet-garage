@@ -78,6 +78,7 @@ export async function executeLookupVehicleLocation(supabase: SupabaseClient, raw
   const { data: trips, error } = await supabase
     .from('vsa_trips')
     .select('vehicle_plate, vehicle_unit, depart_location, arrive_location, depart_time, trip_type, status')
+    .is('voided_at', null)   // a voided send did not happen
     .order('depart_time', { ascending: false })
     .limit(500);
   if (error) throw error;

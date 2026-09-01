@@ -4,8 +4,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { LOST_ITEM_LOCATIONS } from './lostItemProposal.js';
 import { NAV_DESTINATIONS } from './navProposal.js';
-import { OVERFLOW_DESTINATIONS } from './overflowProposal.js';
 import { PHOTO_CONTEXTS } from './photoRequest.js';
+import { OVERFLOW_TOOLS } from './effie/overflowTools.js';
 
 export const TOOLS: Anthropic.Tool[] = [
   {
@@ -249,25 +249,6 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'lookup_sent',
-    description:
-      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir / Airport), grouped, for the operator to copy into a reply. TWO DIFFERENT QUESTIONS: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later. "day" (with a `date`) = WHAT WAS SENT on that specific day — "what went to FastAir yesterday?", "what did we send Saturday?", "what did I send this shift?" (omit the date for today). ⚠️ Ask for a DAY whenever the operator names or implies a day: "current" would answer with where things are NOW, which is a different and quietly wrong answer for a past day — a car sent yesterday and moved since would show its new spot and drop out of yesterday. A day answer lists every send that day with its time, so a car sent twice reads as two moves. Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        scope: {
-          type: 'string',
-          enum: ['current', 'day', 'shift'],
-          description: '"current" = where everything is now (default); "day" = what was sent on one day (pass `date`); "shift" = what was sent today.',
-        },
-        date: {
-          type: 'string',
-          description: 'The day to report, as YYYY-MM-DD, resolved against the "Today is" line. Passing a date always means that day, whatever the scope says. Omit for today.',
-        },
-      },
-    },
-  },
-  {
     name: 'propose_event',
     description:
       'Remember an important DATE for the operator — a staff BBQ, a meeting, an appointment ("staff BBQ tomorrow at 12:30", "remember the manager meeting Friday at 9"). It surfaces on their My Day "Heads up today" ON that date, then is simply past. Resolve the date to YYYY-MM-DD against the "Today is" line; omit the time for an all-day note. DIFFERENT from propose_reminder (a transient NEXT-SHIFT task that auto-clears) and propose_memory (a durable FACT about them, no date) — use THIS whenever the thing happens on a specific day. Does NOT write — returns a draft the operator taps to confirm.',
@@ -296,25 +277,6 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['text'],
     },
   },
-  {
-    name: 'propose_overflow_log',
-    description:
-      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to the airport". Read the plates from the operator\'s words OR from keytag photos they attach. DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        plates: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'The plates or unit numbers sent, e.g. ["LFJ379", "LUR175"]. Read from the message or from attached keytag photos.',
-        },
-        destination: {
-          type: 'string',
-          enum: [...OVERFLOW_DESTINATIONS],
-          description: 'Where they were sent. "Airport" = Richardson International.',
-        },
-      },
-      required: ['plates', 'destination'],
-    },
-  },
+  // The overflow manifest domain — see effie/overflowTools.ts.
+  ...OVERFLOW_TOOLS,
 ];

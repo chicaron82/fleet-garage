@@ -58,6 +58,7 @@ export function MovementLogView({ prefillPlate, prefillNonce, autoStart }: { pre
       const { data } = await supabase
         .from('vsa_trips')
         .select('*')
+        .is('voided_at', null)   // a voided send did not happen
         .gte('depart_time', shiftDayStartISO(localDateStr(0)))
         .not('arrive_time', 'is', null)
         .order('depart_time', { ascending: false });

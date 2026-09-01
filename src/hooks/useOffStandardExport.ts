@@ -32,6 +32,7 @@ export function useOffStandardExport({ user, shifts, entries }: UseOffStandardEx
     const { data: tripRows } = await supabase
       .from('vsa_trips')
       .select('depart_time, arrive_time, is_shuttle, reason')
+      .is('voided_at', null)   // a voided send did not happen
       .eq('driver_id', user.id)
       .gte('depart_time', shiftDayStartISO(localDateStr(0)))
       .not('arrive_time', 'is', null)

@@ -43,6 +43,7 @@ export function OffStdExportActionSheet({ date, dateLabel, user, shifts, onClose
 
       supabase.from('vsa_trips')
         .select('depart_time, arrive_time, is_shuttle, reason')
+        .is('voided_at', null)   // a voided send did not happen
         .eq('driver_id', user.id)
         .gte('depart_time', dayStart)
         .lt('depart_time', dayEnd)
