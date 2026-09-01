@@ -192,6 +192,29 @@ search, not vehicle-identity entry. `VehicleFields`' own header says so; don't s
 `tests/components/VehicleFields.test.tsx`. The field-named export says *which field this is* at the
 call site; the shared object means the two can never drift into two behaviours.
 
+## When a value needs a note to be understood, the value is wrong
+
+2026-08-31. Aaron asked for a key tag to be flagged for retake. The only flag was `'unreadable'` —
+whose meaning is *a human could not read this photo* — and that tag is perfectly legible; it was
+simply shot before the car was re-plated. Using it "worked": the car landed on the retake watchlist,
+which is where it belonged.
+
+⭐ **The tell that the value was wrong was that I had to write a paragraph of prose into `note` to
+explain what the flag meant.** *"Key tag photo is STALE, not unreadable — it was shot Aug 19 on the
+Alberta plate…"* A flag that needs a footnote is a flag that will be misread by whoever does not get
+the footnote, and the whole point of a flag is to survive without me standing next to it.
+
+Migration 134 added `'stale'`, and the prose became unnecessary.
+
+**The rule:** if using an enum value requires you to explain that it does not quite mean what it says,
+add the value. Two states sharing one word because their *action* is the same will diverge the first
+time the actions differ — here, `unreadable` needs **a better photo of the same tag** and `stale`
+needs **a photo of a different tag**. Same queue, opposite errands.
+
+⚠️ Corollary: they still share the queue. Splitting the word does not mean splitting the list.
+
+---
+
 ## The 330-Line Cap
 
 **All logic files (`src/components`, `src/hooks`, `src/context`, `src/lib`, and
