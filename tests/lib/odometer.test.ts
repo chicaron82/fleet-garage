@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge , odometerUnitFor } from '../../src/lib/odometer';
+import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge , odometerUnitFor, checkOdometerJump } from '../../src/lib/odometer';
 
 describe('shouldReplaceOdometer — latest wins, but only forward', () => {
   it('fills a blank', () => {
@@ -96,5 +96,66 @@ describe('odometer units', () => {
     const at = new Date('2026-08-20T12:00:00Z').toISOString();
     const now = new Date('2026-08-27T12:00:00Z');
     expect(describeOdometer(23175, at, now, 'mi')).toBe('23,175 mi · 7d ago');
+  });
+});
+
+// ⚠️⚠️ THE HALF `shouldReplaceOdometer` WAS MISSING. Found 2026-08-31 reading a night's gas-pump
+// cards into FG off six photographs: two readings passed the forward-only guard and were about to be
+// written. Both are strictly greater than what FG held. Neither is a thing a car can do.
+describe('checkOdometerJump', () => {
+  const NOW = new Date('2026-08-31T20:00:00-05:00');
+  const today = '2026-08-31T12:00:00-05:00';
+
+  it('⭐ catches the one that nearly landed: +49,407 in a day', () => {
+    const f = checkOdometerJump(92249, 42842, today, NOW);
+    expect(f).not.toBeNull();
+    expect(f!.delta).toBe(49407);
+    expect(f!.detail).toMatch(/49,407 km in the same day/);
+  });
+
+  it('⭐ and the quieter one: +6,440 in a day', () => {
+    expect(checkOdometerJump(14224, 7784, today, NOW)).not.toBeNull();
+  });
+
+  // ⚠️⚠️ THE CASE THAT SETS THE THRESHOLD, and it is real. MCM563 was plated 2026-08-27 and read
+  // 3,154 km four days later — 787 km/day, confirmed by Aaron. A rule tight enough to call that
+  // wrong is worse than no rule at all.
+  it('⚠️ says NOTHING about MCM563 — 3,149 km in four days is real', () => {
+    expect(checkOdometerJump(3154, 5, '2026-08-27T15:03:00-05:00', NOW)).toBeNull();
+  });
+
+  it('⚠️ nor about ordinary rental use', () => {
+    expect(checkOdometerJump(23043, 22840, '2026-08-29T09:00:00-05:00', NOW)).toBeNull();
+  });
+
+  // ⚠️ NO DATE MEANS NO DIVISOR. Guessing an age would manufacture the exact confidence this exists
+  // to withhold.
+  it('⚠️ is silent when the stored reading has no date', () => {
+    expect(checkOdometerJump(92249, 42842, null, NOW)).toBeNull();
+    expect(checkOdometerJump(92249, 42842, 'not-a-date', NOW)).toBeNull();
+  });
+
+  it('⚠️ is silent on a first reading — nothing to compare against', () => {
+    expect(checkOdometerJump(115840, null, today, NOW)).toBeNull();
+    expect(checkOdometerJump(115840, undefined, null, NOW)).toBeNull();
+  });
+
+  // The forward-only rule already owns a lower number; this must not double-report it.
+  it('⚠️ leaves a LOWER reading to shouldReplaceOdometer', () => {
+    expect(checkOdometerJump(28921, 34028, today, NOW)).toBeNull();
+    expect(checkOdometerJump(6282, 6282, today, NOW)).toBeNull();
+  });
+
+  // ⚠️ A FLOOR OF ONE DAY. Two readings an hour apart would otherwise divide by ~0.04 and call any
+  // change impossible — and a car genuinely can be driven between a morning flip and an afternoon one.
+  it('⚠️ an hour apart is still judged against a full day', () => {
+    const anHourAgo = new Date(NOW.getTime() - 3_600_000).toISOString();
+    expect(checkOdometerJump(1200, 0, anHourAgo, NOW)).toBeNull();   // 1,200 in a day: fast, allowed
+    expect(checkOdometerJump(9000, 0, anHourAgo, NOW)).not.toBeNull();
+  });
+
+  it('spreads a big delta over a long gap without complaining', () => {
+    // 40,000 km since April is ~300/day — a hard-worked rental, not a misread.
+    expect(checkOdometerJump(60000, 20000, '2026-04-01T09:00:00-05:00', NOW)).toBeNull();
   });
 });

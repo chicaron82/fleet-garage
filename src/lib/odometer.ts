@@ -19,6 +19,66 @@ export function shouldReplaceOdometer(stored: number | null | undefined, incomin
   return incoming > stored;
 }
 
+/**
+ * ⚠️⚠️ HIGHER IS NOT THE SAME AS PLAUSIBLE — the half `shouldReplaceOdometer` was missing.
+ *
+ * Found 2026-08-31, reading a night's gas-pump cards into FG off six photographs. Two readings
+ * passed the forward-only guard and were about to be written:
+ *
+ *   LUR304  FG had 42,842 read THAT DAY  · my read 92,249  → +49,407 in one day
+ *   LZM509  FG had  7,784 read THAT DAY  · my read 14,224  → + 6,440 in one day
+ *
+ * Both are strictly greater, so the rule above waved them through. Neither is a thing a car can do.
+ * What caught them was not the number — it was **when the stored reading was taken**, and I only
+ * looked because the jump felt wrong. A feeling is not a guard.
+ *
+ * ⚠️ WARNS, NEVER BLOCKS, and the reason is on the fleet: MCM563 was plated on Aug 27 and read
+ * **3,154 km four days later** — 787 km/day, confirmed by Aaron, on a car with delivery plastic
+ * still in it. A rule tight enough to call that wrong is worse than no rule. The threshold is set
+ * where a reading stops being *fast* and starts being *impossible*, and even then it reports.
+ *
+ * ⚠️ AND IT IS SILENT WITHOUT A DATE. A stored reading with no `odometer_at` gives nothing to
+ * divide by; guessing an age would manufacture the very confidence this exists to withhold.
+ */
+export interface OdometerJump {
+  delta: number;
+  days: number;
+  perDay: number;
+  detail: string;
+}
+
+/** Above this, a daily average stops being a hard-driven rental and starts being a misread. Sustained
+ *  road-trip driving tops out near 1,000-1,200 km/day; the fleet's own confirmed maximum is 787. */
+const IMPLAUSIBLE_KM_PER_DAY = 1500;
+
+export function checkOdometerJump(
+  incoming: number,
+  stored: number | null | undefined,
+  storedAt: string | null | undefined,
+  now: Date = new Date(),
+): OdometerJump | null {
+  if (!Number.isFinite(incoming) || stored === null || stored === undefined) return null;
+  if (incoming <= stored) return null;              // the forward-only rule already owns this case
+  if (!storedAt) return null;                       // no date → nothing to divide by → say nothing
+  const then = new Date(storedAt);
+  if (Number.isNaN(then.getTime())) return null;
+
+  const delta = incoming - stored;
+  // ⚠️ A FLOOR OF ONE DAY, not the true elapsed hours. Two readings an hour apart would divide by
+  // ~0.04 and call any change at all impossible — and a car genuinely can be driven between a
+  // morning flip and an afternoon one. Same-day means "today", and today's ceiling is one day's.
+  const days = Math.max(1, (now.getTime() - then.getTime()) / 86_400_000);
+  const perDay = delta / days;
+  if (perDay <= IMPLAUSIBLE_KM_PER_DAY) return null;
+
+  const when = days < 1.5 ? 'the same day' : `${Math.round(days)} days`;
+  return {
+    delta, days, perDay,
+    detail: `+${delta.toLocaleString('en-CA')} km in ${when} — about `
+      + `${Math.round(perDay).toLocaleString('en-CA')} km a day. Worth a second look at the number.`,
+  };
+}
+
 /** Parse what he typed on the flip. Accepts "47200", "47,200", " 47 200 " — rejects anything else. */
 export function parseOdometer(raw: string | null | undefined): number | null {
   const digits = (raw ?? '').replace(/[\s,]/g, '');

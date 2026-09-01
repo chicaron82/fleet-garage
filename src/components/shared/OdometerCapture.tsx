@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { parseOdometer, describeOdometer, odometerUnitFor } from '../../lib/odometer';
+import { parseOdometer, describeOdometer, odometerUnitFor, checkOdometerJump } from '../../lib/odometer';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 
 // The odometer, captured where he's already standing (2026-08-25).
@@ -58,6 +58,11 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   // will not be accepted", which is a wider thing.
   const notForward = km !== null && currentKm != null && km <= currentKm;
   const sameAsFile = km !== null && currentKm != null && km === currentKm;
+  // ⚠️ WARNS, NEVER BLOCKS. "Higher" is not "plausible": LUR304 was about to take +49,407 km in a
+  // single day because it was strictly greater than what FG held (2026-08-31). But MCM563 really did
+  // 787 km/day for four days, so refusing a fast reading would be worse than the bug — this only
+  // ever says "look again". See lib/odometer.checkOdometerJump.
+  const jump = km !== null ? checkOdometerJump(km, currentKm, currentAt) : null;
 
   const save = async () => {
     if (km === null || notForward) return;
@@ -71,6 +76,13 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
       <span className="text-xs text-gray-500 dark:text-gray-400">
         🧭 {currentKm != null ? describeOdometer(currentKm, currentAt, new Date(), unit) : 'Odometer not logged'} —
       </span>
+      {/* The implausible-jump notice, rendered where he is still holding the number he typed —
+          after the write it is a correction, before it is a second glance. */}
+      {jump && !saved && (
+        <p className="w-full text-[11px] text-amber-700 dark:text-amber-400 order-last">
+          ⚠️ {jump.detail}
+        </p>
+      )}
       {saved ? (
         <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} {unit} saved</span>
       ) : (
