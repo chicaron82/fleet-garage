@@ -251,14 +251,18 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'lookup_sent',
     description:
-      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir / Airport), grouped, for the operator to copy into a reply. Two scopes: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later; "shift" = only what was sent THIS shift — the end-of-shift report ("what did I send this shift?"). Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
+      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir / Airport), grouped, for the operator to copy into a reply. TWO DIFFERENT QUESTIONS: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later. "day" (with a `date`) = WHAT WAS SENT on that specific day — "what went to FastAir yesterday?", "what did we send Saturday?", "what did I send this shift?" (omit the date for today). ⚠️ Ask for a DAY whenever the operator names or implies a day: "current" would answer with where things are NOW, which is a different and quietly wrong answer for a past day — a car sent yesterday and moved since would show its new spot and drop out of yesterday. A day answer lists every send that day with its time, so a car sent twice reads as two moves. Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
     input_schema: {
       type: 'object',
       properties: {
         scope: {
           type: 'string',
-          enum: ['current', 'shift'],
-          description: '"current" = where everything is now (default); "shift" = just what was sent this shift.',
+          enum: ['current', 'day', 'shift'],
+          description: '"current" = where everything is now (default); "day" = what was sent on one day (pass `date`); "shift" = what was sent today.',
+        },
+        date: {
+          type: 'string',
+          description: 'The day to report, as YYYY-MM-DD, resolved against the "Today is" line. Passing a date always means that day, whatever the scope says. Omit for today.',
         },
       },
     },

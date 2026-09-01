@@ -89,7 +89,7 @@ export async function dispatchToolUse(
       const content = await executeLookupVehicleLocation(supabase, (tu.input as { plate?: string }).plate ?? '');
       return { content };
     } else if (tu.name === 'lookup_sent') {
-      const content = await executeLookupSent(supabase, tu.input as { scope?: string });
+      const content = await executeLookupSent(supabase, tu.input as { scope?: string; date?: string });
       return { content };
     } else if (tu.name === 'propose_navigation') {
       const out = executeProposeNavigation(tu.input as { destination?: string });
