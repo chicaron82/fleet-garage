@@ -59,6 +59,9 @@ export interface VehicleHoldContextValue {
   recordOdometer: (vehicleId: string, km: number) => Promise<void>;
   /** Back to "not logged" — the escape the forward-only guard was missing. See odometerWrite. */
   clearOdometer: (vehicleId: string) => Promise<boolean>;
+  /** The one write allowed to move an odometer DOWN — a correction, never an ordinary log.
+   *  See context/odometerWrite.makeCorrectOdometer. */
+  correctOdometer: (vehicleId: string, km: number) => Promise<boolean>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge , odometerUnitFor, checkOdometerJump } from '../../src/lib/odometer';
+import { shouldReplaceOdometer, parseOdometer, describeOdometer, describeOdometerAge , odometerUnitFor, checkOdometerJump, classifyOdometerEntry } from '../../src/lib/odometer';
 
 describe('shouldReplaceOdometer — latest wins, but only forward', () => {
   it('fills a blank', () => {
@@ -157,5 +157,41 @@ describe('checkOdometerJump', () => {
   it('spreads a big delta over a long gap without complaining', () => {
     // 40,000 km since April is ~300/day — a hard-worked rental, not a misread.
     expect(checkOdometerJump(60000, 20000, '2026-04-01T09:00:00-05:00', NOW)).toBeNull();
+  });
+});
+
+// ── classifyOdometerEntry ────────────────────────────────────────────────────────────────────
+//
+// One vocabulary for the control and the write, so neither re-derives "is this allowed?" from raw
+// comparisons and drifts from the other — the way the button's `<` once disagreed with the write's
+// `<=` and produced a success message for a write that never happened (2026-08-26).
+describe('classifyOdometerEntry', () => {
+  it('calls a first reading FIRST, not forward — there is nothing to move forward from', () => {
+    expect(classifyOdometerEntry(null, 28921)).toBe('first');
+    expect(classifyOdometerEntry(undefined, 28921)).toBe('first');
+  });
+
+  it('separates forward, same and lower', () => {
+    expect(classifyOdometerEntry(28921, 34028)).toBe('forward');
+    expect(classifyOdometerEntry(28921, 28921)).toBe('same');
+    expect(classifyOdometerEntry(34028, 28921)).toBe('lower');
+  });
+
+  // ⚠️ 'lower' is NOT 'invalid', and the distinction is the whole feature. A lower number has two
+  // causes the value cannot separate — a misread (common) or a wrong record (Aaron's LFJ180: 34,028
+  // on file off a gas sheet, 28,921 on the dash, a trip meter transcribed without its decimal).
+  // Naming it 'lower' rather than 'invalid' is what leaves room for the surface to ask him which.
+  it('does not condemn a lower reading — it only names it', () => {
+    expect(classifyOdometerEntry(34028, 28921)).not.toBe('invalid');
+  });
+
+  it('rejects what is not a reading at all', () => {
+    for (const bad of [null, 0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(classifyOdometerEntry(28921, bad as number | null)).toBe('invalid');
+    }
+  });
+
+  it('rejects a nonsense value even on a car with nothing on file', () => {
+    expect(classifyOdometerEntry(null, 0)).toBe('invalid');
   });
 });

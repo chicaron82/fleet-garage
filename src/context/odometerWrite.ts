@@ -80,3 +80,44 @@ export function makeClearOdometer(deps: {
     return true;
   };
 }
+
+/**
+ * Correct a reading that is already on file — the one write allowed to move an odometer DOWN.
+ *
+ * ⭐ WHY IT EXISTS (Aaron, 2026-09-01). `LFJ180` sat at 34,028 km while its dash read 28,921:
+ * someone had read the TRIP METER (3402.8) and written it on a gas sheet without the decimal, and
+ * FG took it as the car's first reading. Nothing caught it — `checkOdometerJump` has no baseline
+ * on a first reading — and then `shouldReplaceOdometer` cemented it, because the only direction
+ * that repairs a too-high number is the one direction the guard exists to refuse.
+ *
+ * ⚠️ THIS DOES NOT WEAKEN THAT GUARD, AND THAT WAS HIS RULING (2026-08-26): a free-typing override
+ * *"would weaken the backwards guard for genuine readings, which is the thing it is genuinely good
+ * at."* So the ordinary path is untouched — `recordOdometer` is still forward-only, a lower number
+ * still reads as a suspected misread first, and reaching this function takes a SEPARATE, explicit
+ * tap that says what it does. The guard did not learn to doubt itself; a second door was cut.
+ *
+ * ⚠️ Scoped by vehicle id ONLY — deliberately no `odometer.lt` filter, since going down is the
+ * entire point. That makes this the one odometer write with no server-side value guard behind it,
+ * which is exactly why it must never be reachable by the same tap as logging a reading.
+ *
+ * `odometer_at` moves to NOW: he is standing at the dash reading the real number. The old value
+ * and the new one both land in `vehicle_changes`, so the correction is one legible row rather than
+ * the clear-and-re-enter it replaces (which recorded a "no odometer" state that never existed).
+ */
+export function makeCorrectOdometer(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+
+  return async (vehicleId: string, km: number): Promise<boolean> => {
+    if (!Number.isFinite(km) || km <= 0) return false;
+    const at = new Date().toISOString();
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ odometer: km, odometer_at: at }).eq('id', vehicleId));
+    // ⚠️ Reports whether it landed — nothing upstream may show a corrected value the database
+    // never took (the R61/R62 lesson, same as makeClearOdometer below).
+    if (error) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, odometer: km, odometerAt: at } : v)));
+    return true;
+  };
+}

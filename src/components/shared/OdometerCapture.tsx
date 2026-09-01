@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
-import { parseOdometer, describeOdometer, odometerUnitFor, checkOdometerJump } from '../../lib/odometer';
+import { parseOdometer, describeOdometer, odometerUnitFor, checkOdometerJump, classifyOdometerEntry } from '../../lib/odometer';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
 
 // The odometer, captured where he's already standing (2026-08-25).
@@ -19,7 +19,7 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 // "47,200 km" ages into a lie; a figure from April describes a car that has since done a summer of
 // rentals. And a lower reading than the one on file is a misread or the wrong car — `recordOdometer`
 // refuses it server-side rather than rewriting a good record, so this says so BEFORE he taps.
-export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, onSave, onClear }: {
+export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, onSave, onClear, onCorrect }: {
   vehicleId: string;
   /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
    *  things by it. The SCAN passes its per-scan nonce, because a scan is an EVENT and re-scanning
@@ -38,10 +38,15 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   onSave: (vehicleId: string, km: number) => Promise<void>;
   /** Clears a mis-typed reading back to "not logged". Omitted → no clear offered (read-only hosts). */
   onClear?: (vehicleId: string) => Promise<boolean>;
+  /** ⭐ Replaces a WRONG value on file with a lower, correct one. Omitted → no correction offered.
+   *  Deliberately separate from `onSave`: the forward-only rule owns the ordinary path and stays
+   *  intact, so going down has to be a different call as well as a different tap. */
+  onCorrect?: (vehicleId: string, km: number) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
   const unit = odometerUnitFor(isUs);
 
   useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); });
@@ -63,6 +68,18 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   // 787 km/day for four days, so refusing a fast reading would be worse than the bug — this only
   // ever says "look again". See lib/odometer.checkOdometerJump.
   const jump = km !== null ? checkOdometerJump(km, currentKm, currentAt) : null;
+  // ⭐ A LOWER NUMBER HAS TWO CAUSES AND THE VALUE CANNOT TELL THEM APART: a misread (the common
+  // one) or a wrong record. Aaron's `LFJ180` sat at 34,028 km off a gas sheet while the dash read
+  // 28,921 — a trip meter, 3402.8, transcribed without its decimal — and the only repair was a
+  // database write. So the warning still comes FIRST and still says "check the reading"; this
+  // button sits beside it as the deliberate second answer.
+  //
+  // ⚠️ It SURFACES ITSELF, and that is the point rather than a flourish. The `Clear` built for the
+  // same class of problem on 2026-08-26 shipped green and he found it a WEEK later, by accident:
+  // *"I never noticed the clear until today 😅"*. A repair he has to already know about is not a
+  // repair. This one appears the moment he types a number that needs it.
+  const isLower = classifyOdometerEntry(currentKm, km) === 'lower';
+  const offerCorrection = isLower && !!onCorrect && km !== null;
 
   const save = async () => {
     if (km === null || notForward) return;
@@ -140,7 +157,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
           "Same" is not a mistake at all — the record already says that — so it reads as a neutral
           nothing-to-do rather than an accusation. Saying "lower" for an equal value would be a small
           lie inside a message whose whole job is catching one. */}
-      {notForward && (
+      {notForward && !saved && (
         <span className={`text-[11px] font-semibold ${
           sameAsFile ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400'
         }`}>
@@ -148,6 +165,33 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             ? `Already on file at ${currentKm?.toLocaleString()} ${unit} — nothing to update.`
             : `Lower than the ${currentKm?.toLocaleString()} ${unit} on file — check the reading.`}
         </span>
+      )}
+      {/* ⚠️ AFTER the warning, never instead of it. The first answer to a lower number is still
+          "you may have misread"; this is the second answer, for when he has looked again and the
+          RECORD is what is wrong. A separate control, its own words, its own tap — his 2026-08-26
+          ruling that a free-typing override "would weaken the backwards guard for genuine
+          readings" holds, because Log is still forward-only and this is not Log. */}
+      {offerCorrection && !saved && (
+        <button
+          type="button"
+          onClick={async () => {
+            if (km === null) return;
+            hapticLight();
+            setCorrecting(true);
+            const ok = await onCorrect!(vehicleId, km);
+            setCorrecting(false);
+            // ⚠️ Only claims success when the write actually landed — the R61/R62 lesson, and the
+            // same reason `save` cannot simply assume. A correction that silently failed while the
+            // screen said "saved" would leave the wrong number on a car he believes he fixed.
+            if (ok) setSaved(true);
+          }}
+          disabled={correcting}
+          className="w-full h-11 px-4 rounded-lg border border-amber-400 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-500/10 text-xs font-semibold text-amber-800 dark:text-amber-300 disabled:opacity-40 cursor-pointer transition"
+        >
+          {correcting
+            ? 'Correcting…'
+            : `The record is wrong — correct it to ${km?.toLocaleString()} ${unit}`}
+        </button>
       )}
     </div>
   );

@@ -13,7 +13,7 @@ import type { EvSource } from '../../types';
 // deleted documentation. And the three belong together for a reason beyond size — they are the
 // same beat. He has the tag in his hand, the trunk open and the dash lit, and each of them is a
 // fact he can only supply from exactly there.
-export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyCount, recordOdometer, clearOdometer, updateVehicleEVAssets }: {
+export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets }: {
   vehicle: Vehicle;
   scanNonce: number;
   /** Rental class off THIS tag read; the flip list tallies classes turned around. */
@@ -25,6 +25,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
   ) => Promise<boolean>;
   /** Back to "not logged" — the wrong-car mix-up happens AT the scan, so the escape belongs here. */
   clearOdometer: (vehicleId: string) => Promise<boolean>;
+  correctOdometer: (vehicleId: string, km: number) => Promise<boolean>;
 }) {
   const [savingEv, setSavingEv] = useState(false);
 
@@ -98,6 +99,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
                       currentAt={vehicle.odometerAt}
                       onSave={recordOdometer}
                       onClear={clearOdometer}
+                      onCorrect={correctOdometer}
                     />
                     {/* ⭐ LAST in the beat, and that order is the argument: everything above is
                         already captured, so the flip only has to ask for what this sheet does not

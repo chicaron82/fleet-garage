@@ -20,6 +20,29 @@ export function shouldReplaceOdometer(stored: number | null | undefined, incomin
 }
 
 /**
+ * What an incoming reading IS, relative to what is on file — so the control and the write agree on
+ * one vocabulary instead of each re-deriving it from comparisons.
+ *
+ * ⭐ 'lower' is deliberately NOT called 'invalid'. It is the one case with two entirely different
+ * causes and no way to tell them apart from the number: a MISREAD (wrong car, transposed digits —
+ * overwhelmingly the common one, and what the guard is genuinely good at catching) or a
+ * CORRECTION (what is on file was wrong). The classification names the situation and refuses to
+ * decide which; the surface asks him.
+ */
+export type OdometerEntry = 'invalid' | 'first' | 'forward' | 'same' | 'lower';
+
+export function classifyOdometerEntry(
+  stored: number | null | undefined,
+  incoming: number | null,
+): OdometerEntry {
+  if (incoming === null || !Number.isFinite(incoming) || incoming <= 0) return 'invalid';
+  if (stored === null || stored === undefined) return 'first';
+  if (incoming > stored) return 'forward';
+  if (incoming === stored) return 'same';
+  return 'lower';
+}
+
+/**
  * ⚠️⚠️ HIGHER IS NOT THE SAME AS PLAUSIBLE — the half `shouldReplaceOdometer` was missing.
  *
  * Found 2026-08-31, reading a night's gas-pump cards into FG off six photographs. Two readings
@@ -51,6 +74,19 @@ export interface OdometerJump {
  *  road-trip driving tops out near 1,000-1,200 km/day; the fleet's own confirmed maximum is 787. */
 const IMPLAUSIBLE_KM_PER_DAY = 1500;
 
+/**
+ * ⚠️⚠️ AND IT IS BLIND TO A CAR'S FIRST READING — named here because the blindness looks like
+ * coverage. Aaron, 2026-09-01: `LFJ180` was entered at **34,028 km** off a gas sheet when the dash
+ * said **28,921** — someone read the TRIP METER (3402.8) and wrote it without the decimal. This
+ * function could not fire, correctly: `stored` was null, and a first reading has nothing to be
+ * implausible against.
+ *
+ * ⭐ That is exactly the wrong moment to be undefended. A car gets its first reading precisely when
+ * it is being read off a SHEET rather than a DASH — a backfill, a gas-card transcription — which is
+ * where transcription errors live. There is no fix inside this function; the answer is that a wrong
+ * first reading must be CORRECTABLE (see `classifyOdometerEntry` 'lower' and `makeCorrectOdometer`),
+ * not that the guard should invent a baseline it does not have.
+ */
 export function checkOdometerJump(
   incoming: number,
   stored: number | null | undefined,

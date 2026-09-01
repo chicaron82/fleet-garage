@@ -43,7 +43,7 @@ interface Props {
 export function ScanRouterOverlay({ navigate, onClose }: Props) {
   const { readKeytag, status, error, errorRef } = useKeytagRead();
   const { user } = useAuth();
-  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode, recordVinLast9, recordOdometer, clearOdometer, updateVehicleEVAssets, adoptPlate } = useVehicleHoldContext();
+  const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordKeyCount, recordOwningArea, recordClassCode, recordVinLast9, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
   const { backfillToast, conflictToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const { scan, pickedFileRef, pickedNonce } = useScanRouter();
@@ -306,6 +306,7 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                       recordKeyCount={recordKeyCount}
                       recordOdometer={recordOdometer}
                       clearOdometer={clearOdometer}
+                      correctOdometer={correctOdometer}
                       updateVehicleEVAssets={updateVehicleEVAssets}
                     />
                   </>
