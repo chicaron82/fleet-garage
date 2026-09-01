@@ -11,8 +11,8 @@ import { groupOverflowSends, resolveSentScope, type SentRow } from '../../../../
 
 // Winnipeg is UTC-5 in summer, and the shift day rolls over at the cutover hour — so these ISO
 // stamps are chosen to land unambiguously mid-afternoon local.
-const at = (iso: string, dest: string, unit: string): SentRow => ({
-  vehicle_unit: unit, vehicle_plate: null, arrive_location: dest, depart_time: iso,
+const at = (iso: string, dest: string, unit: string, plate = `P${unit.slice(-4)}`): SentRow => ({
+  vehicle_unit: unit, vehicle_plate: plate, arrive_location: dest, depart_time: iso,
 });
 
 // Newest-first, the order the query returns.
@@ -31,7 +31,7 @@ describe('groupOverflowSends — "current": where is everything NOW', () => {
     expect(out.total).toBe(3);
     const fastair = out.groups.find(g => g.destination === 'FastAir')!;
     // 5424932 moved to FastAir today; 5411008's newest is FastAir; 5400111 never moved.
-    expect(fastair.vehicles.sort()).toEqual(['5400111', '5411008', '5424932']);
+    expect(fastair.vehicles.sort()).toEqual(['P0111', 'P1008', 'P4932']);
     expect(out.groups.find(g => g.destination === 'AV Flight')).toBeUndefined();
   });
 
@@ -47,12 +47,12 @@ describe('groupOverflowSends — "day": what was SENT that day', () => {
   // Yesterday it went to AV Flight, and that is still true.
   it('keeps a car that has since been moved somewhere else', () => {
     const av = day.groups.find(g => g.destination === 'AV Flight')!;
-    expect(av.vehicles.some(v => v.startsWith('5424932'))).toBe(true);
+    expect(av.vehicles.some(v => v.startsWith('P4932'))).toBe(true);
   });
 
   it('does NOT dedup — two sends in one day are two moves', () => {
     const all = day.groups.flatMap(g => g.vehicles);
-    expect(all.filter(v => v.startsWith('5411008'))).toHaveLength(2);
+    expect(all.filter(v => v.startsWith('P1008'))).toHaveLength(2);
     expect(day.total).toBe(3);
   });
 
@@ -67,12 +67,32 @@ describe('groupOverflowSends — "day": what was SENT that day', () => {
 
   it('excludes other days entirely', () => {
     const all = day.groups.flatMap(g => g.vehicles);
-    expect(all.some(v => v.startsWith('5400111'))).toBe(false);  // last week
+    expect(all.some(v => v.startsWith('P0111'))).toBe(false);  // last week
   });
 
   it('is empty, not wrong, for a day with no sends', () => {
     const quiet = groupOverflowSends(ROWS, 'day', '2026-08-30');
     expect(quiet).toMatchObject({ scope: 'day', date: '2026-08-30', total: 0, groups: [] });
+  });
+});
+
+// ⭐ Aaron, 2026-09-01, after reading a real answer on his phone: *"i think showing up as a list
+// with licence plates to copy would be easier"*. The manifest is written to be COPIED into a reply
+// — a plate is what the person on the other end can read off a car; a unit number is an internal key.
+describe('the label he actually copies', () => {
+  it('is the PLATE, not the unit number', () => {
+    const out = groupOverflowSends([at('2026-09-01T18:20:00Z', 'FastAir', '5424932', 'LUR247')], 'current');
+    expect(out.groups[0].vehicles).toEqual(['LUR247']);
+  });
+
+  it('falls back to the unit only when a row has no plate', () => {
+    const noPlate: SentRow = { vehicle_unit: '5424932', vehicle_plate: null, arrive_location: 'FastAir', depart_time: '2026-09-01T18:20:00Z' };
+    expect(groupOverflowSends([noPlate], 'current').groups[0].vehicles).toEqual(['5424932']);
+  });
+
+  it('keeps one vehicle per entry on a day answer, so the list stays copyable', () => {
+    const out = groupOverflowSends([at('2026-08-31T20:10:00Z', 'AV Flight', '5424932', 'LUR247')], 'day', '2026-08-31');
+    expect(out.groups[0].vehicles).toEqual(['LUR247 · 15:10']);
   });
 });
 

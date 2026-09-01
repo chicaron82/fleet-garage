@@ -47,7 +47,11 @@ export function groupOverflowSends(
   /** Business date (YYYY-MM-DD) — required for 'day', ignored for 'current'. */
   day?: string,
 ): { scope: string; date?: string; total: number; groups: { destination: string; count: number; vehicles: string[] }[] } {
-  const label = (r: SentRow) => r.vehicle_unit || r.vehicle_plate || 'Unknown';
+  // ⭐ PLATE FIRST, not unit (Aaron, 2026-09-01: *"showing up as a list with licence plates to copy
+  // would be easier"*). This list exists to be COPIED into a reply, and a plate is what the person
+  // on the other end can read off a car; a unit number is an internal key. Unit is the fallback
+  // only — overflow sends always carry a plate, so it should essentially never fire.
+  const label = (r: SentRow) => r.vehicle_plate || r.vehicle_unit || 'Unknown';
   const byDest = new Map<string, string[]>();
   const push = (dest: string, text: string) => {
     const list = byDest.get(dest) ?? byDest.set(dest, []).get(dest)!;
