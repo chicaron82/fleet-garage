@@ -155,23 +155,28 @@ describe('actionImpliesPresence', () => {
 });
 
 describe('sightingLines — the full history, on demand', () => {
+  // The profiles map, as the component supplies it. `nobody` is the honest state for a caller that
+  // cannot resolve ids (and for every row written before migration 132).
+  const nameFor = (id: string) => (id === '9f560505' ? 'Aaron S.' : undefined);
+  const nobody = () => undefined;
+
   it('is newest first, whatever order the rows arrive in', () => {
     const rows = [
       { seenAt: '2026-08-25T18:18:00Z', seenByName: 'Aaron S.' },
       { seenAt: '2026-08-26T12:21:00Z', seenByName: 'Aaron S.' },
     ];
-    expect(sightingLines(rows).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
-    expect(sightingLines([...rows].reverse()).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
+    expect(sightingLines(rows, nobody).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
+    expect(sightingLines([...rows].reverse(), nobody).map(l => l.day)).toEqual(['2026-08-26', '2026-08-25']);
   });
 
   it('splits day and time so a list can group without re-parsing', () => {
-    const [l] = sightingLines([{ seenAt: new Date(2026, 7, 25, 13, 18).toISOString(), seenByName: 'x' }]);
+    const [l] = sightingLines([{ seenAt: new Date(2026, 7, 25, 13, 18).toISOString(), seenByName: 'x' }], nobody);
     expect(l.day).toBe('2026-08-25');
     expect(l.time).toBe('13:18');   // 24h, the way the washbay reads times
   });
 
   it('zero-pads so the column stays aligned', () => {
-    const [l] = sightingLines([{ seenAt: new Date(2026, 0, 5, 9, 7).toISOString(), seenByName: 'x' }]);
+    const [l] = sightingLines([{ seenAt: new Date(2026, 0, 5, 9, 7).toISOString(), seenByName: 'x' }], nobody);
     expect(l).toMatchObject({ day: '2026-01-05', time: '09:07' });
   });
 
@@ -179,19 +184,61 @@ describe('sightingLines — the full history, on demand', () => {
   // and an empty cell reads as a rendering fault rather than as missing data.
   it('names an unattributed scan rather than leaving a hole', () => {
     for (const who of [null, undefined, '', '   ']) {
-      expect(sightingLines([{ seenAt: '2026-08-25T18:18:00Z', seenByName: who }])[0].who).toBe('unknown');
+      expect(sightingLines([{ seenAt: '2026-08-25T18:18:00Z', seenByName: who }], nobody)[0].who).toBe('unknown');
     }
   });
 
   it('is empty for a car nobody has scanned', () => {
-    expect(sightingLines([])).toEqual([]);
+    expect(sightingLines([], nobody)).toEqual([]);
+  });
+
+  // ── WHO, for a DERIVED interaction ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ THE DEFECT THIS BLOCK EXISTS FOR (Aaron, 2026-09-01). His record showed four interactions:
+  // one named "Aaron S." and three "unknown" — while the change log directly beneath named him on
+  // every one. The scan carried a name; the three derived rows carried an actor the code threw
+  // away. His question: *"why does the record show who made the changes but interactions is
+  // inconsistent in showing them?"*
+  it('resolves a DERIVED interaction\'s actor id to a person', () => {
+    const [l] = sightingLines([{ seenAt: '2026-08-31T18:15:22Z', seenByName: null, actor: '9f560505' }], nameFor);
+    expect(l.who).toBe('Aaron S.');
+  });
+
+  it('reproduces the four-row record he was looking at — one scan, three writes, ONE name', () => {
+    const lines = sightingLines([
+      { seenAt: '2026-08-31T18:15:20Z', seenByName: 'Aaron S.' },                 // the scan
+      { seenAt: '2026-08-31T18:15:21Z', seenByName: null, actor: '9f560505' },    // keys
+      { seenAt: '2026-08-31T18:15:22Z', seenByName: null, actor: '9f560505' },    // odometer
+      { seenAt: '2026-08-31T18:16:54Z', seenByName: null, actor: '9f560505' },    // status -> HELD
+    ], nameFor);
+    expect(lines.map(l => l.who)).toEqual(['Aaron S.', 'Aaron S.', 'Aaron S.', 'Aaron S.']);
+  });
+
+  it('names the crew by their own name, not through the profiles map', () => {
+    // Scripts write through `app.actor`; DiZee's rows say DiZee, and no uuid lookup can produce that.
+    const [l] = sightingLines([{ seenAt: '2026-08-31T18:15:22Z', actor: 'dizee' }], nobody);
+    expect(l.who).toBe('DiZee');
+  });
+
+  it('still says unknown for an actor nobody can name — never a raw uuid', () => {
+    // A row from before migration 132, or an id with no profile. It must not leak the id into the
+    // column: an unresolvable uuid is not an answer, it is a different way of saying "unknown".
+    const [l] = sightingLines([{ seenAt: '2026-08-31T18:15:22Z', actor: 'deadbeef-no-profile' }], nobody);
+    expect(l.who).toBe('unknown');
+  });
+
+  it('prefers the scan\'s captured NAME over the actor id', () => {
+    // A row should never carry both, but if one ever does, the name it was captured with wins —
+    // it needs no resolver and cannot go stale against a renamed profile.
+    const [l] = sightingLines([{ seenAt: '2026-08-31T18:15:22Z', seenByName: 'Ray', actor: '9f560505' }], nameFor);
+    expect(l.who).toBe('Ray');
   });
 
   // ⚠️ Must not mutate the caller's array — the same rows feed the summary.
   it('leaves the rows it was given alone', () => {
     const rows = [{ seenAt: '2026-08-25T18:18:00Z' }, { seenAt: '2026-08-26T12:21:00Z' }];
     const before = rows.map(r => r.seenAt);
-    sightingLines(rows);
+    sightingLines(rows, nobody);
     expect(rows.map(r => r.seenAt)).toEqual(before);
   });
 });

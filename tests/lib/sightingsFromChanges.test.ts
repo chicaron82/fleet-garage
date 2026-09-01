@@ -52,8 +52,24 @@ describe('sightingsFromChanges — the interactions already in the change log', 
     expect(sightingsFromChanges([c('2026-08-28T12:00:00Z', 'class_code', 'key_count')])).toHaveLength(1);
   });
 
-  it('carries WHEN but never WHO — vehicle_changes has no actor', () => {
-    expect(sightingsFromChanges([c('2026-08-28T12:00:00Z', 'status')])[0].seenByName).toBeNull();
+  // ⚠️ THIS TEST USED TO ASSERT THE OPPOSITE — "carries WHEN but never WHO — vehicle_changes has
+  // no actor" — which was true when it was written and quietly false from migration 132 onward.
+  // It is the reason the defect survived: a stale comment repeated as a green assertion stops
+  // looking like an oversight and starts looking like a decision. Aaron caught it by reading the
+  // interactions list against the change log beneath it (2026-09-01).
+  it('carries the ACTOR through, so a derived interaction can be attributed', () => {
+    const row = sightingsFromChanges([
+      { changedAt: '2026-08-28T12:00:00Z', fields: ['status'], actor: '9f560505' },
+    ])[0];
+    expect(row.actor).toBe('9f560505');
+    // Still never a NAME: the id is raw here on purpose, resolved where the profiles live.
+    expect(row.seenByName).toBeNull();
+  });
+
+  it('normalises a missing actor to null rather than leaving it undefined', () => {
+    // Every row before migration 132 genuinely has none; `null` says "asked and there is nobody",
+    // `undefined` says "never asked", and the renderer should not have to tell them apart.
+    expect(sightingsFromChanges([c('2026-08-28T12:00:00Z', 'status')])[0].actor).toBeNull();
   });
 
   it('skips a row with no timestamp rather than inventing one', () => {

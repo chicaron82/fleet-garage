@@ -7,6 +7,7 @@ import { KeytagRetake } from './KeytagRetake';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
+import { useProfiles } from '../../context/ProfilesContext';
 import type { KeytagAuditResult } from '../../types';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
@@ -79,6 +80,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
 }) {
   const { recordKeyCount, recordOdometer, clearOdometer, recordWinterTires, reopenKeytagAudit } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate, vehicleId);
+  const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
   const [seenOpen, setSeenOpen] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
@@ -367,7 +369,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
       {seenOpen && !sightings.neverSeen && (
         <div className="basis-full rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-2"
              data-testid="seen-history">
-          {sightingLines(sightings.rows).map((l, i) => (
+          {/* Derived interactions carry a uuid; the profiles map is the only thing that can turn one
+              into a person, which is why the resolver is passed in rather than looked up in the lib. */}
+          {sightingLines(sightings.rows, id => profiles.get(id)?.name).map((l, i) => (
             <div key={`${l.day}-${l.time}-${i}`} className="flex items-baseline gap-2 text-xs text-gray-600 dark:text-gray-400">
               <span className="font-mono tabular-nums">{l.day}</span>
               <span className="font-mono tabular-nums">{l.time}</span>

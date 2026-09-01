@@ -18,11 +18,25 @@
 // this vehicle at least 50 already before FG was born."* The count is **times FG noticed**, never
 // times he was there — the UI must read a low number as *not yet observed*, never as *rarely used*.
 
+import { describeActor } from './vehicleChanges';
+
 export interface Sighting {
   seenAt: string; // ISO
   /** Who was standing at the car. The washbay is shared — "2 scans" means nothing if one of them
-   *  was somebody else's. Optional because the column is nullable on older rows. */
+   *  was somebody else's. Optional because the column is nullable on older rows.
+   *
+   *  ⚠️ SCAN ROWS ONLY. `vehicle_sightings` stores a name it captured at the scan; a DERIVED
+   *  interaction has an id instead — see `actor` below. Never put an id in here. */
   seenByName?: string | null;
+  /**
+   * ⭐ The actor behind a DERIVED interaction — `vehicle_changes.actor` (migration 132), which is
+   * a JWT `sub` uuid for an app user or a crew name written through `app.actor`.
+   *
+   * ⚠️ DELIBERATELY UNRESOLVED. A uuid is not a name, and the map from one to the other lives in
+   * the profiles context, not in a pure lib. `sightingLines` takes the resolver; this field just
+   * carries the raw value that far without a component having to re-fetch the change rows.
+   */
+  actor?: string | null;
 }
 
 export interface SightingSummary {
@@ -161,7 +175,19 @@ export interface SightingLine {
   who: string;
 }
 
-export function sightingLines(rows: readonly Sighting[]): SightingLine[] {
+export function sightingLines(
+  rows: readonly Sighting[],
+  /**
+   * ⭐ REQUIRED, not optional — and that is the fix, not a style choice.
+   *
+   * ⚠️ This list showed "unknown" beside three of Aaron's own four interactions (2026-09-01) while
+   * the change log directly beneath it said "by Aaron S." on the same rows. The name was in the
+   * database the whole time; the derived half just never carried it. An OPTIONAL resolver would
+   * let the next caller drop it exactly the same way, silently. Making it required means a caller
+   * that cannot name people has to say so, in the type system, on purpose.
+   */
+  nameFor: (id: string) => string | undefined,
+): SightingLine[] {
   return [...rows]
     // Newest first: the most recent visit is the one he is checking against.
     .sort((a, b) => (a.seenAt < b.seenAt ? 1 : a.seenAt > b.seenAt ? -1 : 0))
@@ -171,9 +197,16 @@ export function sightingLines(rows: readonly Sighting[]): SightingLine[] {
       return {
         day: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
         time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-        // ⚠️ Never blank. An unattributed row is a real historical state (the column is nullable),
-        // and an empty cell reads as a rendering fault rather than as missing data.
-        who: (r.seenByName ?? '').trim() || 'unknown',
+        // Two provenances, one column. A SCAN carries the name it captured; a DERIVED interaction
+        // carries `vehicle_changes.actor` and is resolved here by the same `describeActor` the
+        // change log uses — one definition of "how an actor becomes a person", including `dizee`.
+        //
+        // ⚠️ Never blank. An unattributed row is a real historical state (both columns are
+        // nullable), and an empty cell reads as a rendering fault rather than as missing data.
+        // Note this deliberately DIVERGES from the change log, which renders nothing rather than
+        // "unknown": there, WHO is a suffix that can simply be absent; here it is a column, and a
+        // column with a hole in it looks broken. Same honesty, different shape.
+        who: (r.seenByName ?? '').trim() || describeActor(r.actor, nameFor) || 'unknown',
       };
     });
 }
@@ -218,6 +251,9 @@ export const SCRIPT_WRITTEN_FIELDS: ReadonlySet<string> = new Set([
 export interface VehicleChange {
   changedAt: string;             // ISO
   fields: readonly string[];     // the keys of `changed`
+  /** `vehicle_changes.actor` — the uuid/crew-name the trigger recorded (migration 132). Optional
+   *  because every row written before that migration genuinely has none. */
+  actor?: string | null;
 }
 
 /**
@@ -234,15 +270,24 @@ export interface VehicleChange {
  * number is already an order of magnitude short of the truth; do not add heuristics to defend its
  * last decimal.
  *
- * No actor: `vehicle_changes` has no `changed_by`. A derived interaction carries WHEN, never WHO —
- * fine when there is one user, but the UI must not claim a name it does not have.
+ * ⭐ WHO, at last (2026-09-01). This comment used to read *"`vehicle_changes` has no `changed_by`.
+ * A derived interaction carries WHEN, never WHO"* — true the day it was written, and quietly false
+ * from **migration 132** onward, which added `actor` and is the reason the change log right below
+ * this list can print "by Aaron S." Aaron found it by reading the two panels against each other:
+ * *"why does the record show who made the changes but interactions is inconsistent... it has my
+ * name once and unknown for the rest."* The one named row was a real scan; the three unknowns were
+ * his own writes, whose actor the query never selected.
+ *
+ * ⚠️ A COMMENT THAT OUTLIVED ITS FACT IS WORSE THAN NO COMMENT: it reads as a decision, so nobody
+ * re-checks it. The value is passed through raw — resolving a uuid to a person belongs to whoever
+ * holds the profiles, not to a pure function.
  */
 export function sightingsFromChanges(rows: readonly VehicleChange[]): Sighting[] {
   const out: Sighting[] = [];
   for (const r of rows) {
     if (!r.changedAt) continue;
     if (!r.fields.some(f => !SCRIPT_WRITTEN_FIELDS.has(f))) continue;
-    out.push({ seenAt: r.changedAt, seenByName: null });
+    out.push({ seenAt: r.changedAt, seenByName: null, actor: r.actor ?? null });
   }
   return out;
 }

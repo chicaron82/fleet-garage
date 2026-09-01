@@ -68,7 +68,9 @@ export function useVehicleSightings(
         vehicleId
           ? supabase
               .from('vehicle_changes')
-              .select('changed_at, changed')
+              // ⭐ `actor` (migration 132) — without it every DERIVED interaction rendered "unknown"
+              // while the change log beside it named him on the very same rows (Aaron, 2026-09-01).
+              .select('changed_at, changed, actor')
               .eq('vehicle_id', vehicleId)
               .order('changed_at', { ascending: false })
               .limit(500)
@@ -83,6 +85,7 @@ export function useVehicleSightings(
         (changes.data ?? []).map(r => ({
           changedAt: (r as { changed_at: string }).changed_at,
           fields: Object.keys(((r as { changed?: Record<string, unknown> }).changed) ?? {}),
+          actor: (r as { actor?: string | null }).actor ?? null,
         })),
       );
       setLoaded({ plate: key!, rows: [...scanned, ...derived] });
