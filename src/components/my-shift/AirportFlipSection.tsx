@@ -17,7 +17,7 @@ import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } f
 import { NeededClasses } from './NeededClasses';
 import { FlipRowsList } from './FlipRowsList';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
-import { parseOdometer, describeOdometer } from '../../lib/odometer';
+import { parseOdometer, describeOdometer, odometerUnitFor } from '../../lib/odometer';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
@@ -259,13 +259,19 @@ export function AirportFlipSection() {
           )}
 
           <div>
-            <input className={INPUT} inputMode="numeric" placeholder="Odometer" value={odo} onChange={e => setOdo(e.target.value)} />
+            <input className={INPUT} inputMode="numeric" placeholder={`Odometer (${odometerUnitFor(capture.vehicle?.isUs)})`} value={odo} onChange={e => setOdo(e.target.value)} />
             {/* What FG last heard, WITH its age — so a four-month-old figure can't pass for current
                 (see lib/odometer). Also a free sanity check: a reading below this one is a misread,
                 and the write refuses it rather than rewriting a good record. */}
             {capture.vehicle?.odometer ? (
               <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-                last recorded {describeOdometer(capture.vehicle.odometer, capture.vehicle.odometerAt)}
+                {/* ⚠️ THE UNIT, which this call was missing — it defaulted to km and would have
+                    labelled the US Jeep's 23,175 MILES as kilometres, on the very screen where the
+                    counter is told a car's mileage. Fourth instance of this same miss around the
+                    odometer (the record chip 2026-08-27, the input control beside it, the jump
+                    guard 2026-08-31); found by sweeping when Aaron mentioned FG had a second US
+                    car. A unit is part of the number. */}
+                last recorded {describeOdometer(capture.vehicle.odometer, capture.vehicle.odometerAt, new Date(), odometerUnitFor(capture.vehicle.isUs))}
               </p>
             ) : null}
           </div>

@@ -75,6 +75,24 @@ export interface OdometerJump {
 const IMPLAUSIBLE_KM_PER_DAY = 1500;
 
 /**
+ * ⚠️⚠️ THE SAME THRESHOLD IN THE UNIT THE DASH IS ACTUALLY SHOWING. A US car reads MILES, so
+ * comparing its delta against a km/day ceiling made the guard ~60% too lax on exactly the cars FG
+ * has fewest readings for — and the warning text said "km" over a number that was never km.
+ *
+ * ⭐ Aaron, 2026-09-01: *"FG now has 2 US plated vehicles"* — a statement of fact, not a bug
+ * report, and it exposed one. I wrote `checkOdometerJump` on 2026-08-31, the day AFTER FG met its
+ * first US car, and hardcoded km anyway. **That is the third time in this file's history**: the
+ * record CHIP learned "mi" on 2026-08-27 while the input control beside it still said "km on the
+ * dash", and the comment on `OdometerCapture` already confesses it — *"fixed the reader I was
+ * looking at and not the one beside it."* A unit is not a display detail; it is part of the
+ * number, and every reader of the number owes it the same respect.
+ */
+const IMPLAUSIBLE_PER_DAY: Record<OdometerUnit, number> = {
+  km: IMPLAUSIBLE_KM_PER_DAY,
+  mi: Math.round(IMPLAUSIBLE_KM_PER_DAY / 1.609344),   // ≈ 932 mi/day — the same real-world speed
+};
+
+/**
  * ⚠️⚠️ AND IT IS BLIND TO A CAR'S FIRST READING — named here because the blindness looks like
  * coverage. Aaron, 2026-09-01: `LFJ180` was entered at **34,028 km** off a gas sheet when the dash
  * said **28,921** — someone read the TRIP METER (3402.8) and wrote it without the decimal. This
@@ -92,6 +110,9 @@ export function checkOdometerJump(
   stored: number | null | undefined,
   storedAt: string | null | undefined,
   now: Date = new Date(),
+  /** The unit the reading is IN — `odometerUnitFor(vehicle.isUs)`. Defaults to km, which is right
+   *  for all but a handful of cars and wrong in a way that must not be silent for those. */
+  unit: OdometerUnit = 'km',
 ): OdometerJump | null {
   if (!Number.isFinite(incoming) || stored === null || stored === undefined) return null;
   if (incoming <= stored) return null;              // the forward-only rule already owns this case
@@ -105,13 +126,13 @@ export function checkOdometerJump(
   // morning flip and an afternoon one. Same-day means "today", and today's ceiling is one day's.
   const days = Math.max(1, (now.getTime() - then.getTime()) / 86_400_000);
   const perDay = delta / days;
-  if (perDay <= IMPLAUSIBLE_KM_PER_DAY) return null;
+  if (perDay <= IMPLAUSIBLE_PER_DAY[unit]) return null;
 
   const when = days < 1.5 ? 'the same day' : `${Math.round(days)} days`;
   return {
     delta, days, perDay,
-    detail: `+${delta.toLocaleString('en-CA')} km in ${when} — about `
-      + `${Math.round(perDay).toLocaleString('en-CA')} km a day. Worth a second look at the number.`,
+    detail: `+${delta.toLocaleString('en-CA')} ${unit} in ${when} — about `
+      + `${Math.round(perDay).toLocaleString('en-CA')} ${unit} a day. Worth a second look at the number.`,
   };
 }
 

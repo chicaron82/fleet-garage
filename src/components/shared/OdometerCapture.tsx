@@ -67,7 +67,12 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   // single day because it was strictly greater than what FG held (2026-08-31). But MCM563 really did
   // 787 km/day for four days, so refusing a fast reading would be worse than the bug — this only
   // ever says "look again". See lib/odometer.checkOdometerJump.
-  const jump = km !== null ? checkOdometerJump(km, currentKm, currentAt) : null;
+  // ⚠️ `unit` is passed, and it was not. A US car reads MILES: without it the guard compared a
+  // mileage delta against a km/day ceiling AND said "km" in the warning — a wrong unit inside the
+  // one message whose entire job is catching a wrong number. Found 2026-09-01 when FG's second US
+  // car arrived. Third instance of this exact miss in this component's history; see the `isUs`
+  // prop comment above.
+  const jump = km !== null ? checkOdometerJump(km, currentKm, currentAt, new Date(), unit) : null;
   // ⭐ A LOWER NUMBER HAS TWO CAUSES AND THE VALUE CANNOT TELL THEM APART: a misread (the common
   // one) or a wrong record. Aaron's `LFJ180` sat at 34,028 km off a gas sheet while the dash read
   // 28,921 — a trip meter, 3402.8, transcribed without its decimal — and the only repair was a

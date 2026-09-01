@@ -195,3 +195,52 @@ describe('classifyOdometerEntry', () => {
     expect(classifyOdometerEntry(null, 0)).toBe('invalid');
   });
 });
+
+// ── the jump guard, in the unit the dash is actually showing ─────────────────────────────────
+//
+// Aaron, 2026-09-01: "FG now has 2 US plated vehicles" — a statement of fact that exposed a bug.
+// `checkOdometerJump` was written on 2026-08-31, the day AFTER FG met its first US car, and
+// hardcoded km anyway: it compared a MILEAGE delta against a km/day ceiling and printed "km" over
+// a number that was never km.
+//
+// ⚠️ Third instance of this same miss in this file's history — the record chip learned "mi" on
+// 2026-08-27 while the input control beside it still said "km on the dash". A unit is part of the
+// number, not a display detail.
+describe('checkOdometerJump — units', () => {
+  const storedAt = '2026-08-30T12:00:00Z';
+  const now = new Date('2026-08-31T12:00:00Z');   // exactly one day later
+
+  it('warns in KILOMETRES for a Canadian car, and says km', () => {
+    const j = checkOdometerJump(21600, 20000, storedAt, now, 'km');
+    expect(j).not.toBeNull();
+    expect(j!.detail).toContain('km a day');
+    expect(j!.detail).not.toContain('mi');
+  });
+
+  // ⭐ 1,000 mi/day is ~1,609 km/day — implausible by the same real-world standard the km ceiling
+  // encodes. Under the old code this passed silently, because 1,000 is below the km threshold of
+  // 1,500. The guard was ~60% too lax on exactly the cars FG has fewest readings for.
+  it('CATCHES a mileage jump that a km ceiling would have waved through', () => {
+    const j = checkOdometerJump(24175, 23175, storedAt, now, 'mi');
+    expect(j).not.toBeNull();
+    expect(j!.detail).toContain('mi a day');
+    // the same numbers read as km are genuinely plausible, and must stay silent
+    expect(checkOdometerJump(24175, 23175, storedAt, now, 'km')).toBeNull();
+  });
+
+  it('never prints the wrong unit — the one message whose job is catching a wrong number', () => {
+    const j = checkOdometerJump(30000, 23175, storedAt, now, 'mi');
+    expect(j!.detail).toMatch(/^\+6,825 mi in the same day — about 6,825 mi a day/);
+  });
+
+  it('defaults to km, which is right for all but a handful of cars', () => {
+    expect(checkOdometerJump(21600, 20000, storedAt, now)!.detail).toContain('km a day');
+  });
+
+  // The mile ceiling must be the SAME REAL SPEED, not a second invented number — 1500 km/day is
+  // about 932 mi/day, so a mileage rate just under that stays quiet and just over it warns.
+  it('uses the same real-world speed in both units, not a second invented threshold', () => {
+    expect(checkOdometerJump(23175 + 900, 23175, storedAt, now, 'mi')).toBeNull();
+    expect(checkOdometerJump(23175 + 960, 23175, storedAt, now, 'mi')).not.toBeNull();
+  });
+});
