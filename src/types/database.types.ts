@@ -627,6 +627,7 @@ export type Database = {
           damage_description: string
           damage_zones: string[]
           detail_reason: string | null
+          disposition: string | null
           flagged_at: string
           flagged_by_employee_id: string | null
           flagged_by_id: string
@@ -652,6 +653,7 @@ export type Database = {
           damage_description: string
           damage_zones?: string[]
           detail_reason?: string | null
+          disposition?: string | null
           flagged_at: string
           flagged_by_employee_id?: string | null
           flagged_by_id: string
@@ -677,6 +679,7 @@ export type Database = {
           damage_description?: string
           damage_zones?: string[]
           detail_reason?: string | null
+          disposition?: string | null
           flagged_at?: string
           flagged_by_employee_id?: string | null
           flagged_by_id?: string

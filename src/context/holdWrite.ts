@@ -11,8 +11,7 @@ import { withSubmitLock } from '../lib/submitLock';
 import { commitSightingFor } from '../hooks/useVehicleSightings';
 import type {
   Vehicle, Hold, Release,
-  HoldType, DetailReason, MechanicalSubType, BranchId,
-} from '../types';
+  HoldType, DetailReason, MechanicalSubType, BranchId, Disposition } from '../types';
 
 interface HoldWriteDeps {
   holds: Hold[];
@@ -36,6 +35,12 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
     mechanicalSubType?: MechanicalSubType | null,
     linkedHoldId?: string,
     flaggedSource?: string | null, // null = hand-flagged; 'effie' when written through Effie
+    // ⚠️ APPENDED, not slotted beside mechanicalSubType where it belongs semantically. Putting it
+    // there shifted every later positional argument, and three callers silently started passing
+    // their linkedHoldId as a disposition — caught by the compiler, which is the only reason it was
+    // not shipped. An eleven-argument positional signature is the real problem here; this parameter
+    // is not the place to fix it, but a future reader should know it is a known nag.
+    disposition?: Disposition | null,
   ) => {
     // ⭐ Presence, same as the odometer: flagging damage means he looked at the car. Redeems a
     // typed-plate lookup's held sighting; a no-op if nothing is held. See useVehicleSightings.
@@ -61,6 +66,9 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
           hold_type: holdTypes[0], hold_types: holdTypes,
           detail_reason: detailReason ?? null,
           mechanical_sub_type: mechanicalSubType ?? null,
+          // ⚠️ Only meaningful on a sale_car hold; null everywhere else and on everything filed
+          // before migration 136 — where it reads as a plain sale. Nothing branches on it.
+          disposition: disposition ?? null,
           damage_description: damageDescription,
           flagged_by_id:          flaggedById,
           flagged_by_name:        userName,
@@ -87,7 +95,7 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
       );
 
       const newHold: Hold = {
-        id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], resolvedTypes: [], detailReason, mechanicalSubType, linkedHoldId,
+        id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], resolvedTypes: [], detailReason, mechanicalSubType, disposition, linkedHoldId,
         damageDescription, flaggedById,
         flaggedByName: userName, flaggedByEmployeeId: userEmployeeId,
         flaggedAt, notes, photos: photoUrls, status: 'ACTIVE', branchId,

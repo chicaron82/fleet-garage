@@ -298,6 +298,11 @@ export type HoldType = 'damage' | 'hail' | 'detail' | 'mechanical' | 'sale_car' 
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
 export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
 
+/** Which kind of departure a `sale_car` hold is. ⚠️ A LABEL ONLY — all three behave identically
+ *  (don't clean, don't write up in the closing inventory) and NOTHING branches on the value.
+ *  See lib/disposition for why that is the design rather than an omission. */
+export type Disposition = 'sale' | 'turnback' | 'buyback';
+
 export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
   'too-dirty': 'Too dirty',
   'pet-hair':  'Pet hair',
@@ -318,6 +323,8 @@ export interface Hold {
   resolvedTypes: HoldType[]; // which holdTypes are cleared; hold flips REPAIRED once it covers holdTypes
   detailReason?: DetailReason;
   mechanicalSubType?: MechanicalSubType | null;
+  /** Sale / TB / BB — only meaningful on a `sale_car` hold. Null reads as a plain sale. */
+  disposition?: Disposition | null;
   damageDescription: string;   // for damage holds; "Detail required — X" for detail holds
   flaggedById: string;         // User.id (auth UUID)
   flaggedByName: string;

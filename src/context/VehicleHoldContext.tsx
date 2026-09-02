@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useRef } from 
 import { holdLatestActivity } from '../lib/displayHold';
 import type { UpdateFieldsResult } from './vehicleFieldsWrite';
 import type { KeytagAuditEdits, KeytagAuditSaveResult } from './keytagAuditWrite';
-import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus } from '../types';
+import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus, Disposition } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
@@ -77,7 +77,7 @@ export interface VehicleHoldContextValue {
    *  keytag write that overwrites — the old URL survives in vehicle_changes. False when nothing wrote. */
   retakeKeytagPhoto: (vehicleId: string, photo: string) => Promise<boolean>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null, disposition?: Disposition | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
   addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;

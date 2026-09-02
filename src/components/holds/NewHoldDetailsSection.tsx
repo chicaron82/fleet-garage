@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { DISPOSITIONS, DISPOSITION_LABELS, DISPOSITION_LONG } from '../../lib/disposition';
 import { NewHoldDamageZones } from './NewHoldDamageZones';
 import type { RefObject } from 'react';
 import type { useNewHold } from '../../hooks/useNewHold';
@@ -85,8 +86,8 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">🏷️ Sale Car</span>
-          <span className="block text-xs opacity-70 mt-0.5">Auction — don't clean</span>
+          <span className="block font-semibold">🏷️ Sale / TB / BB</span>
+          <span className="block text-xs opacity-70 mt-0.5">Leaving the fleet — don't clean, don't record</span>
         </button>
         <button
           type="button"
@@ -175,6 +176,39 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
             customMechanical={h.customMechanical}
             setCustomMechanical={h.setCustomMechanical}
           />
+        </div>
+      )}
+
+      {/* ⭐ WHICH KIND OF DEPARTURE — Aaron, 2026-09-02: "what about putting turn back and buy backs
+          as a type under sale car when flagging". Three names for ONE behaviour: don't clean, don't
+          write up. Nothing branches on the value, deliberately — he does not know the turnback /
+          buy-back distinction himself ("they're leased from the dealership I think"), so making them
+          behave differently would mean he had to understand it before he could file one.
+          `sale` is pre-selected, so a hold filed exactly as it always was keeps exactly the meaning
+          it always had. See lib/disposition. */}
+      {h.holdTypes.includes('sale_car') && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Which kind?</p>
+          <div className="flex gap-2">
+            {DISPOSITIONS.map(d => (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={h.disposition === d}
+                onClick={() => { hapticLight(); h.setDisposition(d); }}
+                className={`flex-1 h-11 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                  h.disposition === d
+                    ? 'border-purple-300 bg-purple-50 dark:bg-purple-900/20 text-gray-900 dark:text-gray-100'
+                    : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
+                }`}
+              >
+                {DISPOSITION_LABELS[d]}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            All three are treated the same — {DISPOSITION_LONG[h.disposition].toLowerCase()} is just what it's called.
+          </p>
         </div>
       )}
 

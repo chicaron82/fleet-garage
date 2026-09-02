@@ -6,7 +6,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { holdIsMappable, toggleZone as toggleZoneIds } from '../lib/damageZones';
 import { MECHANICAL_PRESET_META } from '../lib/hold-presets';
 import { findActiveTypeOverlap } from '../lib/holdFilters';
-import type { HoldType, DetailReason, MechanicalSubType } from '../types';
+import type { HoldType, DetailReason, MechanicalSubType, Disposition } from '../types';
 import { DETAIL_REASON_LABELS } from '../types';
 import { usePhotoIntake } from './usePhotoIntake';
 
@@ -44,6 +44,9 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   const [mechanicalTypes, setMechanicalTypes] = useState<string[]>([]);
   const [customMechanical, setCustomMechanical] = useState('');
   const [mechanicalSubType, setMechanicalSubType] = useState<MechanicalSubType | null>(null);
+  // ⭐ Defaults to 'sale', so a hold filed exactly as it always was keeps exactly the meaning it
+  // always had — the sub-type adds a name, it does not ask a new question.
+  const [disposition, setDisposition] = useState<Disposition>('sale');
   const [safetyRecallBypassChecked, setSafetyRecallBypassChecked] = useState(false);
   // ⚡ Where on the car, asked while he is still standing at it. Empty is a legitimate answer and
   // means NOT YET — the backfill queue still picks the hold up. Only an explicit `noPanelApplies`
@@ -228,7 +231,7 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
       }
       setSubmitError(null);
       setSubmitting(true);
-      const result = await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType);
+      const result = await addHold(selectedVehicle.id, finalDamage, notes, user.id, photos, holdTypes, detailReason || undefined, mechanicalSubType, undefined, null, holdTypes.includes('sale_car') ? disposition : null);
       // ⚠️ Written AFTER the hold exists, not as an 11th parameter to addHold — it takes ten
       // already, and six callers would have to change for one of them. `holdIsMappable` is the
       // queue's own predicate, so the form and the backfill can never disagree about whether this
@@ -281,6 +284,7 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     mechanicalTypes, toggleMechanicalType,
     customMechanical, setCustomMechanical,
     mechanicalSubType, setMechanicalSubType,
+    disposition, setDisposition,
     safetyRecallBypassChecked, setSafetyRecallBypassChecked, safetyRecallBypassActive,
     zones, toggleZone, noPanelApplies, setNoPanelApplies: chooseNoPanelApplies,
     zonesApplicable: holdIsMappable(holdTypes, finalDamage),
