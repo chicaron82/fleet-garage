@@ -18,22 +18,70 @@ const car = (over: Partial<Parameters<typeof entryFromScan>[0]> = {}) => ({
 const none: ActiveHold[] = [];
 
 // ── the class → row band ──────────────────────────────────────────────────────────────────────
+//
+// ⭐⭐ Aaron's simple version, and it is the real rule because it is about the CAR, not the code:
+// *"1 - large vehicles/premiums · 2 and 3, SUV style · 4 and 5 sedans and small vehicles · 6 erin
+// st reservations."* The class lists are only how FG recognises which band a car is in.
 describe('suggestRow', () => {
-  it('puts the large classes in row 1', () => {
-    for (const c of ['R', 'S', 'T6']) expect(suggestRow(c)).toBe('1');
+  it('puts the large and premium classes in row 1', () => {
+    // Minivans, F-150s, the whole T family, and O6 — "naturally an O6 midsize truck is parked
+    // where the other trucks are parked. row 1".
+    for (const c of ['R', 'S', 'T', 'T4', 'T6', 'O6']) expect(suggestRow(c)).toBe('1');
   });
 
-  it('puts the SUVs in row 2', () => {
+  it('puts the SUVs in row 2, the first of their band', () => {
     for (const c of ['B4', 'B5', 'Q4', 'L', 'L2']) expect(suggestRow(c)).toBe('2');
   });
 
-  // ⚠️⚠️ THE ONE THAT MATTERS. Aaron on his own lot map: "B5 is a crossover. someone lumped it in
-  // with B because it shares a letter." A person made this mistake in pencil years ago; a
-  // `startsWith` would reproduce it in TypeScript. `B` is not `B5`.
+  // ⭐ "B, C, F, sedans. compact, mid-size, full size." And "small vehicles" is what resolves B:
+  // its Kona, Versa and Corolla Hatchback are three body types that are all SMALL. The ambiguity I
+  // had flagged in that class was mine, not the lot's.
+  it('puts the sedans and small cars in row 4', () => {
+    for (const c of ['B', 'C', 'F']) expect(suggestRow(c)).toBe('4');
+  });
+
+  // ⭐ A BAND IS SEVERAL ROWS, and which one a car sits in is a FILL question rather than a class
+  // one — R2 and R3 hold the same thing, so the second only opens when the first is full.
+  it('rolls to the second row of a band once the first is full', () => {
+    expect(suggestRow('Q4', { '2': 8 })).toBe('3');
+    expect(suggestRow('Q4', { '2': 7 })).toBe('2');
+    expect(suggestRow('C', { '4': 8 })).toBe('5');
+  });
+
+  it('still names the band when every row in it is full', () => {
+    expect(suggestRow('Q4', { '2': 8, '3': 8 })).toBe('3');
+  });
+
+  // ⚠️⚠️ E6 IS THE HYBRID CLASS, NOT A BODY TYPE — 43 cars: Civic, Camry, Corolla, Prius, AND
+  // Sportage and RAV4. A hybrid Camry is a sedan and a hybrid RAV4 is an SUV, so it has no single
+  // row and never will. Silence here is correct rather than timid.
+  it('says nothing for E6, because a rental class is not necessarily a body type', () => {
+    expect(suggestRow('E6')).toBeNull();
+  });
+
+  it('says nothing for the classes nobody has banded yet', () => {
+    // "Premiums" sits in row 1's description and a subcompact XC40 is not obviously a row-1 car,
+    // so the Volvos, the Teslas, E1 and V wait for an answer instead of getting an inference.
+    for (const c of ['W4', 'Z4', 'H4', 'E7', 'E8', 'B9', 'E9', 'E1', 'V']) {
+      expect(suggestRow(c)).toBeNull();
+    }
+  });
+
+  // ⚠️⚠️ THE ONE THAT MATTERS, and it got SHARPER once the bands were complete. Aaron on his own
+  // lot map: "B5 is a crossover. someone lumped it in with B because it shares a letter." A person
+  // made that mistake in pencil years ago, and a `startsWith` would reproduce it in TypeScript.
+  //
+  // ⭐ Now B is banded too — and it lands in a DIFFERENT BAND from B5. So a prefix match would not
+  // merely be sloppy, it would park a sedan in the SUV rows.
+  it('puts B and B5 in different bands — a prefix match would cross them', () => {
+    expect(suggestRow('B')).toBe('4');    // sedans / small
+    expect(suggestRow('B5')).toBe('2');   // SUV style
+  });
+
   it('does NOT match a class by its first letter', () => {
-    expect(suggestRow('B')).toBeNull();      // shares a letter with B4/B5 and is a different vehicle
-    expect(suggestRow('Q')).toBeNull();
-    expect(suggestRow('S5')).toBeNull();     // shares a letter with S, which IS large
+    expect(suggestRow('Q')).toBeNull();   // Q4 is banded; bare Q is not a class
+    expect(suggestRow('S5')).toBeNull();  // shares a letter with S, which IS row 1
+    expect(suggestRow('T5')).toBeNull();  // T, T4 and T6 are all row 1; T5 is not a class
   });
 
   // ⭐ And the counter-case proves the rule rather than weakening it: L2 IS an L-band SUV, so a
@@ -42,10 +90,9 @@ describe('suggestRow', () => {
     expect(suggestRow('L2')).toBe('2');
   });
 
-  it('says NOTHING for a class nobody has banded', () => {
-    // "Sedans" is a fallback band he named without enumerating — suggesting row 4 for C would be
-    // inventing lot geography from a sentence.
-    for (const c of ['C', 'E1', 'CKNE', 'ZZZ']) expect(suggestRow(c)).toBeNull();
+  it('says nothing for a class that is not a rental class at all', () => {
+    expect(suggestRow('CKNE')).toBeNull();   // a MODEL code, not a rental class
+    expect(suggestRow('ZZZ')).toBeNull();
   });
 
   it('is case- and space-insensitive about the class itself', () => {
@@ -213,8 +260,8 @@ describe('entryFromScan', () => {
     expect(out.entry.row).toBe('');
   });
 
-  it('suggests nothing for an unbanded class', () => {
-    expect(entryFromScan(car({ rentalClass: 'C' }), none, { status: null, row: '' }).suggestedRow).toBeNull();
+  it('suggests nothing for a class with no single row', () => {
+    expect(entryFromScan(car({ rentalClass: 'E6' }), none, { status: null, row: '' }).suggestedRow).toBeNull();
   });
 });
 
