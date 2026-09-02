@@ -251,7 +251,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 {vehicle ? (
                   <>
                     <p className="text-xs text-gray-600 dark:text-gray-300">
-                      {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.color ? ` · ${vehicle.color}` : ''}
+                      {/* ⚠️ Same miss as the record header, and worse here: this is the sheet he is
+                          reading STANDING AT THE CAR, deciding what it is. `VehicleName`'s own
+                          header calls that out by name — "above all the scan sheet" — and the scan
+                          sheet was still joining the fields by hand. */}
+                      <VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}
                     </p>
                     {/* Derived from the vehicle's STATUS, never from the hold count — see
                         scanStatusLine.ts. The count only adds a suffix. */}

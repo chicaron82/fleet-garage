@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { VehicleName } from '../shared/VehicleName';
 import { CohortNav } from './CohortNav';
 import { useVehicleHistory } from '../../hooks/useVehicleHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
@@ -118,7 +119,13 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
                   </button>
                 )}
               </div>
-              <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5">{vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}</p>
+              {/* ⚠️ WAS A HAND-WRITTEN STRING, so the powertrain badge was missing on the one screen
+                  called "the vehicle record". `VehicleName` exists precisely to end that — its own
+                  header says the name was hand-written in eight files and the badge lived in one —
+                  and this line was still one of the eight. Aaron found it on MCM564 (2026-09-01):
+                  the audit card said "2026 Honda Civic 🔋" and the record said "2026 Honda Civic",
+                  about the same car, in the same app. */}
+              <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5"><VehicleName vehicle={vehicle} /> · {vehicle.color}</p>
               <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
               <div className="mt-2"><VehicleRecordFacts vehicleId={vehicle.id} plate={vehicle.licensePlate} keytagPhotoUrl={vehicle.keytagPhotoUrl} keytagPhotoRotation={vehicle.keytagPhotoRotation} keytagAudit={{ at: vehicle.keytagAuditedAt, by: vehicle.keytagAuditedBy, result: vehicle.keytagAuditResult }} keyCount={vehicle.keyCount} isTesla={vehicle.isTesla} odometer={vehicle.odometer} odometerAt={vehicle.odometerAt} classCode={vehicle.classCode} rentalClass={vehicle.rentalClass} vinLast9={vehicle.vinLast9} year={vehicle.year} isUs={vehicle.isUs} winterTires={vehicle.winterTires} winterTiresAt={vehicle.winterTiresAt} onEditCodes={() => setShowDirectEdit(true)} /><VehicleNote vehicleId={vehicle.id} note={vehicle.note} noteAt={vehicle.noteAt} /></div>
               {vehicle.editStatus === 'pending' && (
