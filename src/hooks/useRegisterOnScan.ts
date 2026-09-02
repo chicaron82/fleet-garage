@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { vehicleNameText } from '../lib/vehicleName';
 import type { MessageTone, ToneMessage } from '../lib/messageTone';
 import { newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../lib/resolveKeytagScan';
 import type { useAuth } from '../context/AuthContext';
@@ -42,7 +43,7 @@ export function useRegisterOnScan(deps: {
           year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
         });
-        flash(`✨ Registered ${nv.plate} · ${nv.year} ${nv.make} ${nv.model}`, 'success');
+        flash(`✨ Registered ${nv.plate} · ${vehicleNameText(nv)}`, 'success');
       } catch { /* non-blocking: the trip can still start without the fleet record */ }
       return;
     }

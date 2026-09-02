@@ -1,4 +1,5 @@
 import type { ReleaseType, Vehicle, Hold } from '../../types';
+import { VehicleName } from '../shared/VehicleName';
 import { releaseTypeTheme } from './releaseTheme';
 
 interface Props {
@@ -39,7 +40,7 @@ export function ReleaseConfirmPanel({
               {vehicle.unitNumber} · {vehicle.licensePlate}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color}
+              <VehicleName vehicle={vehicle} /> · {vehicle.color}
             </p>
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { VehicleName } from '../shared/VehicleName';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
@@ -118,7 +119,7 @@ export function EVAssetsTab() {
 
         <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3">
           <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{selected.unitNumber ?? selected.licensePlate} ⚡</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{selected.year} {selected.make} {selected.model} · {selected.licensePlate}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400"><VehicleName vehicle={selected} /> · {selected.licensePlate}</p>
         </div>
 
         <EVAssetCheck
@@ -243,7 +244,7 @@ export function EVAssetsTab() {
               <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.unitNumber ?? v.licensePlate} ⚡</p>
               {missing && <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">needs assets</span>}
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model} · {v.licensePlate}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400"><VehicleName vehicle={v} /> · {v.licensePlate}</p>
             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
               {v.evLastUpdatedAt ? `as of ${fmtWhen(v.evLastUpdatedAt)}${v.evLastUpdatedBy ? ` · ${getName(v.evLastUpdatedBy)}` : ''}` : 'not yet logged'}
             </p>

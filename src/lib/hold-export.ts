@@ -1,4 +1,5 @@
 import type { Hold, Vehicle } from '../types';
+import { vehicleLabel } from './vehicleName';
 import { holdTypeLabel } from './holdTypeLabels';
 
 const HOLD_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
@@ -134,7 +135,7 @@ export function exportHoldToHtml(params: {
           Unit ${vehicle.unitNumber ?? '—'}
         </div>
         <div style="font-size:14px;color:#6b7280;margin-bottom:2px;">
-          ${vehicle.year} ${vehicle.make} ${vehicle.model} · ${vehicle.color}
+          ${vehicleLabel(vehicle)} · ${vehicle.color}
         </div>
         <div style="font-size:14px;color:#9ca3af;">Plate: ${vehicle.licensePlate}</div>
       </div>

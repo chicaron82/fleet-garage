@@ -298,7 +298,7 @@ function GeotabReturnCard({ vehicle, hold, onInstalled }: {
         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">📡 Geotab</span>
       </div>
       <p className="text-xs text-gray-600 dark:text-gray-300">
-        {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.color ? ` · ${vehicle.color}` : ''}
+        <VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}
       </p>
       <p className="text-xs text-amber-700 dark:text-amber-400">Held for Geotab install · circulating (flagged {fmtDate(hold.flaggedAt)})</p>
       {!confirming ? (

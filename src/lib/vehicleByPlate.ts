@@ -1,4 +1,5 @@
 import type { Vehicle, VehicleRegistryEntry } from '../types';
+import { vehicleLabel } from './vehicleName';
 
 /**
  * A vehicle identity resolved from a plate — either a real fleet `vehicles` row
@@ -81,6 +82,6 @@ export function pickKnownVehicle(
  * like "recognized from a previous log"). Shared by every plate-entry surface.
  */
 export function describeKnownPlate(m: KnownPlate): string {
-  const veh = [m.year, m.make, m.model].filter(Boolean).join(' ');
+  const veh = vehicleLabel(m);
   return [m.unitNumber ? `Unit ${m.unitNumber}` : '', veh].filter(Boolean).join(' · ');
 }

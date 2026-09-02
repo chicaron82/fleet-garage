@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { vehicleNameText } from '../../lib/vehicleName';
 import { ZoneBackfillCard } from '../holds/ZoneBackfillCard';
 import { useHoldsWorklist } from '../../hooks/useHoldsWorklist';
 import { useAuth } from '../../context/AuthContext';
@@ -86,7 +87,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     setCurrentPage(1);
     const vehicle = getVehicleByUnit(unit);
     if (vehicle) {
-      showToast(`✨ ${vehicle.unitNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`, 'success');
+      showToast(`✨ ${vehicle.unitNumber} — ${vehicleNameText(vehicle)}`, 'success');
       onSelectVehicle(vehicle.id);
     } else {
       showToast(`Unit ${unit} not in system`, 'error');

@@ -9,6 +9,7 @@
 // tapping. The rule is the one the plate ↔ owning check cost me: a machine that cannot be sure must
 // surface the choice, because a pre-selected guess gets confirmed without being read.
 import { useMemo, useRef, useState } from 'react';
+import { VehicleName } from '../shared/VehicleName';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { zoneBackfillQueue, zonesSetAside, toggleZone, zoneLabel, orderZones, presetFor, vehicleDamageZones } from '../../lib/damageZones';
 import { zonesFromNote } from '../../lib/zoneFromNote';
@@ -155,7 +156,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
           <p className="text-sm text-gray-600 dark:text-gray-300">{hold.damageDescription}</p>
           {vehicle && (
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.color} · {hold.status}
+              <VehicleName vehicle={vehicle} /> · {vehicle.color} · {hold.status}
             </p>
           )}
         </div>

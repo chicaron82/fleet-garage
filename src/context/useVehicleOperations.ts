@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
+import { vehicleNameText } from '../lib/vehicleName';
 import { writeVehicleIdentity, type VehicleIdentityEdit } from './vehicleIdentityWrite';
 import { makeRevertVehicleChange } from './vehicleChangeRevert';
 import { pushNotification, NOTIFY_MGMT_WIDE } from '../lib/garage-uploads';
@@ -129,7 +130,7 @@ export function useVehicleOperations({
       );
       if (error) throw new Error(`Failed to add vehicle: ${(error as { message?: string }).message}`);
       await pushNotification(branchId, NOTIFY_MGMT_WIDE, '🚗',
-        `New vehicle registered: ${vehicle.unitNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model})`, 'info', { vehicleId: id });
+        `New vehicle registered: ${vehicle.unitNumber} (${vehicleNameText(vehicle)})`, 'info', { vehicleId: id });
       const newVehicle: Vehicle = { ...vehicle, id, status, branchId, keyCount };
       setAllVehicles(prev => [newVehicle, ...prev]);
       return id;

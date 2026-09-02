@@ -45,9 +45,15 @@ import { isEvModel } from '../../api/_lib/vehicleClassCodex';
 /** The least a caller must supply. Deliberately structural — the trip pickers carry a snake_case
  *  search row and everything else carries a `Vehicle`, and both have these four in camelCase. */
 export interface NamedVehicle {
-  year: number;
-  make: string;
-  model: string;
+  /** ⚠️ NULLABLE, and that was a real gap rather than tidiness. `KnownPlate` (the plate-entry
+   *  resolver) carries `number | null` / `string | null`, and the hand-written call sites this file
+   *  replaced did `[year, make, model].filter(Boolean).join(' ')` — which DROPS a missing part.
+   *  `${v.year} ${v.make}` would have rendered the literal "null" into a lost-item record and a
+   *  plate-entry line. The helper has to be at least as careful as the code it is replacing;
+   *  otherwise a consolidation is a downgrade with better provenance. (2026-09-01) */
+  year: number | null;
+  make: string | null;
+  model: string | null;
   isHybrid?: boolean | null;
   isTesla?: boolean | null;
 }
@@ -57,10 +63,35 @@ export interface NamedVehicle {
 export type NameOrder = 'year-first' | 'model-first';
 
 export function vehicleLabel(v: NamedVehicle, order: NameOrder = 'year-first'): string {
-  const name = order === 'model-first'
-    ? `${v.make} ${v.model} ${v.year}`
-    : `${v.year} ${v.make} ${v.model}`;
-  return name.replace(/\s+/g, ' ').trim();
+  // Built from a filtered list rather than a template, so an absent part leaves NOTHING behind —
+  // no stray "null", no double space, no leading gap on a car with no year on file.
+  const parts = order === 'model-first' ? [v.make, v.model, v.year] : [v.year, v.make, v.model];
+  return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The name AS A STRING, badge included — the non-JSX half of `<VehicleName>`.
+ *
+ * ⭐⭐ WHY THIS EXISTS, and it is the reason the badge kept going missing. `<VehicleName>` can only
+ * be used where JSX can: a toast, a push notification, a flash message and a driver's transit line
+ * are all plain strings, so every one of them hand-wrote the name and silently lost the badge.
+ * Aaron found the tail of it on 2026-09-01, comparing three screens of one Civic — the audit card
+ * said "2026 Honda Civic 🔋" and the record and the scan sheet did not.
+ *
+ * ── THE RULE, so a future caller does not have to guess ────────────────────────────────────────
+ *   HE READS IT ON A SCREEN  → `<VehicleName>` (JSX) or `vehicleNameText` (a string). Badge shown:
+ *                              a hybrid Sportage is indistinguishable from the petrol one, and
+ *                              that is the whole point of the mark.
+ *   STORED, EXPORTED, COMPARED → `vehicleLabel`. NO badge: an emoji inside a saved field, a CSV
+ *                              cell or a de-duplication key is not identity, it is decoration that
+ *                              can break a match.
+ * Either way it goes through this file. The defect was never a wrong choice between the two — it
+ * was thirteen files making the choice by hand and one of them forgetting.
+ */
+export function vehicleNameText(v: NamedVehicle, order: NameOrder = 'year-first'): string {
+  const badge = powertrainBadge(v);
+  const name = vehicleLabel(v, order);
+  return badge ? `${name} ${badge}` : name;
 }
 
 /** ⚡ / 🔋 / nothing. Exported so tests and non-JSX callers can ask the same question the UI asks. */

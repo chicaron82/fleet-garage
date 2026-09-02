@@ -1,4 +1,5 @@
 import { fmtTime } from '../../lib/vsa-trip';
+import { vehicleNameText } from '../../lib/vehicleName';
 
 interface DriverLiveCompleteViewProps {
   vehicleDetails: { make: string; model: string; year: number; color: string } | null;
@@ -33,7 +34,7 @@ export function DriverLiveCompleteView({
         </p>
         <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
           {vehicleDetails
-            ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}`
+            ? `${vehicleNameText(vehicleDetails)} · ${vehicleDetails.color}`
             : plate}
         </p>
         {vehicleDetails && (

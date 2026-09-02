@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { vehicleNameText } from '../../lib/vehicleName';
 import { NotesField } from './VSATripComponents';
 import { fmtTime, TRIP_DURATION_THRESHOLDS } from '../../lib/vsa-trip';
 
@@ -52,7 +53,7 @@ export function DriverLiveTransitView({
             </p>
             <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
               {vehicleDetails
-                ? `${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model} · ${vehicleDetails.color}`
+                ? `${vehicleNameText(vehicleDetails)} · ${vehicleDetails.color}`
                 : plate}
             </p>
             {vehicleDetails && (

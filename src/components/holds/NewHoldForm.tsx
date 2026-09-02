@@ -1,4 +1,5 @@
 import { useRef, useCallback, useState } from 'react';
+import { VehicleName } from '../shared/VehicleName';
 import { useNewHold } from '../../hooks/useNewHold';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
@@ -140,7 +141,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-gray-100">{h.selectedVehicle.unitNumber}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                      {h.selectedVehicle.year} {h.selectedVehicle.make} {h.selectedVehicle.model} · {h.selectedVehicle.color}
+                      <VehicleName vehicle={h.selectedVehicle} /> · {h.selectedVehicle.color}
                     </p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Plate: {h.selectedVehicle.licensePlate}</p>
                   </div>
@@ -211,7 +212,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
                         <span className="text-gray-500 dark:text-gray-400">{v.licensePlate}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
-                        <span className="text-gray-500 dark:text-gray-400">{v.year} {v.make} {v.model}</span>
+                        <VehicleName vehicle={v} className="text-gray-500 dark:text-gray-400" />
                       </button>
                     ))}
                   </div>

@@ -23,6 +23,7 @@
 // call to the operator.
 
 import { TESLA_KEYCARD_COUNT } from './keyCount';
+import { vehicleLabel } from './vehicleName';
 import { LETTER_TO_DIGIT } from '../../api/_lib/platePrefix';
 import { expectedPlateShape, owningLabel } from '../../api/_lib/owningArea';
 
@@ -69,7 +70,9 @@ export function confusableKey(raw: string | null | undefined): string {
 }
 
 function describe(v: AuditVehicle): string {
-  return `${v.licensePlate} · ${v.year} ${v.make} ${v.model} · ${v.color}`;
+  // ⚠️ `vehicleLabel`, not the badged form: this string is a COMPARISON key for duplicate
+  // detection, and an emoji in it is decoration that can break a match.
+  return `${v.licensePlate} · ${vehicleLabel(v)} · ${v.color}`;
 }
 
 /**

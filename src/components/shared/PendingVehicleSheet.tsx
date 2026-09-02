@@ -1,4 +1,5 @@
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { VehicleName } from './VehicleName';
 import type { Hold, Vehicle } from '../../types';
 import { StatusBadge } from '../holds/StatusBadge';
 
@@ -27,7 +28,7 @@ export function PendingVehicleSheet({ vehicle, hold, onClose, onConfirm }: Props
                   <span className="text-gray-400 text-xs">·</span>
                   <span className="font-bold text-gray-900 dark:text-gray-100 tracking-wide">{vehicle.licensePlate}</span>
                 </div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                <VehicleName vehicle={vehicle} className="text-sm font-medium text-gray-700 dark:text-gray-300" />
                 <p className="text-xs text-gray-500 dark:text-gray-400">{vehicle.color}</p>
                 {hold && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 truncate">

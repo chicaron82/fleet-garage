@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { vehicleLabel } from '../lib/vehicleName';
 import type { LostFoundItem, LostFoundLocation, LostFoundStatus, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
@@ -75,7 +76,9 @@ export function useLostFound(
         const known = await resolve(data.licensePlate);
         if (known) {
           unitNumber = known.unitNumber ?? unitNumber;
-          const veh = [known.year, known.make, known.model].filter(Boolean).join(' ');
+          // ⚠️ Plain: this lands in a STORED field on the lost-item record, and an emoji saved
+          // into data is not identity.
+          const veh = vehicleLabel(known);
           vehicleMake = veh || undefined;
           knownVehicleId = known.vehicleId;
         }

@@ -5,6 +5,7 @@
 // show-your-work first. Pure props — the read/resolve/stage lives in useKeytagScan.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { describeNewVehicle } from '../../../api/_lib/holdProposal';
+import { VehicleName } from '../shared/VehicleName';
 import { newVehicleFromRead, type KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
@@ -44,7 +45,7 @@ export function ScanBranch({ scan, staged, onRegister, onBackfill }: {
 
       {resolution.kind === 'complete' && vehicle && (
         <p className="text-gray-700 dark:text-gray-200">
-          <span className="font-mono font-semibold">{plate}</span> — Unit {vehicle.unitNumber}, {vehicle.year} {vehicle.make} {vehicle.model}. Already in the fleet.
+          <span className="font-mono font-semibold">{plate}</span> — Unit {vehicle.unitNumber}, <VehicleName vehicle={vehicle} />. Already in the fleet.
         </p>
       )}
 
