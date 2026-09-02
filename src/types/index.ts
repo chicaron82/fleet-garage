@@ -448,6 +448,20 @@ export interface ScannedIdentity {
   /** The tag's 4-char class code as READ — always present when the tag gave one, whether or not
    *  the codex could resolve it. Stored on the vehicle at registration (migration 120). */
   classCode?: string;
+  /**
+   * ⚠️⚠️ THESE TWO WERE THE HOLE, and it survived the fix that was supposed to close it
+   * (2026-09-01). The reader has always returned them, `addVehicle`'s insert learned to carry them
+   * on 2026-08-30 — and this type had no room for either, so every scan-registered car still
+   * landed with both blank. `KUR261`, the lot shuttle, registered at 18:12 that day off a tag
+   * plainly printing `08999` and `8NR217284`, and stored neither.
+   *
+   * ⭐ It is the same shape as the 45-car audit backlog it was meant to end: the re-read repairs
+   * cars that already exist, while the registration path quietly regenerates the gap on every new
+   * one. A field the reader extracts and no type carries is data that was never dropped by anyone
+   * in particular.
+   */
+  owningArea?: string;
+  vinLast9?: string;
   teachClassCode?: string;
 }
 

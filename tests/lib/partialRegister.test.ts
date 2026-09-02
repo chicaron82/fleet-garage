@@ -116,3 +116,50 @@ describe('scannedFromRead — the teach signal', () => {
     expect(scannedFromRead({ plate: 'AAA111' }, 'AAA111').teachClassCode).toBeUndefined();
   });
 });
+
+// ⚠️⚠️ THE HOLE THAT SURVIVED ITS OWN FIX (Aaron, 2026-09-01, mentioning in passing that he had
+// "finally scanned the keytag for the lot shuttle KUR261").
+//
+// KUR261's tag plainly prints `08999` and `Last9vin: 8NR217284`. FG stored NEITHER — on a scan
+// that took the plate, the unit number, the class code, the year and the colour off the very same
+// label, one second before attaching a photo of it.
+//
+// The chain had been repaired everywhere except here: the reader returns both fields, `addVehicle`
+// learned to insert them on 2026-08-30 — and `ScannedIdentity` had no room for either, so nothing
+// downstream could ask for what the type did not carry. This function's own header promises
+// "everything the tag actually gave us", and it was dropping two.
+//
+// ⭐ It is the 45-car audit backlog regenerating itself: the re-read repairs cars that already
+// exist, while every newly registered car reopened the same gap.
+describe('scannedFromRead — the owning area and the VIN', () => {
+  const tag = {
+    unitNumber: '5894258', plate: 'KUR261', year: 2022, color: 'White',
+    classCode: 'CPCT', rentalClass: 'R', owningArea: '08999', vinLast9: '8NR217284',
+  } as Parameters<typeof scannedFromRead>[0];
+
+  it('carries the owning area the tag printed', () => {
+    expect(scannedFromRead(tag, 'KUR261').owningArea).toBe('8999');
+  });
+
+  // ⭐ Tags print "08999"; FG stores "8999". A leading zero surviving into the column would make
+  // one branch look like two — and this is the last place it can be normalised before the insert.
+  it('strips the tag\'s leading zero, so one branch stays one branch', () => {
+    expect(scannedFromRead({ ...tag, owningArea: '08199' }, 'X').owningArea).toBe('8199');
+  });
+
+  it('carries the last 9 of the VIN, uppercased and trimmed', () => {
+    expect(scannedFromRead({ ...tag, vinLast9: ' 8nr217284 ' }, 'KUR261').vinLast9).toBe('8NR217284');
+  });
+
+  // A blank must arrive as undefined, never '' — the insert writes `?? null`, and an empty string
+  // would record "we read this and it was nothing" over a field nobody read.
+  it('leaves an unread field undefined rather than empty', () => {
+    const s = scannedFromRead({ ...tag, owningArea: '', vinLast9: undefined }, 'KUR261');
+    expect(s.owningArea).toBeUndefined();
+    expect(s.vinLast9).toBeUndefined();
+  });
+
+  it('does not invent an owning area from a partial number', () => {
+    expect(scannedFromRead({ ...tag, owningArea: '81' }, 'X').owningArea).toBeUndefined();
+  });
+});

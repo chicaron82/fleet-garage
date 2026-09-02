@@ -12,6 +12,7 @@
 // or model (the codex's no-guessing rule stands); it just refuses to discard what was read.
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import { normalizeClassCode } from '../../api/_lib/vehicleClassCodex';
+import { normalizeOwning } from '../../api/_lib/owningArea';
 import type { ScannedIdentity } from '../types';
 
 /** Everything the tag actually gave us, blanks where it didn't — never null-on-incomplete.
@@ -34,6 +35,17 @@ export function scannedFromRead(read: KeytagRead, plate: string): ScannedIdentit
     // The register form used to seed its field from `teachClassCode` alone, so a code the codex
     // already knew (CALE → GMC Acadia) was resolved into a make and model and then DISCARDED:
     // exactly backwards, since the known codes are the ones we can trust most.
+    // ⚠️ AND THESE TWO, which this function dropped for a fortnight while its own header promised
+    // "everything the tag actually gave us". The reader returns both; nothing downstream could ask
+    // for what the type did not carry. Found 2026-09-01 on KUR261, the lot shuttle: its tag printed
+    // `08999` and `8NR217284` and FG stored neither, on a scan that got the plate, unit, class,
+    // year and colour off the very same label.
+    //
+    // ⭐ The owning is NORMALISED here rather than downstream — tags print `08999`, FG stores
+    // `8999`, and a leading zero surviving into the column would make the same branch look like
+    // two (see api/_lib/owningArea.normalizeOwning).
+    owningArea: normalizeOwning(read.owningArea) || undefined,
+    vinLast9: (read.vinLast9 ?? '').trim().toUpperCase() || undefined,
     classCode: normalizeClassCode(read.classCode) || undefined,
     teachClassCode: isUnknownClassCode(read) ? normalizeClassCode(read.classCode) : undefined,
   };

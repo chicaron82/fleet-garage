@@ -159,6 +159,12 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
       // The code he CONFIRMED on the form — stored on the car so its identity stays checkable
       // against what produced it (migration 120). Blank stores nothing, same as it teaches nothing.
       classCode:      classCode.trim().toUpperCase() || null,
+        // ⚠️ Straight from the tag read, untouched by the form — there is no control for either,
+        // and inventing one would ask him to retype what the label already said. They ride through
+        // exactly as `rentalClass` does. Blank on a manual (unscanned) registration, which is
+        // honest: nothing read them. The keytag audit and re-read fill those in later.
+        owningArea:     scanned?.owningArea ?? null,
+        vinLast9:       scanned?.vinLast9 ?? null,
         keyCount:       effectiveKeyCount,
         branchId:       user?.branchId,
         isTesla,
