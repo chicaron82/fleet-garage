@@ -95,6 +95,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                 owningPresets={owningPresets}
                 zoomed={zoomed}
                 onZoomChange={setZoomed}
+                remaining={remaining}
                 onSave={save}
                 onSkip={skip}
                 onFlagUnreadable={flagUnreadable}

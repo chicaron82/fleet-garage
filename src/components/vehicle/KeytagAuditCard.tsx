@@ -29,7 +29,7 @@ import type { Vehicle } from '../../types';
  * is tedious."* Five fields was five round trips per car. Neither layout owns the inputs; they both
  * render `KeytagAuditFields`, so the two can never disagree about what a tag holds.
  */
-export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, zoomed, onZoomChange, onSave, onSkip, onFlagUnreadable }: {
+export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, zoomed, onZoomChange, remaining, onSave, onSkip, onFlagUnreadable }: {
   candidate: AuditCandidate<Vehicle>;
   saving: boolean;
   /** The two vocabularies FG already holds — the guard catches a value from one landing in the
@@ -48,6 +48,17 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
    *  go back."* Lifting only this one flag keeps him in the view he chose. */
   zoomed: boolean;
   onZoomChange: (zoomed: boolean) => void;
+  /**
+   * ⭐ HOW MANY ARE LEFT, INCLUDING THIS ONE — shown on the panel strip because that strip is the
+   * only thing on screen when he is zoomed in reading a tag.
+   *
+   * ⚠️ Aaron, 2026-09-01, mid-audit: *"whatcha think of adding something to let me know how much i
+   * have left to do when i have it zoomed in"*. The count already existed — as a line BELOW the
+   * card, in the section — and the zoomed view is a full-screen dialog that does not render it at
+   * all. So the number was there, and never once where he was looking. A batching job with no
+   * visible end is the difference between "a few more" and "how long has this been".
+   */
+  remaining: number;
   onSave: (edits: KeytagAuditEdits) => void;
   onSkip: () => void;
   onFlagUnreadable: () => void;
@@ -103,6 +114,14 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
         <span className="text-[11px] font-semibold text-white/50 tabular-nums">
           {vehicle.licensePlate}
           {missing.length > 0 && <span className="ml-2 text-amber-300">{missing.length} blank</span>}
+          {/* ⭐ "last one" rather than "1 left" on the final tag. Batching is a stamina problem as
+              much as a work one, and the end of the pile is worth naming — it is the one count that
+              changes what he decides to do next. `remaining` includes the car on screen. */}
+          {remaining > 0 && (
+            <span className="ml-2 text-white/40">
+              {remaining === 1 ? 'last one' : `${remaining} left`}
+            </span>
+          )}
         </span>
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => setPanelAtTop(t => !t)} title="Move the fields to the other edge"

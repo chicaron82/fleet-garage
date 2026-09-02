@@ -36,16 +36,17 @@ const PRESETS = [
 // ⭐ A STATEFUL WRAPPER, because zoom is CONTROLLED from above the card's `key`. Passing a static
 // prop would test a component that cannot exist in the app; this mirrors what KeytagAuditSection
 // actually does — and it is what makes the survives-a-car-change case testable at all.
-function Harness({ guessOwning = noGuess, presets = PRESETS, candidateOverride = candidate }: {
+function Harness({ guessOwning = noGuess, presets = PRESETS, candidateOverride = candidate, remaining = 5 }: {
   guessOwning?: Parameters<typeof KeytagAuditCard>[0]['guessOwning'];
   presets?: Parameters<typeof KeytagAuditCard>[0]['owningPresets'];
   candidateOverride?: AuditCandidate<Vehicle>;
+  remaining?: number;
 }) {
   const [zoomed, setZoomed] = useState(false);
   return (
     <KeytagAuditCard key={candidateOverride.vehicle.id} candidate={candidateOverride} saving={false}
       knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
-      owningPresets={presets} zoomed={zoomed} onZoomChange={setZoomed}
+      owningPresets={presets} zoomed={zoomed} onZoomChange={setZoomed} remaining={remaining}
       onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />
   );
 }
@@ -527,5 +528,48 @@ describe('KeytagAuditCard — key count and rotation', () => {
     withVehicle({ keytagPhotoRotation: 180 });
     saveIt();
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ photoRotation: 180 }));
+  });
+});
+
+// ⭐ Aaron, 2026-09-01, part-way through a sitting of audits: *"whatcha think of adding something
+// to let me know how much i have left to do when i have it zoomed in"*.
+//
+// ⚠️ The count already existed — as a line BELOW the card, owned by KeytagAuditSection. Zoom opens
+// a full-screen dialog, so that line is not merely scrolled away, it is **not rendered at all**.
+// The number was there the whole time and never once where he was looking. Same family as the
+// Clear he never found: shipped, correct, and out of frame.
+//
+// It goes on the panel strip because that strip is the one thing on screen in the zoomed state —
+// it already carries the plate and the blank count, and it does not move.
+describe('how much is left, while zoomed', () => {
+  it('shows the remaining count on the zoomed panel, where he is actually looking', () => {
+    render(<Harness remaining={12} />);
+    openZoom();
+    expect(within(overlay()).getByText('12 left')).toBeInTheDocument();
+  });
+
+  // Batching is a stamina problem as much as a work one — the end of the pile is the one count
+  // that changes what he decides to do next, so it gets said in words rather than as "1 left".
+  it('says "last one" on the final tag rather than counting it', () => {
+    render(<Harness remaining={1} />);
+    openZoom();
+    expect(within(overlay()).getByText('last one')).toBeInTheDocument();
+    expect(within(overlay()).queryByText('1 left')).toBeNull();
+  });
+
+  it('says nothing at all when the queue is empty', () => {
+    render(<Harness remaining={0} />);
+    openZoom();
+    expect(within(overlay()).queryByText(/left|last one/i)).toBeNull();
+  });
+
+  // ⚠️ It must not crowd out what the strip already carries — the plate is how he knows which car
+  // he is typing into, and the blank count is why this card is in the queue.
+  it('sits alongside the plate and the blank count, not instead of them', () => {
+    render(<Harness remaining={12} />);
+    openZoom();
+    const strip = within(overlay());
+    expect(strip.getByText(vehicle.licensePlate)).toBeInTheDocument();
+    expect(strip.getByText('12 left')).toBeInTheDocument();
   });
 });
