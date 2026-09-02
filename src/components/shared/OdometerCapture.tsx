@@ -19,7 +19,7 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 // "47,200 km" ages into a lie; a figure from April describes a car that has since done a summer of
 // rentals. And a lower reading than the one on file is a misread or the wrong car — `recordOdometer`
 // refuses it server-side rather than rewriting a good record, so this says so BEFORE he taps.
-export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, onSave, onClear, onCorrect }: {
+export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, autoFocus, onSave, onClear, onCorrect }: {
   vehicleId: string;
   /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
    *  things by it. The SCAN passes its per-scan nonce, because a scan is an EVENT and re-scanning
@@ -38,6 +38,23 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   onSave: (vehicleId: string, km: number) => Promise<void>;
   /** Clears a mis-typed reading back to "not logged". Omitted → no clear offered (read-only hosts). */
   onClear?: (vehicleId: string) => Promise<boolean>;
+  /**
+   * ⭐ Put the cursor in the box on mount — Aaron, 2026-09-02: *"is there a way for the field to be
+   * ready to accept the input instead of me having to tap the field so I can enter the reading?"*
+   * He has the dash in front of him and one hand free; the tap that REVEALED this control already
+   * said what he wants to do.
+   *
+   * ⚠️⚠️ OPT-IN, AND THAT IS THE WHOLE CARE HERE. This control has two homes and they mean
+   * different things by "shown":
+   *   • THE RECORD CARD reveals it because he TAPPED "tap to update" — an explicit request, so
+   *     focus is finishing the gesture he started.
+   *   • THE SCAN SHEET renders it unconditionally, as one row in a beat that also carries the key
+   *     count, the EV check and the routing buttons. Focusing there would throw a numeric keypad
+   *     over that sheet on EVERY scan, hiding the actions, on a car he may not be reading an
+   *     odometer from at all.
+   * Same control, two honest answers — the same split its own `resetKey` prop already makes.
+   */
+  autoFocus?: boolean;
   /** ⭐ Replaces a WRONG value on file with a lower, correct one. Omitted → no correction offered.
    *  Deliberately separate from `onSave`: the forward-only rule owns the ordinary path and stays
    *  intact, so going down has to be a different call as well as a different tap. */
@@ -114,6 +131,9 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void save(); }}
             inputMode="numeric"
+            // ⚠️ Opt-in — see the `autoFocus` prop comment. Only where a tap of HIS revealed this
+            // control; never on the scan sheet, where it would throw a keypad over the actions.
+            autoFocus={autoFocus}
             placeholder={`${unit} on the dash`}
             aria-label="Odometer reading"
             className="w-32 h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"

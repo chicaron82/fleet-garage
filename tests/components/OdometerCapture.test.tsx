@@ -82,3 +82,36 @@ describe('OdometerCapture', () => {
     expect(line.textContent).not.toBe('47,200 km');   // a date rides along
   });
 });
+
+// ⭐ Aaron, 2026-09-02, first thing on an opening: *"is there a way for the field to be ready to
+// accept the input instead of me having to tap the field so I can enter the reading?"* He has the
+// dash in front of him and one hand free, and the tap that revealed the control already said what
+// he wanted to do. The second tap was never carrying information.
+//
+// ⚠️⚠️ OPT-IN, and that is the whole care. The control has two homes that mean different things by
+// "shown": the RECORD CARD reveals it because he tapped "tap to update"; the SCAN SHEET renders it
+// unconditionally as one row in a beat that also holds the key count, the EV check and the routing
+// buttons. Focusing there would throw a numeric keypad over that sheet on EVERY scan — hiding the
+// actions, on a car he may not be reading an odometer from at all.
+describe('ready to type', () => {
+  const field = () => screen.getByLabelText('Odometer reading');
+
+  it('puts the cursor in the box when a tap of his revealed it', () => {
+    render(<OdometerCapture vehicleId="v1" resetKey="v1" currentKm={19304} currentAt={null}
+      autoFocus onSave={vi.fn()} />);
+    expect(field()).toHaveFocus();
+  });
+
+  // ⚠️ The scan sheet passes nothing, and must keep getting nothing.
+  it('does NOT steal focus where it was simply rendered', () => {
+    render(<OdometerCapture vehicleId="v1" resetKey="v1" currentKm={19304} currentAt={null}
+      onSave={vi.fn()} />);
+    expect(field()).not.toHaveFocus();
+  });
+
+  it('is focused ready to accept the reading, not pre-filled with one', () => {
+    render(<OdometerCapture vehicleId="v1" resetKey="v1" currentKm={19304} currentAt={null}
+      autoFocus onSave={vi.fn()} />);
+    expect(field()).toHaveValue('');
+  });
+});
