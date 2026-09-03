@@ -1,0 +1,81 @@
+// ⭐ The two carries are what this hook exists for, and they behave differently. These tests are
+// aimed squarely at the mistakes Aaron already caught once on the mock.
+import { describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { useClosingInventory } from '../../src/hooks/useClosingInventory';
+import { handEntry, type InventoryEntry } from '../../src/lib/closingInventory';
+
+const available = (plate: string, row: string): InventoryEntry => ({
+  ...handEntry(plate, 'A'), row,
+});
+
+describe('useClosingInventory', () => {
+  it('starts with nothing carried — the first car pre-picks no status', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    expect(result.current.carriedStatus).toBeNull();
+    expect(result.current.carriedRow).toBe('');
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('the status CARRIES to the next car — a run of one status is the shape of the work', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => result.current.commit(handEntry('ABC123', 'D')));
+    expect(result.current.carriedStatus).toBe('D');
+  });
+
+  it('the row carries only for an AVAILABLE car', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => result.current.commit(available('ABC123', '5')));
+    expect(result.current.carriedRow).toBe('5');
+    // ⚠️ A dirty car's note is a reason, not a place — it must not clear or claim the row carry.
+    act(() => result.current.commit(handEntry('DEF456', 'D')));
+    expect(result.current.carriedRow).toBe('5');
+    expect(result.current.carriedStatus).toBe('D');
+  });
+
+  it('⭐ the TALLY is where cars are, not the row he last used — the bug he caught on his phone', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => {
+      result.current.commit(available('AAA111', '4'));
+      result.current.commit(available('BBB222', '5'));
+      result.current.commit(available('CCC333', '5'));
+    });
+    // The carry is one row…
+    expect(result.current.carriedRow).toBe('5');
+    // …but the sheet holds available cars in two, and the tally says so.
+    const rows = result.current.tally.map(t => `${t.row}:${t.count}`);
+    expect(rows).toContain('4:1');
+    expect(rows).toContain('5:2');
+  });
+
+  it('counts only AVAILABLE cars toward a row — a dirty car is not parked anywhere', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => {
+      result.current.commit(available('AAA111', '4'));
+      result.current.commit({ ...handEntry('BBB222', 'D'), row: '4' });
+    });
+    expect(result.current.filled['4']).toBe(1);
+  });
+
+  it('a car added by hand lands on the sheet and sets the carry — the paper never refuses a car', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => result.current.addByHand('zzz999', 'M'));
+    expect(result.current.entries[0]?.plate).toBe('ZZZ999');
+    expect(result.current.entries[0]?.vehicleId).toBeNull();
+    expect(result.current.carriedStatus).toBe('M');
+  });
+
+  it('removing and clearing behave — clear resets both carries, not just the rows', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => {
+      result.current.commit(available('AAA111', '4'));
+      result.current.commit(available('BBB222', '5'));
+    });
+    act(() => result.current.removeAt(0));
+    expect(result.current.entries).toHaveLength(1);
+    act(() => result.current.clear());
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.carriedStatus).toBeNull();
+    expect(result.current.carriedRow).toBe('');
+  });
+});

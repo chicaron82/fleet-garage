@@ -1,0 +1,105 @@
+// The closing-inventory SESSION — the state a write-up accumulates while he works down a pile of
+// keys. All the rules live in `lib/closingInventory`; this only remembers what has been scanned and
+// what the next scan should inherit.
+//
+// ⭐⭐ THE TWO CARRIES ARE THE WHOLE POINT, and they are not the same thing:
+//   • STATUS carries because the keys are sorted into piles — a run of one status is the normal
+//     shape of the work, and two people split clean from dirty.
+//   • ROW carries only for an AVAILABLE car, because a row is a PLACE. On his Sept 1 sheet he writes
+//     `R-5` once and brackets it down the rows beneath.
+//
+// ⚠️ And the row he is carrying is NOT where the available cars are. He caught exactly that on his
+// phone — *"I have available cars in 3 different rows but only shows the last row I used."* The
+// carry is what the next car inherits; `rowTally` is where they actually are. Both are exposed, and
+// they are never conflated.
+import { useCallback, useMemo, useState } from 'react';
+import {
+  entryFromScan, handEntry, rowTally, summarise,
+  type ActiveHold, type InventoryEntry, type InventoryStatus,
+} from '../lib/closingInventory';
+import type { Vehicle } from '../types';
+
+export interface ClosingInventoryState {
+  entries: InventoryEntry[];
+  /** What the NEXT scan inherits. Null before he has chosen anything. */
+  carriedStatus: InventoryStatus | null;
+  carriedRow: string;
+  /** Where the available cars actually ARE, per row, against capacity. */
+  tally: ReturnType<typeof rowTally>;
+  counts: ReturnType<typeof summarise>;
+  /** Available cars already placed, by row — feeds the row SUGGESTION so a full row rolls on. */
+  filled: Record<string, number>;
+  addScan: (v: Vehicle, holds: readonly ActiveHold[]) => ReturnType<typeof entryFromScan>;
+  commit: (entry: InventoryEntry) => void;
+  addByHand: (plate: string, status: InventoryStatus) => void;
+  updateAt: (index: number, patch: Partial<InventoryEntry>) => void;
+  removeAt: (index: number) => void;
+  setCarriedRow: (row: string) => void;
+  clear: () => void;
+}
+
+export function useClosingInventory(): ClosingInventoryState {
+  const [entries, setEntries] = useState<InventoryEntry[]>([]);
+  const [carriedStatus, setCarriedStatus] = useState<InventoryStatus | null>(null);
+  const [carriedRow, setCarriedRow] = useState('');
+
+  /** Available cars per row, for the row suggestion's roll-to-next-row behaviour. */
+  const filled = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const e of entries) {
+      if (e.status !== 'A' || !e.row) continue;
+      out[e.row] = (out[e.row] ?? 0) + 1;
+    }
+    return out;
+  }, [entries]);
+
+  const tally = useMemo(() => rowTally(entries), [entries]);
+  const counts = useMemo(() => summarise(entries), [entries]);
+
+  /**
+   * Build the row a scan produces — WITHOUT committing it. He still has to look at it.
+   *
+   * ⚠️ Deliberately not a setState: a scan that turns out to be a sale car gets skipped, and a
+   * status FG could not derive needs his tap before there is anything to add.
+   */
+  const addScan = useCallback(
+    (v: Vehicle, holds: readonly ActiveHold[]) =>
+      entryFromScan(v, holds, { status: carriedStatus, row: carriedRow, filled }),
+    [carriedStatus, carriedRow, filled],
+  );
+
+  /** Accept a row onto the sheet, and let it set the carries for whatever comes next. */
+  const commit = useCallback((entry: InventoryEntry) => {
+    setEntries(prev => [...prev, entry]);
+    setCarriedStatus(entry.status);
+    // ⚠️ Only an AVAILABLE car updates the row carry. A dirty car's note is a reason, not a place,
+    // so letting it clear the carried row would make him re-pick R-5 mid-pile.
+    if (entry.status === 'A' && entry.row) setCarriedRow(entry.row);
+  }, []);
+
+  /** ⭐ The paper never refuses a car — a plate he can read goes on the sheet with no vehicle. */
+  const addByHand = useCallback((plate: string, status: InventoryStatus) => {
+    const e = handEntry(plate, status);
+    setEntries(prev => [...prev, e]);
+    setCarriedStatus(status);
+  }, []);
+
+  const updateAt = useCallback((index: number, patch: Partial<InventoryEntry>) => {
+    setEntries(prev => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
+  }, []);
+
+  const removeAt = useCallback((index: number) => {
+    setEntries(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const clear = useCallback(() => {
+    setEntries([]);
+    setCarriedStatus(null);
+    setCarriedRow('');
+  }, []);
+
+  return {
+    entries, carriedStatus, carriedRow, tally, counts, filled,
+    addScan, commit, addByHand, updateAt, removeAt, setCarriedRow, clear,
+  };
+}

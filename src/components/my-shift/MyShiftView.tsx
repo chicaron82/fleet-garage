@@ -21,6 +21,7 @@ import { EffieMisfiresSection } from '../pending/EffieMisfiresSection';
 import { BatchKeytagScan } from '../holds/BatchKeytagScan';
 import { KeytagAuditSection } from './KeytagAuditSection';
 import { HybridGapsSection } from './HybridGapsSection';
+import { ClosingInventorySection } from './ClosingInventorySection';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
 import { FleetBalanceEntryForm } from '../vehicle';
@@ -194,6 +195,9 @@ export function MyShiftView({ onOpenVehicle }: {
       {/* Cars the fleet's own data says are hybrids that nobody flagged — found without him having
           handled the car. Self-hides when empty. */}
       <HybridGapsSection onOpenVehicle={onOpenVehicle} />
+
+      {/* Step 3 of the closing checklist. Collapsed — most nights he is not closing. */}
+      <ClosingInventorySection />
 
       {/* Effie's staged writes — review/approve when you have a minute (self-hides when empty) */}
       <PendingWritesSection />
