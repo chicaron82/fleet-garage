@@ -5,12 +5,13 @@
 // on paper — so this has to be useful on the nights he does it, with nobody else adopting anything.
 //
 // ⭐ Collapsed by default, like its neighbours. Most nights he is not closing.
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useClosingInventory } from '../../hooks/useClosingInventory';
 import { PhotoError } from '../shared/PhotoError';
+import { ScanButton } from '../shared/ScanButton';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
 import { ClosingInventorySheet } from './ClosingInventorySheet';
 import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
@@ -20,7 +21,6 @@ export function ClosingInventorySection() {
   /** Only his EDITS live in state. The row itself is derived from the scan, every render. */
   const [edits, setEdits] = useState<Partial<InventoryEntry>>({});
   const [overrodeExclusion, setOverrode] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const { getActiveHolds } = useVehicleHoldContext();
   const { scan, scanPhoto, reading, reset } = useKeytagScan();
@@ -52,8 +52,7 @@ export function ClosingInventorySection() {
     reset();
   }
 
-  async function onFile(file: File | undefined) {
-    if (!file) return;
+  async function onFile(file: File) {
     const base64 = await takeOne(file);
     if (base64) await scanPhoto(base64);
   }
@@ -96,17 +95,8 @@ export function ClosingInventorySection() {
               onSkip={done} />
           ) : (
             <>
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
-                onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
-              {/* ⚠️ bg-fg-yellow + 📷 IS THE SCAN GESTURE, not a style choice. Every "Scan Key Tag" in
-                  FG wears the brand accent (62 files), and Aaron is trained on it — a differently
-                  coloured button in a new section makes him READ it instead of recognising it.
-                  The first cut here was bg-blue-600, which appears nowhere else in My Shift. */}
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={reading}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi text-black text-sm font-semibold py-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition">
-                <span className="text-base leading-none">📷</span>
-                {reading ? 'Reading tag…' : 'Scan a key tag'}
-              </button>
+              <ScanButton onFile={onFile} reading={reading} fullWidth
+                label="Scan a key tag" className="py-3" />
             </>
           )}
 

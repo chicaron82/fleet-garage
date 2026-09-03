@@ -13,6 +13,7 @@ export * from './PendingVehicleSheet';
 export * from './PhotoLightbox';
 export * from './PhotoSlot';
 export * from './PrimaryAction';
+export * from './ScanButton';
 export * from './ShareAction';
 export * from './ShareTextButton';
 export * from './Toast';

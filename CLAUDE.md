@@ -180,6 +180,7 @@ hope, and it fails at exactly the moment you feel confident.
 | Plate, VIN last-9, model code, rental class | `CodeInput` (alias `PlateInput`) | a raw input + `autoCapitalize` |
 | Unit number, owning area | `DigitsInput` (alias `UnitNumberInput`) | a raw input + `inputMode` |
 | Keys on the ring (1–4) | `KeyCountSelector` | four hand-written 44px buttons |
+| **Scan a key tag** | **`ScanButton`** (`shared/ScanButton.tsx`) | a hand-rolled `<input type="file">` + yellow `<button>` + 📷 |
 
 ⚠️ **`autoCapitalize="characters"` is not uppercasing.** It steers a *soft* keyboard and does
 nothing on a hardware one — and Aaron audits tags from couch command (PC into the TV). Only a
@@ -191,6 +192,34 @@ search, not vehicle-identity entry. `VehicleFields`' own header says so; don't s
 ⭐ **Why aliases rather than two implementations:** `PlateInput === CodeInput` is asserted in
 `tests/components/VehicleFields.test.tsx`. The field-named export says *which field this is* at the
 call site; the shared object means the two can never drift into two behaviours.
+
+### ⚠️⚠️ THE RULE WAS WRITTEN DOWN AND BROKEN THREE DAYS LATER — by me (2026-09-02)
+
+The **Button language** section above was created 2026-08-30 *because* the convention lived nowhere
+in writing. Its own diagnosis: *"it existed nowhere in writing, so it could only be recovered by
+grepping and guessing at intent. That is the actual defect."*
+
+**So it was written down. And on 2026-09-02 I shipped a `bg-blue-600` scan button in My Shift** — a
+colour that appears nowhere else in that module — having hand-rolled the button without reading
+either section. Aaron caught it off a screenshot: *"is the button a different colour to distinguish
+between the other scan a keytag?"*
+
+⭐⭐ **THAT IS A FAILED EXPERIMENT, AND IT IS THE MOST USEFUL THING IN THIS FILE.** Documentation was
+the fix we reached for on 08-30; it was applied correctly and completely, and **it did not survive
+three days.** The section above already knew why — *"'Remember to check' is not a rule; it is a hope,
+and it fails at exactly the moment you feel confident"* — and I proved it against the very section
+that says it.
+
+⚠️ **What actually corrected me that night was ESLint**, which refused a `setState` inside an effect
+and had it fixed in two minutes. **A rule that FIRES beats a rule you have to remember**, and the
+ordering is not close.
+
+⭐ **So the remedy is not a fourth section. It is the row added to the table above:** `ScanButton`
+now exists, so the gesture cannot be re-typed wrong — five call sites had already drifted into four
+labels and three text weights before anyone noticed, and one of them (`text-black` instead of
+`text-gray-900`) was breaking this file's stated rule in the canonical implementation. **Make the
+wrong version unavailable rather than detectable.** When the primitive you need is missing, that
+absence *is* the bug: add it to `shared/`, do not hand-roll it and promise to remember.
 
 ## When a value needs a note to be understood, the value is wrong
 

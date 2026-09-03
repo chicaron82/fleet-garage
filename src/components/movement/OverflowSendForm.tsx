@@ -2,11 +2,11 @@
 // scan a stack of key tags (each registers/backfills the car from the read so the send isn't an
 // orphan), then log them all as one-way trips. State + writes live in useOverflowSend.
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
-import { useRef } from 'react';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
 import { OVERFLOW_DESTINATIONS } from '../../../api/_lib/overflowProposal';
 import { Toast } from '../shared/Toast';
 import { PhotoError } from '../../components/shared/PhotoError';
+import { ScanButton } from '../shared/ScanButton';
 
 const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
   registered:   { label: '✨ Registered', cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -17,11 +17,9 @@ const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
 
 export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
   const ov = useOverflowSend(onLogged);
-  const fileRef = useRef<HTMLInputElement>(null);
   const { photoError, takeOne } = usePhotoIntake();
 
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
+  const onFile = async (file: File) => {
     const base64 = await takeOne(file);
     if (base64) await ov.scanPhoto(base64);
   };
@@ -49,24 +47,8 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
       </div>
 
       {/* Scan */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }}
-      />
       <PhotoError message={photoError} />
-      <button
-        type="button"
-        disabled={ov.reading}
-        onClick={() => fileRef.current?.click()}
-        className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:border-fg-yellow hover:text-yellow-500 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span className="text-base leading-none">📷</span>
-        {ov.reading ? 'Reading…' : 'Scan key tag'}
-      </button>
+      <ScanButton onFile={onFile} reading={ov.reading} variant="outline" fullWidth />
       {ov.err && <p className="text-xs text-red-500">{ov.err}</p>}
 
       {/* Staged list */}
