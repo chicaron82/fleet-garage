@@ -19,10 +19,22 @@ export function StaleHoldsAlert({
   if (!canRelease(role)) return null;
   if (staleHolds.length === 0) return null;
 
-  const staleItems = staleHolds.map(h => {
-    const v = vehicles.find(v => v.id === h.vehicleId);
-    return { vehicleId: h.vehicleId, unitNumber: v?.unitNumber ?? 'Unknown' };
-  });
+  /**
+   * ⚠️ ONE CHIP PER VEHICLE, NOT PER HOLD. `staleHolds` is a list of HOLDS, and a car can carry
+   * several at once — LUR306 sits on a damage hold AND a hail hold. Mapping straight across rendered
+   * its unit number TWICE, as two identical buttons that navigate to the same place, and React
+   * warned about the duplicate key because the key was the vehicle id all along.
+   *
+   * ⭐ The heading still counts HOLDS ("3 holds have been active…"), which is the true number and
+   * reads correctly above two chips. Found 2026-09-03 while render-verifying an unrelated change;
+   * the warning had been in the console the whole time.
+   */
+  const staleItems = [...new Map(
+    staleHolds.map(h => {
+      const v = vehicles.find(v => v.id === h.vehicleId);
+      return [h.vehicleId, { vehicleId: h.vehicleId, unitNumber: v?.unitNumber ?? 'Unknown' }] as const;
+    }),
+  ).values()];
 
   return (
     <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 transition-colors">
