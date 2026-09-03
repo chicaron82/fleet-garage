@@ -98,8 +98,13 @@ export function ClosingInventorySection() {
             <>
               <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
                 onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+              {/* ⚠️ bg-fg-yellow + 📷 IS THE SCAN GESTURE, not a style choice. Every "Scan Key Tag" in
+                  FG wears the brand accent (62 files), and Aaron is trained on it — a differently
+                  coloured button in a new section makes him READ it instead of recognising it.
+                  The first cut here was bg-blue-600, which appears nowhere else in My Shift. */}
               <button type="button" onClick={() => fileRef.current?.click()} disabled={reading}
-                className="w-full rounded-lg bg-blue-600 text-white text-sm font-semibold py-3 cursor-pointer hover:bg-blue-700 disabled:opacity-50 transition">
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi text-black text-sm font-semibold py-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition">
+                <span className="text-base leading-none">📷</span>
                 {reading ? 'Reading tag…' : 'Scan a key tag'}
               </button>
             </>

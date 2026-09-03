@@ -51,7 +51,7 @@ export function ClosingInventoryCard({ entry, why, suggestedRow, onChange, onAdd
     return (
       <button key={value} type="button" onClick={() => onChange({ row: value })} aria-pressed={on}
         className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition ${
-          on ? 'bg-blue-600 border-blue-600 text-white'
+          on ? 'bg-gray-900 border-gray-900 text-white dark:bg-gray-100 dark:border-gray-100 dark:text-gray-900'
             : suggested ? 'border-blue-400 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40'
             : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
         }`}>{label}</button>
@@ -112,7 +112,7 @@ export function ClosingInventoryCard({ entry, why, suggestedRow, onChange, onAdd
         <button type="button" onClick={onSkip}
           className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">Skip</button>
         <button type="button" onClick={onAdd} disabled={!entry.row && entry.status === 'A'}
-          className="flex-1 rounded-lg bg-blue-600 text-white text-xs font-semibold py-2 cursor-pointer hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          className="flex-1 rounded-lg bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-2 cursor-pointer hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition">
           Add to sheet
         </button>
       </div>
