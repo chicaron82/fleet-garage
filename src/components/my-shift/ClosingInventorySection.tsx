@@ -52,14 +52,19 @@ export function ClosingInventorySection() {
   /** A row already on the sheet, being corrected in place. */
   const [editing, setEditing] = useState<{ index: number; entry: InventoryEntry } | null>(null);
   /**
-   * ⚠️⚠️ SYNCHRONOUS DOUBLE-TAP GUARD. Aaron's sheet came back with `LUR543` on it TWICE, identical
-   * — two taps on *Add to sheet* inside one frame, both seeing the pre-commit render.
+   * Synchronous double-tap guard: one card commits once.
    *
-   * ⭐ `disabled` on the button cannot close this: it only applies on the NEXT render, which is the
-   * exact reasoning `lib/submitLock` gives for existing at all. A ref flips synchronously, so the
-   * second tap of a double is dropped rather than duplicated. Cleared by `done()` with the rest.
+   * ⚠️⚠️ HONEST ORIGIN, because the first version of this comment invented one. I saw `LUR543` twice
+   * on a screenshot of his sheet and wrote this up as a fix for an observed double-commit. It was
+   * not: *"not a bug. I just scanned it twice. I was gonna scan it several times to get an idea of
+   * what multiple lines look like."* **The alarming reading of a boring fact, again.**
    *
-   * ⚠️ And a duplicate here is never legitimate — one car has one plate and one line on the sheet.
+   * ⭐ It stays because the WINDOW is real, not because that bug was: two taps inside one frame both
+   * see the pre-commit render, and `disabled` cannot close it since it only applies on the NEXT one
+   * — which is verbatim the reasoning `lib/submitLock` gives for existing. A ref flips synchronously.
+   *
+   * ⚠️ It does NOT stop him adding the same car twice on purpose: `done()` clears the scan and the
+   * flag together, so a fresh scan is a fresh commit. It only stops one card firing twice.
    */
   const committing = useRef(false);
 
