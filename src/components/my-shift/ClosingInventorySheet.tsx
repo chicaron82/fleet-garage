@@ -75,13 +75,27 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
                 <td className="py-1 pr-2 font-bold text-gray-900 dark:text-gray-100"
                   title={STATUS_LABELS[e.status]}>{e.status}</td>
                 <td className="py-1 pr-2 text-gray-600 dark:text-gray-300">{sheetNote(e) || '—'}</td>
+                {/* ⚠️⚠️ 44px EACH, AND HELD APART. Aaron on his phone, 2026-09-04: *"the edit and x
+                    are tiny and too closer together. fat finger syndrome will make me accidentally
+                    tap something I didn't mean to tap."*
+                    ⭐ THIRD INSTANCE OF A DOCUMENTED BUG. `PreferencesContext` already records the
+                    header ℹ️ sitting `ml-0.5` from 📷 — *"a thumb reaching for the scanner opened a
+                    guide modal instead, on the lot, tag in hand"* — and the fix that worked for the
+                    bell was a DIVIDER AND A GAP. FG's own standard is 44px, gloves on; this row was
+                    ~16px with 4px between.
+                    ⚠️ And the two are NOT equivalent: a mis-tapped ✎ opens an editor he cancels, a
+                    mis-tapped × deletes a row he cannot get back — `Undo last` only lifts the LAST
+                    one, so row 3 of 40 is gone. The destructive one goes last, alone, past the rule. */}
                 <td className="py-1 text-right whitespace-nowrap">
-                  <button type="button" onClick={() => onEdit(i)}
-                    aria-label={`Edit ${e.plate}`}
-                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1 cursor-pointer transition">✎</button>
-                  <button type="button" onClick={() => onRemove(i)}
-                    aria-label={`Remove ${e.plate}`}
-                    className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-1 cursor-pointer transition">×</button>
+                  <span className="inline-flex items-center">
+                    <button type="button" onClick={() => onEdit(i)}
+                      aria-label={`Edit ${e.plate}`}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-base text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 cursor-pointer transition">✎</button>
+                    <span aria-hidden="true" className="mx-1 h-6 w-px bg-gray-200 dark:bg-gray-700" />
+                    <button type="button" onClick={() => onRemove(i)}
+                      aria-label={`Remove ${e.plate}`}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 cursor-pointer transition">×</button>
+                  </span>
                 </td>
               </tr>
             ))}

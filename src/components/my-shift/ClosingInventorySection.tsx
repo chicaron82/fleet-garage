@@ -5,7 +5,7 @@
 // on paper — so this has to be useful on the nights he does it, with nobody else adopting anything.
 //
 // ⭐ Collapsed by default, like its neighbours. Most nights he is not closing.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useRegisterOnScan } from '../../hooks/useRegisterOnScan';
@@ -51,6 +51,17 @@ export function ClosingInventorySection() {
   const [typed, setTyped] = useState('');
   /** A row already on the sheet, being corrected in place. */
   const [editing, setEditing] = useState<{ index: number; entry: InventoryEntry } | null>(null);
+  /**
+   * ⚠️⚠️ SYNCHRONOUS DOUBLE-TAP GUARD. Aaron's sheet came back with `LUR543` on it TWICE, identical
+   * — two taps on *Add to sheet* inside one frame, both seeing the pre-commit render.
+   *
+   * ⭐ `disabled` on the button cannot close this: it only applies on the NEXT render, which is the
+   * exact reasoning `lib/submitLock` gives for existing at all. A ref flips synchronously, so the
+   * second tap of a double is dropped rather than duplicated. Cleared by `done()` with the rest.
+   *
+   * ⚠️ And a duplicate here is never legitimate — one car has one plate and one line on the sheet.
+   */
+  const committing = useRef(false);
 
   const { copied, share } = useShareText();
   const { user } = useAuth();
@@ -144,6 +155,7 @@ export function ClosingInventorySection() {
 
 
   function done() {
+    committing.current = false;
     setEdits({});
     setOverrode(false);
     setTyped('');
@@ -213,7 +225,7 @@ export function ClosingInventorySection() {
           ) : pending && pendingEntry ? (
             <ClosingInventoryCard entry={pendingEntry} why={pending.why} suggestedRow={pending.suggestedRow}
               onChange={patch => setEdits(e => ({ ...e, ...patch }))}
-              onAdd={() => { commit(pendingEntry); done(); }}
+              onAdd={() => { if (committing.current) return; committing.current = true; commit(pendingEntry); done(); }}
               onSkip={done} />
           ) : (
             <>

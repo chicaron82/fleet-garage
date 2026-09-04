@@ -129,6 +129,28 @@ describe('ClosingInventorySheet', () => {
     expect(onEdit).toHaveBeenCalledWith(3);
   });
 
+  // ⚠️⚠️ 44px, AND HELD APART — the third instance of a documented mis-tap bug. Aaron on his phone,
+  // 2026-09-04: *"the edit and x are tiny and too closer together. fat finger syndrome will make me
+  // accidentally tap something I didn't mean to tap."* `PreferencesContext` already records the
+  // header ℹ️ sitting `ml-0.5` from 📷 and opening a guide modal under a thumb reaching for the
+  // scanner; the fix that worked for the bell was a divider and a gap.
+  //
+  // ⭐ The classes are asserted deliberately. It reads as brittle, and the alternative is a hit
+  // target that silently shrinks back the next time this row is restyled — which is exactly how it
+  // got to ~16px with 4px between.
+  it('⚠️ gives each row action a 44px target, with a divider between them', () => {
+    const { container } = render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)}
+      onRemove={vi.fn()} onEdit={vi.fn()} onUndo={vi.fn()} />);
+    const edit = screen.getByRole('button', { name: 'Edit AAA111' });
+    const remove = screen.getByRole('button', { name: 'Remove AAA111' });
+    for (const b of [edit, remove]) {
+      expect(b.className).toMatch(/\bh-11\b/);   // 44px
+      expect(b.className).toMatch(/\bw-11\b/);
+    }
+    // Something physically between them, not just margin — the bell's fix.
+    expect(container.querySelector('span[aria-hidden="true"].w-px')).not.toBeNull();
+  });
+
   // ⚠️ NOT the same control as the per-row ×. Undo means "I entered that wrong"; the × means a
   // driver took the car. Same effect on the sheet, different reason.
   it('undo-last is its own control, separate from removing a row', () => {
