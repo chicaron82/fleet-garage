@@ -46,7 +46,11 @@ export function ClosingInventoryPhotoSheet({ entries, tally, meta, onClose }: {
       {/* ⭐ The close control sits OUTSIDE the sheet's border, so what he frames in the photo is
           just the form. Chrome inside the card would end up in the picture sent to the counter. */}
       <div className="mx-auto flex max-w-3xl items-center justify-between pb-2">
-        <p className="text-[11px] font-medium text-gray-300">Point the camera at the sheet.</p>
+        {/* ⚠️ It said "Point the camera at the sheet" — written imagining him at a desk, which is
+            not where he closes. On the phone he is already holding, the gesture is a SCREENSHOT.
+            Aaron, 2026-09-03: *"is that a button to take a screenshot of the inventory?"* It is not,
+            and FG must not imply it does the capturing. */}
+        <p className="text-[11px] font-medium text-gray-300">Screenshot this, or photograph the screen.</p>
         <button type="button" onClick={onClose} aria-label="Close the sheet"
           className="cursor-pointer rounded-md px-2 py-1 text-lg leading-none text-gray-300 transition hover:bg-white/10 hover:text-white">
           ✕

@@ -11,14 +11,34 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useClosingInventory } from '../../hooks/useClosingInventory';
+import { useShareText } from '../../hooks/useShareText';
 import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
+import { ShareTextButton } from '../shared/ShareTextButton';
+import { buildInventoryReport } from '../../lib/closingInventoryReport';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
 import { ClosingInventorySheet } from './ClosingInventorySheet';
 import { ClosingInventoryPhotoSheet } from './ClosingInventoryPhotoSheet';
 import { businessDateOf } from '../../lib/shiftDay';
 import { formatDateStr } from '../../lib/buildShiftReport';
 import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
+
+/**
+ * The lot this write-up covers. FG is branch-scoped (YWG), but the closing inventory is specifically
+ * the ERIN ST washbay lot — and the counter thinks in places, not branch codes.
+ */
+const LOT_NAME = 'Erin St';
+
+/**
+ * "Sep 3" — enough date for the top of an emailed block.
+ *
+ * ⚠️ The BUSINESS date, not the calendar one: a write-up finished after midnight still belongs to
+ * the shift that did it, which is the whole reason `shiftDay` exists.
+ */
+function shortDate(): string {
+  const [y, mo, d] = businessDateOf(new Date()).split('-').map(Number);
+  return new Date(y, mo - 1, d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
 
 export function ClosingInventorySection() {
   const [open, setOpen] = useState(false);
@@ -29,6 +49,7 @@ export function ClosingInventorySection() {
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
 
   const { user, activeBranch } = useAuth();
+  const { copied, share } = useShareText();
   const { getActiveHolds } = useVehicleHoldContext();
   const { scan, scanPhoto, reading, reset } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
@@ -111,12 +132,25 @@ export function ClosingInventorySection() {
 
           {entries.length > 0 && (
             <>
-              {/* ⭐ Step 4 of the closing checklist is *"send inventory photo to counter"* — so the
-                  finish line is a picture, not a file. A primary action on the page, so yellow. */}
-              <button type="button" onClick={() => setShowPhotoSheet(true)}
-                className="w-full rounded-lg bg-fg-yellow py-3 text-sm font-bold text-gray-900 transition hover:bg-fg-yellow-hi cursor-pointer">
-                📷 Photograph the sheet
-              </button>
+              {/* ⭐⭐ TWO WAYS OUT, because the counter takes either one. The PLAIN TEXT block is the
+                  one Aaron asked for by pointing at something that already works — *"much like the
+                  airport flips for the counter"* — and it pastes straight into an email. The full
+                  sheet is the form itself, for when a picture is what is wanted.
+                  ⭐ Amber is FG's SHARE lane; yellow is a primary action on the page. Two lanes, not
+                  two primaries. */}
+              <div className="flex gap-2">
+                <ShareTextButton
+                  onClick={() => void share({
+                    title: 'Closing inventory',
+                    text: buildInventoryReport(entries, { location: LOT_NAME, dateLabel: shortDate() }),
+                  })}
+                  copied={copied}
+                />
+                <button type="button" onClick={() => setShowPhotoSheet(true)}
+                  className="flex-1 rounded-xl bg-fg-yellow py-3 text-sm font-semibold text-gray-900 transition hover:bg-fg-yellow-hi cursor-pointer">
+                  📋 Full sheet
+                </button>
+              </div>
               <button type="button" onClick={clear}
                 className="text-[11px] text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition">
                 Clear the sheet
