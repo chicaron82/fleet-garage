@@ -88,12 +88,14 @@ const BANDS: readonly { rows: readonly string[]; classes: readonly string[]; lab
  * `COROLLA` would swallow a **Corolla Hatchback**, which is a different shape and lives in class `B`.
  * `CAMRY SE` is therefore listed in full rather than matched by its first word.
  *
- * ⚠️ **PRIUS IS DELIBERATELY ABSENT.** It is a liftback: it fails his trunk-vs-gate test but is not
- * a Sportage either, and he named only Sportage and RAV4 as the SUV side. 4 cars, unasked — so it
- * suggests nothing rather than guessing, exactly like the unbanded classes above.
+ * ⭐⭐ **PRIUS IS A SEDAN — asked rather than guessed** (Aaron, 2026-09-04: *"good on you to ask
+ * about the prius. into 4-5"*). It was the one genuinely ambiguous car: a liftback, so it fails the
+ * trunk-vs-gate test, but plainly not a Sportage either, and he had named only Sportage and RAV4 as
+ * the SUV side. **Two plausible readings and no way to tell — so it shipped returning null for a
+ * day and the question went to him.** The looks-like rule is his; the edge cases are his to call.
  */
 const SHAPE_BY_MODEL: Readonly<Record<string, 'sedan' | 'suv'>> = {
-  COROLLA: 'sedan', CAMRY: 'sedan', 'CAMRY SE': 'sedan', CIVIC: 'sedan',
+  COROLLA: 'sedan', CAMRY: 'sedan', 'CAMRY SE': 'sedan', CIVIC: 'sedan', PRIUS: 'sedan',
   SPORTAGE: 'suv', RAV4: 'suv',
 };
 

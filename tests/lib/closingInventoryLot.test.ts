@@ -137,11 +137,12 @@ describe('suggestBand — the model resolves a class that is not a body type', (
     expect(suggestBand('E6', '  rav4 ')).toEqual(['2', '3']);
   });
 
-  // ⚠️ PRIUS IS A LIFTBACK: it fails the trunk-vs-gate test but is not a Sportage either, and he
-  // named only Sportage and RAV4 as the SUV side. 4 cars, unasked — so it suggests NOTHING.
-  it('⚠️ says nothing for a Prius, because he has not been asked', () => {
-    expect(suggestBand('E6', 'Prius')).toBeNull();
-    expect(suggestRow('E6', {}, 'Prius')).toBeNull();
+  // ⭐⭐ THE PRIUS WAS THE ONE GENUINELY AMBIGUOUS CAR — a liftback, so it fails the trunk-vs-gate
+  // test, but plainly not a Sportage. It shipped returning null for a day while the question went to
+  // him rather than being guessed to finish the set. *"good on you to ask about the prius. into 4-5"*
+  it('⭐ puts a Prius with the sedans — his call, not my inference', () => {
+    expect(suggestBand('E6', 'Prius')).toEqual(['4', '5']);
+    expect(suggestRow('E6', {}, 'Prius')).toBe('4');
   });
 
   it('says nothing for an E6 whose model FG does not know', () => {
