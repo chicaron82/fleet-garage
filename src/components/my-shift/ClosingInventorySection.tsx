@@ -13,7 +13,7 @@ import { useClosingInventory } from '../../hooks/useClosingInventory';
 import { useShareText } from '../../hooks/useShareText';
 import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
-import { ScanManualPlate } from '../scan-router/ScanManualPlate';
+import { VehicleLookup } from '../shared/VehicleLookup';
 import { ShareTextButton } from '../shared/ShareTextButton';
 import { buildInventoryReport } from '../../lib/closingInventoryReport';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
@@ -101,15 +101,31 @@ export function ClosingInventorySection() {
    * corrector belongs under a camera, not under his thumbs.
    */
   const fromTyped = useMemo(() => {
-    const plate = typed.trim().toUpperCase().replace(/\s+/g, '');
-    if (!plate) return null;
-    const v = vehicles.find(x => x.licensePlate.trim().toUpperCase() === plate);
-    if (!v) return { ...addTag({ plate }), excluded: null };
-    const holds = getActiveHolds(v.id) as unknown as ActiveHold[];
-    return { ...addScan(v, holds), excluded: exclusionReason(holds) };
+    const raw = typed.trim().toUpperCase().replace(/\s+/g, '');
+    if (!raw) return null;
+    // ⭐⭐ PLATE FIRST, THEN THE UNIT — the same order `resolveKeytagScan` uses, and for the same
+    // reason: FG should not fail to find a car it holds just because the weaker key is the one in
+    // hand. He types *because* the plate is unreadable, so plate-only was the wrong single key.
+    const digits = raw.replace(/\D/g, '');
+    const v = vehicles.find(x => x.licensePlate.trim().toUpperCase() === raw)
+      ?? (digits.length >= 5
+        ? vehicles.find(x => (x.unitNumber ?? '').replace(/\D/g, '') === digits)
+        : undefined);
+    if (v) {
+      const holds = getActiveHolds(v.id) as unknown as ActiveHold[];
+      return { ...addScan(v, holds), excluded: exclusionReason(holds) };
+    }
+    // ⚠️ AND DO NOT FILE A UNIT NUMBER AS A PLATE. An all-digits string FG cannot place is a unit it
+    // has never seen, not a licence — writing it into the Licence column would be a lie the sheet
+    // then carries to the counter. Say so instead; the scan path is still open for it.
+    if (digits.length === raw.length) return { unknownUnit: raw as string };
+    return { ...addTag({ plate: raw }), excluded: null };
   }, [typed, vehicles, getActiveHolds, addScan, addTag]);
 
-  const pending = built ?? fromTag ?? fromTyped;
+  const unknownUnit = fromTyped && 'unknownUnit' in fromTyped ? fromTyped.unknownUnit : null;
+  const typedRow = fromTyped && 'unknownUnit' in fromTyped ? null : fromTyped;
+
+  const pending = built ?? fromTag ?? typedRow;
   const pendingEntry: InventoryEntry | null = pending ? { ...pending.entry, ...edits } : null;
 
   /** ⚠️ Registering needs make/model/year off the tag; a short read can still reach the sheet. */
@@ -152,6 +168,12 @@ export function ClosingInventorySection() {
             carriedStatus={carriedStatus} carriedRow={carriedRow} />
 
           <PhotoError message={photoError} />
+          {unknownUnit && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400">
+              ⚠️ No car on file with unit <b>{unknownUnit}</b>. Scan its tag to put it on the sheet —
+              a unit number can&apos;t go in the licence column.
+            </p>
+          )}
           {fromTag && (
             <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 space-y-1.5">
               <p className="text-[11px] text-amber-800 dark:text-amber-300">
@@ -194,9 +216,13 @@ export function ClosingInventorySection() {
             <>
               <ScanButton onFile={onFile} reading={reading} fullWidth
                 label="Scan a key tag" className="py-3" />
-              {/* ⚠️ Always present, never an error-state rescue — a fallback he has to fail first to
-                  discover is one he waits on instead of using. Same reasoning as the header scanner's. */}
-              <ScanManualPlate onSubmit={setTyped} busy={reading} />
+              {/* ⚠️ Always present, never an error-state rescue — a fallback he has to fail first
+                  to discover is one he waits on instead of using.
+                  ⭐ And it matches the Movement Log now, on his call: a typeahead over plate OR unit
+                  number, because the reason he is typing is usually that one of the two is
+                  unreadable. Picking a suggestion skips the resolve entirely. */}
+              <VehicleLookup busy={reading}
+                onPick={c => setTyped('vehicle' in c ? c.vehicle.license_plate : c.typed)} />
             </>
           )}
 
