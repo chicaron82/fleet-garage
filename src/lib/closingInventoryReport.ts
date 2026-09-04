@@ -12,7 +12,7 @@
 //
 // ⚠️ A car with no rental class or no note simply loses that segment rather than printing a dash or
 // a placeholder. Same rule as the flip: an empty field is absent, never rendered as empty.
-import { sheetNote, STATUS_LABELS, type InventoryEntry, type InventoryStatus } from './closingInventory';
+import { formatUnitNumber, sheetNote, STATUS_LABELS, type InventoryEntry, type InventoryStatus } from './closingInventory';
 
 export interface InventoryReportMeta {
   /** The lot this sheet covers — "Erin St", not the branch code; the counter thinks in places. */
@@ -24,11 +24,30 @@ export interface InventoryReportMeta {
 /** The form's own legend order — A D B M F — so the email reads in the order the paper does. */
 const GROUP_ORDER: readonly InventoryStatus[] = ['A', 'D', 'B', 'M', 'F'];
 
-/** One car: plate first (the counter's search key), then only what was filled. */
+/**
+ * One car: plate first (the counter's search key), then the form's own column order.
+ *
+ * ⭐⭐ ALL FOUR COLUMNS THE TAG FILLS, not a subset. Aaron, seeing the first version: *"missing some
+ * fields, the owning 8199 and unit number 5422795."* He is right, and the omission contradicted this
+ * feature's whole premise — the sheet asks for six things per car and the KEY TAG already prints
+ * four of them, so a block that drops two is doing the same thing the scan path does when it reads a
+ * tag and keeps none of it.
+ *
+ * ⚠️ The unit is GROUPED the way the tag prints it (`542 2795`), matching his paper and the photo
+ * sheet. It costs a plain-digit search for the unit; the plate is the search key, and agreeing with
+ * the artifact in his hand is worth more than agreeing with a Ctrl-F nobody has asked for.
+ *
+ * ⚠️ Anything the car does not have is ABSENT rather than a placeholder — the flip's rule, and the
+ * reason a hand-entered car prints as a bare plate instead of a row of dashes.
+ */
 export function inventoryReportLine(entry: InventoryEntry): string {
-  return [entry.plate.trim(), (entry.rentalClass ?? '').trim(), sheetNote(entry)]
-    .filter(Boolean)
-    .join(' · ');
+  return [
+    entry.plate.trim(),
+    (entry.owningArea ?? '').trim(),
+    formatUnitNumber(entry.unitNumber),
+    (entry.rentalClass ?? '').trim(),
+    sheetNote(entry),
+  ].filter(Boolean).join(' · ');
 }
 
 /**
