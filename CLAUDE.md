@@ -1,5 +1,48 @@
 # Fleet Garage — Claude Code Instructions
 
+## 🛑 READ FIRST — findings that come back every session and are ALREADY RESOLVED
+
+Aaron, 2026-09-04: *"lmao every session brings up these same 6 concerns. each session i have to
+re-explain what we did."*
+
+⚠️⚠️ **That is a cost this file exists to remove, and it was only ever paid down for ONE case.** The
+`ROLE_MODULES` counter-rule below says a line-check *"will re-discover [it] forever"* — true, and the
+lesson was never generalised into a place a cold session looks BEFORE investigating. This is that
+place. **Check here before reporting anything that feels like a discovery.**
+
+### 1. The canonical live-fleet filter — most "data defects" are a missing WHERE
+
+```sql
+from vehicles where archived_at is null and unit_number not like 'HRZ-%'
+```
+
+⚠️ **BOTH exclusions, every time.** `HRZ-` units are deliberate mocks; **`archived_at` is how FG
+retires a bad record** — past-DiZee recommended archiving over deleting precisely so the history
+survives, so an archived row is a RESOLVED problem, not a live one.
+
+⭐ **This is not a "remember to filter" rule, because remembering is what failed.** On 2026-09-04 I
+filtered the mocks and forgot the archived, "found" three duplicate unit numbers, wrote them up as an
+operational risk, and got the pairing backwards as well. **I knew the table needed exclusions and
+applied one of the two** — which is why the pair is written out here as one string to copy.
+
+### 2. Duplicate unit numbers → archived plate misreads. Resolved.
+
+`5421656` · `5422027` · `5738117` each have two records; the second of each is an **OCR confusion
+pair** (`1↔L`, `3↔5`, `0↔O`) and **every one was archived in August**. Live duplicates: **zero**.
+⭐ `useBackfillOnScan` already guards the forward case — *"Unit X is already on Y — not applied. Same
+car, or has the number moved?"*
+
+### 3. Analytics / audits are unreachable → SCOPE, not a broken gate.
+
+Fully written up under *"The counter-rule"* below. Do not re-derive it from `ROLE_MODULES`.
+
+### ⚠️ This list is INCOMPLETE — he says six, and three are written down
+
+**When he re-explains a resolved finding, the fix is to add it here in the same turn.** A recurrence
+that only lives in a conversation will recur; the cost lands on him, every time, in explanation.
+
+---
+
 ## Personal-first — one operator, deep (2026-07-01)
 
 FG is **Aaron's personal tool**, not a shared platform — he is the sole active operator,
