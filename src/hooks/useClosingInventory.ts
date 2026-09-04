@@ -12,7 +12,9 @@
 // phone — *"I have available cars in 3 different rows but only shows the last row I used."* The
 // carry is what the next car inherits; `rowTally` is where they actually are. Both are exposed, and
 // they are never conflated.
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { businessDateOf } from '../lib/shiftDay';
+import { loadSession, saveSession, clearSession } from '../lib/closingInventoryStore';
 import {
   entryFromScan, entryFromTag, handEntry, rowTally, summarise,
   type ActiveHold, type InventoryEntry, type InventoryStatus, type TagIdentity,
@@ -44,9 +46,28 @@ export interface ClosingInventoryState {
 }
 
 export function useClosingInventory(): ClosingInventoryState {
-  const [entries, setEntries] = useState<InventoryEntry[]>([]);
-  const [carriedStatus, setCarriedStatus] = useState<InventoryStatus | null>(null);
-  const [carriedRow, setCarriedRow] = useState('');
+  /**
+   * ⚠️⚠️ THE SHEET IS PERSISTED, AND THE REASON IS A BUG THAT ALREADY HAPPENED ONE SECTION DOWN.
+   * The airport flip kept its session in `sessionStorage`, which dies with the PROCESS rather than
+   * the shift — Android reclaimed the backgrounded PWA and Aaron's card showed 2 flips where he had
+   * recorded about 7 (2026-07-19). This surface was carrying the same risk in a worse place: plain
+   * `useState`, nothing persisted, on a write-up that runs to 57 cars.
+   *
+   * ⭐ Lazy init, so the sheet is on screen in the first paint rather than flashing empty and
+   * filling in — a restored sheet that appears late reads as a lost one.
+   */
+  const today = businessDateOf(new Date());
+  const [restored] = useState(() => loadSession(today));
+  const [entries, setEntries] = useState<InventoryEntry[]>(restored.entries);
+  const [carriedStatus, setCarriedStatus] = useState<InventoryStatus | null>(restored.carriedStatus);
+  const [carriedRow, setCarriedRow] = useState(restored.carriedRow);
+
+  // ⚠️ Writes on every change rather than on an unmount or a beforeunload: the failure this exists
+  // for is the app being KILLED, which runs no cleanup. A save that only happens on a tidy exit
+  // protects the case that was never in danger.
+  useEffect(() => {
+    saveSession(today, { entries, carriedStatus, carriedRow });
+  }, [today, entries, carriedStatus, carriedRow]);
 
   /** Available cars per row, for the row suggestion's roll-to-next-row behaviour. */
   const filled = useMemo(() => {
@@ -125,6 +146,9 @@ export function useClosingInventory(): ClosingInventoryState {
     setEntries([]);
     setCarriedStatus(null);
     setCarriedRow('');
+    // ⚠️ Clear the STORE too, not just the state — otherwise "Clear the sheet" would be undone by
+    // the next reload, which is the most confusing possible outcome of a destructive button.
+    clearSession();
   }, []);
 
   return {

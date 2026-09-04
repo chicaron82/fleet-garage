@@ -1,9 +1,15 @@
 // ⭐ The two carries are what this hook exists for, and they behave differently. These tests are
 // aimed squarely at the mistakes Aaron already caught once on the mock.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+
+// ⚠️ THE SESSION IS PERSISTED NOW, so every test starts by wiping it. Without this the suite becomes
+// order-dependent overnight: a hook that used to mount empty inherits whatever the previous test
+// left behind. Surfaced the moment persistence landed — six tests went red at once.
 import { useClosingInventory } from '../../src/hooks/useClosingInventory';
 import { handEntry, type InventoryEntry } from '../../src/lib/closingInventory';
+
+beforeEach(() => localStorage.clear());
 
 const available = (plate: string, row: string): InventoryEntry => ({
   ...handEntry(plate, 'A'), row,
@@ -105,5 +111,36 @@ describe('undoLast', () => {
     const { result } = renderHook(() => useClosingInventory());
     act(() => { result.current.undoLast(); });
     expect(result.current.entries).toEqual([]);
+  });
+});
+
+// ⚠️⚠️ THE SHEET MUST SURVIVE THE APP BEING KILLED. The airport flip lost live data to exactly this
+// on 2026-07-19 (sessionStorage dies with the process, Android reclaims a backgrounded PWA), and
+// this surface carried the same risk on a write-up that runs to 57 cars.
+describe('the sheet survives a remount', () => {
+
+  it('restores the rows AND the carries', () => {
+    const first = renderHook(() => useClosingInventory());
+    act(() => { first.result.current.addByHand('AAA111', 'A'); });
+    act(() => { first.result.current.commit({ ...first.result.current.entries[0]!, plate: 'BBB222', status: 'A', row: '5' }); });
+    first.unmount();
+
+    // A fresh mount is what a reload, or the OS killing and relaunching the PWA, actually looks like.
+    const second = renderHook(() => useClosingInventory());
+    expect(second.result.current.entries.map(e => e.plate)).toEqual(['AAA111', 'BBB222']);
+    expect(second.result.current.carriedStatus).toBe('A');
+    expect(second.result.current.carriedRow).toBe('5');
+  });
+
+  // ⚠️ Clearing must survive the reload too, or the destructive button silently undoes itself.
+  it('stays cleared after clear()', () => {
+    const first = renderHook(() => useClosingInventory());
+    act(() => { first.result.current.addByHand('AAA111', 'A'); });
+    act(() => { first.result.current.clear(); });
+    first.unmount();
+
+    const second = renderHook(() => useClosingInventory());
+    expect(second.result.current.entries).toEqual([]);
+    expect(second.result.current.carriedStatus).toBeNull();
   });
 });
