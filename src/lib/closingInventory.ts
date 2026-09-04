@@ -249,6 +249,51 @@ export function entryFromScan(
   };
 }
 
+/**
+ * What a KEY TAG gives up about a car FG has never seen — the four columns it prints.
+ *
+ * ⭐⭐ Aaron, 2026-09-03: *"a plate that FG hasn't seen, why wouldn't FG just record the tag anyway.
+ * then it just becomes something to fully register at another point in time."* He is right, and the
+ * old behaviour was worse than a missing feature: the scanner read the whole tag, resolved no fleet
+ * car, and then told him to *write it on the paper* — **throwing away four columns it had just
+ * read.** The sheet never needed a fleet record; `vehicleId: null` has always been legal here.
+ */
+export interface TagIdentity {
+  plate: string;
+  owningArea?: string | null;
+  unitNumber?: string | null;
+  rentalClass?: string | null;
+}
+
+/**
+ * Build the row a tag produces for a car FG does not know.
+ *
+ * ⚠️ THE STATUS IS PURELY THE CARRY, and that is correct rather than lazy. `deriveStatus`'s
+ * overrides need a fleet record — there are no holds on a car FG has never seen, and `F` is about
+ * the PLATE being American, which the owning area cannot tell us
+ * (`840PIQ` is owned by 8190 and is an `A`). So nothing is deduced; he decides, as he would on paper.
+ */
+export function entryFromTag(
+  tag: TagIdentity,
+  carried: { status: InventoryStatus | null; row: string; filled?: Readonly<Record<string, number>> },
+): { entry: InventoryEntry; why: string | null; suggestedRow: string | null } {
+  const status = carried.status;
+  return {
+    entry: {
+      vehicleId: null,
+      plate: tag.plate.trim().toUpperCase(),
+      unitNumber: tag.unitNumber ?? null,
+      owningArea: tag.owningArea ?? null,
+      rentalClass: tag.rentalClass ?? null,
+      status: status ?? 'A',
+      row: status === 'A' ? carried.row : '',
+      note: '',
+    },
+    why: status ? 'carried — not in the fleet' : 'not in the fleet',
+    suggestedRow: suggestRow(tag.rentalClass, carried.filled ?? {}),
+  };
+}
+
 /** ⚠️ Exported for the surface: a status the operator has not chosen yet is not a row. */
 export function needsStatusChoice(d: DerivedStatus): boolean {
   return d.status === null;

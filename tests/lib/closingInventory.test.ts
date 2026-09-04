@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  sheetNote, deriveStatus, entryFromScan, formatUnitNumber,
+  sheetNote, deriveStatus, entryFromScan, entryFromTag, formatUnitNumber,
   isNotWrittenUp, exclusionReason, rowTally, summarise, handEntry,
   ROW_CAPACITY, type InventoryEntry, type ActiveHold,
 } from '../../src/lib/closingInventory';
@@ -240,5 +240,53 @@ describe('formatUnitNumber', () => {
     expect(formatUnitNumber(null)).toBe('');
     expect(formatUnitNumber(undefined)).toBe('');
     expect(formatUnitNumber('  ')).toBe('');
+  });
+});
+
+// ── a car FG has never seen ───────────────────────────────────────────────────────────────────
+//
+// ⭐⭐ Aaron, 2026-09-03: *"a plate that FG hasn't seen, why wouldn't FG just record the tag anyway.
+// then it just becomes something to fully register at another point in time."* The old surface read
+// the whole tag, matched nothing, and told him to write it on the paper — discarding four columns it
+// had just read.
+describe('entryFromTag', () => {
+  const tag = { plate: 'lur999', owningArea: '8199', unitNumber: '5422795', rentalClass: 'C' };
+
+  it('⭐ keeps every column the tag printed, with no fleet record at all', () => {
+    const { entry } = entryFromTag(tag, { status: 'A', row: '5' });
+    expect(entry).toMatchObject({
+      vehicleId: null, plate: 'LUR999', owningArea: '8199', unitNumber: '5422795', rentalClass: 'C',
+    });
+  });
+
+  it('carries the status and, for an available car, the row', () => {
+    const { entry, why } = entryFromTag(tag, { status: 'A', row: '5' });
+    expect(entry.status).toBe('A');
+    expect(entry.row).toBe('5');
+    expect(why).toBe('carried — not in the fleet');
+  });
+
+  // ⚠️ A row on a non-available car would be a lie — same rule as entryFromScan.
+  it('never inherits a row onto a car that is not available', () => {
+    expect(entryFromTag(tag, { status: 'D', row: '5' }).entry.row).toBe('');
+  });
+
+  // ⚠️⚠️ NOTHING IS DEDUCED. There are no holds on a car FG has never seen, and F is about the PLATE
+  // being American — which the owning area cannot tell us (840PIQ is owned by 8190 and is an A).
+  it('deduces no status of its own — he decides, as he would on paper', () => {
+    const { entry, why } = entryFromTag(tag, { status: null, row: '' });
+    expect(entry.status).toBe('A');   // the field needs a value; `why` is what says nothing was known
+    expect(why).toBe('not in the fleet');
+  });
+
+  it('still suggests a row from the class the tag printed', () => {
+    expect(entryFromTag(tag, { status: 'A', row: '' }).suggestedRow).toBe('4');       // C → sedans
+    expect(entryFromTag({ ...tag, rentalClass: 'Q4' }, { status: 'A', row: '' }).suggestedRow).toBe('2');
+  });
+
+  it('takes a tag that gave up only a plate', () => {
+    const { entry, suggestedRow } = entryFromTag({ plate: 'LUR999' }, { status: 'D', row: '' });
+    expect(entry).toMatchObject({ plate: 'LUR999', owningArea: null, unitNumber: null, rentalClass: null });
+    expect(suggestedRow).toBeNull();
   });
 });

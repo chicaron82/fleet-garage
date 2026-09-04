@@ -14,8 +14,8 @@
 // they are never conflated.
 import { useCallback, useMemo, useState } from 'react';
 import {
-  entryFromScan, handEntry, rowTally, summarise,
-  type ActiveHold, type InventoryEntry, type InventoryStatus,
+  entryFromScan, entryFromTag, handEntry, rowTally, summarise,
+  type ActiveHold, type InventoryEntry, type InventoryStatus, type TagIdentity,
 } from '../lib/closingInventory';
 import type { Vehicle } from '../types';
 
@@ -30,6 +30,8 @@ export interface ClosingInventoryState {
   /** Available cars already placed, by row — feeds the row SUGGESTION so a full row rolls on. */
   filled: Record<string, number>;
   addScan: (v: Vehicle, holds: readonly ActiveHold[]) => ReturnType<typeof entryFromScan>;
+  /** The same for a car FG has never seen — built from the TAG, no fleet record needed. */
+  addTag: (tag: TagIdentity) => ReturnType<typeof entryFromTag>;
   commit: (entry: InventoryEntry) => void;
   addByHand: (plate: string, status: InventoryStatus) => void;
   updateAt: (index: number, patch: Partial<InventoryEntry>) => void;
@@ -68,6 +70,18 @@ export function useClosingInventory(): ClosingInventoryState {
     [carriedStatus, carriedRow, filled],
   );
 
+  /**
+   * ⭐⭐ The same, for a car FG has never seen — built from the TAG rather than a fleet record.
+   *
+   * Aaron: *"a plate that FG hasn't seen, why wouldn't FG just record the tag anyway."* The scanner
+   * reads owning area, unit, licence and class off the tag; none of that needs a `vehicles` row to
+   * land on the sheet, and telling him to write it on paper threw all four away.
+   */
+  const addTag = useCallback(
+    (tag: TagIdentity) => entryFromTag(tag, { status: carriedStatus, row: carriedRow, filled }),
+    [carriedStatus, carriedRow, filled],
+  );
+
   /** Accept a row onto the sheet, and let it set the carries for whatever comes next. */
   const commit = useCallback((entry: InventoryEntry) => {
     setEntries(prev => [...prev, entry]);
@@ -100,6 +114,6 @@ export function useClosingInventory(): ClosingInventoryState {
 
   return {
     entries, carriedStatus, carriedRow, tally, counts, filled,
-    addScan, commit, addByHand, updateAt, removeAt, setCarriedRow, clear,
+    addScan, addTag, commit, addByHand, updateAt, removeAt, setCarriedRow, clear,
   };
 }
