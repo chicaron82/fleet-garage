@@ -51,7 +51,12 @@ describe('useBackfillOnScan', () => {
       .toEqual(['color', 'make', 'model', 'unitNumber', 'year']);
     // Show-your-work: the toast names the plate and the fields, never fills silently.
     expect(result.current.backfillToast).toContain('LZM534');
-    expect(result.current.backfillToast).toContain('make');
+    // ⚠️⚠️ THIS USED TO ASSERT `toContain('make')` — and `make` is the ONE field whose raw name and
+    // whose human label are identical, so the assertion could never tell them apart. It passed
+    // unchanged while the toast printed `filled unitNumber, make` in half English and half
+    // TypeScript. Assert a field where the two DIFFER, or the check is decoration.
+    expect(result.current.backfillToast).toContain('unit,');
+    expect(result.current.backfillToast).not.toContain('unitNumber');
   });
 
   it('no-ops when the record is already complete — nothing to fill', async () => {

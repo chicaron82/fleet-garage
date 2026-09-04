@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../../src/lib/resolveKeytagScan';
+import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote, fillNote } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
 
@@ -165,5 +165,31 @@ describe('changeNote (applied — the tag corrected a stale value)', () => {
 
   it('is empty for no changes', () => {
     expect(changeNote([])).toBe('');
+  });
+});
+
+// ⭐ *"this scan backfilled data"* — Aaron's own example of a toast worth having, and the third
+// sibling of changeNote/conflictNote. A RECEIPT: what happened to the record while he held the tag.
+describe('fillNote', () => {
+  it('names the fields in FG\'s own words, not the code\'s', () => {
+    expect(fillNote([{ field: 'unitNumber', value: '5422795' }, { field: 'rentalClass', value: 'C' }]))
+      .toBe('filled unit, class');
+  });
+
+  // ⚠️⚠️ THE GAP THAT SHIPPED: the toast built this half by joining raw f.field, so a real scan read
+  // "filled unitNumber, rentalClass · ↻ Updated from tag: class Q4 → C" — one sentence, two
+  // vocabularies, with `class` and `rentalClass` naming the same thing four words apart.
+  it('covers the three fields the label map used to miss', () => {
+    expect(fillNote([
+      { field: 'owningArea', value: '8199' },
+      { field: 'classCode', value: 'CKNE' },
+      { field: 'vinLast9', value: '123456789' },
+    ])).toBe('filled owning area, model code, VIN');
+  });
+
+  // ⚠️ THE IMPORTANT CASE. A car FG already knew completely produces NO line — "you scanned a car"
+  // is not news, and a signal spent on every scan is a signal gone by next week.
+  it('says nothing when the scan revealed nothing', () => {
+    expect(fillNote([])).toBe('');
   });
 });

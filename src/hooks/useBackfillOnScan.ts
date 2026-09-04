@@ -15,7 +15,7 @@
 // logged against a car FG doesn't know. This one deliberately never creates a fleet row — the
 // scan-router keeps offering "Register" as the operator's choice. See docs/ticket-backfill-at-scan.md.
 import { useCallback, useState } from 'react';
-import { resolveKeytagScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote } from '../lib/resolveKeytagScan';
+import { resolveKeytagScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote, fillNote } from '../lib/resolveKeytagScan';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
@@ -71,7 +71,9 @@ export function useBackfillOnScan(deps: {
       // happened — beside a warning saying it didn't. Found at /reflect 61, an hour after shipping
       // the guard: I added the refusal and left the boast intact.
       const applied = res?.unitConflict ? bf.fills.filter(f => f.field !== 'unitNumber') : bf.fills;
-      const filled = applied.length ? `filled ${applied.map(f => f.field).join(', ')}` : '';
+      // ⚠️ Was joining raw `f.field` here — so this half said `unitNumber` while `changeNote`, one
+      // line down, said `class` for the same kind of thing. One vocabulary, one place.
+      const filled = fillNote(applied);
       const changed = changeNote(bf.changes);
       const note = [filled, changed].filter(Boolean).join(' · ');
       if (note) {

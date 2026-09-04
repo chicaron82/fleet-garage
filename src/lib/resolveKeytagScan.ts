@@ -166,9 +166,36 @@ export function keytagConflictsOnScan(
   return { vehicleId: vehicle.id, plate, conflicts: resolution.conflicts };
 }
 
-const FIELD_LABEL: Record<string, string> = {
+/**
+ * The words FG uses for a tag field, in one place — so a message about a scan cannot speak half in
+ * English and half in TypeScript.
+ *
+ * ⚠️⚠️ IT USED TO COVER ONLY SIX OF THE NINE, and the gap was visible in the shipped toast: the
+ * backfill line built its own half by joining raw `f.field`, so a real scan read
+ * `filled unitNumber, rentalClass · ↻ Updated from tag: class Q4 → C` — **the two halves of one
+ * sentence using two different vocabularies**, with `class` and `rentalClass` naming the same thing
+ * four words apart. The labels for the last three follow FG's own existing wording (`KeytagRereadRow`
+ * says *"owning area, model code"*), rather than a fresh dialect.
+ */
+const FIELD_LABEL: Record<KeytagField, string> = {
   unitNumber: 'unit', make: 'make', model: 'model', year: 'year', color: 'colour', rentalClass: 'class',
+  owningArea: 'owning area', classCode: 'model code', vinLast9: 'VIN',
 };
+
+/**
+ * One human line for what the scan FILLED IN — the third sibling of `changeNote`/`conflictNote`,
+ * and the one Aaron asked for by name: *"this scan backfilled data."*
+ *
+ * ⭐⭐ A RECEIPT, NOT A TROPHY. It reports what happened to the record while he was holding the tag —
+ * something he did not do and would not otherwise know — and says nothing at all when the scan
+ * revealed nothing. **The empty string is the important case:** a car FG already knew completely
+ * produces no line, because "you scanned a car" is not news and a signal spent on every scan is a
+ * signal gone by next week.
+ */
+export function fillNote(fills: KeytagFill[]): string {
+  if (fills.length === 0) return '';
+  return `filled ${fills.map(f => FIELD_LABEL[f.field] ?? f.field).join(', ')}`;
+}
 
 /** One human line for a BLOCKED disagreement — the tag disagrees with a value Aaron manually set,
  *  so his edit wins and the tag is not applied: "⚠️ Tag says class F — your edit (E6) kept". */
