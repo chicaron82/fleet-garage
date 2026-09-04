@@ -90,3 +90,22 @@ body {
 .animate-scanline {
   animation: scanline 1.2s ease-in-out infinite;
 }
+
+/* ✨ The bougie flourish — a few sparkles drifting off a toast, once.
+   "Bougie" is his word and it means an ELEVATED ORDINARY THING, not confetti: five glyphs, 1.4s,
+   no bounce, no sound, gone. Scale-and-fade so it reads as a shimmer rather than a party.
+   ⚠️ Reduced motion is an ACCESSIBILITY FLOOR, not a preference — this is switched off there
+   regardless of the user's sparkles toggle. */
+@keyframes fg-sparkle {
+  0%   { opacity: 0; transform: translateY(0) scale(0.4); }
+  25%  { opacity: 1; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-30px) scale(0.6); }
+}
+
+.fg-sparkle {
+  animation: fg-sparkle 1.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fg-sparkle { display: none; }
+}

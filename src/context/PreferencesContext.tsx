@@ -27,6 +27,18 @@ interface Preferences {
    *  Off, the guide itself is untouched and still reachable from the profile menu — what stops is
    *  the app OFFERING it. Defaults true so a demo account (and the first run) keeps the tour. */
   showModuleGuide: boolean;
+  /** ✨ on the rare good news — a new car, a first key tag.
+   *
+   *  ⭐ Aaron asked for this and then defended it against my own measurement: I found that a car
+   *  new to FG turns up about SEVEN TIMES A DAY, argued a sparkle would be wallpaper inside a week,
+   *  and recommended a quiet line. *"i want the sparkle! that's why asked for it. but to compromise
+   *  how bout a toggle in settings to switch off the sparkle and just use plain ol text toast."*
+   *
+   *  ⚠️ It is his tool, and delight is a real requirement — the restraint argument is mine and is
+   *  now a SWITCH rather than a veto. Defaults ON, because he asked for it; the off position is the
+   *  version I would have shipped. **The sparkle also never fires under `prefers-reduced-motion`,
+   *  toggle or no toggle** — that is an accessibility floor, not a preference. */
+  sparkles: boolean;
 }
 
 interface PreferencesContextValue {
@@ -38,7 +50,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true };
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true, sparkles: true };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
   void writeWithRefresh(() => supabase.from('user_preferences').upsert(

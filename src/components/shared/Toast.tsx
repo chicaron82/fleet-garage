@@ -12,6 +12,9 @@ interface ToastProps {
    * Calling the fallback `alert` makes leaving it out visible as a claim rather than as a shrug.
    */
   variant?: MessageTone;
+  /** ✨ Render the flourish. The CALLER says the moment is rare; the caller's caller has already
+   *  checked the user's `sparkles` pref. Reduced motion switches it off in CSS regardless. */
+  sparkle?: boolean;
 }
 
 const TOAST_BG: Record<MessageTone, string> = {
@@ -20,13 +23,25 @@ const TOAST_BG: Record<MessageTone, string> = {
   success: 'rgba(21, 128, 61, 0.9)',  // green-700 — logged / done
 };
 
-export function Toast({ message, variant = 'alert' }: ToastProps) {
+/** Where the five glyphs sit across the toast — spread, not stacked, and each one a beat behind the
+ *  last so it reads as a shimmer instead of a flash. */
+const SPARKS: readonly { left: string; delay: string }[] = [
+  { left: '8%',  delay: '0ms' },
+  { left: '28%', delay: '120ms' },
+  { left: '50%', delay: '60ms' },
+  { left: '72%', delay: '180ms' },
+  { left: '92%', delay: '240ms' },
+];
+
+export function Toast({ message, variant = 'alert', sparkle = false }: ToastProps) {
   return (
     <div
       role="status"
       aria-live="polite"
       style={{
         position: 'fixed', bottom: '1.5rem', left: '50%',
+        // ⚠️ `fixed` is already a positioned ancestor, so the sparkle layer's `inset: 0` resolves to
+        // this box — no extra wrapper needed.
         transform: 'translateX(-50%)', zIndex: 50,
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         background: TOAST_BG[variant], color: 'white',
@@ -36,6 +51,16 @@ export function Toast({ message, variant = 'alert' }: ToastProps) {
       }}
     >
       {message}
+      {/* ⚠️ PURELY DECORATIVE — aria-hidden, and outside the message text, so a screen reader hears
+          the news and not the confetti. The CSS carries the reduced-motion guard. */}
+      {sparkle && (
+        <span aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}>
+          {SPARKS.map(s => (
+            <span key={s.left} className="fg-sparkle"
+              style={{ position: 'absolute', top: 0, left: s.left, animationDelay: s.delay, fontSize: '0.9rem' }}>✨</span>
+          ))}
+        </span>
+      )}
     </div>
   );
 }

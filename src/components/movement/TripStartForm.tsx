@@ -23,6 +23,7 @@ import { TripForm } from './TripForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
 import { Toast } from '../shared/Toast';
+import { usePreferences } from '../../context/PreferencesContext';
 import { useRegisterOnScan } from '../../hooks/useRegisterOnScan';
 
 export type { TripState };
@@ -49,6 +50,7 @@ export function TripStartForm({
   // Scanning a key tag to start a trip registers a new vehicle (or backfills a partial) so the
   // trip isn't logged against a car FG doesn't fully know.
   const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, user });
+  const { prefs } = usePreferences();
   const { oth, setMovementTab } = useActiveSessions();
   const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 
@@ -161,7 +163,10 @@ export function TripStartForm({
       </div>
       {/* The tone comes from whoever set the message — see useRegisterOnScan. Omitting it here is
           what used to render "✨ Registered …" on alert red. */}
-      {registerToast && <Toast message={registerToast.message} variant={registerToast.tone} />}
+      {/* ⚠️ The hook says the moment is rare; the PREFERENCE says whether he wants it celebrated.
+          Two different questions, answered by the two pieces of code that each know one of them. */}
+      {registerToast && <Toast message={registerToast.message} variant={registerToast.tone}
+        sparkle={!!registerToast.sparkle && prefs.sparkles} />}
     </div>
   );
 }

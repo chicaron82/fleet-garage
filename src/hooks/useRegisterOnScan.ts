@@ -30,8 +30,8 @@ export function useRegisterOnScan(deps: {
     if (!user) return;
     // ⚠️ `tone` is REQUIRED — no default. A default is exactly what caused this bug: an omitted
     // variant silently meant "alert", so nobody ever had to decide.
-    const flash = (message: string, tone: MessageTone) => {
-      setRegisterToast({ message, tone });
+    const flash = (message: string, tone: MessageTone, sparkle = false) => {
+      setRegisterToast({ message, tone, sparkle });
       setTimeout(() => setRegisterToast(null), 3000);
     };
 
@@ -43,7 +43,15 @@ export function useRegisterOnScan(deps: {
           year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
         });
-        flash(`✨ Registered ${nv.plate} · ${vehicleNameText(nv)}`, 'success');
+        // ⭐⭐ THE NEWS IS NOT THAT HE REGISTERED A CAR — he pressed the button and knows it. The
+        // news is that FG had NEVER SEEN THIS PLATE, which he did not know until now, and the count
+        // is what makes it land: *"its cool coming across a vehicle FG hasn't seen before. even if
+        // it has 700+ already."* The size of the fleet is the whole point of the sentence.
+        //
+        // ⚠️ I argued against a sparkle here on the numbers — a car new to FG turns up about seven
+        // times a day — and he overruled it and asked for a switch instead. So: sparkle declared,
+        // honoured only if his `sparkles` pref is on, and never under reduced motion.
+        flash(`✨ ${nv.plate} · ${vehicleNameText(nv)} — new to FG, ${vehicles.length + 1} on file`, 'success', true);
       } catch { /* non-blocking: the trip can still start without the fleet record */ }
       return;
     }

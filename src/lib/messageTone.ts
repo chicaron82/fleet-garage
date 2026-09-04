@@ -34,4 +34,8 @@ export const MESSAGE_TONE: Record<MessageTone, StatusTone> = {
 export interface ToneMessage {
   message: string;
   tone: MessageTone;
+  /** ⭐ This one is worth a ✨. Declared by the CALLER for the same reason `tone` is: only the code
+   *  that knows what just happened knows whether it was rare. The renderer decides whether to
+   *  honour it (the user's `sparkles` pref, and `prefers-reduced-motion` always wins). */
+  sparkle?: boolean;
 }

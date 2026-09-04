@@ -198,6 +198,23 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
                       <input type="checkbox" className="sr-only" checked={prefs.showModuleGuide} onChange={e => updatePref('showModuleGuide', e.target.checked)} />
                     </div>
                   </label>
+
+                  {/* ⭐ Aaron asked for the sparkle and then defended it against my measurement — a
+                      car new to FG turns up about seven times a day, and I argued that a flourish
+                      that often stops reading as a treat. He wanted it anyway and proposed this
+                      switch himself. Defaults ON; the off position is the version I would have
+                      shipped. ⚠️ Reduced motion silences it either way — that is a floor, not a
+                      preference. */}
+                  <label className="flex items-center justify-between cursor-pointer group mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="flex-1 min-w-0 pr-3">
+                      <span className="block text-sm font-semibold text-gray-700 dark:text-gray-200">Sparkles</span>
+                      <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">✨ on the rare good news — a car FG has never seen. Off keeps the message, drops the flourish.</span>
+                    </span>
+                    <div className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${prefs.sparkles ? 'bg-fg-yellow' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300 ${prefs.sparkles ? 'translate-x-5' : 'translate-x-1'}`} />
+                      <input type="checkbox" className="sr-only" checked={prefs.sparkles} onChange={e => updatePref('sparkles', e.target.checked)} />
+                    </div>
+                  </label>
                 </div>
               </div>
 
