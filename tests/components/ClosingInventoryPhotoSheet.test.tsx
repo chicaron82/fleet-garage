@@ -14,6 +14,7 @@ const entry = (over: Partial<InventoryEntry> = {}): InventoryEntry => ({
 });
 
 const meta: PhotoSheetMeta = {
+  locationCode: '8073-16',
   branch: 'YWG',
   dateLabel: 'Wednesday, September 3, 2026',
   timeLabel: '23:05',
@@ -32,7 +33,7 @@ describe('ClosingInventoryPhotoSheet', () => {
   it('names the form it is standing in for, and who wrote it up when', () => {
     sheet([entry()]);
     expect(screen.getByText('Location Daily Vehicle Inventory')).toBeInTheDocument();
-    expect(screen.getByText(/Form 8073-16 · PM · YWG/)).toBeInTheDocument();
+    expect(screen.getByText(/Location 8073-16 · PM · YWG/)).toBeInTheDocument();
     expect(screen.getByText(/23:05 · Aaron/)).toBeInTheDocument();
   });
 

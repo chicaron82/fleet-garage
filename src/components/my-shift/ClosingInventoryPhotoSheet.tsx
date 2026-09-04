@@ -19,6 +19,13 @@ import {
 } from '../../lib/closingInventory';
 
 export interface PhotoSheetMeta {
+  /**
+   * ⚠️⚠️ THE LOCATION CODE PRE-PRINTED ON THE FORM — "8073-16" on his. It is NOT a form number, and
+   * this header said "Form 8073-16" until Aaron sent a filled sheet on 2026-09-03 whose own printed
+   * line reads **"Location: 8073-16"**. The ticket carried the same confusion ("form 8073-16,
+   * location 8073-16") and I resolved it the wrong way, on a document I had never actually looked at.
+   */
+  locationCode: string;
   /** Which branch's lot this sheet covers. */
   branch: string;
   /** Already formatted for reading — the component does not own a clock. */
@@ -61,7 +68,7 @@ export function ClosingInventoryPhotoSheet({ entries, tally, meta, onClose }: {
         <header className="border-b-2 border-gray-900 pb-2">
           <h2 className="text-base font-bold leading-tight sm:text-lg">Location Daily Vehicle Inventory</h2>
           <p className="mt-0.5 text-[11px] text-gray-600 sm:text-xs">
-            Form 8073-16 · PM · {meta.branch} · {meta.dateLabel} {meta.timeLabel} · {meta.loggedBy}
+            Location {meta.locationCode} · PM · {meta.branch} · {meta.dateLabel} {meta.timeLabel} · {meta.loggedBy}
           </p>
         </header>
 

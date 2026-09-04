@@ -30,6 +30,12 @@ import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib
 const LOT_NAME = 'Erin St';
 
 /**
+ * The location code pre-printed on the form itself — his sheet reads "Location: 8073-16".
+ * ⚠️ NOT a form number, however much it looks like one. See PhotoSheetMeta.locationCode.
+ */
+const LOCATION_CODE = '8073-16';
+
+/**
  * "Sep 3" — enough date for the top of an emailed block.
  *
  * ⚠️ The BUSINESS date, not the calendar one: a write-up finished after midnight still belongs to
@@ -103,7 +109,7 @@ export function ClosingInventorySection() {
       {open && (
         <div className="px-4 pb-4 space-y-3">
           <p className="text-[11px] text-gray-500 dark:text-gray-400">
-            Form 8073-16, PM. Supplements the paper — the tag fills four columns, you decide the status.
+            Location 8073-16, PM. Supplements the paper — the tag fills four columns, you decide the status.
           </p>
 
           <PhotoError message={photoError} />
@@ -165,6 +171,7 @@ export function ClosingInventorySection() {
           entries={entries}
           tally={tally}
           meta={{
+            locationCode: LOCATION_CODE,
             branch: activeBranch,
             // ⚠️ The BUSINESS date, not the calendar one — a write-up finished after midnight still
             // belongs to the shift that did it, which is the whole reason shiftDay exists.
