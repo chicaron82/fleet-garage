@@ -20,7 +20,7 @@ import { scanHoldLines, flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { consolidateDamage, cycleLabel } from '../../lib/consolidateDamage';
 import { useAuth } from '../../context/AuthContext';
 import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
-import { ScanManualPlate } from './ScanManualPlate';
+import { VehicleLookup } from '../shared/VehicleLookup';
 import { ScanVehicleCapture } from './ScanVehicleCapture';
 import { ScanPlateWatch } from './ScanPlateWatch';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
@@ -213,8 +213,13 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
           )}
 
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
-          {/* Always offered, not just after a failure — see ScanManualPlate. */}
-          <ScanManualPlate onSubmit={p => void onManualPlate(p)} busy={reading} />
+          {/* Always offered, not just after a failure — see VehicleLookup.
+              ⭐ Suggestions here on his call (2026-09-04): the overlay was the last surface still
+              typing blind, and the field he reaches for when the tag will not read is exactly where
+              being shown the car is worth most. Picking one hands over its PLATE, so the resolver
+              below runs its normal path. */}
+          <VehicleLookup onPick={c => void onManualPlate('vehicle' in c ? c.vehicle.license_plate : c.typed)}
+            busy={reading} />
 
           {/* ✋ THE AMBUSH — leads the sheet, and renders WITH OR WITHOUT A RESOLVED VEHICLE.
               Both halves matter. Leading, because a watch is the one thing that changes what he

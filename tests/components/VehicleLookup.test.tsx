@@ -72,4 +72,52 @@ describe('VehicleLookup', () => {
     await new Promise(r => setTimeout(r, 260));
     expect(searchVehicles).not.toHaveBeenCalled();
   });
+
+  // ── inherited from ScanManualPlate, which this replaced ──────────────────────────────────────
+  //
+  // ⚠️ These five came ACROSS rather than dying with that file. A module's name is not its deletion
+  // unit: the behaviours below are all still true of the thing that replaced it, and dropping the
+  // file would have dropped their coverage silently while every remaining test stayed green.
+
+  // ⭐ Always present, never an error-state rescue: a fallback you must FAIL first to discover is
+  // one he would sit waiting on during a slow read instead of typing past.
+  it('is offered before anything has gone wrong', () => {
+    render(<VehicleLookup onPick={vi.fn()} />);
+    expect(screen.getByLabelText(/Look up a vehicle/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/if the scan is down/)).toBeInTheDocument();
+  });
+
+  it('takes Enter, because he is one-handed with a key tag in the other', () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} />);
+    type('LFJ679');
+    fireEvent.keyDown(screen.getByLabelText(/Look up a vehicle/), { key: 'Enter' });
+    expect(onPick).toHaveBeenCalledWith({ typed: 'LFJ679' });
+  });
+
+  it('clears itself after committing, so the next car starts empty', () => {
+    render(<VehicleLookup onPick={vi.fn()} />);
+    type('LUR489');
+    fireEvent.click(screen.getByRole('button', { name: 'Look up' }));
+    expect(screen.getByLabelText(/Look up a vehicle/)).toHaveValue('');
+  });
+
+  it('refuses an empty or whitespace-only entry', () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} />);
+    expect(screen.getByRole('button', { name: 'Look up' })).toBeDisabled();
+    type('   ');
+    expect(screen.getByRole('button', { name: 'Look up' })).toBeDisabled();
+    fireEvent.keyDown(screen.getByLabelText(/Look up a vehicle/), { key: 'Enter' });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it('stands down while a photo read is already in flight', () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} busy />);
+    type('LUR489');
+    expect(screen.getByRole('button', { name: 'Look up' })).toBeDisabled();
+    fireEvent.keyDown(screen.getByLabelText(/Look up a vehicle/), { key: 'Enter' });
+    expect(onPick).not.toHaveBeenCalled();
+  });
 });

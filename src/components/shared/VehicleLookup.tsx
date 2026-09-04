@@ -14,6 +14,12 @@
 // ⭐ So `searchVehicles` now matches plate OR unit, and this is the shared surface over it. It is
 // PRESENTATIONAL — it finds and it reports; committing to a car is the caller's job, because only
 // the caller knows what happens next.
+//
+// ⭐⭐ AND IT IS ALWAYS PRESENT, NEVER AN ERROR-STATE RESCUE — the rule inherited from
+// `ScanManualPlate`, which this replaced. Aaron, 2026-08-25, standing at a car with a dead scanner:
+// *"how bout a fall back to enter plate if the scanner goes down too."* A fallback that only appears
+// AFTER a failure is one he has to fail first to discover, and on a slow read he would sit waiting
+// instead of typing. It costs one line of screen and removes a whole failure mode.
 import { useEffect, useRef, useState } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
 import { VehicleName } from './VehicleName';
