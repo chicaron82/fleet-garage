@@ -225,7 +225,10 @@ export function handEntry(plate: string, status: InventoryStatus): InventoryEntr
 
 /** Build the row a scan produces, with the carries applied. */
 export function entryFromScan(
-  vehicle: Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'owningArea' | 'rentalClass' | 'isUs'>,
+  vehicle: Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'owningArea' | 'rentalClass' | 'isUs'>
+    // ⭐ The MODEL, because a class that is not a body type (`E6`) can only be banded by looking at
+    // the car. Optional so a caller that genuinely has no model still gets a suggestion from class.
+    & { model?: string | null },
   holds: readonly ActiveHold[],
   carried: { status: InventoryStatus | null; row: string; filled?: Readonly<Record<string, number>> },
 ): { entry: InventoryEntry; why: string | null; suggestedRow: string | null } {
@@ -245,7 +248,7 @@ export function entryFromScan(
       note: d.note,
     },
     why: d.why,
-    suggestedRow: suggestRow(vehicle.rentalClass, carried.filled ?? {}),
+    suggestedRow: suggestRow(vehicle.rentalClass, carried.filled ?? {}, vehicle.model),
   };
 }
 
@@ -260,6 +263,8 @@ export function entryFromScan(
  */
 export interface TagIdentity {
   plate: string;
+  /** ⭐ The tag prints make and model too — and `E6` can only be banded by the model. */
+  model?: string | null;
   owningArea?: string | null;
   unitNumber?: string | null;
   rentalClass?: string | null;
@@ -290,7 +295,7 @@ export function entryFromTag(
       note: '',
     },
     why: status ? 'carried — not in the fleet' : 'not in the fleet',
-    suggestedRow: suggestRow(tag.rentalClass, carried.filled ?? {}),
+    suggestedRow: suggestRow(tag.rentalClass, carried.filled ?? {}, tag.model),
   };
 }
 

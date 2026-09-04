@@ -82,6 +82,7 @@ export function ClosingInventorySection() {
       owningArea: scan.read.owningArea,
       unitNumber: scan.read.unitNumber,
       rentalClass: scan.read.rentalClass,
+      model: scan.read.model,
     });
   }, [scan, addTag]);
 

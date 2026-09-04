@@ -50,7 +50,12 @@ const BANDS: readonly { rows: readonly string[]; classes: readonly string[]; lab
   // ⭐ "B, C, F, sedans. compact, mid-size, full size." And "small vehicles" is what resolves B —
   // it holds a Kona, a Versa and a Corolla Hatchback, three body types that are all SMALL. The
   // ambiguity I flagged in that class was mine, not the lot's.
-  { rows: ['4', '5'], classes: ['B', 'C', 'F'], label: 'sedans / small' },
+  // ⭐ Teslas ride here on Aaron's instruction (2026-09-04): *"sedans are common, so teslas go with
+  // sedans"* — `B9` `E7` `E8` `E9`, 25 cars, verified against the fleet. ⚠️ A Model Y is not a sedan;
+  // this is where he puts them, not a claim about the shape. And the SENDING rule outranks it — a
+  // Tesla drains while parked, so staging is the fallback, never the plan (memory
+  // `reference_tesla_handling`).
+  { rows: ['4', '5'], classes: ['B', 'C', 'F', 'B9', 'E7', 'E8', 'E9'], label: 'sedans / small' },
 ];
 
 /**
@@ -70,10 +75,46 @@ const BANDS: readonly { rows: readonly string[]; classes: readonly string[]; lab
  *     row-1 car, so this waits for an answer instead of inventing one.
  * Measured across the live fleet 2026-09-02; see the memory `reference_erin_st_lot_rows`.
  */
-export function suggestBand(rentalClass: string | null | undefined): readonly string[] | null {
+/**
+ * ⭐⭐⭐ WHEN THE CLASS IS NOT A BODY TYPE, LOOK AT THE CAR. Aaron, 2026-09-04, resolving `E6`:
+ * *"E6 sedans with sedans. again goes with the look like model. because E6 sportage and rav4's
+ * don't look like sedans so go with the SUV lanes."*
+ *
+ * `E6` is the HYBRID class — 45 cars spanning Corolla, Camry, Civic, Prius, Sportage and RAV4 — so
+ * the class genuinely cannot name a row and the MODEL has to. This is the same rule as everywhere
+ * else on the lot, applied one level down: *does it look like a sedan.*
+ *
+ * ⚠️⚠️ WHOLE-STRING MATCH, NEVER A PREFIX — the `B`/`B5` lesson in a new costume. A prefix on
+ * `COROLLA` would swallow a **Corolla Hatchback**, which is a different shape and lives in class `B`.
+ * `CAMRY SE` is therefore listed in full rather than matched by its first word.
+ *
+ * ⚠️ **PRIUS IS DELIBERATELY ABSENT.** It is a liftback: it fails his trunk-vs-gate test but is not
+ * a Sportage either, and he named only Sportage and RAV4 as the SUV side. 4 cars, unasked — so it
+ * suggests nothing rather than guessing, exactly like the unbanded classes above.
+ */
+const SHAPE_BY_MODEL: Readonly<Record<string, 'sedan' | 'suv'>> = {
+  COROLLA: 'sedan', CAMRY: 'sedan', 'CAMRY SE': 'sedan', CIVIC: 'sedan',
+  SPORTAGE: 'suv', RAV4: 'suv',
+};
+
+const SEDAN_ROWS = ['4', '5'] as const;
+const SUV_ROWS = ['2', '3'] as const;
+
+export function suggestBand(
+  rentalClass: string | null | undefined,
+  model?: string | null,
+): readonly string[] | null {
   const c = (rentalClass ?? '').trim().toUpperCase();
   if (!c) return null;
-  return BANDS.find(b => b.classes.includes(c))?.rows ?? null;
+  const byClass = BANDS.find(b => b.classes.includes(c))?.rows;
+  if (byClass) return byClass;
+
+  // ⚠️ The model is consulted ONLY when the class could not answer, so a banded class can never be
+  // overridden by a model list. Class first; shape as the fallback.
+  const shape = SHAPE_BY_MODEL[(model ?? '').trim().toUpperCase()];
+  if (shape === 'sedan') return SEDAN_ROWS;
+  if (shape === 'suv') return SUV_ROWS;
+  return null;
 }
 
 /**
@@ -86,8 +127,9 @@ export function suggestBand(rentalClass: string | null | undefined): readonly st
 export function suggestRow(
   rentalClass: string | null | undefined,
   filled: Readonly<Record<string, number>> = {},
+  model?: string | null,
 ): string | null {
-  const band = suggestBand(rentalClass);
+  const band = suggestBand(rentalClass, model);
   if (!band) return null;
   for (const r of band) {
     const cap = ROW_CAPACITY[r];

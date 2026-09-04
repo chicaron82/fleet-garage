@@ -4,7 +4,7 @@
 // Every rule below came out of Aaron correcting a mock, six rounds of it. None of them are readable
 // off the form, and one of them is a mistake somebody already made in pencil on the real lot map.
 import { describe, it, expect } from 'vitest';
-import { suggestRow, rowLabel } from '../../src/lib/closingInventoryLot';
+import { suggestRow, suggestBand, rowLabel } from '../../src/lib/closingInventoryLot';
 
 // ── the class → row band ──────────────────────────────────────────────────────────────────────
 //
@@ -48,10 +48,13 @@ describe('suggestRow', () => {
     expect(suggestRow('E6')).toBeNull();
   });
 
-  it('says nothing for the classes nobody has banded yet', () => {
-    // "Premiums" sits in row 1's description and a subcompact XC40 is not obviously a row-1 car,
-    // so the Volvos, the Teslas, E1 and V wait for an answer instead of getting an inference.
-    for (const c of ['W4', 'Z4', 'H4', 'E7', 'E8', 'B9', 'E9', 'E1', 'V']) {
+  // ⭐ UPDATED 2026-09-04: the Teslas came OFF this list — *"sedans are common, so teslas go with
+  // sedans."* What is left is unbanded for two different reasons, and neither is an oversight:
+  //   • the VOLVOS are not staged at all — *"generally wanted right away so really no point in
+  //     parking them only to get buried"* (a lane is a queue, so depth is delay);
+  //   • `E1` and `V` have simply never been asked about.
+  it('says nothing for the classes that are not staged, or not yet asked', () => {
+    for (const c of ['W4', 'Z4', 'H4', 'E1', 'V']) {
       expect(suggestRow(c)).toBeNull();
     }
   });
@@ -109,5 +112,65 @@ describe('rowLabel', () => {
   it('is empty for nothing', () => {
     expect(rowLabel('')).toBe('');
     expect(rowLabel(null)).toBe('');
+  });
+});
+
+// ── the classes the CLASS cannot band ─────────────────────────────────────────────────────────
+//
+// ⭐⭐⭐ Aaron, 2026-09-04: *"E6 sedans with sedans. again goes with the look like model. because E6
+// sportage and rav4's don't look like sedans so go with the SUV lanes."* — the same looks-like rule
+// as the rest of the lot, applied one level down when the class is not a body type.
+describe('suggestBand — the model resolves a class that is not a body type', () => {
+  it('⭐ puts the E6 sedans with the sedans', () => {
+    for (const m of ['Corolla', 'Camry', 'Camry SE', 'Civic']) {
+      expect(suggestBand('E6', m)).toEqual(['4', '5']);
+    }
+  });
+
+  it('⭐ puts the E6 SUVs with the SUVs — the two he named', () => {
+    for (const m of ['Sportage', 'RAV4']) {
+      expect(suggestBand('E6', m)).toEqual(['2', '3']);
+    }
+  });
+
+  it('is case- and space-insensitive about the model', () => {
+    expect(suggestBand('E6', '  rav4 ')).toEqual(['2', '3']);
+  });
+
+  // ⚠️ PRIUS IS A LIFTBACK: it fails the trunk-vs-gate test but is not a Sportage either, and he
+  // named only Sportage and RAV4 as the SUV side. 4 cars, unasked — so it suggests NOTHING.
+  it('⚠️ says nothing for a Prius, because he has not been asked', () => {
+    expect(suggestBand('E6', 'Prius')).toBeNull();
+    expect(suggestRow('E6', {}, 'Prius')).toBeNull();
+  });
+
+  it('says nothing for an E6 whose model FG does not know', () => {
+    expect(suggestBand('E6')).toBeNull();
+    expect(suggestBand('E6', 'Kona')).toBeNull();
+  });
+
+  // ⚠️⚠️ WHOLE-STRING, NEVER A PREFIX — the B/B5 lesson one level down. A Corolla HATCHBACK is a
+  // different shape and lives in class B; a prefix match on COROLLA would swallow it.
+  it('does NOT match a model by its prefix', () => {
+    expect(suggestBand('E6', 'Corolla Hatchback')).toBeNull();
+    expect(suggestBand('E6', 'RAV4 Prime')).toBeNull();
+  });
+
+  // ⚠️ Class first, shape only as the fallback — a banded class can never be overridden by a model.
+  it('never lets the model override a class that IS banded', () => {
+    expect(suggestBand('B5', 'Corolla')).toEqual(['2', '3']);
+    expect(suggestBand('R', 'Camry')).toEqual(['1']);
+  });
+});
+
+// ⭐ *"sedans are common, so teslas go with sedans."* B9/E7/E8/E9, 25 cars, verified against FG.
+describe('suggestBand — Teslas', () => {
+  it('puts every Tesla class in the sedan rows', () => {
+    for (const c of ['B9', 'E7', 'E8', 'E9']) expect(suggestRow(c)).toBe('4');
+  });
+
+  // ⚠️ The Volvos are still deliberately unbanded — they are not staged at all.
+  it('still says nothing for the Volvos', () => {
+    for (const c of ['W4', 'Z4', 'H4']) expect(suggestBand(c)).toBeNull();
   });
 });
