@@ -12,6 +12,7 @@ import { useUserResolver } from '../../hooks/useUserResolver';
 import { useBarcodeInterceptor } from '../../hooks/useBarcodeInterceptor';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { ModuleHeader } from '../shared/ModuleHeader';
+import { Sparkles } from '../shared/Sparkles';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
@@ -224,7 +225,10 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
             ? <PrimaryAction label="Add to FG & flag" onClick={() => onRegisterAndFlag(search)} />
             : <KeytagSearchScan onPlate={handleKeytagPlate} onRead={(read, photo) => void backfillFromRead(read, photo)} />}
           {/* Never fill silently — name what the tag just landed on the record. */}
-          {backfillToast && <p className="text-xs font-semibold text-green-700 dark:text-green-400">{backfillToast}</p>}
+          {backfillToast && (
+            <p className="relative text-xs font-semibold text-green-700 dark:text-green-400">
+              {backfillToast}<Sparkles size="0.75rem" /></p>
+          )}
         </div>
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}

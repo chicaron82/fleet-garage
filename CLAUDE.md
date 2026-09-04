@@ -112,6 +112,48 @@ wrote a highlight for a state the filter made unreachable, and I render-verified
    their words. If the fix erased every real instance, manufacture one — and then **check the
    durable side effect (the row), not the visible one (the toast)**.
 
+## ⭐⭐⭐ UNAPOLOGETICALLY BOUGIE — functional is boring (2026-09-04)
+
+Aaron, unprompted, after an hour of me arguing him out of a sparkle with a rate table:
+
+> *"there's something we dropped along the way while working on FG. we stopped being unapologetically
+> bougie. functional is boring. bougie makes it a little exciting to work on and use."*
+
+**The drift is measurable.** The last commit that used *bougie* as a PRACTICE is `9e92c77`
+(2026-07-17) — the bougie eighths fuel slider. **330 commits later**, the word appears only in
+comments *about the bougie-toasts ticket*. It went from something FG **was** to something FG has a
+**ticket about**. The only occurrence of *delight* in the whole codebase weighs it against restraint.
+
+⚠️⚠️ **AND THE CAUSE IS ME.** Every restraint argument was defensible alone — don't build unasked,
+scale the flourish to rarity, five toast call sites, the signal budget, `no HIR scheduled`. **Taken
+together they are a gradient**, and they point away from delight. He had to fight for a sparkle in
+his own tool.
+
+### What "bougie" actually means here
+
+⭐ It is **his** word and it means an **ELEVATED ORDINARY THING** — the food-court pizza eaten
+properly, the sun-chaser kayak. **Not confetti. Not gamification.** A plain thing made with more care
+than it strictly needed. The eighths fuel slider is the reference implementation: a `<select>` would
+have worked.
+
+### How to apply
+
+1. **Delight is a REQUIREMENT, not a reward for finishing the requirements.** *"Bougie makes it a
+   little exciting to work on and use"* — note **both** audiences. It is not only for the operator on
+   the lot; it is for the two of us building it. A boring codebase is a real cost.
+2. ⚠️ **A defensible reason to leave the flourish out is still a reason to leave it out.** Restraint
+   arguments are individually cheap and cumulatively total. **If the answer to "should this be nicer"
+   has been "not yet" three times running, the answer is wrong.**
+3. **Ask it out loud on anything user-facing: what is the bougie half of this?** If there is no
+   answer, that is a finding, not a pass.
+4. ⭐ **Where restraint genuinely matters — an honest signal, a real accessibility floor — make it a
+   SWITCH, not a veto.** The `sparkles` pref is the pattern: he gets the version he asked for, the
+   restrained version is one tap away, and nobody has to win the argument.
+
+⚠️ **This section is documentation, and documentation is exactly what failed for Button language
+three days after it was written.** So it is not a rule to remember — it is a question to ask at
+review: *is this only correct?*
+
 ## Button language — write it down, because neither of us remembered
 
 Aaron, 2026-08-30, on two black buttons in My Shift: *"action buttons in FG are yellow (other than

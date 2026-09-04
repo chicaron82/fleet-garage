@@ -32,6 +32,7 @@ import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import type { Screen } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
+import { Sparkles } from '../shared/Sparkles';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -381,7 +382,11 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
                 )}
                 {/* Never fill silently — name exactly what the tag just landed on the record. */}
                 {backfillToast && (
-                  <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">{backfillToast}</p>
+                  /* ⭐ Sparkled IN PLACE rather than promoted to a Toast: this line is CONTEXT he
+                     reads beside the card, not transient news, and a 3-second toast would cost the
+                     information to gain the flourish. `relative` hosts the sparkle layer. */
+                  <p className="relative text-xs font-semibold mt-1 text-green-700 dark:text-green-400">
+                    {backfillToast}<Sparkles size="0.75rem" /></p>
                 )}
                 {/* ...and never DISAGREE silently either. The tag in his hand is the best evidence
                     FG gets; a record that contradicts it is worth a line, not a shrug. */}
