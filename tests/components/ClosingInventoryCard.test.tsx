@@ -97,26 +97,65 @@ describe('ClosingInventorySheet', () => {
   ];
 
   it('⭐⭐ the tally shows where cars ARE — in more than one row at once', () => {
-    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={vi.fn()} />);
+    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={vi.fn()} onEdit={vi.fn()} onUndo={vi.fn()} />);
     expect(screen.getByText(/R-4 1\/8/)).toBeInTheDocument();
     expect(screen.getByText(/R-5 2\/8/)).toBeInTheDocument();
   });
 
   it('an available car\'s note is its ROW; a B\'s note is the damage', () => {
-    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={vi.fn()} />);
+    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={vi.fn()} onEdit={vi.fn()} onUndo={vi.fn()} />);
     expect(screen.getByText('R-4')).toBeInTheDocument();
     expect(screen.getByText('windshield chip')).toBeInTheDocument();
   });
 
   it('empty sheet says so rather than rendering an empty table', () => {
-    render(<ClosingInventorySheet entries={[]} tally={[]} onRemove={vi.fn()} />);
+    render(<ClosingInventorySheet entries={[]} tally={[]} onRemove={vi.fn()} onEdit={vi.fn()} onUndo={vi.fn()} />);
     expect(screen.getByText(/Nothing written up yet/)).toBeInTheDocument();
   });
 
   it('a row can be removed by plate', () => {
     const onRemove = vi.fn();
-    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={onRemove} />);
+    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={onRemove} onEdit={vi.fn()} onUndo={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Remove CCC333' }));
     expect(onRemove).toHaveBeenCalledWith(2);
+  });
+
+  // ⭐ *"a new damage brought in after i've already recorded all the damages"* — the status of a car
+  // can change AFTER it is written up, and re-scanning to fix it is not a workflow.
+  it('a recorded row can be opened for editing, by plate', () => {
+    const onEdit = vi.fn();
+    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={vi.fn()} onEdit={onEdit} onUndo={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit DDD444' }));
+    expect(onEdit).toHaveBeenCalledWith(3);
+  });
+
+  // ⚠️ NOT the same control as the per-row ×. Undo means "I entered that wrong"; the × means a
+  // driver took the car. Same effect on the sheet, different reason.
+  it('undo-last is its own control, separate from removing a row', () => {
+    const onUndo = vi.fn(), onRemove = vi.fn();
+    render(<ClosingInventorySheet entries={rows} tally={rowTally(rows)} onRemove={onRemove} onEdit={vi.fn()} onUndo={onUndo} />);
+    fireEvent.click(screen.getByRole('button', { name: /Undo last/ }));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(onRemove).not.toHaveBeenCalled();
+  });
+});
+
+// ⭐ The card doubles as the EDITOR for a row already on the sheet — one editor, not a second one
+// free to drift from it. Only its two action labels change.
+describe('ClosingInventoryCard as an editor', () => {
+  it('takes the labels the caller gives it', () => {
+    render(<ClosingInventoryCard entry={entry({ status: 'B', note: 'chip' })} why="already on the sheet"
+      suggestedRow={null} addLabel="Save" skipLabel="Cancel"
+      onChange={vi.fn()} onAdd={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to sheet' })).not.toBeInTheDocument();
+  });
+
+  it('still defaults to the scan-path labels when none are given', () => {
+    render(<ClosingInventoryCard entry={entry()} why={null} suggestedRow={null}
+      onChange={vi.fn()} onAdd={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Add to sheet' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
   });
 });

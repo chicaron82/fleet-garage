@@ -13,6 +13,7 @@ import { useClosingInventory } from '../../hooks/useClosingInventory';
 import { useShareText } from '../../hooks/useShareText';
 import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
+import { ScanManualPlate } from '../scan-router/ScanManualPlate';
 import { ShareTextButton } from '../shared/ShareTextButton';
 import { buildInventoryReport } from '../../lib/closingInventoryReport';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
@@ -44,14 +45,18 @@ export function ClosingInventorySection() {
   /** Only his EDITS live in state. The row itself is derived from the scan, every render. */
   const [edits, setEdits] = useState<Partial<InventoryEntry>>({});
   const [overrodeExclusion, setOverrode] = useState(false);
+  /** A plate he typed because the tag would not read — resolved against the fleet, not assumed new. */
+  const [typed, setTyped] = useState('');
+  /** A row already on the sheet, being corrected in place. */
+  const [editing, setEditing] = useState<{ index: number; entry: InventoryEntry } | null>(null);
 
   const { copied, share } = useShareText();
-  const { getActiveHolds } = useVehicleHoldContext();
+  const { getActiveHolds, vehicles } = useVehicleHoldContext();
   const { scan, scanPhoto, reading, reset, register, staged, err: scanErr } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
   const {
     entries, tally, counts, carriedStatus, carriedRow,
-    addScan, addTag, commit, removeAt, clear,
+    addScan, addTag, commit, updateAt, removeAt, undoLast, clear,
   } = useClosingInventory();
 
   /**
@@ -77,16 +82,34 @@ export function ClosingInventorySection() {
    */
   const fromTag = useMemo(() => {
     if (!scan || scan.result.vehicle || !scan.result.plate) return null;
-    return addTag({
+    return { ...addTag({
       plate: scan.result.plate,
       owningArea: scan.read.owningArea,
       unitNumber: scan.read.unitNumber,
       rentalClass: scan.read.rentalClass,
       model: scan.read.model,
-    });
+    }), excluded: null };
   }, [scan, addTag]);
 
-  const pending = built ?? fromTag;
+  /**
+   * ⭐⭐ A TYPED PLATE IS LOOKED UP, NOT ASSUMED NEW. Aaron, 2026-09-04: *"sure hand entry, but should
+   * also look up if FG holds it but couldn't read it off the tag itself."* `handEntry` alone would
+   * make a bare row for a car FG knows perfectly well — the tag being unreadable says nothing about
+   * whether the car is on file.
+   *
+   * ⚠️ TYPED, THEREFORE NEVER CORRECTED — the same rule the airport flip states: the misread
+   * corrector belongs under a camera, not under his thumbs.
+   */
+  const fromTyped = useMemo(() => {
+    const plate = typed.trim().toUpperCase().replace(/\s+/g, '');
+    if (!plate) return null;
+    const v = vehicles.find(x => x.licensePlate.trim().toUpperCase() === plate);
+    if (!v) return { ...addTag({ plate }), excluded: null };
+    const holds = getActiveHolds(v.id) as unknown as ActiveHold[];
+    return { ...addScan(v, holds), excluded: exclusionReason(holds) };
+  }, [typed, vehicles, getActiveHolds, addScan, addTag]);
+
+  const pending = built ?? fromTag ?? fromTyped;
   const pendingEntry: InventoryEntry | null = pending ? { ...pending.entry, ...edits } : null;
 
   /** ⚠️ Registering needs make/model/year off the tag; a short read can still reach the sheet. */
@@ -95,6 +118,7 @@ export function ClosingInventorySection() {
   function done() {
     setEdits({});
     setOverrode(false);
+    setTyped('');
     reset();
   }
 
@@ -150,8 +174,16 @@ export function ClosingInventorySection() {
             </div>
           )}
 
-          {built && pendingEntry && built.excluded && !overrodeExclusion ? (
-            <ClosingInventoryExclusion plate={pendingEntry.plate} reason={built.excluded}
+          {editing ? (
+            /* ⭐ THE SAME CARD, EDITING A RECORDED ROW — *"a new damage brought in after i've already
+               recorded all the damages"*. One editor rather than a second one free to drift. */
+            <ClosingInventoryCard entry={editing.entry} why="already on the sheet" suggestedRow={null}
+              addLabel="Save" skipLabel="Cancel"
+              onChange={patch => setEditing(x => (x ? { ...x, entry: { ...x.entry, ...patch } } : x))}
+              onAdd={() => { updateAt(editing.index, editing.entry); setEditing(null); }}
+              onSkip={() => setEditing(null)} />
+          ) : pending && pendingEntry && pending.excluded && !overrodeExclusion ? (
+            <ClosingInventoryExclusion plate={pendingEntry.plate} reason={pending.excluded}
               onSkip={done} onAnyway={() => setOverrode(true)} />
           ) : pending && pendingEntry ? (
             <ClosingInventoryCard entry={pendingEntry} why={pending.why} suggestedRow={pending.suggestedRow}
@@ -162,10 +194,15 @@ export function ClosingInventorySection() {
             <>
               <ScanButton onFile={onFile} reading={reading} fullWidth
                 label="Scan a key tag" className="py-3" />
+              {/* ⚠️ Always present, never an error-state rescue — a fallback he has to fail first to
+                  discover is one he waits on instead of using. Same reasoning as the header scanner's. */}
+              <ScanManualPlate onSubmit={setTyped} busy={reading} />
             </>
           )}
 
-          <ClosingInventorySheet entries={entries} tally={tally} onRemove={removeAt} />
+          <ClosingInventorySheet entries={entries} tally={tally} onRemove={removeAt}
+            onEdit={i => { const e = entries[i]; if (e) setEditing({ index: i, entry: e }); }}
+            onUndo={undoLast} />
 
           {entries.length > 0 && (
             <>

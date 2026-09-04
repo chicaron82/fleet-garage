@@ -79,3 +79,31 @@ describe('useClosingInventory', () => {
     expect(result.current.carriedRow).toBe('');
   });
 });
+
+// ⭐ Undo-last and removeAt are NOT the same operation. Undo is "I entered that wrong"; removeAt is
+// *"sometimes drivers need a vehicle that i've already written up"* — the world changed.
+describe('undoLast', () => {
+  it('takes the last row straight back off', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => { result.current.addByHand('AAA111', 'A'); });
+    act(() => { result.current.addByHand('BBB222', 'D'); });
+    expect(result.current.entries).toHaveLength(2);
+    act(() => { result.current.undoLast(); });
+    expect(result.current.entries.map(e => e.plate)).toEqual(['AAA111']);
+  });
+
+  // ⚠️ He is mid-pile either way. Resetting the status he is carrying because he fixed a typo would
+  // make him re-pick it for the very next car.
+  it('leaves the carried status alone — a typo does not change which pile he is holding', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => { result.current.addByHand('AAA111', 'D'); });
+    act(() => { result.current.undoLast(); });
+    expect(result.current.carriedStatus).toBe('D');
+  });
+
+  it('is harmless on an empty sheet', () => {
+    const { result } = renderHook(() => useClosingInventory());
+    act(() => { result.current.undoLast(); });
+    expect(result.current.entries).toEqual([]);
+  });
+});

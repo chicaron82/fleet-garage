@@ -32,7 +32,10 @@ export function ClosingInventoryExclusion({ plate, reason, onSkip, onAnyway }: {
   );
 }
 
-export function ClosingInventoryCard({ entry, why, suggestedRow, onChange, onAdd, onSkip }: {
+export function ClosingInventoryCard({
+  entry, why, suggestedRow, onChange, onAdd, onSkip,
+  addLabel = 'Add to sheet', skipLabel = 'Skip',
+}: {
   entry: InventoryEntry;
   /** Why FG picked this status, or that it simply carried. Shown, never silent. */
   why: string | null;
@@ -40,6 +43,10 @@ export function ClosingInventoryCard({ entry, why, suggestedRow, onChange, onAdd
   onChange: (patch: Partial<InventoryEntry>) => void;
   onAdd: () => void;
   onSkip: () => void;
+  /** ⭐ So the SAME card can edit a row already on the sheet — *"a new damage brought in after i've
+   *  already recorded all the damages"*. One editor, not a second one that can drift from it. */
+  addLabel?: string;
+  skipLabel?: string;
 }) {
   const [moreRows, setMoreRows] = useState(false);
   const band = suggestBand(entry.rentalClass);
@@ -110,10 +117,10 @@ export function ClosingInventoryCard({ entry, why, suggestedRow, onChange, onAdd
 
       <div className="flex gap-2">
         <button type="button" onClick={onSkip}
-          className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">Skip</button>
+          className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">{skipLabel}</button>
         <button type="button" onClick={onAdd} disabled={!entry.row && entry.status === 'A'}
           className="flex-1 rounded-lg bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 text-xs font-semibold py-2 cursor-pointer hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          Add to sheet
+          {addLabel}
         </button>
       </div>
     </div>

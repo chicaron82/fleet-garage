@@ -5,10 +5,16 @@
 // rendering them would be theatre.
 import { rowLabel, sheetNote, STATUS_LABELS, type InventoryEntry, type RowTally } from '../../lib/closingInventory';
 
-export function ClosingInventorySheet({ entries, tally, onRemove }: {
+export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo }: {
   entries: readonly InventoryEntry[];
   tally: readonly RowTally[];
+  /** *"sometimes drivers need a vehicle that i've already written up"* — the world changed. */
   onRemove: (index: number) => void;
+  /** ⭐ *"a new damage brought in after i've already recorded all the damages"* — a car's status can
+   *  change AFTER it is on the sheet, and re-scanning to fix it is not a workflow. */
+  onEdit: (index: number) => void;
+  /** A MIS-ENTRY, not a change in the world — takes the last row straight back off. */
+  onUndo: () => void;
 }) {
   if (entries.length === 0) {
     return (
@@ -20,6 +26,14 @@ export function ClosingInventorySheet({ entries, tally, onRemove }: {
 
   return (
     <div className="space-y-2">
+      {/* ⭐ Undo-last was in the greenlit mock and never got wired. It is NOT the per-row ×: this
+          one means "I entered that wrong", the × means a driver took the car. */}
+      <div className="flex justify-end">
+        <button type="button" onClick={onUndo}
+          className="text-[11px] font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 cursor-pointer transition">
+          ↩ Undo last
+        </button>
+      </div>
       {/* ⚠️ THIS IS NOT THE CARRIED ROW. Aaron caught the first version showing one row while his
           sheet held available cars in three — the carry is what the NEXT car inherits, this is
           where they are. Conflating them put a label over a value that meant something else. */}
@@ -48,7 +62,7 @@ export function ClosingInventorySheet({ entries, tally, onRemove }: {
               <th className="py-1 pr-2 font-medium">Cls</th>
               <th className="py-1 pr-2 font-medium">St</th>
               <th className="py-1 pr-2 font-medium w-full">Notes</th>
-              <th className="py-1 sr-only">Remove</th>
+              <th className="py-1 sr-only">Edit or remove</th>
             </tr>
           </thead>
           <tbody>
@@ -61,7 +75,10 @@ export function ClosingInventorySheet({ entries, tally, onRemove }: {
                 <td className="py-1 pr-2 font-bold text-gray-900 dark:text-gray-100"
                   title={STATUS_LABELS[e.status]}>{e.status}</td>
                 <td className="py-1 pr-2 text-gray-600 dark:text-gray-300">{sheetNote(e) || '—'}</td>
-                <td className="py-1 text-right">
+                <td className="py-1 text-right whitespace-nowrap">
+                  <button type="button" onClick={() => onEdit(i)}
+                    aria-label={`Edit ${e.plate}`}
+                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 px-1 cursor-pointer transition">✎</button>
                   <button type="button" onClick={() => onRemove(i)}
                     aria-label={`Remove ${e.plate}`}
                     className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-1 cursor-pointer transition">×</button>

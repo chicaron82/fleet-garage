@@ -36,6 +36,9 @@ export interface ClosingInventoryState {
   addByHand: (plate: string, status: InventoryStatus) => void;
   updateAt: (index: number, patch: Partial<InventoryEntry>) => void;
   removeAt: (index: number) => void;
+  /** ⭐ Take the last row back off — a MIS-ENTRY, which is a different thing from removeAt's
+   *  "a driver took that car". Same effect on the sheet, different reason. */
+  undoLast: () => void;
   setCarriedRow: (row: string) => void;
   clear: () => void;
 }
@@ -106,6 +109,18 @@ export function useClosingInventory(): ClosingInventoryState {
     setEntries(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  /**
+   * ⭐⭐ UNDO-LAST AND REMOVE-AT ARE NOT THE SAME OPERATION, and the mock had only the first.
+   * Undo is *"I entered that wrong"*; remove is *"sometimes drivers need a vehicle that i've already
+   * written up"* — the world changed. Both shrink the sheet; only one is a correction.
+   *
+   * ⚠️ The CARRIES are deliberately left alone. He is mid-pile either way, and resetting the status
+   * he is carrying because he fixed a typo would make him re-pick it for the next car.
+   */
+  const undoLast = useCallback(() => {
+    setEntries(prev => prev.slice(0, -1));
+  }, []);
+
   const clear = useCallback(() => {
     setEntries([]);
     setCarriedStatus(null);
@@ -114,6 +129,6 @@ export function useClosingInventory(): ClosingInventoryState {
 
   return {
     entries, carriedStatus, carriedRow, tally, counts, filled,
-    addScan, addTag, commit, addByHand, updateAt, removeAt, setCarriedRow, clear,
+    addScan, addTag, commit, addByHand, updateAt, removeAt, undoLast, setCarriedRow, clear,
   };
 }
