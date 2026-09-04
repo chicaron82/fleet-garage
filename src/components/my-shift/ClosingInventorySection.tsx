@@ -6,20 +6,22 @@
 //
 // ⭐ Collapsed by default, like its neighbours. Most nights he is not closing.
 import { useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useRegisterOnScan } from '../../hooks/useRegisterOnScan';
 import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useClosingInventory } from '../../hooks/useClosingInventory';
 import { useShareText } from '../../hooks/useShareText';
 import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
+import { Toast } from '../shared/Toast';
 import { VehicleLookup } from '../shared/VehicleLookup';
 import { ShareTextButton } from '../shared/ShareTextButton';
 import { buildInventoryReport } from '../../lib/closingInventoryReport';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
 import { ClosingInventorySheet } from './ClosingInventorySheet';
 import { ClosingInventoryStrip } from './ClosingInventoryStrip';
-import { newVehicleFromRead } from '../../lib/resolveKeytagScan';
 import { businessDateOf } from '../../lib/shiftDay';
 import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
 
@@ -51,8 +53,20 @@ export function ClosingInventorySection() {
   const [editing, setEditing] = useState<{ index: number; entry: InventoryEntry } | null>(null);
 
   const { copied, share } = useShareText();
-  const { getActiveHolds, vehicles } = useVehicleHoldContext();
-  const { scan, scanPhoto, reading, reset, register, staged, err: scanErr } = useKeytagScan();
+  const { user } = useAuth();
+  const { getActiveHolds, vehicles, addVehicle, updateVehicleFields } = useVehicleHoldContext();
+  /**
+   * ⭐⭐ REUSED, NOT REBUILT. Aaron: *"use already what exists for registrating tags FG hasn't seen
+   * before."* This hook already syncs the fleet from a movement scan — *"a NEW plate is registered
+   * from the read, an ON-RECORD-but-PARTIAL one has its blank fields backfilled"* — and it exists
+   * because a trip was once logged against a car FG did not know (LUR315, 2026-07-15).
+   *
+   * ⭐ A sheet row against an unknown car is the same orphan, and the closing write-up is where the
+   * genuinely new cars turn up: the ones that arrived BEFORE his shift. It no-ops on a known car and
+   * on a read too partial to mint a record, so wiring it costs nothing on the other 56 tags.
+   */
+  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, user });
+  const { scan, scanPhoto, reading, reset } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
   const {
     entries, tally, counts, carriedStatus, carriedRow,
@@ -128,8 +142,6 @@ export function ClosingInventorySection() {
   const pending = built ?? fromTag ?? typedRow;
   const pendingEntry: InventoryEntry | null = pending ? { ...pending.entry, ...edits } : null;
 
-  /** ⚠️ Registering needs make/model/year off the tag; a short read can still reach the sheet. */
-  const registerable = !!fromTag && !!scan && !!newVehicleFromRead(scan.read, scan.result.plate);
 
   function done() {
     setEdits({});
@@ -140,7 +152,11 @@ export function ClosingInventorySection() {
 
   async function onFile(file: File) {
     const base64 = await takeOne(file);
-    if (base64) await scanPhoto(base64);
+    if (!base64) return;
+    const scanned = await scanPhoto(base64);
+    // ⚠️ NON-BLOCKING BY THE HOOK'S OWN CONTRACT — a failed write never stops the write-up, exactly
+    // as a failed write never stops a trip. The row is already built from the tag either way.
+    if (scanned) await handleScanRead(scanned.read);
   }
 
   return (
@@ -175,24 +191,11 @@ export function ClosingInventorySection() {
             </p>
           )}
           {fromTag && (
-            <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 space-y-1.5">
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                ⚠️ <b>{fromTag.entry.plate}</b> isn't in the fleet yet. It still goes on the sheet —
-                everything below came off the tag.
+                ⚠️ <b>{fromTag.entry.plate}</b> wasn't on file. It still goes on the sheet —
+                everything below came off the tag — and FG registers it from the read where it can.
               </p>
-              {/* ⭐ Staging a registration is FG's existing mechanism for "record it now, complete it
-                  later" — the same PendingWrites proposal the scan router and batch scan use. */}
-              {registerable ? (
-                <button type="button" onClick={() => void register()} disabled={staged}
-                  className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 cursor-pointer disabled:no-underline disabled:opacity-70">
-                  {staged ? '✓ Queued to register' : 'Register it too →'}
-                </button>
-              ) : (
-                <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
-                  The tag didn't give up enough to register it — add it by hand later.
-                </p>
-              )}
-              {scanErr && <p className="text-[10px] text-red-600 dark:text-red-400">{scanErr}</p>}
             </div>
           )}
 
@@ -252,6 +255,8 @@ export function ClosingInventorySection() {
           )}
         </div>
       )}
+      {registerToast && <Toast message={registerToast.message} variant={registerToast.tone}
+        sparkle={registerToast.sparkle} />}
     </div>
   );
 }

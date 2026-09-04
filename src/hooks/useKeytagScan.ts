@@ -19,7 +19,9 @@ export interface KeytagScanState {
   err: string;
   reading: boolean;
   /** Read + resolve a key-tag photo; `onPlate` fills the plate field with the corrected plate. */
-  scanPhoto: (base64: string, onPlate?: (plate: string) => void) => Promise<void>;
+  /** ⭐ Returns what it resolved, so a caller can hand the read straight to another hook without
+   *  waiting a render for `scan` state to land. Additive — existing callers ignore it. */
+  scanPhoto: (base64: string, onPlate?: (plate: string) => void) => Promise<{ read: KeytagRead; result: KeytagScanResult } | null>;
   register: () => Promise<void>;
   backfill: () => Promise<void>;
   reset: () => void;
@@ -36,10 +38,11 @@ export function useKeytagScan(): KeytagScanState {
   const scanPhoto = useCallback(async (base64: string, onPlate?: (plate: string) => void) => {
     setScan(null); setStaged(false); setErr('');
     const read = await readKeytag(base64);
-    if (!read) { setErr('Could not read that key tag.'); return; }
+    if (!read) { setErr('Could not read that key tag.'); return null; }
     const result = resolveKeytagScan(read, vehicles);
     setScan({ read, result });
     if (result.plate) onPlate?.(result.plate);
+    return { read, result };
   }, [readKeytag, vehicles]);
 
   const register = useCallback(async () => {
