@@ -125,11 +125,21 @@ export function ScanRouterOverlay({ navigate, onClose }: Props) {
     // A fuzzy LOOKUP downstream is welcome and does good work (his own screenshot shows `DFJK947`
     // finding `DFKJ947` through a transposition). Searching flexibly is help; rewriting the input
     // before searching is not.
-    const plate = typed.trim().toUpperCase().replace(/\s+/g, '');
-    if (!plate) return;
+    const raw = typed.trim().toUpperCase().replace(/\s+/g, '');
+    if (!raw) return;
     resetScanState();
     setScanPhoto(null);   // no tag was photographed — nothing to attach, and a stale one would lie
-    await applyRead({ plate });
+    // ⭐⭐ AN ALL-DIGIT ENTRY IS A UNIT NUMBER, NOT A PLATE — and `resolveKeytagScan` has matched on
+    // the unit since it was written (`matchByUnitNumber`, reporting `matchedByUnit`). It simply
+    // never got one from here: this path always built `{ plate }`, so the fallback had nothing to
+    // fall back to. **The capability was starved by the shape of the input, not missing.**
+    //
+    // Aaron, 2026-09-04: *"plate may be unreadable but you can still look up the unit right? how
+    // does the header scanner work. just plate only?"* — it was, and this is the whole fix.
+    const digits = raw.replace(/\D/g, '');
+    await applyRead(digits.length === raw.length && digits.length >= 5
+      ? { unitNumber: digits }
+      : { plate: raw });
   }, [applyRead]);
 
   // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,

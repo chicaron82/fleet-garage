@@ -193,3 +193,33 @@ describe('fillNote', () => {
     expect(fillNote([])).toBe('');
   });
 });
+
+// ⭐⭐ TYPING A UNIT NUMBER. Aaron, 2026-09-04: *"plate may be unreadable but you can still look up
+// the unit right? how does the header scanner work. just plate only?"* — the resolver has matched on
+// the unit since it was written; the manual path just never handed it one, always building a plate.
+// These pin the resolver's half of that contract.
+describe('resolving by unit number alone', () => {
+  const fleet = [
+    { id: 'v1', licensePlate: 'LUR306', unitNumber: '5422795', make: 'Kia', model: 'Forte', year: 2026 },
+    { id: 'v2', licensePlate: 'LFJ400', unitNumber: '5426408', make: 'Kia', model: 'Rio', year: 2025 },
+  ] as unknown as Vehicle[];
+
+  it('finds the car and says the UNIT is what did it', () => {
+    const r = resolveKeytagScan({ unitNumber: '5426408' } as KeytagRead, fleet);
+    expect(r.vehicle?.licensePlate).toBe('LFJ400');
+    expect(r.matchedByUnit).toBe(true);
+  });
+
+  // ⚠️ FG never resolves on a weaker key without saying so — a plate match is not "by unit".
+  it('does not claim a unit match when the plate found it', () => {
+    const r = resolveKeytagScan({ plate: 'LUR306', unitNumber: '5422795' } as KeytagRead, fleet);
+    expect(r.vehicle?.licensePlate).toBe('LUR306');
+    expect(r.matchedByUnit).toBe(false);
+  });
+
+  it('finds nothing for a unit the fleet does not carry', () => {
+    const r = resolveKeytagScan({ unitNumber: '9999999' } as KeytagRead, fleet);
+    expect(r.vehicle).toBeNull();
+    expect(r.matchedByUnit).toBe(false);
+  });
+});

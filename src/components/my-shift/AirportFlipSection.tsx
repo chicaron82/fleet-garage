@@ -21,6 +21,7 @@ import { parseOdometer, describeOdometer, odometerUnitFor } from '../../lib/odom
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
 import { FuelLevelSelector, FUEL_LABELS } from '../shared/FuelLevelSelector';
+import { VehicleLookup } from '../shared/VehicleLookup';
 import { BatteryLevelSelector } from '../shared/BatteryLevelSelector';
 import { isEvModel } from '../../../api/_lib/vehicleClassCodex';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
@@ -66,7 +67,6 @@ export function AirportFlipSection() {
   // Manual plate entry — the fallback when the AI scan is down (Anthropic busy) or misreads a
   // plate. The scan is a speed layer; the plate is the real identity key, so the flip must not
   // stop just because vision is unavailable.
-  const [manualPlate, setManualPlate] = useState('');
 
   // Diffed against what the car is SUPPOSED to carry, so FG says "a key short" instead of just
   // storing a number. Null keys = not counted; a car with no baseline seeds it from this count.
@@ -125,14 +125,31 @@ export function AirportFlipSection() {
   // keys, EV assets); an UNKNOWN plate still captures for the counter (they search by plate) — it's
   // just not auto-registered as a new fleet car, matching the scan path's "only register a complete
   // identity" rule (a bare plate is too partial to mint a real vehicle record).
-  const submitManualPlate = () => {
-    // ⚠️ Typed, therefore never corrected — see ScanRouterOverlay.onManualPlate. The misread
-    // corrector belongs under a camera, not under his thumbs.
-    const plate = manualPlate.trim().toUpperCase().replace(/\s+/g, '');
+  /**
+   * A car chosen from the lookup, or a string he committed that matched nothing.
+   *
+   * ⭐⭐ THIS USED TO BE PLATE-ONLY, AND EXACT. Aaron, 2026-09-04: *"plate may be unreadable but you
+   * can still look up the unit right?"* — and the flip is where that bites hardest, because it is
+   * the surface he types into most and the tag is often the thing that failed. It now resolves the
+   * plate, then the UNIT, in the same order the scan resolver uses.
+   *
+   * ⚠️ Typed, therefore never corrected — see ScanRouterOverlay.onManualPlate. The misread corrector
+   * belongs under a camera, not under his thumbs.
+   */
+  const captureByPlateOrUnit = (raw: string) => {
+    const plate = raw.trim().toUpperCase().replace(/\s+/g, '');
     if (!plate) { say('Enter a plate to continue.', 'alert'); return; }
-    const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null;
+    const digits = plate.replace(/\D/g, '');
+    const vehicle = vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate)
+      ?? (digits.length >= 5
+        ? vehicles.find(v => (v.unitNumber ?? '').replace(/\D/g, '') === digits)
+        : undefined)
+      ?? null;
+    // ⚠️ When the UNIT is what found the car, the plate he typed is not the car's plate — the flip
+    // must capture the car's own, or the counter searches for a number that is not a licence.
+    const captured = vehicle?.licensePlate.trim().toUpperCase() ?? plate;
     void openCapture({
-      plate,
+      plate: captured,
       unit: vehicle?.unitNumber ?? null,
       rentalClass: vehicle?.rentalClass ?? '',
       vehicle,
@@ -140,11 +157,11 @@ export function AirportFlipSection() {
       isEv: !!vehicle?.isTesla || isEvModel(vehicle?.model),
       vehicleId: vehicle?.id ?? null,
     }, vehicle);
-    setManualPlate('');
     // ⚠️ NOTICE, not alert — nothing failed here. The flip proceeds and the car is captured; he
     // just needs to know it isn't on file. Forcing this red would be the same lie in the other
     // direction, which is why the tone axis has three values instead of two.
     if (!vehicle) say(`${plate} — not on file, capturing for the counter.`, 'notice');
+    else if (captured !== plate) say(`Unit ${digits} → ${captured}.`, 'success');
   };
 
   const addToList = () => {
@@ -210,27 +227,11 @@ export function AirportFlipSection() {
       {!capture ? (
         <div className="space-y-2">
           <KeytagSearchScan onPlate={() => {}} onRead={(read, photo) => void onScan(read, photo)} />
-          {/* Manual plate fallback — flip keeps going if the AI scan is down or misreads. */}
-          <div className="flex items-center gap-2">
-            <input
-              className={INPUT}
-              value={manualPlate}
-              onChange={e => setManualPlate(e.target.value.toUpperCase())}
-              onKeyDown={e => { if (e.key === 'Enter') submitManualPlate(); }}
-              placeholder="or type a plate — if the scan's down"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={submitManualPlate}
-              disabled={!manualPlate.trim()}
-              className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-            >
-              Enter
-            </button>
-          </div>
+          {/* ⭐ The one lookup, shared with the closing inventory and backed by the same query the
+              Movement Log uses — plate OR unit, with suggestions. This was a hand-rolled twin of
+              ScanManualPlate with its own "Enter" button and an exact plate match; it was the fourth
+              implementation of "which car is this?" and the last one still standing. */}
+          <VehicleLookup onPick={c => captureByPlateOrUnit('vehicle' in c ? c.vehicle.license_plate : c.typed)} />
         </div>
       ) : (
         <div className="rounded-lg border border-fg-yellow/50 bg-yellow-50/40 dark:bg-yellow-900/10 p-3 space-y-2.5">
