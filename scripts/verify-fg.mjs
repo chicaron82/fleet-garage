@@ -4,8 +4,9 @@
 // eyeballed before they reach the crew. READ/RENDER ONLY — never drives writes
 // to crew tables (trusted-PoC RLS is allow-all; the bot could, so it mustn't).
 //
-//   node scripts/verify-fg.mjs <path> <name> [clickText]
+//   node scripts/verify-fg.mjs <path> <name> [steps]
 //   e.g. node scripts/verify-fg.mjs /schedule schedule "Share PTO request"
+//        node scripts/verify-fg.mjs /my-shift inv "Closing Inventory > type:Look up a vehicle=LUR306"
 import { chromium } from 'playwright';
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,13 +42,31 @@ mkdirSync(verifyDir, { recursive: true });
 
 const path = process.argv[2] || '/';
 const name = process.argv[3] || 'shot';
-const clickText = process.argv[4];
+/**
+ * ⭐⭐⭐ STEPS, NOT JUST A CLICK — because a helper that can only click can only ever verify EMPTY
+ * states, and the standing lesson is to verify where the new code FIRES.
+ *
+ * That gap had been standing in for a real one: the closing inventory went six passes with "nobody
+ * can reach it without a scanner" as the excuse, and the excuse outlived its cause by a day. Aaron,
+ * 2026-09-04: *"what does the closing log have to wait for, for verification? if it scans it
+ * properly? if it copies things?"*
+ *
+ * One argument, steps separated by ` > `:
+ *   "Closing Inventory > type:Look up a vehicle=LUR306 > Look up > Add to sheet"
+ *   • `type:<aria-label substring>=<value>` fills a field and presses nothing
+ *   • anything else is text to click
+ */
+const steps = (process.argv[4] || '').split(' > ').map(x => x.trim()).filter(Boolean);
 const shot = `${verifyDir}${name}.png`;
 
 const fresh = existsSync(statePath) && (Date.now() - statSync(statePath).mtimeMs < 30 * 60 * 1000);
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
+  // ⭐ So a `clip` step can read back what a copy-out actually put on the clipboard. Aaron asked the
+  // question this exists to answer: *"if it copies things?"* — and a button that fires is not the
+  // same claim as a clipboard that holds the right text.
+  permissions: ['clipboard-read', 'clipboard-write'],
   viewport: { width: 1280, height: 900 },
   deviceScaleFactor: 2,
   ...(fresh ? { storageState: statePath } : {}),
@@ -70,8 +89,32 @@ if (await page.locator('input[type=password]').count()) {
 
 await page.goto(BASE + path, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1200);
-if (clickText) {
-  await page.getByText(clickText, { exact: false }).first().click();
+for (const step of steps) {
+  if (step === 'clip') {
+    const text = await page.evaluate(() => navigator.clipboard.readText()).catch(e => `UNREADABLE: ${e.message}`);
+    console.log('CLIPBOARD >>>\n' + text + '\n<<< CLIPBOARD');
+    continue;
+  }
+  // ⚠️ `btn:` EXISTS BECAUSE A LOOSE TEXT MATCH LIES QUIETLY. Driving a status chip with the plain
+  // text step, `D` matched the first element merely CONTAINING a D — "Shift Duties" — so the click
+  // landed somewhere harmless, the chip never changed, and the run still went green. A selector that
+  // hits the wrong thing produces a screenshot of the wrong claim.
+  if (step.startsWith('btn:')) {
+    await page.getByRole('button', { name: step.slice(4), exact: true }).first().click();
+    await page.waitForTimeout(900);
+    continue;
+  }
+  if (step.startsWith('type:')) {
+    const [label, ...rest] = step.slice(5).split('=');
+    const value = rest.join('=');
+    // ⚠️ `fill` alone does not fire the events a controlled React input listens for on every
+    // keystroke, so a typeahead would never search. Type it like a person.
+    const field = page.getByLabel(new RegExp(label ?? '', 'i')).first();
+    await field.click();
+    await field.pressSequentially(value, { delay: 40 });
+  } else {
+    await page.getByText(step, { exact: false }).first().click();
+  }
   await page.waitForTimeout(900);
 }
 await page.screenshot({ path: shot, fullPage: true });

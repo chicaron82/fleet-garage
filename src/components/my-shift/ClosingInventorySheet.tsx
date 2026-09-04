@@ -91,7 +91,7 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
 
       <p className="text-[10px] text-gray-400 dark:text-gray-500">
         A available · D dirty · B body · M mechanical · F foreign (US plate).
-        {' '}Row shown as {rowLabel('5')} for available cars only.
+        {' '}Rows written {rowLabel('1')}–{rowLabel('12')}, and shown for available cars only.
       </p>
     </div>
   );
