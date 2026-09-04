@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AUDIT_FIELDS,
+  firstPhotoNote,
   AUDIT_FIELD_LABELS,
   isBlankField,
   missingTagFields,
@@ -304,5 +305,26 @@ describe('stale — the other reason to retake', () => {
     const s = auditQueueStats([car({ keytagPhotoUrl: null, keytagAuditResult: 'stale' })]);
     expect(s.noPhoto).toBe(1);
     expect(s.stale).toBe(0);
+  });
+});
+
+// ⭐⭐ The receipt for a capture he did not come here to make: scanning a tag on ANY surface saves
+// the photo when the car lacks one, so a scan run to start a trip quietly clears the photo backlog
+// and says nothing. *Celebrate what he did not know, never what he just did.*
+describe('firstPhotoNote', () => {
+  it('names how many are still without a photo', () => {
+    expect(firstPhotoNote(4)).toBe('📷 first key tag photo — 4 left without one');
+  });
+
+  // ⭐ The ticket's own example was *"that was the last car in R-4 without one"*. R-4 is NOT
+  // computable — FG stores no lot row on a vehicle — but the same SHAPE of fact is, on the photo
+  // backlog, which FG really has.
+  it('⭐ says it was the LAST one when the backlog is cleared', () => {
+    expect(firstPhotoNote(0)).toBe('📷 first key tag photo — that was the last car without one');
+  });
+
+  // ⚠️ A negative can only come from a miscount; it must never read as "-1 left without one".
+  it('never reports a negative remainder', () => {
+    expect(firstPhotoNote(-2)).toBe('📷 first key tag photo — that was the last car without one');
   });
 });

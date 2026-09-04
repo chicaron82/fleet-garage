@@ -36,6 +36,12 @@ beforeEach(() => {
 const mount = (vehicles: Vehicle[]) =>
   renderHook(() => useBackfillOnScan({ vehicles, updateVehicleFields }));
 
+const attachKeytagPhotoIfMissing = vi.fn().mockResolvedValue(undefined);
+
+/** Mounted WITH the photo capture wired, the way the scan-router mounts it. */
+const mountWithPhoto = (vehicles: Vehicle[]) =>
+  renderHook(() => useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing }));
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('useBackfillOnScan', () => {
@@ -116,6 +122,48 @@ describe('useBackfillOnScan', () => {
       await expect(result.current.backfillFromRead(READ)).resolves.toBeUndefined();
     });
 
+    expect(result.current.backfillToast).toBeNull();
+  });
+});
+
+// ⭐⭐ THE RECEIPT FOR A CAPTURE HE DID NOT COME HERE TO MAKE. A scan on any surface saves the tag
+// photo when the car lacks one — so a scan run to start a trip quietly clears the photo backlog.
+// *Celebrate what he did not know, never what he just did.*
+describe('the first-key-tag-photo receipt', () => {
+  const noPhotoA: Vehicle = { ...COMPLETE, id: 'v-a', licensePlate: 'AAA111', keytagPhotoUrl: null };
+  const noPhotoB: Vehicle = { ...COMPLETE, id: 'v-b', licensePlate: 'BBB222', keytagPhotoUrl: null };
+  const hasPhoto: Vehicle = { ...COMPLETE, id: 'v-c', licensePlate: 'CCC333', keytagPhotoUrl: 'https://x/1.jpg' };
+  const readFor = (plate: string): KeytagRead => ({ ...READ, plate });
+
+  // ⚠️⚠️ THE CASE THAT USED TO BE SILENT. A COMPLETE record has nothing to backfill, so the hook
+  // returned early — and a complete record is exactly the car whose only news IS the photo.
+  it('⚠️ reports the capture even when there is nothing to backfill', async () => {
+    const { result } = mountWithPhoto([noPhotoA, noPhotoB, hasPhoto]);
+    await act(async () => { await result.current.backfillFromRead(readFor('AAA111'), 'data:image/jpeg;base64,x'); });
+    expect(attachKeytagPhotoIfMissing).toHaveBeenCalledWith('v-a', 'data:image/jpeg;base64,x');
+    expect(result.current.backfillToast).toContain('AAA111');
+    expect(result.current.backfillToast).toContain('first key tag photo');
+    expect(result.current.backfillToast).toContain('1 left without one');
+  });
+
+  it('⭐ says it was the LAST car without one when the backlog clears', async () => {
+    const { result } = mountWithPhoto([noPhotoA, hasPhoto]);
+    await act(async () => { await result.current.backfillFromRead(readFor('AAA111'), 'data:image/jpeg;base64,x'); });
+    expect(result.current.backfillToast).toContain('that was the last car without one');
+  });
+
+  // ⚠️ He already knows this car has a tag on file — nothing was revealed, so nothing is said.
+  it('says nothing for a car that already had a photo', async () => {
+    const { result } = mountWithPhoto([noPhotoA, hasPhoto]);
+    await act(async () => { await result.current.backfillFromRead(readFor('CCC333'), 'data:image/jpeg;base64,x'); });
+    expect(result.current.backfillToast).toBeNull();
+  });
+
+  // ⚠️ No photo handed in means no capture happened; claiming one would be a boast about a write
+  // that never occurred — the /reflect 61 bug in a new place.
+  it('says nothing when the caller handed over no photo', async () => {
+    const { result } = mountWithPhoto([noPhotoA, hasPhoto]);
+    await act(async () => { await result.current.backfillFromRead(readFor('AAA111')); });
     expect(result.current.backfillToast).toBeNull();
   });
 });

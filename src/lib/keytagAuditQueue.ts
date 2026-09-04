@@ -242,6 +242,30 @@ export interface AuditQueueStats {
   gaps: number;
 }
 
+/**
+ * ⭐⭐⭐ THE RECEIPT FOR A CAPTURE HE DID NOT COME HERE TO MAKE.
+ *
+ * Scanning a tag on ANY surface saves the photo when the car lacks one — the universal capture in
+ * `useBackfillOnScan`. So a scan he ran to start a trip, or to write up the closing inventory,
+ * quietly takes a car off the photo backlog **and tells him nothing.** That is precisely the kind of
+ * fact the bougie-toasts ticket exists for: *celebrate what he did not know, never what he just did.*
+ * He knows he scanned; he does not know it was that car's first tag.
+ *
+ * ⚠️ THE TICKET'S OWN EXAMPLE — *"that was the last car in R-4 without one"* — IS NOT COMPUTABLE.
+ * FG does not store a lot row on a vehicle; `R-4` exists only inside a closing-inventory session.
+ * The same SHAPE of fact is computable on a set FG really has: the photo backlog. So this delivers
+ * the idea rather than the sentence, which is the honest version of granting the request.
+ *
+ * ⚠️ `remaining` must be counted with `isBlankField(keytagPhotoUrl)` — the SAME predicate
+ * `auditQueueStats` uses for `noPhoto` — so this line and the audit card can never disagree about
+ * how many are left. A second way of counting is a second answer.
+ */
+export function firstPhotoNote(remaining: number): string {
+  return remaining <= 0
+    ? '📷 first key tag photo — that was the last car without one'
+    : `📷 first key tag photo — ${remaining} left without one`;
+}
+
 export function auditQueueStats(vehicles: readonly AuditableVehicle[]): AuditQueueStats {
   const stats: AuditQueueStats = { pending: 0, verified: 0, unreadable: 0, stale: 0, noPhoto: 0, gaps: 0 };
   for (const v of vehicles) {

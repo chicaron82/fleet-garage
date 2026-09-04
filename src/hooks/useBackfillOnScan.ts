@@ -16,6 +16,7 @@
 // scan-router keeps offering "Register" as the operator's choice. See docs/ticket-backfill-at-scan.md.
 import { useCallback, useState } from 'react';
 import { resolveKeytagScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote, fillNote } from '../lib/resolveKeytagScan';
+import { firstPhotoNote, isBlankField } from '../lib/keytagAuditQueue';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 
@@ -42,9 +43,24 @@ export function useBackfillOnScan(deps: {
     // KNOWN vehicle, save the photo when it lacks one — independent of whether there's anything to
     // backfill (a complete known car still deserves its source tag on file). If-missing, never a
     // clobber. This is the shared choke-point (scan-router + holds search route through here).
+    // ⭐⭐ AND SAY SO WHEN IT WAS THE CAR'S FIRST. He came here to start a trip or write up the
+    // closing inventory; taking a car off the photo backlog is something the scan did FOR him,
+    // which is the whole definition of a fact worth a receipt.
+    let photoNote = '';
+    let photoPlate = '';
     if (photo && attachKeytagPhotoIfMissing) {
       const known = resolveKeytagScan(read, vehicles).vehicle;
-      if (known) void attachKeytagPhotoIfMissing(known.id, photo);
+      if (known) {
+        // ⚠️ Checked BEFORE the write, because the attach is if-missing and reports nothing back.
+        const hadNone = isBlankField(known.keytagPhotoUrl);
+        void attachKeytagPhotoIfMissing(known.id, photo);
+        if (hadNone) {
+          // ⚠️ Same predicate auditQueueStats uses for `noPhoto`, so this line and the audit card
+          // can never disagree about how many are left. Minus this one, which is now captured.
+          photoNote = firstPhotoNote(vehicles.filter(v => isBlankField(v.keytagPhotoUrl)).length - 1);
+          photoPlate = known.licensePlate;
+        }
+      }
     }
     // Say the disagreement out loud BEFORE the write — it's independent of whether there
     // was anything to fill, and it used to be swallowed entirely on this surface.
@@ -52,7 +68,16 @@ export function useBackfillOnScan(deps: {
     setConflictToast(cf ? conflictNote(cf.conflicts) : null);
 
     const bf = backfillFieldsOnScan(read, vehicles); // partial with fills and/or changes, else null
-    if (!bf) return;
+    // ⚠️ A COMPLETE RECORD USED TO RETURN HERE SILENTLY — and that is exactly the car whose first
+    // photo just got captured, since a complete record has nothing to backfill. The capture receipt
+    // has to survive the early return or the only case it exists for is the one it misses.
+    if (!bf) {
+      if (photoNote) {
+        setBackfillToast(`✨ ${photoPlate} · ${photoNote}`);
+        setTimeout(() => setBackfillToast(null), 3000);
+      }
+      return;
+    }
     try {
       const res = await updateVehicleFields(bf.vehicleId, bf.applies); // fills + corrections, stamped 'tag'
       // ⭐ The tag's unit number collided with another live record, so it was NOT applied. Say it
@@ -75,7 +100,7 @@ export function useBackfillOnScan(deps: {
       // line down, said `class` for the same kind of thing. One vocabulary, one place.
       const filled = fillNote(applied);
       const changed = changeNote(bf.changes);
-      const note = [filled, changed].filter(Boolean).join(' · ');
+      const note = [filled, changed, photoNote].filter(Boolean).join(' · ');
       if (note) {
         setBackfillToast(`✨ ${bf.plate} · ${note}`);
         setTimeout(() => setBackfillToast(null), 3000);
