@@ -36,10 +36,16 @@ car, or has the number moved?"*
 
 Fully written up under *"The counter-rule"* below. Do not re-derive it from `ROLE_MODULES`.
 
-### ⚠️ This list is INCOMPLETE — he says six, and three are written down
+### ⚠️ Keep this list growing — a recurrence that lives only in a conversation will recur
 
-**When he re-explains a resolved finding, the fix is to add it here in the same turn.** A recurrence
-that only lives in a conversation will recur; the cost lands on him, every time, in explanation.
+**When he re-explains a resolved finding, add it here in the same turn.** The cost of a repeat lands
+on him, in explanation, every time.
+
+⭐ **And read what he says plainly.** *"Every session brings up these same 6 concerns"* meant **the
+six plates in the table I had just pasted** — one recurring finding, not six. I read it as six
+separate items and built this section with three empty slots and a principle about "counting the
+gap". **The elaborate reading was mine; his sentence was simple.** One entry, correctly sized, beats
+a framework built on a miscount.
 
 ---
 
