@@ -6,6 +6,7 @@
 //
 // ⭐ Collapsed by default, like its neighbours. Most nights he is not closing.
 import { useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
@@ -14,6 +15,9 @@ import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
 import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInventoryCard';
 import { ClosingInventorySheet } from './ClosingInventorySheet';
+import { ClosingInventoryPhotoSheet } from './ClosingInventoryPhotoSheet';
+import { businessDateOf } from '../../lib/shiftDay';
+import { formatDateStr } from '../../lib/buildShiftReport';
 import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
 
 export function ClosingInventorySection() {
@@ -21,7 +25,10 @@ export function ClosingInventorySection() {
   /** Only his EDITS live in state. The row itself is derived from the scan, every render. */
   const [edits, setEdits] = useState<Partial<InventoryEntry>>({});
   const [overrodeExclusion, setOverrode] = useState(false);
+  /** The photo-ready sheet — step 4 of the closing checklist, "send inventory photo to counter". */
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
 
+  const { user, activeBranch } = useAuth();
   const { getActiveHolds } = useVehicleHoldContext();
   const { scan, scanPhoto, reading, reset } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
@@ -103,12 +110,36 @@ export function ClosingInventorySection() {
           <ClosingInventorySheet entries={entries} tally={tally} onRemove={removeAt} />
 
           {entries.length > 0 && (
-            <button type="button" onClick={clear}
-              className="text-[11px] text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition">
-              Clear the sheet
-            </button>
+            <>
+              {/* ⭐ Step 4 of the closing checklist is *"send inventory photo to counter"* — so the
+                  finish line is a picture, not a file. A primary action on the page, so yellow. */}
+              <button type="button" onClick={() => setShowPhotoSheet(true)}
+                className="w-full rounded-lg bg-fg-yellow py-3 text-sm font-bold text-gray-900 transition hover:bg-fg-yellow-hi cursor-pointer">
+                📷 Photograph the sheet
+              </button>
+              <button type="button" onClick={clear}
+                className="text-[11px] text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition">
+                Clear the sheet
+              </button>
+            </>
           )}
         </div>
+      )}
+
+      {showPhotoSheet && (
+        <ClosingInventoryPhotoSheet
+          entries={entries}
+          tally={tally}
+          meta={{
+            branch: activeBranch,
+            // ⚠️ The BUSINESS date, not the calendar one — a write-up finished after midnight still
+            // belongs to the shift that did it, which is the whole reason shiftDay exists.
+            dateLabel: formatDateStr(businessDateOf(new Date())),
+            timeLabel: new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            loggedBy: user?.name ?? '',
+          }}
+          onClose={() => setShowPhotoSheet(false)}
+        />
       )}
     </div>
   );

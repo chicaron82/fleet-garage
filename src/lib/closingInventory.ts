@@ -130,6 +130,23 @@ export function suggestRow(
   return band[band.length - 1];   // every row in the band is full — still name the band's last
 }
 
+/**
+ * The unit number as the KEY TAG prints it — `5426408` → `542 6408`.
+ *
+ * ⭐ The space is not decoration: the tag groups the digits that way, so a written sheet that keeps
+ * the grouping can be checked against the tag at a glance. Aaron's own sheets are written like this.
+ *
+ * ⚠️ Anything that is not seven digits passes through UNCHANGED rather than being regrouped into a
+ * shape no tag ever printed. A unit FG has never seen is null, and a hand-entered row has none at
+ * all — both are legitimate, so this never invents one.
+ */
+export function formatUnitNumber(unit: string | null | undefined): string {
+  const raw = (unit ?? '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  return digits.length === 7 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : raw;
+}
+
 /** "R-5" for a numbered row; a fence zone or stall ("SF", "BR-2A", "8-3") passes through as-is. */
 export function rowLabel(row: string | null | undefined): string {
   const r = (row ?? '').trim();

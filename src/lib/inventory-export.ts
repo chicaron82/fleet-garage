@@ -1,5 +1,12 @@
 // Matches the Hertz "Location Daily Vehicle Inventory" form (8073-16)
 // Columns: Owning · Unit # · License · Class · Status · Notes
+//
+// ⚠️ THIS IS THE OLD APRIL MODULE'S EXPORTER AND IT HAS NO PRODUCTION CONSUMER. Its `ExportEntry`
+// speaks the removed inventory module's language (`classification: 'Rentable' | 'Dirty' | 'Held'`,
+// zone/row/locationText) — NOT `InventoryEntry` from `closingInventory`. The closing write-up
+// renders its own sheet on screen to be photographed, which is how the form actually gets delivered.
+// Kept only as the reference for the form's columns; do not wire it up without translating the shape.
+import { formatUnitNumber } from './closingInventory';
 
 interface ExportEntry {
   unitNumber: string;
@@ -47,12 +54,10 @@ function defaultNotes(entry: ExportEntry): string {
   return '';
 }
 
-// Unit number formatted as printed on tag: 5426408 → 542 6408
-function formatUnit(unit: string): string {
-  const digits = unit.replace(/\D/g, '');
-  if (digits.length === 7) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-  return unit;
-}
+// Unit number formatted as printed on tag: 5426408 → 542 6408.
+// ⭐ One definition, in the closing-inventory model — this file used to carry a private copy of the
+// same three lines, which is exactly how two renderings of the same form drift apart.
+const formatUnit = formatUnitNumber;
 
 export function generateInventoryExport(entries: ExportEntry[], meta: ExportMeta, logoUrl?: string): string {
   const rows = entries
