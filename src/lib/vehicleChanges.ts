@@ -83,7 +83,17 @@ const NOISE = new Set([
   // clears it, so it never carries information the Note line above it hasn't already given — it
   // just added a raw ISO timestamp to every note change (seen on the record 2026-08-22).
   'note_at',
+  // ⚠️ `odometer_at` is the same shape and was missed: stamped by the same write that sets
+  // `odometer`, so every capture rendered "Odometer · Odometer at" and the second half said
+  // nothing the first had not. Found 2026-09-05 running four real days of his changes through the
+  // trail and reading the output — a full lane of odometer captures, each one doubled.
+  'odometer_at',
 ]);
+
+/** Columns the trail should never speak aloud — bookkeeping, and companions stamped by the same
+ *  write as the field they accompany. Exported so a SECOND surface reuses this judgement rather
+ *  than copying the list and drifting from it. */
+export function isNoiseField(column: string): boolean { return NOISE.has(column); }
 
 export function fieldLabel(column: string): string {
   if (LABELS[column]) return LABELS[column];

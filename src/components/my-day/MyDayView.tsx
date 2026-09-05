@@ -8,6 +8,7 @@ import { ModuleHeader } from '../shared/ModuleHeader';
 import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
 import { PlateWatchCard } from './PlateWatchCard';
+import { MyTrailCard } from './MyTrailCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import type { Screen } from '../../types';
 
@@ -152,6 +153,8 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           because that is what it is. ⚠️ The SCAN is what makes a watch work
           (ScanPlateWatch) — this is where one is set and seen, not where it is caught. */}
       <PlateWatchCard />
+      {/* His own trail — silent until he has been somewhere, so it fills up through the shift. */}
+      <MyTrailCard />
 
       {/* ── First action — the ritual: fleet balance, else check-in ──────── */}
       {day.working && (
