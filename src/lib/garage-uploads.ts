@@ -13,6 +13,22 @@ export function base64ToBlob(base64: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
+/** ⭐⭐⭐ A YEAR, NOT AN HOUR — and only on the buckets whose paths are WRITE-ONCE.
+ *
+ *  Supabase defaults uploads to `cacheControl: '3600'`, so every browser re-fetched every photo it
+ *  displayed once an hour. Nothing was broken and nothing was near a size limit (34 MB of a 500 MB
+ *  database, 121 MB of 1 GB storage) — the org still blew its **cached egress** quota, because
+ *  110 MB of damage photos re-served often enough is 5 GB of bandwidth. A default nobody changed.
+ *
+ *  ⚠️ IT IS DELIBERATELY NOT APPLIED TO `lost-found-photos` OR `shift-log-photos`. Those upload with
+ *  `upsert: true` to a FIXED path, so the same URL is expected to return different bytes after a
+ *  re-upload (see uploadShiftLogPhoto below — overwriting rather than orphaning is the whole design).
+ *  A year-long cache on a mutable URL serves a stale photo for a year. They are ~10 MB of the 121,
+ *  so the hour they keep costs nothing worth this risk.
+ *
+ *  The rule for a new bucket: unique path per upload → LONG_CACHE. Overwritable path → leave it. */
+const LONG_CACHE = '31536000';
+
 const UPLOAD_TIMEOUT_MS = 15_000;
 
 function withUploadTimeout<T extends { error: unknown }>(
@@ -28,7 +44,7 @@ export async function uploadPhoto(base64: string, holdId: string): Promise<strin
   const blob = base64ToBlob(base64);
   const path = `${holdId}/${crypto.randomUUID()}.jpg`;
   const { error } = await withUploadTimeout(
-    supabase.storage.from('damage-photos').upload(path, blob, { contentType: 'image/jpeg' })
+    supabase.storage.from('damage-photos').upload(path, blob, { contentType: 'image/jpeg', cacheControl: LONG_CACHE })
   );
   if (error) return null;
   return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
@@ -49,7 +65,7 @@ export async function uploadIssuePhoto(base64: string, issueId: string): Promise
   const blob = base64ToBlob(base64);
   const path = `${issueId}/photo.jpg`;
   const { error } = await withUploadTimeout(
-    supabase.storage.from('issue-bucket').upload(path, blob, { contentType: 'image/jpeg' })
+    supabase.storage.from('issue-bucket').upload(path, blob, { contentType: 'image/jpeg', cacheControl: LONG_CACHE })
   );
   if (error) return null;
   return supabase.storage.from('issue-bucket').getPublicUrl(path).data.publicUrl;

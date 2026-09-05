@@ -78,6 +78,7 @@ export function LostFoundCard({
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           {item.keyTagPhotoUrl && (
             <img
+              loading="lazy"
               src={item.keyTagPhotoUrl}
               alt="Key tag"
               onClick={() => {
@@ -89,6 +90,7 @@ export function LostFoundCard({
           )}
           {item.itemPhotoUrl ? (
             <img
+              loading="lazy"
               src={item.itemPhotoUrl}
               alt="Item"
               onClick={() => {

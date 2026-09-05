@@ -144,6 +144,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
               <div className="flex gap-2">
                 {item.keyTagPhotoUrl ? (
                   <img
+                    loading="lazy"
                     src={item.keyTagPhotoUrl} alt="Key tag"
                     onClick={() => { hapticLight(); setLightboxUrl(item.keyTagPhotoUrl!); }}
                     className="w-12 h-12 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-gray-700 cursor-pointer active:opacity-80 transition"

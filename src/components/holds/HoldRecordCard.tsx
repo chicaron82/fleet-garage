@@ -220,7 +220,7 @@ export function HoldRecordCard({
             return (
               <div key={i} className="relative">
                 <button type="button" onClick={() => openLightbox(hold.photos ?? [], i)} className="cursor-pointer block">
-                  <img src={src} alt={`Damage photo ${i + 1}`} className={`w-14 h-14 object-cover rounded-lg border transition ${isMarked ? 'opacity-30 grayscale border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-800 hover:opacity-80'}`} />
+                  <img loading="lazy" src={src} alt={`Damage photo ${i + 1}`} className={`w-14 h-14 object-cover rounded-lg border transition ${isMarked ? 'opacity-30 grayscale border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-800 hover:opacity-80'}`} />
                 </button>
                 <button
                   type="button"

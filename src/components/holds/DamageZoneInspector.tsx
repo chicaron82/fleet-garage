@@ -96,7 +96,7 @@ export function DamageZoneInspector({ holds, zones, compact = false }: Props) {
                     <button key={src} type="button"
                             onClick={() => setLightbox({ photos: e.photos, index: i })}
                             className="cursor-pointer block">
-                      <img src={src} alt={`${e.damageDescription} — photo ${i + 1}`}
+                      <img loading="lazy" src={src} alt={`${e.damageDescription} — photo ${i + 1}`}
                            className="h-16 w-16 rounded-lg border border-gray-200 object-cover transition hover:opacity-80 dark:border-gray-800" />
                     </button>
                   ))}

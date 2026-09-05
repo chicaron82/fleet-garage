@@ -188,6 +188,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
 
       {issue.photoUrl && (
         <img
+          loading="lazy"
           src={issue.photoUrl}
           alt="Issue photo"
           className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"

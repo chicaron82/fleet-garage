@@ -111,6 +111,7 @@ export function HoldContextPanel({ vehicle, holds, user, onReHold, autoExpand, r
                 className="cursor-pointer"
               >
                 <img
+                  loading="lazy"
                   src={src}
                   alt={`Hold photo ${i + 1}`}
                   className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-700"

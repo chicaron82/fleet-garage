@@ -141,7 +141,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
                 {m.images && m.images.length > 0 && (
                   <div className="mb-1.5 flex flex-wrap gap-1.5">
                     {m.images.map((src, k) => (
-                      <img key={k} src={src} alt={`Attached photo ${k + 1}`} className="max-h-40 rounded-lg object-cover" />
+                      <img key={k} loading="lazy" src={src} alt={`Attached photo ${k + 1}`} className="max-h-40 rounded-lg object-cover" />
                     ))}
                   </div>
                 )}

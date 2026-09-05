@@ -169,7 +169,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
         {(hold.photos ?? []).length > 0 && (
           <div className="flex gap-2 overflow-x-auto">
             {(hold.photos ?? []).map(src => (
-              <img key={src} src={src} alt="" className="h-24 w-24 rounded-lg object-cover shrink-0" />
+              <img key={src} loading="lazy" src={src} alt="" className="h-24 w-24 rounded-lg object-cover shrink-0" />
             ))}
           </div>
         )}

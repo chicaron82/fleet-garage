@@ -71,7 +71,7 @@ export function ChecklistSection({ section, onToggle, onResult, onPhoto, onNotes
                     </button>
                   </div>
                   {item.photoUrl && (
-                    <img src={item.photoUrl} alt="Failure" className="h-10 w-14 object-cover rounded-lg border border-red-200 dark:border-red-800" />
+                    <img loading="lazy" src={item.photoUrl} alt="Failure" className="h-10 w-14 object-cover rounded-lg border border-red-200 dark:border-red-800" />
                   )}
                 </div>
               )}

@@ -93,7 +93,7 @@ export function LostFoundItemList({ show, items, onOpen, onAdd, onRemove, onUpda
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wide">Photo (optional)</label>
               {item.additionalPhoto ? (
                 <div className="flex items-center gap-2">
-                  <img src={item.additionalPhoto} alt="Found item" className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                  <img loading="lazy" src={item.additionalPhoto} alt="Found item" className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
                   <button
                     type="button"
                     onClick={() => onUpdate(item.id, { additionalPhoto: undefined })}

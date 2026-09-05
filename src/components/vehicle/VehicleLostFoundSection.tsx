@@ -45,7 +45,7 @@ export function VehicleLostFoundSection({ vehicle }: { vehicle: Vehicle }) {
       {items.map(i => (
         <div key={i.id} className="flex items-start gap-3">
           {i.itemPhotoUrl && (
-            <img src={i.itemPhotoUrl} alt="" className="w-12 h-12 object-cover rounded-lg border border-amber-200 dark:border-amber-800/50 shrink-0" />
+            <img loading="lazy" src={i.itemPhotoUrl} alt="" className="w-12 h-12 object-cover rounded-lg border border-amber-200 dark:border-amber-800/50 shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{i.description || 'Item'}</p>

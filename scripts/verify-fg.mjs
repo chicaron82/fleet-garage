@@ -4,7 +4,7 @@
 // eyeballed before they reach the crew. READ/RENDER ONLY — never drives writes
 // to crew tables (trusted-PoC RLS is allow-all; the bot could, so it mustn't).
 //
-//   node scripts/verify-fg.mjs <path> <name> [steps]
+//   node scripts/verify-fg.mjs <path> <name> [steps]      (IMG=1 to load real photos)
 //   e.g. node scripts/verify-fg.mjs /schedule schedule "Share PTO request"
 //        node scripts/verify-fg.mjs /my-shift inv "Closing Inventory > type:Look up a vehicle=LUR306"
 import { chromium } from 'playwright';
@@ -71,6 +71,24 @@ const ctx = await browser.newContext({
   deviceScaleFactor: 2,
   ...(fresh ? { storageState: statePath } : {}),
 });
+// ⚠️⚠️ SUPABASE STORAGE IMAGES ARE BLOCKED BY DEFAULT — set IMG=1 when the screenshot is ABOUT
+// a photo. The app is served from a local dev server, but every damage/keytag photo on a page is a
+// `getPublicUrl` link straight to Supabase's storage CDN, and a fresh Playwright context starts
+// with an EMPTY HTTP cache — so each run re-downloads every photo on the screen at full size.
+//
+// That is *cached egress*, which is the exact quota chicaron82's Org blew through (2026-09-04:
+// "reduce your cached egress bandwidth below 5.5 GB"). Disk was nowhere near a limit — 34 MB of
+// 500 MB database, 121 MB of 1 GB storage — so bandwidth was the whole overage, and dozens of
+// verify runs (four of them wasted on a bad selector the same day) were a real share of it.
+//
+// Only the REMOTE fetches are aborted; local assets, icons and the logo still render, so a run
+// looks normal except where an actual photo would be. That absence is loud, not silent — a missing
+// photo is visible in the screenshot, so the failure mode announces itself and costs one re-run
+// with IMG=1 rather than hiding a wrong claim.
+if (process.env.IMG !== '1') {
+  await ctx.route(/supabase\.(co|in)\/storage\//, route => route.abort());
+}
+
 const page = await ctx.newPage();
 const errs = [];
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));

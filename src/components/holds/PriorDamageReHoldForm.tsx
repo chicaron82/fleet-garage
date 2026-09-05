@@ -108,6 +108,7 @@ export function PriorDamageReHoldForm({
                 {originalPhotos.map((url, i) => (
                   <img
                     key={i}
+                    loading="lazy"
                     src={url}
                     alt={`Original hold photo ${i + 1}`}
                     className="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-700 opacity-75"
