@@ -163,6 +163,8 @@ wrote a highlight for a state the filter made unreachable, and I render-verified
 
 ## ⭐⭐⭐ UNAPOLOGETICALLY BOUGIE — functional is boring (2026-09-04)
 
+
+🧂 **THE TEST IS MSG, NOT DECORATION (his words, 2026-09-05: "that's the MSG we've been missing out on").** MSG does not add a flavour, it **deepens the one already in the dish** — so the question is never "is this fancy," it is **am I amplifying something already here, or pinning something on top?** The Stage's weather passed because it added ZERO new data: the code was already arriving and the footer already printed it. **A weather widget would have been garnish.** ⚠️ Garnish is the thing Aaron actively dislikes — a pickle skewered through a burger bun, nuts on a dessert, a burger built taller for no reason. **Before reaching for a new feature, ask what FG already knows and does nothing with.**
 Aaron, unprompted, after an hour of me arguing him out of a sparkle with a rate table:
 
 > *"there's something we dropped along the way while working on FG. we stopped being unapologetically

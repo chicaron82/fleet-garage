@@ -11,9 +11,20 @@ import { hapticLight } from '../../lib/haptics';
 // has nothing here — and an empty section shouting at him on every vehicle screen would teach him
 // to scroll past the one car that eventually does have something.
 //
-// ⚠️ It never says WHO. FG writes with the anon key under allow-all RLS, so no honest actor exists
-// to name (project_fg_scope_boundary). Better a trail that admits what it doesn't know than one
-// that quietly implies a person.
+// ⭐ IT NAMES WHO, SINCE migration 132 gave `vehicle_changes` an `actor` column — resolved below by
+// `describeActor` against the profiles map. This comment used to read "it never says WHO … no honest
+// actor exists to name", written when FG wrote with the anon key under allow-all RLS. That stopped
+// being true and the comment did not.
+//
+// ⚠️ IT COST SOMETHING, WHICH IS WHY THE CORRECTION IS RECORDED RATHER THAN JUST MADE. 2026-09-05:
+// hunting for data FG collects and never shows, I grepped `src/components/` for the table name, got
+// zero, and pitched Aaron a vehicle-history feature that has shipped and been mounted at
+// `VehicleHistory.tsx` this whole time. Components do not name tables — HOOKS do. A stale header
+// saying the surface cannot do a thing is exactly how a future session gets talked into rebuilding
+// it. Actor rows exist for real: ~523 by uuid and 37 stamped `dizee`.
+//
+// ⚠️ Still honest about its limits: rows from the 2026-08-19→30 bulk import carry NO actor, and
+// `describeActor` is expected to say so rather than guess.
 export function VehicleChangeLog({ vehicleId }: { vehicleId: string }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const rows = useVehicleChanges(vehicleId, refreshKey);
