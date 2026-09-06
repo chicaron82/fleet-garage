@@ -138,8 +138,10 @@ export function ThroughputSection({ t, fb, offTotal, branchRate, shiftRate, wind
             {t.shiftType === 'opening' ? 'N/A' : (t.fullDayCleaned != null ? t.fullDayCleaned : '—')}
           </Text>
           <Text style={s.tpLabel}>Full day</Text>
+          {/* "expected", never "needed" — see the FLEET DEMAND note in buildShiftReport.ts. Even the
+              hand-logged count is a snapshot that drifts all day; this line goes to a manager. */}
           {fb && t.fullDayCleaned != null && t.shiftType !== 'opening' && (
-            <Text style={s.tpSub}>of {fb.isProjected ? '~' : ''}{fb.outCount} needed{fb.isProjected ? ' (est.)' : ''}</Text>
+            <Text style={s.tpSub}>of {fb.isProjected ? '~' : ''}{fb.outCount} expected{fb.isProjected ? ' (est.)' : ''}</Text>
           )}
         </View>
       </View>

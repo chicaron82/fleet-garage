@@ -139,7 +139,9 @@ describe('buildReport — throughput', () => {
     }));
     expect(r).toContain('Opening crew: 30 cars');
     expect(r).toContain('Closing crew: 20 cars');
-    expect(r).toContain('Full day: 50 of 40 needed');
+    // "expected", not "needed" — the fleet balance is a snapshot forecast even when hand-logged
+    // (Aaron, 2026-09-06). The report compares against it; it does not grade against it.
+    expect(r).toContain('Full day: 50 of 40 expected');
     expect(r).toContain('Branch rate: 5.0/hr');  // 50 / 10
     expect(r).toContain('Shift rate: 2.5/hr');    // 20 / 8
   });

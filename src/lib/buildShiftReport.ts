@@ -179,6 +179,20 @@ export function buildReport(d: ReportData): string {
   ];
 
   // Fleet demand
+  //
+  // ⚠️⚠️ BOTH BRANCHES ARE FORECASTS. `isProjected: false` means a real hand-logged `fleet_balance`
+  // row exists for the day — NOT that the number is an actual. Aaron, 2026-09-06, on what he is
+  // actually reading when he logs it: *"the fleet balance of what I expect to return and the list of
+  // reservations. but it's the snap shot at that time. that number changes throughout the day / it
+  // doesn't account for cancellations. people returning early or return late; walk ups, or people
+  // extending their rentals."*
+  //
+  // So it is exact when taken and drifting by noon. That is why the sub-line below says EXPECTED and
+  // not `needed`: `74 of 82 needed` grades the crew against a target that was never a target, in the
+  // document he sends to a manager. His own framing is the honest one — *"that initial balance at
+  // least gives us a shape of what to expect for the day."* A shape to compare against, not a bar to
+  // clear. (`isProjected` still earns its `(Est.)`: an average of past snapshots is a forecast of a
+  // forecast, one degree further out.)
   if (d.fleetBalance) {
     const { outCount, inCount, isProjected } = d.fleetBalance;
     const gap = inCount - outCount;
@@ -212,7 +226,7 @@ export function buildReport(d: ReportData): string {
       if (t.openingCleaned != null) lines.push(`Opening crew: ${t.openingCleaned} cars (06:45–15:15)`);
       if (t.closingCleaned != null) lines.push(`Closing crew: ${t.closingCleaned} cars (${t.actualWindowLabel ?? '13:30–22:00'})`);
       if (t.fullDayCleaned != null) {
-        const target = d.fleetBalance ? ` of ${d.fleetBalance.outCount} needed` : '';
+        const target = d.fleetBalance ? ` of ${d.fleetBalance.outCount} expected` : '';
         lines.push(`Full day: ${t.fullDayCleaned}${target}`);
       }
     }
