@@ -49,6 +49,36 @@ a framework built on a miscount.
 
 ---
 
+### ⚠️ THE SECOND FILTER — seeded AUTHORS, not just seeded CARS
+
+The live-fleet filter above excludes seeded **vehicles** (`HRZ-`). **It cannot exclude seeded
+ACTIVITY on real vehicles**, and FG has 23 such holds.
+
+⭐ **IDENTIFY THEM BY NAME, NOT BY BADGE.** The seeded authors are the UV7 crew wearing job titles:
+
+```sql
+-- names, because there is no reliable pattern in the employee_id
+p.name not in ('DiZee','ZeeRah','Zee','Belle','Tori','CoZee','GenZee','ZeeDric','PerplexiZee')
+```
+
+⚠️⚠️ **A BADGE-SHAPE HEURISTIC IS WRONG AND I SHIPPED ONE INTO THIS FILE FOR FIVE MINUTES.** I wrote
+"real people have a numeric or `ROSTER-` badge" — which excludes **Howard W. (GM-001)** and
+**Harpreet T. (AGM-001)**, who are **real**: Aaron demoed FG to the AGM to browse on his own time and
+gave the GM credentials (told 2026-09-05). `GM-001` *looks* seeded and is not. **The id format
+carries no truth; only the name does.**
+
+⚠️ **Still ungrounded — ASK before filtering, do not guess again:** `Big Boss` (BOSS, City Manager),
+`Linh T.` (YVR-VSA-01), `Marcus L.` (YYC-VSA-01). And **`ZeeDric` (DRV-002) is a crew name not in
+[[user_uv7_family]]** — ground it before relying on it.
+
+⚠️ **FG's real record starts 2026-04-05.** Aaron: *"we only started FG April of this year."* Every
+earlier row is seeded — a Nov 2025 hold with a full approval narrative timestamped 04:20 a.m. is an
+authored demo of the old-damage lifecycle, not clock drift. **Any history chart that starts before
+April is wrong at its left edge.**
+
+**Found 2026-09-05 scoping his analytics module, after three sets of numbers that all silently
+included seeded activity — and then a fourth that wrongly excluded two real managers.**
+
 ## Personal-first — one operator, deep (2026-07-01)
 
 FG is **Aaron's personal tool**, not a shared platform — he is the sole active operator,
@@ -388,7 +418,7 @@ no longer a warning tier. The only carve-outs in `eslint.config.js` are the
 ## Tests
 
 Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
-`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 149 of 157 `src/lib`
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 150 of 158 `src/lib`
 modules are tested; the remaining 8 gaps are all IO/glue (`addPersonalEvent`,
 `addWhiteboardReminder`, `airportFlipSync`, `audit-export`, `effieThreadSync`, `hold-export`, `supabase`, `vsaTripWrite`). When a new pure function
 lands in `src/lib/`, add its test under `tests/lib/` in the same commit.

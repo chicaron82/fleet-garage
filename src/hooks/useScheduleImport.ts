@@ -33,6 +33,8 @@ export function useScheduleImport() {
 
   return {
     status: job.status as ImportStatus,
+    /** Epoch-ms the read began, or null. Drives the elapsed counter — see ScheduleImportModal. */
+    startedAt: job.status === 'parsing' ? job.startedAt : null,
     schedule: job.status === 'done' ? job.schedule : null,
     error: job.status === 'error' ? job.error : null,
     degraded: job.status === 'done' ? job.degraded : false,

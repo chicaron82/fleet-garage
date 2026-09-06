@@ -19,7 +19,9 @@ import { loadImportDraft, saveImportDraft } from './scheduleImportDraft';
 
 export type JobState =
   | { status: 'idle' }
-  | { status: 'parsing' }
+  /** `startedAt` is epoch-ms. The client always knew how long it had been waiting and threw it
+   *  away — this is the whole fix for "it looks stalled". */
+  | { status: 'parsing'; startedAt: number }
   | { status: 'done'; schedule: ParsedSchedule; degraded: boolean }
   | { status: 'error'; error: string };
 
@@ -64,7 +66,7 @@ export function resetParse(): void {
 export function startParse(image: string): void {
   if (state.status === 'parsing' && readingImage === image) return;
   readingImage = image;
-  emit({ status: 'parsing' });
+  emit({ status: 'parsing', startedAt: Date.now() });
 
   void (async () => {
     try {

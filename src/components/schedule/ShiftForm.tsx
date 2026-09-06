@@ -4,6 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { getTypeDefaults } from '../../lib/shiftDefaults';
+import { ShiftTimeChips } from './ShiftTimeChips';
 import { SwapShiftSheet } from './SwapShiftSheet';
 import { canManageSchedule, isFullDayShift } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
@@ -231,6 +232,16 @@ export function ShiftForm(props: Props) {
               />
             </div>
           </div>
+        )}
+
+        {/* Quick-pick times, ranked by what is actually worked. */}
+        {!isDayOff && (
+          <ShiftTimeChips
+            shiftType={shiftType}
+            startTime={startTime}
+            endTime={endTime}
+            onPick={(st, en) => { setStartTime(st); setEndTime(en); }}
+          />
         )}
 
         {/* Notes */}

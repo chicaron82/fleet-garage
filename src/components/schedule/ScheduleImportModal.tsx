@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useProfiles } from '../../context/ProfilesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useScheduleImport } from '../../hooks/useScheduleImport';
+import { ImportWaitNotice } from './ImportWaitNotice';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { compressDocumentImage, readFileAsDataUrl } from '../../lib/image';
 import { loadImportDraft, saveImportDraft, clearImportDraft } from '../../lib/scheduleImportDraft';
@@ -28,7 +29,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
     () => [...profiles.values()].map((p) => ({ id: p.id, name: p.name })),
     [profiles],
   );
-  const { status, schedule, error, degraded, parse, reset, hydrate, parsingImage } = useScheduleImport();
+  const { status, schedule, error, degraded, parse, reset, hydrate, parsingImage, startedAt } = useScheduleImport();
 
   // ⭐ SEEDED FROM THE SAVED DRAFT, so closing this modal costs nothing. Read ONCE, on mount: it is
   // the starting value of the state, never a value that keeps overwriting it (a prop frozen into
@@ -236,7 +237,7 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
           {hasSheet && status === 'parsing' && (
             <div className="flex flex-col items-center gap-3 py-12">
               {thumb('max-h-48 rounded-lg border border-gray-200 dark:border-gray-700')}
-              <p className="animate-pulse text-sm text-gray-500 dark:text-gray-400">Reading the schedule…</p>
+              <ImportWaitNotice startedAt={startedAt} />
             </div>
           )}
 
