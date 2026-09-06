@@ -9,6 +9,8 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { priorFlippingAttested } from '../../lib/airportFlipping';
 import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
+import { seedClosingCounts } from '../../lib/closingInventory';
+import { loadSession } from '../../lib/closingInventoryStore';
 import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
@@ -37,8 +39,29 @@ export function WashbayClosingLog() {
   const [userEntries, setUserEntries] = useState<number | null>(null);
   const totalPages           = userPages  ?? seedPages.totalPages;
   const entriesOnCurrentPage = userEntries ?? seedPages.entriesOnCurrentPage;
-  const [carsRemaining,    setCarsRemaining]    = useState('');
-  const [cleanNotPickedUp, setCleanNotPickedUp] = useState('');
+  /**
+   * ⭐⭐ SEEDED FROM TONIGHT'S CLOSING INVENTORY — the two counts are the same two counts.
+   *
+   * Aaron, 2026-09-05, dry-running the scanner in the lot: *"now it's all scanned then the cleans
+   * and dirty should be filled out here automatically right?"* They should, and he had to spell out
+   * why, because the field names hide it: *"rentable on the lot that have been cleaned but not sent
+   * to the airport / dirties are returns from the airport that are now at Erin St. this is what the
+   * morning crew will be cleaning."* So the sheet's **A** is `cleanNotPickedUp` — "not picked up"
+   * has always meant *not yet sent up*, never *a customer didn't collect it* — and the sheet's **D**
+   * is the queue the morning inherits. B and M belong to neither; a held car is not washbay work.
+   *
+   * ⚠️ AN EMPTY SHEET SEEDS NOTHING, not zero. No write-up is "I didn't count", and a seeded 0 would
+   * put a claim of an empty lot into the throughput history and into tomorrow's opening card.
+   *
+   * Same `null = untouched` shape as the pages and team size above, for the same reason: the sheet
+   * can finish loading after this mounts, and a copied-once value would freeze whatever was there.
+   */
+  const sheetEntries = loadSession(businessDateOf(new Date())).entries;
+  const seeded = seedClosingCounts(sheetEntries);
+  const [userCarsRemaining,    setUserCarsRemaining]    = useState<string | null>(null);
+  const [userCleanNotPickedUp, setUserCleanNotPickedUp] = useState<string | null>(null);
+  const carsRemaining    = userCarsRemaining    ?? seeded.queueAtClose;
+  const cleanNotPickedUp = userCleanNotPickedUp ?? seeded.cleanNotSent;
   // Default team size from the rostered closing crew (read live until the user
   // touches it, so an async roster load can't freeze a stale default). The floor
   // truth still wins — it stays editable and the roster mismatch is flagged.
@@ -67,8 +90,8 @@ export function WashbayClosingLog() {
       const { totalPages: tp, entriesOnCurrentPage: ep } = convertFromBackend(todayLog.fullPages, todayLog.lastPageEntries);
       setUserPages(tp);
       setUserEntries(ep);
-      setCarsRemaining(String(todayLog.carsRemaining));
-      setCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
+      setUserCarsRemaining(String(todayLog.carsRemaining));
+      setUserCleanNotPickedUp(String(todayLog.cleanNotPickedUp));
       setUserTeamSize(todayLog.teamSize);
       setOvertimeHours(todayLog.overtimeHours);
       setFlippingTouched(todayLog.airportFlipping);
@@ -141,11 +164,22 @@ export function WashbayClosingLog() {
           onChange={(tp, ep) => { setUserPages(tp); setUserEntries(ep); }}
         />
 
+        {/* ⭐ SHOWS ITS WORK, the same posture as "roster shows 2 (logging 1)" — the numbers are
+            seeded, never asserted, so a half-finished sweep is visible rather than silently
+            authoritative. Only ever appears when there IS a sheet to have come from. */}
+        {sheetEntries.length > 0 && (
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+            📋 From tonight&apos;s closing inventory —{' '}
+            <span className="tabular-nums">{sheetEntries.length}</span> written up
+            {(userCarsRemaining !== null || userCleanNotPickedUp !== null) && ' · edited'}
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
             <input
-              type="number" min="0" value={carsRemaining} onChange={e => setCarsRemaining(e.target.value)}
+              type="number" min="0" value={carsRemaining} onChange={e => setUserCarsRemaining(e.target.value)}
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
@@ -153,7 +187,7 @@ export function WashbayClosingLog() {
           <div>
             <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Clean, not picked up</label>
             <input
-              type="number" min="0" value={cleanNotPickedUp} onChange={e => setCleanNotPickedUp(e.target.value)}
+              type="number" min="0" value={cleanNotPickedUp} onChange={e => setUserCleanNotPickedUp(e.target.value)}
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />

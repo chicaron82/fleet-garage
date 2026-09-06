@@ -223,6 +223,39 @@ export function handEntry(plate: string, status: InventoryStatus): InventoryEntr
   };
 }
 
+/**
+ * ⭐⭐ THE CLOSING SHEET'S TWO CARRY-OVER COUNTS, for seeding the washbay log.
+ *
+ * Aaron, 2026-09-05, dry-running the scanner in the lot: *"now it's all scanned then the cleans and
+ * dirty should be filled out here automatically right?"* They should — and he had to spell out why,
+ * because the washbay log's field names hide it:
+ *
+ *   *"rentable on the lot that have been cleaned but not sent to the airport / dirties are returns
+ *   from the airport that are now at Erin St. this is what the morning crew will be cleaning."*
+ *
+ * ⚠️ So **"clean, not picked up" has always meant NOT YET SENT UP** — never "a customer failed to
+ * collect it". `washbayLineage` says it outright (*"clean cars not yet sent"*) and it is still the
+ * easiest field in FG to misread, because the rental meaning of the words is right there and wrong.
+ *
+ * **A → the cleans**, sitting at Erin St waiting for a driver to take them up.
+ * **D → the queue**, airport returns that are tomorrow morning's work.
+ * **B and M belong to neither** — a held car is not washbay work in either direction.
+ *
+ * ⚠️ AN EMPTY SHEET SEEDS NOTHING, NOT ZERO. "I did not write up a lot" is not the claim "the lot
+ * was empty", and a seeded 0 would put that claim into the throughput history and into tomorrow's
+ * opening card, which reads both numbers back.
+ *
+ * ⚠️ Erin St only. The airport closes with its OWN two counts — available cleans parked up there
+ * and dirty returns in the return stalls — and FG cannot see them. This is half a branch's picture.
+ */
+export function seedClosingCounts(entries: readonly InventoryEntry[]): {
+  queueAtClose: string; cleanNotSent: string;
+} {
+  if (entries.length === 0) return { queueAtClose: '', cleanNotSent: '' };
+  const by = summarise(entries).byStatus;
+  return { queueAtClose: String(by.D), cleanNotSent: String(by.A) };
+}
+
 /** The form's own legend order — A D B M F — so every surface reads in the order the paper does. */
 export const GROUP_ORDER: readonly InventoryStatus[] = ['A', 'D', 'B', 'M', 'F'];
 

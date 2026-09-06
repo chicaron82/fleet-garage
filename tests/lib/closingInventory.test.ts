@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   sheetNote, deriveStatus, entryFromScan, entryFromTag, formatUnitNumber,
   isNotWrittenUp, exclusionReason, rowTally, summarise, handEntry,
-  ROW_CAPACITY, fleetRecordFor, groupEntries, GROUP_ORDER, type InventoryEntry, type ActiveHold,
+  ROW_CAPACITY, fleetRecordFor, groupEntries, GROUP_ORDER, seedClosingCounts,
+  type InventoryEntry, type ActiveHold,
 } from '../../src/lib/closingInventory';
 
 // Hertz form 8073-16, the closing write-up. Aaron, 2026-09-02: *"closing inventory. scan the tag.
@@ -363,5 +364,49 @@ describe('groupEntries — one grouping rule for the table and the copied report
     const flat = groupEntries(sheet).flatMap(g => g.rows);
     expect(flat).toHaveLength(sheet.length);
     expect(new Set(flat.map(r => r.index)).size).toBe(sheet.length);
+  });
+});
+
+describe('seedClosingCounts — the sheet feeds the washbay log', () => {
+  // ⚠️ THE MAPPING IS THE WHOLE POINT AND IT IS EASY TO INVERT. Aaron had to spell it out:
+  // *"rentable on the lot that have been cleaned but not sent to the airport / dirties are returns
+  // from the airport that are now at Erin St. this is what the morning crew will be cleaning."*
+  // "Clean, not picked up" means NOT YET SENT UP, not "a customer didn't collect it".
+  const r = (status: InventoryEntry['status']): InventoryEntry => ({
+    vehicleId: null, plate: 'X', unitNumber: null, owningArea: null, rentalClass: null,
+    status, row: '', note: '',
+  });
+
+  it('A becomes the cleans and D becomes the queue — never the other way round', () => {
+    // Deliberately different counts, so a swap cannot pass.
+    const sheet = [r('A'), r('A'), r('A'), r('D')];
+    expect(seedClosingCounts(sheet)).toEqual({ queueAtClose: '1', cleanNotSent: '3' });
+  });
+
+  it('leaves B and M out of both — a held car is not washbay work', () => {
+    const sheet = [r('A'), r('D'), r('B'), r('B'), r('M'), r('M'), r('M'), r('F')];
+    expect(seedClosingCounts(sheet)).toEqual({ queueAtClose: '1', cleanNotSent: '1' });
+  });
+
+  it("⚠️ seeds NOTHING for an empty sheet, not zero", () => {
+    // "I didn't write up a lot" is not the claim "the lot was empty" — and tomorrow's opening card
+    // reads both numbers back, so a seeded 0 would be inherited as fact.
+    expect(seedClosingCounts([])).toEqual({ queueAtClose: '', cleanNotSent: '' });
+  });
+
+  it('does seed a real zero when the sheet genuinely holds none of that status', () => {
+    // A written-up lot with nothing dirty IS the claim "no queue at close" — that one is earned.
+    expect(seedClosingCounts([r('A'), r('A')])).toEqual({ queueAtClose: '0', cleanNotSent: '2' });
+  });
+
+  it("reproduces Aaron's 2026-09-05 sweep — 24 cars, 15 clean, 2 dirty", () => {
+    const sheet = [
+      ...Array.from({ length: 15 }, () => r('A')),
+      ...Array.from({ length: 2 },  () => r('D')),
+      ...Array.from({ length: 2 },  () => r('B')),
+      ...Array.from({ length: 5 },  () => r('M')),
+    ];
+    expect(sheet).toHaveLength(24);
+    expect(seedClosingCounts(sheet)).toEqual({ queueAtClose: '2', cleanNotSent: '15' });
   });
 });
