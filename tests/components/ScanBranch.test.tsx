@@ -8,8 +8,11 @@ import type { Vehicle } from '../../src/types';
 
 // ⭐ ScanBranch now renders the re-plate offer, which resolves `adoptPlate` from context.
 const adoptPlate = vi.fn(async () => true);
+// ⭐ The fleet is here because `PlateShapeHint` reads it: a misread plate that resolves to a real
+// car under its own branch's shape is named BEFORE the Register button that would duplicate it.
+const FLEET = [{ id: 'c1', licensePlate: '0HH120', unitNumber: '5789714', make: 'Kia', model: 'Rio' }];
 vi.mock('../../src/context/VehicleHoldContext', () => ({
-  useVehicleHoldContext: () => ({ adoptPlate }),
+  useVehicleHoldContext: () => ({ adoptPlate, vehicles: FLEET }),
 }));
 
 const FULL_READ: KeytagRead = { plate: 'LZM999', unitNumber: '5423827', make: 'Kia', model: 'Seltos', year: 2026, color: 'Gray' };
@@ -115,5 +118,26 @@ describe('ScanBranch', () => {
       staged={false} onRegister={vi.fn()} onBackfill={vi.fn()} scanNonce={1} />);
     expect(screen.queryByText(/different plate, not a misread/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /New plates/ })).not.toBeInTheDocument();
+  });
+
+  // ⚠️⚠️ THE DUPLICATE THIS PREVENTS IS NOT HYPOTHETICAL. `fleetAudit`'s header records unit 5421656
+  // entered twice as LUR143 and LURL43, and 5738117 as 0EJ761 and OEJ761 — one car each, from a
+  // single misread character, both live for months. This is that knowledge arriving BEFORE the tap.
+  it('⭐ names the car a misread plate probably is, before offering to register a duplicate', () => {
+    render(<ScanBranch
+      scan={{ read: { ...FULL_READ, plate: 'OHH120', owningArea: '8193' },
+              result: result({ plate: 'OHH120', vehicle: null, resolution: { kind: 'new' } }) }}
+      staged={false} onRegister={vi.fn()} onBackfill={vi.fn()} scanNonce={1} />);
+    expect(screen.getByText(/not in the fleet/)).toBeInTheDocument();
+    expect(screen.getByText('0HH120')).toBeInTheDocument();
+    expect(screen.getByText(/either the plate or the owning number was read wrong/i)).toBeInTheDocument();
+  });
+
+  it('⚠️ stays silent when nothing in the fleet is one character away', () => {
+    render(<ScanBranch
+      scan={{ read: { ...FULL_READ, plate: 'OZZ999', owningArea: '8193' },
+              result: result({ plate: 'OZZ999', vehicle: null, resolution: { kind: 'new' } }) }}
+      staged={false} onRegister={vi.fn()} onBackfill={vi.fn()} scanNonce={1} />);
+    expect(screen.queryByText(/either the plate or the owning number/i)).not.toBeInTheDocument();
   });
 });

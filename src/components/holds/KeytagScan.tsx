@@ -8,6 +8,7 @@ import { describeNewVehicle } from '../../../api/_lib/holdProposal';
 import { VehicleName } from '../shared/VehicleName';
 import { newVehicleFromRead, type KeytagScanResult } from '../../lib/resolveKeytagScan';
 import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
+import { PlateShapeHint } from '../scan-router/PlateShapeHint';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
 export function ScanBranch({ scan, staged, onRegister, onBackfill, scanNonce }: {
@@ -41,6 +42,13 @@ export function ScanBranch({ scan, staged, onRegister, onBackfill, scanNonce }: 
         return (
           <div className="space-y-1.5">
             <p className="text-gray-700 dark:text-gray-200"><span className="font-mono font-semibold">{plate}</span> — not in the fleet.</p>
+            {/* ⭐⭐⭐ ABOVE THE REGISTER BUTTON ON PURPOSE — this is where the duplicates were BORN.
+                `fleetAudit`'s own header records two of them: unit 5421656 entered twice as LUR143
+                and LURL43, unit 5738117 as 0EJ761 and OEJ761 — "one car each, entered twice off a
+                SINGLE MISREAD CHARACTER", both sitting in the live fleet for months. The audit
+                catches that AFTER the fact; this is the same knowledge arriving BEFORE the tap that
+                creates it. A hint here is worth more than a finding a month later. */}
+            <PlateShapeHint plate={plate} owningArea={read.owningArea} />
             {nv ? (
               <button type="button" onClick={onRegister} className="rounded-lg bg-amber-500 hover:bg-amber-400 px-3 py-1.5 text-xs font-semibold text-white cursor-pointer">
                 Register {describeNewVehicle(nv)}
