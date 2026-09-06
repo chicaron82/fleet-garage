@@ -676,6 +676,33 @@ against it. *Not yet tokenised (a later palette pass): readable text-yellow link
 **Dashed = empty states**, not persistent actions. The dashed-ghost treatment is
 the "nothing here yet" placeholder; the persistent create-action is the header pill.
 
+## Quoting Aaron — the convention, and the one way it goes wrong
+
+FG's comments quote things in `*"italic quote"*` form. **That form is used for anything worth
+quoting** — his words, another module's header, a ticket. The typography is not a claim.
+
+**The claim is the ATTRIBUTION.** `Aaron, 2026-08-29: *"…"*` or `he genuinely uses …  — *"…"*`
+asserts these are his actual words, and that assertion becomes load-bearing: it is what a future
+session cites when deciding how a feature should behave.
+
+⚠️⚠️ **NEVER PROMOTE AN ILLUSTRATION TO A QUOTE.** On 2026-07-26 a line-check invented a scenario to
+explain a race condition — *"he flips on the phone, adds one on the computer, then picks the phone
+back up"* — in a ticket stamped *"never hit live"*. A later session copied that sentence into
+`closingInventoryStore.ts` **as his words**, and used it to justify NOT syncing the closing sheet.
+He never said it. The design it justified then failed him the first night he used the feature, and
+he spotted the fabrication himself by reading the comment: *"probably mis-remembered from a
+compaction. i may have used two to test."*
+
+**The tell, and it is reliable:** his real quotes are **first person** — "i", "my", "me" — lowercase,
+specific, often with an emoji or a typo. **A quote attributed to him that describes him as "he" is
+somebody writing about him**, which is what a review does. Audited 2026-09-06 across all 200 quoted
+strings in `src/`: zero remaining cases, and every standing-habit claim reads unmistakably as his.
+
+**When you write a comment:**
+- Quoting him → attribute it, date it, and use his words verbatim.
+- Your own reasoning, or a scenario you invented → **plain prose, no quote marks**, and no "he".
+- Quoting another module or a ticket → say what you are quoting (*"it says in its own header"*).
+
 ## Build & Test
 
 ⚠️ **THREE things call themselves "the gate", and only ONE runs the flow tests.**
