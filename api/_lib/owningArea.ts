@@ -180,6 +180,24 @@ export function isForeignOwning(raw: string | null | undefined): boolean {
 // version of this knowledge lived only in my head and I got a province wrong from it; the numbers
 // above are reproducible from the vehicles table.
 //
+// ⚠️ THIS TABLE IS A SNAPSHOT, NOT A MEASUREMENT. `fleetAudit`'s header says a branch's shape "is
+// measured from that branch's own live cars" — that describes where these values CAME FROM, not what
+// the code does. It is a hardcoded map, derived once and written down, and it can drift as the fleet
+// changes. Re-verify it rather than trusting the sentence (I repeated that sentence to Aaron as
+// "it can't rot", which was the comment talking, not the code).
+//
+// ⭐ RE-VERIFIED 2026-09-06 against the live fleet, and the shapes hold — but NOT uniformly, and the
+// exceptions are meaningful rather than noise:
+//     8199  510 cars, 0 digit-first        — clean
+//     8197   14 cars, 0 digit-first        — clean
+//     8194    9 cars, 0 digit-first        — clean
+//     8193   64 cars, 62 digit-first       — the 2 are MCM560/MCM564, Calgary cars RE-PLATED to MB
+//     8191   49 cars,  1 digit-first
+//     8190   13 cars, 12 digit-first       — the 1 is XT630N, BC-shaped on a Sask-owned car
+// ⭐⭐ A car that disagrees with its branch's shape is usually a TRANSFER wearing local plates, which
+// is why `fleetAudit` stays silent at 2+ characters off. Do not "fix" the outliers; they are the
+// fingerprint of a car that moved.
+//
 // 8890 is deliberately absent even though it is a known branch: its five cars carry MB, AB and BC
 // plates, because they are long-stay Teslas re-plated where they sit. A branch whose own fleet
 // disagrees about its format cannot vouch for a plate, and inventing one for it would flag four
