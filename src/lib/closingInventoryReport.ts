@@ -12,7 +12,7 @@
 //
 // ⚠️ A car with no rental class or no note simply loses that segment rather than printing a dash or
 // a placeholder. Same rule as the flip: an empty field is absent, never rendered as empty.
-import { formatUnitNumber, sheetNote, STATUS_LABELS, type InventoryEntry, type InventoryStatus } from './closingInventory';
+import { formatUnitNumber, groupEntries, sheetNote, STATUS_LABELS, type InventoryEntry } from './closingInventory';
 
 export interface InventoryReportMeta {
   /** The lot this sheet covers — "Erin St", not the branch code; the counter thinks in places. */
@@ -20,9 +20,6 @@ export interface InventoryReportMeta {
   /** Already formatted; this module does not own a clock. */
   dateLabel: string;
 }
-
-/** The form's own legend order — A D B M F — so the email reads in the order the paper does. */
-const GROUP_ORDER: readonly InventoryStatus[] = ['A', 'D', 'B', 'M', 'F'];
 
 /**
  * One car: plate first (the counter's search key), then the form's own column order.
@@ -64,15 +61,12 @@ export function buildInventoryReport(
 
   const head = `${meta.location} closing inventory · ${meta.dateLabel} · ${entries.length} ${entries.length === 1 ? 'car' : 'cars'}`;
 
-  const groups = GROUP_ORDER
-    // ⚠️ A status nobody wrote up prints NOTHING — an empty "BODY (0)" heading would read as a claim
-    // that the lot was checked for body damage and found clean, which this sheet cannot support.
-    .map(status => ({ status, rows: entries.filter(e => e.status === status) }))
-    .filter(g => g.rows.length > 0)
-    .map(g => [
-      `${STATUS_LABELS[g.status].toUpperCase()} (${g.rows.length})`,
-      ...g.rows.map(inventoryReportLine),
-    ].join('\n'));
+  // ⭐ The SAME grouping the on-screen sheet draws (`groupEntries`) — the empty-status rule and the
+  // legend order both live there now. Aaron expected one document, so there is one rule.
+  const groups = groupEntries(entries).map(g => [
+    `${STATUS_LABELS[g.status].toUpperCase()} (${g.rows.length})`,
+    ...g.rows.map(r => inventoryReportLine(r.entry)),
+  ].join('\n'));
 
   return [head, ...groups].join('\n\n');
 }

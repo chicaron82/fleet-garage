@@ -3,7 +3,7 @@
 // ⭐ Mirrors form 8073-16's own columns and nothing else. `Mileage`, `AM Check` and `Arrived
 // Overnight` are blank on both of Aaron's PM sheets because they belong to the morning pass;
 // rendering them would be theatre.
-import { rowLabel, sheetNote, STATUS_LABELS, type InventoryEntry, type RowTally } from '../../lib/closingInventory';
+import { groupEntries, rowLabel, sheetNote, STATUS_LABELS, type InventoryEntry, type RowTally } from '../../lib/closingInventory';
 
 export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo }: {
   entries: readonly InventoryEntry[];
@@ -23,6 +23,11 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
       </p>
     );
   }
+
+  /** ⭐ Grouping takes away the one thing scan order gave him for free: the car he just scanned
+   *  landing at the BOTTOM where he could see it arrive. So it gets marked instead — otherwise a
+   *  sorted sheet answers "what are my piles" while quietly losing "did that last one go in?". */
+  const newest = entries.length - 1;
 
   return (
     <div className="space-y-2">
@@ -65,12 +70,31 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
               <th className="py-1 sr-only">Edit or remove</th>
             </tr>
           </thead>
-          <tbody>
-            {entries.map((e, i) => (
-              <tr key={`${e.plate}-${i}`} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
+          {/* ⭐⭐ IN PILES, the same ones the copied report prints — `groupEntries` owns the order for
+              both. Aaron after his first 24-car sweep: *"I thought it was going to sort both my scans
+              AND the version I copy to the email."* It sorted one of them, so the sheet he worked
+              from and the text he sent the counter were two different documents.
+              ⚠️⚠️ `i` HERE IS THE SHEET INDEX, not the drawn position — `onEdit`/`onRemove` address
+              rows by position, and passing the display order would delete a different car than the
+              one under his thumb. That is why `groupEntries` returns pairs. */}
+          {groupEntries(entries).map(g => (
+            <tbody key={g.status}>
+              <tr>
+                <th colSpan={7} scope="colgroup"
+                  className="pt-3 pb-1 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  {STATUS_LABELS[g.status]}{' '}
+                  <span className="font-medium tabular-nums">({g.rows.length})</span>
+                </th>
+              </tr>
+              {g.rows.map(({ entry: e, index: i }) => (
+              <tr key={`${e.plate}-${i}`}
+                className={`border-b border-gray-100 dark:border-gray-800 last:border-0${
+                  i === newest ? ' bg-gray-50 dark:bg-gray-800/40' : ''}`}>
                 <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{e.owningArea ?? '—'}</td>
                 <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{e.unitNumber ?? '—'}</td>
-                <td className="py-1 pr-2 font-semibold text-gray-900 dark:text-gray-100">{e.plate}</td>
+                <td className="py-1 pr-2 font-semibold text-gray-900 dark:text-gray-100">
+                  {e.plate}{i === newest && <span className="sr-only"> — most recently scanned</span>}
+                </td>
                 <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{e.rentalClass ?? '—'}</td>
                 <td className="py-1 pr-2 font-bold text-gray-900 dark:text-gray-100"
                   title={STATUS_LABELS[e.status]}>{e.status}</td>
@@ -98,8 +122,9 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
                   </span>
                 </td>
               </tr>
-            ))}
-          </tbody>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
 

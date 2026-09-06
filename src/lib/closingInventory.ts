@@ -223,6 +223,38 @@ export function handEntry(plate: string, status: InventoryStatus): InventoryEntr
   };
 }
 
+/** The form's own legend order — A D B M F — so every surface reads in the order the paper does. */
+export const GROUP_ORDER: readonly InventoryStatus[] = ['A', 'D', 'B', 'M', 'F'];
+
+/** A row with the position it holds in the SHEET, which is not the position it is drawn in. */
+export interface GroupedRow { entry: InventoryEntry; index: number; }
+export interface EntryGroup { status: InventoryStatus; rows: readonly GroupedRow[]; }
+
+/**
+ * The sheet in piles — ONE rule, shared by the on-screen table and the copied report.
+ *
+ * ⭐ Aaron, 2026-09-05, after his first real 24-car sweep: *"I thought it was going to sort both my
+ * scans AND the version I copy to the email."* Grouping existed, but only in the report — so the
+ * table he worked from and the text he sent were two different documents. The fix is not a second
+ * sort; it is one rule both call, which is also why they cannot drift apart again.
+ *
+ * ⚠️⚠️ EVERY ROW CARRIES ITS ORIGINAL INDEX, and callers must use it. `onEdit`/`onRemove` address
+ * the sheet by position, so handing them a DISPLAY position would edit or delete a different car
+ * than the one under his thumb — silently, and `Undo last` only lifts the newest row, so a wrongly
+ * deleted row 3 of 40 is gone. The index is the whole reason this returns pairs and not entries.
+ *
+ * ⚠️ An empty status prints NOTHING, the same rule the report already held: a "BODY (0)" heading
+ * would read as a claim the lot was checked for body damage and found clean, which this cannot say.
+ *
+ * Scan order is preserved WITHIN each pile — the sort is by status only, never by plate or class.
+ */
+export function groupEntries(entries: readonly InventoryEntry[]): EntryGroup[] {
+  const withIndex = entries.map((entry, index) => ({ entry, index }));
+  return GROUP_ORDER
+    .map(status => ({ status, rows: withIndex.filter(r => r.entry.status === status) }))
+    .filter(g => g.rows.length > 0);
+}
+
 /**
  * ⭐⭐ THE FLEET'S CURRENT RECORD FOR A SCANNED CAR — not the copy the scan handed over.
  *
