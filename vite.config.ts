@@ -67,6 +67,24 @@ export default defineConfig({
     exclude: ['kokoro-js', 'onnxruntime-web'],
   },
   server: {
+    // ⭐⭐ REACHABLE FROM HIS PHONE, so a change can be LOOKED AT without being DEPLOYED.
+    // Vercel warned at 75% of the free tier's 10 GB deployment storage — FG's build output is
+    // ~30 MB and every push to master is a deployment, so "let me see it" used to cost one.
+    // Over Tailscale: http://100.105.112.99:5174 (the address the Stage already serves from).
+    //
+    // ⚠️ Safe because TEMPEST IS A DESKTOP — it does not travel, so `true` (0.0.0.0) means his home
+    // LAN and his tailnet, never a coffee-shop network. Reconsider if FG is ever served from a
+    // laptop; then bind the tailnet address specifically instead.
+    //
+    // ⚠️⚠️ TWO THINGS DO NOT WORK OVER TAILSCALE, and neither is a bug to chase:
+    //   · `SharedArrayBuffer` — the COOP/COEP headers below only grant cross-origin isolation in a
+    //     SECURE CONTEXT (https or localhost). A phone on http://100.x.x.x is not one, so
+    //     `crossOriginIsolated` is false and **Effie's local voice will not run remotely**.
+    //   · The service worker will not register — no PWA install, no offline.
+    // Everything else (layout, data, navigation, every screen) is fine, which covers the actual
+    // job: "does this look right on my phone". If the secure-context features are ever needed
+    // remotely, the answer is `tailscale serve` (real certs), not a change in this repo.
+    host: true,
     port: 5174,
     strictPort: true,
     headers: {
