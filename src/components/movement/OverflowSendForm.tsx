@@ -3,6 +3,7 @@
 // orphan), then log them all as one-way trips. State + writes live in useOverflowSend.
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
+import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import { OVERFLOW_DESTINATIONS } from '../../../api/_lib/overflowProposal';
 import { Toast } from '../shared/Toast';
 import { PhotoError } from '../../components/shared/PhotoError';
@@ -55,11 +56,17 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
       {ov.sends.length > 0 && (
         <div className="space-y-1.5">
           {ov.sends.map((s, i) => (
-            <div key={`${s.plate}-${i}`} className="flex items-center gap-2 text-sm">
+            <div key={`${s.plate}-${i}`}>
+            {/* ⚠️ A send logs `vehicle_plate` as a STRING — no vehicle_id — so a re-plated car files
+                a trip under a plate FG connects to nothing. Rare enough that at most one row in a
+                batch ever shows this; the nonce is per row so dismissing one leaves the others. */}
+            <KeytagReplateOffer vehicle={s.vehicle} tagPlate={s.plate} scanNonce={`${s.plate}-${i}`} />
+            <div className="flex items-center gap-2 text-sm">
               <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">{s.plate}</span>
               <span className="text-gray-400 dark:text-gray-500 text-xs truncate">{s.label}</span>
               <span className={`ml-auto shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${BADGE[s.status].cls}`}>{BADGE[s.status].label}</span>
               <button type="button" aria-label="Remove" onClick={() => ov.remove(i)} className="shrink-0 text-gray-400 hover:text-red-500 text-xs cursor-pointer">✕</button>
+            </div>
             </div>
           ))}
           <button

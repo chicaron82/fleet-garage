@@ -23,6 +23,7 @@ import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInvent
 import { ClosingInventorySheet } from './ClosingInventorySheet';
 import { ClosingInventoryStrip } from './ClosingInventoryStrip';
 import { businessDateOf } from '../../lib/shiftDay';
+import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import { exclusionReason, fleetRecordFor, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
 
 /**
@@ -82,7 +83,7 @@ export function ClosingInventorySection() {
    * on a read too partial to mint a record, so wiring it costs nothing on the other 56 tags.
    */
   const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, user });
-  const { scan, scanPhoto, reading, reset } = useKeytagScan();
+  const { scan, scanPhoto, reading, reset, nonce } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
   const {
     entries, tally, counts, carriedStatus, carriedRow,
@@ -233,10 +234,16 @@ export function ClosingInventorySection() {
             <ClosingInventoryExclusion plate={pendingEntry.plate} reason={pending.excluded}
               onSkip={done} onAnyway={() => setOverrode(true)} />
           ) : pending && pendingEntry ? (
+            <>
+            {/* ⭐ *"anything that involves scanning a tag that picks it up should work the same when
+                it finds something"* — the sheet resolves the car by unit, so a re-plated car lands on
+                the sheet correctly and the plate change would otherwise go unsaid. */}
+            <KeytagReplateOffer vehicle={scan?.result.vehicle} tagPlate={scan?.result.plate} scanNonce={nonce} />
             <ClosingInventoryCard entry={pendingEntry} why={pending.why} suggestedRow={pending.suggestedRow}
               onChange={patch => setEdits(e => ({ ...e, ...patch }))}
               onAdd={() => { if (committing.current) return; committing.current = true; commit(pendingEntry); done(); }}
               onSkip={done} />
+            </>
           ) : (
             <>
               <ScanButton onFile={onFile} reading={reading} fullWidth

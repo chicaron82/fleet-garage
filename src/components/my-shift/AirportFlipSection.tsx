@@ -14,6 +14,7 @@ import { useAirportFlip } from '../../hooks/useAirportFlip';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
 import { HoldContextPanel } from '../holds/HoldContextPanel';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../../lib/resolveKeytagScan';
+import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import { NeededClasses } from './NeededClasses';
 import { FlipRowsList } from './FlipRowsList';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
@@ -239,6 +240,14 @@ export function AirportFlipSection() {
             {capture.plate}{capture.unit ? ` · Unit ${capture.unit}` : ''}
             {onException(capture.vehicle) && <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">On exception</span>}
           </p>
+
+          {/* ⭐ *"anything that involves scanning a tag that picks it up should work the same when it
+              finds something"* — the flip resolves by unit like everything else, so a re-plated car
+              flips fine and used to say nothing. Its rows key on the PLATE STRING with no vehicle_id,
+              so a stale plate here follows the car all the way to the counter's copy-out.
+              ⚠️ The nonce is the plate because this card UNMOUNTS between captures (`capture` goes
+              null), so the offer's dismissed state resets on its own. */}
+          <KeytagReplateOffer vehicle={capture.vehicle} tagPlate={capture.plate} scanNonce={capture.plate} />
 
           {/* Geotab install watchlist — a hold-until-installed condition, surfaced right where the tag lands. */}
           {geotabPending && (

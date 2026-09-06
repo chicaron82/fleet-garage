@@ -11,6 +11,7 @@ import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import { buildOverflowTrip } from '../lib/overflowTrip';
 import { planOverflowScan } from '../lib/overflowScan';
 import { resolveKeytagScan } from '../lib/resolveKeytagScan';
+import type { Vehicle } from '../types';
 import type { OverflowDestination } from '../../api/_lib/overflowProposal';
 
 export interface OverflowSend {
@@ -19,6 +20,11 @@ export interface OverflowSend {
   label: string;
   /** How the scan touched the fleet — drives the row badge. */
   status: 'registered' | 'backfilled' | 'known' | 'unregistered';
+  /** ⭐ The RECORD the tag resolved to, so the row can notice a re-plate. Null for a car FG has no
+   *  record of. Aaron, 2026-09-06: *"anything that involves scanning a tag that picks it up should
+   *  work the same when it finds something"* — and a send is the surface that keys its trip on the
+   *  PLATE STRING (`vehicle_plate`), so a stale plate here logs a trip against a car FG cannot find. */
+  vehicle: Vehicle | null;
 }
 
 export function useOverflowSend(onLogged?: () => void) {
@@ -63,7 +69,7 @@ export function useOverflowSend(onLogged?: () => void) {
     }
     // Universal keytag capture: save the tag to the car it touched if that car has none. If-missing.
     if (vehicleId) void attachKeytagPhotoIfMissing(vehicleId, base64);
-    setSends(prev => [...prev, { ...plan.send, status: sendStatus }]);
+    setSends(prev => [...prev, { ...plan.send, status: sendStatus, vehicle: resolveKeytagScan(read, vehicles).vehicle }]);
   }, [readKeytag, vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user]);
 
   const remove = useCallback((index: number) => setSends(prev => prev.filter((_, i) => i !== index)), []);

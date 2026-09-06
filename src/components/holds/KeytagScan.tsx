@@ -7,19 +7,28 @@
 import { describeNewVehicle } from '../../../api/_lib/holdProposal';
 import { VehicleName } from '../shared/VehicleName';
 import { newVehicleFromRead, type KeytagScanResult } from '../../lib/resolveKeytagScan';
+import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
-export function ScanBranch({ scan, staged, onRegister, onBackfill }: {
+export function ScanBranch({ scan, staged, onRegister, onBackfill, scanNonce }: {
   scan: { read: KeytagRead; result: KeytagScanResult };
   staged: boolean;
   onRegister: () => void;
   onBackfill: () => void;
+  /** Bumped per read (`useKeytagScan().nonce`) so a dismissed re-plate offer re-arms on a new scan. */
+  scanNonce: string | number;
 }) {
   const { read, result } = scan;
   const { plate, wasCorrected, rawPlate, vehicle, resolution } = result;
 
   return (
     <div className="rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2 text-sm">
+      {/* ⭐⭐ Aaron, 2026-09-06: *"anything that involves scanning a tag that picks it up should work
+          the same when it finds something"*. This branch resolves the car by its UNIT when the plate
+          is unknown — which is exactly what a re-plated car looks like — and used to say nothing
+          about the disagreement. Lost & Found matters most here: it keys its row on the plate
+          STRING, so a re-plated car produced an item attached to a plate FG knows no vehicle for. */}
+      <KeytagReplateOffer vehicle={vehicle} tagPlate={plate} scanNonce={scanNonce} />
       {wasCorrected && rawPlate && (
         <p className="text-[11px] text-amber-700 dark:text-amber-400">
           Read <span className="font-mono">{rawPlate}</span> → corrected to <span className="font-mono font-semibold">{plate}</span>

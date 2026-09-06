@@ -142,7 +142,7 @@ export function LostFoundDetailsStep({ form, user }: { form: LostFoundForm; user
         />
         {/* The Step-1 key-tag photo already read the tag → plate filled above, branch here. */}
         {form.keytag.err && <p className="text-xs text-red-500 mt-2">{form.keytag.err}</p>}
-        {form.keytag.scan && <div className="mt-2"><ScanBranch scan={form.keytag.scan} staged={form.keytag.staged} onRegister={form.keytag.register} onBackfill={form.keytag.backfill} /></div>}
+        {form.keytag.scan && <div className="mt-2"><ScanBranch scan={form.keytag.scan} staged={form.keytag.staged} onRegister={form.keytag.register} onBackfill={form.keytag.backfill} scanNonce={form.keytag.nonce} /></div>}
         {form.licensePlate.trim().length >= 4 ? (
           form.plateMatch ? (
             <p className="text-xs text-teal-700 dark:text-teal-400 mt-1">

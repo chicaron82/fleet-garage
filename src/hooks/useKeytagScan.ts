@@ -24,6 +24,8 @@ export interface KeytagScanState {
   scanPhoto: (base64: string, onPlate?: (plate: string) => void) => Promise<{ read: KeytagRead; result: KeytagScanResult } | null>;
   register: () => Promise<void>;
   backfill: () => Promise<void>;
+  /** Increments per read — feeds `scanNonce` so a dismissed offer re-arms on the next scan. */
+  nonce: number;
   reset: () => void;
 }
 
@@ -32,11 +34,17 @@ export function useKeytagScan(): KeytagScanState {
   const { vehicles } = useVehicleHoldContext();
   const { stage } = usePendingWritesContext();
   const [scan, setScan] = useState<{ read: KeytagRead; result: KeytagScanResult } | null>(null);
+  /** ⭐ Bumped on every read, so a consumer can tell "a NEW scan happened" from "the same scan
+   *  re-rendered". `ScanReplateOffer` needs exactly this: once dismissed it stays done, and a fresh
+   *  scan of the same car must offer again. Lives here so every surface gets one for free rather
+   *  than inventing its own. */
+  const [nonce, setNonce] = useState(0);
   const [staged, setStaged] = useState(false);
   const [err, setErr] = useState('');
 
   const scanPhoto = useCallback(async (base64: string, onPlate?: (plate: string) => void) => {
     setScan(null); setStaged(false); setErr('');
+    setNonce(n => n + 1);
     const read = await readKeytag(base64);
     if (!read) { setErr('Could not read that key tag.'); return null; }
     const result = resolveKeytagScan(read, vehicles);
@@ -66,5 +74,5 @@ export function useKeytagScan(): KeytagScanState {
 
   const reset = useCallback(() => { setScan(null); setStaged(false); setErr(''); }, []);
 
-  return { scan, staged, err, reading: status === 'reading', scanPhoto, register, backfill, reset };
+  return { scan, staged, err, nonce, reading: status === 'reading', scanPhoto, register, backfill, reset };
 }
