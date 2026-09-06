@@ -10,6 +10,7 @@ import { loadSession, saveSession, clearSession, normalizeEntry, EMPTY_SESSION }
 import type { InventoryEntry } from '../../src/lib/closingInventory';
 
 const entry = (over: Partial<InventoryEntry> = {}): InventoryEntry => ({
+  id: 'e1', at: 1,
   vehicleId: 'v1', plate: 'LUR306', unitNumber: '5422795', owningArea: '8199',
   rentalClass: 'C', status: 'A', row: '5', note: '', ...over,
 });
@@ -64,15 +65,66 @@ describe('the persisted session', () => {
 // ⚠️ The real fix for "added a field to a persisted shape". A row written by an older build can lack
 // a field added since, and a bare `.trim()` on it crashed the whole My Shift render for the flip on
 // 2026-07-17. An old payload may be incomplete; it must never be fatal.
+describe('loadSession — healed ids must survive the load that minted them', () => {
+  // ⚠️⚠️ THE REGRESSION THIS GUARDS. `normalizeEntry` mints a fresh id for a pre-sync row, and
+  // `loadSession` runs on every mount. Without writing the healed session back, Aaron's 24-row
+  // sheet would present 24 NEW ids on each load, and the per-row merge — which reconciles by id —
+  // would append the entire sheet to the server copy every single time.
+  const legacy = JSON.stringify({
+    day: '2026-09-05',
+    entries: [{ plate: 'LUR402', status: 'B' }, { plate: 'LUR401', status: 'B' }],
+    carriedStatus: 'B', carriedRow: '',
+  });
+
+  it('assigns ids to a pre-sync payload and keeps them stable across reloads', () => {
+    localStorage.setItem('fg_closing_inventory', legacy);
+    const first  = loadSession('2026-09-05');
+    const second = loadSession('2026-09-05');
+    expect(first.entries.map(e => e.id)).toEqual(second.entries.map(e => e.id));
+    expect(new Set(first.entries.map(e => e.id)).size).toBe(2);   // and unique per row
+  });
+
+  it('keeps the rows themselves intact while healing them', () => {
+    localStorage.setItem('fg_closing_inventory', legacy);
+    const s = loadSession('2026-09-05');
+    expect(s.entries.map(e => e.plate)).toEqual(['LUR402', 'LUR401']);
+    expect(s.carriedStatus).toBe('B');
+  });
+
+  it('a stale shift day still reads as empty — sync did not change the expiry', () => {
+    localStorage.setItem('fg_closing_inventory', legacy);
+    expect(loadSession('2026-09-06')).toEqual(EMPTY_SESSION);
+  });
+});
+
 describe('normalizeEntry', () => {
   it('heals a row saved by an older build into the current shape', () => {
     const healed = normalizeEntry({ plate: 'LUR999' });
-    expect(healed).toEqual({
+    expect(healed).toMatchObject({
       vehicleId: null, plate: 'LUR999', unitNumber: null, owningArea: null,
       rentalClass: null, status: 'A', row: '', note: '',
     });
     // The fields the sheet calls .trim() on are strings, always.
     expect(() => healed.note.trim() + healed.row.trim() + healed.plate.trim()).not.toThrow();
+  });
+
+  // ⭐ The sync fields, added 2026-09-06. A row written before cross-device sync existed has none of
+  // them, and every one of these defaults is load-bearing.
+  it('mints an id, stamps the row as the OLDEST, and is not a tombstone', () => {
+    const healed = normalizeEntry({ plate: 'LUR999' });
+    expect(typeof healed.id).toBe('string');
+    expect(healed.id.length).toBeGreaterThan(0);
+    // ⚠️ 0, never Date.now(). A legacy row is the oldest thing on the sheet, so any real edit on any
+    // device beats it. Stamping it "now" on each read would make it perpetually win every merge.
+    expect(healed.at).toBe(0);
+    expect(healed.deleted).toBe(false);
+  });
+
+  it('⚠️⚠️ mints a DIFFERENT id each call — which is why loadSession must persist the healed rows', () => {
+    // This is not a defect, it is the constraint: normalizeEntry runs on every load, so if the
+    // healed ids were never written back, the same 24 rows would arrive with 24 fresh ids each time
+    // and the per-row merge would duplicate the whole sheet on contact with the server.
+    expect(normalizeEntry({ plate: 'LUR999' }).id).not.toBe(normalizeEntry({ plate: 'LUR999' }).id);
   });
 
   it('rejects a status outside the form legend', () => {

@@ -1,6 +1,6 @@
 import type { Vehicle } from '../types';
 import { isDisposition } from './disposition';
-import { ROW_CAPACITY, rowLabel, suggestRow } from './closingInventoryLot';
+import { rowLabel, suggestRow } from './closingInventoryLot';
 
 // The closing write-up — Hertz form 8073-16, "Location Daily Vehicle Inventory".
 //
@@ -31,6 +31,19 @@ export const STATUS_LABELS: Record<InventoryStatus, string> = {
 
 /** One line of the sheet. */
 export interface InventoryEntry {
+  /** ⭐⭐ STABLE ROW IDENTITY, and it is what makes cross-device sync safe rather than destructive.
+   *  The sheet merges PER ROW; without an id the only option is whole-list last-write-wins, which
+   *  is the exact bug `b93ccda` fixed on the flip — and it would be worse here, because a PC opened
+   *  fresh at home would push an EMPTY sheet over 24 cars scanned at the yard.
+   *  ⚠️ NOT the plate: he can deliberately write the same car up twice, and a corrected misread
+   *  changes a plate after the row exists. */
+  id: string;
+  /** Epoch ms of this row's last edit. Strictly-newer wins a merge; a tie keeps the local row. */
+  at: number;
+  /** ⚠️ A TOMBSTONE, not a filter. A removed row must stay in the payload or the other device's
+   *  stale copy resurrects it on the next merge. Nothing outside the store/sync/hook ever sees a
+   *  deleted row — the hook hands out visible entries only. */
+  deleted?: boolean;
   vehicleId: string | null;   // null for a car typed in by hand
   plate: string;
   unitNumber: string | null;
@@ -46,7 +59,8 @@ export interface InventoryEntry {
 // ⭐ The LOT's own knowledge — the class→row bands, row capacity, and how a row is written — lives
 // in `closingInventoryLot`, re-exported here so the model still presents ONE interface to the
 // surface. The split is about the 330-line cap, not a new seam for callers to learn.
-export { ROW_CAPACITY, suggestBand, suggestRow, rowLabel } from './closingInventoryLot';
+export { ROW_CAPACITY, suggestBand, suggestRow, rowLabel, rowTally,
+         type RowTally } from './closingInventoryLot';
 
 /**
  * The unit number as the KEY TAG prints it — `5426408` → `542 6408`.
@@ -169,39 +183,6 @@ export function deriveStatus(
 
 // ── the running sheet ─────────────────────────────────────────────────────────────────────────
 
-/**
- * Available cars per row, against capacity — the thing the paper cannot do.
- *
- * ⚠️ Aaron caught the first version of this on his phone: the panel showed one row while his sheet
- * held available cars in three. *"I have available cars in 3 different rows but only shows the last
- * row I used."* The carried row is what the NEXT car inherits; this is where they actually are, and
- * conflating the two put a label over a value that meant something else.
- */
-export interface RowTally { row: string; label: string; count: number; capacity: number | null; full: boolean }
-
-export function rowTally(entries: readonly InventoryEntry[]): RowTally[] {
-  const by = new Map<string, number>();
-  for (const e of entries) {
-    if (e.status !== 'A') continue;
-    const r = e.row.trim();
-    if (!r) continue;
-    by.set(r, (by.get(r) ?? 0) + 1);
-  }
-  return [...by.entries()]
-    .sort((a, b) => {
-      const na = Number(a[0]), nb = Number(b[0]);
-      const aNum = Number.isFinite(na), bNum = Number.isFinite(nb);
-      if (aNum && bNum) return na - nb;
-      if (aNum) return -1;              // numbered rows first, fence zones after
-      if (bNum) return 1;
-      return a[0] < b[0] ? -1 : 1;
-    })
-    .map(([row, count]) => {
-      const capacity = ROW_CAPACITY[row] ?? null;
-      return { row, label: rowLabel(row), count, capacity, full: capacity !== null && count >= capacity };
-    });
-}
-
 /** How the session reads at a glance. */
 export function summarise(entries: readonly InventoryEntry[]) {
   const by = { A: 0, D: 0, B: 0, M: 0, F: 0 } as Record<InventoryStatus, number>;
@@ -216,76 +197,12 @@ export function summarise(entries: readonly InventoryEntry[]) {
  */
 export function handEntry(plate: string, status: InventoryStatus): InventoryEntry {
   return {
+    id: crypto.randomUUID(), at: Date.now(),
     vehicleId: null,
     plate: plate.trim().toUpperCase(),
     unitNumber: null, owningArea: null, rentalClass: null,
     status, row: '', note: '',
   };
-}
-
-/**
- * ⭐⭐ THE CLOSING SHEET'S TWO CARRY-OVER COUNTS, for seeding the washbay log.
- *
- * Aaron, 2026-09-05, dry-running the scanner in the lot: *"now it's all scanned then the cleans and
- * dirty should be filled out here automatically right?"* They should — and he had to spell out why,
- * because the washbay log's field names hide it:
- *
- *   *"rentable on the lot that have been cleaned but not sent to the airport / dirties are returns
- *   from the airport that are now at Erin St. this is what the morning crew will be cleaning."*
- *
- * ⚠️ So **"clean, not picked up" has always meant NOT YET SENT UP** — never "a customer failed to
- * collect it". `washbayLineage` says it outright (*"clean cars not yet sent"*) and it is still the
- * easiest field in FG to misread, because the rental meaning of the words is right there and wrong.
- *
- * **A → the cleans**, sitting at Erin St waiting for a driver to take them up.
- * **D → the queue**, airport returns that are tomorrow morning's work.
- * **B and M belong to neither** — a held car is not washbay work in either direction.
- *
- * ⚠️ AN EMPTY SHEET SEEDS NOTHING, NOT ZERO. "I did not write up a lot" is not the claim "the lot
- * was empty", and a seeded 0 would put that claim into the throughput history and into tomorrow's
- * opening card, which reads both numbers back.
- *
- * ⚠️ Erin St only. The airport closes with its OWN two counts — available cleans parked up there
- * and dirty returns in the return stalls — and FG cannot see them. This is half a branch's picture.
- */
-export function seedClosingCounts(entries: readonly InventoryEntry[]): {
-  queueAtClose: string; cleanNotSent: string;
-} {
-  if (entries.length === 0) return { queueAtClose: '', cleanNotSent: '' };
-  const by = summarise(entries).byStatus;
-  return { queueAtClose: String(by.D), cleanNotSent: String(by.A) };
-}
-
-/** The form's own legend order — A D B M F — so every surface reads in the order the paper does. */
-export const GROUP_ORDER: readonly InventoryStatus[] = ['A', 'D', 'B', 'M', 'F'];
-
-/** A row with the position it holds in the SHEET, which is not the position it is drawn in. */
-export interface GroupedRow { entry: InventoryEntry; index: number; }
-export interface EntryGroup { status: InventoryStatus; rows: readonly GroupedRow[]; }
-
-/**
- * The sheet in piles — ONE rule, shared by the on-screen table and the copied report.
- *
- * ⭐ Aaron, 2026-09-05, after his first real 24-car sweep: *"I thought it was going to sort both my
- * scans AND the version I copy to the email."* Grouping existed, but only in the report — so the
- * table he worked from and the text he sent were two different documents. The fix is not a second
- * sort; it is one rule both call, which is also why they cannot drift apart again.
- *
- * ⚠️⚠️ EVERY ROW CARRIES ITS ORIGINAL INDEX, and callers must use it. `onEdit`/`onRemove` address
- * the sheet by position, so handing them a DISPLAY position would edit or delete a different car
- * than the one under his thumb — silently, and `Undo last` only lifts the newest row, so a wrongly
- * deleted row 3 of 40 is gone. The index is the whole reason this returns pairs and not entries.
- *
- * ⚠️ An empty status prints NOTHING, the same rule the report already held: a "BODY (0)" heading
- * would read as a claim the lot was checked for body damage and found clean, which this cannot say.
- *
- * Scan order is preserved WITHIN each pile — the sort is by status only, never by plate or class.
- */
-export function groupEntries(entries: readonly InventoryEntry[]): EntryGroup[] {
-  const withIndex = entries.map((entry, index) => ({ entry, index }));
-  return GROUP_ORDER
-    .map(status => ({ status, rows: withIndex.filter(r => r.entry.status === status) }))
-    .filter(g => g.rows.length > 0);
 }
 
 /**
@@ -321,6 +238,7 @@ export function entryFromScan(
   const status = d.status;
   return {
     entry: {
+      id: crypto.randomUUID(), at: Date.now(),
       vehicleId: vehicle.id,
       plate: vehicle.licensePlate,
       unitNumber: vehicle.unitNumber ?? null,
@@ -370,6 +288,7 @@ export function entryFromTag(
   const status = carried.status;
   return {
     entry: {
+      id: crypto.randomUUID(), at: Date.now(),
       vehicleId: null,
       plate: tag.plate.trim().toUpperCase(),
       unitNumber: tag.unitNumber ?? null,
@@ -388,3 +307,9 @@ export function entryFromTag(
 export function needsStatusChoice(d: DerivedStatus): boolean {
   return d.status === null;
 }
+
+// ⭐ Re-exported so the model still presents ONE interface to the surfaces, exactly as with
+// `closingInventoryLot` above. These splits are about the 330-line cap, not new seams to learn.
+export { visibleEntries, mergeEntries, sameEntries } from './closingInventoryMerge';
+export { GROUP_ORDER, groupEntries, seedClosingCounts,
+         type GroupedRow, type EntryGroup } from './closingInventoryViews';

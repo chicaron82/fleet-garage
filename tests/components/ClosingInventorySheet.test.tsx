@@ -12,7 +12,8 @@ import { ClosingInventorySheet } from '../../src/components/my-shift/ClosingInve
 import type { InventoryEntry } from '../../src/lib/closingInventory';
 
 const row = (plate: string, status: InventoryEntry['status']): InventoryEntry => ({
-  vehicleId: null, plate, unitNumber: null, owningArea: null, rentalClass: null,
+  // Deterministic id per plate — readable in an assertion, and unique the way a real row is.
+  id: plate, at: 1, vehicleId: null, plate, unitNumber: null, owningArea: null, rentalClass: null,
   status, row: '', note: '',
 });
 

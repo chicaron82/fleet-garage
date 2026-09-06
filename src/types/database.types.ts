@@ -122,6 +122,24 @@ export type Database = {
         }
         Relationships: []
       }
+      closing_inventories: {
+        Row: {
+          sheet: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          sheet: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          sheet?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       effie_ledger: {
         Row: {
           amount_usd: number

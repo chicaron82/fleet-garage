@@ -15,6 +15,7 @@
 // sit. See the memory `reference_erin_st_lot_rows` for the map's full vocabulary (numbered stalls,
 // the 6+ strip, the BR/FF fence zones, and the south fence being where dirties live).
 
+import type { InventoryEntry } from './closingInventory';
 /** Row → how many cars it holds. Used for the live tally, never to refuse a row. */
 export const ROW_CAPACITY: Readonly<Record<string, number>> = {
   '1': 8, '2': 8, '3': 8, '4': 8, '5': 8, '6': 8,
@@ -145,4 +146,37 @@ export function rowLabel(row: string | null | undefined): string {
   const r = (row ?? '').trim();
   if (!r) return '';
   return /^\d+$/.test(r) ? `R-${r}` : r.toUpperCase();
+}
+
+/**
+ * Available cars per row, against capacity — the thing the paper cannot do.
+ *
+ * ⚠️ Aaron caught the first version of this on his phone: the panel showed one row while his sheet
+ * held available cars in three. *"I have available cars in 3 different rows but only shows the last
+ * row I used."* The carried row is what the NEXT car inherits; this is where they actually are, and
+ * conflating the two put a label over a value that meant something else.
+ */
+export interface RowTally { row: string; label: string; count: number; capacity: number | null; full: boolean }
+
+export function rowTally(entries: readonly InventoryEntry[]): RowTally[] {
+  const by = new Map<string, number>();
+  for (const e of entries) {
+    if (e.status !== 'A') continue;
+    const r = e.row.trim();
+    if (!r) continue;
+    by.set(r, (by.get(r) ?? 0) + 1);
+  }
+  return [...by.entries()]
+    .sort((a, b) => {
+      const na = Number(a[0]), nb = Number(b[0]);
+      const aNum = Number.isFinite(na), bNum = Number.isFinite(nb);
+      if (aNum && bNum) return na - nb;
+      if (aNum) return -1;              // numbered rows first, fence zones after
+      if (bNum) return 1;
+      return a[0] < b[0] ? -1 : 1;
+    })
+    .map(([row, count]) => {
+      const capacity = ROW_CAPACITY[row] ?? null;
+      return { row, label: rowLabel(row), count, capacity, full: capacity !== null && count >= capacity };
+    });
 }

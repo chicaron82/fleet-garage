@@ -11,10 +11,23 @@
 // storage type — it comes from the day stamp, and a stale-day payload is dropped on read. No table,
 // no migration, no sync.
 //
-// ⚠️ AND DELIBERATELY NO SERVER SYNC, unlike the flip. The flip syncs because he genuinely uses two
-// devices for it — *"he flips on the phone, adds one on the computer, then picks the phone back
-// up"*. A closing write-up is one pile of keys, one person, one sitting. Syncing it would buy a
-// problem he does not have and cost a table he does not need.
+// ⚠️⚠️ THE "NO SERVER SYNC" ARGUMENT THAT USED TO SIT HERE WAS BUILT ON A FABRICATED QUOTE.
+//
+// It read: *the flip syncs because he genuinely uses two devices for it — "he flips on the phone,
+// adds one on the computer, then picks the phone back up"* — set in the italic-quote form this
+// codebase reserves for Aaron's VERBATIM words. **He never said it.** Traced 2026-09-06: the
+// sentence originates in `docs/archive/ticket-flip-merge-per-row.md`, a **2026-07-26 line-check**
+// finding explicitly stamped *"never hit live"* — an ILLUSTRATIVE SCENARIO a past DiZee invented to
+// explain a race condition. A later session quoted the hypothetical as fact and used it to justify
+// a DIFFERENT feature's design. Aaron, shown it: *"probably mis-remembered from a compaction. i may
+// have used two to test. one to show a photo of a keytag in the camera roll. the other to take the
+// photo."* Two devices was a TEST RIG, never a habit.
+//
+// ⭐ And the design it justified failed him the first night he used the feature: he scanned 24 cars
+// at the yard, went home, opened FG on his PC and found nothing. His rule, which outranks any
+// inferred usage pattern: **"these should be available. the value of FG is being able to use it on
+// anything."** Sync is owed here — see the ticket. Until it lands this is device-local, and that is
+// a known gap, not a decision.
 import type { InventoryEntry, InventoryStatus } from './closingInventory';
 
 const KEY = 'fg_closing_inventory';
@@ -43,6 +56,14 @@ export const EMPTY_SESSION: StoredSession = { entries: [], carriedStatus: null, 
 export function normalizeEntry(r: Partial<InventoryEntry>): InventoryEntry {
   const status = r.status && STATUSES.includes(r.status) ? r.status : 'A';
   return {
+    // ⚠️ A row written before sync existed has no id. Minting one here is safe ONLY because
+    // `loadSession` writes the healed session straight back — see there. Left unpersisted, every
+    // read would mint DIFFERENT ids for the same rows and the merge would duplicate the sheet.
+    id: r.id ?? crypto.randomUUID(),
+    // 0, not Date.now() — an un-stamped legacy row is the OLDEST thing on the sheet, so any real
+    // edit anywhere beats it. Stamping it "now" on every read would make it perpetually newest.
+    at: r.at ?? 0,
+    deleted: r.deleted ?? false,
     vehicleId: r.vehicleId ?? null,
     plate: typeof r.plate === 'string' ? r.plate : '',
     unitNumber: r.unitNumber ?? null,
@@ -69,12 +90,19 @@ export function loadSession(today: string): StoredSession {
     const parsed = JSON.parse(raw) as { day?: string; entries?: Partial<InventoryEntry>[]; carriedStatus?: unknown; carriedRow?: unknown };
     if (parsed.day !== today) return EMPTY_SESSION;
     const carried = parsed.carriedStatus;
-    return {
-      entries: Array.isArray(parsed.entries) ? parsed.entries.map(normalizeEntry) : [],
+    const rawEntries = Array.isArray(parsed.entries) ? parsed.entries : [];
+    const session: StoredSession = {
+      entries: rawEntries.map(normalizeEntry),
       carriedStatus: typeof carried === 'string' && STATUSES.includes(carried as InventoryStatus)
         ? carried as InventoryStatus : null,
       carriedRow: typeof parsed.carriedRow === 'string' ? parsed.carriedRow : '',
     };
+    // ⚠️⚠️ WRITE THE HEALED IDS BACK IMMEDIATELY. `normalizeEntry` mints an id for a row stored
+    // before sync existed, and this function runs on EVERY load — so without persisting, the same
+    // 24 rows would get 24 fresh ids each time and the per-row merge would duplicate the whole
+    // sheet on contact with the server. Only writes when something actually lacked an id.
+    if (rawEntries.some(e => !e.id)) saveSession(today, session);
+    return session;
   } catch {
     return EMPTY_SESSION;
   }

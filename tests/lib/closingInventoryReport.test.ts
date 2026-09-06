@@ -10,6 +10,7 @@ import { buildInventoryReport, inventoryReportLine } from '../../src/lib/closing
 import type { InventoryEntry } from '../../src/lib/closingInventory';
 
 const e = (over: Partial<InventoryEntry> = {}): InventoryEntry => ({
+  id: 'e1', at: 1,
   vehicleId: 'v1', plate: 'LUR306', unitNumber: '5422795', owningArea: '8199',
   rentalClass: 'C', status: 'A', row: '', note: '', ...over,
 });

@@ -9,7 +9,7 @@ import { ClosingInventorySheet } from '../../src/components/my-shift/ClosingInve
 import { rowTally, type InventoryEntry } from '../../src/lib/closingInventory';
 
 const entry = (over: Partial<InventoryEntry> = {}): InventoryEntry => ({
-  vehicleId: 'v1', plate: 'LUR306', unitNumber: '5426952', owningArea: '8199',
+  id: 'e1', at: 1, vehicleId: 'v1', plate: 'LUR306', unitNumber: '5426952', owningArea: '8199',
   rentalClass: 'C', status: 'A', row: '', note: '', ...over,
 });
 

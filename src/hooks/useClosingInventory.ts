@@ -17,8 +17,10 @@ import { businessDateOf } from '../lib/shiftDay';
 import { loadSession, saveSession, clearSession } from '../lib/closingInventoryStore';
 import {
   entryFromScan, entryFromTag, handEntry, rowTally, summarise,
+  mergeEntries, sameEntries, visibleEntries,
   type ActiveHold, type InventoryEntry, type InventoryStatus, type TagIdentity,
 } from '../lib/closingInventory';
+import { loadServerSheet, saveServerSheet } from '../lib/closingInventorySync';
 import type { Vehicle } from '../types';
 
 export interface ClosingInventoryState {
@@ -58,7 +60,10 @@ export function useClosingInventory(): ClosingInventoryState {
    */
   const today = businessDateOf(new Date());
   const [restored] = useState(() => loadSession(today));
-  const [entries, setEntries] = useState<InventoryEntry[]>(restored.entries);
+  /** ⚠️ `all` CARRIES TOMBSTONES; nothing outside this hook ever sees one. A removed row has to stay
+   *  in the payload or the other device's stale copy resurrects it on the next merge. */
+  const [all, setEntries] = useState<InventoryEntry[]>(restored.entries);
+  const entries = useMemo(() => visibleEntries(all), [all]);
   const [carriedStatus, setCarriedStatus] = useState<InventoryStatus | null>(restored.carriedStatus);
   const [carriedRow, setCarriedRow] = useState(restored.carriedRow);
 
@@ -66,8 +71,43 @@ export function useClosingInventory(): ClosingInventoryState {
   // for is the app being KILLED, which runs no cleanup. A save that only happens on a tidy exit
   // protects the case that was never in danger.
   useEffect(() => {
-    saveSession(today, { entries, carriedStatus, carriedRow });
-  }, [today, entries, carriedStatus, carriedRow]);
+    saveSession(today, { entries: all, carriedStatus, carriedRow });
+  }, [today, all, carriedStatus, carriedRow]);
+
+  /**
+   * ⭐⭐ PUSH TO THE SERVER on every change, alongside the local write — never instead of it.
+   * localStorage stays the fast path and the offline cache, so a dead network costs him nothing.
+   *
+   * ⚠️ Skips the very first render when the sheet is empty, so a freshly-opened device cannot
+   * announce an empty sheet before it has had a chance to hydrate. That is the destructive
+   * direction, and it is the one worth a guard.
+   */
+  useEffect(() => {
+    if (all.length === 0) return;
+    void saveServerSheet(today, all, Date.now());
+  }, [today, all]);
+
+  /**
+   * Pull on mount AND on refocus. The refocus pull is the half that actually closes the window: he
+   * scans on the phone at the yard, opens FG on the PC at home, and comes back to the phone — which
+   * was never killed, so without this it would still be holding (and about to push) a sheet that
+   * predates the PC. Safe to re-run because `mergeEntries` is idempotent and commutative.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const pull = async () => {
+      const server = await loadServerSheet();
+      if (cancelled || !server || server.day !== today) return;  // no row / offline / stale day → keep local
+      setEntries(prev => {
+        const merged = mergeEntries(prev, server.entries);
+        return sameEntries(merged, prev) ? prev : merged;        // nothing new → don't re-render or re-push
+      });
+    };
+    void pull();
+    const onVisible = () => { if (document.visibilityState === 'visible') void pull(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
+  }, [today]);
 
   /** Available cars per row, for the row suggestion's roll-to-next-row behaviour. */
   const filled = useMemo(() => {
@@ -122,12 +162,37 @@ export function useClosingInventory(): ClosingInventoryState {
     setCarriedStatus(status);
   }, []);
 
+  /**
+   * ⚠️⚠️ THE INDEX IS A VISIBLE-LIST POSITION, AND `all` IS NOT THE VISIBLE LIST.
+   *
+   * The sheet hands back the index of the row he tapped, counted over the rows he can SEE. Once
+   * tombstones exist those positions drift from `all`, so acting on `all[index]` would edit or
+   * delete a different car than the one under his thumb — silently. Resolve to the row's `id`
+   * first, always. (Same failure the grouped table had to avoid an hour earlier, one layer down.)
+   */
+  const atVisible = (prev: InventoryEntry[], index: number): string | undefined =>
+    visibleEntries(prev)[index]?.id;
+
   const updateAt = useCallback((index: number, patch: Partial<InventoryEntry>) => {
-    setEntries(prev => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
+    setEntries(prev => {
+      const id = atVisible(prev, index);
+      if (!id) return prev;
+      // `at` last, so a patch can never carry a stale stamp and lose its own edit in a merge.
+      return prev.map(e => (e.id === id ? { ...e, ...patch, at: Date.now() } : e));
+    });
   }, []);
 
+  /**
+   * ⚠️ A TOMBSTONE, not a splice. Dropping the row outright would let the other device's stale copy
+   * resurrect it on the next merge — a car a driver has taken reappearing on the sheet is worse than
+   * a car missing from it, because he has no reason to look for it again.
+   */
   const removeAt = useCallback((index: number) => {
-    setEntries(prev => prev.filter((_, i) => i !== index));
+    setEntries(prev => {
+      const id = atVisible(prev, index);
+      if (!id) return prev;
+      return prev.map(e => (e.id === id ? { ...e, deleted: true, at: Date.now() } : e));
+    });
   }, []);
 
   /**
@@ -139,7 +204,12 @@ export function useClosingInventory(): ClosingInventoryState {
    * he is carrying because he fixed a typo would make him re-pick it for the next car.
    */
   const undoLast = useCallback(() => {
-    setEntries(prev => prev.slice(0, -1));
+    setEntries(prev => {
+      const vis = visibleEntries(prev);
+      const id = vis[vis.length - 1]?.id;
+      if (!id) return prev;
+      return prev.map(e => (e.id === id ? { ...e, deleted: true, at: Date.now() } : e));
+    });
   }, []);
 
   const clear = useCallback(() => {
@@ -149,7 +219,12 @@ export function useClosingInventory(): ClosingInventoryState {
     // ⚠️ Clear the STORE too, not just the state — otherwise "Clear the sheet" would be undone by
     // the next reload, which is the most confusing possible outcome of a destructive button.
     clearSession();
-  }, []);
+    // ⚠️⚠️ AND CLEAR THE SERVER, not just this device. Without this the next hydrate — on refocus,
+    // seconds later — pulls the whole sheet straight back, which is the most confusing possible
+    // outcome of a destructive button and exactly the trap the local-only version already documented.
+    // Written directly because the push effect deliberately skips an empty sheet.
+    void saveServerSheet(today, [], Date.now());
+  }, [today]);
 
   return {
     entries, carriedStatus, carriedRow, tally, counts, filled,
