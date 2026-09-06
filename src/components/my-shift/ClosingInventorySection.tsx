@@ -23,7 +23,7 @@ import { ClosingInventoryCard, ClosingInventoryExclusion } from './ClosingInvent
 import { ClosingInventorySheet } from './ClosingInventorySheet';
 import { ClosingInventoryStrip } from './ClosingInventoryStrip';
 import { businessDateOf } from '../../lib/shiftDay';
-import { exclusionReason, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
+import { exclusionReason, fleetRecordFor, type ActiveHold, type InventoryEntry } from '../../lib/closingInventory';
 
 /**
  * The lot this write-up covers. FG is branch-scoped (YWG), but the closing inventory is specifically
@@ -97,12 +97,17 @@ export function ClosingInventorySection() {
    * stale against the scan it came from, and this cannot. His edits layer on top.
    */
   const built = useMemo(() => {
-    const vehicle = scan?.result.vehicle;
-    if (!vehicle) return null;
+    const scanned = scan?.result.vehicle;
+    if (!scanned) return null;
+    // ⭐⭐ THE LIVE RECORD, because `handleScanRead` below backfills the very car this scan resolved
+    // and the resolved copy predates that write. Deriving from the scan was already right; it was
+    // just not sufficient, since the row also depends on a record the same scan mutates. Listing
+    // `vehicles` in the deps is what makes the backfill land in the pending row before he commits.
+    const vehicle = fleetRecordFor(scanned, vehicles);
     const holds = getActiveHolds(vehicle.id) as unknown as ActiveHold[];
     // ⭐ The sale / turnback / buy-back question is asked ONCE, through the hold — not by type.
     return { ...addScan(vehicle, holds), excluded: exclusionReason(holds) };
-  }, [scan, getActiveHolds, addScan]);
+  }, [scan, vehicles, getActiveHolds, addScan]);
 
   /**
    * ⭐⭐ A tag that read fine but names no fleet car STILL BECOMES A ROW. Aaron: *"why wouldn't FG

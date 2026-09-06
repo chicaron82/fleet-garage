@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   sheetNote, deriveStatus, entryFromScan, entryFromTag, formatUnitNumber,
   isNotWrittenUp, exclusionReason, rowTally, summarise, handEntry,
-  ROW_CAPACITY, type InventoryEntry, type ActiveHold,
+  ROW_CAPACITY, fleetRecordFor, type InventoryEntry, type ActiveHold,
 } from '../../src/lib/closingInventory';
 
 // Hertz form 8073-16, the closing write-up. Aaron, 2026-09-02: *"closing inventory. scan the tag.
@@ -288,5 +288,36 @@ describe('entryFromTag', () => {
     const { entry, suggestedRow } = entryFromTag({ plate: 'LUR999' }, { status: 'D', row: '' });
     expect(entry).toMatchObject({ plate: 'LUR999', owningArea: null, unitNumber: null, rentalClass: null });
     expect(suggestedRow).toBeNull();
+  });
+});
+
+describe('fleetRecordFor — the row is built from the fleet, not the scan\'s copy', () => {
+  // ⚠️ Aaron's regression, caught in the lot 2026-09-05. A key-tag scan backfills the very car it
+  // just resolved, so the vehicle inside the scan result is one write out of date by the time the
+  // sheet row is built from it. LUR402 landed on the closing sheet with a BLANK owning area while
+  // its own record already read 8199 — stamped `tag`, written by that same scan seconds earlier.
+  // LUR401 beside it came out right only because its owning had been on file since Aug 20: nothing
+  // to backfill, nothing to go stale. So this misses exactly the thin records a closing sweep finds.
+  const scanned = car({ owningArea: null });
+
+  it('prefers the fleet record over the stale copy the scan captured', () => {
+    expect(fleetRecordFor(scanned, [car({ id: 'v0' }), car()]).owningArea).toBe('8199');
+  });
+
+  it('falls back to the scanned copy for a car the fleet list genuinely does not hold', () => {
+    expect(fleetRecordFor(scanned, [car({ id: 'v0' })])).toBe(scanned);
+  });
+
+  it('matches on id, never on plate — a corrected misread must still find its record', () => {
+    // `resolveKeytagScan` can correct a misread plate, so the plate in hand is not a safe key.
+    expect(fleetRecordFor(scanned, [car({ licensePlate: 'LUR4O2' })]).owningArea).toBe('8199');
+  });
+
+  it('carries the backfilled owning all the way into the sheet row', () => {
+    const fleet = [car()];
+    const stale = entryFromScan(scanned, none, { status: 'B', row: '' });
+    const live = entryFromScan(fleetRecordFor(scanned, fleet), none, { status: 'B', row: '' });
+    expect(stale.entry.owningArea).toBeNull();   // what he saw on the sheet
+    expect(live.entry.owningArea).toBe('8199');  // what it should have carried
   });
 });

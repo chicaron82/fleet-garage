@@ -223,6 +223,26 @@ export function handEntry(plate: string, status: InventoryStatus): InventoryEntr
   };
 }
 
+/**
+ * ⭐⭐ THE FLEET'S CURRENT RECORD FOR A SCANNED CAR — not the copy the scan handed over.
+ *
+ * ⚠️ A key-tag scan does TWO things with one read: it builds the sheet row, and it backfills the
+ * blank fields on the vehicle it just resolved. The vehicle object inside a scan result is captured
+ * BEFORE that write, so a row built straight from it records the car as the fleet knew it a moment
+ * ago — which is exactly wrong for the car the scan just taught FG something about.
+ *
+ * Aaron caught it in the lot, 2026-09-05: LUR402 (unit 5426630) went on the closing sheet with a
+ * BLANK owning area while its own record showed 8199, stamped `tag`, written at 21:25 by that same
+ * scan. LUR401 beside it came out right for the boring reason that its owning had been on file
+ * since Aug 20 — nothing to backfill, nothing to go stale. So the bug only ever shows on the thin
+ * records a closing sweep is most likely to turn up.
+ *
+ * Falls back to the scanned copy, which is correct for a car the fleet list genuinely does not hold.
+ */
+export function fleetRecordFor<T extends { id: string }>(scanned: T, fleet: readonly T[]): T {
+  return fleet.find(v => v.id === scanned.id) ?? scanned;
+}
+
 /** Build the row a scan produces, with the carries applied. */
 export function entryFromScan(
   vehicle: Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'owningArea' | 'rentalClass' | 'isUs'>
