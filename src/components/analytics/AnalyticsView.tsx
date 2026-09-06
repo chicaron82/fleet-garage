@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
+import { FleetHistorySection } from './FleetHistorySection';
 import { supabase } from '../../lib/supabase';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -162,6 +163,12 @@ export function AnalyticsView({ onOpenVehicle }: { onOpenVehicle?: (vehicleId: s
           </div>
         );
       })()}
+
+      {/* ⭐⭐ THE RECORD, ABOVE THE TABS — Aaron, 2026-09-05: *"whatcha think of redoing the analytics
+          module or making a version of one that is useful for me instead of one that's essentially
+          all demo from the existing one"*. It sits before the tab bar because it is the half built
+          on rows FG actually holds; the tabs below it are the older surface. */}
+      <FleetHistorySection />
 
       {/* Tab toggle */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">

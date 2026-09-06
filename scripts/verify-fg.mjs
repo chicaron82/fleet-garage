@@ -67,7 +67,12 @@ const ctx = await browser.newContext({
   // question this exists to answer: *"if it copies things?"* — and a button that fires is not the
   // same claim as a clipboard that holds the right text.
   permissions: ['clipboard-read', 'clipboard-write'],
-  viewport: { width: 1280, height: 900 },
+  // ⚠️ `fullPage: true` below is NOT enough for FG. The app scrolls an INNER container, so the
+  // document never grows past the viewport and a full-page shot silently stops at 900px — a long
+  // screen is captured cut off, and the crop looks exactly like a page that simply ended.
+  // Set VH=2400 (or whatever it needs) to see the rest. Verified 2026-09-06 on /analytics, whose
+  // third card sat entirely below a "full page" screenshot.
+  viewport: { width: 1280, height: Number(process.env.VH) || 900 },
   deviceScaleFactor: 2,
   ...(fresh ? { storageState: statePath } : {}),
 });
