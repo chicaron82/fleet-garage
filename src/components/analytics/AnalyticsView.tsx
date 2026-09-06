@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
-import { FleetHistorySection } from './FleetHistorySection';
 import { supabase } from '../../lib/supabase';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -164,11 +163,11 @@ export function AnalyticsView({ onOpenVehicle }: { onOpenVehicle?: (vehicleId: s
         );
       })()}
 
-      {/* ⭐⭐ THE RECORD, ABOVE THE TABS — Aaron, 2026-09-05: *"whatcha think of redoing the analytics
-          module or making a version of one that is useful for me instead of one that's essentially
-          all demo from the existing one"*. It sits before the tab bar because it is the half built
-          on rows FG actually holds; the tabs below it are the older surface. */}
-      <FleetHistorySection />
+      {/* ⚠️ THE HISTORY CARDS MOVED TO **FLEET** (2026-09-06). They lived here for a day and he could
+          not reach them: `analytics` is not in a VSA's ROLE_MODULES (navigation.ts:36), and he KNEW
+          that — it is why he asked for *"a version of one that is useful for me"* in the first place.
+          Every role that could see them here also has `fleet-master`, so the move loses nobody.
+          ⚠️ Do not add them back: a second copy runs the same two queries again on one screen. */}
 
       {/* Tab toggle */}
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 transition-colors">

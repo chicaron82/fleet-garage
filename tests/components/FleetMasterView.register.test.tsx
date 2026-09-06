@@ -25,6 +25,13 @@ vi.mock('../../src/hooks/useFleetAudit', () => ({
   useFleetAudit: () => ({ findings: [], loaded: true, dismiss: vi.fn() }),
 }));
 vi.mock('../../src/hooks/useFleetTrend', () => ({ useFleetTrend: () => ({ baseline: null, rows: [] }) }));
+// ⚠️ The History cards moved into Fleet on 2026-09-06 and they reach for supabase and the vehicle
+// context. This test is about the REGISTER path carrying his typed plate; without the stub the whole
+// tree throws and the body renders empty, which fails as "search box not found" and says nothing
+// about the thing under test. Stubbed rather than provided: FleetHistorySection has its own cover.
+vi.mock('../../src/components/analytics/FleetHistorySection', () => ({
+  FleetHistorySection: () => null,
+}));
 
 import { FleetMasterView } from '../../src/components/vehicle/FleetMasterView';
 

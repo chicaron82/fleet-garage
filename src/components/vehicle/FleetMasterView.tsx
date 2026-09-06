@@ -6,6 +6,7 @@ import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
 import { FleetHealthChips } from './FleetHealthChips';
+import { FleetHistorySection } from '../analytics/FleetHistorySection';
 import { FleetAuditPanel } from './FleetAuditPanel';
 import { useFleetAudit } from '../../hooks/useFleetAudit';
 import { useFleetTrend } from '../../hooks/useFleetTrend';
@@ -147,6 +148,20 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           {sinceLabel && <span>arrows {sinceLabel}</span>}
         </p>
       )}
+
+      {/* ⭐⭐ WHAT FG HAS RECORDED — here rather than in Analytics, because Analytics is a module his
+          role does not open. Aaron, 2026-09-06: *"the original ask proposed to rework the analytics
+          to a version i can use (paraphrased) since i know that module is gated from me"* — so
+          *"useful for me"* always carried "reachable BY me". I heard only the data half, built it
+          well, and shipped it behind a door he has no key to.
+
+          ⚠️ ORDER IS DELIBERATE, and it was wrong for one render: everything above is a TOOL — the
+          search he types into, the contradictions he must act on, the health chips that filter the
+          list. This is READING. Tools first, reading after, records last. My first placement put it
+          above the audit panel and the chips while the comment claimed it sat below them — the
+          comment described the intent and the code did something else, which is the exact defect
+          this codebase has been finding all week. */}
+      <FleetHistorySection />
 
       {/* No match — register CTA */}
       {noMatch && (
