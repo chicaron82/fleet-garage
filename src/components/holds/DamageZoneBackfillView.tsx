@@ -108,7 +108,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
 
   if (!hold) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-4 text-center">
+      <div className="py-8 space-y-4 text-center">
         <p className="text-4xl">🧽</p>
         <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
           {queue.length === 0 ? 'Nothing left to tag' : `Done — ${done} tagged this run`}
@@ -136,7 +136,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-5 space-y-4" data-testid="zone-backfill">
+    <div className="py-5 space-y-4" data-testid="zone-backfill">
       <div className="flex items-center justify-between">
         <button type="button" onClick={onBack}
                 className="text-sm font-semibold text-gray-500 dark:text-gray-400 hover:underline cursor-pointer">

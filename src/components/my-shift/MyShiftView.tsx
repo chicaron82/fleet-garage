@@ -163,7 +163,7 @@ export function MyShiftView({ onOpenVehicle }: {
   });
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="py-6 space-y-5">
 
       {/* Header */}
       <ModuleHeader title="My Shift" subtitle={today} />

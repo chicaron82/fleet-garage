@@ -148,8 +148,21 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
 
         <OfflineSyncBanner />
 
+        {/* ⭐⭐ THE PAGE FRAME LIVES HERE, so a screen cannot forget it.
+            Aaron on PROD at 412px, 2026-09-06: *"My Day, Holds, Movement Log, pretty much all have
+            the same amount of breathing room on the left and right side of the screen… but fleet
+            view breaks things going end to end, is this by choice?"* It was not — it was DRIFT.
+            Eight views each carried their own copy of `w-full max-w-3xl mx-auto px-4`; Fleet,
+            Audits, Issue Log, Outbound Manifest and Schedule never got one. A convention held by
+            copy-paste is a convention that eventually is not held.
+
+            ⚠️ HORIZONTAL ONLY. Vertical padding stays with each view because it legitimately
+            varies (py-5, py-6, py-8, py-16 for a centred empty state), and hoisting it would make
+            every view do arithmetic against this one. His complaint was the left and right. */}
         <div ref={contentRef} className="flex-1 overflow-auto">
-          {children}
+          <div className="w-full max-w-3xl mx-auto px-4">
+            {children}
+          </div>
         </div>
 
         <BuildStamp />

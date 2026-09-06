@@ -138,7 +138,7 @@ export function MovementLogView({ prefillPlate, prefillNonce, autoStart }: { pre
 
   // ── Driver / CSR / HIR / Management ──────────────────────────────────────
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="py-6 space-y-5">
       <ModuleHeader
         align="start"
         title={isManagement ? 'All Trips Today' : "Today's Runs"}

@@ -35,7 +35,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
 
   if (loadError) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-16 flex flex-col items-center gap-4 text-center">
+      <div className="py-16 flex flex-col items-center gap-4 text-center">
         <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load lost &amp; found. Check your connection.</p>
         <button
           type="button"
@@ -69,7 +69,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="py-6 space-y-5">
       {/* Header */}
       <ModuleHeader
         title="Lost & Found"

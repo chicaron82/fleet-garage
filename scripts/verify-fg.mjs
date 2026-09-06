@@ -72,7 +72,11 @@ const ctx = await browser.newContext({
   // screen is captured cut off, and the crop looks exactly like a page that simply ended.
   // Set VH=2400 (or whatever it needs) to see the rest. Verified 2026-09-06 on /analytics, whose
   // third card sat entirely below a "full page" screenshot.
-  viewport: { width: 1280, height: Number(process.env.VH) || 900 },
+  // ⚠️ VW= for his ACTUAL device width. The default 1280 is a desktop, and Aaron uses FG on a phone
+  // at 412px — so a layout bug that only exists in the narrow case cannot appear in a default run.
+  // (Same lesson as the audio break-up, which was made of network latency and could never surface
+  // against localhost: a harness that lacks the ingredient cannot cook the bug.)
+  viewport: { width: Number(process.env.VW) || 1280, height: Number(process.env.VH) || 900 },
   deviceScaleFactor: 2,
   ...(fresh ? { storageState: statePath } : {}),
 });

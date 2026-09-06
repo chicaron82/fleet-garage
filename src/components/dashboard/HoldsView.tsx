@@ -156,7 +156,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="py-6 space-y-5">
 
         {/* Header */}
         <ModuleHeader

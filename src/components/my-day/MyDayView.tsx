@@ -40,7 +40,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="py-6 space-y-5">
 
       <ModuleHeader title="My Day" subtitle={`${day.greeting}, ${day.firstName} · ${day.dateLabel}`} />
 
