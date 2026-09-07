@@ -62,6 +62,17 @@ export function useKeytagAudit(): KeytagAuditState {
   const [error, setError] = useState('');
   const [unitConflict, setUnitConflict] = useState<Vehicle | null>(null);
 
+  /**
+   * ⭐ THE ARCHIVED RULE LIVES IN THE LIB, NOT HERE. `buildAuditQueue` and `auditQueueStats` both
+   * skip sold/auctioned cars themselves — filtering at this call site would have fixed today's
+   * screen and left the next caller free to reintroduce it. See `keytagAuditQueue` for what Aaron
+   * found (85 vs 73, a 12-car gap that was entirely archived cars).
+   *
+   * ⚠️ AND THAT IS WHY `allVehicles` IS STILL RIGHT HERE. The four uses below are a VOCABULARY, not
+   * a work list: every rental class, model code and owning pattern an archived car carried is still
+   * true about this branch, and shrinking that dictionary would make the wrong-box guard warn about
+   * codes FG has genuinely seen. A car leaving the fleet ends the WORK, not the KNOWLEDGE.
+   */
   const queue = useMemo(() => buildAuditQueue(allVehicles), [allVehicles]);
   const stats = useMemo(() => auditQueueStats(allVehicles), [allVehicles]);
   const pending = useMemo(() => queue.filter(c => !skipped.has(c.vehicle.id)), [queue, skipped]);

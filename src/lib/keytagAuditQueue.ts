@@ -145,6 +145,9 @@ export function auditWarnings(
 export interface AuditableVehicle {
   id: string;
   licensePlate: string;
+  /** ⭐ Set = sold or auctioned. Both functions below SKIP these: a car that has left the fleet
+   *  cannot have its tag photographed, so counting it makes a work list that cannot reach zero. */
+  archivedAt?: string | null;
   keytagPhotoUrl?: string | null;
   keytagAuditedAt?: string | null;
   keytagAuditResult?: KeytagAuditResult | null;
@@ -196,6 +199,8 @@ export function isAuditable(v: AuditableVehicle): boolean {
  * that reshuffles itself while he is working it.
  */
 export function buildAuditQueue<V extends AuditableVehicle>(vehicles: readonly V[]): AuditCandidate<V>[] {
+  // ⚠️ ARCHIVED CARS ARE NOT WORK (2026-09-07). See auditQueueStats for the full story.
+  vehicles = vehicles.filter(v => !v.archivedAt);
   const out: AuditCandidate<V>[] = [];
   for (const vehicle of vehicles) {
     if (!isAuditable(vehicle)) continue;
@@ -267,6 +272,29 @@ export function firstPhotoNote(remaining: number): string {
 }
 
 export function auditQueueStats(vehicles: readonly AuditableVehicle[]): AuditQueueStats {
+  /**
+   * ⚠️⚠️ ARCHIVED CARS ARE EXCLUDED, and this is the one line that fixes what Aaron found.
+   *
+   * Comparing two screens (2026-09-07): *"85 have no photos vs 73 no keytag. are these not the
+   * same?"* Same question, different populations. `loadFleet` selects `.is('archived_at', null)` —
+   * Fleet's counts are the LIVE fleet — while this ran over every row. The numbers reconciled
+   * exactly: 778 rows, 763 live, and the 12-car gap was **archived cars with no tag photo**.
+   *
+   * ⭐ It is a defect rather than a curiosity because 85 was presented as WORK REMAINING and 12 of
+   * it could never be done — those cars are gone and their tags will never be photographed. A
+   * number that cannot be closed, on a list whose entire value is reaching zero.
+   *
+   * ⭐⭐ THE RULE LIVES HERE, NOT IN THE CALLER, deliberately. Filtering in `useKeytagAudit` would
+   * have fixed today's screen and left the next caller free to reintroduce it. "Archived is not
+   * work" is part of what an audit queue IS.
+   *
+   * ⚠️ AND IT NARROWS ONLY THE WORK, NEVER THE VOCABULARY. `useKeytagAudit` still builds its known
+   * rental classes, model codes and owning presets from every row — a class an archived car carried
+   * is still a real class at this branch, and shrinking that dictionary would make the wrong-box
+   * guard warn about codes FG has genuinely seen. A car leaving the fleet ends the WORK, not the
+   * KNOWLEDGE.
+   */
+  vehicles = vehicles.filter(v => !v.archivedAt);
   const stats: AuditQueueStats = { pending: 0, verified: 0, unreadable: 0, stale: 0, noPhoto: 0, gaps: 0 };
   for (const v of vehicles) {
     if (isBlankField(v.keytagPhotoUrl)) { stats.noPhoto++; continue; }

@@ -328,3 +328,39 @@ describe('firstPhotoNote', () => {
     expect(firstPhotoNote(-2)).toBe('📷 first key tag photo — that was the last car without one');
   });
 });
+
+// ⭐⭐ ARCHIVED CARS ARE NOT WORK — Aaron, comparing two FG screens (2026-09-07): *"85 have no photos
+// vs 73 no keytag. are these not the same?"*
+//
+// They were the same question over different populations. Fleet loads `.is('archived_at', null)`;
+// the audit ran over every row. 778 total, 763 live, and the 12-car gap was archived cars with no
+// tag photo — so 85 was presented as work remaining while 12 of it could never be done. Those cars
+// are sold; their tags will never be photographed. A number that cannot be closed, on a list whose
+// entire value is reaching zero.
+describe('the audit ignores cars that have left the fleet', () => {
+  it('⭐ an archived car is not queued, however blank its record', () => {
+    const q = buildAuditQueue([
+      car({ id: 'live', keytagPhotoUrl: 'https://cdn/a.jpg', owningArea: null }),
+      car({ id: 'gone', keytagPhotoUrl: 'https://cdn/b.jpg', owningArea: null, archivedAt: '2026-08-01T00:00:00Z' }),
+    ]);
+    expect(q.map(c => c.vehicle.id)).toEqual(['live']);
+  });
+
+  it('⭐ an archived car is not counted as a missing photo — the 12-car gap', () => {
+    const stats = auditQueueStats([
+      car({ keytagPhotoUrl: null }),
+      car({ keytagPhotoUrl: null, archivedAt: '2026-08-01T00:00:00Z' }),
+    ]);
+    expect(stats.noPhoto).toBe(1);
+  });
+
+  // ⚠️ The guard against over-correcting: an ordinary car has no `archivedAt` at all and must be
+  // completely unaffected. A filter that also dropped `undefined` would empty the entire queue.
+  // ⭐ It needs a PHOTO to be queueable — a car with none has nothing to read, so it is counted in
+  // `noPhoto` rather than queued. My first version of this test asserted otherwise and failed,
+  // which is the test doing its job on the person writing it.
+  it('⚠️ a car with no archivedAt field is untouched', () => {
+    expect(buildAuditQueue([car({ id: 'plain', keytagPhotoUrl: 'https://cdn/p.jpg', owningArea: null })])
+      .map(c => c.vehicle.id)).toEqual(['plain']);
+  });
+});
