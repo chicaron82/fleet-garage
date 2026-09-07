@@ -11,6 +11,7 @@ import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
+import { orderRoster } from '../../lib/rosterOrder';
 
 // The grid's compact ALL-CAPS badges are this view's own dialect (not the shared
 // short labels), and the 12h '4:00p' time is deliberately compact for cell width.
@@ -73,11 +74,14 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   const shiftMap = new Map<string, ShiftWithUser>();
   for (const s of shifts) shiftMap.set(`${s.userId}-${s.date}`, s);
 
-  // Visible users: self pinned first, rest in team-member order
-  const visibleUsers = [
-    ...teamMembers.filter(u => u.id === user?.id && visibleUserIds.has(u.id)),
-    ...teamMembers.filter(u => u.id !== user?.id && visibleUserIds.has(u.id)),
-  ];
+  // ⭐⭐ Self pinned first, then FLOOR → COUNTER → DRIVERS, alphabetical inside each. Until
+  //    2026-09-06 the rest were listed in `useTeamMembers` order, which is Supabase's return order —
+  //    so two VSAs sat below thirteen empty driver rows and a two-person closing shift read as one
+  //    person alone. See `lib/rosterOrder.ts`.
+  const visibleUsers = orderRoster(
+    teamMembers.filter(u => visibleUserIds.has(u.id)),
+    user?.id,
+  );
 
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
