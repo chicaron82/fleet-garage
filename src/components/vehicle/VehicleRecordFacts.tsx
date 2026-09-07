@@ -455,7 +455,11 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
             <div key={`${l.day}-${l.time}-${i}`} className="flex items-baseline gap-2 text-xs text-gray-600 dark:text-gray-400">
               <span className="font-mono tabular-nums">{l.day}</span>
               <span className="font-mono tabular-nums">{l.time}</span>
-              <span className="truncate">{l.who}</span>
+              <span className="shrink-0">{l.who}</span>
+              {/* ⭐ WHAT IT WAS — Aaron, 2026-09-07: *"1 interaction. but doesn't show what the
+                  interaction was."* The line carried when and who and never what, while the change
+                  log one section below named the very fields that made the row exist. */}
+              <span className="truncate text-gray-500 dark:text-gray-500">{l.what}</span>
             </div>
           ))}
         </div>

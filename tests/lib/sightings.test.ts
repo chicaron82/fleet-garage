@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting, actionImpliesPresence, sightingLines } from '../../src/lib/sightings';
+import { fieldLabel } from '../../src/lib/vehicleChanges';
 
 const at = (iso: string): Sighting => ({ seenAt: iso });
 
@@ -240,5 +241,38 @@ describe('sightingLines — the full history, on demand', () => {
     const before = rows.map(r => r.seenAt);
     sightingLines(rows, nobody);
     expect(rows.map(r => r.seenAt)).toEqual(before);
+  });
+});
+
+// ⭐⭐ WHAT THE INTERACTION WAS — Aaron on LZM553 (2026-09-07): *"says last there 5 days ago with 1
+// interaction. but doesn't show what the interaction was."*
+//
+// The line carried `day`, `time`, `who` and nothing else, while `sightingsFromChanges` had the
+// answer one line earlier: a derived interaction exists BECAUSE specific fields changed, the guard
+// tested them to decide the row counted at all, and then threw them away.
+describe('sightingLines — what the interaction was', () => {
+  const at = '2026-09-02T14:46:08.131Z';
+
+  it('⭐ a derived interaction names the fields that made it one', () => {
+    const [line] = sightingLines([{ seenAt: at, actor: 'u1', fields: ['key_count'] }], () => 'Aaron S.');
+    expect(line.what).toBe(fieldLabel('key_count'));
+  });
+
+  it('names several, in the order the change recorded them', () => {
+    const [line] = sightingLines([{ seenAt: at, actor: 'u1', fields: ['key_count', 'odometer'] }], () => 'A');
+    expect(line.what).toBe(`${fieldLabel('key_count')}, ${fieldLabel('odometer')}`);
+  });
+
+  // ⚠️ A SCAN row has no fields and that absence is meaningful, not missing — a sighting IS a
+  // key-tag scan. "scanned" states the row's KIND; it does not invent content it does not have.
+  it('⚠️ a scan row says "scanned" rather than guessing or going blank', () => {
+    const [line] = sightingLines([{ seenAt: at, seenByName: 'Aaron S.' }], () => undefined);
+    expect(line.what).toBe('scanned');
+    expect(line.who).toBe('Aaron S.');
+  });
+
+  it('⚠️ an empty field list is treated as a scan, not as an empty sentence', () => {
+    const [line] = sightingLines([{ seenAt: at, actor: 'u1', fields: [] }], () => 'A');
+    expect(line.what).toBe('scanned');
   });
 });

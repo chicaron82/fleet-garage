@@ -18,7 +18,7 @@
 // this vehicle at least 50 already before FG was born."* The count is **times FG noticed**, never
 // times he was there — the UI must read a low number as *not yet observed*, never as *rarely used*.
 
-import { describeActor } from './vehicleChanges';
+import { describeActor, fieldLabel } from './vehicleChanges';
 
 export interface Sighting {
   seenAt: string; // ISO
@@ -37,6 +37,19 @@ export interface Sighting {
    * carries the raw value that far without a component having to re-fetch the change rows.
    */
   actor?: string | null;
+  /**
+   * ⭐ WHAT THE INTERACTION WAS — the non-script fields this visit changed.
+   *
+   * ⚠️ Aaron, 2026-09-07 on LZM553: *"says last there 5 days ago with 1 interaction. but doesn't
+   * show what the interaction was."* He was right, and the data was ONE LINE AWAY: a derived
+   * interaction exists BECAUSE `vehicle_changes` recorded specific fields, `sightingsFromChanges`
+   * tested them to decide the row counted at all — and then dropped them on the floor.
+   *
+   * ⚠️ Absent on a SCAN row, and that absence is meaningful rather than missing: a scan's "what" is
+   * that he stood at the car with the tag. `sightingLines` says "scanned" for those — a fact about
+   * the row's KIND, not a guess about its content.
+   */
+  fields?: readonly string[];
 }
 
 export interface SightingSummary {
@@ -173,6 +186,8 @@ export interface SightingLine {
   /** Local 24h clock, the way the washbay reads times — "13:18". */
   time: string;
   who: string;
+  /** What happened — the named fields for a derived interaction, "scanned" for a scan row. */
+  what: string;
 }
 
 export function sightingLines(
@@ -207,6 +222,9 @@ export function sightingLines(
         // "unknown": there, WHO is a suffix that can simply be absent; here it is a column, and a
         // column with a hole in it looks broken. Same honesty, different shape.
         who: (r.seenByName ?? '').trim() || describeActor(r.actor, nameFor) || 'unknown',
+        // ⭐ Named through the SAME `fieldLabel` the change log uses, so an interaction and the
+        // change entry beneath it can never call one column two different things.
+        what: r.fields?.length ? r.fields.map(fieldLabel).join(', ') : 'scanned',
       };
     });
 }
@@ -287,7 +305,11 @@ export function sightingsFromChanges(rows: readonly VehicleChange[]): Sighting[]
   for (const r of rows) {
     if (!r.changedAt) continue;
     if (!r.fields.some(f => !SCRIPT_WRITTEN_FIELDS.has(f))) continue;
-    out.push({ seenAt: r.changedAt, seenByName: null, actor: r.actor ?? null });
+    // ⭐ The fields that made this row an interaction are the fields worth NAMING — the same
+    // non-script set the guard above tests. Carrying them IS the fix: they were computed here,
+    // used for a boolean, and discarded.
+    const meaningful = r.fields.filter(f => !SCRIPT_WRITTEN_FIELDS.has(f));
+    out.push({ seenAt: r.changedAt, seenByName: null, actor: r.actor ?? null, fields: meaningful });
   }
   return out;
 }
