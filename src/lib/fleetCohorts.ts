@@ -1,4 +1,5 @@
 import type { FleetVehicle } from './fleet-master';
+import { identityGaps } from './vehicleName';
 
 /**
  * Fleet-health cohorts — the "at a glance" slices of the live fleet the Fleet module surfaces as
@@ -16,7 +17,10 @@ export interface FleetCohort {
 
 /** Oldest plausible fleet model year — mirrors `plausibleYearOr` / the register `year > 1999`
  *  submit guard. A year below this is a blank/mis-read, i.e. the row still needs its real details. */
-const FLEET_YEAR_FLOOR = 2000;
+// ⭐ THE FLOOR AND THE PREDICATE BOTH MOVED TO `vehicleName` (2026-09-07) so the Fleet chip and the
+// vehicle record cannot disagree about what "needs details" means. This file used to own the rule;
+// now it delegates, which is the only way two surfaces stay in step without anyone remembering to
+// update both.
 
 export const FLEET_COHORTS: readonly FleetCohort[] = [
   {
@@ -37,7 +41,7 @@ export const FLEET_COHORTS: readonly FleetCohort[] = [
     id: 'needs-backfill',
     label: 'Needs details',
     icon: '🪪',
-    match: (v) => v.make.trim() === '' || v.model.trim() === '' || v.year < FLEET_YEAR_FLOOR,
+    match: (v) => identityGaps(v).length > 0,
   },
 ];
 

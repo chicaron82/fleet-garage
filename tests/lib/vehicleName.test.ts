@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { vehicleLabel, powertrainBadge, type NamedVehicle, vehicleNameText } from '../../src/lib/vehicleName';
+import { vehicleLabel, powertrainBadge, type NamedVehicle, vehicleNameText, identityGaps, describeIdentityGaps } from '../../src/lib/vehicleName';
 
 const car = (over: Partial<NamedVehicle> = {}): NamedVehicle =>
   ({ year: 2026, make: 'Toyota', model: 'RAV4', ...over });
@@ -100,5 +100,68 @@ describe('vehicleLabel with parts missing', () => {
 
   it('drops missing parts in model-first order as well', () => {
     expect(vehicleLabel({ year: null, make: 'Honda', model: 'Civic' }, 'model-first')).toBe('Honda Civic');
+  });
+});
+
+// ⭐⭐ WHAT IS MISSING FROM A CAR'S NAME — Aaron on LPU213 (2026-09-07): *"took me a sec to figure
+// out what was still needed. at first i thought it was because no odo was recorded. but dismissed
+// that because i have a lot that don't have a reading. but then realized make and model weren't
+// showing."*
+//
+// `vehicleLabel` drops missing parts so a null never renders as "null" — correct, and exactly why
+// the absence was invisible. This is its counterpart, and it is the SINGLE definition: Fleet's
+// "Needs details" cohort delegates to it so the record and the count cannot drift.
+describe('identityGaps — naming the absence', () => {
+  const complete = { year: 2025, make: 'Nissan', model: 'Kicks' };
+
+  it('a complete car has no gaps — the record shows nothing new', () => {
+    expect(identityGaps(complete)).toEqual([]);
+  });
+
+  it('⭐ the real case: a year and a colour, no make or model', () => {
+    expect(identityGaps({ year: 2024, make: '', model: '' })).toEqual(['make', 'model']);
+  });
+
+  it('treats whitespace as blank, because a space is not an answer', () => {
+    expect(identityGaps({ ...complete, model: '   ' })).toEqual(['model']);
+  });
+
+  it('nulls count as gaps', () => {
+    expect(identityGaps({ year: null, make: null, model: null })).toEqual(['year', 'make', 'model']);
+  });
+
+  // ⚠️ A blank year arrives as 0 or as a mis-read, never as a plausible model year — the floor
+  // catches both, and mirrors the register form's own `year > 1999` submit guard.
+  it('⚠️ a year below the floor is a gap, including the 0 sentinel', () => {
+    expect(identityGaps({ ...complete, year: 0 })).toEqual(['year']);
+    expect(identityGaps({ ...complete, year: 1998 })).toEqual(['year']);
+    expect(identityGaps({ ...complete, year: 2000 })).toEqual([]);
+  });
+
+  it('reads as a sentence, with the comma right on three', () => {
+    expect(describeIdentityGaps(['make', 'model'])).toBe('make and model');
+    expect(describeIdentityGaps(['year', 'make', 'model'])).toBe('year, make and model');
+    expect(describeIdentityGaps(['model'])).toBe('model');
+    expect(describeIdentityGaps([])).toBe('');
+  });
+});
+
+// ⚠️⚠️ FOUND BY RENDERING, NOT BY A TEST (2026-09-07). SB183H reads "Tesla Unknown · Unknown" and
+// the first version of identityGaps called only its YEAR missing — "Unknown" is a non-blank string.
+// It is a placeholder, not an identity, and a Tesla's model is knowable, so it is fillable.
+describe('identityGaps — "Unknown" is a placeholder', () => {
+  it('⭐ the rendered case: Tesla Unknown needs its model, not just its year', () => {
+    expect(identityGaps({ year: 0, make: 'Tesla', model: 'Unknown' })).toEqual(['year', 'model']);
+  });
+
+  it('case- and space-insensitive, because the sentinel is written by several hands', () => {
+    expect(identityGaps({ year: 2025, make: 'Tesla', model: '  UNKNOWN ' })).toEqual(['model']);
+  });
+
+  // ⚠️ THE OVER-REACH GUARD: the codex carries "Model 3" and "Model Y". A looser rule — substring,
+  // or anything treating "Model" as suspicious — would accuse two real Teslas of having no model.
+  it('⚠️ never accuses a real model that merely contains the word', () => {
+    expect(identityGaps({ year: 2025, make: 'Tesla', model: 'Model Y' })).toEqual([]);
+    expect(identityGaps({ year: 2025, make: 'Jeep', model: 'Unknown Trail' })).toEqual([]);
   });
 });

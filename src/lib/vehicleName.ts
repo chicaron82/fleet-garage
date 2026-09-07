@@ -44,6 +44,70 @@ import { isEvModel } from '../../api/_lib/vehicleClassCodex';
 
 /** The least a caller must supply. Deliberately structural — the trip pickers carry a snake_case
  *  search row and everything else carries a `Vehicle`, and both have these four in camelCase. */
+/**
+ * ⭐ WHAT IS MISSING FROM A CAR'S NAME — the counterpart to `vehicleLabel`.
+ *
+ * ⚠️ Aaron, working the Needs-details list (2026-09-07): *"took me a sec to figure out what was
+ * still needed. at first i thought it was because no odo was recorded… but then realized make and
+ * model weren't showing."*
+ *
+ * `vehicleLabel` DROPS missing parts, and that is correct — it exists so a null never renders as the
+ * literal string "null". The consequence is that a car with no make or model reads as `2024`, and
+ * the absence is communicated by nothing being there. He had to notice a negative space, guess
+ * wrong once, and reason his way to it.
+ *
+ * ⚠️⚠️ ONLY GAPS THAT CAN BE FILLED. A missing odometer is a legitimate resting state — *"i have a
+ * lot that don't have a reading"* — and naming it would manufacture work that never closes, which
+ * is the archived-cars defect this codebase has already been bitten by twice in one day. These
+ * three are backfillable, and Fleet already treats them as a work cohort.
+ *
+ * ⭐ THIS IS THE SINGLE DEFINITION: `fleetCohorts`' `needs-backfill` chip delegates here rather than
+ * repeating the predicate, so the record and the fleet count cannot drift apart.
+ */
+export type IdentityGap = 'year' | 'make' | 'model';
+
+/** Below this a year is a blank or a mis-read (0 included), not a real model year. Mirrors the
+ *  register form's `year > 1999` submit guard. */
+export const FLEET_YEAR_FLOOR = 2000;
+
+/**
+ * ⚠️⚠️ "Unknown" IS A PLACEHOLDER, NOT AN IDENTITY — found by rendering the chip on a real car
+ * rather than by a test (2026-09-07). `SB183H` reads **"Tesla Unknown · Unknown"**, and the first
+ * version of `identityGaps` called only its year missing, because "Unknown" is a non-blank string.
+ *
+ * ⭐ It is a gap by his own north star for this file: *"what's important to me is having FG be
+ * truthful on what type of vehicle it is."* A record saying "Tesla Unknown" is not truthful about
+ * the type, and a Tesla's model is knowable — so it is a FILLABLE gap, which is the only kind this
+ * function is allowed to name.
+ *
+ * ⚠️ Deliberately the literal word only, case- and space-insensitive. Anything looser starts
+ * accusing real models, and the codex already carries `Model 3` / `Model Y` — words that would not
+ * survive a fuzzier rule. 5 cars carry it; counting them moves Fleet's count 23 → 24.
+ */
+const PLACEHOLDER = 'unknown';
+
+const missing = (v: string | null | undefined): boolean => {
+  const t = v?.trim();
+  return !t || t.toLowerCase() === PLACEHOLDER;
+};
+
+export function identityGaps(v: NamedVehicle): IdentityGap[] {
+  const gaps: IdentityGap[] = [];
+  // Order is reading order, so the sentence built from it comes out as "year, make and model".
+  if (v.year == null || v.year < FLEET_YEAR_FLOOR) gaps.push('year');
+  if (missing(v.make)) gaps.push('make');
+  if (missing(v.model)) gaps.push('model');
+  return gaps;
+}
+
+/** "make and model" / "year, make and model" — the chip's own words, so the caller never
+ *  hand-assembles a list and gets the comma wrong on the two-item case. */
+export function describeIdentityGaps(gaps: readonly IdentityGap[]): string {
+  if (gaps.length === 0) return '';
+  if (gaps.length === 1) return gaps[0];
+  return `${gaps.slice(0, -1).join(', ')} and ${gaps[gaps.length - 1]}`;
+}
+
 export interface NamedVehicle {
   /** ⚠️ NULLABLE, and that was a real gap rather than tidiness. `KnownPlate` (the plate-entry
    *  resolver) carries `number | null` / `string | null`, and the hand-written call sites this file

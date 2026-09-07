@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
+import { identityGaps, describeIdentityGaps } from '../../lib/vehicleName';
 import { asRotation } from '../../lib/keytagPhotoRotation';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagZoomOverlay } from './KeytagZoomOverlay';
@@ -46,7 +47,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, make, model, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -55,6 +56,10 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   keytagPhotoRotation?: number | null;
   keytagPhotoConfirmedAt?: string | null;
   keytagPhotoConfirmedBy?: string | null;
+  /** ⚠️ The record did not carry these until 2026-09-07, which is quietly part of why a blank
+   *  make/model was invisible HERE: the component could not have said what it did not receive. */
+  make?: string | null;
+  model?: string | null;
   /** The human audit stamp (migration 130), grouped as ONE prop rather than three — this strip is
    *  already at thirteen and the trio only ever means something together. */
   keytagAudit?: { at?: string | null; by?: string | null; result?: KeytagAuditResult | null };
@@ -83,6 +88,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   const sightings = useVehicleSightings(plate, vehicleId);
   const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
+  // ⚠️ Uses the SAME predicate as Fleet's "Needs details" chip — see lib/vehicleName. Deriving it
+  // here with a local rule is how two screens start disagreeing about the same car.
+  const gaps = identityGaps({ year: year ?? null, make: make ?? null, model: model ?? null });
   const [seenOpen, setSeenOpen] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
   const [editingOdo, setEditingOdo] = useState(false);
@@ -242,6 +250,31 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
         </button>
       )}
+      {/* ⭐⭐ WHAT THIS RECORD IS MISSING FROM ITS OWN NAME — Aaron, 2026-09-07: *"took me a sec to
+          figure out what was still needed. at first i thought it was because no odo was recorded…
+          but then realized make and model weren't showing."*
+
+          `vehicleLabel` DROPS missing parts (correctly — so a null never renders as "null"), so a
+          car with no make or model reads as `2024` and the gap is communicated by nothing being
+          there. He had to notice a negative space and guess wrong once to find it.
+
+          ⚠️ It names ONLY backfillable gaps, and deliberately not the odometer: *"i have a lot that
+          don't have a reading"* — nagging a legitimate resting state manufactures work that never
+          closes, which is the archived-cars defect this app was bitten by twice the same day.
+          ⭐ The predicate is `identityGaps`, the same one Fleet's "Needs details" chip now uses, so
+          the record and the count cannot drift apart. */}
+      {gaps.length > 0 && (
+        <button
+          type="button"
+          onClick={onEditCodes ? () => { hapticLight(); onEditCodes(); } : undefined}
+          disabled={!onEditCodes}
+          title={onEditCodes ? 'Fill in what this record is missing' : undefined}
+          className="rounded-lg border border-dashed border-amber-400 dark:border-amber-700 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:cursor-default cursor-pointer transition"
+        >
+          🪪 Needs {describeIdentityGaps(gaps)}
+        </button>
+      )}
+
       {/* The first observation for a car nobody has checked — quiet, and only on a US car or in the
           months it matters would be over-engineering, so it simply sits with the other chips. */}
       {winterTires == null && (
