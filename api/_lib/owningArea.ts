@@ -54,11 +54,25 @@ const KNOWN: Record<string, string> = {
   // name is cutoff. halifax. definitely not winnipeg. so it wouldn't be 8199, it would be 8198."*
   // Its block-mate HMT717 already carried 8198, so the unit prefix agreed with him independently.
   '8198': 'Halifax',
+
+  // ⭐ Added 2026-09-07 — the hole this file had been holding open by name. Aaron, unprompted:
+  // *"8892 is not a US car. its the old Montreal owning / the license plate pattern matches for
+  // Montreal / only two US cars in FG."* CONFIRMED, not guessed, and corroborated independently:
+  // its one car (FVB4297) wears AAA9999, which is exactly the Quebec shape already recorded for
+  // 8194 Montreal below. Named plainly "Montreal" for the same reason 8999 is plainly "Winnipeg" —
+  // the NUMBER already distinguishes the old owning from the current one.
+  '8892': 'Montreal',
 };
 
-// ⚠️ STILL UNNAMED, deliberately: 8892, and 2294 (the US branch on the Florida Compass). Neither has
-// been confirmed by Aaron and neither is guessable — this map's whole rule is that an entry is
-// confirmed or absent, and an unknown code displays as a bare number rather than a wrong name.
+// ⚠️ STILL UNNAMED, deliberately: 1198 and 2294 — FG's only two US cars (SSDY46 and SPHV03, both
+// `is_us`, Aaron 2026-09-07: *"only two US cars in FG"*). Neither branch has been named by him and
+// neither is guessable, and this map's whole rule is that an entry is confirmed or absent: an
+// unknown code displays as a bare number rather than a wrong name.
+//
+// ⭐ 8892 CAME OFF THIS LIST on 2026-09-07 — see 'Montreal' above. The note did its job: it held
+// the gap open under a name for weeks, so when he happened to mention the answer in passing it had
+// somewhere obvious to land. **A documented hole is cheaper than a wrong entry and better than a
+// silent one.**
 
 /** ⚠️ WHY 8199 SWAMPS EVERYTHING, and why that is permanent. Aaron, 2026-08-28: *"8199 is the
  *  dominant owning because.. well we're in manitoba haha of course our fleet will be mainly MB

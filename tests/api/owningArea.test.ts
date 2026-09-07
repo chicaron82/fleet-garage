@@ -154,6 +154,8 @@ describe('owningLabel — the branch Aaron confirmed tonight', () => {
 
   it('⚠️ still shows an unconfirmed branch as a bare number rather than a guess', () => {
     expect(owningLabel('2294')).toBe('2294');
-    expect(owningLabel('8892')).toBe('8892');
+    // ⚠️ Was 8892 until 2026-09-07, when Aaron named it (old Montreal) and it stopped being an
+    // example of the unnamed case. 1198 is one of FG's two US branches and is still unconfirmed.
+    expect(owningLabel('1198')).toBe('1198');
   });
 });

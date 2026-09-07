@@ -18,9 +18,12 @@ describe('owningPresets', () => {
   });
 
   it('⚠️⚠️ excludes a branch FG cannot NAME — this is how the US car stays manual', () => {
-    // 2294 is the US branch on the Florida Compass and 8892 has never been confirmed. Neither is in
+    // ⭐ FIXTURE UPDATED 2026-09-07: this used 2294 AND 8892, but Aaron named 8892 as the old
+    // Montreal owning that day, so it stopped being an example of an unnamed branch and correctly
+    // became a preset. Now both codes are FG's two genuine US branches — which is what this test's
+    // own name was always about. 2294 and 1198 are unconfirmed. Neither is in
     // KNOWN, so neither can become a button — exactly the exclusion he asked for, for free.
-    expect(owningPresets([car('2294'), car('8892')])).toEqual([]);
+    expect(owningPresets([car('2294'), car('1198')])).toEqual([]);
   });
 
   it('⚠️ excludes a named branch NO CAR CARRIES — 8999 is Winnipeg before the renumber', () => {
