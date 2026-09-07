@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
 import { identityGaps, describeIdentityGaps } from '../../lib/vehicleName';
+import { lookupVehicleClass } from '../../../api/_lib/vehicleClassCodex';
+import { useGeotabInstall } from '../../hooks/useGeotabInstall';
 import { asRotation } from '../../lib/keytagPhotoRotation';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagZoomOverlay } from './KeytagZoomOverlay';
@@ -91,6 +93,19 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   // ⚠️ Uses the SAME predicate as Fleet's "Needs details" chip — see lib/vehicleName. Deriving it
   // here with a local rule is how two screens start disagreeing about the same car.
   const gaps = identityGaps({ year: year ?? null, make: make ?? null, model: model ?? null });
+  /**
+   * ⭐⭐ WHAT FG ALREADY KNOWS ABOUT THE GAP — Aaron, 2026-09-07: *"is CTMY not mapping to model y?"*
+   * It maps perfectly. `lookupVehicleClass` simply runs at REGISTRATION, when a scan creates a
+   * record, and nothing consults it afterwards — so a car that got its code later kept a blank model
+   * while the answer sat in the codex. Offering it here is the knowledge arriving at the moment.
+   *
+   * ⚠️ Only when the codex actually answers the gap in front of him: a codex model is useless on a
+   * car whose MODEL is already fine, and suggesting one for a missing YEAR would be inventing.
+   */
+  const codexSays = classCode ? lookupVehicleClass(classCode) : null;
+  const codexFills = codexSays && (gaps.includes('model') || gaps.includes('make'))
+    ? `${codexSays.make} ${codexSays.model}` : null;
+  const geotab = useGeotabInstall(plate);
   const [seenOpen, setSeenOpen] = useState(false);
   const [editingKeys, setEditingKeys] = useState(false);
   const [editingOdo, setEditingOdo] = useState(false);
@@ -250,6 +265,30 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
         </button>
       )}
+      {/* ⭐⭐ THE GEOTAB INSTALL — Aaron, 2026-09-07: *"did it get cleared off the list? if so
+          shouldn't it read somewhere that it was marked as installed on x date rather than hiding
+          under 'no action needed' with no date attached?"*
+
+          FG knew: `geotab_watchlist` held the date and the person since July. ⚠️ But its ONLY reader
+          was `useGeotabPending`, which builds the list of cars still WAITING — so the instant a car
+          is done it leaves that list and its install date becomes unreachable everywhere. The fact
+          survived; its audience did not. */}
+      {geotab && (
+        <span
+          title={geotab.installedAt
+            ? `Marked installed ${new Date(geotab.installedAt).toLocaleString()}`
+            : `Added to the geotab watchlist ${new Date(geotab.addedAt).toLocaleDateString()}`}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs ${geotab.installedAt
+            ? 'border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+            : 'border-dashed border-amber-400 dark:border-amber-700 text-amber-700 dark:text-amber-400'}`}
+        >
+          📡 {geotab.installedAt
+            ? `Geotab installed ${new Date(geotab.installedAt).toLocaleDateString()}${
+                geotab.installedBy ? ` · ${profiles.get(geotab.installedBy)?.name ?? 'someone'}` : ''}`
+            : 'Geotab pending'}
+        </span>
+      )}
+
       {/* ⭐⭐ WHAT THIS RECORD IS MISSING FROM ITS OWN NAME — Aaron, 2026-09-07: *"took me a sec to
           figure out what was still needed. at first i thought it was because no odo was recorded…
           but then realized make and model weren't showing."*
@@ -272,6 +311,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           className="rounded-lg border border-dashed border-amber-400 dark:border-amber-700 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:cursor-default cursor-pointer transition"
         >
           🪪 Needs {describeIdentityGaps(gaps)}
+          {/* ⭐ The answer, where the question is asked. Silent when the codex has nothing — an
+              empty suggestion is worse than none on a field that decides a car's identity. */}
+          {codexFills && <span className="ml-1 font-semibold">— FG knows: {codexFills}</span>}
         </button>
       )}
 
