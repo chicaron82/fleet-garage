@@ -46,3 +46,23 @@ export function orderRoster<T extends RosterMember>(members: readonly T[], selfI
     return r !== 0 ? r : a.name.localeCompare(b.name);
   });
 }
+
+/**
+ * ⭐⭐⭐ IS THE DRIVER BLOCK BLANK BECAUSE NOBODY IS ON, OR BECAUSE FG HAS NOT BEEN GIVEN IT?
+ *
+ * Aaron, 2026-09-06: *"the driver's get there's weekly. and i won't see it until i go to work on
+ * tuesday."* The VSAs come as a **four-week block**; the drivers come **a week at a time**, and it
+ * reaches him at the branch. So **every forward week has an empty driver block by design** — it will
+ * look like this every Sunday night he opens the app, permanently.
+ *
+ * ⚠️ FG already has the rule this breaks, written down for attendance: **unmarked ≠ absent.** An
+ * unobserved person is not a no-show. The same blankness in the schedule grid reads as *"not
+ * working"*, when what it means is *"not posted yet"*. **A row that says nothing is not saying
+ * nothing — it is saying the wrong thing**, and it is the same blankness that buried two VSAs.
+ */
+export function driverBlockUnloaded<T extends RosterMember>(
+  members: readonly T[], hasAnyShift: (m: T) => boolean,
+): boolean {
+  const drivers = members.filter(m => m.role === 'Driver');
+  return drivers.length > 0 && !drivers.some(hasAnyShift);
+}

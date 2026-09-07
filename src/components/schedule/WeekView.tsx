@@ -11,7 +11,7 @@ import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
-import { orderRoster } from '../../lib/rosterOrder';
+import { orderRoster, driverBlockUnloaded } from '../../lib/rosterOrder';
 
 // The grid's compact ALL-CAPS badges are this view's own dialect (not the shared
 // short labels), and the 12h '4:00p' time is deliberately compact for cell width.
@@ -84,6 +84,21 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   );
 
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // ⭐⭐⭐ A BLANK DRIVER BLOCK IS THE NORMAL STATE, NOT A GAP — and it read as "nobody scheduled".
+  //
+  // Aaron, 2026-09-06: *"the driver's get there's weekly. and i won't see it until i go to work on
+  // tuesday."* The VSAs come as a four-week block; the drivers come a week at a time and reach him
+  // at the branch. So **every forward week has an empty driver block by design**, and it will look
+  // exactly like this every Sunday night he opens the app.
+  //
+  // ⚠️ FG already has the rule this breaks, written down for attendance: **unmarked ≠ absent** — an
+  // unobserved person is not a no-show. The same blankness here reads as "not working", when what it
+  // means is "not posted yet". A row that says nothing is not saying nothing; it is saying the
+  // wrong thing, and it is the same blankness that buried two VSAs an hour ago.
+  const driversUnloaded = driverBlockUnloaded(
+    visibleUsers, u => days.some(d => shiftMap.has(`${u.id}-${toISO(d)}`)),
+  );
 
   return (
     <>
@@ -206,6 +221,14 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
           </tbody>
         </table>
       </div>
+
+      {driversUnloaded && (
+        <p className="px-1 text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="font-semibold">No driver shifts loaded for this week.</span>{' '}
+          The driver schedule is posted weekly at the branch — blank here means FG has not been given
+          it yet, not that nobody is on.
+        </p>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 text-xs px-1">

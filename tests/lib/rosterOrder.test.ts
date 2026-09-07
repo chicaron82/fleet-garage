@@ -6,7 +6,7 @@
  * other two VSA listed."*
  */
 import { describe, expect, it } from 'vitest';
-import { orderRoster, rosterRank } from '../../src/lib/rosterOrder';
+import { orderRoster, rosterRank, driverBlockUnloaded } from '../../src/lib/rosterOrder';
 import type { UserRole } from '../../src/types';
 
 const m = (id: string, name: string, role: UserRole) => ({ id, name, role });
@@ -52,5 +52,28 @@ describe('roster order', () => {
     expect(rosterRank('Branch Manager')).toBeGreaterThan(rosterRank('Driver'));
     const ordered = orderRoster([m('bm', 'Boss', 'Branch Manager'), m('d', 'Dee', 'Driver')]);
     expect(ordered.map(u => u.role)).toEqual(['Driver', 'Branch Manager']);
+  });
+});
+
+describe('a blank driver block is a STATE, not an absence', () => {
+  const drivers = [m('d1', 'Dee', 'Driver'), m('d2', 'Eve', 'Driver')];
+  const floor = [m('a', 'Aaron', 'VSA')];
+
+  it('⭐⭐ blank across every driver → FG has not been given the week', () => {
+    expect(driverBlockUnloaded([...floor, ...drivers], () => false)).toBe(true);
+  });
+
+  it('one driver with one shift is enough — the week IS loaded, they are just off', () => {
+    expect(driverBlockUnloaded([...floor, ...drivers], u => u.id === 'd1')).toBe(false);
+  });
+
+  it('⚠️ no drivers on screen → no claim at all (the Floor-only filter must stay silent)', () => {
+    expect(driverBlockUnloaded(floor, () => false)).toBe(false);
+  });
+
+  it('an empty FLOOR says nothing about drivers — the notice is driver-specific on purpose', () => {
+    // VSAs come as a four-week block, so a blank floor week means something different and is not
+    // this function's business.
+    expect(driverBlockUnloaded([m('v', 'V', 'VSA')], () => false)).toBe(false);
   });
 });
