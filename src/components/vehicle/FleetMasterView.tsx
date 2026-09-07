@@ -7,6 +7,7 @@ import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
 import { FleetHealthChips } from './FleetHealthChips';
 import { FleetHistorySection } from '../analytics/FleetHistorySection';
+import { FleetArchivedSection } from './FleetArchivedSection';
 import { FleetAuditPanel } from './FleetAuditPanel';
 import { useFleetAudit } from '../../hooks/useFleetAudit';
 import { useFleetTrend } from '../../hooks/useFleetTrend';
@@ -166,8 +167,15 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       {/* No match — register CTA */}
       {noMatch && (
         <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-6 text-center space-y-2">
+          {/* ⚠️ "No vehicle found" was a lie the moment archived cars moved onto this screen — the
+              row can be sitting six inches below this sentence. It now says what it actually
+              knows: nothing ACTIVE matched. Same defect class as the dead end it was added to fix,
+              and it would have shipped as part of the fix. */}
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            No vehicle found for <span className="font-semibold text-gray-700 dark:text-gray-300">{term}</span>
+            No active vehicle found for <span className="font-semibold text-gray-700 dark:text-gray-300">{term}</span>
+          </p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            If it was archived, it appears under <span className="font-semibold">Archived</span> below.
           </p>
           <PrimaryAction label="Register this vehicle" onClick={() => onRegisterNew(term)} />
         </div>
@@ -266,6 +274,11 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           })}
         </div>
       )}
+
+      {/* ⭐ Archived cars, at the foot — collapsed, and it opens itself when a search matches one.
+          Moved here from Holds 2026-09-06: Fleet's search is the one that answers "does FG know this
+          car", and for an archived plate it was answering NO while the row sat one module away. */}
+      <FleetArchivedSection search={search} />
     </div>
   );
 }

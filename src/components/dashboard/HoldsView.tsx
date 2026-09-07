@@ -5,7 +5,7 @@ import { useHoldsWorklist } from '../../hooks/useHoldsWorklist';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
-import { canRelease, canManageVehicles } from '../../types';
+import { canRelease } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import type { Vehicle, VehicleStatus } from '../../types';
 import { useUserResolver } from '../../hooks/useUserResolver';
@@ -20,7 +20,6 @@ import { StaleHoldsAlert } from './StaleHoldsAlert';
 import { BarcodeToast } from '../shared/BarcodeToast';
 import { PendingVehicleSheet } from '../shared/PendingVehicleSheet';
 import { HoldsVehicleRow } from './HoldsVehicleRow';
-import { ArchivedVehiclesSection } from './ArchivedVehiclesSection';
 import { HoldsPagination } from './HoldsPagination';
 import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
 import { EVAssetsTab } from '../holds/EVAssetsTab';
@@ -36,7 +35,7 @@ interface Props {
 
 export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfill }: Props) {
   const { user } = useAuth();
-  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, restoreVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
+  const { vehicles, holds, staleHolds, loading, loadError, reload, getVehicleByUnit, releaseStreak, archivedVehicles, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   // A scanned tag fills an on-record car's blanks here, at the scan — see docs/ticket-backfill-at-scan.md.
   // Passing attach makes the holds search-scan also save the tag to a known car that lacks one.
   const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
@@ -291,15 +290,11 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
           )}
         </div>
 
-        {/* Archived Vehicles — search surfaces a match here (auto-expanded) even when the active
-            fleet has none, mirroring the Issue Log / ExceptionReturnSection. */}
-        {canManageVehicles(user!.role) && (
-          <ArchivedVehiclesSection
-            archivedVehicles={archivedVehicles}
-            onRestore={restoreVehicle}
-            search={search}
-          />
-        )}
+        {/* ⭐ Archived Vehicles MOVED TO FLEET, 2026-09-06 — see FleetArchivedSection. Aaron:
+            *"searching for them in fleet shows up empty but is searchable in the holds module where
+            they are currently located."* Fleet is the module you search a vehicle in, so that is
+            where the archived rows belong; keeping a second copy here would give restore two homes
+            and leave the dead end half-fixed. */}
 
         {/* Barcode toast */}
         <BarcodeToast toast={toast} />

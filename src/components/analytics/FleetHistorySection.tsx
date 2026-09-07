@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
-import { SectionHeader, EmptyState } from './AnalyticsComponents';
+import { useMemo, useState } from 'react';
+import { EmptyState } from './AnalyticsComponents';
 import { useFleetHistory, FG_RECORD_START } from '../../hooks/useFleetHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { hapticLight } from '../../lib/haptics';
 import {
   liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings,
 } from '../../lib/fleetHistory';
@@ -33,6 +34,13 @@ function Bar({ pct, thin }: { pct: number; thin: boolean }) {
 }
 
 export function FleetHistorySection() {
+  // ⭐⭐ CLOSED BY DEFAULT. Aaron, 2026-09-06: *"can we have the recently added analytics blocks
+  //    collapsed by default so when i search up vehicle i don't have to scroll to where the results
+  //    show."* This is READING and the search box is a TOOL — the placement comment in
+  //    FleetMasterView already said tools come first, and then this shipped three cards tall and
+  //    pushed the results under the fold anyway. **Ordering it correctly was not the same as
+  //    costing it correctly**: it sits above the list, so its height is a tax on every search.
+  const [open, setOpen] = useState(false);
   const { holdDates, flaggedVehicleIds, sightingsByVehicle, window: win, loading, error } = useFleetHistory();
   const { vehicles } = useVehicleHoldContext();
 
@@ -78,7 +86,19 @@ export function FleetHistorySection() {
 
   return (
     <section className="space-y-4">
-      <SectionHeader title="What FG has recorded" />
+      {/* ⚠️ The header is now the toggle. It keeps the record one tap away instead of one scroll —
+          he asked for it out of the way, not gone. */}
+      <button
+        type="button"
+        onClick={() => { hapticLight(); setOpen(o => !o); }}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest cursor-pointer"
+      >
+        <span>{open ? '▾' : '▸'}</span>
+        <span>What FG has recorded</span>
+      </button>
+
+      {open && (<>
 
       {/* ── 1 · damage flagged, by month ───────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -225,6 +245,7 @@ export function FleetHistorySection() {
           </div>
         )}
       </div>
+      </>)}
     </section>
   );
 }

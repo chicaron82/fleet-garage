@@ -32,6 +32,12 @@ vi.mock('../../src/hooks/useFleetTrend', () => ({ useFleetTrend: () => ({ baseli
 vi.mock('../../src/components/analytics/FleetHistorySection', () => ({
   FleetHistorySection: () => null,
 }));
+// ⚠️ Same reason, second component: the archived list moved into Fleet on 2026-09-06 and reaches
+// for the vehicle context too. Stubbed rather than provided — this test is about the REGISTER path
+// carrying his typed plate, and FleetArchivedSection has its own cover.
+vi.mock('../../src/components/vehicle/FleetArchivedSection', () => ({
+  FleetArchivedSection: () => null,
+}));
 
 import { FleetMasterView } from '../../src/components/vehicle/FleetMasterView';
 
@@ -49,7 +55,9 @@ async function mount() {
 async function searchFor(term: string) {
   await mount();
   fireEvent.change(searchBox(), { target: { value: term } });
-  await waitFor(() => expect(screen.getByText(/No vehicle found/i)).toBeInTheDocument());
+  // "No ACTIVE vehicle found" since 2026-09-06 — archived cars now live on this screen, so the
+  // absolute claim was wrong the moment one of them could be sitting below the sentence.
+  await waitFor(() => expect(screen.getByText(/No active vehicle found/i)).toBeInTheDocument());
 }
 
 describe('registering from Fleet carries what he typed', () => {
