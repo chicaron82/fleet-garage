@@ -120,3 +120,39 @@ describe('planKeytagReread — is this even this car\'s tag?', () => {
     expect(p.fills).toContainEqual({ field: 'vinLast9', value: '3S7792108' });
   });
 });
+
+// ⭐⭐ THE MISREAD, WHICH IS NOT A MISFILE — Aaron mid key-audit, 2026-09-07. The re-read reported
+// *"XN294J — the stored tag reads XN294Z"* and his answer was *"XN294J is correct."* The car is
+// XN294J, the photo is XN294J's tag, and the model got one character wrong.
+//
+// ⚠️ The veto above cannot tell those two cases apart: a misread and a misfiled photo produce an
+// identical signal. Without an overrule the warning re-fires on every future run FOREVER and the
+// car's blanks are never filled — a state that exists and cannot be recorded. Migration 138 is the
+// overrule, and it means what the audit's `manual` stamp means: a human looked.
+describe('planKeytagReread — a human overrules a misread', () => {
+  it('⭐ a confirmed photo retires the veto AND lets the blanks fill', () => {
+    const v = vehicle({ licensePlate: 'XN294J', keytagPhotoConfirmedAt: '2026-09-07T16:00:00Z' });
+    const p = planKeytagReread({ ...TAG, plate: 'XN294Z' }, v);
+    expect(p.wrongPhoto).toBeUndefined();
+    // The whole point: not merely a silenced warning — the car re-enters normal filling.
+    expect(p.fills.length).toBeGreaterThan(0);
+  });
+
+  // ⚠️ THE REGRESSION GUARD THAT MATTERS MORE THAN THE FEATURE. LUR243 is why the veto exists; an
+  // unconfirmed car must still be vetoed exactly as before, or this change quietly reopens the hole
+  // that wrote a 2026 VIN onto a 2025 Versa.
+  it('⚠️ an UNCONFIRMED car is still vetoed — LUR243 stays protected', () => {
+    const p = planKeytagReread({ ...TAG, plate: 'XN294Z' }, vehicle({ licensePlate: 'XN294J' }));
+    expect(p.fills).toEqual([]);
+    expect(p.wrongPhoto).toEqual({ readPlate: 'XN294Z', recordPlate: 'XN294J' });
+  });
+
+  // ⚠️ Confirmation is about THIS photo, so it must never rescue a car whose tag genuinely belongs
+  // elsewhere once that photo is replaced — `retakeKeytagPhoto` clears both columns. Here: the flag
+  // is absent (as a retake leaves it) and the veto is back.
+  it('⚠️ clearing the confirmation restores the veto', () => {
+    const v = vehicle({ licensePlate: 'XN294J', keytagPhotoConfirmedAt: null });
+    const p = planKeytagReread({ ...TAG, plate: 'XN294Z' }, v);
+    expect(p.wrongPhoto).toEqual({ readPlate: 'XN294Z', recordPlate: 'XN294J' });
+  });
+});

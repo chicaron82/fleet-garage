@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhoto } from '../lib/garage-uploads';
+import { asRotation } from '../lib/keytagPhotoRotation';
 import type { Vehicle } from '../types';
 
 /** Uploads the key tag a scan was read FROM and keeps it on the vehicle as evidence — but ONLY if
@@ -94,13 +95,73 @@ export function makeRetakeKeytagPhoto(deps: {
         keytag_audited_at: null,
         keytag_audited_by: null,
         keytag_audit_result: null,
+        // ⚠️⚠️ AND THE PHOTO CONFIRMATION (migration 138), for exactly the reason above. "This tag
+        // is this car's" is a claim about a SPECIFIC photo; carrying it onto a new one would
+        // silence the wrong-photo veto on evidence nobody has looked at — the precise failure the
+        // veto exists to prevent. This is the same bug migration 130 shipped in the other
+        // direction: its comment claimed a retake cleared the audit stamp, and the code did not.
+        keytag_photo_confirmed_at: null,
+        keytag_photo_confirmed_by: null,
       }).eq('id', vehicleId).select('id')
     );
     if (error || !data?.length) return false;
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? {
       ...v, keytagPhotoUrl: url,
       keytagAuditedAt: null, keytagAuditedBy: null, keytagAuditResult: null,
+      keytagPhotoConfirmedAt: null, keytagPhotoConfirmedBy: null,
     } : v)));
+    return true;
+  };
+}
+
+/** Turn a sideways tag on the vehicle RECORD (migration 133 stores the angle; the file is never
+ *  re-encoded). Aaron, 2026-09-07: *"a way to rotate the tag on record"* — rotation existed, but
+ *  only inside the audit card.
+ *
+ *  ⚠️⚠️ DELIBERATELY NOT `saveKeytagAudit`, which was the obvious reuse and is wrong: that path
+ *  stamps `keytag_audited_at/by/result: 'verified'` on every save. Turning a picture is not reading
+ *  a tag, and a rotation that silently marked the car AUDITED would retire it from the queue
+ *  without anyone having read it — a worse defect than the sideways photo. */
+export function makeRotateKeytagPhoto(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+  return async (vehicleId: string, rotation: number): Promise<boolean> => {
+    const deg = asRotation(rotation);
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ keytag_photo_rotation: deg }).eq('id', vehicleId)
+    );
+    if (error) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, keytagPhotoRotation: deg } : v)));
+    return true;
+  };
+}
+
+/** "This tag really is this car's" — the human overrule for a MISREAD plate (migration 138).
+ *
+ *  ⭐ Aaron, 2026-09-07: the re-read flagged XN294J because the model read its tag as XN294Z. The
+ *  `wrongPhotoCheck` veto is right and cannot tell a misread from a misfile, so without this the
+ *  warning re-fires forever and the car's blanks are never filled. Setting it retires the veto for
+ *  this car on the only evidence that outranks the tag: someone holding it.
+ *
+ *  ⚠️ REVERSIBLE — pass `false` to un-confirm, because a wrong tap must cost a tap and not a
+ *  permanently silenced guard. And it is scoped to the photo: `retakeKeytagPhoto` clears it. */
+export function makeConfirmKeytagPhoto(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+  userId: string | null;
+}) {
+  const { setAllVehicles, userId } = deps;
+  return async (vehicleId: string, confirmed: boolean): Promise<boolean> => {
+    const at = confirmed ? new Date().toISOString() : null;
+    const by = confirmed ? userId : null;
+    const { error } = await writeWithRefresh(() =>
+      supabase.from('vehicles')
+        .update({ keytag_photo_confirmed_at: at, keytag_photo_confirmed_by: by })
+        .eq('id', vehicleId)
+    );
+    if (error) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId
+      ? { ...v, keytagPhotoConfirmedAt: at, keytagPhotoConfirmedBy: by } : v)));
     return true;
   };
 }

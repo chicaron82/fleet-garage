@@ -77,6 +77,15 @@ export function planKeytagReread(read: KeytagRead, vehicle: Vehicle): RereadPlan
  * A read with no plate at all vetoes nothing — an unreadable line is not a disagreement.
  */
 function wrongPhotoCheck(read: KeytagRead, vehicle: Vehicle): RereadPlan['wrongPhoto'] {
+  // ⭐⭐ A HUMAN ALREADY LOOKED AT THIS PHOTO AND SAID IT IS THIS CAR'S (migration 138). Aaron,
+  // 2026-09-07: the re-read flagged XN294J because the model read its tag as XN294Z — one
+  // character. The veto below cannot tell a MISREAD from a MISFILE, so without this the warning
+  // re-fires on every future run forever and the car's blanks are never filled.
+  //
+  // ⚠️ This does NOT weaken the guard — it retires it for one car, on the strength of the only
+  // evidence that outranks the tag: someone holding it. Same claim the audit's `manual` stamp
+  // makes, and scoped to the photo, so a retake clears the confirmation and the veto comes back.
+  if (vehicle.keytagPhotoConfirmedAt) return undefined;
   const raw = (read.plate ?? '').trim();
   if (!raw) return undefined;
   // ⚠️ The SAME comparison `resolveKeytagScan` uses to match a tag to a car (line 190-194): MB-prefix

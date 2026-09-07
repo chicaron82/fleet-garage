@@ -220,6 +220,14 @@ export interface Vehicle {
   /** Quarter-turns clockwise to apply when RENDERING the key tag (migration 133). The stored file
    *  is never re-encoded — a wrong turn costs a tap, not image quality. See lib/keytagPhotoRotation. */
   keytagPhotoRotation?: number | null;
+  /** ⭐ "This tag really is this car's" — a human overrule for a MISREAD plate (migration 138).
+   *  `wrongPhotoCheck` vetoes a re-read when the plate on the tag disagrees with the record, which
+   *  is right (LUR243 wrote a 2026 VIN onto a 2025 Versa off a misfiled photo) — but it cannot tell
+   *  a misread from a misfile, and one wrong character looks identical. Set, it means the same
+   *  thing the audit's `manual` stamp means: a human looked.
+   *  ⚠️ SCOPED TO THE PHOTO, so a retake clears it. NULL = never confirmed. */
+  keytagPhotoConfirmedAt?: string | null;
+  keytagPhotoConfirmedBy?: string | null;
   /** A free-text note about the car's CURRENT situation — the tier below a hold, for the facts
    *  that don't earn one ("sent to Speedy for windshield replacement"). One current note, not a
    *  log: clearing it is captured by the change trail (migrations/118), so the car keeps the

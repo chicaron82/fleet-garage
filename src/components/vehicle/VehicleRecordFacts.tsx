@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
 import { asRotation } from '../../lib/keytagPhotoRotation';
-import { KeytagPhoto } from './KeytagPhoto';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { KeytagRetake } from './KeytagRetake';
+import { KeytagZoomOverlay } from './KeytagZoomOverlay';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
@@ -47,13 +46,15 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
   keytagPhotoUrl?: string | null;
   /** Quarter-turns to apply when rendering it (migration 133). The file is never re-encoded. */
   keytagPhotoRotation?: number | null;
+  keytagPhotoConfirmedAt?: string | null;
+  keytagPhotoConfirmedBy?: string | null;
   /** The human audit stamp (migration 130), grouped as ONE prop rather than three — this strip is
    *  already at thirteen and the trio only ever means something together. */
   keytagAudit?: { at?: string | null; by?: string | null; result?: KeytagAuditResult | null };
@@ -78,7 +79,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, recordWinterTires, reopenKeytagAudit } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, recordWinterTires} = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate, vehicleId);
   const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
@@ -386,51 +387,12 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
       )}
 
       {zoom && (
-        /* flex-col: the retake controls sit UNDER the tag, not beside it. The backdrop is absolute
-           so it stays out of the flow. Opens with NO photo too — that is the whole point of the
-           dashed chip above; `KeytagRetake` is a first capture as readily as a replacement. */
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4" onClick={() => setZoom(false)}>
-          <div className="absolute inset-0 bg-black/80" />
-          {keytagPhotoUrl ? (
-            /* ⚠️ THE SAME DEFECT AARON FOUND IN THE AUDITOR, in another room: a rotated image kept
-               its upright footprint and painted outside it — here, over the retake controls below.
-               `KeytagPhoto` carries the turned box, so the layout is honest at every angle. */
-            <div className="relative w-full max-w-md">
-              <KeytagPhoto src={keytagPhotoUrl} alt="Key tag" rotation={keytagPhotoRotation} />
-            </div>
-          ) : (
-            <p className="relative text-white/70 text-sm">No key tag photo on file for this car.</p>
-          )}
-          {/* ⭐ The fix belongs where the problem is DISCOVERED. He opens this to check a tag; if it
-              is unreadable, the retake is right here rather than on another screen. stopPropagation
-              because the backdrop closes on click and a file picker must not dismiss its own modal. */}
-          <div className="relative mt-3 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
-            <KeytagRetake vehicleId={vehicleId} onReplaced={() => setZoom(false)} />
-            {/* ⭐⭐ THE AUDITOR'S UNDO, and it belongs here rather than in the auditor — an audited
-                car has already LEFT the queue, so the auditor has no screen on which to offer it.
-                Without this the first wrong entry (FVB4297, a rental class typed into the model-code
-                box because that tag's own heading reads `Class`) could only be undone with
-                hand-written SQL. A surface that writes at the top of the provenance ladder needs a
-                way back, or every one of its mistakes is permanent. */}
-            {keytagAudit?.at && (
-              <button
-                type="button"
-                onClick={() => { void reopenKeytagAudit(vehicleId); setZoom(false); }}
-                className="text-xs font-semibold text-white/70 hover:text-white underline cursor-pointer"
-              >
-                Re-audit this tag — put it back in the queue
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={() => setZoom(false)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white text-2xl cursor-pointer"
-          >
-            ×
-          </button>
-        </div>
+        <KeytagZoomOverlay
+          vehicleId={vehicleId} plate={plate}
+          keytagPhotoUrl={keytagPhotoUrl} keytagPhotoRotation={keytagPhotoRotation}
+          keytagPhotoConfirmedAt={keytagPhotoConfirmedAt} keytagPhotoConfirmedBy={keytagPhotoConfirmedBy}
+          audited={Boolean(keytagAudit?.at)} onClose={() => setZoom(false)}
+        />
       )}
     </div>
   );

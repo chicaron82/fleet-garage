@@ -1679,6 +1679,8 @@ export type Database = {
           keytag_audit_result: string | null
           keytag_audited_at: string | null
           keytag_audited_by: string | null
+          keytag_photo_confirmed_at: string | null
+          keytag_photo_confirmed_by: string | null
           keytag_photo_rotation: number
           keytag_photo_url: string | null
           license_plate: string
@@ -1727,6 +1729,8 @@ export type Database = {
           keytag_audit_result?: string | null
           keytag_audited_at?: string | null
           keytag_audited_by?: string | null
+          keytag_photo_confirmed_at?: string | null
+          keytag_photo_confirmed_by?: string | null
           keytag_photo_rotation?: number
           keytag_photo_url?: string | null
           license_plate: string
@@ -1775,6 +1779,8 @@ export type Database = {
           keytag_audit_result?: string | null
           keytag_audited_at?: string | null
           keytag_audited_by?: string | null
+          keytag_photo_confirmed_at?: string | null
+          keytag_photo_confirmed_by?: string | null
           keytag_photo_rotation?: number
           keytag_photo_url?: string | null
           license_plate?: string

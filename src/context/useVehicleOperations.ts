@@ -15,7 +15,7 @@ import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
 import { makeSetVehicleNote } from './vehicleNoteWrite';
-import { makeAttachKeytagPhotoIfMissing, makeRetakeKeytagPhoto } from './keytagPhotoWrite';
+import { makeAttachKeytagPhotoIfMissing, makeRetakeKeytagPhoto, makeRotateKeytagPhoto, makeConfirmKeytagPhoto } from './keytagPhotoWrite';
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
@@ -198,6 +198,8 @@ export function useVehicleOperations({
   // The deliberate replace the if-missing rule always deferred to. The old photo is not deleted —
   // migration 118's trigger keeps the previous URL in vehicle_changes. See ./keytagPhotoWrite.
   const retakeKeytagPhoto = makeRetakeKeytagPhoto({ setAllVehicles });
+  const rotateKeytagPhoto = makeRotateKeytagPhoto({ setAllVehicles });
+  const confirmKeytagPhoto = makeConfirmKeytagPhoto({ setAllVehicles, userId });
 
   // Reconcile a unit# conflict at registration: release the number from the
   // record it was on so it can land on the one being added. See ./identityReconcile.
@@ -360,6 +362,8 @@ export function useVehicleOperations({
     setVehicleNote,
     attachKeytagPhotoIfMissing,
     retakeKeytagPhoto,
+    rotateKeytagPhoto,
+    confirmKeytagPhoto,
     recordOwningArea,
     recordClassCode,
     recordVinLast9,

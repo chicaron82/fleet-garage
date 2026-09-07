@@ -76,6 +76,11 @@ export interface VehicleHoldContextValue {
   /** Replace the stored key tag with a fresh photo. Deliberate, operator-initiated, and the one
    *  keytag write that overwrites — the old URL survives in vehicle_changes. False when nothing wrote. */
   retakeKeytagPhoto: (vehicleId: string, photo: string) => Promise<boolean>;
+  /** Turn a sideways tag on the record. NOT the audit path — that one stamps the car verified. */
+  rotateKeytagPhoto: (vehicleId: string, rotation: number) => Promise<boolean>;
+  /** "This tag really is this car's" — overrules a MISREAD plate so the re-read stops vetoing it.
+   *  Pass false to un-confirm; a retake clears it automatically. */
+  confirmKeytagPhoto: (vehicleId: string, confirmed: boolean) => Promise<boolean>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
   addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null, disposition?: Disposition | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
