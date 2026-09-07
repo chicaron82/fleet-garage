@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AUDIT_FIELDS,
+  nearMissCode,
   firstPhotoNote,
   AUDIT_FIELD_LABELS,
   isBlankField,
@@ -362,5 +363,44 @@ describe('the audit ignores cars that have left the fleet', () => {
   it('⚠️ a car with no archivedAt field is untouched', () => {
     expect(buildAuditQueue([car({ id: 'plain', keytagPhotoUrl: 'https://cdn/p.jpg', owningArea: null })])
       .map(c => c.vehicle.id)).toEqual(['plain']);
+  });
+});
+
+// ⭐⭐ ONE CHARACTER FROM A CODE FG ALREADY KNOWS — Aaron, 2026-09-07, on a car with no make or
+// model: *"does FG have it as CF1X? because FG has other F-150s."* It did, on NINE of them. The
+// stored code had a letter I where the codex has a digit 1, so the lookup missed and the blanks
+// never filled. Same substitution family as XN294J→XN294Z and OHH120→0HH120 that same day.
+describe('nearMissCode — one substitution from a known code', () => {
+  const vocab = new Set(['CF1X', 'CX30', 'CTMY']);
+
+  it('⭐ CFIX suggests CF1X — the real case', () => {
+    expect(nearMissCode('CFIX', vocab)).toBe('CF1X');
+  });
+
+  it('normalises case and padding, as the tag field does', () => {
+    expect(nearMissCode('  cfix ', vocab)).toBe('CF1X');
+  });
+
+  it('a code the vocabulary already holds is not a miss', () => {
+    expect(nearMissCode('CF1X', vocab)).toBeNull();
+  });
+
+  it('a blank is not a claim', () => {
+    expect(nearMissCode('   ', vocab)).toBeNull();
+  });
+
+  it('an unrelated code suggests nothing rather than the nearest thing', () => {
+    expect(nearMissCode('CQRS', vocab)).toBeNull();
+  });
+
+  // ⚠️⚠️ THE GUARD THAT MATTERS: two candidates means it must say NOTHING. Guessing a car's
+  // identity from an ambiguous read is worse than leaving it blank — a plausible wrong value is
+  // harder to spot than a missing one, which is the whole reason the wrong-box guard exists.
+  it('⚠️ refuses to choose when two known codes are both one substitution away', () => {
+    expect(nearMissCode('C1S', new Set(['CIS', 'C15']))).toBeNull();
+  });
+
+  it('only substitutes CONFUSABLE characters, never any letter', () => {
+    expect(nearMissCode('CFAX', vocab)).toBeNull();   // A→1 is not a misread anyone makes
   });
 });

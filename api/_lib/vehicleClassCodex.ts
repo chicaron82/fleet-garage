@@ -142,6 +142,58 @@ const CODEX: Record<string, VehicleClass> = {
   CALE: { make: 'GMC', model: 'Acadia' }, // surfaced live 2026-07-17 — Aaron flagged the gap (a CALE tag couldn't resolve → Effie had to ask)
   // Jeep
   CWUR: { make: 'Jeep', model: 'Wrangler' }, // surfaced live 2026-07-20 (Aaron, unit 5427331 / LUR573, rental class V) — the boss's "V class"; LUR573 was on his dirties list
+
+  // ⭐⭐ TAUGHT FROM FG'S OWN ROWS, 2026-09-07 — no model calls, no photos re-read.
+  //
+  // Aaron, working the Needs-details list, recognised a misread from memory: *"does FG have it as
+  // CF1X? because FG has other F-150s."* He did. `CFIX` (letter I) vs `CF1X` (digit 1) — and that
+  // one character had cost a car its make and model three steps downstream: codex miss → blanks
+  // never fill → the car surfaces as "needs details" with no hint of what it needs.
+  //
+  // Sweeping every class code in live use against this file found 23 unknown. His instinct for
+  // checking them was *"most of those have keytags attached so you can see that they've been
+  // captured correctly"* — but it proved cheaper still: EVERY ONE OF THESE CARS ALREADY HAD ITS
+  // MAKE AND MODEL FILLED IN. The mapping sat in the database and had never reached this file.
+  // (His call on the largest, unprompted: *"CX30 a B5 on mazda's"* — 6 cars, class B5, Mazda CX-30.)
+  //
+  // ⚠️⚠️ FOUR VALUES WERE DELIBERATELY NOT TAUGHT, because they are not codes:
+  //   COMPASS · TUSCON — model names typed into the model-code box (TUSCON is itself misspelled)
+  //   E9              — a RENTAL CLASS in the box; its rental_class is ALSO E9, which proves it.
+  //                     This is FVB4297, the case the wrong-box guard was built for.
+  //   CFIX            — the misread above; corrected on the car instead.
+  // Teaching any of them would be an error legitimising itself — the exact trap `knownModelCodes`
+  // already documents by subtracting rental classes from the known-code vocabulary.
+  //
+  // Mazda
+  CX30: { make: 'Mazda', model: 'CX-30' },       // 6 cars, class B5 — the largest untaught code
+  // Volvo
+  CX4R: { make: 'Volvo', model: 'XC40' },        // 3 cars, class W4
+  C98R: { make: 'Volvo', model: 'XC90' },        // 2 cars, class Z4
+  CX6R: { make: 'Volvo', model: 'XC60' },        // 2 cars, class H4
+  CX6M: { make: 'Volvo', model: 'XC60' },        // 1 car,  class H4
+  // Toyota
+  CTAC: { make: 'Toyota', model: 'Tacoma' },     // 2 cars, class O6
+  CCMR: { make: 'Toyota', model: 'Camry' },      // 1 car,  class E6
+  // Chevrolet
+  CTAA: { make: 'Chevrolet', model: 'Trax' },    // 2 cars, class B5
+  CBRS: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
+  CTBA: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
+  // Buick
+  CEEA: { make: 'Buick', model: 'Envision' },    // 2 cars, class L2
+  CEVT: { make: 'Buick', model: 'Envision' },    // 1 car,  class L2
+  // GMC
+  CTRN: { make: 'GMC', model: 'Terrain' },       // 1 car,  class Q4
+  CYSE: { make: 'GMC', model: 'Yukon' },         // 1 car,  class T6
+  // Tesla
+  C3UL: { make: 'Tesla', model: 'Model 3' },     // 1 car,  class M1
+  // Hyundai
+  CKEA: { make: 'Hyundai', model: 'Kona' },      // 1 car,  class B5
+  // Honda
+  CHCS: { make: 'Honda', model: 'Civic' },       // 1 car,  class E6
+  // Kia
+  CK45: { make: 'Kia', model: 'K4' },            // 1 car,  class C
+  // Chrysler
+  CPCT: { make: 'Chrysler', model: 'Pacifica' }, // 1 car,  class R
 };
 
 /** Resolve a Hertz class code (e.g. "CCVL", "ccvl 25") to its make/model, or null. */

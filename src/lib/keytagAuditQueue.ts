@@ -113,6 +113,43 @@ export interface AuditWarning { field: AuditField; message: string; }
  * bug it prevents. E9 was never malformed — it is a perfectly good rental class that landed one
  * box down.
  */
+/**
+ * ⭐⭐ ONE CHARACTER FROM A CODE FG ALREADY KNOWS.
+ *
+ * Aaron, 2026-09-07, looking at a car with no make or model and a code of `CFIX`: *"does FG have it
+ * as CF1X? because FG has other F-150s."* It did — **nine of them.** The stored code had a letter I
+ * where the codex has a digit 1, so the lookup missed, the make and model never filled, and the car
+ * surfaced on the Needs-details list giving no hint of what it needed. One character, three steps
+ * upstream of the symptom.
+ *
+ * ⚠️ THE SAME SUBSTITUTION FAMILY AS THE PLATES, and that is the point: `XN294J`→`XN294Z` that
+ * morning, `OHH120`→`0HH120` on the Calgary tags. Plates already had `expectedPlateShape` to
+ * localise the wrong character. Class codes had nothing, so an identical misread stayed silent.
+ *
+ * ⚠️⚠️ IT SUGGESTS, IT NEVER CORRECTS, and it refuses to guess: if two vocabulary entries are both
+ * one substitution away, this returns null rather than pick. An ambiguous auto-suggestion on a field
+ * that decides a car's identity is worse than none — the wrong-box guard next door exists precisely
+ * because a plausible value in the wrong place is harder to see than a blank one.
+ */
+const CONFUSABLE: Readonly<Record<string, string>> = {
+  I: '1', 1: 'I', O: '0', 0: 'O', S: '5', 5: 'S', Z: '2', 2: 'Z', B: '8', 8: 'B',
+};
+
+export function nearMissCode(code: string, vocabulary: ReadonlySet<string>): string | null {
+  const c = code.trim().toUpperCase();
+  // A code the vocabulary already holds is not a miss — and a blank is not a claim.
+  if (!c || vocabulary.has(c)) return null;
+  const hits = new Set<string>();
+  for (let i = 0; i < c.length; i++) {
+    const swap = CONFUSABLE[c[i]];
+    if (!swap) continue;
+    const candidate = c.slice(0, i) + swap + c.slice(i + 1);
+    if (vocabulary.has(candidate)) hits.add(candidate);
+  }
+  // Exactly one, or nothing. Two candidates is ambiguity, and guessing an identity is the failure.
+  return hits.size === 1 ? [...hits][0] : null;
+}
+
 export function auditWarnings(
   edits: Partial<Record<AuditField, string>>,
   /** Every rental class in use on the fleet. */
@@ -136,6 +173,17 @@ export function auditWarnings(
       field: 'rentalClass',
       message: `“${rental}” is a model code — the rental class is the short group (Q4, E9).`,
     });
+  }
+  // ⭐ The near-miss, checked LAST and only when the wrong-box guard had nothing to say — a value
+  // that belongs in another field is a different (and louder) problem than a mistyped one.
+  if (model && !knownRentalClasses.has(model)) {
+    const near = nearMissCode(model, knownModelCodes);
+    if (near) {
+      out.push({
+        field: 'classCode',
+        message: `“${model}” is not a code FG knows — did you mean “${near}”?`,
+      });
+    }
   }
   return out;
 }
