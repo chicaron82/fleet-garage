@@ -3,6 +3,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import {
   buildAuditQueue,
   auditQueueStats,
+  retakeWatchlist,
   type AuditCandidate,
   type AuditQueueStats,
 } from '../lib/keytagAuditQueue';
@@ -31,6 +32,14 @@ export interface KeytagAuditState {
   remaining: number;
   /** Fleet-wide counts for the collapsed headline. */
   stats: AuditQueueStats;
+  /**
+   * ⭐ The cars behind `stats.unreadable` + `stats.stale` — Aaron, 2026-09-08: *"it tells me 1 needs
+   * a retake… what if i wanna know what it is."* The list has existed in `retakeWatchlist` all
+   * along; this hook simply never handed it over, so the card could count what it could not name.
+   * ⚠️ `unreadable` and `stale` are ONE errand (go to the car, take a photo) and TWO expectations,
+   * so each row says which it is.
+   */
+  retakes: Vehicle[];
   /** Every rental class in use, upper-cased — feeds the wrong-box guard. Derived rather than
    *  hard-coded: a class FG has never seen cannot be flagged as one, and a list I typed by hand
    *  would go stale the first time the fleet gained a group. */
@@ -75,6 +84,7 @@ export function useKeytagAudit(): KeytagAuditState {
    */
   const queue = useMemo(() => buildAuditQueue(allVehicles), [allVehicles]);
   const stats = useMemo(() => auditQueueStats(allVehicles), [allVehicles]);
+  const retakes = useMemo(() => retakeWatchlist(allVehicles), [allVehicles]);
   const pending = useMemo(() => queue.filter(c => !skipped.has(c.vehicle.id)), [queue, skipped]);
   const knownRentalClasses = useMemo(() => {
     const set = new Set<string>();
@@ -146,7 +156,7 @@ export function useKeytagAudit(): KeytagAuditState {
   );
 
   return {
-    current, remaining: pending.length, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
+    current, remaining: pending.length, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
     saving, error, unitConflict,
     save, skip, flagUnreadable, dismissConflict,
   };

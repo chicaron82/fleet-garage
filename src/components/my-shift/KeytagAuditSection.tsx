@@ -12,13 +12,15 @@ export function KeytagAuditSection({ onOpenVehicle }: {
   /** So the unit-conflict notice can OPEN the other car it names — see the notice below. */
   onOpenVehicle?: (vehicleId: string) => void;
 }) {
-  const { current, remaining, stats, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
+  const { current, remaining, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
   // ⭐ HELD HERE, ABOVE THE PER-CAR `key`. The card remounts on every save so its edits and zoom
   // scale reset; if the zoom FLAG lived there too it would reset as well, dropping him out of the
   // full-screen view on every single vehicle. This is the one piece of that state that belongs to
   // the sitting rather than to the car.
   const [zoomed, setZoomed] = useState(false);
+  // ⚠️ Collapsed by default: this line must not get taller on a busy day (`472020e`, same morning).
+  const [showRetakes, setShowRetakes] = useState(false);
   const open = !collapsed;
 
   return (
@@ -43,9 +45,49 @@ export function KeytagAuditSection({ onOpenVehicle }: {
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">
             <span>✓ {stats.verified} verified</span>
-            <span>⚠️ {stats.unreadable} need a retake</span>
+            {/* ⭐⭐ TAPPABLE — Aaron, 2026-09-08: *"it tells me 1 needs a retake… what if i wanna know
+                what it is."* The list has been in `retakeWatchlist` all along and the hook never
+                handed it over, so this line could count what it could not name.
+                ⚠️ The principle was already TEN LINES BELOW, in this file, on the unit-conflict
+                notice: *"a card that names a car and can't open it is a to-do list that can't open
+                its own items."* Caught once, fixed there, and left standing here. */}
+            {retakes.length > 0 ? (
+              <button type="button" onClick={() => setShowRetakes(r => !r)} aria-expanded={showRetakes}
+                className="underline underline-offset-2 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer">
+                ⚠️ {retakes.length} need a retake {showRetakes ? '▲' : '▼'}
+              </button>
+            ) : (
+              <span>⚠️ 0 need a retake</span>
+            )}
+            {/* 📷 NOT tappable, deliberately (his call, 2026-09-08): those 73 already have a home in
+                Fleet's "No keytag" chip. A count needs to name its items only when nothing else
+                does — duplicating a list that has a screen is clutter wearing an affordance's
+                clothes. ⚠️ Scale-dependent: if it ever drops to a handful, revisit. */}
             <span>📷 {stats.noPhoto} have no photo yet</span>
           </div>
+
+          {showRetakes && retakes.length > 0 && (
+            <ul className="space-y-1 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+              {retakes.map(v => (
+                <li key={v.id} className="flex items-baseline gap-2 text-[11px]">
+                  {onOpenVehicle ? (
+                    <button type="button" onClick={() => onOpenVehicle(v.id)}
+                      className="font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 cursor-pointer">
+                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-amber-800 dark:text-amber-300">
+                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                  {/* ⭐ One errand, two expectations — say which he'll find at the car. */}
+                  <span className="text-amber-700/70 dark:text-amber-400/70">
+                    {v.keytagAuditResult === 'stale' ? 'wrong tag on file' : 'photo unreadable'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <KeytagRereadRow />
 

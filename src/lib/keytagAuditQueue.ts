@@ -274,6 +274,12 @@ export function buildAuditQueue<V extends AuditableVehicle>(vehicles: readonly V
  */
 export function retakeWatchlist<V extends AuditableVehicle>(vehicles: readonly V[]): V[] {
   return vehicles
+    // ⚠️ ARCHIVED CARS ARE NOT WORK — and this function was MISSED when that rule landed
+    // (2026-09-07). `buildAuditQueue` and `auditQueueStats` both got it; this third one, in the same
+    // file, did not. ⭐ Moving a rule into the lib is only half of "fix the class" — the other half
+    // is applying it to every function in the lib that needs it. A retake errand for a sold car is
+    // the same un-closable work, and this list is a to-do list.
+    .filter(v => !v.archivedAt)
     .filter(v => v.keytagAuditResult === 'unreadable' || v.keytagAuditResult === 'stale')
     .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
 }

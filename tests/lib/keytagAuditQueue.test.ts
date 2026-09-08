@@ -404,3 +404,33 @@ describe('nearMissCode — one substitution from a known code', () => {
     expect(nearMissCode('CFAX', vocab)).toBeNull();   // A→1 is not a misread anyone makes
   });
 });
+
+// ⚠️⚠️ THE THIRD FUNCTION IN THIS FILE, MISSED WHEN THE RULE LANDED (2026-09-08). The archived rule
+// went into `buildAuditQueue` and `auditQueueStats` on 2026-09-07 — and NOT into `retakeWatchlist`,
+// which sits between them. ⭐ Moving a rule into the lib is only half of "fix the class"; the other
+// half is applying it to every function in that lib which needs it. A retake errand for a sold car
+// is the same un-closable work, and this list is a to-do list Aaron taps.
+describe('retakeWatchlist — archived cars are not errands either', () => {
+  it('⭐ lists a live car flagged unreadable', () => {
+    const out = retakeWatchlist([car({ id: 'live', licensePlate: 'AAA111', keytagAuditResult: 'unreadable' })]);
+    expect(out.map(v => v.id)).toEqual(['live']);
+  });
+
+  it('⭐ an ARCHIVED car flagged unreadable is not an errand', () => {
+    const out = retakeWatchlist([
+      car({ id: 'live', licensePlate: 'AAA111', keytagAuditResult: 'unreadable' }),
+      car({ id: 'gone', licensePlate: 'BBB222', keytagAuditResult: 'stale', archivedAt: '2026-08-01T00:00:00Z' }),
+    ]);
+    expect(out.map(v => v.id)).toEqual(['live']);
+  });
+
+  // ⚠️ One errand, two words — both belong on the list, and the UI says which to expect at the car.
+  it('⚠️ keeps BOTH unreadable and stale, sorted by plate', () => {
+    const out = retakeWatchlist([
+      car({ id: 'b', licensePlate: 'ZZZ999', keytagAuditResult: 'stale' }),
+      car({ id: 'a', licensePlate: 'AAA111', keytagAuditResult: 'unreadable' }),
+      car({ id: 'c', licensePlate: 'MMM555', keytagAuditResult: 'verified' }),
+    ]);
+    expect(out.map(v => v.licensePlate)).toEqual(['AAA111', 'ZZZ999']);
+  });
+});
