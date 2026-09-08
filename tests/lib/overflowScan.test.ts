@@ -63,3 +63,29 @@ describe('planOverflowScan', () => {
     expect(r?.unregistered).toBe(true);
   });
 });
+
+// ⭐ Aaron's rule, 2026-09-08: "anything that reads keytags shouldn't be tossing out valuable info".
+// LJF710 was sent to AV Flight with a null unit while the tag in his hand printed one.
+describe('planOverflowScan — the unit falls back to the tag', () => {
+  it('⚠️ uses the TAG unit when the on-file record has none', () => {
+    const hollow = [vehicle({ id: 'v-9', licensePlate: 'LJF710', unitNumber: '', make: '', model: '', year: 0, color: '' })];
+    const read: KeytagRead = { plate: 'LJF710', unitNumber: '5427800', make: 'Kia', model: 'Seltos', year: 2026 };
+    const r = planOverflowScan(read, hollow);
+    expect(r?.send.unit).toBe('5427800');
+    expect(r?.send.label).toBe('Unit 5427800');
+  });
+
+  it('⭐ the RECORD still wins when it has a unit — a disagreement is the backfill\'s to report', () => {
+    const onFile = [vehicle({ id: 'v-8', licensePlate: 'LUR554', unitNumber: '5423827' })];
+    const read: KeytagRead = { plate: 'LUR554', unitNumber: '9999999' };
+    const r = planOverflowScan(read, onFile);
+    expect(r?.send.unit).toBe('5423827');
+  });
+
+  it('stays null when neither the record nor the tag has one', () => {
+    const hollow = [vehicle({ id: 'v-7', licensePlate: 'LJF339', unitNumber: '', make: '', model: '', year: 0, color: '' })];
+    const r = planOverflowScan({ plate: 'LJF339' }, hollow);
+    expect(r?.send.unit).toBeNull();
+    expect(r?.send.label).toBe('LJF339');
+  });
+});

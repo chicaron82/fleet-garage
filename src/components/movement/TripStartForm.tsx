@@ -45,10 +45,10 @@ export function TripStartForm({
   autoStart?: boolean;
 }) {
   const { user } = useAuth();
-  const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles } = useVehicleHoldContext();
+  const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   // Scanning a key tag to start a trip registers a new vehicle (or backfills a partial) so the
   // trip isn't logged against a car FG doesn't fully know.
-  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, user });
+  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user });
   const { oth, setMovementTab } = useActiveSessions();
   const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 

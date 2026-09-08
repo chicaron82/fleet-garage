@@ -71,7 +71,7 @@ export function ClosingInventorySection() {
 
   const { copied, share } = useShareText();
   const { user } = useAuth();
-  const { getActiveHolds, vehicles, addVehicle, updateVehicleFields } = useVehicleHoldContext();
+  const { getActiveHolds, vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   /**
    * ⭐⭐ REUSED, NOT REBUILT. Aaron: *"use already what exists for registrating tags FG hasn't seen
    * before."* This hook already syncs the fleet from a movement scan — *"a NEW plate is registered
@@ -82,7 +82,7 @@ export function ClosingInventorySection() {
    * genuinely new cars turn up: the ones that arrived BEFORE his shift. It no-ops on a known car and
    * on a read too partial to mint a record, so wiring it costs nothing on the other 56 tags.
    */
-  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, user });
+  const { registerToast, handleScanRead } = useRegisterOnScan({ vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user });
   const { scan, scanPhoto, reading, reset, nonce } = useKeytagScan();
   const { photoError, takeOne } = usePhotoIntake();
   const {
@@ -179,7 +179,9 @@ export function ClosingInventorySection() {
     const scanned = await scanPhoto(base64);
     // ⚠️ NON-BLOCKING BY THE HOOK'S OWN CONTRACT — a failed write never stops the write-up, exactly
     // as a failed write never stops a trip. The row is already built from the tag either way.
-    if (scanned) await handleScanRead(scanned.read);
+    // ⭐ The closing write-up is the biggest tag-photo event FG has (~57 tags a night) and it was
+    // reading every one, keeping every parsed field, and dropping the image. Hand it over.
+    if (scanned) await handleScanRead(scanned.read, base64);
   }
 
   return (

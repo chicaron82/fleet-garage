@@ -37,7 +37,22 @@ export function planOverflowScan(read: KeytagRead, vehicles: Vehicle[]): Overflo
   }
 
   const bf = backfillFieldsOnScan(read, vehicles); // partial → fills, else null
-  const unit = vehicle?.unitNumber ?? null;
+  // ⚠️ THE TAG IS A FALLBACK FOR THE UNIT, not an alternative to the record.
+  //
+  // This read `vehicle?.unitNumber ?? null` and so a car already on file logged the RECORD's unit
+  // — or nothing, when the record had none. LJF710 went to AV Flight on 2026-09-08 with a null
+  // unit while its tag, in Aaron's hand, printed one. The `register` branch above already did this
+  // correctly (`register?.unitNumber ?? read.unitNumber`); the known-car branch never consulted
+  // `read` at all.
+  //
+  // ⭐ Record first is deliberate: a confirmed value outranks a fresh read, and where they
+  // DISAGREE that is a conflict for `backfillFieldsOnScan` to report, never for the send to
+  // silently resolve. The tag only speaks where the record is silent.
+  //
+  // ⚠️ "Silent" means null OR blank, so this cannot be `??`. `nullableStr` hands the row's value
+  // through untouched, so a unit can arrive as '' as easily as null — and `??` keeps the ''.
+  // Same trap as `year: 0` and `model: 'Unknown'`: A PLACEHOLDER IS NOT AN IDENTITY.
+  const unit = vehicle?.unitNumber?.trim() || read.unitNumber?.trim() || null;
   return {
     send: { plate, unit, label: labelFor(unit, plate) },
     register: null,

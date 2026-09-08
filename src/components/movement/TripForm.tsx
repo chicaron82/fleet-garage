@@ -24,7 +24,11 @@ export interface TripFormProps {
   vehiclePlate: string;                setVehiclePlate: (v: string) => void;
   onPlateBlur?: (plate?: string) => void;
   /** Full key-tag read from the scan — the container auto-registers a new vehicle from it. */
-  onScanRead?: (read: KeytagRead) => void;
+  /** The read AND the photo it came from — `KeytagSearchScan` has always passed both. The type
+   *  here said `(read)` alone, so the image was reaching the handler at runtime while being
+   *  invisible to anyone reading the contract, and `useRegisterOnScan` duly ignored it. Widened
+   *  2026-09-08: anything that reads a key tag keeps what it read. */
+  onScanRead?: (read: KeytagRead, photo: string) => void;
   flaggedClasses: string[];
   onShuttleToggle: (checked: boolean) => void;
   onCodeRedDispatch?: () => void;

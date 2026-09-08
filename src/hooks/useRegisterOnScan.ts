@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { vehicleNameText } from '../lib/vehicleName';
 import type { MessageTone, ToneMessage } from '../lib/messageTone';
-import { newVehicleToRegisterOnScan, backfillFieldsOnScan } from '../lib/resolveKeytagScan';
+import { newVehicleToRegisterOnScan, backfillFieldsOnScan, resolveKeytagScan } from '../lib/resolveKeytagScan';
 import type { useAuth } from '../context/AuthContext';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
@@ -13,21 +13,35 @@ import type { KeytagRead } from '../../api/_lib/keytagRead';
  * backfilled (blanks-only, never overwrites — same contract as the drop-n-go). Known/complete
  * cars and too-partial reads no-op; both writes are NON-BLOCKING — a failure never stops the
  * trip. Returns the confirmation toast + the scan handler for TripForm's onScanRead.
+ *
+ * ⭐⭐ AND IT KEEPS THE PHOTO. Aaron, 2026-09-08: *"anything that reads keytags shouldn't be tossing
+ * out valuable info"*. `handleScanRead` takes the image the read came from and attaches it to
+ * whichever car the scan touched — registered, backfilled, or already complete — if that car has
+ * none. Fixed HERE rather than in the two callers because both were dropping it:
+ * `ClosingInventorySection` never passed it, and `TripStartForm` wires this straight into
+ * `KeytagSearchScan.onRead`, which HAS been handing over `(read, photo)` all along while the old
+ * one-argument signature quietly ignored the second. [[feedback_keytag_reads_are_lossless]]
+ *
+ * ⚠️ Attach is if-missing and fire-and-forget: a confirmed tag photo is never replaced by a later
+ * incidental scan, and a failed attach must not cost the operator his write-up.
  */
 export function useRegisterOnScan(deps: {
   vehicles: ReturnType<typeof useVehicleHoldContext>['vehicles'];
   addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
   updateVehicleFields: ReturnType<typeof useVehicleHoldContext>['updateVehicleFields'];
+  attachKeytagPhotoIfMissing: ReturnType<typeof useVehicleHoldContext>['attachKeytagPhotoIfMissing'];
   user: ReturnType<typeof useAuth>['user'];
 }) {
-  const { vehicles, addVehicle, updateVehicleFields, user } = deps;
+  const { vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user } = deps;
   // ⭐ The MESSAGE and its KIND travel together. Before, this was a bare string and the renderer
   // took Toast's default — which meant "✨ Registered …" announced a success on alert red. Only the
   // code that knows what just happened can say what kind of news it is.
   const [registerToast, setRegisterToast] = useState<ToneMessage | null>(null);
 
-  const handleScanRead = useCallback(async (read: KeytagRead) => {
+  const handleScanRead = useCallback(async (read: KeytagRead, photo?: string) => {
     if (!user) return;
+    // The car this scan touched, for the photo attach below. Reassigned on a fresh registration.
+    let touchedId: string | undefined = resolveKeytagScan(read, vehicles).vehicle?.id;
     // ⚠️ `tone` is REQUIRED — no default. A default is exactly what caused this bug: an omitted
     // variant silently meant "alert", so nobody ever had to decide.
     const flash = (message: string, tone: MessageTone, sparkle = false) => {
@@ -38,7 +52,7 @@ export function useRegisterOnScan(deps: {
     const nv = newVehicleToRegisterOnScan(read, vehicles);
     if (nv) {
       try {
-        await addVehicle({
+        touchedId = await addVehicle({
           unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model,
           year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null, branchId: user.branchId, isTesla: nv.make === 'Tesla',
           hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
@@ -53,6 +67,9 @@ export function useRegisterOnScan(deps: {
         // honoured only if his `sparkles` pref is on, and never under reduced motion.
         flash(`✨ ${nv.plate} · ${vehicleNameText(nv)} — new to FG, ${vehicles.length + 1} on file`, 'success', true);
       } catch { /* non-blocking: the trip can still start without the fleet record */ }
+      // ⭐ A car FG has never seen is the one whose tag photo is worth the most — attach before the
+      // early return, or the newly-minted record leaves without the evidence that created it.
+      if (photo && touchedId) void attachKeytagPhotoIfMissing(touchedId, photo);
       return;
     }
 
@@ -67,6 +84,10 @@ export function useRegisterOnScan(deps: {
         if (res?.unitConflict) {
           // A real conflict: the unit number was NOT applied, so this stays red.
           flash(`⚠️ Unit already on ${res.unitConflict.licensePlate} — not applied to ${bf.plate}`, 'alert');
+          // ⚠️ A unit collision rejects ONE field, not the scan. The tag was still read off this
+          // car, so the photo still belongs to it — and this is precisely the record someone will
+          // want to open later to work out which car really owns that unit.
+          if (photo && touchedId) void attachKeytagPhotoIfMissing(touchedId, photo);
           return;
         }
         const filled = applied.length ? `filled ${applied.map(f => f.field).join(', ')}` : '';
@@ -74,7 +95,10 @@ export function useRegisterOnScan(deps: {
         flash(`✨ Updated ${bf.plate} · ${[filled, changed].filter(Boolean).join(' · ')}`, 'success');
       } catch { /* non-blocking */ }
     }
-  }, [vehicles, addVehicle, updateVehicleFields, user]);
+    // Backfilled, or a known car with nothing to fill — either way the tag was read off this car
+    // and the record may still have no photo of it.
+    if (photo && touchedId) void attachKeytagPhotoIfMissing(touchedId, photo);
+  }, [vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing, user]);
 
   return { registerToast, handleScanRead };
 }
