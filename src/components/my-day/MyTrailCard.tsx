@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useMyTrail, startOfToday } from '../../hooks/useMyTrail';
@@ -20,6 +20,17 @@ import { describeChangeTime } from '../../lib/vehicleChanges';
 //
 // ⚠️ SILENT WHEN EMPTY — the established FG pattern (VehicleChangeLog, PlateWatchCard). It means the
 // card FILLS UP as his shift goes on instead of greeting him with a zero at 6:45am.
+//
+// ⚠️ COLLAPSED BY DEFAULT (Aaron, 2026-09-07): *"this block is useful but it takes up space
+// especially if I have a busy day. what do you think of having it collapsed by default telling me
+// how much then expand to see in full"*. On an 86-car day the list buried everything below it —
+// the same defect the Fleet analytics cards had the day before (`0786081`), where a useful summary
+// pushed the actual work under the fold.
+//
+// ⭐ ALWAYS collapsed, never remembered — his call, and it matches Fleet. A remembered expansion
+// would mean the card is tall again on exactly the busy days it was shrunk for.
+// ⭐ The COUNT stays on the face, because the count is the part he wanted: the headline already says
+// what he did today, and the list is the receipt he opens only when he wants it.
 export function MyTrailCard() {
   const { user } = useAuth();
   const { allVehicles } = useVehicleHoldContext();
@@ -42,11 +53,25 @@ export function MyTrailCard() {
   }, [rows, actors, allVehicles]);
 
   const headline = trailHeadline(stops);
+  const [open, setOpen] = useState(false);
   if (!headline) return null;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 transition-colors">
-      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{headline}</p>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-left cursor-pointer"
+      >
+        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{headline}</span>
+        {/* ⭐ The affordance has to say there IS more, or a collapsed card reads as the whole thing —
+            which would hide the receipt rather than tidy it. */}
+        <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+          {open ? 'Hide' : `Show ${stops.length}`} {open ? '▲' : '▼'}
+        </span>
+      </button>
+      {open && (<>
       <ul className="mt-3 space-y-2">
         {stops.map(stop => (
           <li key={stop.vehicleId} className="flex items-baseline gap-2 text-xs">
@@ -62,6 +87,7 @@ export function MyTrailCard() {
       <p className="mt-3 text-[11px] text-gray-400 dark:text-gray-500">
         Recorded as you worked — nothing here was reconstructed after the fact.
       </p>
+      </>)}
     </div>
   );
 }
