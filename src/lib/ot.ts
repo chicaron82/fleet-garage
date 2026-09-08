@@ -6,7 +6,10 @@ import { isFullDayShift } from '../types';
 export const BREAK_THRESHOLD_HRS = 5;
 export const UNPAID_BREAK_HRS    = 0.5;
 
-function timeToDec(time: string): number {
+// Exported so `payEstimate` can compare a scheduled time to an actual one. It normalises as a
+// side effect — "06:45" (what a type="time" input writes) and "06:45:00" (what the `time` column
+// reads back) both land on 6.75 — so equality must go through here, never through string ===.
+export function timeToDec(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h + m / 60;
 }

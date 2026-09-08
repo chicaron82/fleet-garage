@@ -1,6 +1,6 @@
 import type { Shift } from '../types';
 import { isFullDayShift } from '../types';
-import { calcHours, calcOT, netActualHours } from './ot';
+import { calcHours, calcOT, netActualHours, timeToDec } from './ot';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 // Rates and deduction parameters sourced from paystub (PP ending 2026-05-07).
@@ -107,6 +107,29 @@ export interface PayEstimate {
   ptoDays:         number;
 }
 
+/**
+ * ⭐ AARON'S OWN VOCABULARY, given verbatim on 2026-09-08: *"projected: hours I'm going to work /
+ * confirmed: hours I have worked. zero deviation / logged: a deviation from hours worked. short or
+ * over"*.
+ *
+ * So **`logged` is not "actuals exist" — it is "actuals DIFFER".** The two read the same for months
+ * only because he enters actuals *only* when a shift ran long or short; the discipline was carrying
+ * the semantics, not the code. Three shifts (2026-06-01, 2026-06-02, 2026-07-13) hold actuals
+ * identical to their schedule and were counted as logged.
+ *
+ * ⚠️ Compare through `timeToDec`, never `===`: a type="time" input writes "06:45" and the `time`
+ * column reads back "06:45:00", so the same instant has two spellings.
+ *
+ * ⚠️ A day-off row has no scheduled times, so there is nothing to be equal TO — its actuals are
+ * pure deviation and it stays `logged`. A null schedule must never read as "matches".
+ */
+export function isZeroDeviation(shift: Shift): boolean {
+  if (!shift.startTime || !shift.endTime) return false;
+  if (!shift.actualStartTime || !shift.actualEndTime) return false;
+  return timeToDec(shift.actualStartTime) === timeToDec(shift.startTime)
+      && timeToDec(shift.actualEndTime)   === timeToDec(shift.endTime);
+}
+
 // myShifts should already be filtered to the current user.
 // `now` (the real current date) splits unlogged scheduled days: a day strictly
 // before `now` already happened → "confirmed" (scheduled = worked); today or
@@ -131,7 +154,11 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
     const hasActual = !!(shift.actualStartTime && shift.actualEndTime);
 
     if (hasActual) {
-      daysLogged++;
+      // Worked either way — the hours below still come from the ACTUALS. Only the bucket changes:
+      // a day that ran exactly to schedule is "confirmed", not "logged". Counted directly rather
+      // than via bumpUnlogged(), because a shift logged on the day it happened is worked, not
+      // projected.
+      if (isZeroDeviation(shift)) daysConfirmed++; else daysLogged++;
       const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
       const net      = netActualHours(grossHrs);
       if (shift.isStat) {

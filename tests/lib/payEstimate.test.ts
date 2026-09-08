@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPayPeriod, getActivePayPeriod, getPayday, periodConfidence, calcPayEstimate, PAY_CONFIG } from '../../src/lib/payEstimate';
+import { getPayPeriod, getActivePayPeriod, getPayday, periodConfidence, calcPayEstimate, isZeroDeviation, PAY_CONFIG } from '../../src/lib/payEstimate';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -263,5 +263,89 @@ describe('calcPayEstimate', () => {
     const est = calcPayEstimate([], '2026-12-01', 0);
     expect(est.sickDaysUnused).toBe(PAY_CONFIG.sickDaysEntitlement);
     expect(est.sickPayoutGross).toBeCloseTo(PAY_CONFIG.sickDaysEntitlement * 8 * PAY_CONFIG.regularRate, 5);
+  });
+});
+
+// ⭐ Aaron's vocabulary, 2026-09-08: "confirmed: hours I have worked. zero deviation / logged: a
+// deviation from hours worked. short or over". `logged` means the actuals DIFFER — not that they
+// exist. Three of his real shifts (2026-06-01, 06-02, 07-13) hold actuals identical to schedule.
+describe('isZeroDeviation', () => {
+  it('is true when the actuals match the schedule exactly', () => {
+    expect(isZeroDeviation(makeShift({
+      startTime: '13:30', endTime: '23:00',
+      actualStartTime: '13:30', actualEndTime: '23:00',
+    }))).toBe(true);
+  });
+
+  it('⭐ normalises the two spellings of the same instant', () => {
+    // A type="time" input writes "13:30"; the `time` column reads back "13:30:00".
+    // String === would call this a deviation and silently mislabel the day.
+    expect(isZeroDeviation(makeShift({
+      startTime: '13:30:00', endTime: '23:00:00',
+      actualStartTime: '13:30', actualEndTime: '23:00',
+    }))).toBe(true);
+  });
+
+  it('is false when either end deviates', () => {
+    expect(isZeroDeviation(makeShift({
+      actualStartTime: '13:30', actualEndTime: '23:12',
+    }))).toBe(false);
+    expect(isZeroDeviation(makeShift({
+      actualStartTime: '13:15', actualEndTime: '23:00',
+    }))).toBe(false);
+  });
+
+  it('⚠️ a day-off row has no schedule to match, so it stays a deviation', () => {
+    expect(isZeroDeviation(makeShift({
+      shiftType: 'day-off', startTime: undefined, endTime: undefined,
+      actualStartTime: '10:01', actualEndTime: '15:01',
+    }))).toBe(false);
+  });
+
+  it('is false when there are no actuals at all', () => {
+    expect(isZeroDeviation(makeShift())).toBe(false);
+  });
+});
+
+describe('calcPayEstimate — confirmed vs logged', () => {
+  it('counts a zero-deviation day as confirmed, not logged', () => {
+    const est = calcPayEstimate([makeShift({
+      date: '2026-06-06', startTime: '13:30', endTime: '23:00',
+      actualStartTime: '13:30', actualEndTime: '23:00',
+    })], '2026-06-10');
+    expect(est.daysConfirmed).toBe(1);
+    expect(est.daysLogged).toBe(0);
+    expect(est.daysProjected).toBe(0);
+  });
+
+  it('still counts a deviated day as logged', () => {
+    const est = calcPayEstimate([makeShift({
+      date: '2026-06-06', startTime: '13:30', endTime: '23:00',
+      actualStartTime: '13:30', actualEndTime: '23:12',
+    })], '2026-06-10');
+    expect(est.daysLogged).toBe(1);
+    expect(est.daysConfirmed).toBe(0);
+  });
+
+  it('⚠️⚠️ only the BUCKET moves — the hours still come from the actuals', () => {
+    // 13:30–23:00 = 9.5h gross, 9h net, so 1h OT. The unlogged path would instead cap
+    // regularHours at 8 and report NO overtime, so a non-zero otHours proves the
+    // zero-deviation day still took the actuals branch and did not fall through.
+    const est = calcPayEstimate([makeShift({
+      date: '2026-06-06', startTime: '13:30', endTime: '23:00',
+      actualStartTime: '13:30', actualEndTime: '23:00',
+    })], '2026-06-10');
+    expect(est.otHours).toBe(1);
+    expect(est.regularHours).toBe(8);
+  });
+
+  it('a confirmed day logged on the day it happened is not projected', () => {
+    // bumpUnlogged() would read date >= now as "projected"; a worked day never is.
+    const est = calcPayEstimate([makeShift({
+      date: '2026-06-06', startTime: '13:30', endTime: '23:00',
+      actualStartTime: '13:30', actualEndTime: '23:00',
+    })], '2026-06-06', 0, '2026-06-06');
+    expect(est.daysConfirmed).toBe(1);
+    expect(est.daysProjected).toBe(0);
   });
 });
