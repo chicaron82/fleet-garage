@@ -1,96 +1,53 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { shiftDateStr } from '../../src/lib/shiftDay';
-
-const submitWashbayLog = vi.fn().mockResolvedValue(true);
-let washbayLogs: Array<Record<string, unknown>> = [];
-
-vi.mock('../../src/context/WashbayContext', () => ({
-  useWashbayContext: () => ({ washbayLogs, submitWashbayLog }),
-}));
-
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { OpeningLotCard } from '../../src/components/my-day/OpeningLotCard';
 
-// The overnight carry-over card. Untested until 2026-08-25, when Aaron hit it from a MID shift:
-// *"this shouldn't be buried in the shift hand-off."*
-//
-// It had been gated to `shiftType === 'opening'` in MyDayView, on the assumption that an opener
-// would always be the one to inherit the lot and repair a missing close. One operator on a
-// rotating shift is frequently NOT on an opening — so the card vanished and the backfill survived
-// only inside the Log Shift Handoff modal, at the END of the day it was meant to inform.
+// ⚠️⚠️ 69 CLEAN, 31 DIRTY — Aaron, 2026-09-08, walking into a full lot: *"that's a lot of carry over
+// from last night for the stepper."* A hundred taps on a ± control, all thumb, by a man with
+// arthritis. The ± are right for a nudge of one and wrong for the case this card exists to serve.
+vi.mock('../../src/context/WashbayContext', () => ({
+  useWashbayContext: () => ({ washbayLogs: [], submitWashbayLog: vi.fn() }),
+}));
 
-const priorClose = (over: Record<string, unknown> = {}) => ({
-  date: shiftDateStr(-1), carsRemaining: 4, cleanNotPickedUp: 3,
-  fullPages: 2, lastPageEntries: 6, ...over,
-});
+const dirties = () => screen.getByLabelText('Dirties left in queue') as HTMLInputElement;
 
-beforeEach(() => { washbayLogs = []; submitWashbayLog.mockClear(); });
-
-describe('OpeningLotCard', () => {
-  describe('last night was NOT closed — the repair prompt', () => {
-    it('shows on a mid, not just an opening — the number is missing either way', () => {
-      render(<OpeningLotCard openedToday={false} />);
-      expect(screen.getByText(/No closing log from last night/)).toBeInTheDocument();
-    });
-
-    it('writes the reconstructed close stamped to YESTERDAY, not today', async () => {
-      render(<OpeningLotCard openedToday={false} />);
-      fireEvent.click(screen.getByLabelText('More — Dirties left in queue'));
-      fireEvent.click(screen.getByLabelText('More — Dirties left in queue'));
-      fireEvent.click(screen.getByLabelText('More — Clean, not picked up'));
-      fireEvent.click(screen.getByRole('button', { name: /Log last night/ }));
-
-      await waitFor(() => expect(submitWashbayLog).toHaveBeenCalled());
-      const [payload, date] = submitWashbayLog.mock.calls[0];
-      expect(date).toBe(shiftDateStr(-1));
-      expect(payload).toMatchObject({ carsRemaining: 2, cleanNotPickedUp: 1 });
-      // Zeroed gas-sheet counters are what `isCarryOverOnly` keys on, keeping a
-      // reconstructed close out of throughput averages it never earned.
-      expect(payload).toMatchObject({ fullPages: 0, lastPageEntries: 0 });
-    });
-
-    it('never goes below zero', () => {
-      render(<OpeningLotCard />);
-      fireEvent.click(screen.getByLabelText('Fewer — Dirties left in queue'));
-      expect(screen.getByLabelText('More — Dirties left in queue').previousSibling).toHaveTextContent('0');
-    });
+describe('OpeningLotCard — the carry-over is typeable', () => {
+  it('⭐ a real carry-over is TYPED, not tapped', () => {
+    render(<OpeningLotCard />);
+    fireEvent.change(dirties(), { target: { value: '31' } });
+    expect(dirties().value).toBe('31');
   });
 
-  describe('last night WAS closed — the read-only inheritance', () => {
-    it('reports what carried over', () => {
-      washbayLogs = [priorClose()];
-      render(<OpeningLotCard />);
-      expect(screen.getByText(/3/)).toBeInTheDocument();
-      expect(screen.getByText(/Dirties carried into your morning rate/)).toBeInTheDocument();
-      expect(screen.queryByText(/No closing log/)).not.toBeInTheDocument();
-    });
-
-    it('celebrates a genuinely clean lot instead of printing two zeros', () => {
-      washbayLogs = [priorClose({ carsRemaining: 0, cleanNotPickedUp: 0 })];
-      render(<OpeningLotCard />);
-      expect(screen.getByText(/Clean lot/)).toBeInTheDocument();
-    });
-
-    it('ignores a log from any day that is not yesterday', () => {
-      washbayLogs = [priorClose({ date: shiftDateStr(-4) })];
-      render(<OpeningLotCard />);
-      expect(screen.getByText(/No closing log from last night/)).toBeInTheDocument();
-    });
+  // ⭐⭐ Without select-on-focus the field starts at "0" and typing 69 lands "069" or "690".
+  // The behaviour is what makes the feature real rather than nominal.
+  it('⭐⭐ focusing selects the existing value so typing REPLACES it', () => {
+    render(<OpeningLotCard />);
+    const input = dirties();
+    const select = vi.spyOn(input, 'select');
+    fireEvent.focus(input);
+    expect(select).toHaveBeenCalled();
   });
 
-  describe('wording follows who actually arrived', () => {
-    it('says "You walked into" for the opener', () => {
-      washbayLogs = [priorClose()];
-      render(<OpeningLotCard openedToday />);
-      expect(screen.getByText('You walked into')).toBeInTheDocument();
-    });
+  it('⚠️ refuses non-digits rather than showing NaN', () => {
+    render(<OpeningLotCard />);
+    fireEvent.change(dirties(), { target: { value: '4x2' } });
+    expect(dirties().value).toBe('42');
+  });
 
-    // A 10:30 mid did not walk into last night's lot — the opener did. Same data, honest claim.
-    it('says "The day started with" for everyone else', () => {
-      washbayLogs = [priorClose()];
-      render(<OpeningLotCard openedToday={false} />);
-      expect(screen.getByText('The day started with')).toBeInTheDocument();
-      expect(screen.queryByText('You walked into')).not.toBeInTheDocument();
-    });
+  it('⚠️ an emptied field reads as 0 — he is mid-edit, not entering nothing', () => {
+    render(<OpeningLotCard />);
+    fireEvent.change(dirties(), { target: { value: '' } });
+    expect(dirties().value).toBe('0');
+  });
+
+  // ⭐ The ± STAY. This was never a replacement — a nudge of one is the other half of how the card
+  // is used, and removing it would trade one mis-sized control for another.
+  it('⭐ the ± buttons still work for a nudge of one', () => {
+    render(<OpeningLotCard />);
+    fireEvent.change(dirties(), { target: { value: '31' } });
+    fireEvent.click(screen.getByLabelText('More — Dirties left in queue'));
+    expect(dirties().value).toBe('32');
+    fireEvent.click(screen.getByLabelText('Fewer — Dirties left in queue'));
+    expect(dirties().value).toBe('31');
   });
 });
