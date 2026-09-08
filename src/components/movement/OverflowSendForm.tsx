@@ -1,6 +1,7 @@
 // "Log overflow sends" — the client-side overflow entry in the Movement Log tab. Pick a spot,
 // scan a stack of key tags (each registers/backfills the car from the read so the send isn't an
 // orphan), then log them all as one-way trips. State + writes live in useOverflowSend.
+import { useRef } from 'react';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
 import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
@@ -18,11 +19,27 @@ const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
 
 export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
   const ov = useOverflowSend(onLogged);
-  const { photoError, takeOne } = usePhotoIntake();
+  const { photoError, takeOne, takeMany } = usePhotoIntake();
+  const filesRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (file: File) => {
     const base64 = await takeOne(file);
     if (base64) await ov.scanPhoto(base64);
+  };
+
+  /**
+   * ⭐ Aaron used the Effie chat for this instead — *"i went for the chat because I could send
+   * multiple in one go"* — and the chat's tool keeps only the plate. The one-at-a-time camera
+   * stays (it is the right tool at the car); this is the stack, so the batch route is no longer
+   * the lossy one.
+   *
+   * ⚠️ `takeMany` reports how many photos failed to compress rather than dropping them silently —
+   * a partial batch must never look like a clean one.
+   */
+  const onFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const base64s = await takeMany(Array.from(files));
+    if (base64s.length) await ov.scanPhotos(base64s);
   };
 
   return (
@@ -47,9 +64,34 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
         ))}
       </div>
 
-      {/* Scan */}
+      {/* Scan — one at the car, or a stack from the roll. */}
       <PhotoError message={photoError} />
       <ScanButton onFile={onFile} reading={ov.reading} variant="outline" fullWidth />
+      {/* ⚠️ `multiple`, and NO `capture` — same reasoning as BatchKeytagScan: you photograph a
+          stack of tags first and attach them after, so forcing the camera would be wrong here. */}
+      <input
+        ref={filesRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => { void onFiles(e.target.files); e.target.value = ''; }}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={ov.reading || !!ov.scanProgress}
+          onClick={() => filesRef.current?.click()}
+          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3.5 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+        >
+          📎 Attach a stack of key tags
+        </button>
+        {ov.scanProgress && (
+          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+            {ov.scanProgress.done} / {ov.scanProgress.total}
+          </span>
+        )}
+      </div>
       {ov.err && <p className="text-xs text-red-500">{ov.err}</p>}
 
       {/* Staged list */}
