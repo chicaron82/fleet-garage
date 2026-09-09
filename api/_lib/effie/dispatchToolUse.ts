@@ -45,6 +45,13 @@ export async function dispatchToolUse(
   tu: Anthropic.ToolUseBlock,
   supabase: SupabaseClient,
   userId: string,
+  /**
+   * ⭐ The photos attached to this turn, already parsed, plus the key needed to read them.
+   * Only `propose_overflow_log` uses it today: a stack of key tags logged through the chat has
+   * to reach the SAME reader the scanner uses, or the tool keeps the plate and bins the tag
+   * ([[feedback_keytag_reads_are_lossless]]). Optional, so every other caller is unchanged.
+   */
+  photos?: { images: readonly { mediaType: string; data: string }[]; apiKey: string },
 ): Promise<ToolDispatchResult> {
   try {
     if (tu.name === 'propose_hold') {
@@ -124,7 +131,11 @@ export async function dispatchToolUse(
       const out = await executeProposeUnsend(supabase, tu.input as { plate?: string; destination?: string; date?: string; time?: string; reason?: string });
       return { content: out.toolResult, ...(out.proposal ? { proposal: out.proposal } : {}) };
     } else if (tu.name === 'propose_overflow_log') {
-      const out = await executeProposeOverflowLog(supabase, tu.input as { plates?: string[]; destination?: string });
+      const out = await executeProposeOverflowLog(
+        supabase,
+        tu.input as { plates?: string[]; destination?: string },
+        photos && photos.images.length > 0 ? { ...photos, userId } : undefined,
+      );
       return { content: out.toolResult, ...(out.proposal ? { proposal: out.proposal } : {}) };
     } else {
       const plate = (tu.input as { plate?: string }).plate ?? '';

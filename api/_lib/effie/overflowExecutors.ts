@@ -2,6 +2,7 @@
 // batch of overflow sends. OVERFLOW_DESTINATIONS is imported by exactly these two, so keeping them
 // together keeps that import local. Split from effieExecutors.ts (2026-07-24, pure move).
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { readKeytagPhoto } from '../keytagReader.js';
 import { normalizePlate, resolveVehicleRow } from '../effieHelpers.js';
 import { shiftBusinessDate } from '../shiftDay.js';
 import {
@@ -141,24 +142,80 @@ export function resolveSentScope(rows: readonly SentRow[], input: { scope?: stri
  * client logs one completed one-way trip per vehicle only on the tap. Unresolved
  * plates are kept and flagged so the operator sees them before confirming.
  */
+/**
+ * ⭐⭐⭐ THE TAG IS THE IDENTITY SOURCE, so when photos are attached they OUTRANK the model's
+ * transcription of the plate.
+ *
+ * Aaron, 2026-09-08, after three cars went to overflow through the chat and one came out the far
+ * side with an empty record: *"anything that reads keytags shouldn't be tossing out valuable
+ * info"*. The tool's input is `plates: string[]`, so the model was looking at a tag carrying unit,
+ * owning area, rental class, model code, VIN last-9 and colour, and could hand over one string.
+ *
+ * ⚠️ THE SHORTCUT WAS TO WIDEN THE SCHEMA AND LET THE MODEL TRANSCRIBE THE REST. He rejected it —
+ * *"b properly"* — and he was right: `_lib/keytagReader` is a two-tier read measured on 40 of his
+ * own tags (opus 13-0 on the ones haiku found hard), with fleet corroboration deciding escalation,
+ * a spend ledger, both codices, and a human pin outranking the tag. Free-form vision output into
+ * the same table would have been a second, unmeasured reader.
+ *
+ * ⭐ Typed plates still work and are unchanged — *"log LFJ379 and LUR175 to FastAir"* needs no
+ * photo. Where both appear, the reads come first and any leftover typed plate is resolved the old
+ * way, so a mixed message loses nothing.
+ */
 export async function executeProposeOverflowLog(
   supabase: SupabaseClient,
   input: { plates?: string[]; destination?: string },
+  photos?: { images: readonly { mediaType: string; data: string }[]; apiKey: string; userId: string },
 ): Promise<{ toolResult: string; proposal: OverflowLogProposal | null }> {
   const destination = (input.destination ?? '') as OverflowDestination;
   const plates = (input.plates ?? []).map((p) => (p ?? '').trim()).filter(Boolean);
-  if (!OVERFLOW_DESTINATIONS.includes(destination) || plates.length === 0) {
+  const hasPhotos = (photos?.images.length ?? 0) > 0;
+  if (!OVERFLOW_DESTINATIONS.includes(destination) || (plates.length === 0 && !hasPhotos)) {
     return {
       proposal: null,
       toolResult: JSON.stringify({
         ok: false,
-        reason: 'Need at least one plate and a destination of AV Flight, FastAir, or Airport.',
+        reason: 'Need at least one plate or key-tag photo, and a destination of AV Flight, FastAir, or Airport.',
       }),
     };
   }
   const vehicles: OverflowVehicle[] = [];
+  const seen = new Set<string>();
+
+  // ── The photos first: each one is READ, not transcribed ──────────────────────────────────────
+  for (let i = 0; hasPhotos && i < photos!.images.length; i++) {
+    let read: Awaited<ReturnType<typeof readKeytagPhoto>> = null;
+    try {
+      read = await readKeytagPhoto(photos!.images[i]!, supabase, photos!.userId, photos!.apiKey);
+    } catch {
+      // ⚠️ One unreadable tag must not cost him the other nine. The batch continues and the tool
+      // result names how many failed, so the model can say so instead of quietly logging fewer.
+      read = null;
+    }
+    const tagPlate = (read?.plate ?? '').trim();
+    if (!tagPlate) continue;
+    const row = await resolveVehicleRow(supabase, tagPlate);
+    const canonical = row ? row.license_plate : normalizePlate(tagPlate);
+    if (seen.has(canonical)) continue;      // the same tag photographed twice
+    seen.add(canonical);
+    vehicles.push({
+      plate: canonical,
+      // ⭐ The tag speaks where the record is silent — the same rule `overflowScan.ts` follows on
+      // the client. A blank is null OR empty, so this cannot be `??`.
+      unit: (row?.unit_number ?? '').trim() || (read?.unitNumber ?? '').trim() || null,
+      label: (row?.unit_number ?? '').trim() || (read?.unitNumber ?? '').trim()
+        ? `Unit ${(row?.unit_number ?? '').trim() || (read?.unitNumber ?? '').trim()}`
+        : canonical,
+      unresolved: !row,
+      read: read ?? undefined,
+      photoIndex: i,
+    });
+  }
+
+  // ── Then any typed plate the photos did not already account for ──────────────────────────────
   for (const raw of plates) {
     const row = await resolveVehicleRow(supabase, raw);
+    if (seen.has(row ? row.license_plate : normalizePlate(raw))) continue;
+    seen.add(row ? row.license_plate : normalizePlate(raw));
     if (row) {
       vehicles.push({
         plate: row.license_plate,
@@ -176,6 +233,8 @@ export async function executeProposeOverflowLog(
     toolResult: JSON.stringify({
       ok: true,
       drafted: `${vehicles.length} vehicle(s) → ${destination}`,
+      fromPhotos: vehicles.filter((v) => v.read).length,
+      unreadablePhotos: hasPhotos ? photos!.images.length - vehicles.filter((v) => v.read).length : 0,
       unresolved: vehicles.filter((v) => v.unresolved).map((v) => v.label),
       awaiting: 'user confirmation — a confirm card is shown; do NOT say it is logged, just that it is drafted to log on their tap',
     }),

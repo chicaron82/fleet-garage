@@ -220,7 +220,8 @@ export default async function handler(req: FgRequest, res: FgResponse): Promise<
 
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
-        const dispatched = await dispatchToolUse(tu, supabase, userData.user.id);
+        // ⭐ The photos ride along, so a tool that needs to READ them can — see dispatchToolUse.
+        const dispatched = await dispatchToolUse(tu, supabase, userData.user.id, { images, apiKey });
         if (dispatched.proposal) proposal = dispatched.proposal; // captured out-of-band for the client
         if (dispatched.photoRequest) photoRequest = dispatched.photoRequest;
         results.push({ type: 'tool_result', tool_use_id: tu.id, content: dispatched.content });

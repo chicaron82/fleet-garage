@@ -13,7 +13,15 @@ import { join } from 'node:path';
 // ⚠️ Asserted against the SOURCE rather than by running the handler, for the same reason the one-shot
 // screen contract is: the defect lived in the CONTROL FLOW around the call, not in any unit. A test
 // of `askModel` would have stayed green through the entire outage.
-const SRC = readFileSync(join(process.cwd(), 'api/keytag-read.ts'), 'utf8');
+// ⚠️ REPOINTED 2026-09-09. The read moved out of the HTTP handler into `_lib/keytagReader.ts` so
+// Effie's overflow tool could call the SAME reader instead of a second one, and these five tests
+// failed the moment it did — which is the suite working. They inspect the SOURCE of the fallback
+// path, so they follow the code, not the endpoint.
+const SRC = readFileSync(join(process.cwd(), 'api/_lib/keytagReader.ts'), 'utf8');
+// ⭐ The split the extraction made explicit: the fallback MECHANICS live in the reader, the status
+// code and the wording the operator actually sees live in the endpoint. One test asserts the
+// second thing, so it reads the second file.
+const ENDPOINT = readFileSync(join(process.cwd(), 'api/keytag-read.ts'), 'utf8');
 
 /** The Pass-1 block, from the cheap read to where the fleet check begins.
  *
@@ -65,7 +73,9 @@ describe('an overloaded model is not an unreadable tag', () => {
   // ⚠️ And when everything genuinely is down, the honest message survives — the fallback's own throw
   // reaches the same catch, so "busy" still means busy.
   it('keeps the busy message for when both models are down', () => {
-    expect(SRC).toContain('The scanner is busy right now');
-    expect(SRC).toContain('retryable: true');
+    expect(ENDPOINT).toContain('The scanner is busy right now');
+    expect(ENDPOINT).toContain('retryable: true');
+    // and the reader still supplies the judgement the endpoint branches on
+    expect(SRC).toContain('export { isTransient }');
   });
 });

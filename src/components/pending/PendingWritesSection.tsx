@@ -20,7 +20,7 @@ import type { RegisterAssetChoice } from '../../../api/_lib/holdProposal';
 export function PendingWritesSection() {
   const { pending, markResolved } = usePendingWritesContext();
   const { user } = useAuth();
-  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, vehicles } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const effieMemory = useEffieMemory();
   const [collapsed, setCollapsed] = useState(false);
@@ -41,6 +41,7 @@ export function PendingWritesSection() {
   // (passed as photosOverride on approve, below), not from any chat context. setOpen is
   // a no-op (no panel to close).
   const confirmProposal = useProposalConfirm({
+    vehicles,   // decide key-tag reads on an overflow proposal — see useProposalConfirm
     user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing,
     addLostFoundItem, effieMemory, setOpen: () => {},
   });

@@ -46,14 +46,14 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
   {
     name: 'propose_overflow_log',
     description:
-      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to the airport". Read the plates from the operator\'s words OR from keytag photos they attach. DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action.',
+      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to the airport". DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action. ⭐ IF THE OPERATOR ATTACHED KEY-TAG PHOTOS, DO NOT TRANSCRIBE THEM — call this tool and let it read them. It runs the same measured two-tier reader the scanner uses and keeps every field on the tag (unit, owning area, rental class, model code, VIN, colour), which registers a car FG does not know and fills the blanks on one it only half-knows. Anything you type from a photo instead is a second, worse read that throws the rest away. Pass `plates` for plates the operator SAID; omit it when the photos are the whole message.',
     input_schema: {
       type: 'object',
       properties: {
         plates: {
           type: 'array',
           items: { type: 'string' },
-          description: 'The plates or unit numbers sent, e.g. ["LFJ379", "LUR175"]. Read from the message or from attached keytag photos.',
+          description: 'Plates or unit numbers the operator TYPED or SAID, e.g. ["LFJ379", "LUR175"]. ⚠️ NOT for plates you read off an attached photo — the tool reads those itself, properly. Omit entirely when key-tag photos are the whole message. A plate given here that a photo also covers is de-duplicated, so it is safe to include one the operator named explicitly.',
         },
         destination: {
           type: 'string',
@@ -61,7 +61,10 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
           description: 'Where they were sent. "Airport" = Richardson International.',
         },
       },
-      required: ['plates', 'destination'],
+      // ⚠️ `plates` is no longer required: a stack of key-tag photos with "these went to FastAir"
+      // is a complete instruction, and demanding a transcription is what made the model do the
+      // reading badly in the first place.
+      required: ['destination'],
     },
   },
 ];

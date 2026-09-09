@@ -8,6 +8,7 @@
 import { useCallback } from 'react';
 import { addWhiteboardReminder } from '../lib/addWhiteboardReminder';
 import { buildOverflowTrip } from '../lib/overflowTrip';
+import { planOverflowScan } from '../lib/overflowScan';
 import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import { addPersonalEvent } from '../lib/addPersonalEvent';
 import type { useAuth } from '../context/AuthContext';
@@ -39,6 +40,8 @@ interface ProposalConfirmDeps {
    *  (if-missing, best-effort — the helper never throws). Absent for the chat card, where
    *  the attach simply no-ops. See ticket-universal-keytag-capture Phase 3. */
   attachKeytagPhotoIfMissing?: ReturnType<typeof useVehicleHoldContext>['attachKeytagPhotoIfMissing'];
+  /** The live fleet — needed to DECIDE what a key-tag read means. See the overflow branch. */
+  vehicles?: ReturnType<typeof useVehicleHoldContext>['vehicles'];
   addLostFoundItem: ReturnType<typeof useLostFoundContext>['addLostFoundItem'];
   effieMemory: Pick<ReturnType<typeof useEffieMemory>, 'add'>;
   onNavigate?: (screen: Screen) => void;
@@ -53,7 +56,7 @@ interface ProposalConfirmDeps {
  * dedup) for free. Throws on failure so the card surfaces its error state.
  */
 export function useProposalConfirm(deps: ProposalConfirmDeps) {
-  const { user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen } = deps;
+  const { user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen, vehicles } = deps;
   return useCallback(
     async (proposal: Proposal, extra?: RegisterAssetChoice, photosOverride?: string[]) => {
       // Navigate offer → just change screens + close the panel (no write, no user needed).
@@ -108,6 +111,38 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       // real destination. writeOrEnqueue falls back to the offline queue on network loss,
       // so a bad connection queues rather than fails; a real DB error throws to the card.
       if (proposal.kind === 'overflow_log') {
+        // ⭐⭐⭐ THE READ ARRIVES FROM THE SERVER; THE DECIDING HAPPENS HERE.
+        //
+        // Aaron, 2026-09-08: *"anything that reads keytags shouldn't be tossing out valuable
+        // info"*. The executor now reads each attached key tag through the same measured reader
+        // the scanner uses — but what a read MEANS for a vehicle record is decided on this side,
+        // because this is where the live fleet list is and where `planOverflowScan` already runs
+        // for the Movement Log form. One implementation of the rule, two ways in.
+        //
+        // ⚠️ Fleet writes go FIRST, and every one is non-blocking. A send that logs against a car
+        // FG doesn't know is the orphan this whole feature exists to stop — but a failed backfill
+        // must never cost him the send, which is the thing he actually asked for.
+        const fleet = vehicles;
+        if (fleet) {
+          for (const v of proposal.vehicles) {
+            if (!v.read) continue;
+            const plan = planOverflowScan(v.read, fleet);
+            if (!plan) continue;
+            try {
+              if (plan.register) {
+                const nv = plan.register;
+                await addVehicle({
+                  unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model,
+                  year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null,
+                  branchId: user.branchId, isTesla: nv.make === 'Tesla',
+                  hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
+                });
+              } else if (plan.backfill) {
+                await updateVehicleFields(plan.backfill.vehicleId, plan.backfill.applies);
+              }
+            } catch { /* non-blocking: the send still logs */ }
+          }
+        }
         const nowMs = Date.now();
         let allOk = true;
         for (let i = 0; i < proposal.vehicles.length; i++) {
@@ -246,6 +281,6 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
       const result = await addHold(proposal.vehicle.vehicleId, proposal.damageDescription, '', user.id, attach, holdTypes, undefined, undefined, undefined, 'effie');
       if (result && result.photoUrls.length > 0) await setCoverPhoto(proposal.vehicle.vehicleId, result.photoUrls[0]);
     },
-    [user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen],
+    [user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, addLostFoundItem, effieMemory, onNavigate, setOpen, vehicles],
   );
 }

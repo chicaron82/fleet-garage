@@ -39,7 +39,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   emptyGreeting?: string;
 }) {
   const { user } = useAuth();
-  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, vehicles } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const { messages, loading, error, send, clearProposal, markProposalDone, tts, memory, composer } = useEffie();
   const { draft, setDraft, images, setImages, pendingPhotoContext, setPendingPhotoContext } = composer;
@@ -70,6 +70,9 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   // instances (auth user, effie-memory store) are passed so they don't fork.
   const confirmProposal = useProposalConfirm({
     user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem,
+    // ⭐ The live fleet, so an overflow proposal carrying key-tag READS can be DECIDED here —
+    // register an unknown car, backfill a partial one. Same deciders as the Movement Log form.
+    vehicles,
     effieMemory: memory, onNavigate,
     setOpen: (open) => { if (!open) onClose?.(); },
   });
