@@ -157,8 +157,26 @@ export interface DerivedStatus {
  * common case FOR THE WRONG REASON, and wrong the moment he picks up the dirty pile. The blanks were
  * never "available is the default" — they were "I was holding a pile of clean keys."
  *
- * ⚠️ A hold or a US plate OVERRIDES the carry: a damage-held car is a `B` whatever pile it came from.
- * The first car of a session carries nothing, so nothing is pre-picked and he chooses once.
+ * ⚠️⚠️ THE PILE BEATS THE PROPERTY, AND THIS FILE USED TO SAY THE OPPOSITE. The line here read
+ * *"a hold or a US plate OVERRIDES the carry: a damage-held car is a `B` whatever pile it came
+ * from."* Aaron hit what that costs while writing up the dirty pile on 2026-09-08:
+ *
+ *   *"it would auto switch the status to B if it came across hail or an on exception vehicle and M
+ *    if it was a PM. so i'd be scanning dirties then later notice i had switched to B/M so i had to
+ *    back track to delete and scan and restatus to D"*
+ *
+ * ⭐⭐⭐ **THE STATUS IS WHICH PILE OF KEYS HE IS HOLDING; THE HOLD IS A PROPERTY OF THE CAR.**
+ * Those are different facts and the sheet has a column for each. A damaged car in the dirty pile is
+ * a `D` **with a note** — his own fix: *"i think it should still keep the D status, but with notes
+ * attached that its damaged or PM"*.
+ *
+ * ⚠️ AND THE OVERRIDE COMPOUNDED, which is why he only noticed *"later"*: `commit` makes every
+ * entry's status the next carry, so one hail car silently re-piled the whole remaining run. The
+ * cost was never one wrong row — it was **backtracking to delete and rescan** everything after it.
+ *
+ * ⭐ The derivation still decides the FIRST car of a session, where there is no pile to respect —
+ * and that is the only time it decides anything. Once he has picked a pile, the pile stands and the
+ * hold speaks in the note column, where it was always the more useful thing anyway.
  */
 export function deriveStatus(
   vehicle: Pick<Vehicle, 'isUs'>,
@@ -166,17 +184,34 @@ export function deriveStatus(
   carried: InventoryStatus | null,
 ): DerivedStatus {
   const damage = holds.find(h => h.holdType === 'damage' || h.holdType === 'hail');
-  if (damage) return { status: 'B', note: (damage.damageDescription ?? '').trim(), why: 'on a damage hold' };
-
   const mech = holds.find(h => h.holdType === 'mechanical');
-  if (mech) return { status: 'M', note: (mech.damageDescription ?? '').trim(), why: 'on a mechanical hold' };
+  /** A note in HIS words — "damaged" / "PM" — with the hold's description when there is one. */
+  const withDesc = (label: string, desc: string | null | undefined): string => {
+    const d = (desc ?? '').trim();
+    return d ? `${label} — ${d}` : label;
+  };
+
+  const flag: DerivedStatus | null =
+      damage ? { status: 'B', note: withDesc('damaged', damage.damageDescription), why: 'on a damage hold' }
+    : mech   ? { status: 'M', note: withDesc('PM', mech.damageDescription),        why: 'on a mechanical hold' }
+    : vehicle.isUs ? { status: 'F', note: 'US plate', why: 'US plate' }
+    : null;
+
+  if (flag) {
+    // ⭐ Carry wins. The car's property becomes the NOTE, and `why` says both so the chip can
+    // explain itself: he sees that FG noticed the hold AND that it kept his pile.
+    if (carried) return { status: carried, note: flag.note, why: `carried · ${flag.why}` };
+    return flag;
+  }
 
   // ⚠️ F IS ABOUT THE PLATE, NOT THE OWNING BRANCH. Aaron: *"foreign are vehicles with US plates
   // on."* I had derived it from the owning area — anything not 8199 — and his own Sept 1 sheet
   // disproves that: 840PIQ is owned by 8190 (Saskatchewan) with a BLANK status, while SSDY46, the
   // US-plated Tucson, is the one marked F. Foreign owning and foreign plate correlate and are not
-  // the same thing. FG already stores `is_us`, so this needs no inference at all.
-  if (vehicle.isUs) return { status: 'F', note: '', why: 'US plate' };
+  // the same thing. FG already stores `is_us`, so this needs no inference at all. It moved up into
+  // `flag` above, because a US plate is a PROPERTY of the car exactly like a hold is — ⚠️ MY CALL,
+  // extended from the two he named; a US-plated dirty is a dirty, and if he wants F to keep
+  // overriding, this is the one line to change.
 
   return { status: carried, note: '', why: carried ? 'carried' : null };
 }

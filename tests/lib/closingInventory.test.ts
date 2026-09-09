@@ -56,25 +56,30 @@ describe('deriveStatus', () => {
     expect(deriveStatus({ isUs: false }, none, null)).toEqual({ status: null, note: '', why: null });
   });
 
-  it('a damage or hail hold is a B, and brings the hold\'s own words', () => {
+  it('a damage or hail hold is a B on the FIRST car, and brings the hold\'s own words', () => {
     const holds: ActiveHold[] = [{ holdType: 'damage', damageDescription: 'Wheel — passenger rear' }];
-    expect(deriveStatus({ isUs: false }, holds, 'A')).toEqual({
-      status: 'B', note: 'Wheel — passenger rear', why: 'on a damage hold',
+    expect(deriveStatus({ isUs: false }, holds, null)).toEqual({
+      status: 'B', note: 'damaged — Wheel — passenger rear', why: 'on a damage hold',
     });
-    expect(deriveStatus({ isUs: false }, [{ holdType: 'hail' }], 'A').status).toBe('B');
+    expect(deriveStatus({ isUs: false }, [{ holdType: 'hail' }], null).status).toBe('B');
   });
 
-  it('a mechanical hold is an M', () => {
-    expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical', damageDescription: 'PM due' }], 'A'))
-      .toMatchObject({ status: 'M', note: 'PM due' });
+  it('a mechanical hold is an M on the first car', () => {
+    expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical', damageDescription: 'PM due' }], null))
+      .toMatchObject({ status: 'M', note: 'PM — PM due' });
+  });
+
+  it('names the flag even with no description, in his words', () => {
+    expect(deriveStatus({ isUs: false }, [{ holdType: 'hail' }], null).note).toBe('damaged');
+    expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical' }], null).note).toBe('PM');
   });
 
   // ⚠️⚠️ F IS THE PLATE, NOT THE OWNING BRANCH. Aaron: "foreign are vehicles with US plates on."
   // His own Sept 1 sheet is the proof: 840PIQ is owned by 8190 (Saskatchewan) and its status is
   // BLANK, while SSDY46, the US-plated Tucson, is the one marked F. Foreign owning and foreign
   // plate correlate and are not the same thing.
-  it('a US plate is an F', () => {
-    expect(deriveStatus({ isUs: true }, none, 'A')).toMatchObject({ status: 'F', why: 'US plate' });
+  it('a US plate is an F on the first car', () => {
+    expect(deriveStatus({ isUs: true }, none, null)).toMatchObject({ status: 'F', why: 'US plate' });
   });
 
   it('a foreign OWNING is not an F — that is the car that separates the two', () => {
@@ -82,9 +87,39 @@ describe('deriveStatus', () => {
     expect(deriveStatus({ isUs: false }, none, 'A').status).toBe('A');
   });
 
-  // A hold outranks the pile he is holding — a damaged car is a B whatever he was writing.
-  it('a hold overrides the carry', () => {
-    expect(deriveStatus({ isUs: false }, [{ holdType: 'damage' }], 'A').status).toBe('B');
+  // ⭐⭐⭐ THE PILE BEATS THE PROPERTY — and this test asserted the opposite until 2026-09-08, when
+  // Aaron hit what that costs on a real dirty run: *"it would auto switch the status to B if it
+  // came across hail or an on exception vehicle and M if it was a PM. so i'd be scanning dirties
+  // then later notice i had switched to B/M so i had to back track to delete and scan and restatus
+  // to D"*. The status is WHICH PILE OF KEYS HE IS HOLDING; the hold is a property of the car.
+  // His fix: *"it should still keep the D status, but with notes attached that its damaged or PM"*.
+  describe('a hold does NOT override the pile', () => {
+    it('a damaged car in the dirty pile stays D, and says why in the note', () => {
+      const out = deriveStatus({ isUs: false }, [{ holdType: 'damage' }], 'D');
+      expect(out.status).toBe('D');
+      expect(out.note).toBe('damaged');
+      expect(out.why).toBe('carried · on a damage hold');   // FG noticed AND kept his pile
+    });
+
+    it('a PM in the dirty pile stays D', () => {
+      expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical' }], 'D').status).toBe('D');
+    });
+
+    it('⚠️ a US plate no longer overrides either — a US-plated dirty is a dirty', () => {
+      expect(deriveStatus({ isUs: true }, none, 'D')).toMatchObject({ status: 'D', note: 'US plate' });
+    });
+
+    it('⭐⭐ THE COMPOUNDING IS WHAT COST HIM: the next scan must not inherit a flag', () => {
+      // `commit` makes every entry's status the next carry, so one hail car used to re-pile the
+      // whole remaining run — which is why he only noticed "later" and had to backtrack.
+      const first = deriveStatus({ isUs: false }, [{ holdType: 'hail' }], 'D');
+      const next = deriveStatus({ isUs: false }, none, first.status);
+      expect(next.status).toBe('D');
+    });
+
+    it('still decides the very first car of a session, where there is no pile', () => {
+      expect(deriveStatus({ isUs: false }, [{ holdType: 'damage' }], null).status).toBe('B');
+    });
   });
 
   it('damage outranks mechanical when a car carries both', () => {
@@ -143,9 +178,17 @@ describe('entryFromScan', () => {
 
   // ⚠️ A dirty or held car's note is a REASON, not a place — inheriting "R-5" into it would be a
   // lie he then has to notice and delete.
+  // ⚠️ Reached through the DIRTY pile now, not through a damage hold: since 2026-09-08 a hold no
+  // longer flips the status out from under his pile, so a hold on top of an 'A' carry stays 'A'
+  // and correctly keeps its row. The claim under test was always about the STATUS, not the hold.
   it('does NOT carry the row onto a car that is not available', () => {
+    const { entry } = entryFromScan(car(), none, { status: 'D', row: '5' });
+    expect(entry).toMatchObject({ status: 'D', row: '' });
+  });
+
+  it('a held car in the CLEAN pile keeps its row, and the hold rides in the note', () => {
     const { entry } = entryFromScan(car(), [{ holdType: 'damage' }], { status: 'A', row: '5' });
-    expect(entry).toMatchObject({ status: 'B', row: '' });
+    expect(entry).toMatchObject({ status: 'A', row: '5', note: 'damaged' });
   });
 
   it('suggests the row from the class without picking it', () => {
