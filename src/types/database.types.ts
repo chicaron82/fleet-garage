@@ -454,6 +454,9 @@ export type Database = {
           id: string
           in_count: number
           out_count: number
+          projected_basis: string | null
+          projected_in: number | null
+          projected_out: number | null
         }
         Insert: {
           date: string
@@ -462,6 +465,9 @@ export type Database = {
           id?: string
           in_count: number
           out_count: number
+          projected_basis?: string | null
+          projected_in?: number | null
+          projected_out?: number | null
         }
         Update: {
           date?: string
@@ -470,6 +476,9 @@ export type Database = {
           id?: string
           in_count?: number
           out_count?: number
+          projected_basis?: string | null
+          projected_in?: number | null
+          projected_out?: number | null
         }
         Relationships: []
       }

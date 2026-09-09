@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { projectFleetBalance } from '../lib/fleetProjection';
 import { supabase } from '../lib/supabase';
 import { shiftDateStr } from '../lib/shiftDay';
 
@@ -61,6 +62,9 @@ export function useFleetBalance() {
   }
 
   async function upsertEntry(date: string, outCount: number, inCount: number, enteredById: string): Promise<boolean> {
+    // ⚠️ Computed from the days BEFORE `date`, and computed BEFORE the write — an estimate that
+    // could see the answer would not be an estimate.
+    const shown = projectFleetBalance(date, entries.filter(e => e.date !== date));
     try {
       const { error } = await supabase
         .from('fleet_balance')
@@ -70,6 +74,13 @@ export function useFleetBalance() {
             out_count: outCount,
             in_count: inCount,
             entered_by: enteredById,
+            // ⭐⭐ THE ESTIMATE IS RECORDED WITH THE ANSWER, and this is the point of the ticket:
+            // the projection used to be recoverable only by re-running the code, so the first
+            // change to the formula would have erased every past estimate. Written here, the
+            // record stops depending on the code. No `backfill:` stamp — this one was really shown.
+            projected_out:   shown?.avgOut ?? null,
+            projected_in:    shown?.avgIn  ?? null,
+            projected_basis: shown?.basis  ?? null,
           },
           { onConflict: 'date' }
         );
@@ -89,44 +100,14 @@ export function useFleetBalance() {
     return entries.find(e => e.date === today);
   }
 
+  /**
+   * ⭐ The RULE lives in `lib/fleetProjection` — pure, so it can be replayed over any history.
+   * That is how the last-4 window was chosen and how 79 days of past estimates were backfilled
+   * before this file changed. This hook only supplies "today" and the days before it.
+   */
   function getProjection(): FleetBalanceProjection | null {
     const today = localDateStr();
-    const dayOfWeek = new Date(today + 'T00:00:00').getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const historical = entries.filter(e => e.date !== today);
-
-    if (isWeekend) {
-      const prior7 = historical.slice(-7);
-      if (prior7.length < 2) return null;
-      return {
-        avgOut: Math.round(prior7.reduce((s, e) => s + e.outCount, 0) / prior7.length),
-        avgIn:  Math.round(prior7.reduce((s, e) => s + e.inCount,  0) / prior7.length),
-        label:  'Based on prior week avg · Placeholder until today\'s balance is entered',
-      };
-    }
-
-    const dayName = new Date(today + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long' });
-    const sameDayEntries = historical.filter(e => new Date(e.date + 'T00:00:00').getDay() === dayOfWeek);
-    if (sameDayEntries.length >= 2) {
-      const n = sameDayEntries.length;
-      return {
-        avgOut: Math.round(sameDayEntries.reduce((s, e) => s + e.outCount, 0) / n),
-        avgIn:  Math.round(sameDayEntries.reduce((s, e) => s + e.inCount,  0) / n),
-        label:  `Based on ${n}-${dayName} avg · Placeholder until today's balance is entered`,
-      };
-    }
-
-    // Fallback: overall weekday average
-    const weekdayEntries = historical.filter(e => {
-      const d = new Date(e.date + 'T00:00:00').getDay();
-      return d >= 1 && d <= 5;
-    });
-    if (weekdayEntries.length < 2) return null;
-    return {
-      avgOut: Math.round(weekdayEntries.reduce((s, e) => s + e.outCount, 0) / weekdayEntries.length),
-      avgIn:  Math.round(weekdayEntries.reduce((s, e) => s + e.inCount,  0) / weekdayEntries.length),
-      label:  'Based on weekday avg · Placeholder until today\'s balance is entered',
-    };
+    return projectFleetBalance(today, entries.filter(e => e.date !== today));
   }
 
   return {
