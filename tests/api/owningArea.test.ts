@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeOwning, owningLabel, isForeignOwning, checkOwningCity, HOME_OWNING } from '../../api/_lib/owningArea';
+import { normalizeOwning, owningLabel, isForeignOwning, checkOwningCity, HOME_OWNING, cityTailInRentalClass } from '../../api/_lib/owningArea';
 
 describe('normalizeOwning', () => {
   it('strips the leading zero the printed tag uses ("08199")', () => {
@@ -157,5 +157,58 @@ describe('owningLabel — the branch Aaron confirmed tonight', () => {
     // ⚠️ Was 8892 until 2026-09-07, when Aaron named it (old Montreal) and it stopped being an
     // example of the unnamed case. 1198 is one of FG's two US branches and is still unconfirmed.
     expect(owningLabel('1198')).toBe('1198');
+  });
+});
+
+/**
+ * ⭐⭐⭐ THE KEYRING HOLE EATS THE TOP LINE — a wrong FIELD, not a wrong character.
+ *
+ * Aaron chased an "EG" class in the Fleet coverage chart back to the physical tag, 2026-09-09:
+ * "'EG' is the cut off part from 'WINNIPEG'. 08199 is also cut off from the keyring hole, 'B' shows
+ * next to it." The line reads `WINNIPEG / 08199  B`; the hole leaves `…EG`, `…199`, `B`, and the
+ * reader filed EG as the rental class. LUR247 went B → EG, the audit then stamped it `verified`,
+ * and the codex learned the whole fragment as "EG B".
+ *
+ * ⚠️ The prompt ALREADY said "do NOT put the city in either" and it did not help: a cropped city
+ * stops looking like a city. No wording fixes a missing premise.
+ */
+describe('cityTailInRentalClass — debris from the line above', () => {
+  it('⭐⭐ catches the real one: EG is the end of WINNIPEG', () => {
+    expect(cityTailInRentalClass('EG')).toBe('Winnipeg');
+    expect(cityTailInRentalClass('eg')).toBe('Winnipeg');   // case is the reader's, not the tag's
+  });
+
+  it('catches a longer bite of the same line', () => {
+    expect(cityTailInRentalClass('PEG')).toBe('Winnipeg');
+  });
+
+  it('⭐ catches the other branches, since any tag can be punched the same way', () => {
+    expect(cityTailInRentalClass('AX')).toBe('Halifax');
+    expect(cityTailInRentalClass('RY')).toBe('Calgary');
+    expect(cityTailInRentalClass('NTO')).toBe('Toronto');
+  });
+
+  it('⚠️⚠️ passes every REAL rental class in the live fleet', () => {
+    // Verified against the live distinct list on 2026-09-09, AFTER repairing LUR247 — checking it
+    // before would have "found" a collision with the very defect this guard exists to catch.
+    const live = ['35','B','B4','B5','B9','C','E1','E6','E7','E8','E9','F','H4','L','L2','M1',
+                  'O6','P4','P5','Q4','R','S','T','T4','T6','V','W4','Z4'];
+    for (const rc of live) expect(cityTailInRentalClass(rc)).toBeNull();
+  });
+
+  it('⚠️ a single letter can never flag — too easy to collide with a real class', () => {
+    expect(cityTailInRentalClass('G')).toBeNull();
+    expect(cityTailInRentalClass('X')).toBeNull();
+    expect(cityTailInRentalClass('L')).toBeNull();
+  });
+
+  it('⚠️ a city cannot flag ITSELF — the fragment must be shorter than the name', () => {
+    expect(cityTailInRentalClass('WINNIPEG')).toBeNull();   // over the length bound anyway
+  });
+
+  it('an empty or absent class is not debris', () => {
+    expect(cityTailInRentalClass('')).toBeNull();
+    expect(cityTailInRentalClass(null)).toBeNull();
+    expect(cityTailInRentalClass(undefined)).toBeNull();
   });
 });

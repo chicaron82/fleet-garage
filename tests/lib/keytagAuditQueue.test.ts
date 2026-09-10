@@ -434,3 +434,33 @@ describe('retakeWatchlist — archived cars are not errands either', () => {
     expect(out.map(v => v.licensePlate)).toEqual(['AAA111', 'ZZZ999']);
   });
 });
+
+// ⭐⭐⭐ DEBRIS FROM THE LINE ABOVE — the third kind of wrong value, and the two guards above could
+// not see it. Aaron, 2026-09-09, having read the physical tag: "'EG' is the cut off part from
+// 'WINNIPEG'. 08199 is also cut off from the keyring hole, 'B' shows next to it."
+describe('a fragment of the CITY landing in the class box', () => {
+  const none = new Set<string>();
+
+  it('⭐⭐ names the city it came from, and blames the hole rather than the reader', () => {
+    const [w] = auditWarnings({ rentalClass: 'EG' }, none, none);
+    expect(w?.field).toBe('rentalClass');
+    expect(w?.message).toContain('Winnipeg');
+    expect(w?.message).toContain('keyring hole');
+  });
+
+  it('⚠️ fires even though EG is NEITHER a known class NOR a known code', () => {
+    // This is why it had to go first: the other two checks ask "is this the OTHER field's kind?"
+    // and city debris is neither kind, so it fell through both and was accepted in silence.
+    expect(auditWarnings({ rentalClass: 'EG' }, new Set(['B', 'Q4']), new Set(['CVRS']))).toHaveLength(1);
+  });
+
+  it('leaves a real class alone', () => {
+    expect(auditWarnings({ rentalClass: 'B' }, none, none)).toHaveLength(0);
+    expect(auditWarnings({ rentalClass: 'Q4' }, none, none)).toHaveLength(0);
+  });
+
+  it('⚠️ does not shadow the model-code warning for a value that IS one', () => {
+    const [w] = auditWarnings({ rentalClass: 'CVRS' }, none, new Set(['CVRS']));
+    expect(w?.message).toContain('model code');
+  });
+});

@@ -157,6 +157,44 @@ export function checkOwningCity(
   return { kind: 'conflict', city, owningArea, expected };
 }
 
+/**
+ * ⭐⭐⭐ IS THIS "RENTAL CLASS" ACTUALLY THE TAIL OF A CITY? — the keyring-hole misread.
+ *
+ * Aaron, 2026-09-09, having chased an `EG` class in the Fleet coverage chart back to the physical
+ * tag: *"'EG' is the cut off part from 'WINNIPEG'. 08199 is also cut off from the keyring hole, 'B'
+ * shows next to it."*
+ *
+ * The top line reads `WINNIPEG / 08199  B`. The hole punches through it, leaving `…EG`, `…199`, `B`
+ * — and the reader filed `EG` as the rental class. LUR247 went from `B` to `EG`, the audit then
+ * stamped it `verified`, and the codex learned the whole surviving fragment as `"EG B"`.
+ *
+ * ⚠️⚠️ **A WRONG FIELD, NOT A WRONG CHARACTER.** Every other guard here is about characters
+ * (`nearMissCode`: I↔1, S↔5) or a value sitting in the wrong box (`auditWarnings`: a rental class in
+ * the model-code field). Neither can see DEBRIS FROM A NEIGHBOURING LINE.
+ *
+ * ⚠️ **AND THE PROMPT ALREADY FORBADE IT.** `keytagReader` says *"do NOT put the city in either"*.
+ * ⭐ **A cropped city stops looking like a city** — `WINNIPEG` is unmistakable, `EG` is
+ * indistinguishable from a two-character class, and the evidence was punched out before the model
+ * ever saw it. **No wording fixes a missing premise.**
+ *
+ * ⚠️ Warns, never corrects — the standing rule for every read guard in this codebase. Bounded to
+ * 2–3 characters so a single letter cannot collide with a real class, and the city must be strictly
+ * longer than the fragment, so a city that IS a class could never flag itself.
+ *
+ * Returns the city it looks like the end of, or null.
+ */
+export function cityTailInRentalClass(rawClass: string | null | undefined): string | null {
+  const rc = (rawClass ?? '').trim().toUpperCase();
+  if (rc.length < 2 || rc.length > 3) return null;
+  // Iterating KNOWN rather than CITY_TO_OWNINGS' keys, because those are upper-cased for lookup
+  // and this value goes into a sentence a person reads.
+  for (const city of new Set(Object.values(KNOWN))) {
+    const c = city.toUpperCase().replace(/\s+/g, '');
+    if (c.length > rc.length && c.endsWith(rc)) return city;
+  }
+  return null;
+}
+
 /** "Calgary (8193)" when known, "8193" when not, '' when absent. Never guesses a branch name. */
 export function owningLabel(raw: string | null | undefined): string {
   const o = normalizeOwning(raw);

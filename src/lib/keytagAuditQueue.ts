@@ -8,6 +8,7 @@
 //
 // Pure: no DB, no React, no fetch. The caller hands in the fleet it already holds.
 import type { KeytagAuditResult } from '../types';
+import { cityTailInRentalClass } from '../../api/_lib/owningArea';
 export type { KeytagAuditResult };
 
 /** The fields actually PRINTED on a Hertz key tag, and therefore the only ones a person can
@@ -168,7 +169,21 @@ export function auditWarnings(
       message: `“${model}” is a rental class — did it belong in the field above?`,
     });
   }
-  if (rental && knownModelCodes.has(rental) && !knownRentalClasses.has(rental)) {
+  // ⭐⭐⭐ DEBRIS FROM THE LINE ABOVE — the keyring hole eats the top line and a fragment of the
+  // CITY lands in the class box. Aaron, 2026-09-09, after chasing an `EG` class back to the tag:
+  // *"'EG' is the cut off part from 'WINNIPEG'. 08199 is also cut off from the keyring hole, 'B'
+  // shows next to it."* LUR247 went B → EG, the audit stamped it verified, and the codex learned
+  // the whole fragment as "EG B".
+  //
+  // ⚠️ It goes FIRST because the other two checks ask "is this the other field's kind?" and city
+  // debris is neither kind — it would fall through both and be accepted in silence.
+  const debris = cityTailInRentalClass(rental);
+  if (debris) {
+    out.push({
+      field: 'rentalClass',
+      message: `“${rental}” is the end of “${debris}” — the keyring hole cuts the top line, so this is probably the city, not the class.`,
+    });
+  } else if (rental && knownModelCodes.has(rental) && !knownRentalClasses.has(rental)) {
     out.push({
       field: 'rentalClass',
       message: `“${rental}” is a model code — the rental class is the short group (Q4, E9).`,
