@@ -43,11 +43,18 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
 
   return (
     <>
-      {/* FAB */}
+      {/* FAB — z-30, ONE LAYER BELOW THE SIDEBAR DRAWER (z-40), deliberately. Since 2026-09-10
+          the phone drawer opens from the right, over this corner, and carries Notifications +
+          profile at its bottom. Aaron asked for the FAB to be raised clear of the profile; a
+          render showed no height works, because the Notifications list and the profile menu
+          both open UPWARD over this same corner — at bottom-32 it sat on the notification rows.
+          So the open drawer covers the FAB instead, and it keeps its corner everywhere else.
+          (Still above the drawer's z-30 backdrop, which is earlier in the DOM — irrelevant,
+          since the FAB sits wholly inside the drawer's width.) */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Ask Effie"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition cursor-pointer"
+        className="fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition cursor-pointer"
       >
         {open ? <CloseIcon /> : <SparkleIcon />}
       </button>

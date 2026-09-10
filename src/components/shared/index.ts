@@ -8,7 +8,6 @@ export * from './LoginScreen';
 export * from './LogoutConfirm';
 export * from './ModuleGuideModal';
 export * from './ModuleHeader';
-export * from './NotificationBell';
 export * from './PendingVehicleSheet';
 export * from './PhotoLightbox';
 export * from './PhotoSlot';

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useWashbayContext } from '../../context/WashbayContext';
@@ -12,13 +12,11 @@ import { resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, type Backfil
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
-import { supabase, writeWithRefresh } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { mapHandoffNote } from '../../lib/garage-mappers';
-import { offShiftNotifications } from '../../lib/notificationShift';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Module, HandoffNote, ShiftType } from '../../types';
 import type { NavItem } from '../../lib/navigation';
-import type { LiveNotification } from './SidebarNotificationPopover';
 
 export function useSidebar() {
   const { user, activeBranch } = useAuth();
@@ -40,9 +38,6 @@ export function useSidebar() {
     'my-shift':     pending.length,
   };
 
-  const [desktopInboxOpen, setDesktopInboxOpen] = useState(false);
-  const [liveNotifs, setLiveNotifs]             = useState<LiveNotification[]>([]);
-  const [userShifts, setUserShifts]             = useState<{ userId: string; date: string; shiftType: ShiftType }[]>([]);
   const [editMode, setEditMode]                 = useState(false);
   const [localOrder, setLocalOrder]             = useState<Module[]>([]);
   const [hidden, setHidden]                     = useState<Module[]>([]);
@@ -51,78 +46,6 @@ export function useSidebar() {
   const [latestBackfill, setLatestBackfill]     = useState<BackfillLog | null>(null);
   const [todayHandoff, setTodayHandoff]         = useState<HandoffNote | null>(null);
   const [userShiftType, setUserShiftType]       = useState<ShiftType | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // ── Click-outside handler for notification popover ──────────────────────────
-  useEffect(() => {
-    if (!desktopInboxOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setDesktopInboxOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [desktopInboxOpen]);
-
-  // ── Live notifications loader ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    const role = user.role;
-    const userId = user.id;
-    async function load() {
-      let query = supabase
-        .from('notifications')
-        .select('*')
-        .or(`recipient_roles.cs.{${role}},recipient_user_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (activeBranch !== 'ALL') query = query.eq('branch_id', activeBranch);
-      const { data } = await query;
-      setLiveNotifs((data ?? []) as LiveNotification[]);
-    }
-    load();
-  }, [user, activeBranch]);
-
-  // ── Live notifications realtime subscription ─────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('notifications-sidebar-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        const n = payload.new as LiveNotification;
-        if (activeBranch !== 'ALL' && n.branch_id !== activeBranch) return;
-        if (!n.recipient_roles.includes(user.role) && n.recipient_user_id !== user.id) return;
-        setLiveNotifs(prev => [n, ...prev]);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
-        const updated = payload.new as LiveNotification;
-        setLiveNotifs(prev => prev.map(l => l.id === updated.id ? updated : l));
-      })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [user?.id, user?.role, activeBranch]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── User's recent roster — to de-prioritize alerts that fired on a day off ───
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('shifts')
-      .select('user_id,date,shift_type')
-      .eq('user_id', user.id)
-      .gte('date', localDateStr(-21))
-      .then(({ data }) => setUserShifts(
-        (data ?? []).map(r => ({ userId: r.user_id as string, date: r.date as string, shiftType: r.shift_type as ShiftType })),
-      ));
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Notifications that fired outside the user's shift window (off-day OR off-hours
-  // on a worked day) — dimmed + dropped from the urgent badge (read-time, soft).
-  // Oversight roles + no-roster fail open (empty set).
-  const offShiftNotifIds = useMemo(
-    () => offShiftNotifications(liveNotifs, userShifts, user?.id ?? '', user?.role ?? 'Driver', isPeakSeason),
-    [liveNotifs, userShifts, user?.id, user?.role, isPeakSeason],
-  );
 
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
   useEffect(() => {
@@ -245,18 +168,6 @@ export function useSidebar() {
   ];
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleMarkLiveAllRead = async () => {
-    if (!user) return;
-    const unread = liveNotifs.filter(n => !n.read_by.includes(user.id));
-    await Promise.all(unread.map(n =>
-      writeWithRefresh(() => supabase.rpc('mark_notification_read', { p_notification_id: n.id, p_user_id: user.id }))
-    ));
-    setLiveNotifs(prev => prev.map(n => ({
-      ...n,
-      read_by: n.read_by.includes(user.id) ? n.read_by : [...n.read_by, user.id],
-    })));
-  };
-
   const handleDragEnd = (active: string, over: string) => {
     if (active === over) return;
     hapticMedium();
@@ -293,11 +204,8 @@ export function useSidebar() {
   return {
     user, activeBranch,
     todayFleetEntry, fleetProjection, MODULE_BADGES,
-    desktopInboxOpen, setDesktopInboxOpen,
-    liveNotifs, offShiftNotifIds,
     editMode, setEditMode,
     localOrder, hidden,
-    popoverRef,
     // VSA productivity
     recentRate: vsa.resolvedRate, recentLabel: vsa.recentLabel,
     resolvedShiftIcon: vsa.resolvedShiftIcon, userShiftType,
@@ -309,6 +217,6 @@ export function useSidebar() {
     // Nav
     displayedItems, allItems,
     // Handlers
-    handleMarkLiveAllRead, handleDragEnd, toggleHidden, handleSave, handleReset,
+    handleDragEnd, toggleHidden, handleSave, handleReset,
   };
 }

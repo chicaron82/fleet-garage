@@ -11,7 +11,7 @@ import { useNavigatorOnLine } from '../../hooks/useNavigatorOnLine';
 import { BRANCH_CONFIGS } from '../../data/mock';
 import { SortableNavItem } from './SortableNavItem';
 import { restrictToVerticalAxis } from './dndModifiers';
-import { SidebarNotificationPopover } from './SidebarNotificationPopover';
+import { SidebarNotificationPopover, type NotificationActions } from './SidebarNotificationPopover';
 import { useSidebar } from './useSidebar';
 
 interface Props {
@@ -19,9 +19,11 @@ interface Props {
   onNavigate: (screen: import('../../types').Screen) => void;
   onClose?: () => void;
   onShowGuide?: (module: Module) => void;
+  /** Approval sheets a tapped notification can open (they live in AppShell). */
+  notificationActions?: NotificationActions;
 }
 
-export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Props) {
+export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notificationActions }: Props) {
   const { setActiveBranch } = useAuth();
   const isOnline = useNavigatorOnLine();
   const s = useSidebar();
@@ -37,7 +39,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Prop
   const isDriver = s.user.role === 'Driver';
 
   return (
-    <div className="h-full flex flex-col bg-green-900 border-r border-green-800 transition-colors">
+    <div className="h-full flex flex-col bg-green-900 border-green-800 max-md:border-l md:border-r transition-colors">
       {/* Header */}
       <div className="px-4 py-4 border-b border-green-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -269,17 +271,12 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide }: Prop
         )}
       </div>
 
-      {/* User Section — desktop only */}
-      <div className="hidden md:block border-t border-green-800 px-3 py-3">
-        <SidebarNotificationPopover
-          user={s.user}
-          liveNotifs={s.liveNotifs}
-          offShiftNotifIds={s.offShiftNotifIds}
-          desktopInboxOpen={s.desktopInboxOpen}
-          setDesktopInboxOpen={s.setDesktopInboxOpen}
-          handleMarkLiveAllRead={s.handleMarkLiveAllRead}
-          popoverRef={s.popoverRef}
-        />
+      {/* User Section — every size. Until 2026-09-10 this was desktop-only and the phone
+          carried its own bell + avatar in the header, top-right; Aaron, in a wrist brace,
+          asked for them down here "like it is on desktop" — one placement, and the header
+          reach goes away with it. */}
+      <div className="border-t border-green-800 px-3 py-3">
+        <SidebarNotificationPopover onNavigate={onNavigate} actions={notificationActions} />
         <UserProfileMenu dropUp />
       </div>
     </div>

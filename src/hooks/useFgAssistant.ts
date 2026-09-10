@@ -93,7 +93,7 @@ export function useFgAssistant() {
   // live (migration 097 publishes effie_threads). adoptIfNewer handles the newer-check, self-echo
   // (our own save returns the same `at`), and the mid-turn guard. Filtered to the user's row; a
   // DELETE (a clear elsewhere) carries no new thread, so it's a no-op. Mirrors the notifications
-  // realtime pattern (useSidebar / NotificationBell).
+  // realtime pattern (useLiveNotifications).
   useEffect(() => {
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;

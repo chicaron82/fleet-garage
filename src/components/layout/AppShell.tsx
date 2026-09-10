@@ -2,10 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { OfflineSyncBanner } from './OfflineSyncBanner';
 import { BuildStamp } from './BuildStamp';
-import { UserProfileMenu } from '../shared/UserProfileMenu';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { usePreferences } from '../../context/PreferencesContext';
-import { NotificationBell } from '../shared/NotificationBell';
 import { ActiveSessionPill } from './ActiveSessionPill';
 import { useScanRouter } from '../../context/scanRouter';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
@@ -50,6 +48,14 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
     setSidebarOpen(false);
   };
 
+  // A notification tapped in the sidebar opens its approval sheet here, and the phone drawer
+  // gets out of the way so the sheet isn't behind it.
+  const notificationActions = {
+    onOffStdEditApproval:  (id: string) => { setPendingApprovalEntryId(id); setSidebarOpen(false); },
+    onBackdateApproval:    (id: string) => { setPendingBackdateId(id);      setSidebarOpen(false); },
+    onVehicleEditApproval: (id: string) => { setPendingVehicleEditId(id);   setSidebarOpen(false); },
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
       {sidebarOpen && (
@@ -78,10 +84,20 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           asserted a "cascade race" that does not exist.) And per spec a non-`none` `translate`
           creates a containing block for fixed descendants exactly like `transform` does — which is
           why the bug existed at all. Scoping the translate to `max-md:` leaves the property unset
-          at desktop, which is the only thing that actually fixes it. */}
+          at desktop, which is the only thing that actually fixes it.
+
+          ⚠️ The same trap applies to the phone drawer while it's OPEN, and since 2026-09-10 it
+          matters: the profile menu now lives in the drawer at every size, and its Settings /
+          Profile / About / Guide modals render inside it. `translate-x-0` still emits
+          `translate: 0 0` — a non-`none` value, so a containing block — and Settings would
+          open 256px wide inside the drawer. The open state is therefore `translate-none`
+          (`translate: none`), which the transition still animates (none interpolates as 0).
+
+          The phone drawer slides in from the RIGHT (thumb side — Aaron, wrist brace). Desktop
+          is `md:static`, where `right-0` means nothing and DOM order keeps the column on the left. */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 max-md:transition-transform duration-200 md:static ${
-          sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
+        className={`fixed inset-y-0 right-0 z-40 w-64 max-md:transition-transform duration-200 md:static ${
+          sidebarOpen ? 'max-md:translate-none' : 'max-md:translate-x-full'
         }`}
       >
         <Sidebar
@@ -89,20 +105,12 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           onNavigate={handleNavigate}
           onClose={() => setSidebarOpen(false)}
           onShowGuide={guidesOn ? setGuideModule : undefined}
+          notificationActions={notificationActions}
         />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="relative md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
-          <button
-            onClick={() => setSidebarOpen(o => !o)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-            aria-label="Toggle sidebar"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center relative">
               <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
@@ -137,12 +145,20 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             >
               📷
             </button>
-            {/* Divider + gap: 📷 scan is the high-frequency action; the bell/profile are
-                occasional. A thumb reaching for scan kept clipping the notification bell, so
-                separate the constant-tap action from the notifications/identity cluster. */}
+            {/* Divider + gap: a thumb reaching for 📷 used to clip the notification bell beside
+                it, so the constant-tap scan stays separated from its neighbour — now ☰, which is
+                rightmost since 2026-09-10 (the top-left corner was a reach in a wrist brace). The
+                bell and avatar moved into the drawer: one placement at every size. */}
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" aria-hidden="true" />
-            <NotificationBell onNavigate={handleNavigate} onOffStdEditApproval={setPendingApprovalEntryId} onBackdateApproval={setPendingBackdateId} onVehicleEditApproval={setPendingVehicleEditId} />
-            <UserProfileMenu />
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              aria-label="Toggle sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
 

@@ -57,7 +57,8 @@ export function UserProfileMenu({ dropUp = false }: { dropUp?: boolean } = {}) {
             <span className="text-black font-semibold text-xs">{initials}</span>
           )}
         </div>
-        <div className="text-left hidden sm:block">
+        {/* In the sidebar there's room for the name at any width; only a header squeezes it. */}
+        <div className={`text-left ${dropUp ? '' : 'hidden sm:block'}`}>
           <p className={`text-xs font-semibold leading-tight transition-colors ${dropUp ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{user?.name}</p>
           <p className={`text-[10px] leading-tight transition-colors ${dropUp ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>{user?.role}</p>
         </div>
