@@ -93,10 +93,13 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           open 256px wide inside the drawer. The open state is therefore `translate-none`
           (`translate: none`), which the transition still animates (none interpolates as 0).
 
-          The phone drawer slides in from the RIGHT (thumb side — Aaron, wrist brace). Desktop
-          is `md:static`, where `right-0` means nothing and DOM order keeps the column on the left. */}
+          The sidebar is on the RIGHT at every size (thumb side — Aaron, wrist brace, 2026-09-10:
+          *"i thought we were moving it to the right side for both orientations"*). The phone
+          drawer gets there with `right-0`; desktop is `md:static` in a flex row, where `right-0`
+          means nothing, so `md:order-last` puts the column after the content instead. Order, not
+          a translate — nothing may put a translate on this element at `md` (see above). */}
       <div
-        className={`fixed inset-y-0 right-0 z-40 w-64 max-md:transition-transform duration-200 md:static ${
+        className={`fixed inset-y-0 right-0 z-40 w-64 max-md:transition-transform duration-200 md:static md:order-last ${
           sidebarOpen ? 'max-md:translate-none' : 'max-md:translate-x-full'
         }`}
       >

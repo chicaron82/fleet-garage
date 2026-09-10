@@ -39,7 +39,7 @@ export function Sidebar({ activeModule, onNavigate, onClose, onShowGuide, notifi
   const isDriver = s.user.role === 'Driver';
 
   return (
-    <div className="h-full flex flex-col bg-green-900 border-green-800 max-md:border-l md:border-r transition-colors">
+    <div className="h-full flex flex-col bg-green-900 border-l border-green-800 transition-colors">
       {/* Header */}
       <div className="px-4 py-4 border-b border-green-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">

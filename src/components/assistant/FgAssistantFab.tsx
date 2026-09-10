@@ -50,18 +50,21 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
           both open UPWARD over this same corner — at bottom-32 it sat on the notification rows.
           So the open drawer covers the FAB instead, and it keeps its corner everywhere else.
           (Still above the drawer's z-30 backdrop, which is earlier in the DOM — irrelevant,
-          since the FAB sits wholly inside the drawer's width.) */}
+          since the FAB sits wholly inside the drawer's width.)
+          At desktop the sidebar is a permanent right-hand column, and `md:static` means its z-40
+          does nothing, so z can't tuck the FAB under it there. Instead the FAB and the chat panel
+          shift left by the column's width (w-64 = 16rem) plus their usual 1.25rem margin. */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Ask Effie"
-        className="fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition cursor-pointer"
+        className="fixed bottom-5 right-5 md:right-[17.25rem] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition cursor-pointer"
       >
         {open ? <CloseIcon /> : <SparkleIcon />}
       </button>
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-5 z-40 flex max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+        <div className="fixed bottom-24 right-5 md:right-[17.25rem] z-40 flex max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
           {/* Header */}
           <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="flex items-center gap-2">
