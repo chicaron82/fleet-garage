@@ -4,7 +4,6 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
 import { TripStartForm, type TripStartInfo } from './TripStartForm';
-import { OverflowSendForm } from './OverflowSendForm';
 import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { TripList } from './TripList';
 import { ModuleHeader } from '../shared/ModuleHeader';
@@ -119,8 +118,9 @@ export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, au
 
       {/* Tab content — both tabs stay mounted so OTH timer state survives tab switches */}
       <div className={activeTab === 'movement-log' ? 'space-y-5' : 'hidden'}>
-        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} initialPlate={prefillPlate} initialPlateNonce={prefillNonce} autoStart={autoStart} />
-        <OverflowSendForm onLogged={refreshActiveSessions} />
+        {/* ⭐ ONE CARD. The overflow half moved INSIDE the trip form on 2026-09-09 — same plate,
+            two outcomes — so this tab no longer asks "which car?" twice. */}
+        <TripStartForm onTripComplete={handleTripComplete} onTripStarted={handleTripStarted} initialPlate={prefillPlate} initialPlateNonce={prefillNonce} autoStart={autoStart} onOverflowLogged={refreshActiveSessions} />
         {myLiveTrips.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Your Runs Today</p>

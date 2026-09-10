@@ -1,14 +1,30 @@
-// "Log overflow sends" — the client-side overflow entry in the Movement Log tab. Pick a spot,
-// scan a stack of key tags (each registers/backfills the car from the read so the send isn't an
-// orphan), then log them all as one-way trips. State + writes live in useOverflowSend.
+// "Send to overflow" — the second half of the Movement Log's one card. The plate comes from the
+// SHARED input above (typed, or filled by the key-tag scan there); tapping a spot logs that car
+// straight to it. A stack of tags is the batch path: attach, review, log.
+//
+// ⭐⭐ MERGED INTO THE TRIP CARD 2026-09-09, his design: *"what say we combine the two sends. typing
+// out a plate could serve as the fallback if i don't have the keytag(s) on me. and if it happens to
+// be overflow, then i'll tap AV Flight or FastAir and it gets logged"* — *"an airport trip would
+// still be timed. enter/scan plate. tap the quick start button. overflow would be enter/scan plate.
+// tap where its going. and it just logs where it was sent."*
+//
+// ⭐ ONE QUESTION, TWO OUTCOMES. The card asked "which car?" twice, in two different ways, with two
+// different scan buttons. The car was always the same question; the BUTTON is the whole decision —
+// a quick-start card runs a live timer, a spot chip logs a finished one-way move.
+//
+// ⚠️ Its own scan button is gone, not lost: the shared `KeytagSearchScan` above fills the same
+// plate. What stays here is the STACK (`takeMany` → `scanPhotos`), which is a different gesture —
+// photograph a pile, attach, review — and the reason the batch route stopped being the lossy one.
+//
+// State + writes live in useOverflowSend.
 import { useRef } from 'react';
+import { hapticLight } from '../../lib/haptics';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
 import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
-import { OVERFLOW_DESTINATIONS } from '../../../api/_lib/overflowProposal';
+import { OVERFLOW_UI_DESTINATIONS } from '../../../api/_lib/overflowProposal';
 import { Toast } from '../shared/Toast';
 import { PhotoError } from '../../components/shared/PhotoError';
-import { ScanButton } from '../shared/ScanButton';
 
 const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
   registered:   { label: '✨ Registered', cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -17,15 +33,21 @@ const BADGE: Record<OverflowSend['status'], { label: string; cls: string }> = {
   unregistered: { label: '⚠️ Not in fleet', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 };
 
-export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
+export function OverflowSendForm({ onLogged, plate, onPlateSent }: {
+  onLogged?: () => void;
+  /** The plate from the card's shared input — typed, or filled by the key-tag scan above. */
+  plate?: string;
+  /** Clear the shared input once its car has been sent, so the next one starts empty. */
+  onPlateSent?: () => void;
+}) {
   const ov = useOverflowSend(onLogged);
-  const { photoError, takeOne, takeMany } = usePhotoIntake();
+  // ⚠️ Upper-cased for the chip, because the chip is a PROMISE of what will be logged — and
+  // `sendPlateTo` upper-cases before writing. A chip reading "lur537 → FastAir" would name a plate
+  // that never appears in the record.
+  const typed = (plate ?? '').trim().toUpperCase();
+  const { photoError, takeMany } = usePhotoIntake();
   const filesRef = useRef<HTMLInputElement>(null);
 
-  const onFile = async (file: File) => {
-    const base64 = await takeOne(file);
-    if (base64) await ov.scanPhoto(base64);
-  };
 
   /**
    * ⭐ Aaron used the Effie chat for this instead — *"i went for the chat because I could send
@@ -43,30 +65,37 @@ export function OverflowSendForm({ onLogged }: { onLogged?: () => void }) {
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 space-y-3">
-      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">📦 Log overflow sends</p>
+    <div className="space-y-2 pt-1">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        Send to overflow <span className="normal-case tracking-normal text-gray-400 dark:text-gray-600">· logged, no timer</span>
+      </p>
 
-      {/* Destination */}
+      {/* ⭐ THE SPOT CHIP IS THE ACTION when a plate is in hand: tap it and the car is logged there.
+          With no plate it just arms the destination for the stack below — same control, and which
+          job it is doing is visible from whether a plate is filled in. */}
       <div className="flex gap-1">
-        {OVERFLOW_DESTINATIONS.map(d => (
+        {OVERFLOW_UI_DESTINATIONS.map(d => (
           <button
             key={d}
             type="button"
-            onClick={() => ov.setDestination(d)}
-            className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition cursor-pointer ${
-              ov.destination === d
-                ? 'bg-fg-yellow text-black'
+            disabled={ov.logging}
+            onClick={() => {
+              hapticLight();
+              if (!typed) { ov.setDestination(d); return; }
+              void ov.sendPlateTo(typed, d).then(ok => { if (ok) onPlateSent?.(); });
+            }}
+            className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition cursor-pointer disabled:opacity-50 ${
+              typed || ov.destination === d
+                ? 'bg-fg-yellow text-gray-900 hover:bg-fg-yellow-hi'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
-            {d}
+            {typed ? `${typed} → ${d}` : d}
           </button>
         ))}
       </div>
 
-      {/* Scan — one at the car, or a stack from the roll. */}
       <PhotoError message={photoError} />
-      <ScanButton onFile={onFile} reading={ov.reading} variant="outline" fullWidth />
       {/* ⚠️ `multiple`, and NO `capture` — same reasoning as BatchKeytagScan: you photograph a
           stack of tags first and attach them after, so forcing the camera would be wrong here. */}
       <input

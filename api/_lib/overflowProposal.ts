@@ -10,6 +10,24 @@ export type OverflowDestination = 'AV Flight' | 'FastAir' | 'Airport';
 export const OVERFLOW_DESTINATIONS: readonly OverflowDestination[] = ['AV Flight', 'FastAir', 'Airport'];
 
 /**
+ * ⭐⭐ THE SPOTS THE UI OFFERS — and 'Airport' is deliberately not one of them.
+ *
+ * Aaron, 2026-09-09: *"an overflow sent to the airport is redundant. airport is the default. if
+ * there's no room we offload some to AV Flight and FastAir."* An airport run is a TRIP, started
+ * from the same card; overflow is the pair of spots used when the airport will not take any more.
+ *
+ * ✅ Proven by a row DiZee wrote at 17:20 that same day, correcting a car's location: it rendered
+ * `Airport Run → Airport`. Nonsense on its face, and it goes out in the screenshot he sends his
+ * manager.
+ *
+ * ⚠️⚠️ **`'Airport'` REMAINS A VALID STORED VALUE, and `OVERFLOW_DESTINATIONS` above is unchanged.**
+ * Effie's `lookup_sent` groups by `arrive_location` and there is history holding it. This list is
+ * what a person can PICK; that one is what the system can READ. Narrowing the wrong one would
+ * silently drop every past airport send out of the manifest.
+ */
+export const OVERFLOW_UI_DESTINATIONS: readonly OverflowDestination[] = ['AV Flight', 'FastAir'];
+
+/**
  * ⭐⭐ THE TAG READ, when this vehicle came from a photo rather than a typed plate.
  *
  * Aaron, 2026-09-08: *"anything that reads keytags shouldn't be tossing out valuable info"* — said

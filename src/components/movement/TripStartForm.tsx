@@ -20,6 +20,7 @@ import { useEvDispatchWarning } from '../../hooks/useEvDispatchWarning';
 import { useTripLifecycle } from '../../hooks/useTripLifecycle';
 import type { TripStartInfo } from '../../hooks/useTripLifecycle';
 import { TripForm } from './TripForm';
+import { OverflowSendForm } from './OverflowSendForm';
 import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
 import { Toast } from '../shared/Toast';
@@ -34,6 +35,7 @@ export function TripStartForm({
   initialPlate,
   initialPlateNonce,
   autoStart,
+  onOverflowLogged,
 }: {
   onTripComplete?: (trip: TripRun) => void;
   onTripStarted?: (info: TripStartInfo) => void;
@@ -43,6 +45,8 @@ export function TripStartForm({
   initialPlateNonce?: number;
   /** Scan-router "Start trip" → auto-fire a Routine Transport run on arrival (land on the timer). */
   autoStart?: boolean;
+  /** An overflow send was logged from inside this card — refresh the day's runs. */
+  onOverflowLogged?: () => void;
 }) {
   const { user } = useAuth();
   const { shuttlePlate, setShuttlePlate, addVehicle, updateVehicleFields, vehicles, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
@@ -126,6 +130,14 @@ export function TripStartForm({
               evCableStatus={t.evCableStatus}   setEvCableStatus={t.setEvCableStatus}
               evAdapterStatus={t.evAdapterStatus} setEvAdapterStatus={t.setEvAdapterStatus}
               evWarning={evWarning}
+            />
+            {/* ⭐ THE SECOND OUTCOME, on the same plate. A quick-start card above runs a live timer;
+                a spot chip here logs a finished one-way move. His design, 2026-09-09: the card asked
+                "which car?" twice and the answer was always the same question. */}
+            <OverflowSendForm
+              onLogged={onOverflowLogged}
+              plate={t.vehiclePlate}
+              onPlateSent={() => t.setVehiclePlate('')}
             />
             {t.startError && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg px-4 py-3">

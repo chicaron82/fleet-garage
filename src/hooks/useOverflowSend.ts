@@ -34,7 +34,9 @@ export function useOverflowSend(onLogged?: () => void) {
   const { readKeytag, status } = useKeytagRead();
   const { vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { user } = useAuth();
-  const [destination, setDestination] = useState<OverflowDestination>('Airport');
+  // ⭐ 'AV Flight' rather than 'Airport': the airport is where cars go by DEFAULT, so it was never
+  // an overflow spot — see OVERFLOW_UI_DESTINATIONS.
+  const [destination, setDestination] = useState<OverflowDestination>('AV Flight');
   const [sends, setSends] = useState<OverflowSend[]>([]);
   const [logging, setLogging] = useState(false);
   const [scanProgress, setScanProgress] = useState<{ done: number; total: number } | null>(null);
@@ -124,6 +126,34 @@ export function useOverflowSend(onLogged?: () => void) {
     setScanProgress(null);
   }, [scanOne, vehicles]);
 
+  /**
+   * ⭐⭐ ONE TYPED PLATE, SENT STRAIGHT TO A SPOT — his design, 2026-09-09:
+   * *"overflow would be enter/scan plate. tap where its going. and it just logs where it was sent."*
+   *
+   * The scan paths STAGE (you review a stack before logging); this one does not, because there is
+   * nothing to review — he typed one plate and tapped one destination. ⚠️ It resolves against the
+   * live fleet so the send carries a unit number where FG knows one, and logs the raw plate where
+   * it does not: the sheet never refuses a car ([[reference_hertz_record_decay]] — the paper takes
+   * anything, so this does too).
+   */
+  const sendPlateTo = useCallback(async (rawPlate: string, dest: OverflowDestination): Promise<boolean> => {
+    const plate = rawPlate.trim().toUpperCase();
+    if (!plate || !user) return false;
+    const match = vehicles.find(v => (v.licensePlate ?? '').trim().toUpperCase() === plate
+                                  || (v.unitNumber ?? '').trim() === plate);
+    const unit = (match?.unitNumber ?? '').trim() || null;
+    const trip = buildOverflowTrip(
+      { plate: match?.licensePlate ?? plate, unit },
+      dest, user.id, user.branchId, Date.now(), 0,
+    );
+    const { ok } = await writeOrEnqueue('insert', trip);
+    if (!ok) { setErr('Could not log that send — check connection and try again.'); return false; }
+    setToast(`✓ ${match?.licensePlate ?? plate} → ${dest}`);
+    setTimeout(() => setToast(null), 3000);
+    onLogged?.();
+    return true;
+  }, [user, vehicles, onLogged]);
+
   const remove = useCallback((index: number) => setSends(prev => prev.filter((_, i) => i !== index)), []);
 
   const logSends = useCallback(async () => {
@@ -148,6 +178,6 @@ export function useOverflowSend(onLogged?: () => void) {
 
   return {
     destination, setDestination, sends, reading: status === 'reading', logging, err, toast,
-    scanProgress, scanPhoto, scanPhotos, remove, logSends, reset,
+    scanProgress, scanPhoto, scanPhotos, sendPlateTo, remove, logSends, reset,
   };
 }
