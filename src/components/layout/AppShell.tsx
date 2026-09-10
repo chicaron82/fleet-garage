@@ -113,7 +113,11 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="relative md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
+        {/* ONE top bar at every size (2026-09-10). It used to be phone-only, so 🔍 and 📷 were too, and
+            couch command had no way to either. Aaron: *"i'm aiming for consistency throughout. not
+            building one method for mobile and another method for desktop the same flow should work
+            for both."* Only ☰ is phone-only, because only the phone has a drawer to open. */}
+        <div className="relative flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center relative">
               <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
@@ -136,7 +140,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             )}
           </div>
           <div className="flex items-center gap-2">
-            <ActiveSessionPill variant="header" activeModule={activeModule} onNavigate={handleNavigate} />
+            <ActiveSessionPill activeModule={activeModule} onNavigate={handleNavigate} />
             {/* 🔍 The typing door into the SAME scan sheet (2026-09-10): plate or unit, keyboard up,
                 no camera. Same card, same menu, same sighting rule — looking never counts as seen,
                 only a change does. Its room came from moving the bell + avatar into the drawer. */}
@@ -164,10 +168,10 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
                 it, so the constant-tap scan stays separated from its neighbour — now ☰, which is
                 rightmost since 2026-09-10 (the top-left corner was a reach in a wrist brace). The
                 bell and avatar moved into the drawer: one placement at every size. */}
-            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" aria-hidden="true" />
+            <div className="md:hidden w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" aria-hidden="true" />
             <button
               onClick={() => setSidebarOpen(o => !o)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               aria-label="Toggle sidebar"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,7 +203,6 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
         <BuildStamp />
       </div>
 
-      <ActiveSessionPill variant="overlay" activeModule={activeModule} onNavigate={handleNavigate} />
 
       {guideModule !== null && (
         <ModuleGuideModal

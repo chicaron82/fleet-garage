@@ -179,12 +179,32 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={mode === 'search' ? 'Find a car' : 'Scan a key tag'}>
       <div className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        {/* ⭐ STICKY TOP: title, ✕ and the lookup. Aaron, 2026-09-10: on a damaged car he scrolls down
+            to the damage map to copy it onto the paper inspection sheet, and the controls scrolled
+            away with it, so every next step started with scrolling back. The card scrolls; the
+            things he acts WITH stay put. (The scan button does the same at the bottom.) z-10 so
+            the lookup's suggestion list opens over the card, not under it. */}
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{mode === 'search' ? '🔍 Find a car' : '📷 Scan a key tag'}</p>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none cursor-pointer">✕</button>
         </div>
+          <div className="px-4 pb-3">
+            {/* Always offered, not just after a failure — see VehicleLookup.
+                ⭐ Suggestions here on his call (2026-09-04): the overlay was the last surface still
+                typing blind, and the field he reaches for when the tag will not read is exactly where
+                being shown the car is worth most. Picking one hands over its PLATE, so the resolver
+                below runs its normal path. */}
+            <VehicleLookup onPick={c => void onManualPlate('vehicle' in c ? c.vehicle.license_plate : c.typed)}
+              busy={reading}
+              autoFocus={mode === 'search'}
+              placeholder={mode === 'search' ? 'Plate or unit' : undefined} />
+          </div>
+        </div>
 
-        <div className="p-4 space-y-3">
+        {/* empty:hidden — opened from 🔍 with nothing looked up yet, every child below renders
+            nothing, and the bare padding showed as a blank strip under the sticky lookup. */}
+        <div className="p-4 space-y-3 empty:hidden">
           {/* The snap prompt is the CAMERA door's cold state. Opened from 🔍 there is no tag in hand
               by definition, so the sheet leads with the typing instead. */}
           {!scanRead && mode === 'camera' && (
@@ -202,15 +222,6 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
           )}
 
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
-          {/* Always offered, not just after a failure — see VehicleLookup.
-              ⭐ Suggestions here on his call (2026-09-04): the overlay was the last surface still
-              typing blind, and the field he reaches for when the tag will not read is exactly where
-              being shown the car is worth most. Picking one hands over its PLATE, so the resolver
-              below runs its normal path. */}
-          <VehicleLookup onPick={c => void onManualPlate('vehicle' in c ? c.vehicle.license_plate : c.typed)}
-            busy={reading}
-            autoFocus={mode === 'search'}
-            placeholder={mode === 'search' ? 'Plate or unit' : undefined} />
 
           {/* ✋ THE AMBUSH — leads the sheet, and renders WITH OR WITHOUT A RESOLVED VEHICLE.
               Both halves matter. Leading, because a watch is the one thing that changes what he
@@ -273,6 +284,10 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
                   would land back on the cold "Snap the tag" intro, forcing a second tap on the
                   snap button. scan() fires the provider's always-mounted input from inside this
                   user gesture, so the camera opens straight away. */}
+              {/* STICKY BOTTOM — the other half of the sticky top: the next scan stays one tap away
+                  however far down the card he has scrolled. -mx/-mb cancel the content padding so
+                  the bar sits flush with the sheet's edges. */}
+              <div className="sticky bottom-0 -mx-4 -mb-4 px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="button"
                 onClick={() => { setScanRead(null); setErrMsg(''); scan(); }}
@@ -280,6 +295,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
               >
                 {mode === 'search' ? '📷 Scan a tag' : 'Scan another'}
               </button>
+              </div>
             </>
           )}
         </div>

@@ -1,24 +1,11 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ActiveSessionPill } from '../../src/components/layout/ActiveSessionPill';
 import type { ActiveSession } from '../../src/context/ActiveSessionsContext';
 
-// Simulate a desktop viewport so the overlay variant doesn't bail out early.
-// jsdom has no matchMedia; without this mock useMediaQuery returns false (mobile)
-// and every overlay render returns null, breaking the suppression logic tests.
-beforeAll(() => {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: true,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-});
+// No desktop-viewport mock any more. This file used to force `matchMedia` to match because the
+// floating overlay variant bailed out below 768px. Since 2026-09-10 there is one placement (the
+// top bar) at every size; the first test below pins that by forcing a PHONE-sized answer.
 
 const mockTrip: ActiveSession = { id: 't1', startedAt: new Date(Date.now() - 900_000).toISOString(), label: 'In Transit', emoji: '🚗' };
 const mockOth:  ActiveSession = { id: 'o1', startedAt: new Date(Date.now() - 300_000).toISOString(), label: 'OTH',        emoji: '⏱' };
@@ -49,6 +36,22 @@ vi.mock('../../src/context/ActiveSessionsContext', async (importOriginal) => {
 
 import { useActiveSessions } from '../../src/context/ActiveSessionsContext';
 const mockUseActiveSessions = vi.mocked(useActiveSessions);
+
+describe('ActiveSessionPill — one spot, every size', () => {
+  it('renders at phone size — no screen-size bail-out', () => {
+    // Every media query answers "no", as it would below 768px. The old overlay returned null here.
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false, media: query, onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    }));
+    mockUseActiveSessions.mockReturnValue(mockContext({ trip: mockTrip }));
+    render(<ActiveSessionPill activeModule="holds" onNavigate={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /In Transit/ })).toHaveTextContent('🚗');
+    window.matchMedia = original;
+  });
+});
 
 describe('ActiveSessionPill — suppression logic', () => {
   it('renders nothing when no session is active', () => {
