@@ -120,4 +120,21 @@ describe('VehicleLookup', () => {
     fireEvent.keyDown(screen.getByLabelText(/Look up a vehicle/), { key: 'Enter' });
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  // ⚠️ A floating list inside a short scroll container is clipped by it. The scan sheet was 101px tall
+  // and its suggestions opened outside it, so Aaron could only hit a sliver of the first row
+  // (2026-09-10). Hosts like that ask for the list in flow; everyone else keeps the dropdown.
+  it('floats its suggestions by default', async () => {
+    render(<VehicleLookup onPick={vi.fn()} />);
+    type('LUR');
+    await waitFor(() => screen.getByText('LUR512'));
+    expect(screen.getByRole('list')).toHaveClass('absolute');
+  });
+
+  it('puts the suggestions in flow when the host asks (inlineResults)', async () => {
+    render(<VehicleLookup onPick={vi.fn()} inlineResults />);
+    type('LUR');
+    await waitFor(() => screen.getByText('LUR512'));
+    expect(screen.getByRole('list')).not.toHaveClass('absolute');
+  });
 });

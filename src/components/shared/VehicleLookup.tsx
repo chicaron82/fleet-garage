@@ -24,12 +24,19 @@ import { useEffect, useRef, useState } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
 import { VehicleName } from './VehicleName';
 
-export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus }: {
+export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults }: {
   /** The chosen car, or — when he commits text that matched nothing — the raw string he typed. */
   onPick: (choice: { vehicle: VehicleSearchResult } | { typed: string }) => void;
   placeholder?: string;
   busy?: boolean;
   autoFocus?: boolean;
+  /**
+   * Render the suggestions IN FLOW, pushing what's below down, instead of as a floating dropdown.
+   * For hosts inside a short scroll container, which clip an absolute list. The scan sheet is
+   * the case that needed it: on 2026-09-10 its list opened outside a 101px sheet and Aaron could
+   * only hit the one sliver of the first row that showed, *"if I'm precise with my tap"*.
+   */
+  inlineResults?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VehicleSearchResult[]>([]);
@@ -90,7 +97,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
       </div>
 
       {open && visible.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+        <ul className={`${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`}>
           {visible.map(v => {
             // ⭐ SAY WHICH KEY MATCHED. FG never resolves on a weaker key without saying so — the
             // rule the scan card already follows with `matchedByUnit`. If the plate does not start

@@ -198,6 +198,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
             <VehicleLookup onPick={c => void onManualPlate('vehicle' in c ? c.vehicle.license_plate : c.typed)}
               busy={reading}
               autoFocus={mode === 'search'}
+              inlineResults
               placeholder={mode === 'search' ? 'Plate or unit' : undefined} />
           </div>
         </div>

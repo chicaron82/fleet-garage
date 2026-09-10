@@ -7,7 +7,11 @@
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content (2026-09-10): Android Chrome's default draws the keyboard
+         OVER the page, so every bottom sheet with a text field sat underneath it; the scan sheet's
+         search results were the case Aaron hit. This makes the keyboard shrink the page instead,
+         like a native app, so sheets and fields rest on top of it. iOS ignores the key. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <meta name="description" content="Real-time fleet operations platform for rental lot management." />
     <meta name="theme-color" content="#facc15" />
     <title>Fleet Garage — Lot Operations</title>
