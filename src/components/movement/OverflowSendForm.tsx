@@ -81,11 +81,17 @@ export function OverflowSendForm({ onLogged, plate, onPlateSent }: {
             disabled={ov.logging}
             onClick={() => {
               hapticLight();
-              if (!typed) { ov.setDestination(d); return; }
+              // ⚠️ ARM IT EITHER WAY. Tapping with a plate used to log and leave `destination`
+              // untouched, so a stack attached afterwards went wherever the chip had been armed
+              // BEFORE — silently, and wrong in the direction that puts cars on the wrong list.
+              ov.setDestination(d);
+              if (!typed) return;
               void ov.sendPlateTo(typed, d).then(ok => { if (ok) onPlateSent?.(); });
             }}
             className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition cursor-pointer disabled:opacity-50 ${
-              typed || ov.destination === d
+              // ⚠️ `typed || …` lit BOTH chips whenever a plate was present, so the armed spot
+              // was invisible exactly when it mattered. The highlight tracks the destination only.
+              ov.destination === d
                 ? 'bg-fg-yellow text-gray-900 hover:bg-fg-yellow-hi'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}

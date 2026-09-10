@@ -65,6 +65,16 @@ describe('the spot chips', () => {
     expect(onPlateSent).not.toHaveBeenCalled();
   });
 
+  // ⚠️⚠️ FOUND BY PASS TWO, an hour after shipping. Tapping WITH a plate logged the car and left
+  // `destination` untouched, so a stack attached afterwards went to whatever had been armed before.
+  // Silent, and wrong in the direction that puts cars on the wrong list.
+  it('⚠️⚠️ tapping a spot ARMS it for the stack too, not just logs the one car', async () => {
+    render(<OverflowSendForm plate="LUR537" />);
+    fireEvent.click(screen.getByText('LUR537 → FastAir'));
+    expect(setDestination).toHaveBeenCalledWith('FastAir');
+    await waitFor(() => expect(sendPlateTo).toHaveBeenCalled());
+  });
+
   it('⭐ with NO plate the same chip only arms the destination for the stack path', () => {
     render(<OverflowSendForm />);
     fireEvent.click(screen.getByText('FastAir'));

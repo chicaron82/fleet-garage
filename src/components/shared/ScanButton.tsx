@@ -14,7 +14,9 @@ import { hapticLight } from '../../lib/haptics';
  *   • KeytagSearchScan      solid, px-4 py-2.5, text-black,     font-semibold, "Scan Key Tag"  ← also wrong: CLAUDE.md says yellow takes text-gray-900
  *   • BatchKeytagScan       solid, px-3.5 py-2, text-gray-900,  font-bold,     no camera at all
  *   • ClosingInventory      solid, full-width py-3,             font-semibold, "Scan a key tag"
- *   • OverflowSendForm      dashed outline, gray text,                         "Scan key tag"
+ *   • OverflowSendForm      ⚠️ GONE 2026-09-09 — the overflow half merged into the trip card and
+ *                           now uses the SHARED KeytagSearchScan above it, so its dashed drop-zone
+ *                           button had nothing left to distinguish itself from
  *   • LostFoundDetailsStep  inline text link, yellow text,                     "Scan tag"
  *
  * ⚠️ AND THE VARIANTS ARE REAL, NOT DRIFT. Three of those weights exist for a reason — a solid pill
