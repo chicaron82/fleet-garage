@@ -137,6 +137,18 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           </div>
           <div className="flex items-center gap-2">
             <ActiveSessionPill variant="header" activeModule={activeModule} onNavigate={handleNavigate} />
+            {/* 🔍 The typing door into the SAME scan sheet (2026-09-10): plate or unit, keyboard up,
+                no camera. Same card, same menu, same sighting rule — looking never counts as seen,
+                only a change does. Its room came from moving the bell + avatar into the drawer. */}
+            <button
+              type="button"
+              onClick={scanRouter.search}
+              aria-label="Find a car"
+              title="Find a car"
+              className="text-lg leading-none px-1 cursor-pointer hover:opacity-70 transition"
+            >
+              🔍
+            </button>
             {/* Universal scan-router — reachable from every module (the other door is the My Day
                 card). Always-visible icon, not tap-to-expand: scanning is one tap, not two. */}
             <button

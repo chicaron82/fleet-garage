@@ -1,5 +1,6 @@
-// The scan-router's one shared instance. Both entry points (the My Day card + the header icon)
-// call scan(); the overlay is rendered once here, at app scope. A context (not props)
+// The scan-router's one shared instance. Both camera entry points (the My Day card + the header 📷)
+// call scan(); the header 🔍 calls search(), which opens the same sheet typing-first (2026-09-10).
+// The overlay is rendered once here, at app scope. A context (not props)
 // because the two triggers live in different trees — the header is in AppShell, the card is deep
 // in a screen — and prop-drilling an opener through both would be the god-shell it's meant to avoid.
 // `navigate` is handed in from App (which owns routing) so an action tap routes like any button.
@@ -14,11 +15,12 @@
 // `input.click()` from a mount effect, which browsers block outright.
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScanRouterOverlay } from '../components/scan-router/ScanRouterOverlay';
-import { ScanRouterContext } from './scanRouter';
+import { ScanRouterContext, type ScanMode } from './scanRouter';
 import type { Screen } from '../types';
 
 export function ScanRouterProvider({ navigate, children }: { navigate: (screen: Screen) => void; children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<ScanMode>('camera');
   const fileRef = useRef<HTMLInputElement>(null);
   // The picked photo rides a ref + a nonce rather than state: a File in state would re-run the
   // overlay's consume-effect on every identity change, and re-reading one tag costs a real API
@@ -27,6 +29,7 @@ export function ScanRouterProvider({ navigate, children }: { navigate: (screen: 
   const [pickedNonce, setPickedNonce] = useState(0);
 
   const scan = useCallback(() => {
+    setMode('camera');
     setIsOpen(true);
     // Synchronous, inside the caller's gesture. React hasn't re-rendered yet — which is fine,
     // because this input is mounted whether the overlay is or not. That's the point.
@@ -38,7 +41,14 @@ export function ScanRouterProvider({ navigate, children }: { navigate: (screen: 
     pickedFileRef.current = null;
   }, []);
 
-  const value = useMemo(() => ({ scan, pickedFileRef, pickedNonce }), [scan, pickedNonce]);
+  // No camera, so no gesture constraint — just open typing-first. The overlay focuses the lookup
+  // on mount, which lands inside this same tap and so brings the keyboard up.
+  const search = useCallback(() => {
+    setMode('search');
+    setIsOpen(true);
+  }, []);
+
+  const value = useMemo(() => ({ scan, search, pickedFileRef, pickedNonce }), [scan, search, pickedNonce]);
 
   return (
     <ScanRouterContext.Provider value={value}>
@@ -56,7 +66,7 @@ export function ScanRouterProvider({ navigate, children }: { navigate: (screen: 
           e.target.value = '';
         }}
       />
-      {isOpen && <ScanRouterOverlay navigate={navigate} onClose={close} />}
+      {isOpen && <ScanRouterOverlay navigate={navigate} mode={mode} onClose={close} />}
     </ScanRouterContext.Provider>
   );
 }
