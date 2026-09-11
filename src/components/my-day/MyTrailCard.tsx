@@ -78,13 +78,23 @@ export function MyTrailCard() {
           in a table so items line up."*
           ⚠️ `min-w-0` on the middle track is what lets the chips wrap instead of pushing the clock
           off the row on a car he touched five ways. */}
-      <ul className="mt-3 grid grid-cols-[max-content_minmax(0,1fr)_max-content] items-baseline gap-x-3 gap-y-2 text-xs">
+      {/* ⚠️ PLATE AND UNIT ARE THEIR OWN TRACKS (2026-09-11). They shipped as one joined cell an hour
+          earlier and he caught it immediately: *"it bugs me that the unit numbers don't align"* —
+          plates vary in length, so a single cell starts every unit at a different x. Columns only
+          line up when each field owns a track. */}
+      <ul className="mt-3 grid grid-cols-[max-content_max-content_minmax(0,1fr)_max-content] items-baseline gap-x-3 gap-y-2 text-xs">
         <li className="contents text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-          <span>Car</span><span>Did</span><span className="text-right">Time</span>
+          <span>Car</span><span>Unit</span><span>Did</span><span className="text-right">Time</span>
         </li>
         {stops.map(stop => (
           <li key={stop.vehicleId} className="contents">
-            <span className="font-medium tabular-nums text-gray-800 dark:text-gray-200">{stopName(stop)}</span>
+            {stop.plate || stop.unitNumber ? (<>
+              <span className="font-medium tabular-nums text-gray-800 dark:text-gray-200">{stop.plate ?? '—'}</span>
+              <span className="tabular-nums text-gray-500 dark:text-gray-400">{stop.unitNumber ?? '—'}</span>
+            </>) : (
+              /* Neither key on record — `stopName` says so in words, across both tracks. */
+              <span className="col-span-2 text-gray-500 dark:text-gray-400">{stopName(stop)}</span>
+            )}
             <span className="flex flex-wrap gap-1 min-w-0">
               {stop.did.map(d => (
                 <span key={d} className="rounded bg-gray-100 px-1 py-0.5 text-[9px] font-bold tracking-wide text-gray-600 dark:bg-gray-800 dark:text-gray-300">
