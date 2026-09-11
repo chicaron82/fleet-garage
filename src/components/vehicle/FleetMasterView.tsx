@@ -162,7 +162,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           above the audit panel and the chips while the comment claimed it sat below them — the
           comment described the intent and the code did something else, which is the exact defect
           this codebase has been finding all week. */}
-      <FleetHistorySection />
+      <FleetHistorySection onOpenVehicle={id => onNavigate({ name: 'vehicle', vehicleId: id })} />
 
       {/* No match — register CTA */}
       {noMatch && (

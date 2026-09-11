@@ -208,3 +208,89 @@ export function projectSightings(
     return { label: h.label, sightings, cars, multiple: cars ? sightings / cars : 0 };
   });
 }
+
+// ── 5 · the cars that keep coming back ──────────────────────────────────────────────────────────
+
+export interface MostSeenRow {
+  vehicleId: string;
+  sightings: number;
+  /** Competition rank: 1 + how many cars have MORE sightings. Tied counts share it. */
+  rank: number;
+  /** How many cars share this count. 1 = not tied. */
+  tiedWith: number;
+  /** The rank a week ago, same rule, on sightings older than 7 days. Null = not seen before then. */
+  prevRank: number | null;
+}
+
+export interface MostSeen {
+  rows: MostSeenRow[];
+  /** Cars past the cut that share the last row's count — said out loud, never silently dropped. */
+  moreTied: number;
+}
+
+function competitionRanks(
+  counts: ReadonlyMap<string, number>,
+  eligible: ReadonlySet<string>,
+): Map<string, { rank: number; tied: number }> {
+  const entries = [...counts].filter(([id, c]) => c > 0 && eligible.has(id));
+  const perCount = new Map<number, number>();
+  for (const [, c] of entries) perCount.set(c, (perCount.get(c) ?? 0) + 1);
+  const rankForCount = new Map<number, number>();
+  let above = 0;
+  for (const c of [...perCount.keys()].sort((a, b) => b - a)) {
+    rankForCount.set(c, above + 1);
+    above += perCount.get(c)!;
+  }
+  return new Map(entries.map(([id, c]) => [id, { rank: rankForCount.get(c)!, tied: perCount.get(c)! }]));
+}
+
+/**
+ * The top N cars FG has met, down to the plate, and how each moved since a week ago.
+ *
+ * ⭐ Aaron, 2026-09-10, reading the first list: *"that top 10 shows me what comes back frequently
+ * that FG has seen"*, and he could read it at once. #1 was the Wrangler because *"manpreet loves the
+ * wrangler, so she's almost always driving it."* He asked for it live, with the change visible:
+ * *"this week wrangler took the top spot, next week fell to #2."*
+ *
+ * ⚠️ RANKED ON EVERYTHING TO DATE; THE WEEK ONLY DRIVES THE MOVEMENT. A one-week window alone would
+ * be mostly ties: at 24 days in, the most any car had was 5.
+ * ⚠️ TIES SHARE A PLACE (competition ranking, 1-1-1-4). Six cars shared the top the day this was
+ * written, and inventing an order among them would state a fact FG doesn't have. Inside a tie the
+ * rows run by who came through most recently, which is display order, not rank.
+ * ⚠️ Previous ranks are computed LIVE from sightings older than a week, never from a stored
+ * snapshot: nothing to schedule, nothing that can drift from the rows.
+ */
+export function mostSeen(
+  now: ReadonlyMap<string, number>,
+  weekAgo: ReadonlyMap<string, number>,
+  lastSeen: ReadonlyMap<string, string>,
+  eligible: ReadonlySet<string>,
+  n = 10,
+): MostSeen {
+  const cur = competitionRanks(now, eligible);
+  const prev = competitionRanks(weekAgo, eligible);
+  const order = [...cur.keys()].sort((a, b) =>
+    (now.get(b)! - now.get(a)!)
+    || (lastSeen.get(b) ?? '').localeCompare(lastSeen.get(a) ?? '')
+    || a.localeCompare(b));
+  const rows = order.slice(0, n).map(id => ({
+    vehicleId: id,
+    sightings: now.get(id)!,
+    rank: cur.get(id)!.rank,
+    tiedWith: cur.get(id)!.tied,
+    prevRank: prev.get(id)?.rank ?? null,
+  }));
+  const last = rows[rows.length - 1];
+  const moreTied = last ? order.slice(n).filter(id => now.get(id) === last.sightings).length : 0;
+  return { rows, moreTied };
+}
+
+export type Movement = { kind: 'new' } | { kind: 'same' } | { kind: 'up' | 'down'; by: number };
+
+/** Rank change since a week ago. A car FG hadn't met a week ago is `new`, not "up from nowhere". */
+export function movement(row: Pick<MostSeenRow, 'rank' | 'prevRank'>): Movement {
+  if (row.prevRank === null) return { kind: 'new' };
+  const d = row.prevRank - row.rank;
+  if (d === 0) return { kind: 'same' };
+  return d > 0 ? { kind: 'up', by: d } : { kind: 'down', by: -d };
+}

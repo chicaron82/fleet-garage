@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings, THIN_CLASS_FLEET,
+  mostSeen, movement,
 } from '../../src/lib/fleetHistory';
 
 describe('monthlyHolds', () => {
@@ -114,5 +115,55 @@ describe('projectSightings', () => {
     const [p] = projectSightings(observed, 800, [{ label: 'early Oct', days: 42 }]);
     expect(p.sightings % 10).toBe(0);
     expect(p.cars % 5).toBe(0);
+  });
+});
+
+describe('mostSeen', () => {
+  const m = (o: Record<string, number>) => new Map(Object.entries(o));
+  const ids = (...xs: string[]) => new Set(xs);
+  const none = new Map<string, number>();
+  const noTimes = new Map<string, string>();
+
+  it('ranks by sightings, and tied counts share a place', () => {
+    const r = mostSeen(m({ a: 5, b: 5, c: 4 }), none, noTimes, ids('a', 'b', 'c'));
+    expect(r.rows.map(x => [x.vehicleId, x.rank, x.tiedWith])).toEqual([['a', 1, 2], ['b', 1, 2], ['c', 3, 1]]);
+  });
+
+  it('orders inside a tie by who came through last — display order, not rank', () => {
+    const last = new Map([['a', '2026-09-01T00:00:00Z'], ['b', '2026-09-09T00:00:00Z']]);
+    const r = mostSeen(m({ a: 5, b: 5 }), none, last, ids('a', 'b'));
+    expect(r.rows.map(x => x.vehicleId)).toEqual(['b', 'a']);
+    expect(r.rows.every(x => x.rank === 1)).toBe(true);
+  });
+
+  it('⭐ movement compares to the ranking as it stood a week ago', () => {
+    // His example: the Wrangler takes the top spot this week, and the old #1 falls to #2.
+    const r = mostSeen(m({ wrangler: 6, volvo: 5 }), m({ wrangler: 3, volvo: 4 }), noTimes, ids('wrangler', 'volvo'));
+    expect(r.rows.map(x => [x.vehicleId, x.rank, x.prevRank])).toEqual([['wrangler', 1, 2], ['volvo', 2, 1]]);
+  });
+
+  it('a car FG had not met a week ago has no previous rank', () => {
+    const r = mostSeen(m({ a: 2 }), none, noTimes, ids('a'));
+    expect(r.rows[0].prevRank).toBeNull();
+  });
+
+  it('⚠️ cars outside the live fleet never rank, now or a week ago', () => {
+    const r = mostSeen(m({ sold: 9, a: 2 }), m({ sold: 9, a: 1 }), noTimes, ids('a'));
+    expect(r.rows.map(x => [x.vehicleId, x.rank, x.prevRank])).toEqual([['a', 1, 1]]);
+  });
+
+  it('⚠️ says how many more share the count at the cut, never drops them silently', () => {
+    const r = mostSeen(m({ a: 5, b: 4, c: 4, d: 4, e: 1 }), none, noTimes, ids('a', 'b', 'c', 'd', 'e'), 2);
+    expect(r.rows).toHaveLength(2);
+    expect(r.moreTied).toBe(2);
+  });
+});
+
+describe('movement', () => {
+  it('reads new, same, up and down', () => {
+    expect(movement({ rank: 3, prevRank: null })).toEqual({ kind: 'new' });
+    expect(movement({ rank: 2, prevRank: 2 })).toEqual({ kind: 'same' });
+    expect(movement({ rank: 1, prevRank: 3 })).toEqual({ kind: 'up', by: 2 });
+    expect(movement({ rank: 2, prevRank: 1 })).toEqual({ kind: 'down', by: 1 });
   });
 });

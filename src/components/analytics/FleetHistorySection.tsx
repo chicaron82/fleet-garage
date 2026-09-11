@@ -4,8 +4,9 @@ import { useFleetHistory, FG_RECORD_START } from '../../hooks/useFleetHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import {
-  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings,
+  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings, mostSeen,
 } from '../../lib/fleetHistory';
+import { TopSeenCard } from './TopSeenCard';
 
 // What FG has RECORDED — the half of Analytics built on real rows rather than demo scaffolding.
 //
@@ -33,7 +34,7 @@ function Bar({ pct, thin }: { pct: number; thin: boolean }) {
   );
 }
 
-export function FleetHistorySection() {
+export function FleetHistorySection({ onOpenVehicle }: { onOpenVehicle: (vehicleId: string) => void }) {
   // ⭐⭐ CLOSED BY DEFAULT. Aaron, 2026-09-06: *"can we have the recently added analytics blocks
   //    collapsed by default so when i search up vehicle i don't have to scroll to where the results
   //    show."* This is READING and the search box is a TOOL — the placement comment in
@@ -41,11 +42,15 @@ export function FleetHistorySection() {
   //    pushed the results under the fold anyway. **Ordering it correctly was not the same as
   //    costing it correctly**: it sits above the list, so its height is a tax on every search.
   const [open, setOpen] = useState(false);
-  const { holdDates, flaggedVehicleIds, sightingsByVehicle, window: win, loading, error } = useFleetHistory();
+  const {
+    holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
+    window: win, loading, error,
+  } = useFleetHistory();
   const { vehicles } = useVehicleHoldContext();
 
   const model = useMemo(() => {
-    const fleet = liveFleet(vehicles).map(v => ({ id: v.id, rentalClass: v.rentalClass ?? null }));
+    const live = liveFleet(vehicles);
+    const fleet = live.map(v => ({ id: v.id, rentalClass: v.rentalClass ?? null }));
     const byId = new Map(fleet.map(v => [v.id, v.rentalClass]));
 
     const hitByClass: Record<string, number> = {};
@@ -71,12 +76,15 @@ export function FleetHistorySection() {
       coverage: classCoverage(fleet, seenByClass),
       metCount: metCars.length,
       totalSightings,
+      // Same rows, same live-fleet filter as the cards above, so the two can never disagree.
+      ranking: mostSeen(sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, new Set(byId.keys())),
+      vehiclesById: new Map(live.map(v => [v.id, v])),
       fleetSize: fleet.length,
       projection: win
         ? projectSightings({ days: win.days, sightings: totalSightings, cars: metCars.length }, fleet.length, HORIZONS)
         : [],
     };
-  }, [vehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, win]);
+  }, [vehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, win]);
 
   if (loading) return <EmptyState message="Reading the record…" />;
   if (error) return <EmptyState message="Couldn't read the history. It's a read — try again." />;
@@ -245,6 +253,9 @@ export function FleetHistorySection() {
           </div>
         )}
       </div>
+
+      {/* ── 4 · the cars that keep coming back ─────────────────────────────── */}
+      <TopSeenCard ranking={model.ranking} vehiclesById={model.vehiclesById} since={win?.first ?? null} onOpen={onOpenVehicle} />
       </>)}
     </section>
   );
