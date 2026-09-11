@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { EmptyState } from './AnalyticsComponents';
-import { useFleetHistory, FG_RECORD_START } from '../../hooks/useFleetHistory';
+import { FG_RECORD_START, type FleetHistoryRows } from '../../hooks/useFleetHistory';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import {
@@ -34,7 +34,12 @@ function Bar({ pct, thin }: { pct: number; thin: boolean }) {
   );
 }
 
-export function FleetHistorySection({ onOpenVehicle }: { onOpenVehicle: (vehicleId: string) => void }) {
+/** `history` is fetched ONCE by the Fleet view and shared: the "gone quiet" chip needs the same
+ *  sightings, and fetching every sighting twice would be two copies of one truth. */
+export function FleetHistorySection({ onOpenVehicle, history }: {
+  onOpenVehicle: (vehicleId: string) => void;
+  history: FleetHistoryRows;
+}) {
   // ⭐⭐ CLOSED BY DEFAULT. Aaron, 2026-09-06: *"can we have the recently added analytics blocks
   //    collapsed by default so when i search up vehicle i don't have to scroll to where the results
   //    show."* This is READING and the search box is a TOOL — the placement comment in
@@ -45,7 +50,7 @@ export function FleetHistorySection({ onOpenVehicle }: { onOpenVehicle: (vehicle
   const {
     holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
     window: win, loading, error,
-  } = useFleetHistory();
+  } = history;
   const { vehicles } = useVehicleHoldContext();
 
   const model = useMemo(() => {

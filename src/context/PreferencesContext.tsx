@@ -39,6 +39,11 @@ interface Preferences {
    *  version I would have shipped. **The sparkle also never fires under `prefers-reduced-motion`,
    *  toggle or no toggle** — that is an accessibility floor, not a preference. */
   sparkles: boolean;
+  /** Include SALE_CAR vehicles in the Holds worklist. Aaron, 2026-09-10, with the lot overflowing and
+   *  sale cars being pulled again: *"a checkbox i can tick. mark it checked if i want to include sale
+   *  vehicles shown. unchecked hides them. can still be searched."* Defaults OFF — they sit waiting
+   *  for an auction, not for work. */
+  showSaleCars: boolean;
 }
 
 interface PreferencesContextValue {
@@ -50,7 +55,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true, sparkles: true };
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true, sparkles: true, showSaleCars: false };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
   void writeWithRefresh(() => supabase.from('user_preferences').upsert(

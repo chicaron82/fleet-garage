@@ -7,6 +7,7 @@ import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
 import { FleetHealthChips } from './FleetHealthChips';
 import { FleetHistorySection } from '../analytics/FleetHistorySection';
+import { useFleetHistory } from '../../hooks/useFleetHistory';
 import { FleetArchivedSection } from './FleetArchivedSection';
 import { FleetAuditPanel } from './FleetAuditPanel';
 import { useFleetAudit } from '../../hooks/useFleetAudit';
@@ -47,6 +48,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const [search, setSearch] = useState('');
   const [cohort, setCohort] = useState<FleetCohortId | null>(null);
   const [collapsed, setCollapsed] = useState<Set<FleetStatus>>(new Set(COLLAPSED_BY_DEFAULT));
+  // Fetched once, shared: the history cards AND the "gone quiet" chip read the same sightings.
+  const history = useFleetHistory();
 
   useEffect(() => {
     if (!user?.branchId) return;
@@ -61,8 +64,10 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const term = search.trim().toUpperCase();
   // Cohort counts are the whole-fleet PULSE — always over the full loaded set, never narrowed by
   // the search box (search finds a car; the chips report fleet health).
-  const cohortCounts = fleetCohortCounts(vehicles);
-  const filtered = vehicles.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
+  // Each car carries its newest sighting so the "gone quiet" cohort can be a plain predicate.
+  const seen = vehicles.map(v => ({ ...v, lastSeenAt: history.lastSeenByVehicle.get(v.id) ?? null }));
+  const cohortCounts = fleetCohortCounts(seen);
+  const filtered = seen.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
 
   // ── Movement, not just level ────────────────────────────────────────────────────────────────
   // Two different sources, and the split is the point (see fleetTrend.ts / migration 115):
@@ -162,7 +167,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           above the audit panel and the chips while the comment claimed it sat below them — the
           comment described the intent and the code did something else, which is the exact defect
           this codebase has been finding all week. */}
-      <FleetHistorySection onOpenVehicle={id => onNavigate({ name: 'vehicle', vehicleId: id })} />
+      <FleetHistorySection history={history} onOpenVehicle={id => onNavigate({ name: 'vehicle', vehicleId: id })} />
 
       {/* No match — register CTA */}
       {noMatch && (
@@ -263,6 +268,12 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                               </span>
                             )}
                           </div>
+                        )}
+                        {/* Working the quiet list, the question per row is "when did FG last have it?" */}
+                        {cohort === 'gone-quiet' && v.lastSeenAt && (
+                          <p className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+                            💤 Last seen {new Date(v.lastSeenAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} · {fmtRelative(v.lastSeenAt)}
+                          </p>
                         )}
                       </button>
                       );

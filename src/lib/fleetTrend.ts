@@ -30,6 +30,7 @@ const EMPTY: FleetCohortDeltas = {
   'missing-keytag': null,
   'missing-keycount': null,
   'needs-backfill': null,
+  'gone-quiet': null,
 };
 
 /**
@@ -49,6 +50,9 @@ export function cohortDeltas(
     'missing-keytag': today['missing-keytag'] - baseline.missingKeytag,
     'missing-keycount': today['missing-keycount'] - baseline.missingKeycount,
     'needs-backfill': today['needs-backfill'] - baseline.needsBackfill,
+    // No arrow yet: snapshots store three columns (migration 115), and a cohort without a stored
+    // baseline renders no badge rather than a delta against nothing.
+    'gone-quiet': null,
   };
 }
 

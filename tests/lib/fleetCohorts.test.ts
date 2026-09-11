@@ -55,20 +55,43 @@ describe('fleetCohorts — fleetCohortCounts', () => {
       'missing-keytag': 2,   // #2 and #4
       'missing-keycount': 2, // #3 and #4
       'needs-backfill': 1,   // #4
+      'gone-quiet': 0,       // none carry a sighting
     });
   });
 
   it('an empty fleet is all zeroes', () => {
-    expect(fleetCohortCounts([])).toEqual({ 'missing-keytag': 0, 'missing-keycount': 0, 'needs-backfill': 0 });
+    expect(fleetCohortCounts([])).toEqual({ 'missing-keytag': 0, 'missing-keycount': 0, 'needs-backfill': 0, 'gone-quiet': 0 });
   });
 });
 
 describe('fleetCohorts — registry', () => {
-  it('exposes exactly the three cohorts, each with a label + icon', () => {
-    expect(FLEET_COHORTS.map((c) => c.id)).toEqual(['missing-keytag', 'missing-keycount', 'needs-backfill']);
+  it('exposes exactly the four cohorts, each with a label + icon', () => {
+    expect(FLEET_COHORTS.map((c) => c.id)).toEqual(['missing-keytag', 'missing-keycount', 'needs-backfill', 'gone-quiet']);
     for (const c of FLEET_COHORTS) {
       expect(c.label.length).toBeGreaterThan(0);
       expect(c.icon.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ⭐ Aaron, 2026-09-10: he remembered an auto-archive for cars FG stops seeing; none existed. This is a
+// LIST he works by hand — a quiet car can be on a long rental — and it only counts cars FG has MET.
+describe('fleetCohorts — gone-quiet', () => {
+  const now = new Date(2026, 8, 10, 22, 0, 0).getTime();
+  const daysAgo = (d: number) => new Date(now - d * 86_400_000).toISOString();
+
+  it('matches a car met and then not seen for over three weeks', () => {
+    expect(matchesCohort(v({ lastSeenAt: daysAgo(24) }), 'gone-quiet', now)).toBe(true);
+    expect(matchesCohort(v({ lastSeenAt: daysAgo(10) }), 'gone-quiet', now)).toBe(false);
+  });
+
+  it('⚠️ a never-seen car is NOT quiet — that describes the log\'s age, not the yard', () => {
+    expect(matchesCohort(v({ lastSeenAt: null }), 'gone-quiet', now)).toBe(false);
+    expect(matchesCohort(v(), 'gone-quiet', now)).toBe(false);
+  });
+
+  it('is counted with the others', () => {
+    const fleet = [v({ id: 'a', lastSeenAt: daysAgo(30) }), v({ id: 'b', lastSeenAt: daysAgo(2) }), v({ id: 'c' })];
+    expect(fleetCohortCounts(fleet, now)['gone-quiet']).toBe(1);
   });
 });

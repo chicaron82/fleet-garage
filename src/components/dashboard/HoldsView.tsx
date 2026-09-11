@@ -4,6 +4,7 @@ import { ZoneBackfillCard } from '../holds/ZoneBackfillCard';
 import { useHoldsWorklist } from '../../hooks/useHoldsWorklist';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { usePreferences } from '../../context/PreferencesContext';
 import { useBackfillOnScan } from '../../hooks/useBackfillOnScan';
 import { canRelease } from '../../types';
 import { hapticLight } from '../../lib/haptics';
@@ -40,6 +41,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   // Passing attach makes the holds search-scan also save the tag to a known car that lacks one.
   const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const [search, setSearch] = useState('');
+  const { prefs, updatePref } = usePreferences();
   const [activeTab, setActiveTab] = useState<HoldsTab>('holds');
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = sessionStorage.getItem('dashboard_page');
@@ -122,8 +124,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   });
 
   // Which cars the board shows, in what order, on which page — all derived, never captured.
-  const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, getDisplayHold } =
-    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage });
+  const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, getDisplayHold } =
+    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage, showSaleCars: prefs.showSaleCars });
 
   const { getName } = useUserResolver();
 
@@ -229,6 +231,26 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
               {backfillToast}<Sparkles size="0.75rem" /></p>
           )}
         </div>
+
+        {/* ⭐ SALE CARS OFF THE WORKLIST BY DEFAULT (Aaron, 2026-09-10). With the lot overflowing they
+            are pulling sale cars again, and 23 of them sat in this list among cars that need work.
+            Unticked hides them; a search still finds them (the deal CLEAR cars already get). The
+            count is always shown so a hidden car is never a forgotten one. Remembered per user. */}
+        {saleCarCount > 0 && (
+          <label className="-mt-2 flex items-center gap-2 py-1.5 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={prefs.showSaleCars}
+              onChange={e => { hapticLight(); updatePref('showSaleCars', e.target.checked); setCurrentPage(1); }}
+              className="h-4 w-4 cursor-pointer accent-teal-600"
+            />
+            <span className="font-medium">Show sale cars</span>
+            <span className="rounded-full border border-teal-200 dark:border-teal-800/40 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-teal-700 dark:text-teal-400">
+              🏷️ {saleCarCount}
+            </span>
+            {!prefs.showSaleCars && <span className="text-gray-400 dark:text-gray-500">hidden · still searchable</span>}
+          </label>
+        )}
 
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
         <ExceptionReturnSection search={search} onOpenVehicle={onSelectVehicle} />

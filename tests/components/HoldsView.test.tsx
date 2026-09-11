@@ -55,6 +55,11 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
   }),
 }));
 
+// The "Show sale cars" checkbox reads a remembered preference (2026-09-10) — default off, as shipped.
+vi.mock('../../src/context/PreferencesContext', () => ({
+  usePreferences: () => ({ prefs: { showSaleCars: false }, updatePref: vi.fn() }),
+}));
+
 vi.mock('../../src/hooks/useUserResolver', () => ({
   useUserResolver: () => ({ getName: (_id: string, name?: string) => name ?? 'Test VSA' }),
 }));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summariseSightings, describeLastSeen, isStaleSighting, type Sighting, actionImpliesPresence, sightingLines } from '../../src/lib/sightings';
+import { summariseSightings, describeLastSeen, isStaleSighting, isQuietSince, QUIET_AFTER_DAYS, type Sighting, actionImpliesPresence, sightingLines } from '../../src/lib/sightings';
 import { fieldLabel } from '../../src/lib/vehicleChanges';
 
 const at = (iso: string): Sighting => ({ seenAt: iso });
@@ -122,9 +122,19 @@ describe('isStaleSighting', () => {
   const now = new Date(2026, 7, 16, 12, 0, 0);
   const seen = (d: number) => summariseSightings([at(new Date(2026, 7, 16 - d, 10, 0, 0).toISOString())]);
 
-  it('flags a car not laid hands on in over 90 days', () => {
+  // 21 days since 2026-09-10 — the one threshold the record chip and the Fleet "gone quiet" chip share.
+  it(`flags a car not laid hands on in over ${QUIET_AFTER_DAYS} days`, () => {
     expect(isStaleSighting(seen(120), now)).toBe(true);
-    expect(isStaleSighting(seen(30), now)).toBe(false);
+    expect(isStaleSighting(seen(30), now)).toBe(true);
+    expect(isStaleSighting(seen(14), now)).toBe(false);
+  });
+
+  it('isQuietSince: never-seen and garbage stamps are not quiet', () => {
+    const t = now.getTime();
+    expect(isQuietSince(null, t)).toBe(false);
+    expect(isQuietSince(undefined, t)).toBe(false);
+    expect(isQuietSince('not-a-date', t)).toBe(false);
+    expect(isQuietSince(new Date(2026, 6, 1).toISOString(), t)).toBe(true);
   });
 
   it('does NOT call a never-seen car stale', () => {

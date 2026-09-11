@@ -40,6 +40,9 @@ export interface FleetVehicle {
   /** When the row was created — i.e. when Aaron registered the car. Carried so "registered today"
    *  is derivable from real history rather than needing a snapshot (see `fleetTrend.ts`). */
   createdAt: string | null;
+  /** Newest sighting (ISO), joined in by the Fleet view from the sightings it already loads.
+   *  Optional because `loadFleet` doesn't carry it; absent = FG has no sighting of the car. */
+  lastSeenAt?: string | null;
 }
 
 /**

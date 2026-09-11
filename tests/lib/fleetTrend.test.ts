@@ -6,7 +6,7 @@ import {
 import type { FleetCohortCounts } from '../../src/lib/fleetCohorts';
 
 const counts = (o: Partial<FleetCohortCounts> = {}): FleetCohortCounts => ({
-  'missing-keytag': 200, 'missing-keycount': 40, 'needs-backfill': 12, ...o,
+  'missing-keytag': 200, 'missing-keycount': 40, 'needs-backfill': 12, 'gone-quiet': 5, ...o,
 });
 
 const snap = (o: Partial<FleetSnapshot> = {}): FleetSnapshot => ({
@@ -20,6 +20,7 @@ describe('cohortDeltas', () => {
       'missing-keytag': -5,   // ground down
       'missing-keycount': -7,
       'needs-backfill': 0,    // held level
+      'gone-quiet': null,     // no stored baseline column yet — no arrow, never a fake delta
     });
   });
 
@@ -31,7 +32,7 @@ describe('cohortDeltas', () => {
     // Nothing ever recorded WHEN a car stopped missing its keytag, so day one genuinely has
     // nothing to compare against. Nulls must render as absent arrows, never as zeros.
     expect(cohortDeltas(counts(), null)).toEqual({
-      'missing-keytag': null, 'missing-keycount': null, 'needs-backfill': null,
+      'missing-keytag': null, 'missing-keycount': null, 'needs-backfill': null, 'gone-quiet': null,
     });
     expect(cohortDeltas(counts(), undefined)['missing-keytag']).toBeNull();
   });

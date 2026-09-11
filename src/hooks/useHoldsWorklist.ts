@@ -25,6 +25,8 @@ export interface HoldsWorklist {
   noMatch: boolean;
   /** How many ARCHIVED cars the same search matches, so a miss can point at the archive. */
   archivedMatchCount: number;
+  /** SALE_CAR vehicles in the fleet — the checkbox names how many it is hiding or showing. */
+  saleCarCount: number;
   getDisplayHold: (vehicleId: string, status: VehicleStatus) => Hold | undefined;
 }
 
@@ -36,8 +38,10 @@ export function useHoldsWorklist(input: {
   activeStatusFilter: VehicleStatus | null;
   pinnedVehicleIds: Set<string>;
   currentPage: number;
+  /** Include SALE_CAR vehicles in the default list (the Holds checkbox). A search finds them either way. */
+  showSaleCars?: boolean;
 }): HoldsWorklist {
-  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage } = input;
+  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage, showSaleCars = false } = input;
 
   const counts = {
     held:        vehicles.filter(v => v.status === 'HELD').length,
@@ -67,6 +71,8 @@ export function useHoldsWorklist(input: {
       if (activeStatusFilter !== null) return v.status === activeStatusFilter;
       // CLEAR vehicles drop off the default list — searchable, accessible via "Repaired" card
       if (v.status === 'CLEAR' && search === '') return false;
+      // Sale cars get the same deal, behind a checkbox (2026-09-10): they wait for an auction, not work.
+      if (v.status === 'SALE_CAR' && search === '' && !showSaleCars) return false;
       return true;
     })
     .sort((a, b) => {
@@ -96,5 +102,7 @@ export function useHoldsWorklist(input: {
   const getDisplayHold = (vehicleId: string, status: VehicleStatus) =>
     displayHoldFor(holds, vehicleId, status, holdLatestActivity);
 
-  return { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, getDisplayHold };
+  const saleCarCount = vehicles.filter(v => v.status === 'SALE_CAR').length;
+
+  return { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, getDisplayHold };
 }

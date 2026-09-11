@@ -131,18 +131,32 @@ export function describeLastSeen(iso: string | null, now: Date = new Date()): st
 
 /**
  * Is this car worth a second look? A car he hasn't laid hands on in a long time has been somewhere
- * — a long rental, a body shop, another branch — and that's the question the feature exists to
- * raise. 90 days is deliberately generous: the fleet is ~575 cars and he is one person, so a
- * shorter threshold would flag most of the fleet most of the time and mean nothing.
+ * — a long rental, a body shop, another branch, an auction nobody archived — and that's the
+ * question the feature exists to raise.
+ *
+ * ⚠️ ONE THRESHOLD, TWO SURFACES (2026-09-10): the record's amber "Seen" chip AND the Fleet
+ * "gone quiet" chip both read `QUIET_AFTER_DAYS`, because two definitions of one idea drift. It was
+ * 90 days here, reasoned as "a shorter threshold would flag most of the fleet" — sound for a mature
+ * log, but sightings start 2026-08-16, so 90 could not fire until mid-November. Measured that night:
+ * of 504 cars met, 175 were quiet ≥14 days (too many to review), 56 ≥21 (a list he can work),
+ * 0 ≥90. ⚠️ Revisit as the log matures — if 21 days starts listing a big slice of the fleet, raise it.
  *
  * NEVER-seen is NOT stale — on day one that's almost the whole fleet, and calling it stale would
- * make the signal useless in exactly the window where the log is youngest.
+ * make the signal useless in exactly the window where the log is youngest. (Same reason the history
+ * card refuses a "% never seen": it would describe the table's age, not the yard.)
  */
-export function isStaleSighting(summary: SightingSummary, now: Date = new Date()): boolean {
-  if (summary.lastSeenAt === null) return false;
-  const then = new Date(summary.lastSeenAt).getTime();
+export const QUIET_AFTER_DAYS = 21;
+
+/** Met at least once, and not since `QUIET_AFTER_DAYS`. Never-seen or a garbage stamp → not quiet. */
+export function isQuietSince(lastSeenAt: string | null | undefined, now: number = Date.now()): boolean {
+  if (!lastSeenAt) return false;
+  const then = new Date(lastSeenAt).getTime();
   if (Number.isNaN(then)) return false;
-  return now.getTime() - then > 90 * DAY_MS;
+  return now - then > QUIET_AFTER_DAYS * DAY_MS;
+}
+
+export function isStaleSighting(summary: SightingSummary, now: Date = new Date()): boolean {
+  return isQuietSince(summary.lastSeenAt, now.getTime());
 }
 
 /**
