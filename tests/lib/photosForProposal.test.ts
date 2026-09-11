@@ -155,4 +155,17 @@ describe('photosForProposalConfirm — kind-aware scope', () => {
     // register_and_hold is a hold for photo purposes — damage scope, not keytag reach-back.
     expect(photosForProposalConfirm('register_and_hold', conversational, 3)).toEqual([]);
   });
+
+  // ⚠️ The executor numbered the cars by `photoIndex` into the photos of the ONE turn it was sent
+  // (the chat sends only the current turn's photos). Any wider scope shifts every index and hangs
+  // one car's tag on another car.
+  it('overflow_log takes exactly the prompting turn — never an earlier turn in the run', () => {
+    const run: Turn[] = [
+      { role: 'user', images: ['old-tag.jpg'] },            // an earlier user turn, same run
+      { role: 'user', images: ['tag-A.jpg', 'tag-B.jpg'] }, // the turn the executor read
+      { role: 'assistant' },                                // overflow proposal
+    ];
+    expect(photosForProposalConfirm('overflow_log', run, 2)).toEqual(['tag-A.jpg', 'tag-B.jpg']);
+    expect(photosForProposalConfirm('overflow_log', [{ role: 'assistant' }, { role: 'assistant' }], 1)).toEqual([]);
+  });
 });

@@ -51,6 +51,34 @@ describe('useProposalConfirm — overflow_log branch', () => {
     const { result } = renderHook(() => useProposalConfirm(deps));
     await expect(result.current(overflow())).rejects.toThrow(/could not log/i);
   });
+
+  // ⚠️⚠️ `photoIndex` was set by the executor and read by NOTHING until 2026-09-10, so the tag FG
+  // had just read to identify each car never reached the car. The index points into exactly the
+  // prompting turn's photos — which is what photosForProposalConfirm hands this kind.
+  it('attaches each read tag photo, by its photoIndex, to the car it resolved', async () => {
+    mockWrite.mockResolvedValue({ ok: true });
+    const attachKeytagPhotoIfMissing = vi.fn().mockResolvedValue(undefined);
+    const fleet = [
+      { id: 'veh-379', licensePlate: 'LFJ379', unitNumber: '5420379', make: 'Kia', model: 'Seltos', year: 2025, color: 'Black', rentalClass: 'B5', status: 'CLEAR' },
+      { id: 'veh-175', licensePlate: 'LUR175', unitNumber: '5420175', make: 'Nissan', model: 'Kicks', year: 2026, color: 'White', rentalClass: 'B5', status: 'CLEAR' },
+    ];
+    const { result } = renderHook(() => useProposalConfirm({
+      ...deps, attachKeytagPhotoIfMissing, vehicles: fleet,
+    } as unknown as Parameters<typeof useProposalConfirm>[0]));
+    await result.current({
+      kind: 'overflow_log',
+      destination: 'AV Flight',
+      vehicles: [
+        // Photographed second in the turn → index 1. Order in the list is not the photo order.
+        { plate: 'LFJ379', unit: '5420379', label: 'Unit 5420379', unresolved: false, read: { plate: 'LFJ379' }, photoIndex: 1 },
+        // Typed, not photographed — no index, so nothing may be attached to it.
+        { plate: 'LUR175', unit: '5420175', label: 'Unit 5420175', unresolved: false },
+      ],
+    } as unknown as OverflowLogProposal, undefined, ['tag-A', 'tag-B']);
+    expect(attachKeytagPhotoIfMissing).toHaveBeenCalledTimes(1);
+    expect(attachKeytagPhotoIfMissing).toHaveBeenCalledWith('veh-379', 'tag-B');
+    expect(mockWrite).toHaveBeenCalledTimes(2);   // the sends still log
+  });
 });
 
 describe('useProposalConfirm — register_vehicle branch', () => {

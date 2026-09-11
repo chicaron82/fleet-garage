@@ -36,9 +36,10 @@ interface ProposalConfirmDeps {
   addVehicle: ReturnType<typeof useVehicleHoldContext>['addVehicle'];
   updateVehicleFields: ReturnType<typeof useVehicleHoldContext>['updateVehicleFields'];
   setCoverPhoto: ReturnType<typeof useVehicleHoldContext>['setCoverPhoto'];
-  /** Optional (queue only): attach a batch-staged KEY-TAG photo to the car on approve
-   *  (if-missing, best-effort — the helper never throws). Absent for the chat card, where
-   *  the attach simply no-ops. See ticket-universal-keytag-capture Phase 3. */
+  /** Attach a KEY-TAG photo to the car on confirm (if-missing, best-effort — the helper never
+   *  throws). Passed by BOTH callers since 2026-09-10: the chat card never passed it, so every
+   *  chat register/backfill/overflow send silently dropped its tag photo (see EffieConversation).
+   *  Still optional so a caller with no photos to attach can omit it. */
   attachKeytagPhotoIfMissing?: ReturnType<typeof useVehicleHoldContext>['attachKeytagPhotoIfMissing'];
   /** The live fleet — needed to DECIDE what a key-tag read means. See the overflow branch. */
   vehicles?: ReturnType<typeof useVehicleHoldContext>['vehicles'];
@@ -127,18 +128,30 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
           for (const v of proposal.vehicles) {
             if (!v.read) continue;
             const plan = planOverflowScan(v.read, fleet);
-            if (!plan) continue;
             try {
-              if (plan.register) {
+              let vehicleId: string | null = null;
+              if (plan?.register) {
                 const nv = plan.register;
-                await addVehicle({
+                vehicleId = (await addVehicle({
                   unitNumber: nv.unitNumber, licensePlate: nv.plate, make: nv.make, model: nv.model,
                   year: nv.year, color: nv.color, rentalClass: nv.rentalClass ?? null,
                   branchId: user.branchId, isTesla: nv.make === 'Tesla',
                   hasMobileCable: null, hasJ1772Adapter: null, status: 'CLEAR',
-                });
-              } else if (plan.backfill) {
+                })) ?? null;
+              } else if (plan?.backfill) {
                 await updateVehicleFields(plan.backfill.vehicleId, plan.backfill.applies);
+                vehicleId = plan.backfill.vehicleId;
+              } else {
+                vehicleId = fleet.find(f => f.licensePlate === v.plate)?.id ?? null;
+              }
+              // ⭐ The tag photo the executor READ, by the index it numbered it with. Before
+              // 2026-09-10 `photoIndex` was set server-side and read by nothing, so the one image
+              // FG had just used to identify the car never reached its record ("keytag reads are
+              // lossless" — Aaron, 2026-09-08). `photosOverride` is exactly the prompting turn for
+              // this kind (photosForProposalConfirm), so the index lines up.
+              const photo = v.photoIndex !== undefined ? photosOverride?.[v.photoIndex] : undefined;
+              if (vehicleId && photo && attachKeytagPhotoIfMissing) {
+                await attachKeytagPhotoIfMissing(vehicleId, photo);
               }
             } catch { /* non-blocking: the send still logs */ }
           }
@@ -204,8 +217,8 @@ export function useProposalConfirm(deps: ProposalConfirmDeps) {
         });
         // Phase 3 (ticket-universal-keytag-capture): a batch-staged register carries its KEY-TAG
         // photo in photosOverride — attach it to the freshly-created car (if-missing, best-effort;
-        // the helper never throws, so it can't fail the approve). No-op for the chat card (unwired)
-        // or a dropped re-entrant register (no id returned).
+        // the helper never throws, so it can't fail the approve). The chat card passes its
+        // reach-back key-tag photo the same way. No-op for a dropped re-entrant register (no id).
         if (newVehicleId && attachKeytagPhotoIfMissing && photosOverride?.[0]) {
           await attachKeytagPhotoIfMissing(newVehicleId, photosOverride[0]);
         }

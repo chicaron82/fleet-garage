@@ -39,7 +39,7 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   emptyGreeting?: string;
 }) {
   const { user } = useAuth();
-  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, vehicles } = useVehicleHoldContext();
+  const { addHold, addVehicle, updateVehicleFields, setCoverPhoto, attachKeytagPhotoIfMissing, vehicles } = useVehicleHoldContext();
   const { addLostFoundItem } = useLostFoundContext();
   const { messages, loading, error, send, clearProposal, markProposalDone, tts, memory, composer } = useEffie();
   const { draft, setDraft, images, setImages, pendingPhotoContext, setPendingPhotoContext } = composer;
@@ -70,6 +70,12 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
   // instances (auth user, effie-memory store) are passed so they don't fork.
   const confirmProposal = useProposalConfirm({
     user, addHold, addVehicle, updateVehicleFields, setCoverPhoto, addLostFoundItem,
+    // ⚠️⚠️ WITHOUT THIS THE CHAT NEVER SAVED A KEY-TAG PHOTO. `2372e00` (2026-08-13) was titled
+    // "attach the key-tag photo on a conversational register/backfill" and fixed which photo gets
+    // CHOSEN, but this call never passed the attacher, so the hook no-oped on every chat register,
+    // backfill and overflow send for four weeks. Its tests covered only the choosing function, and
+    // went green. Found at /reflect 75 (2026-09-10) chasing an unconsumed `photoIndex`.
+    attachKeytagPhotoIfMissing,
     // ⭐ The live fleet, so an overflow proposal carrying key-tag READS can be DECIDED here —
     // register an unknown car, backfill a partial one. Same deciders as the Movement Log form.
     vehicles,
@@ -166,7 +172,10 @@ export function EffieConversation({ module, onNavigate, onClose, emptyGreeting }
                   markProposalDone(i); // recorded on the MESSAGE so a remount renders the receipt, not a re-confirmable card
                 }}
                 onDismiss={() => clearProposal(i)}
-                onStage={(p) => { void stagePendingWrite(p, 'effie-chat', messages.flatMap((mm) => mm.images ?? [])); clearProposal(i); }}
+                // ⚠️ Staged with the SAME photo scope a tap would use — never the whole conversation.
+                // A flatMap here re-opened the Jul 8 hold-sweeps-every-photo bug on the "Later" path,
+                // and handed a staged register the FIRST image in the chat (possibly another car's tag).
+                onStage={(p) => { void stagePendingWrite(p, 'effie-chat', photosForProposalConfirm(p.kind, messages, i)); clearProposal(i); }}
               />
             )}
             {m.role === 'assistant' && m.photoRequest && i === messages.length - 1 && images.length === 0 && (

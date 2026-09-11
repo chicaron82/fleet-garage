@@ -60,6 +60,10 @@ export function keytagPhotoForProposal(messages: readonly TurnWithImages[], inde
  * photo semantics:
  *  - register_vehicle / update_vehicle → the photo is the KEY TAG; use the reach-back scope so a
  *    conversational register still attaches it (via attachKeytagPhotoIfMissing on confirm).
+ *  - overflow_log → EXACTLY the turn that prompted it. The executor read that turn's tags and
+ *    numbered the cars by `photoIndex` into that list (the chat sends only the current turn's
+ *    photos, `useFgAssistant`). Any wider scope shifts the index and hangs one car's tag on
+ *    another car — the one outcome worse than no photo (2026-09-10).
  *  - everything else (holds, register_and_hold) → the photo is DAMAGE evidence; keep the tight
  *    contiguous scope so a hold never sweeps up an earlier key-tag photo
  *    (bug-misc-effie-hold-attaches-all-photos.md).
@@ -71,6 +75,10 @@ export function photosForProposalConfirm(
 ): string[] {
   if (kind === 'register_vehicle' || kind === 'update_vehicle') {
     return keytagPhotoForProposal(messages, index);
+  }
+  if (kind === 'overflow_log') {
+    const prompt = messages[index - 1];
+    return prompt?.role === 'user' ? [...(prompt.images ?? [])] : [];
   }
   return photosForProposal(messages, index);
 }
