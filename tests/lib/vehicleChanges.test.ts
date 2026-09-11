@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  changeLines, formatValue, fieldLabel, describeChangeTime, changeCountLabel,
-  type VehicleChangeRow, describeActor } from '../../src/lib/vehicleChanges';
+import { changeLines, formatValue, fieldLabel, describeChangeTime, changeCountLabel, type VehicleChangeRow, describeActor, shortFieldLabel, clockOf } from '../../src/lib/vehicleChanges';
 
 const row = (changed: Record<string, unknown>, op: VehicleChangeRow['op'] = 'UPDATE'): VehicleChangeRow =>
   ({ changedAt: '2026-08-18T22:14:00.000Z', op, changed });
@@ -188,5 +186,35 @@ describe('describeActor', () => {
   // be worse than silence — it looks like an answer and identifies nobody.
   it('⚠️ stays silent on an id it cannot resolve, rather than printing it', () => {
     expect(describeActor('8f2c-unknown-uuid', nameFor)).toBe('');
+  });
+});
+
+// Aaron, 2026-09-11, reading his own 54-stop trail: "Maybe shorten/abbreviate some of the actions so
+// things fit?" The short form exists for rows that carry several fields at once.
+describe('shortFieldLabel', () => {
+  it('abbreviates the fields his trail shows most', () => {
+    expect(shortFieldLabel('odometer')).toBe('ODO');
+    expect(shortFieldLabel('keytag_photo_url')).toBe('TAG');
+    expect(shortFieldLabel('color')).toBe('COL');
+    expect(shortFieldLabel('status')).toBe('STAT');
+    expect(shortFieldLabel('key_count')).toBe('KEYS');
+  });
+
+  // ⚠️ A column added later must still SHOW UP, the same rule fieldLabel follows — never dropped,
+  // never invented.
+  it('falls through to the full label for anything unmapped', () => {
+    expect(shortFieldLabel('note_left_by')).toBe('Note left by');
+    expect(shortFieldLabel('some_new_column')).toBe('Some new column');
+  });
+});
+
+describe('clockOf', () => {
+  it('is 24-hour and zero-padded, like the rest of FG', () => {
+    expect(clockOf(new Date(2026, 8, 11, 9, 5).toISOString())).toBe('09:05');
+    expect(clockOf(new Date(2026, 8, 11, 14, 7).toISOString())).toBe('14:07');
+  });
+
+  it('survives a garbage stamp', () => {
+    expect(clockOf('not-a-date')).toBe('—');
   });
 });

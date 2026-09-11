@@ -60,7 +60,7 @@ describe('buildTrail', () => {
     const stops = buildTrail([
       row({ vehicleId: 'car-1', changed: { vin_last9: { from: null, to: 'X' }, odometer: { from: null, to: 7284 } } }),
     ], [ME], resolve);
-    expect(stops[0].did).toEqual(['Odometer']);
+    expect(stops[0].did).toEqual(['ODO']);
   });
 
   it('drops bookkeeping companions, so a capture reads "Odometer" and not "Odometer · Odometer at"', () => {
@@ -70,7 +70,7 @@ describe('buildTrail', () => {
     const stops = buildTrail([
       row({ vehicleId: 'car-1', changed: { odometer: { from: null, to: 7284 }, odometer_at: { from: null, to: '2026-09-03T20:16:00Z' } } }),
     ], [ME], resolve);
-    expect(stops[0].did).toEqual(['Odometer']);
+    expect(stops[0].did).toEqual(['ODO']);
   });
 
   it('folds several writes to one car into a single stop, keeping the newest time', () => {
@@ -81,7 +81,7 @@ describe('buildTrail', () => {
     expect(stops).toHaveLength(1);
     expect(stops[0].touches).toBe(2);
     expect(stops[0].at).toBe('2026-09-05T12:00:00Z');
-    expect(stops[0].did).toEqual(['Odometer', 'Plate']);   // deduped, sorted, FG's own labels
+    expect(stops[0].did).toEqual(['ODO', 'PLATE']);   // deduped, sorted, FG's short labels
   });
 
   it('orders cars newest first', () => {

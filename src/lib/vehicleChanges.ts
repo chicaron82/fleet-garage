@@ -95,6 +95,36 @@ const NOISE = new Set([
  *  than copying the list and drifting from it. */
 export function isNoiseField(column: string): boolean { return NOISE.has(column); }
 
+/**
+ * The SHORT form, for surfaces that show several fields per row — his trail card lists every car he
+ * touched today, and "Key tag photo · Odometer · Colour" wrapped the row and shoved the time around
+ * (Aaron, 2026-09-11: *"Maybe shorten/abbreviate some of the actions so things fit?"*).
+ *
+ * ⚠️ Beside `fieldLabel`, never in the card, so the two names for one column cannot drift. Anything
+ * unmapped falls through to the full label rather than being invented or dropped.
+ */
+const SHORT: Record<string, string> = {
+  odometer: 'ODO', keytag_photo_url: 'TAG', cover_photo_url: 'COVER',
+  color: 'COL', status: 'STAT', key_count: 'KEYS',
+  rental_class: 'CLASS', class_code: 'CODE', owning_area: 'OWN',
+  license_plate: 'PLATE', unit_number: 'UNIT', vin_last9: 'VIN',
+  make: 'MAKE', model: 'MODEL', year: 'YEAR', note: 'NOTE',
+  is_tesla: 'TESLA', is_hybrid: 'HYBRID', has_mobile_cable: 'CABLE', has_j1772_adapter: 'ADAPTER',
+  field_sources: 'SOURCES', archived_at: 'ARCHIVED', branch_id: 'BRANCH',
+};
+
+export function shortFieldLabel(column: string): string {
+  return SHORT[column] ?? fieldLabel(column);
+}
+
+/** 24-hour clock for one stamp — hand-formatted for the reason `describeChangeTime` gives below
+ *  (a device locale would render the same log 12-hour on one phone and 24-hour on another). */
+export function clockOf(iso: string): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '—';
+  return `${String(then.getHours()).padStart(2, '0')}:${String(then.getMinutes()).padStart(2, '0')}`;
+}
+
 export function fieldLabel(column: string): string {
   if (LABELS[column]) return LABELS[column];
   // An unmapped column still gets a readable line rather than being dropped — a column added later
@@ -179,7 +209,7 @@ export function describeChangeTime(iso: string, now: Date = new Date()): string 
   // had converted three hours earlier. That was the WRONG constraint to carry over: the AM/PM ask
   // was his SISTER's, about HER kitchen's order sheet. Aaron reads 24-hour fine and asked for FG to
   // stay consistent. A constraint belongs to a surface and an audience, not to a night.
-  const clock = `${String(then.getHours()).padStart(2, '0')}:${String(then.getMinutes()).padStart(2, '0')}`;
+  const clock = clockOf(iso);
   const sameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 

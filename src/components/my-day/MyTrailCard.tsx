@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useMyTrail, startOfToday } from '../../hooks/useMyTrail';
 import { buildTrail, trailHeadline, stopName } from '../../lib/myTrail';
-import { describeChangeTime } from '../../lib/vehicleChanges';
+import { clockOf } from '../../lib/vehicleChanges';
 
 // Where he has been today — the one surface in FG that speaks about HIM.
 //
@@ -72,14 +72,28 @@ export function MyTrailCard() {
         </span>
       </button>
       {open && (<>
-      <ul className="mt-3 space-y-2">
+      {/* ⭐ ONE GRID FOR THE WHOLE LIST, not a flex row per line — that is what makes the columns
+          line up. Each <li> is `display: contents`, so its three cells join the parent's grid and
+          every row shares the same three tracks. Aaron, 2026-09-11: *"is it possible to display it
+          in a table so items line up."*
+          ⚠️ `min-w-0` on the middle track is what lets the chips wrap instead of pushing the clock
+          off the row on a car he touched five ways. */}
+      <ul className="mt-3 grid grid-cols-[max-content_minmax(0,1fr)_max-content] items-baseline gap-x-3 gap-y-2 text-xs">
+        <li className="contents text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <span>Car</span><span>Did</span><span className="text-right">Time</span>
+        </li>
         {stops.map(stop => (
-          <li key={stop.vehicleId} className="flex items-baseline gap-2 text-xs">
-            <span className="font-medium text-gray-800 dark:text-gray-200 shrink-0">{stopName(stop)}</span>
-            <span className="text-gray-500 dark:text-gray-400 truncate">{stop.did.join(' · ')}</span>
-            <span className="ml-auto text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-              {describeChangeTime(stop.at)}
+          <li key={stop.vehicleId} className="contents">
+            <span className="font-medium tabular-nums text-gray-800 dark:text-gray-200">{stopName(stop)}</span>
+            <span className="flex flex-wrap gap-1 min-w-0">
+              {stop.did.map(d => (
+                <span key={d} className="rounded bg-gray-100 px-1 py-0.5 text-[9px] font-bold tracking-wide text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                  {d}
+                </span>
+              ))}
             </span>
+            {/* No "today" — every row on this card is today, so the word was on all of them. */}
+            <span className="text-right tabular-nums text-gray-400 dark:text-gray-500">{clockOf(stop.at)}</span>
           </li>
         ))}
       </ul>

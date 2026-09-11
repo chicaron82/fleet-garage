@@ -1,5 +1,5 @@
 import { SCRIPT_WRITTEN_FIELDS } from './sightings';
-import { fieldLabel, isNoiseField } from './vehicleChanges';
+import { shortFieldLabel, isNoiseField } from './vehicleChanges';
 import type { VehicleChangeRow } from './vehicleChanges';
 
 /**
@@ -34,7 +34,8 @@ export interface TrailStop {
   at: string;
   /** How many separate writes he made at this car. */
   touches: number;
-  /** FG's own words for what he changed, deduped and ordered — e.g. ["Odometer", "Plate"]. */
+  /** What he changed, deduped and ordered, in FG's SHORT form — e.g. ["ODO", "PLATE"]. Short because
+   *  this card shows several per row and the row has to line up; see vehicleChanges.shortFieldLabel. */
   did: string[];
 }
 
@@ -78,7 +79,7 @@ export function buildTrail(
       // what means a human was at the car, and `NOISE` already decides what is bookkeeping. Copying
       // either would be two judgements drifting apart.
       .filter(f => !SCRIPT_WRITTEN_FIELDS.has(f) && !isNoiseField(f))
-      .map(fieldLabel);
+      .map(shortFieldLabel);
 
     const existing = byCar.get(id);
     if (existing) {
