@@ -25,6 +25,16 @@ vi.mock('../../src/hooks/useFleetAudit', () => ({
   useFleetAudit: () => ({ findings: [], loaded: true, dismiss: vi.fn() }),
 }));
 vi.mock('../../src/hooks/useFleetTrend', () => ({ useFleetTrend: () => ({ baseline: null, rows: [] }) }));
+// The view reads the fleet context (for the auto-archive) and history directly since 2026-09-10.
+// History is still LOADING here, which is exactly the state the auto-archive must stand down in.
+vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ archiveVehicle: vi.fn() }) }));
+vi.mock('../../src/hooks/useFleetHistory', () => ({
+  useFleetHistory: () => ({
+    holdDates: [], flaggedVehicleIds: new Set(), sightingsByVehicle: new Map(), sightingsWeekAgo: new Map(),
+    lastSeenByVehicle: new Map(), lastTripByPlate: new Map(), lastSheetByPlate: new Map(),
+    window: null, loading: true, error: false,
+  }),
+}));
 // ⚠️ The History cards moved into Fleet on 2026-09-06 and they reach for supabase and the vehicle
 // context. This test is about the REGISTER path carrying his typed plate; without the stub the whole
 // tree throws and the body renders empty, which fails as "search box not found" and says nothing

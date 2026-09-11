@@ -50,6 +50,10 @@ export interface FleetHistoryRows {
   sightingsWeekAgo: Map<string, number>;
   /** vehicle_id → its newest sighting (ISO). Orders the cars inside a tie by who came through last. */
   lastSeenByVehicle: Map<string, string>;
+  /** PLATE (upper) → newest non-voided trip departure (ISO). A trip is contact: the car moved. */
+  lastTripByPlate: Map<string, string>;
+  /** PLATE (upper) → newest closing-inventory day it was written on (YYYY-MM-DD). */
+  lastSheetByPlate: Map<string, string>;
   /** The observed sightings window, for the projection. Null until loaded. */
   window: { first: string; last: string; days: number } | null;
   loading: boolean;
@@ -58,7 +62,7 @@ export interface FleetHistoryRows {
 
 const EMPTY: FleetHistoryRows = {
   holdDates: [], flaggedVehicleIds: new Set(), sightingsByVehicle: new Map(),
-  sightingsWeekAgo: new Map(), lastSeenByVehicle: new Map(),
+  sightingsWeekAgo: new Map(), lastSeenByVehicle: new Map(), lastTripByPlate: new Map(), lastSheetByPlate: new Map(),
   window: null, loading: true, error: false,
 };
 
@@ -69,7 +73,12 @@ export function useFleetHistory(): FleetHistoryRows {
     let cancelled = false;
     (async () => {
       try {
-        const [holds, sightings] = await Promise.all([
+        // ⚠️ Trips and closing sheets load here too (2026-09-10) because "has FG had contact with
+        // this car" is ANY trace, not just a sighting. The first auto-archive draft counted only
+        // sightings + holds and would have archived LUR310 — written on the Sep 8 closing sheet and
+        // on the dirty ring that very night. A failed fetch sets `error`, which stands the
+        // auto-archive down rather than letting it read absence as silence.
+        const [holds, sightings, trips, sheets] = await Promise.all([
           fetchAll((from, to) => supabase.from('holds')
             .select('vehicle_id, flagged_at, flagged_by_name')
             .gte('flagged_at', FG_RECORD_START)
@@ -81,9 +90,15 @@ export function useFleetHistory(): FleetHistoryRows {
             .select('vehicle_id, seen_at')
             .order('id')
             .range(from, to)),
+          fetchAll((from, to) => supabase.from('vsa_trips')
+            .select('vehicle_plate, depart_time')
+            .is('voided_at', null)
+            .order('id')
+            .range(from, to)),
+          supabase.from('closing_inventories').select('sheet').limit(1000),
         ]);
         if (cancelled) return;
-        if (holds.error || sightings.error) { setRows(r => ({ ...r, loading: false, error: true })); return; }
+        if (holds.error || sightings.error || trips.error || sheets.error) { setRows(r => ({ ...r, loading: false, error: true })); return; }
 
         const holdDates: string[] = [];
         const flaggedVehicleIds = new Set<string>();
@@ -115,6 +130,22 @@ export function useFleetHistory(): FleetHistoryRows {
           if (!first || d < first) first = d;
           if (!last || d > last) last = d;
         }
+        const lastTripByPlate = new Map<string, string>();
+        for (const t of trips.data) {
+          const plate = (t.vehicle_plate ?? '').toUpperCase();
+          if (plate && t.depart_time && t.depart_time > (lastTripByPlate.get(plate) ?? '')) lastTripByPlate.set(plate, t.depart_time);
+        }
+        const lastSheetByPlate = new Map<string, string>();
+        for (const row of sheets.data ?? []) {
+          const sheet = row.sheet as unknown as { day?: string; entries?: { plate?: string; deleted?: boolean }[] } | null;
+          const day = sheet?.day;
+          if (!day) continue;
+          for (const e of sheet.entries ?? []) {
+            const plate = (e.plate ?? '').toUpperCase();
+            if (plate && !e.deleted && day > (lastSheetByPlate.get(plate) ?? '')) lastSheetByPlate.set(plate, day);
+          }
+        }
+
         // ⚠️ Inclusive day count. Aug 17 → Sep 3 is 18 days of tracking, not 17 — an off-by-one here
         // makes the per-day rate high and every projection with it.
         const days = first && last
@@ -123,6 +154,7 @@ export function useFleetHistory(): FleetHistoryRows {
 
         setRows({
           holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
+          lastTripByPlate, lastSheetByPlate,
           window: first ? { first, last, days } : null,
           loading: false, error: false,
         });

@@ -51,10 +51,21 @@ export const FLEET_COHORTS: readonly FleetCohort[] = [
     // archive. A quiet car may be on a long rental or at the airport; he archives the ones he KNOWS
     // are gone. Met-then-quiet only — a never-seen car describes the log's age, not the yard.
     // Same threshold as the record's amber "Seen" chip (sightings.QUIET_AFTER_DAYS), on purpose.
+    //
+    // ⚠️⚠️ PLUS EXCEPTION CARS FG NEVER SAW (same night, an hour later). The two he actually meant — a
+    // Durango and a Sienna out on exception since April — have NO sighting at all, because they left
+    // before sightings existed, so "met-then-quiet" could not see them. An exception car is EXPECTED
+    // BACK, so its hold is real contact and silence after it means something. Every OTHER never-seen
+    // car stays out: counting all holds would balloon the chip from 56 to 171 with pre-existing cars
+    // that are simply out on rent and haven't come through since Aug 16.
+    //
+    // ⭐ "Quiet" is now measured from `lastContact` — ANY trace (sighting, gas-sheet odometer, trip,
+    // closing sheet, and for exception cars the hold), so a car on last night's inventory is not
+    // quiet just because nobody scanned it.
     id: 'gone-quiet',
     label: `Quiet ${QUIET_AFTER_DAYS}d+`,
     icon: '💤',
-    match: (v, now) => isQuietSince(v.lastSeenAt, now),
+    match: (v, now) => isQuietSince(lastContactAt(v), now),
   },
 ];
 
@@ -69,6 +80,59 @@ export function fleetCohortCounts(vehicles: readonly FleetVehicle[], now: number
     }
   }
   return counts;
+}
+
+export type ContactVia = 'seen' | 'odometer' | 'trip' | 'sheet' | 'exception';
+
+export const CONTACT_LABEL: Record<ContactVia, string> = {
+  seen: 'seen', odometer: 'gas sheet / odometer', trip: 'trip', sheet: 'closing sheet', exception: 'went out on exception',
+};
+
+/**
+ * The newest trace FG has of a car, and what it was. Physical traces count for every car: a
+ * sighting, an odometer reading (gas sheets land here), a trip, a closing-inventory line. The HOLD
+ * counts only for an EXCEPTION car — it's expected back, so its hold is real contact — while a
+ * pre-existing car's April hold says nothing about whether it's still around (the 56 → 171 flood).
+ * Null when FG has no trace at all.
+ */
+export function lastContact(v: FleetVehicle): { at: string; via: ContactVia } | null {
+  const cands: { at: string | null | undefined; via: ContactVia }[] = [
+    { at: v.lastSeenAt, via: 'seen' },
+    { at: v.odometerAt, via: 'odometer' },
+    { at: v.lastTripAt, via: 'trip' },
+    { at: v.lastSheetAt, via: 'sheet' },
+    { at: v.status === 'on-exception' ? (v.holdActivityAt ?? v.holdFlaggedAt) : null, via: 'exception' },
+  ];
+  let best: { at: string; via: ContactVia } | null = null;
+  for (const c of cands) {
+    if (!c.at || Number.isNaN(Date.parse(c.at))) continue;
+    if (!best || Date.parse(c.at) > Date.parse(best.at)) best = { at: c.at, via: c.via };
+  }
+  return best;
+}
+
+export function lastContactAt(v: FleetVehicle): string | null {
+  return lastContact(v)?.at ?? null;
+}
+
+/** No contact for this long and an exception car is archived automatically (Aaron, 2026-09-10). */
+export const AUTO_ARCHIVE_AFTER_DAYS = 60;
+
+/**
+ * Exception cars FG has had no contact with — no trace of any kind (see `lastContact`) — for
+ * `AUTO_ARCHIVE_AFTER_DAYS`. The Fleet view archives these on open and tells him which.
+ *
+ * ⭐ His call, with its safety net named: *"its reversible, if by chance it shows up on a scan, then
+ * we can just restore it at that point in time."* EXCEPTION ONLY: an exception car is expected back,
+ * so 60 days of nothing means it went somewhere FG will never see (sold, transferred, written off).
+ * A pre-existing or clear car that goes quiet is usually just out on rent; it only reaches the chip.
+ */
+export function autoArchiveCandidates(vehicles: readonly FleetVehicle[], now: number = Date.now()): FleetVehicle[] {
+  return vehicles.filter(v => {
+    if (v.status !== 'on-exception') return false;
+    const last = lastContactAt(v);
+    return last !== null && now - Date.parse(last) > AUTO_ARCHIVE_AFTER_DAYS * 86_400_000;
+  });
 }
 
 /** Does a vehicle belong to the selected cohort? `null` = no cohort filter → everything matches. */

@@ -43,6 +43,17 @@ export interface FleetVehicle {
   /** Newest sighting (ISO), joined in by the Fleet view from the sightings it already loads.
    *  Optional because `loadFleet` doesn't carry it; absent = FG has no sighting of the car. */
   lastSeenAt?: string | null;
+  /** The newest hold ACTIVITY across every hold on the car — a flag or a release, whichever is
+   *  latest. It's the "last contact" the quiet chip and the auto-archive measure from when FG has
+   *  no sighting. (The Durango: out on exception Apr 13, flagged again and out again May 1 — so
+   *  May 1, which the display hold alone would have missed.) Undefined when the car has no holds. */
+  holdActivityAt?: string;
+  /** When the odometer was last recorded — a gas-sheet or dash reading is contact with the car. */
+  odometerAt?: string | null;
+  /** Newest non-voided trip departure for this plate (joined in by the Fleet view). */
+  lastTripAt?: string | null;
+  /** Newest closing-inventory day this plate was written on (joined in by the Fleet view). */
+  lastSheetAt?: string | null;
 }
 
 /**
@@ -73,7 +84,7 @@ export interface HoldRow {
   hold_types: string[] | null;
   status: string;
   created_at: string;
-  releases: Array<{ release_type: string; actual_return: string | null }> | null;
+  releases: Array<{ release_type: string; actual_return: string | null; created_at?: string | null }> | null;
 }
 
 export interface FleetVehicleRow {
@@ -93,6 +104,7 @@ export interface FleetVehicleRow {
   key_count?: number | null;
   keytag_photo_url?: string | null;
   created_at?: string | null;
+  odometer_at?: string | null;
 }
 
 function fmtType(t: string): string {
@@ -149,6 +161,15 @@ export function buildFleetView(
 
   const result: FleetVehicle[] = vehicles.map(v => {
     const vehicleHolds = holdsByVehicle.get(v.id) ?? [];
+    // ⚠️ `holds` has NO released_at column — the release time lives on `releases.created_at`. (A
+    // first draft selected `holds.released_at`, which would have failed the whole holds query and
+    // shown every car as clear.)
+    const activityStamps = vehicleHolds
+      .flatMap(h => [h.created_at, ...(h.releases ?? []).map(r => r.created_at)])
+      .filter((s): s is string => !!s && !Number.isNaN(Date.parse(s)));
+    const holdActivityAt = activityStamps.length
+      ? activityStamps.reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b))
+      : undefined;
 
     let status: FleetStatus = 'clear';
     let holdId: string | undefined;
@@ -200,6 +221,7 @@ export function buildFleetView(
       holdId,
       holdType,
       holdFlaggedAt,
+      holdActivityAt,
       branchId:        v.branch_id ?? 'YWG',
       isTesla:         v.is_tesla,
       isHybrid:        v.is_hybrid ?? false,
@@ -209,6 +231,7 @@ export function buildFleetView(
       keyCount:        v.key_count ?? null,
       keytagPhotoUrl:  v.keytag_photo_url ?? null,
       createdAt:       v.created_at ?? null,
+      odometerAt:      v.odometer_at ?? null,
     };
   });
 
@@ -224,7 +247,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const [vehiclesRes, holdsRes] = await Promise.all([
     supabase
       .from('vehicles')
-      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url, created_at')
+      .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url, created_at, odometer_at')
       .eq('branch_id', branchId)
       // Archived (sold/auctioned) cars are a separate concern everywhere else in the app
       // (VehicleHoldContext filters `!v.archivedAt`); the master view + its health counts
@@ -232,7 +255,7 @@ export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
       .is('archived_at', null),
     supabase
       .from('holds')
-      .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return)')
+      .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return, created_at)')
       .eq('branch_id', branchId)
       .in('status', ['ACTIVE', 'RELEASED']),
   ]);

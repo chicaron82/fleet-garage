@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
-import { fleetCohortCounts, matchesCohort, type FleetCohortId } from '../../lib/fleetCohorts';
+import { fleetCohortCounts, matchesCohort, autoArchiveCandidates, lastContact, AUTO_ARCHIVE_AFTER_DAYS, CONTACT_LABEL, type FleetCohortId } from '../../lib/fleetCohorts';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { pushNotification } from '../../lib/garage-uploads';
 import { FleetHealthChips } from './FleetHealthChips';
 import { FleetHistorySection } from '../analytics/FleetHistorySection';
-import { useFleetHistory } from '../../hooks/useFleetHistory';
+import { useFleetHistory, type FleetHistoryRows } from '../../hooks/useFleetHistory';
 import { FleetArchivedSection } from './FleetArchivedSection';
 import { FleetAuditPanel } from './FleetAuditPanel';
 import { useFleetAudit } from '../../hooks/useFleetAudit';
@@ -35,6 +37,20 @@ const STATUS_GROUPS: { status: FleetStatus; label: string; dot: string; badgeCla
   { status: 'clear',              label: 'Clear',              dot: '⚪', badgeClass: 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700',             headerClass: 'text-gray-600 dark:text-gray-400' },
 ];
 
+/** Every trace FG has of each car rides on the row, so the quiet cohort and the auto-archive stay
+ *  plain predicates over one shape (see fleetCohorts.lastContact). */
+function withTraces(vehicles: FleetVehicle[], h: FleetHistoryRows): FleetVehicle[] {
+  return vehicles.map(v => {
+    const plate = v.licensePlate.toUpperCase();
+    return {
+      ...v,
+      lastSeenAt: h.lastSeenByVehicle.get(v.id) ?? null,
+      lastTripAt: h.lastTripByPlate.get(plate) ?? null,
+      lastSheetAt: h.lastSheetByPlate.get(plate) ?? null,
+    };
+  });
+}
+
 function fmtRelative(iso: string): string {
   const hours = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
   if (hours < 24) return `${hours}h ago`;
@@ -50,6 +66,32 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const [collapsed, setCollapsed] = useState<Set<FleetStatus>>(new Set(COLLAPSED_BY_DEFAULT));
   // Fetched once, shared: the history cards AND the "gone quiet" chip read the same sightings.
   const history = useFleetHistory();
+  const { archiveVehicle } = useVehicleHoldContext();
+
+  // ⭐ AUTO-ARCHIVE, his call (2026-09-10): exception cars with no contact for AUTO_ARCHIVE_AFTER_DAYS
+  // are archived through the app's own archive (holds voided the same way), once per visit, and he
+  // gets ONE notification naming them — nothing disappears silently. Reversible: a scan finds them
+  // and restores.
+  // ⚠️⚠️ ONLY WITH SIGHTINGS LOADED AND GOOD. An empty or failed sightings fetch makes every car look
+  // never-seen, which would archive exception cars he saw yesterday. `history.error` and
+  // `history.loading` both stand this down.
+  const autoArchiveRan = useRef(false);
+  useEffect(() => {
+    if (autoArchiveRan.current || loading || vehicles.length === 0 || history.loading || history.error || !user) return;
+    autoArchiveRan.current = true;
+    const candidates = autoArchiveCandidates(withTraces(vehicles, history));
+    if (candidates.length === 0) return;
+    void (async () => {
+      for (const c of candidates) await archiveVehicle(c.id);
+      const ids = candidates.map(c => c.id);
+      await pushNotification(
+        user.branchId, [], '📦',
+        `Auto-archived ${ids.length} exception car${ids.length === 1 ? '' : 's'} FG hasn't had contact with in ${AUTO_ARCHIVE_AFTER_DAYS}+ days: ${candidates.map(c => c.licensePlate).join(', ')}. Scan one to restore it.`,
+        'info', { autoArchived: ids }, user.id,
+      );
+      setVehicles(prev => prev.filter(v => !ids.includes(v.id)));
+    })();
+  }, [loading, vehicles, history, user, archiveVehicle]);
 
   useEffect(() => {
     if (!user?.branchId) return;
@@ -65,7 +107,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   // Cohort counts are the whole-fleet PULSE — always over the full loaded set, never narrowed by
   // the search box (search finds a car; the chips report fleet health).
   // Each car carries its newest sighting so the "gone quiet" cohort can be a plain predicate.
-  const seen = vehicles.map(v => ({ ...v, lastSeenAt: history.lastSeenByVehicle.get(v.id) ?? null }));
+  const seen = withTraces(vehicles, history);
   const cohortCounts = fleetCohortCounts(seen);
   const filtered = seen.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
 
@@ -270,11 +312,14 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           </div>
                         )}
                         {/* Working the quiet list, the question per row is "when did FG last have it?" */}
-                        {cohort === 'gone-quiet' && v.lastSeenAt && (
-                          <p className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-400">
-                            💤 Last seen {new Date(v.lastSeenAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} · {fmtRelative(v.lastSeenAt)}
-                          </p>
-                        )}
+                        {cohort === 'gone-quiet' && (() => {
+                          const c = lastContact(v);
+                          return c ? (
+                            <p className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+                              💤 Last contact {new Date(c.at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} · {fmtRelative(c.at)} · {CONTACT_LABEL[c.via]}
+                            </p>
+                          ) : null;
+                        })()}
                       </button>
                       );
                     })}
