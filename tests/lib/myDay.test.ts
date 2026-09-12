@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SHIFT_DAY_CUTOVER_HOUR } from '../../src/lib/shiftDay';
 import {
   greeting, carsCleaned, teammatesOnToday, deriveMyDay, nextAttendance,
 } from '../../src/lib/myDay';
@@ -20,7 +21,7 @@ function shift(over: Partial<ShiftWithUser> & { userId: string; date: string; sh
 
 describe('greeting', () => {
   it('splits morning / afternoon / evening at 12 and 17', () => {
-    expect(greeting(0)).toBe('Good morning');
+    expect(greeting(4)).toBe('Good morning');
     expect(greeting(11)).toBe('Good morning');
     expect(greeting(12)).toBe('Good afternoon');
     expect(greeting(16)).toBe('Good afternoon');
@@ -232,5 +233,26 @@ describe('deriveMyDay', () => {
     expect(deriveMyDay({ ...base, shifts, handoff, handoffIsToday: true }).carsCleanedThisShift).toBe(59);
     expect(deriveMyDay({ ...base, shifts, handoff, handoffIsToday: false }).carsCleanedThisShift).toBeNull();
     expect(deriveMyDay({ ...base, shifts }).isMid).toBe(true);
+  });
+});
+
+// ⭐ Aaron, 2026-09-12, having closed at 00:07 and been told "Good morning": *"'greetings' for all
+// others"*. `hour < 12` swallowed midnight-to-noon whole, so the small hours got a sunrise greeting.
+// The boundary is the SHIFT CUTOVER — the same hours that are neither night-before nor morning-after.
+describe('greeting — the small hours', () => {
+  it('greets the dead hours with Greetings, not a sunrise', () => {
+    expect(greeting(0)).toBe('Greetings');
+    expect(greeting(1)).toBe('Greetings');
+    expect(greeting(3)).toBe('Greetings');
+  });
+
+  it('hands over to morning exactly at the cutover', () => {
+    expect(greeting(SHIFT_DAY_CUTOVER_HOUR - 1)).toBe('Greetings');
+    expect(greeting(SHIFT_DAY_CUTOVER_HOUR)).toBe('Good morning');
+  });
+
+  it('leaves the rest of the day alone', () => {
+    expect(greeting(12)).toBe('Good afternoon');
+    expect(greeting(23)).toBe('Good evening');
   });
 });

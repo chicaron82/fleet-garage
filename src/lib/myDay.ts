@@ -1,13 +1,26 @@
 // Pure derivations for the "My Day" cockpit. Kept out of the component + hook so
 // the shift/team/greeting logic is testable without React or context. The hook
 // (useMyDay) assembles the live inputs; the view just renders this model.
+import { SHIFT_DAY_CUTOVER_HOUR } from './shiftDay';
 import type { ShiftWithUser, HandoffNote, Attendance, ShiftType, UserRole } from '../types';
 import { isFullDayShift } from '../types';
 import { SHIFT_TYPE_LABEL, fmtTime24, shiftTimeRange } from './shiftTypeMeta';
 import { deriveScheduleInsights, type ScheduleInsight } from './scheduleInsights';
 
-/** Time-of-day greeting from a 0–23 hour. */
+/**
+ * Time-of-day greeting from a 0–23 hour.
+ *
+ * ⭐ THE SMALL HOURS GET THEIR OWN WORD (Aaron, 2026-09-12, after closing at 00:07 and being told
+ * "Good morning"): *"'greetings' for all others"*. `hour < 12` had swallowed midnight-to-noon whole,
+ * so a closer finishing his shift at one in the morning was greeted like a sunrise.
+ *
+ * ⭐⭐ The boundary is `SHIFT_DAY_CUTOVER_HOUR`, not a loose 4, and the coupling is meaningful rather
+ * than convenient: the cutover is DEFINED as the hour after the last person is still logging work and
+ * before the earliest fresh clock-in ­— which is exactly the stretch that is neither night-before nor
+ * morning-after. The greeting's odd window and the shift day's odd window are the same window.
+ */
 export function greeting(hour: number): string {
+  if (hour < SHIFT_DAY_CUTOVER_HOUR) return 'Greetings';
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
