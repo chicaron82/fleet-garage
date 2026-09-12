@@ -76,6 +76,60 @@ export function groupOverflowSends(
   return { scope: 'current', total: seen.size, groups };
 }
 
+/**
+ * The overflow spots as COLUMNS, in the order Aaron reads them — from his own sketch of the card
+ * (2026-09-11): `FastAir    AV Flight`. Fixed order is the point: a day where nothing went to one
+ * of them still shows that column empty, so the eye lands in the same place scanning day to day
+ * instead of the columns swapping seats whenever a destination is quiet.
+ */
+export const MANIFEST_COLUMNS: readonly string[] = ['FastAir', 'AV Flight'];
+
+/** One shift-day of sends, shaped for a column-per-destination read. */
+export interface OverflowDay {
+  /** Business shift-date (YYYY-MM-DD) — 04:00 cutover, so a 00:30 send belongs to the night before. */
+  date: string;
+  total: number;
+  groups: { destination: string; count: number; vehicles: string[] }[];
+}
+
+/**
+ * Every shift-day that had a send, NEWEST FIRST.
+ *
+ * ⭐ WHY THIS EXISTS (Aaron, 2026-09-11, after seeing the first cut): *"Ahh I was thinking to show
+ * what was last sent there."* The card's first build answered "what went today", which on a normal
+ * day is nothing — an empty card in the slot he'd just cleared of noise. The question he actually
+ * carries is **when did we last send, and what went** — so the card leads with the newest day that
+ * has anything in it, whether that is today or nine days ago.
+ *
+ * Days with no sends simply don't appear. A quiet Tuesday is not a row; it's the absence between
+ * two rows, and printing it would pad the list with nothing.
+ *
+ * ⚠️ Every day is built through `groupOverflowSends(rows, 'day', …)` rather than a second grouping
+ * pass, so a day here and Effie's "what was sent on the 9th" cannot disagree — same no-dedup rule,
+ * same plate-first labels, same times.
+ */
+export function groupOverflowDays(rows: readonly SentRow[]): OverflowDay[] {
+  const dates = [...new Set(
+    rows.filter((r) => r.depart_time).map((r) => shiftBusinessDate(new Date(r.depart_time!))),
+  )].sort().reverse();
+
+  return dates.map((date) => {
+    const day = groupOverflowSends(rows, 'day', date);
+    const byDest = new Map(day.groups.map((g) => [g.destination, g]));
+    return {
+      date,
+      total: day.total,
+      groups: [
+        ...MANIFEST_COLUMNS.map((d) => byDest.get(d) ?? { destination: d, count: 0, vehicles: [] }),
+        // ⚠️ Anything stored that isn't a current column still shows — 'Airport' is retired as an
+        // offered destination but remains in history, and a manifest that silently dropped those
+        // rows would be wrong about the past (the same rule `OVERFLOW_DESTINATIONS` follows).
+        ...day.groups.filter((g) => !MANIFEST_COLUMNS.includes(g.destination)),
+      ],
+    };
+  });
+}
+
 /** Local 24h clock, the way the lot reads times. Exported: the executor's unsend candidates
  *  stamp their times with the SAME formatter the manifest uses. */
 export function hhmm(iso: string): string {
