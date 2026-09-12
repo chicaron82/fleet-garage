@@ -38,8 +38,8 @@ describe('describeOverflowProposal', () => {
   });
 
   it('uses the singular for exactly one vehicle', () => {
-    expect(describeOverflowProposal(buildOverflowProposal('Airport', [veh('A1')]))).toBe(
-      'log 1 vehicle sent to Airport',
+    expect(describeOverflowProposal(buildOverflowProposal('FastAir', [veh('A1')]))).toBe(
+      'log 1 vehicle sent to FastAir',
     );
   });
 

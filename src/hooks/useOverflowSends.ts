@@ -15,8 +15,11 @@ import { groupOverflowDays, type OverflowDay, type SentRow } from '../../api/_li
  * The first build scoped to the current shift-day, which on a normal day renders an empty card. This
  * asks for the whole record and lets the newest day that HAS sends lead.
  *
- * ⚠️ `OVERFLOW_DESTINATIONS`, not the UI pair: 'Airport' is no longer offered as a destination but
- * history holds sends to it, and a manifest that silently dropped them would be wrong about the past.
+ * ⚠️ RICHARDSON IS NOT OVERFLOW (Aaron, 2026-09-11: *"anything sent to Richardson doesn't count…
+ * it's sitting in an O or P stall available for rent"*), so 'Airport' is not in the list any more.
+ * It never should have been: the driver-trip flow writes that same value for an ordinary shuttle
+ * run, so this card was showing normal trips as overflow sends. The manifest now enforces the set
+ * itself; this filter is the query-side half of the same rule.
  */
 export interface OverflowSends {
   /** Days with at least one send, newest first. */

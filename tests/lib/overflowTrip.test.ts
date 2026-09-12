@@ -23,7 +23,7 @@ describe('buildOverflowTrip', () => {
   });
 
   it('derives one deterministic timestamp for depart and arrive from nowMs', () => {
-    const t = buildOverflowTrip({ plate: 'KUR250', unit: '250' }, 'Airport', 'd', null, NOW, 0);
+    const t = buildOverflowTrip({ plate: 'KUR250', unit: '250' }, 'AV Flight', 'd', null, NOW, 0);
     const iso = new Date(NOW).toISOString();
     expect(t.depart_time).toBe(iso);
     expect(t.arrive_time).toBe(iso);

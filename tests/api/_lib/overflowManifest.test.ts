@@ -56,13 +56,26 @@ describe('the columns hold their places', () => {
   });
 });
 
-describe('history the columns no longer cover', () => {
-  // ⚠️ 'Airport' is retired as an offered destination but still sits in past rows. A manifest that
-  // dropped them would be quietly wrong about the past — so it rides along after the two columns.
-  it('still shows a retired destination, after the current columns', () => {
-    const day = groupOverflowDays([at('2026-09-09T19:10:00Z', 'Airport', 'LUR551')])[0];
-    expect(day.groups.map(g => g.destination)).toEqual([...MANIFEST_COLUMNS, 'Airport']);
+// ⭐⭐ Aaron, 2026-09-11: *"Remove the airport ones, anything sent to Richardson doesn't count. It's
+// sent to their lot so they have it and can keep track of it. Since it's sitting in an O or P stall
+// available for rent. FastAir and AV Flight are different."*
+//
+// ⚠️ And it was never only redundant: `arrive_location: 'Airport'` is what the ORDINARY driver-trip
+// flow writes for a shuttle run, so counting it made two May airport runs (KUR 261, LUR193) render
+// on the card as overflow sends. A rentable car in an O stall is not parked away anywhere.
+describe('the airport is not overflow', () => {
+  it('drops an airport run entirely — not a column, not a day', () => {
+    expect(groupOverflowDays([at('2026-09-09T19:10:00Z', 'Airport', 'LUR551')])).toEqual([]);
+  });
+
+  it('keeps the real sends on a day that also has an airport run', () => {
+    const day = groupOverflowDays([
+      at('2026-09-09T19:10:00Z', 'Airport', 'LUR551'),
+      at('2026-09-09T16:57:00Z', 'FastAir', 'LUR571'),
+    ])[0];
     expect(day.total).toBe(1);
+    expect(day.groups.map(g => g.destination)).toEqual([...MANIFEST_COLUMNS]);
+    expect(day.groups.find(g => g.destination === 'FastAir')!.vehicles).toEqual(['LUR571 · 11:57']);
   });
 });
 

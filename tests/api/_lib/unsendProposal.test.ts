@@ -40,7 +40,7 @@ describe('pickUnsendTarget — and its refusal', () => {
   });
 
   it('hands back EVERY candidate, so the operator chooses from the real set', () => {
-    const t = pickUnsendTarget([c('a', 'FastAir', '09:00'), c('b', 'FastAir', '11:33'), c('c', 'Airport', '14:00')]);
+    const t = pickUnsendTarget([c('a', 'FastAir', '09:00'), c('b', 'FastAir', '11:33'), c('c', 'AV Flight', '14:00')]);
     if (!t.ok && t.why === 'ambiguous') expect(t.candidates).toHaveLength(3);
     else throw new Error('expected an ambiguous refusal');
   });

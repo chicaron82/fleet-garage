@@ -97,8 +97,18 @@ describe('a stack is not all-or-nothing', () => {
 describe('typed plates still work, and mix', () => {
   it('⭐ photos with no plates at all is a complete instruction', async () => {
     readKeytagPhoto.mockResolvedValue({ plate: 'LUR537' });
-    const out = await executeProposeOverflowLog(supabase, { destination: 'Airport' }, PHOTOS(1));
+    const out = await executeProposeOverflowLog(supabase, { destination: 'AV Flight' }, PHOTOS(1));
     expect(out.proposal).not.toBeNull();
+  });
+
+  // ⭐⭐ Aaron, 2026-09-11: *"anything sent to Richardson doesn't count… it's sitting in an O or P
+  // stall available for rent."* A car at the airport is in circulation and the airport tracks it;
+  // drafting it as an overflow send would put a rentable car on the "parked elsewhere" manifest.
+  it('REFUSES the airport — a Richardson run is a trip, not an overflow send', async () => {
+    readKeytagPhoto.mockResolvedValue({ plate: 'LUR537' });
+    const out = await executeProposeOverflowLog(supabase, { destination: 'Airport' }, PHOTOS(1));
+    expect(out.proposal).toBeNull();
+    expect(JSON.parse(out.toolResult).ok).toBe(false);
   });
 
   it('a typed plate the photos did not cover is still added', async () => {

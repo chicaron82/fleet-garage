@@ -22,7 +22,7 @@ import { hapticLight } from '../../lib/haptics';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useOverflowSend, type OverflowSend } from '../../hooks/useOverflowSend';
 import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
-import { OVERFLOW_UI_DESTINATIONS } from '../../../api/_lib/overflowProposal';
+import { OVERFLOW_DESTINATIONS } from '../../../api/_lib/overflowProposal';
 import { Toast } from '../shared/Toast';
 import { PhotoError } from '../../components/shared/PhotoError';
 
@@ -74,7 +74,7 @@ export function OverflowSendForm({ onLogged, plate, onPlateSent }: {
           With no plate it just arms the destination for the stack below — same control, and which
           job it is doing is visible from whether a plate is filled in. */}
       <div className="flex gap-1">
-        {OVERFLOW_UI_DESTINATIONS.map(d => (
+        {OVERFLOW_DESTINATIONS.map(d => (
           <button
             key={d}
             type="button"

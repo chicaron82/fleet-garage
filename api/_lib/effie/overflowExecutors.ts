@@ -102,7 +102,9 @@ export async function executeProposeOverflowLog(
       proposal: null,
       toolResult: JSON.stringify({
         ok: false,
-        reason: 'Need at least one plate or key-tag photo, and a destination of AV Flight, FastAir, or Airport.',
+        // ⚠️ The airport is not an option: a run to Richardson is an ordinary trip, not an overflow
+        // send, and logging it as one puts a rentable car on the "parked elsewhere" manifest.
+        reason: 'Need at least one plate or key-tag photo, and a destination of AV Flight or FastAir.',
       }),
     };
   }

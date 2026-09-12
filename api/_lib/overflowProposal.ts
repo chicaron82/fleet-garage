@@ -5,27 +5,39 @@
 // Owns the destination taxonomy so the server tool, the client card, and the trip
 // builder all share one source (client/src may import api/_lib; the reverse can't).
 
-/** The overflow spots FG sends surplus vehicles to at end of shift. "Airport" = Richardson International. */
-export type OverflowDestination = 'AV Flight' | 'FastAir' | 'Airport';
-export const OVERFLOW_DESTINATIONS: readonly OverflowDestination[] = ['AV Flight', 'FastAir', 'Airport'];
-
 /**
- * ⭐⭐ THE SPOTS THE UI OFFERS — and 'Airport' is deliberately not one of them.
+ * The overflow spots FG sends surplus vehicles to at end of shift.
  *
- * Aaron, 2026-09-09: *"an overflow sent to the airport is redundant. airport is the default. if
- * there's no room we offload some to AV Flight and FastAir."* An airport run is a TRIP, started
- * from the same card; overflow is the pair of spots used when the airport will not take any more.
+ * ⭐⭐ RICHARDSON IS NOT ONE OF THEM, and this is a fact about the BUSINESS, not a display choice
+ * (Aaron, 2026-09-11): *"anything sent to Richardson doesn't count. It's sent to their lot so they
+ * have it and can keep track of it. Since it's sitting in an O or P stall available for rent.
+ * FastAir and AV Flight are different."*
  *
- * ✅ Proven by a row DiZee wrote at 17:20 that same day, correcting a car's location: it rendered
- * `Airport Run → Airport`. Nonsense on its face, and it goes out in the screenshot he sends his
- * manager.
+ * A car at the airport is IN CIRCULATION — rentable, sitting in an O or P stall, and the airport is
+ * tracking it. A car at FastAir or AV Flight is parked out of the way where nobody is counting it
+ * but us. "What did we send to overflow" asks about the second kind only.
  *
- * ⚠️⚠️ **`'Airport'` REMAINS A VALID STORED VALUE, and `OVERFLOW_DESTINATIONS` above is unchanged.**
- * Effie's `lookup_sent` groups by `arrive_location` and there is history holding it. This list is
- * what a person can PICK; that one is what the system can READ. Narrowing the wrong one would
- * silently drop every past airport send out of the manifest.
+ * ⚠️⚠️ 'Airport' USED TO BE IN THIS LIST, and that was not merely redundant — the driver-trip flow
+ * writes `arrive_location: 'Airport'` for an ORDINARY SHUTTLE RUN (`hooks/driverTripReducer`
+ * LOCATIONS), so every surface filtering on this list was also scooping up normal airport runs. Two
+ * May trips (KUR 261, LUR193) rendered on the My Day card as overflow sends; they were never sends.
+ *
+ * Nothing is deleted by this: those rows are real trips and keep their place in `vsa_trips` and the
+ * Movement Log. They simply stop being counted as overflow.
  */
-export const OVERFLOW_UI_DESTINATIONS: readonly OverflowDestination[] = ['AV Flight', 'FastAir'];
+export type OverflowDestination = 'AV Flight' | 'FastAir';
+export const OVERFLOW_DESTINATIONS: readonly OverflowDestination[] = ['AV Flight', 'FastAir'];
+
+// ⭐ HISTORY OF THIS LIST, because it was narrowed in two steps and the second one undid the first's
+// reasoning. 2026-09-09, Aaron: *"an overflow sent to the airport is redundant. airport is the
+// default. if there's no room we offload some to AV Flight and FastAir."* — so a separate
+// OVERFLOW_UI_DESTINATIONS was added to drop 'Airport' from what a person could PICK, while the
+// read-side list kept it "so history isn't silently dropped from the manifest".
+//
+// ⚠️ That split was the mistake. Keeping 'Airport' readable didn't preserve history, it manufactured
+// it: the rows it surfaced were ordinary shuttle runs, not sends. With the taxonomy corrected above
+// the two lists hold the same two spots, so there is ONE list again — a pair of identical constants
+// is just an invitation for a future change to land on one of them.
 
 /**
  * ⭐⭐ THE TAG READ, when this vehicle came from a photo rather than a typed plate.

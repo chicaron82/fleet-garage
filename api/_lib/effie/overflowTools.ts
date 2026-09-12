@@ -11,7 +11,7 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
   {
     name: 'lookup_sent',
     description:
-      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir / Airport), grouped, for the operator to copy into a reply. TWO DIFFERENT QUESTIONS: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later. "day" (with a `date`) = WHAT WAS SENT on that specific day — "what went to FastAir yesterday?", "what did we send Saturday?", "what did I send this shift?" (omit the date for today). ⚠️ Ask for a DAY whenever the operator names or implies a day: "current" would answer with where things are NOW, which is a different and quietly wrong answer for a past day — a car sent yesterday and moved since would show its new spot and drop out of yesterday. A day answer lists every send that day with its time, so a car sent twice reads as two moves. Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
+      'The overflow MANIFEST — which vehicles are at which overflow spot (AV Flight / FastAir), grouped, for the operator to copy into a reply. TWO DIFFERENT QUESTIONS: "current" (default) = where every overflow vehicle is NOW (latest send per vehicle, across days) — answers "where are the overflow cars?" / a management email even days later. "day" (with a `date`) = WHAT WAS SENT on that specific day — "what went to FastAir yesterday?", "what did we send Saturday?", "what did I send this shift?" (omit the date for today). ⚠️ Ask for a DAY whenever the operator names or implies a day: "current" would answer with where things are NOW, which is a different and quietly wrong answer for a past day — a car sent yesterday and moved since would show its new spot and drop out of yesterday. A day answer lists every send that day with its time, so a car sent twice reads as two moves. Read-only. Use this for the WHOLE list; lookup_vehicle_location is for one named vehicle.',
     input_schema: {
       type: 'object',
       properties: {
@@ -35,7 +35,7 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: {
         plate: { type: 'string', description: 'Plate or unit number of the vehicle, e.g. "LUR247" or "5424932".' },
-        destination: { type: 'string', description: 'Which spot the bad send was logged to — "AV Flight", "FastAir" or "Airport". Use it to narrow when several match.' },
+        destination: { type: 'string', description: 'Which spot the bad send was logged to — "AV Flight" or "FastAir". Use it to narrow when several match.' },
         date: { type: 'string', description: 'The day the bad send was logged, YYYY-MM-DD, resolved against the "Today is" line. Use it to narrow when several match.' },
         time: { type: 'string', description: 'Local 24h time of the bad send, "HH:MM", exactly as the candidate list showed it. The last resort when a car was sent twice to the same spot on the same day.' },
         reason: { type: 'string', description: 'The operator\'s own words for why it did not go, if they said — e.g. "driver took different cars". Optional.' },
@@ -46,7 +46,7 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
   {
     name: 'propose_overflow_log',
     description:
-      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to the airport". DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action. ⭐ IF THE OPERATOR ATTACHED KEY-TAG PHOTOS, DO NOT TRANSCRIBE THEM — call this tool and let it read them. It runs the same measured two-tier reader the scanner uses and keeps every field on the tag (unit, owning area, rental class, model code, VIN, colour), which registers a car FG does not know and fills the blanks on one it only half-knows. Anything you type from a photo instead is a second, worse read that throws the rest away. Pass `plates` for plates the operator SAID; omit it when the photos are the whole message.',
+      'Log where vehicles were SENT to overflow at end of shift — the spots FG fills beyond the main lot. "these went to AV Flight", "log LFJ379 and LUR175 to FastAir", "log the keytags to AV Flight". ⚠️ THE AIRPORT IS NOT AN OVERFLOW SPOT — a car sent to Richardson is in an O or P stall available for rent and the airport tracks it, so that is an ordinary trip, NOT this tool. DRAFTS a confirm card (never writes) listing the vehicles + destination; on the tap the client logs one completed one-way trip each, so they show in the Movement Log and answer "where\'s X?" days later. Use this ONLY for sends to the overflow spots below — not for a normal held/hold action. ⭐ IF THE OPERATOR ATTACHED KEY-TAG PHOTOS, DO NOT TRANSCRIBE THEM — call this tool and let it read them. It runs the same measured two-tier reader the scanner uses and keeps every field on the tag (unit, owning area, rental class, model code, VIN, colour), which registers a car FG does not know and fills the blanks on one it only half-knows. Anything you type from a photo instead is a second, worse read that throws the rest away. Pass `plates` for plates the operator SAID; omit it when the photos are the whole message.',
     input_schema: {
       type: 'object',
       properties: {
@@ -58,7 +58,7 @@ export const OVERFLOW_TOOLS: Anthropic.Tool[] = [
         destination: {
           type: 'string',
           enum: [...OVERFLOW_DESTINATIONS],
-          description: 'Where they were sent. "Airport" = Richardson International.',
+          description: 'Where they were sent — the two spots used when the airport will not take more. A run to Richardson is not one of them.',
         },
       },
       // ⚠️ `plates` is no longer required: a stack of key-tag photos with "these went to FastAir"

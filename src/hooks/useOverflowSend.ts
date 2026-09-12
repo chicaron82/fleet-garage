@@ -34,8 +34,8 @@ export function useOverflowSend(onLogged?: () => void) {
   const { readKeytag, status } = useKeytagRead();
   const { vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   const { user } = useAuth();
-  // ⭐ 'AV Flight' rather than 'Airport': the airport is where cars go by DEFAULT, so it was never
-  // an overflow spot — see OVERFLOW_UI_DESTINATIONS.
+  // ⭐ 'AV Flight' rather than 'Airport': the airport is where cars go by DEFAULT, and a car parked
+  // there is rentable and tracked by the airport — not overflow at all. See OVERFLOW_DESTINATIONS.
   const [destination, setDestination] = useState<OverflowDestination>('AV Flight');
   const [sends, setSends] = useState<OverflowSend[]>([]);
   const [logging, setLogging] = useState(false);

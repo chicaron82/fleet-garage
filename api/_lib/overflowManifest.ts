@@ -4,6 +4,7 @@
 // 2026-09-11 when My Day grew a "what went to AV Flight / FastAir" card, so the card and Effie's
 // `lookup_sent` answer the question with ONE implementation rather than two that drift.
 import { shiftBusinessDate } from './shiftDay.js';
+import { OVERFLOW_DESTINATIONS, type OverflowDestination } from './overflowProposal.js';
 
 /** One `vsa_trips` row, as much of it as the manifest needs. */
 export interface SentRow {
@@ -11,6 +12,18 @@ export interface SentRow {
   vehicle_unit?: string | null;
   arrive_location?: string | null;
   depart_time?: string | null;
+}
+
+/**
+ * ⭐⭐ THE RULE LIVES HERE, not in each caller's query (Aaron, 2026-09-11: *"anything sent to
+ * Richardson doesn't count"*). Every surface that asks the manifest a question also filtered
+ * `arrive_location` itself, which is three chances to get the set wrong — and the set WAS wrong:
+ * 'Airport' is what the driver-trip flow writes for an ordinary shuttle run, so normal trips were
+ * being counted as overflow sends. Filtering inside the manifest makes "what counts as overflow"
+ * one decision instead of a rule repeated in the card, Effie's lookup, and whatever comes next.
+ */
+function onlyOverflow(rows: readonly SentRow[]): SentRow[] {
+  return rows.filter((r) => OVERFLOW_DESTINATIONS.includes((r.arrive_location ?? '') as OverflowDestination));
 }
 
 /**
@@ -55,7 +68,7 @@ export function groupOverflowSends(
     // Every send that day, oldest-first — a day reads as a sequence of moves, not a ranking.
     // ⚠️ The TIME rides along: without it two sends of one car look like a duplicated row
     // rather than the two real trips they are.
-    const onDay = rows
+    const onDay = onlyOverflow(rows)
       .filter((r) => r.depart_time && shiftBusinessDate(new Date(r.depart_time)) === day)
       .sort((a, b) => (a.depart_time! < b.depart_time! ? -1 : a.depart_time! > b.depart_time! ? 1 : 0));
     for (const r of onDay) push(r.arrive_location ?? 'Unknown', `${label(r)} · ${hhmm(r.depart_time!)}`);
@@ -66,7 +79,7 @@ export function groupOverflowSends(
   // 'current': latest send per vehicle. Rows arrive newest-first, so the first one wins.
   // There is no return-logging in FG, so this is "last sent", never "confirmed still there".
   const seen = new Set<string>();
-  for (const r of rows) {
+  for (const r of onlyOverflow(rows)) {
     const key = label(r).toUpperCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -81,6 +94,9 @@ export function groupOverflowSends(
  * (2026-09-11): `FastAir    AV Flight`. Fixed order is the point: a day where nothing went to one
  * of them still shows that column empty, so the eye lands in the same place scanning day to day
  * instead of the columns swapping seats whenever a destination is quiet.
+ *
+ * ⚠️ Same SET as `OVERFLOW_DESTINATIONS`, different ORDER — that list is the domain rule (what
+ * counts as overflow), this one is how the card reads. Adding a spot means touching both.
  */
 export const MANIFEST_COLUMNS: readonly string[] = ['FastAir', 'AV Flight'];
 
@@ -110,7 +126,7 @@ export interface OverflowDay {
  */
 export function groupOverflowDays(rows: readonly SentRow[]): OverflowDay[] {
   const dates = [...new Set(
-    rows.filter((r) => r.depart_time).map((r) => shiftBusinessDate(new Date(r.depart_time!))),
+    onlyOverflow(rows).filter((r) => r.depart_time).map((r) => shiftBusinessDate(new Date(r.depart_time!))),
   )].sort().reverse();
 
   return dates.map((date) => {
@@ -121,9 +137,9 @@ export function groupOverflowDays(rows: readonly SentRow[]): OverflowDay[] {
       total: day.total,
       groups: [
         ...MANIFEST_COLUMNS.map((d) => byDest.get(d) ?? { destination: d, count: 0, vehicles: [] }),
-        // ⚠️ Anything stored that isn't a current column still shows — 'Airport' is retired as an
-        // offered destination but remains in history, and a manifest that silently dropped those
-        // rows would be wrong about the past (the same rule `OVERFLOW_DESTINATIONS` follows).
+        // A destination outside the columns can no longer reach here — `onlyOverflow` drops it —
+        // but the spread stays as a seam: add a spot to OVERFLOW_DESTINATIONS and forget the
+        // columns, and its sends surface unstyled instead of vanishing without a trace.
         ...day.groups.filter((g) => !MANIFEST_COLUMNS.includes(g.destination)),
       ],
     };
