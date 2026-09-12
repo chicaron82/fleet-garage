@@ -9,6 +9,7 @@ import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
 import { PlateWatchCard } from './PlateWatchCard';
 import { MyTrailCard } from './MyTrailCard';
+import { usePeekAtTheDay } from '../../hooks/usePeekAtTheDay';
 import { OverflowSendsCard } from './OverflowSendsCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import type { Screen } from '../../types';
@@ -25,6 +26,9 @@ const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white da
 
 export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const day = useMyDay();
+  const { peeking, toggle: togglePeek } = usePeekAtTheDay();
+  // The day's cards open either because he is rostered, or because he asked to see it anyway.
+  const openDay = day.working || peeking;
   const scanRouter = useScanRouter();
   const { signalOpeningDuties, setMovementTab } = useActiveSessions();
   const { logged, dismissed, dismiss: dismissOpeningCard } = useOpeningQuickStart(day.user.id, day.todayISO);
@@ -112,19 +116,33 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{day.shiftSubLabel} · every hour at 1.5x</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigate({ name: 'schedule' })}
-            className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer shrink-0"
-          >
-            Schedule →
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {!day.working && (
+              <button
+                type="button"
+                onClick={togglePeek}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                {peeking ? 'Hide the day' : 'Peek at the day →'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigate({ name: 'schedule' })}
+              className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer"
+            >
+              Schedule →
+            </button>
+          </div>
         </div>
 
-        {day.working && (
+        {openDay && (
           <div className="pt-1 border-t border-gray-100 dark:border-gray-800">
+            {/* ⚠️ "On with you" is a claim about HIM, and on a peek it is false — he is not on with
+                anyone. The roster data never depended on him being rostered (`teammatesOnToday` is
+                "who else is working today"); only this heading assumed it. */}
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-2 mb-0.5">
-              On with you today · {day.team.length}
+              {day.working ? 'On with you today' : 'On shift now'} · {day.team.length}
             </p>
             <TeamRoster team={day.team} setShiftAttendance={day.setShiftAttendance} />
           </div>
@@ -158,7 +176,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
       <MyTrailCard />
 
       {/* ── First action — the ritual: fleet balance, else check-in ──────── */}
-      {day.working && (
+      {openDay && (
         <section className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -209,14 +227,22 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           Last night's close is a fact about YESTERDAY (findPriorShiftLog keys on
           shiftDateStr(-1)), so the question is equally valid whoever is on today —
           and the missing number distorts the day's rate regardless of who fills it. */}
-      {day.working && <OpeningLotCard openedToday={day.myShift?.shiftType === 'opening'} />}
+      {openDay && <OpeningLotCard openedToday={day.myShift?.shiftType === 'opening'} />}
 
       {/* ── Opening fuel pump readings — same place as OpeningLotCard, so an
           opener never has to switch to My Shift to log them ────────────── */}
-      {day.working && day.myShift?.shiftType === 'opening' && <FuelPumpReadings user={day.user} />}
+      {/* Opener-only was never about the shift — it was about when the numbers EXIST. Aaron,
+          2026-09-12: "just display it on a close both readings would be available to me. so i could
+          capture everything." On a peek he is usually there for a close, where the sheet carries the
+          opening AND ending meter readings, so he can capture the lot in one pass. */}
+      {((day.working && day.myShift?.shiftType === 'opening') || peeking) && <FuelPumpReadings user={day.user} />}
 
       {/* ── Washbay throughput glance ────────────────────────────────────── */}
-      {day.working && (
+      {/* ⚠️ "this shift" is dropped on a peek rather than swapped for "shift in progress" — the first
+          draft said that and rendered at 01:40, when no shift was running. A label that names a shift
+          he is not on has to be TRUE about some shift; the number here is simply the day's logged
+          handoff, so it says nothing it cannot back up. */}
+      {openDay && (
         <section className={`${CARD} px-4 py-4`}>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Throughput · Washbay</p>
           {day.carsCleanedThisShift == null ? (
@@ -225,7 +251,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{day.carsCleanedThisShift}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                cars cleaned this shift{day.handoffToday ? ` · team of ${day.handoffToday.teamSize}` : ''}
+                cars cleaned{day.working ? ' this shift' : ''}{day.handoffToday ? ` · team of ${day.handoffToday.teamSize}` : ''}
               </p>
             </div>
           )}
