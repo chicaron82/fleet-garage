@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { offersOnLotCheck, onLotLabel, onLotState } from '../../lib/onLotObservation';
 import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
 import { identityGaps, describeIdentityGaps } from '../../lib/vehicleName';
 import { lookupVehicleClass } from '../../../api/_lib/vehicleClassCodex';
@@ -49,7 +50,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, make, model, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, make, model, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onLot, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -83,10 +84,15 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   isUs?: boolean;
   winterTires?: boolean | null;
   winterTiresAt?: string | null;
+  /** ⭐ Was this HELD car on the lot when he last looked (migration 142)? Grouped as ONE prop for the
+   *  same reason `keytagAudit` is — the strip is already at thirteen, and these three only mean
+   *  anything together. `vehicleStatus` is here because the control is offered to held cars only:
+   *  an on-exception car is EXPECTED to be away, so its presence is not a question. */
+  onLot?: { present?: boolean | null; checkedAt?: string | null; vehicleStatus?: string | null };
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, recordWinterTires} = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, recordWinterTires, recordOnLot } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate, vehicleId);
   const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
@@ -263,6 +269,35 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
         >
           ❄️ {winterTires ? 'Winter tires' : 'No winter tires'}
           {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
+        </button>
+      )}
+
+      {/* ⭐⭐ IS THE HELD CAR STILL ON THE LOT — recorded, never inferred. Aaron, 2026-09-12: *"if
+          it's present on the lot tick the box. else unchecked its either been rented out between my
+          shifts or sent to the bodyshop."*
+
+          ⚠️⚠️ FG CANNOT DERIVE THIS. He is its only writer and writes when a car reaches him on
+          shift, so an ACTIVE hold means "held when I last saw it", never "held continuously since".
+          LUR527 is the proof: hail-flagged Sep 2, released for rent with NO release logged (the
+          counter releases cars and does not use FG), 291 km driven, back on the 8th — the only trace
+          was the odometer moving underneath an active hold.
+
+          ⚠️ The copy never says "gone". Out on rent, at the bodyshop, and not-looked-at-yet are
+          indistinguishable from here, so the chip reports the OBSERVATION and its date and stops. */}
+      {offersOnLotCheck(onLot?.vehicleStatus) && (
+        <button
+          type="button"
+          onClick={() => {
+            hapticLight();
+            void recordOnLot(vehicleId, { present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null });
+          }}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
+            onLotState({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null }) === 'present'
+              ? 'border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:border-emerald-400'
+              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
+          }`}
+        >
+          📍 {onLotLabel({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null })}
         </button>
       )}
       {/* ⭐⭐ THE GEOTAB INSTALL — Aaron, 2026-09-07: *"did it get cleared off the list? if so

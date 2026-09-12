@@ -55,6 +55,8 @@ export function mapVehicle(row: Row): Vehicle {
     classCode:    optStr(row, 'class_code') ?? null,
     odometer:     (row['odometer'] as number | null) ?? null,
     odometerAt:   optStr(row, 'odometer_at') ?? null,
+    onLotPresent:   (row['on_lot_present'] as boolean | null) ?? null,
+    onLotCheckedAt: optStr(row, 'on_lot_checked_at') ?? null,
     vinLast9:     optStr(row, 'vin_last9') ?? null,
     isUs:          row.is_us === true,
     winterTires:   (row.winter_tires as boolean | null | undefined) ?? null,

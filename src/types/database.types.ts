@@ -1699,6 +1699,8 @@ export type Database = {
           note_at: string | null
           odometer: number | null
           odometer_at: string | null
+          on_lot_checked_at: string | null
+          on_lot_present: boolean | null
           owning_area: string | null
           rental_class: string | null
           status: string
@@ -1749,6 +1751,8 @@ export type Database = {
           note_at?: string | null
           odometer?: number | null
           odometer_at?: string | null
+          on_lot_checked_at?: string | null
+          on_lot_present?: boolean | null
           owning_area?: string | null
           rental_class?: string | null
           status: string
@@ -1799,6 +1803,8 @@ export type Database = {
           note_at?: string | null
           odometer?: number | null
           odometer_at?: string | null
+          on_lot_checked_at?: string | null
+          on_lot_present?: boolean | null
           owning_area?: string | null
           rental_class?: string | null
           status?: string

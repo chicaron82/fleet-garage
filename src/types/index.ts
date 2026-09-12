@@ -260,6 +260,13 @@ export interface Vehicle {
   winterTires?: boolean | null;
   /** When winterTires was seen. Seasonal state — a value without this ages into a lie by spring. */
   winterTiresAt?: string | null;
+  /** ⭐ Was the car ON THE LOT when he last looked (migration 142)? True = confirmed present,
+   *  FALSE = he looked and it was not there, null = nobody has looked. FG cannot derive this: an
+   *  ACTIVE hold only means "held when I last saw it" ([[reference_fg_status_semantics]]). */
+  onLotPresent?: boolean | null;
+  /** When that observation was made. ⚠️ Never render `onLotPresent` without it — a tick with no date
+   *  rots, and an old tick reads exactly like a fresh one. */
+  onLotCheckedAt?: string | null;
   /** When a PERSON last read this car's stored key-tag photo (migration 130). NULL = never audited,
    *  which is exactly what puts the car in the auditor's queue — the stamp is what makes a pass
    *  resumable, so four cars in a lull converges instead of re-serving the same cars forever. */

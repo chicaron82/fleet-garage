@@ -11,6 +11,7 @@ import { isStaleHold } from '../lib/holdFilters';
 import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
 import { makeEvAssetLoanOps, loadOpenLoans } from './evAssetLoanWrite';
 import type { KeytagFill } from '../lib/resolveKeytag';
+import type { OnLotObservation } from '../lib/onLotObservation';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -69,6 +70,10 @@ export interface VehicleHoldContextValue {
   recordKeyCount: (vehicleId: string, keyCount: number) => Promise<void>;
   /** Winter tires as observed NOW, latest-wins, stamped with the moment. False when nothing wrote. */
   recordWinterTires: (vehicleId: string, fitted: boolean) => Promise<boolean>;
+  /** ⭐ Was the held car on the lot when he looked? Takes the CURRENT observation and flips it —
+   *  three-state (present / looked-and-absent / never looked), so the rule lives in
+   *  `lib/onLotObservation`, not in the caller. False when nothing was written. */
+  recordOnLot: (vehicleId: string, current: OnLotObservation) => Promise<boolean>;
   /** Set the car's current note, or clear it with null (migrations/122). */
   setVehicleNote: (vehicleId: string, note: string | null) => Promise<void>;
   /** Upload the scanned key tag and keep it on the vehicle as the read's evidence. */

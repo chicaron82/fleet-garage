@@ -262,6 +262,7 @@ const fullVehicleRow = {
   model: 'Sienna', year: 2026, color: 'Silver', status: 'AVAILABLE', branch_id: 'YWG',
   rental_class: 'E6', field_sources: { rentalClass: 'tag', vinLast9: 'manual' },
   key_count: 2, class_code: 'CSLE', odometer: 41230, odometer_at: '2026-08-20T10:00:00Z',
+  on_lot_present: true, on_lot_checked_at: '2026-09-10T18:00:00Z',
   vin_last9: '0XX111111', is_us: false, winter_tires: true, winter_tires_at: '2026-01-05',
   keytag_audited_at: '2026-08-29T15:00:00Z', keytag_audited_by: 'u-aaron',
   keytag_audit_result: 'verified', keytag_photo_url: 'https://cdn/kt.jpg', keytag_photo_rotation: 90,
@@ -284,7 +285,7 @@ const VEHICLE_KEYS = [
   'isTesla', 'isUs', 'keyCount', 'keytagAuditResult', 'keytagAuditedAt', 'keytagAuditedBy',
   'keytagPhotoConfirmedAt', 'keytagPhotoConfirmedBy',
   'keytagPhotoRotation', 'keytagPhotoUrl', 'licensePlate', 'make', 'model', 'note', 'noteAt', 'odometer',
-  'odometerAt', 'owningArea', 'rentalClass', 'status', 'unitNumber', 'vinLast9',
+  'odometerAt', 'onLotCheckedAt', 'onLotPresent', 'owningArea', 'rentalClass', 'status', 'unitNumber', 'vinLast9',
   'winterTires', 'winterTiresAt', 'year',
 ];
 
@@ -299,6 +300,7 @@ describe('mapVehicle — the full field contract', () => {
       model: 'Sienna', year: 2026, color: 'Silver', status: 'AVAILABLE', branchId: 'YWG',
       rentalClass: 'E6', fieldSources: { rentalClass: 'tag', vinLast9: 'manual' },
       keyCount: 2, classCode: 'CSLE', odometer: 41230, odometerAt: '2026-08-20T10:00:00Z',
+      onLotPresent: true, onLotCheckedAt: '2026-09-10T18:00:00Z',
       vinLast9: '0XX111111', isUs: false, winterTires: true, winterTiresAt: '2026-01-05',
       keytagAuditedAt: '2026-08-29T15:00:00Z', keytagAuditedBy: 'u-aaron',
       keytagAuditResult: 'verified', keytagPhotoUrl: 'https://cdn/kt.jpg', keytagPhotoRotation: 90,
@@ -320,6 +322,7 @@ describe('mapVehicle — the full field contract', () => {
   it('⚠️ holds the null-vs-undefined line for a sparse row', () => {
     const v = mapVehicle(vehicleRow);
     for (const k of ['rentalClass', 'classCode', 'vinLast9', 'odometer', 'odometerAt',
+      'onLotPresent', 'onLotCheckedAt',
       'keyCount', 'winterTires', 'winterTiresAt', 'keytagAuditedAt', 'keytagAuditedBy',
       'keytagAuditResult', 'keytagPhotoUrl', 'note', 'noteAt', 'owningArea',
       'hasMobileCable', 'hasJ1772Adapter', 'evLastUpdatedBy', 'evLastUpdatedAt',
