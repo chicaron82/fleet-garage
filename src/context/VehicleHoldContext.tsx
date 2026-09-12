@@ -209,6 +209,19 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
   // and another user wouldn't see it until reload. Refetch-and-map is safe — the
   // pending edit-suggestion is persisted (VehicleEditSuggestionSheet), so reading
   // committed DB state preserves it rather than clobbering the optimistic echo.
+  //
+  // ⚠️⚠️ AND UNTIL 2026-09-11 NONE OF THAT ACTUALLY HAPPENED. `vehicles` was not in the
+  // `supabase_realtime` publication, and a channel on an unpublished table subscribes
+  // successfully and never fires — no error, no warning, no failed promise. This code
+  // was correct, commented, shipped, and inert for months; it was found only by checking
+  // the publication before adding a DIFFERENT subscription (migration 140, vsa_trips).
+  // Migration 141 publishes this one. ⭐ THE LESSON: a realtime subscription is not done
+  // when it compiles — it is done when its table is published. Check the publication.
+  //
+  // ⚠️ Load shape, since this is the table every scan touches: one event costs ONE
+  // single-row refetch per open client, which is nothing at FG's handful of clients. A
+  // BULK write is the expensive case — a fleet-wide backfill would fire one event per row
+  // per client. For anything that size, drop `vehicles` from the publication first.
   const allVehiclesRef = useRef(allVehicles);
   useEffect(() => { allVehiclesRef.current = allVehicles; });
 
