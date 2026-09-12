@@ -12,7 +12,7 @@ import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
 import { useProfiles } from '../../context/ProfilesContext';
 import type { KeytagAuditResult } from '../../types';
-import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
+import { keyOptionsFor } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
 
@@ -96,6 +96,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   const sightings = useVehicleSightings(plate, vehicleId);
   const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
+  const [showIdentity, setShowIdentity] = useState(false);
   // ⚠️ Uses the SAME predicate as Fleet's "Needs details" chip — see lib/vehicleName. Deriving it
   // here with a local rule is how two screens start disagreeing about the same car.
   const gaps = identityGaps({ year: year ?? null, make: make ?? null, model: model ?? null });
@@ -132,17 +133,45 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   //   photo, unaudited — the old default: a model read it and nobody has checked.
   //   no photo   — the dashed first-capture state.
   const tagChip = !keytagPhotoUrl
-    ? { label: '🏷️ No key tag on file — tap to add', border: 'border-dashed border-gray-300 dark:border-gray-600', text: 'text-gray-400 dark:text-gray-500' }
+    ? { label: '🏷️ No key tag', border: 'border-dashed border-gray-300 dark:border-gray-600', text: 'text-gray-400 dark:text-gray-500' }
     : keytagAudit?.result === 'unreadable'
-    ? { label: '🏷️ Key tag needs a retake — tap to replace', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
+    ? { label: '🏷️ Needs a retake', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
     : keytagAudit?.result === 'stale'
-    ? { label: '🏷️ Tag photo is an older plate — tap to replace', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
+    ? { label: '🏷️ Older plate', border: 'border-dashed border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400' }
     : keytagAudit?.result === 'verified'
-    ? { label: '🏷️ Key tag verified — tap to view', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' }
-    : { label: '🏷️ Key tag as read — tap to check', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' };
+    ? { label: '🏷️ Verified', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' }
+    : { label: '🏷️ As read', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-500 dark:text-gray-400' };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* ⭐⭐ IS THE HELD CAR STILL ON THE LOT — recorded, never inferred. Aaron, 2026-09-12: *"if
+          it's present on the lot tick the box. else unchecked its either been rented out between my
+          shifts or sent to the bodyshop."*
+
+          ⚠️⚠️ FG CANNOT DERIVE THIS. He is its only writer and writes when a car reaches him on
+          shift, so an ACTIVE hold means "held when I last saw it", never "held continuously since".
+          LUR527 is the proof: hail-flagged Sep 2, released for rent with NO release logged (the
+          counter releases cars and does not use FG), 291 km driven, back on the 8th — the only trace
+          was the odometer moving underneath an active hold.
+
+          ⚠️ The copy never says "gone". Out on rent, at the bodyshop, and not-looked-at-yet are
+          indistinguishable from here, so the chip reports the OBSERVATION and its date and stops. */}
+      {offersOnLotCheck(onLot?.vehicleStatus) && (
+        <button
+          type="button"
+          onClick={() => {
+            hapticLight();
+            void recordOnLot(vehicleId, { present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null });
+          }}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
+            onLotState({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null }) === 'present'
+              ? 'border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:border-emerald-400'
+              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
+          }`}
+        >
+          📍 {onLotLabel({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null })}
+        </button>
+      )}
       {/* ⚠️ THE CHIP RENDERS EITHER WAY. It used to be gated on the URL, so a car with no tag on
           file showed NOTHING — and "there is no tag" looked exactly like "there is a chip and I
           didn't look at it". Aaron, 2026-08-28: *"to reduce my API calls I type it in. problem: it
@@ -191,9 +220,10 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           onClick={() => { hapticLight(); setEditingKeys(true); }}
           className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
         >
-          {isTesla ? '⚡' : '🔑'} {keyCount
-            ? `${keyCount} ${keyNoun(isTesla === true, keyCount)}`
-            : isTesla ? 'Keycard — set' : 'Keys — set'} ✏️
+          {/* ⭐ Emoji + value, nothing else (Aaron, 2026-09-12): *"how bout having the key emoji
+              plus key count"*. The noun was doing no work — the emoji already says "keys" — and the
+              ✏️ was a hint, which the row does not need when every chip on it is tappable. */}
+          {isTesla ? '⚡' : '🔑'} {keyCount ?? '—'}
         </button>
       )}
 
@@ -231,7 +261,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           onClick={() => { hapticLight(); setEditingOdo(true); }}
           className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer"
         >
-          🛣️ {odometer ? `${describeOdometer(odometer, odometerAt, new Date(), odometerUnitFor(isUs))} · tap to update` : `Log odometer${isUs ? ' (mi)' : ''}`}
+          🛣️ {odometer ? describeOdometer(odometer, odometerAt, new Date(), odometerUnitFor(isUs)) : `Log odometer${isUs ? ' (mi)' : ''}`}
         </button>
       )}
 
@@ -245,61 +275,51 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
         </span>
       )}
 
-      {/* ❄️ Winter tires as last OBSERVED. ⚠️ Rendered only when someone has actually looked —
-          `null` means never checked, which is NOT "no", and a chip saying "no" for a car nobody has
-          inspected would be a confident lie. The date is the half that stops it aging: a tick from
-          February is wrong by the following winter, and only the date can say so. */}
-      {/* ⚠️ TAPPABLE, because the field is SEASONAL and shipped this morning with the registration form
-          as its only writer — a value designed to change twice a year, settable exactly once, at
-          birth. Tapping flips it and re-stamps the date, so the answer is always "what he last saw",
-          never "what someone said in August".
+      {/* ☀️/❄️ — ONE chip, tapped to flip. Aaron, 2026-09-12: *"what about tapping it to make it
+          switch between sun and snowflake. everything with sun, unless i've already switched it to
+          have winters then those would have the snowflake."*
 
-          Shown only once someone has looked: `null` means nobody has, which is NOT "no", and a chip
-          asserting "no winter tires" for an uninspected car would be a confident lie. He starts it
-          from the register form or from an explicit tap here. */}
-      {winterTires != null && (
-        <button
-          type="button"
-          onClick={() => { hapticLight(); void recordWinterTires(vehicleId, !winterTires); }}
-          className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
-            winterTires
-              ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300 hover:border-sky-400'
-              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
-          }`}
-        >
-          ❄️ {winterTires ? 'Winter tires' : 'No winter tires'}
-          {winterTiresAt && <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>}
-        </button>
-      )}
+          ⚠️⚠️ THIS DELIBERATELY OVERTURNS AN EARLIER CALL, so the reasoning should not be lost. The
+          chip used to render NOTHING when `winterTires` was null, on the principle that a car nobody
+          had inspected must not be shown as "no winter tires" — a confident lie. His answer is an
+          operational one and it is better: **summer IS the fleet's default state**, and winters are
+          the exception somebody fits and marks. The residual cost is real and accepted — a car
+          someone fitted winters to without telling FG reads ☀️ instead of staying silent.
 
-      {/* ⭐⭐ IS THE HELD CAR STILL ON THE LOT — recorded, never inferred. Aaron, 2026-09-12: *"if
-          it's present on the lot tick the box. else unchecked its either been rented out between my
-          shifts or sent to the bodyshop."*
+          ⭐ The date rides along only on ❄️, where it is load-bearing: winters fitted in November
+          are a fact that ages: by spring the tick is wrong and only the date can say so. A ☀️ needs
+          no date because it is the resting state, not an observation. */}
+      <button
+        type="button"
+        onClick={() => { hapticLight(); void recordWinterTires(vehicleId, !winterTires); }}
+        className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
+          winterTires
+            ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300 hover:border-sky-400'
+            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
+        }`}
+      >
+        {winterTires ? '❄️' : '☀️'}
+        {winterTires && winterTiresAt && (
+          <span className="opacity-70"> · {describeOdometerAge(winterTiresAt)}</span>
+        )}
+      </button>
 
-          ⚠️⚠️ FG CANNOT DERIVE THIS. He is its only writer and writes when a car reaches him on
-          shift, so an ACTIVE hold means "held when I last saw it", never "held continuously since".
-          LUR527 is the proof: hail-flagged Sep 2, released for rent with NO release logged (the
-          counter releases cars and does not use FG), 291 km driven, back on the 8th — the only trace
-          was the odometer moving underneath an active hold.
+      {/* 🪪 REFERENCE, NOT WORK — Aaron, 2026-09-12, seeing the new chip land in a stack of eight:
+          *"i'm not a fan of it being buried. along with the others."*
 
-          ⚠️ The copy never says "gone". Out on rent, at the bodyshop, and not-looked-at-yet are
-          indistinguishable from here, so the chip reports the OBSERVATION and its date and stops. */}
-      {offersOnLotCheck(onLot?.vehicleStatus) && (
-        <button
-          type="button"
-          onClick={() => {
-            hapticLight();
-            void recordOnLot(vehicleId, { present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null });
-          }}
-          className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
-            onLotState({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null }) === 'present'
-              ? 'border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:border-emerald-400'
-              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400'
-          }`}
-        >
-          📍 {onLotLabel({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null })}
-        </button>
-      )}
+          ⚠️ The strip was never SORTED — it grew in the order each feature shipped, so the newest
+          chip is simply last. The split that holds is not "important vs less": it is what he TAPS
+          (state that changes — on the lot, odometer, keys, tires) versus what he LOOKS UP (identity
+          that does not — VIN, class code, geotab install). Reference material is checked when
+          something is wrong, never as part of a task, so it collapses. */}
+      <button
+        type="button"
+        onClick={() => setShowIdentity(v => !v)}
+        className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:border-gray-400 transition"
+      >
+        🪪 Identity {showIdentity ? '▴' : '▾'}
+      </button>
+      {showIdentity && (<>
       {/* ⭐⭐ THE GEOTAB INSTALL — Aaron, 2026-09-07: *"did it get cleared off the list? if so
           shouldn't it read somewhere that it was marked as installed on x date rather than hiding
           under 'no action needed' with no date attached?"*
@@ -349,18 +369,6 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           {/* ⭐ The answer, where the question is asked. Silent when the codex has nothing — an
               empty suggestion is worse than none on a field that decides a car's identity. */}
           {codexFills && <span className="ml-1 font-semibold">— FG knows: {codexFills}</span>}
-        </button>
-      )}
-
-      {/* The first observation for a car nobody has checked — quiet, and only on a US car or in the
-          months it matters would be over-engineering, so it simply sits with the other chips. */}
-      {winterTires == null && (
-        <button
-          type="button"
-          onClick={() => { hapticLight(); void recordWinterTires(vehicleId, true); }}
-          className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer transition"
-        >
-          ❄️ Winter tires?
         </button>
       )}
 
@@ -419,6 +427,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           </span>
         );
       })()}
+      </>)}
 
       {/* Last seen — two kinds of evidence, one chip: a KEY-TAG SCAN (he held the tag), and an
           INTERACTION derived from `vehicle_changes` (he wrote something to this car). Read-only.

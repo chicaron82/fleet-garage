@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // The VIN chip's job on the record: stay quiet on a car that agrees with itself, and go amber with
@@ -16,8 +16,14 @@ vi.mock('../../src/lib/haptics', () => ({ hapticLight: vi.fn() }));
 
 import { VehicleRecordFacts } from '../../src/components/vehicle/VehicleRecordFacts';
 
-const mount = (vinLast9: string, year: number) =>
-  render(<VehicleRecordFacts vehicleId="v1" plate="TEST123" vinLast9={vinLast9} year={year} />);
+// ⭐ The VIN chip moved behind 🪪 Identity on 2026-09-12 — Aaron: *"i'm not a fan of it being
+// buried. along with the others."* The strip now splits what he TAPS from what he LOOKS UP, and a
+// VIN is reference: checked when something is wrong, never as part of a task. So the tests open it.
+const mount = (vinLast9: string, year: number) => {
+  const r = render(<VehicleRecordFacts vehicleId="v1" plate="TEST123" vinLast9={vinLast9} year={year} />);
+  fireEvent.click(screen.getByRole('button', { name: /Identity/ }));
+  return r;
+};
 
 const chip = (vin: string) => screen.getByText(new RegExp(vin));
 
