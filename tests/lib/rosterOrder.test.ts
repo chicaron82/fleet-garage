@@ -77,3 +77,53 @@ describe('a blank driver block is a STATE, not an absence', () => {
     expect(driverBlockUnloaded([m('v', 'V', 'VSA')], () => false)).toBe(false);
   });
 });
+
+/**
+ * ⭐⭐ THE SHADED ROW WAS A FULL STOP (Aaron, 2026-09-12, after closing a 66-car night):
+ *
+ *   *"having larry (utility) shaded i accidentally stopped reading and missed the second driver
+ *    starting in the morning… can we have larry displayed first on the drivers so that his shaded
+ *    schedule looks like the boundary that separates the VSA and drivers?"*
+ *
+ * ⚠️ Larry C sorted alphabetically, which put his slate band BETWEEN Krish and Larry J — mid-block,
+ * where a shaded row reads as the end of the list. The data was all there; the ordering hid it.
+ */
+const u = (id: string, name: string, role: UserRole, utility = false) => ({ id, name, role, utility });
+
+// Saturday 2026-09-12 as FG actually held it, drivers in the order that caused the miss.
+const realSaturday = [
+  u('geoff', 'Geoff N.', 'Lead VSA'), u('moaz', 'Moaz', 'VSA'),
+  u('jose', 'Jose', 'Driver'), u('krish', 'Krish', 'Driver'),
+  u('larryc', 'Larry C', 'Driver', true), u('larryj', 'Larry J', 'Driver'),
+  u('reo', 'Reo', 'Driver'),
+];
+
+describe('the utility row is a boundary, not a terminator', () => {
+  it('puts utility FIRST among the drivers', () => {
+    const drivers = orderRoster(realSaturday).filter(x => x.role === 'Driver');
+    expect(drivers[0]!.name).toBe('Larry C');
+  });
+
+  it('lands it exactly on the seam — last floor row, then the shaded row', () => {
+    const ordered = orderRoster(realSaturday);
+    const i = ordered.findIndex(x => x.utility);
+    expect(ordered[i - 1]!.role).toBe('VSA');      // last of the floor block
+    expect(ordered[i]!.name).toBe('Larry C');       // the divider itself
+  });
+
+  it('⚠️ no driver is left BELOW the shaded row unread — the two openers both sort after it', () => {
+    const names = orderRoster(realSaturday).map(x => x.name);
+    expect(names.indexOf('Larry C')).toBeLessThan(names.indexOf('Jose'));
+    expect(names.indexOf('Larry C')).toBeLessThan(names.indexOf('Reo'));
+  });
+
+  it('keeps everyone else alphabetical inside the group', () => {
+    const rest = orderRoster(realSaturday).filter(x => x.role === 'Driver' && !x.utility).map(x => x.name);
+    expect(rest).toEqual(['Jose', 'Krish', 'Larry J', 'Reo']);
+  });
+
+  it('still pins self above even a utility row', () => {
+    const ordered = orderRoster(realSaturday, 'larryj');
+    expect(ordered[0]!.name).toBe('Larry J');
+  });
+});

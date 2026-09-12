@@ -29,21 +29,44 @@ export function rosterRank(role: UserRole): number {
   return i === -1 ? SCHEDULE_GROUPS.length : i;
 }
 
-export interface RosterMember { id: string; name: string; role: UserRole }
+export interface RosterMember { id: string; name: string; role: UserRole; utility?: boolean }
 
 /**
- * Self first, then grouped by role, then alphabetical inside each group.
+ * Self first, then grouped by role, then UTILITY, then alphabetical inside each group.
  *
  * ⭐ Self stays pinned — that was already true and it is the one row he looks for by position rather
  * than by name. Everything after it is now findable by ROLE, which is how the filter bar above it
  * already taught him to read the screen.
+ *
+ * ⭐⭐ UTILITY SORTS TO THE TOP OF ITS GROUP, AND THE REASON IS THE SHADING (Aaron, 2026-09-12, after
+ * a close):
+ *
+ *   *"having larry (utility) shaded i accidentally stopped reading and missed the second driver
+ *    starting in the morning… can we have larry displayed first on the drivers so that his shaded
+ *    schedule looks like the boundary that separates the VSA and drivers?"*
+ *
+ * ⚠️⚠️ A SHADED ROW IN THE MIDDLE OF A LIST READS AS THE END OF THE LIST. Larry C sorted
+ * alphabetically — between Krish and Larry J — so his slate band landed mid-block and his eye took it
+ * for a terminator. He stopped reading and missed a driver who was on at 07:00. Same failure family
+ * as the bug this file was created for: **the grid's visual order made a claim the data never made.**
+ *
+ * ⭐ The fix is not to remove the shading but to MOVE it. At the top of the drivers it stops being a
+ * full stop and becomes a seam — the divider between the floor block and the driver block, which is
+ * exactly how he was already reading it.
+ *
+ * ⚠️ It has real-world stakes, not just tidiness: that missed row was a body. He cleared three
+ * employee parking spots for the morning on a lot with no room, and the morning actually has four
+ * people on it.
  */
 export function orderRoster<T extends RosterMember>(members: readonly T[], selfId?: string): T[] {
   return [...members].sort((a, b) => {
     if (a.id === selfId) return -1;
     if (b.id === selfId) return 1;
     const r = rosterRank(a.role) - rosterRank(b.role);
-    return r !== 0 ? r : a.name.localeCompare(b.name);
+    if (r !== 0) return r;
+    // Utility ahead of the rest of its own group — the shaded row becomes the group's header edge.
+    if (!!a.utility !== !!b.utility) return a.utility ? -1 : 1;
+    return a.name.localeCompare(b.name);
   });
 }
 
