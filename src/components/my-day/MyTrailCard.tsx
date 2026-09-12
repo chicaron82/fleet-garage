@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { useMyTrail, startOfToday } from '../../hooks/useMyTrail';
+import { useMyTrail } from '../../hooks/useMyTrail';
+import { startOfShiftDayISO } from '../../lib/shiftDay';
 import { buildTrail, trailHeadline, stopName } from '../../lib/myTrail';
 import { clockOf } from '../../lib/vehicleChanges';
 
@@ -41,7 +42,9 @@ export function MyTrailCard() {
   // `user` and refuses to preserve a memo whose stated dep is narrower than the inferred one.
   const uid = user?.id;
   const actors = useMemo(() => (uid ? [uid, 'dizee'] : []), [uid]);
-  const since = useMemo(() => startOfToday(), []);
+  // ⚠️ The SHIFT day's 04:00 start, not midnight — a close logged at 00:07 must still show the day
+  // it belongs to (Aaron, 2026-09-12: *"i thought i'd still be able to see friday's work until 4am"*).
+  const since = useMemo(() => startOfShiftDayISO(), []);
   const rows = useMyTrail(actors, since);
 
   const stops = useMemo(() => {

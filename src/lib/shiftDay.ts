@@ -48,6 +48,34 @@ export function shiftDayStartISO(dateStr: string): string {
   return shiftDayWindow(dateStr).startISO;
 }
 
+/**
+ * The CURRENT shift-day's start, as an ISO instant — the honest lower bound for "what I've done
+ * today".
+ *
+ * ⭐⭐ Aaron, 2026-09-12 at 00:42, having just logged a close at 00:07: *"is the my day module
+ * switching over at midnight. i thought i'd still be able to see friday's work until 4am"*. He was
+ * right. The trail anchored on local midnight, so seven minutes after he finished typing, his whole
+ * Friday — 54 cars — fell off the card and left only the close itself.
+ *
+ * ⚠️ The old helper was called `startOfToday`, which is exactly why it survived review: it SOUNDS
+ * correct. In FG "today" is a shift-day word, and a function that means calendar-midnight must not
+ * be allowed to claim it.
+ */
+export function startOfShiftDayISO(now: Date = new Date()): string {
+  return shiftDayStartISO(shiftDateStr(0, now));
+}
+
+/**
+ * The current shift-day as a human label — "Friday, September 11" at 00:42 on the Saturday.
+ *
+ * ⚠️ Built from the DATE PARTS, not from `now`. Formatting `now` is what put "Saturday, September 12"
+ * above a card that was correctly showing Friday's sends — one screen disagreeing with itself.
+ */
+export function shiftDayLabel(now: Date = new Date()): string {
+  const [y, m, d] = shiftDateStr(0, now).split('-').map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
 // Midday UTC for a YYYY-MM-DD string — a DST-safe anchor for counting whole
 // days between two shift-dates (noon is never near a DST transition).
 function dateStrToUTCNoon(s: string): number {

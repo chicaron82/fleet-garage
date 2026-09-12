@@ -13,6 +13,7 @@ import { useTodayShifts } from '../hooks/useTodayShifts';
 // isManagerEditingOtherUser) live in lib/schedule-helpers — extracted at the
 // 330-cap wall; import them from there, not from this context.
 import { toISO, getWeekBounds, formatShiftLabel, isManagerEditingOtherUser, buildRowToShift } from '../lib/schedule-helpers';
+import { shiftDateStr } from '../lib/shiftDay';
 import { PROTECTED_IMPORT_TYPES, dropProtectedDays, type ImportOutcome, type PreservedDay } from '../lib/scheduleImportBuild';
 import { canManageSchedule } from '../types';
 import type { Attendance, Shift, ShiftType, ShiftWithUser } from '../types';
@@ -77,8 +78,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const resolvedShifts = useMemo(() => resolveShiftNames(shifts, getProfile), [shifts, getProfile]);
   // TODAY's shifts on their own — decoupled from the navigable `shifts` window (see useTodayShifts),
   // so My Day + the shift-aware quick-start reflect today even if the Schedule screen was left on
-  // another week (bug 2026-07-10). `todayStr` recomputes each render → reloads across midnight.
-  const { todayShifts, setTodayShifts } = useTodayShifts(toISO(new Date()), activeBranch, rowToShiftRef);
+  // another week (bug 2026-07-10). `todayStr` recomputes each render → reloads across the CUTOVER.
+  // ⚠️⚠️ THE SHIFT DAY, NOT THE CALENDAR DAY. This used to pass `toISO(new Date())`, so between
+  // midnight and 04:00 My Day showed TOMORROW's shift while he was still working tonight's — and
+  // attendance marking hangs off this window, so it would have been recorded against the wrong day
+  // (Aaron, 2026-09-12, logging a close at 00:07).
+  const { todayShifts, setTodayShifts } = useTodayShifts(shiftDateStr(0), activeBranch, rowToShiftRef);
   const resolvedTodayShifts = useMemo(() => resolveShiftNames(todayShifts, getProfile), [todayShifts, getProfile]);
 
   // Reflect a re-mapped shift into BOTH windows — the navigable `shifts` and today's —
@@ -142,7 +147,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       const created = rowToShift(data as Record<string, unknown>);
       setShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
       // A shift created for today must also land in today's window (My Day).
-      if (created.date === toISO(new Date())) setTodayShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
+      if (created.date === shiftDateStr(0)) setTodayShifts(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created]);
       applyTally(shift.userId, null, { shiftType: shift.shiftType, date: shift.date });
       if (user && isManagerEditingOtherUser(user.role, user.id, shift.userId)) {
         const target = getProfile(shift.userId);

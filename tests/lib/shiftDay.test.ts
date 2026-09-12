@@ -6,6 +6,8 @@ import {
   shiftDayWindow,
   shiftDayStartISO,
   shiftDaysSince,
+  startOfShiftDayISO,
+  shiftDayLabel,
 } from '../../src/lib/shiftDay';
 
 // Local-time constructor keeps these assertions timezone-independent: the
@@ -96,5 +98,56 @@ describe('shiftDaysSince — held-age counted in shift-days, not 24h spans', () 
   });
   it('accepts an ISO string', () => {
     expect(shiftDaysSince(at(2026, 6, 1, 11, 5).toISOString(), at(2026, 6, 2, 9, 37))).toBe(1);
+  });
+});
+
+
+/**
+ * ⭐⭐ THE NIGHT THE DAY'S WORK VANISHED. Aaron, 2026-09-12 at 00:42, seven minutes after logging a
+ * close: *"is the my day module switching over at midnight. i thought i'd still be able to see
+ * friday's work until 4am"*.
+ *
+ * My Day had FOUR surfaces anchored on the calendar date — the trail's window, `todayISO`, the date
+ * label, and the today-shifts query — while the overflow card built the same night used the shift
+ * date. One screen, two different days, and the card that was RIGHT is what made it visible.
+ */
+describe('startOfShiftDayISO — the lower bound for "what I have done today"', () => {
+  it('at 00:42 Saturday, still reaches back to FRIDAY 04:00', () => {
+    expect(startOfShiftDayISO(at(2026, 9, 12, 0, 42)))
+      .toBe(at(2026, 9, 11, SHIFT_DAY_CUTOVER_HOUR).toISOString());
+  });
+
+  it('after the cutover it is the same calendar day', () => {
+    expect(startOfShiftDayISO(at(2026, 9, 12, 5, 0)))
+      .toBe(at(2026, 9, 12, SHIFT_DAY_CUTOVER_HOUR).toISOString());
+  });
+
+  it('04:00 exactly belongs to the NEW shift day — the boundary is inclusive going forward', () => {
+    expect(startOfShiftDayISO(at(2026, 9, 12, SHIFT_DAY_CUTOVER_HOUR, 0)))
+      .toBe(at(2026, 9, 12, SHIFT_DAY_CUTOVER_HOUR).toISOString());
+  });
+
+  it('03:59 still belongs to the night before', () => {
+    expect(startOfShiftDayISO(at(2026, 9, 12, 3, 59)))
+      .toBe(at(2026, 9, 11, SHIFT_DAY_CUTOVER_HOUR).toISOString());
+  });
+});
+
+describe('shiftDayLabel — the header that said Saturday over Friday\'s work', () => {
+  it('reads FRIDAY at 00:42 on the Saturday', () => {
+    expect(shiftDayLabel(at(2026, 9, 12, 0, 42))).toContain('Friday');
+    expect(shiftDayLabel(at(2026, 9, 12, 0, 42))).toContain('September 11');
+  });
+
+  it('flips at the cutover, not at midnight', () => {
+    expect(shiftDayLabel(at(2026, 9, 12, 3, 59))).toContain('Friday');
+    expect(shiftDayLabel(at(2026, 9, 12, 4, 0))).toContain('Saturday');
+  });
+
+  it('agrees with shiftDateStr — the label and the key can never disagree', () => {
+    const now = at(2026, 9, 12, 2, 15);
+    const [, m, d] = shiftDateStr(0, now).split('-').map(Number);
+    expect(shiftDayLabel(now)).toContain(String(d));
+    expect(m).toBe(9);
   });
 });

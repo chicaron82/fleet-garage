@@ -6,11 +6,10 @@
 // lightweight washbay handoff instead. See lib/myDay.ts.)
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
-import { toISO } from '../lib/schedule-helpers';
 import { useWashbayContext } from '../context/WashbayContext';
 import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
-import { businessDateOf } from '../lib/shiftDay';
+import { businessDateOf, shiftDateStr, shiftDayLabel } from '../lib/shiftDay';
 import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
 import { eventInsights } from '../lib/eventInsights';
 import { usePersonalEvents } from './usePersonalEvents';
@@ -44,7 +43,16 @@ export function useMyDay(): UseMyDay {
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
   const now = new Date();
-  const dateLabel = now.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+  // ⭐⭐ THE SHIFT DAY, NOT THE CALENDAR DAY (Aaron, 2026-09-12 at 00:42, mid-close): *"is the my day
+  // module switching over at midnight. i thought i'd still be able to see friday's work until 4am"*.
+  // Every "today" on this screen now comes from here, which is what `lib/shiftDay` always claimed.
+  // ⚠️ `hour` deliberately stays REAL CLOCK TIME below, and the consequence is visible: at 00:58 the
+  // greeting reads "Good morning" above a date line that reads "Friday, September 11". That is the
+  // honest pair — the clock really does say morning, the shift really is still Friday — but it is an
+  // open question whether a closer finishing at 00:07 should be greeted with "evening" until the
+  // cutover. Left as clock time until Aaron calls it; the DAY is the thing that was broken.
+  const todayISO = shiftDateStr(0, now);
+  const dateLabel = shiftDayLabel(now);
   const handoffIsToday = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
 
   const adjacentShiftTypes = useMyAdjacentShiftTypes(user?.id);
@@ -53,7 +61,7 @@ export function useMyDay(): UseMyDay {
     shifts: todayShifts,
     userId: user!.id,
     userName: user!.name,
-    todayISO: toISO(now),
+    todayISO,
     hour: now.getHours(),
     handoff: latestHandoff,
     handoffIsToday,
@@ -71,7 +79,7 @@ export function useMyDay(): UseMyDay {
   // Dated personal notes (the staff BBQ) ride the SAME "Heads up today" card as clopen /
   // solo-floor — it already means "things about today you should know". Events lead: a 12:30
   // BBQ is a clock he has to meet, where a clopen is context for the day's shape.
-  const todayEvents = usePersonalEvents(user?.id, toISO(now));
+  const todayEvents = usePersonalEvents(user?.id, todayISO);
   // Forward-looking: a day in the next few that breaks his own pattern (works a normally-off
   // Sunday / off on a normally-worked Friday). Rides the same card — it's still "what you need
   // to know", just about the days right ahead rather than today.
@@ -79,8 +87,8 @@ export function useMyDay(): UseMyDay {
 
   return {
     ...model,
-    todayISO: toISO(now),
-    insights: [...eventInsights(todayEvents, toISO(now)), ...anomalies, ...model.insights],
+    todayISO,
+    insights: [...eventInsights(todayEvents, todayISO), ...anomalies, ...model.insights],
     dateLabel,
     checkInDoneToday: !!checkInToday,
     checkInCarsToday: checkInToday ? carsCleaned(checkInToday) : null,

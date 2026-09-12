@@ -10,13 +10,6 @@ import type { TrailChangeRow } from '../lib/myTrail';
 // A shift's worth of writes with headroom. He is FG's only real writer, so this is generous.
 const MAX_ROWS = 200;
 
-/** Local midnight, ISO — the window the headline's word "today" is actually claiming. */
-export function startOfToday(now: Date = new Date()): string {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
 /**
  * @param actors his profile id, plus any agent name that writes as him (`dizee`).
  *
