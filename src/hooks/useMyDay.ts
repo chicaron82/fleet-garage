@@ -7,7 +7,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { toISO } from '../lib/schedule-helpers';
-import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { useWashbayContext } from '../context/WashbayContext';
 import { useFleetBalanceContext } from '../context/FleetBalanceContext';
 import { localDateStr, type FleetBalanceEntry, type FleetBalanceProjection } from './useFleetBalance';
@@ -16,13 +15,11 @@ import { deriveMyDay, carsCleaned, type MyDayModel } from '../lib/myDay';
 import { eventInsights } from '../lib/eventInsights';
 import { usePersonalEvents } from './usePersonalEvents';
 import { useScheduleAnomalies } from './useScheduleAnomalies';
-import { staleHeldVehicleCount } from '../lib/holdFilters';
 import { useMyAdjacentShiftTypes } from './useMyAdjacentShiftTypes';
 import type { HandoffNote, Attendance, User } from '../types';
 
 export interface UseMyDay extends MyDayModel {
   dateLabel: string;
-  staleCount: number;
   handoffToday: HandoffNote | null;
   /** The afternoon (or, on a mid shift, the mid-arrival) check-in was logged today. */
   checkInDoneToday: boolean;
@@ -43,7 +40,6 @@ export function useMyDay(): UseMyDay {
   // todayShifts (NOT the navigable `shifts`): My Day must reflect today even if the
   // Schedule screen was last swiped to another week (bug 2026-07-10).
   const { todayShifts, setShiftAttendance } = useSchedule();
-  const { staleHolds, vehicles } = useVehicleHoldContext();
   const { latestHandoff, getTodayCheckpoint, getMidArrival } = useWashbayContext();
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
@@ -88,10 +84,6 @@ export function useMyDay(): UseMyDay {
     dateLabel,
     checkInDoneToday: !!checkInToday,
     checkInCarsToday: checkInToday ? carsCleaned(checkInToday) : null,
-    // "Held too long" = distinct HELD vehicles (the sidebar badge's population) that
-    // carry a stale hold — so sale_car holds and dangling holds on archived units
-    // don't masquerade as bay holds, and it never exceeds the badge.
-    staleCount: staleHeldVehicleCount(staleHolds, vehicles),
     handoffToday: handoffIsToday ? latestHandoff! : null,
     balanceLogged: !!todayEntry,
     todayEntry,

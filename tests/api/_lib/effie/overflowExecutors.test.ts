@@ -133,3 +133,15 @@ describe('resolveSentScope — which question was actually asked', () => {
     expect(groupOverflowSends(afterMidnight, 'day', '2026-09-01').total).toBe(0);
   });
 });
+
+// ⚠️ THE CLIENT IMPORTS THIS GROUPING TOO (My Day's overflow card, 2026-09-11), so it lives in the
+// LEAF module `api/_lib/overflowManifest` — the executor re-exports it. Importing it must never drag
+// in the executor's server-only dependencies (the key-tag reader, a server Supabase client).
+describe('the manifest grouping is importable on its own', () => {
+  it('the leaf module and the executor export the same function', async () => {
+    const leaf = await import('../../../../api/_lib/overflowManifest');
+    const viaExecutor = await import('../../../../api/_lib/effie/overflowExecutors');
+    expect(leaf.groupOverflowSends).toBe(viaExecutor.groupOverflowSends);
+    expect(leaf.groupOverflowSends(ROWS, 'current').total).toBeGreaterThan(0);
+  });
+});

@@ -9,6 +9,7 @@ import { FleetBalanceEntryForm } from '../vehicle';
 import { OpeningLotCard } from './OpeningLotCard';
 import { PlateWatchCard } from './PlateWatchCard';
 import { MyTrailCard } from './MyTrailCard';
+import { OverflowSendsCard } from './OverflowSendsCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import type { Screen } from '../../types';
 
@@ -231,24 +232,12 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
         </section>
       )}
 
-      {/* ── Needs attention ──────────────────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={() => onNavigate({ name: 'dashboard' })}
-        className={`${CARD} w-full px-4 py-4 flex items-center justify-between text-left hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer`}
-      >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Needs attention</p>
-          {day.staleCount === 0 ? (
-            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">All clear</p>
-          ) : (
-            <p className="text-lg font-bold text-red-600 dark:text-red-400">
-              {day.staleCount} vehicle{day.staleCount === 1 ? '' : 's'} held too long
-            </p>
-          )}
-        </div>
-        <span className="text-gray-400 dark:text-gray-500 text-sm shrink-0">Holds →</span>
-      </button>
+      {/* ── Sent to overflow today ────────────────────────────────────────
+          Replaced "N vehicles held too long" here (2026-09-11). That card counted cars waiting on a
+          shop or a manager — *"there's really nothing I can do about it. So it's pretty much just
+          noise."* This slot now answers a question he acts on: what went to AV Flight / FastAir,
+          and when. */}
+      <OverflowSendsCard onOpen={() => onNavigate({ name: 'movement-log' })} />
 
     </div>
   );
