@@ -34,23 +34,58 @@ export interface OverflowSends {
 // was partial. Under the cap every day is complete; at the cap the last one is suspect, so it goes.
 const LIMIT = 500;
 
+// One confirm tap writes one row PER VEHICLE, so a batch of eight sends arrives as eight separate
+// events. They collapse into a single refetch rather than eight.
+const COALESCE_MS = 250;
+
 export function useOverflowSends(): OverflowSends {
   const [rows, setRows] = useState<SentRow[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from('vsa_trips')
-      .select('vehicle_plate, vehicle_unit, arrive_location, depart_time')
-      .is('voided_at', null)
-      .in('arrive_location', [...OVERFLOW_DESTINATIONS])
-      .order('depart_time', { ascending: false })
-      .limit(LIMIT)
-      .then(({ data, error }) => {
+    let coalesce: ReturnType<typeof setTimeout> | null = null;
+
+    const load = () => {
+      supabase
+        .from('vsa_trips')
+        .select('vehicle_plate, vehicle_unit, arrive_location, depart_time')
+        .is('voided_at', null)
+        .in('arrive_location', [...OVERFLOW_DESTINATIONS])
+        .order('depart_time', { ascending: false })
+        .limit(LIMIT)
+        .then(({ data, error }) => {
+          if (cancelled) return;
+          setRows(error ? [] : ((data ?? []) as SentRow[]));
+        });
+    };
+    load();
+
+    // ⭐ LIVE, so a send logged from the Movement Log appears without navigating away and back
+    // (Aaron, 2026-09-11: *"Saves navigating away and coming back or refreshing"*).
+    //
+    // ⚠️⚠️ THIS IS SILENT UNLESS `vsa_trips` IS IN THE `supabase_realtime` PUBLICATION — a channel on
+    // a table outside it subscribes happily and never fires. Migration 140 adds it. FG already
+    // carries one subscription with that exact defect (`vehicles-realtime` in VehicleHoldContext,
+    // on a table that is not published), which is why this was checked rather than assumed.
+    //
+    // `*`, not INSERT: a VOID is an UPDATE that sets `voided_at`, and a voided send must leave the
+    // card as promptly as a new one joins it.
+    const channel = supabase
+      .channel('overflow-sends-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vsa_trips' }, () => {
         if (cancelled) return;
-        setRows(error ? [] : ((data ?? []) as SentRow[]));
-      });
-    return () => { cancelled = true; };
+        if (coalesce) clearTimeout(coalesce);
+        // Refetch rather than patch the row in: the card groups by day and destination through the
+        // shared manifest rules, and re-reading is the only way those rules stay the one definition.
+        coalesce = setTimeout(load, COALESCE_MS);
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (coalesce) clearTimeout(coalesce);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const days = groupOverflowDays(rows ?? []);
