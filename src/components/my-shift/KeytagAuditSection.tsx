@@ -103,7 +103,11 @@ export function KeytagAuditSection({ onOpenVehicle }: {
           {/* ⚠️ A DIFFERENT ERRAND, SO A DIFFERENT PANEL AND A DIFFERENT WORD. The amber list above
               says "bring back a photo"; this one says "bring back what the CAR says". Neutral grey
               rather than amber on purpose — nothing here is wrong or degraded, the tag simply never
-              carried the answer. Reason is derived from what FG holds, never stored. */}
+              carried the answer.
+              ⚠️⚠️ The reason is derived from WHAT FG HOLDS and never from what the tag shows. The
+              first cut said "no VIN on the tag", which is false on LZM539: that tag prints a VIN, it
+              is just another car's. A label the artifact in his hand can contradict is worse than
+              no label. */}
           {showCheckVehicle && checkVehicle.length > 0 && (
             <ul className="space-y-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-2">
               {checkVehicle.map(v => (
@@ -119,7 +123,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                     </span>
                   )}
                   <span className="text-gray-500 dark:text-gray-400">
-                    {v.vinLast9 ? 'confirm the VIN is this car\u2019s' : 'no VIN on the tag'}
+                    {v.vinLast9 ? 'confirm the VIN is this car\u2019s' : 'no VIN on file'}
                   </span>
                 </li>
               ))}

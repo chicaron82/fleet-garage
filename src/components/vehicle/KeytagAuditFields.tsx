@@ -227,8 +227,10 @@ export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreada
         Can't read this
       </button>
       {/* ⭐ THE TAG IS FINE AND STILL CANNOT ANSWER — 728NVJ and DEWN854 wear hand-written
-          replacement tags with no `Last9vin:` line on them at all, so "can't read this" would book
-          a retake that changes nothing. Sends him to the barcode sticker instead. Migration 143. */}
+          replacement tags with no `Last9vin:` line on them at all; LZM516 and LZM539 are two
+          different cars whose tags print the SAME unit and VIN, so one of them is printed from the
+          other's record. Either way "can't read this" books a retake that changes nothing — a
+          perfect photo of a wrong tag is still wrong. Sends him to the sticker. Migration 143. */}
       <button type="button" disabled={saving} onClick={onFlagCheckVehicle}
         className={`rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40 transition cursor-pointer ${
           dark

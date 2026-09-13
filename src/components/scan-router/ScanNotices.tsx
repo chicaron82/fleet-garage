@@ -100,18 +100,25 @@ export function ScanNotices({ scanRead, vehicle, codexToast }: {
               replacement tags with no `Last9vin:` line printed on them at all. The camera is not
               the missing piece; the door jamb is.
 
-              ⭐ THE SECOND SENTENCE IS DERIVED, NOT STORED. The flag says "the tag can't settle
-              this"; what FG already holds says WHY, and the two cases want opposite things from
-              him. No VIN on file → bring one back. A VIN on file → confirm it is THIS car's, which
-              is precisely the LZM516/LZM539 question (two records, one printed unit `542 7497`).
-              Storing that reason would let it rot; deriving it keeps it true. */}
+              ⭐ THE SECOND SENTENCE IS DERIVED, NOT STORED — it says what FG HOLDS, and deliberately
+              says nothing about what the tag prints. Storing the reason would let it rot; asserting
+              the tag's contents would be worse, and was: the first cut of this read *"FG has no VIN
+              for it, and this tag doesn't carry one."*
+
+              ⚠️⚠️ THAT SECOND CLAUSE WAS FALSE ON THE VERY CAR IT WAS WRITTEN FOR. I had LZM516 and
+              LZM539 as one re-plated Prius; Aaron, 2026-09-13: *"they're two different vehicles with
+              the same unit and VIN. that's why i wanted the flag on both."* So LZM539's tag DOES
+              print `0T3076384` — it is simply another car's, and FG cannot store it because LZM516
+              already has it. He would have been standing at the car holding a tag with a VIN on it
+              while FG insisted there wasn't one. A notice that describes evidence in his hand can be
+              contradicted by it; one that describes FG's own record cannot. */}
           {vehicle?.keytagAuditResult === 'check-vehicle' && (
             <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
               🔎 The tag can’t settle this one — read the barcode sticker in the door jamb.{' '}
               {vehicle.vinLast9
                 ? <>FG has <span className="font-mono font-semibold">{vehicle.vinLast9}</span> on file;
-                    confirm it belongs to <em>this</em> car.</>
-                : <>FG has no VIN for it, and this tag doesn’t carry one.</>}{' '}
+                    confirm the sticker agrees before trusting it.</>
+                : <>FG has no VIN on file for it — take it off the sticker, not the tag.</>}{' '}
               A fresh photo of the tag won’t help.
             </p>
           )}

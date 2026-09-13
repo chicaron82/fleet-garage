@@ -187,7 +187,11 @@ export type FieldSource = 'tag' | 'manual' | 'derived';
  *  genuinely this car's — and the tag still has no answer on it. Two ways that happens, both live:
  *
  *    • a HAND-WRITTEN replacement tag, which has no `Last9vin:` line at all (728NVJ, DEWN854)
- *    • two records whose tags print the SAME unit and VIN — one car, re-plated (LZM516 / LZM539)
+ *    • two records whose tags print the SAME unit and VIN — and are TWO DIFFERENT CARS, one of
+ *      them wearing a tag printed from the other's record (LZM516 / LZM539). ⚠️ Not a re-plate:
+ *      Aaron, 2026-09-13, correcting exactly that reading — *"they're two different vehicles with
+ *      the same unit and VIN. that's why i wanted the flag on both."* Nothing on either tag says
+ *      which of the two is the mis-tagged one, which is why both carry the flag.
  *
  *  ⚠️ It is deliberately ABSENT from `retakeWatchlist`. Listing it there would hand him the single
  *  instruction guaranteed not to work: a hundred fresh photos of a handwritten tag still print no

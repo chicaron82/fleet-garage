@@ -136,3 +136,65 @@ describe('ScanNotices — recheck the VIN', () => {
     expect(screen.queryByText(/Recheck the VIN/)).not.toBeInTheDocument();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// The tag is sharp, current, genuinely this car's — and still has no answer on it.
+// Aaron, 2026-09-13: "wanna flag both priuses so the next scan will let me know to check other
+// sources on the vehicle. like what the barcode sticker has."
+describe('ScanNotices — when the TAG is what cannot answer', () => {
+  it('⭐ sends him to the barcode sticker, at the car', () => {
+    show({ vehicle: car({ keytagAuditResult: 'check-vehicle' }) });
+    expect(screen.getByText(/barcode sticker in the door jamb/i)).toBeInTheDocument();
+  });
+
+  // ⚠️⚠️ THE WHOLE POINT OF A FOURTH WORD. 'unreadable' and 'stale' both end in "take a photo",
+  // and that is the one instruction guaranteed to fail here: a perfect photo of a hand-written tag
+  // still prints no VIN, and a perfect photo of a mis-printed tag reproduces the wrong VIN exactly.
+  it('⚠️⚠️ never tells him a fresh photo will help — that is the instruction that cannot work', () => {
+    show({ vehicle: car({ keytagAuditResult: 'check-vehicle' }) });
+    expect(screen.getByText(/fresh photo of the tag won’t help/i)).toBeInTheDocument();
+    expect(screen.queryByText(/grab a fresh photo|snap the one in your hand/i)).not.toBeInTheDocument();
+  });
+
+  // ⚠️⚠️ THE REGRESSION THIS FILE EXISTS TO HOLD. The first cut read "FG has no VIN for it, and
+  // this tag doesn't carry one" — false on LZM539, whose tag prints 0T3076384 perfectly well. It is
+  // simply another car's, so FG cannot store it. He would have been standing at the car holding a
+  // tag with a VIN on it while FG insisted there wasn't one. Aaron: "they're two different vehicles
+  // with the same unit and VIN."
+  //
+  // ⭐ THE RULE THAT CAME OUT OF IT: this notice may describe FG'S OWN RECORD and must never assert
+  // what the tag does or does not print. A claim the artifact in his hand can contradict is worse
+  // than no claim.
+  it('⚠️⚠️ never claims the tag is blank — it speaks only for FG\'s record', () => {
+    show({ vehicle: car({ keytagAuditResult: 'check-vehicle', vinLast9: null }) });
+    expect(screen.getByText(/no VIN on file for it/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tag doesn’t carry|tag doesn't carry|not on the tag/i)).not.toBeInTheDocument();
+  });
+
+  // ⭐ DERIVED, NOT STORED — and the two cases want opposite things from him. LZM516 holds a VIN
+  // that may be the OTHER car's, so the ask is to corroborate it, never to trust it.
+  // ⚠️ year 2026 matches the VIN's own `T`, so ONLY this notice fires. At 2025 the VIN-recheck
+  // notice fires too and prints the same string — correct behaviour, and the reason this fixture
+  // is pinned: a test that happens to pass because two notices agree is not testing either one.
+  it('⭐ asks him to corroborate a VIN FG already holds, rather than trust it', () => {
+    show({ vehicle: car({ keytagAuditResult: 'check-vehicle', vinLast9: '0T3076384', year: 2026 }) });
+    expect(screen.getByText('0T3076384')).toBeInTheDocument();
+    expect(screen.getByText(/confirm the sticker agrees before trusting it/i)).toBeInTheDocument();
+  });
+
+  // ⭐ AND WHEN BOTH ARE TRUE, HE GETS BOTH. A car flagged check-vehicle whose stored VIN also
+  // fails its own year check has two independent things wrong; suppressing either would hide one.
+  it('⭐ stacks with the VIN-recheck notice rather than competing with it', () => {
+    show({ vehicle: car({ keytagAuditResult: 'check-vehicle', vinLast9: '0T3076384', year: 2025 }) });
+    expect(screen.getByText(/barcode sticker in the door jamb/i)).toBeInTheDocument();
+    expect(screen.getByText(/Recheck the VIN/)).toBeInTheDocument();
+  });
+
+  it('is silent for every other audit state, and for an unmatched plate', () => {
+    for (const v of [car({ keytagAuditResult: 'verified' }), car({ keytagAuditResult: 'unreadable' }), car(), null]) {
+      const { unmount } = show({ vehicle: v });
+      expect(screen.queryByText(/barcode sticker/i), `${v?.keytagAuditResult}`).toBeNull();
+      unmount();
+    }
+  });
+});

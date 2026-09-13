@@ -225,8 +225,10 @@ export type KeytagFlag = 'unreadable' | 'check-vehicle';
  *   'unreadable'    → the PHOTO failed: cropped, blurred, watermarked across the VIN, four tags in
  *                     one frame. A better picture fixes it. → `retakeWatchlist`
  *   'check-vehicle' → the photo is fine and the TAG has no answer on it: a hand-written replacement
- *                     with no `Last9vin:` line, or two records printing the same unit. A better
- *                     picture fixes nothing; the barcode sticker does. → `checkVehicleWatchlist`
+ *                     with no `Last9vin:` line, or a tag printed from ANOTHER car's record (two
+ *                     different vehicles, one unit number). A better picture fixes nothing — it
+ *                     reproduces the wrong answer perfectly. The barcode sticker is the fix.
+ *                     → `checkVehicleWatchlist`
  *
  * ⭐ THIS IS THE WATCHLIST — either one. There is no separate table: the flag is the same column
  * that advances the audit queue (migration 130), written by the same tap, so a list can never drift

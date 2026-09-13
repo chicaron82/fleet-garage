@@ -6,8 +6,13 @@
 --
 --   728NVJ, DEWN854  — HAND-WRITTEN replacement tags. There is no `Last9vin:` line on them at all.
 --   LZM516, LZM539   — two FG rows whose tags BOTH print unit `542 7497` and VIN `0T3076384`.
---                      One physical Prius, re-plated; the tags differ only in the plate line and
---                      the colour code (GRE → GRA). The tag cannot say which row is the live one.
+--                      ⚠️ CORRECTED after this migration was applied (Aaron, same day): I had read
+--                      these as ONE Prius, re-plated, and explained away the colour code differing
+--                      (GRE vs GRA) as a tag regeneration. It was the opposite — that field was the
+--                      one thing telling the two apart. *"they're two different vehicles with the
+--                      same unit and VIN. that's why i wanted the flag on both."* TWO physical cars,
+--                      and at least one wears a tag printed from the other's record. Which one is
+--                      mis-tagged cannot be known from either tag, so BOTH are flagged.
 --
 -- ⭐ NONE OF THOSE IS A RETAKE. The photos are sharp, current, and belong to the car — 'unreadable'
 -- would send him hunting for a blur that is not there, and 'stale' would tell him the tag in his
