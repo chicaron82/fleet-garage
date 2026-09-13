@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
 import { useVehicleOperations } from './useVehicleOperations';
 import { isStaleHold } from '../lib/holdFilters';
+import { useFleetSync } from '../hooks/useFleetSync';
 import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
 import { makeEvAssetLoanOps, loadOpenLoans } from './evAssetLoanWrite';
 import type { KeytagFill } from '../lib/resolveKeytag';
@@ -255,6 +256,10 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
 
     return () => { void supabase.removeChannel(channel); };
   }, []);
+
+  // Realtime covers changes made while this client is awake and connected; it has no replay, so a
+  // change made while the phone was in his pocket is simply lost. useFleetSync is the other half.
+  useFleetSync(setAllVehicles);
 
   // ── Computed values ──────────────────────────────────────────────────────────
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
