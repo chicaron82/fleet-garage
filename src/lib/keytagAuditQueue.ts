@@ -299,6 +299,28 @@ export function retakeWatchlist<V extends AuditableVehicle>(vehicles: readonly V
     .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
 }
 
+/**
+ * The other watchlist — cars the TAG cannot settle, whatever the photo looks like.
+ *
+ * ⚠️⚠️ SEPARATE FROM `retakeWatchlist` ON PURPOSE, and the separation is the whole feature. That
+ * list is one errand ("go to the car, take a photo") wearing two words. This one is a genuinely
+ * different errand: **read the barcode sticker in the door jamb**, because the tag is already as
+ * good as it will ever be and still has no answer on it. Folding them together would print the one
+ * instruction guaranteed not to work — a fresh photo of DEWN854's handwritten tag still has no
+ * `Last9vin:` line on it, because that line was never printed.
+ *
+ * ⭐ Same column, same lifecycle, same "auditing and flagging are one gesture" property as the
+ * retakes — see migration 143. Only the sentence and the list differ, because only the errand does.
+ */
+export function checkVehicleWatchlist<V extends AuditableVehicle>(vehicles: readonly V[]): V[] {
+  return vehicles
+    // ⚠️ ARCHIVED CARS ARE NOT WORK — the rule that was missed on `retakeWatchlist` in 2026-09-07.
+    // Applying it here at birth rather than discovering it later is the actual lesson from that.
+    .filter(v => !v.archivedAt)
+    .filter(v => v.keytagAuditResult === 'check-vehicle')
+    .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
+}
+
 /** Headline for the collapsed card: how much work is left and how much has been done. */
 export interface AuditQueueStats {
   /** Cars with a photo that nobody has read yet. */

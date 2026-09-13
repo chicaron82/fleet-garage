@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { holdLatestActivity } from '../lib/displayHold';
 import type { UpdateFieldsResult } from './vehicleFieldsWrite';
-import type { KeytagAuditEdits, KeytagAuditSaveResult } from './keytagAuditWrite';
+import type { KeytagAuditEdits, KeytagAuditSaveResult, KeytagFlag } from './keytagAuditWrite';
 import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus, Disposition } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
@@ -48,9 +48,12 @@ export interface VehicleHoldContextValue {
    *  locks it against later misreads. Returns a unit# conflict when that one field was blocked.
    *  See keytagAuditWrite. */
   saveKeytagAudit: (vehicleId: string, edits: KeytagAuditEdits) => Promise<KeytagAuditSaveResult>;
-  /** "I can't read this one." Stamps the car unreadable — which IS the retake watchlist, not a
-   *  separate table. Writes no identity fields; he did not read them. See keytagAuditWrite. */
-  flagKeytagUnreadable: (vehicleId: string) => Promise<void>;
+  /** "I couldn't get it off the tag." Stamps the car audited-without-values — which IS the
+   *  watchlist, not a separate table. Writes no identity fields; he did not read them. Defaults to
+   *  'unreadable' (the photo failed);
+   *  pass 'check-vehicle' when the photo is fine and the TAG is what has no answer on it.
+   *  See keytagAuditWrite. */
+  flagKeytag: (vehicleId: string, result?: KeytagFlag) => Promise<void>;
   /** Put an audited car back in the queue — the auditor's undo. Clears only the audit stamp; the
    *  'manual' locks on its fields stay, so nothing can overwrite them in the meantime. */
   reopenKeytagAudit: (vehicleId: string) => Promise<void>;

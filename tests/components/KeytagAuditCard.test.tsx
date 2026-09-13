@@ -47,7 +47,7 @@ function Harness({ guessOwning = noGuess, presets = PRESETS, candidateOverride =
     <KeytagAuditCard key={candidateOverride.vehicle.id} candidate={candidateOverride} saving={false}
       knownRentalClasses={KNOWN_CLASSES} knownModelCodes={KNOWN_CODES} guessOwning={guessOwning}
       owningPresets={presets} zoomed={zoomed} onZoomChange={setZoomed} remaining={remaining}
-      onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} />
+      onSave={onSave} onSkip={onSkip} onFlagUnreadable={onFlag} onFlagCheckVehicle={vi.fn()} />
   );
 }
 

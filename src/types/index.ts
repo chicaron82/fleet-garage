@@ -176,11 +176,24 @@ export type FieldSource = 'tag' | 'manual' | 'derived';
  *  'unreadable' — and that tag is perfectly legible. Using it would have sent the next person
  *  hunting for a blur that is not there.
  *
- *    unreadable → a better photo of the SAME tag
- *    stale      → a photo of a DIFFERENT tag
+ *    unreadable    → a better photo of the SAME tag
+ *    stale         → a photo of a DIFFERENT tag
+ *    check-vehicle → NOT a photo at all — read the car
  *
- *  Both sit on the retake watchlist; the word only changes what he should expect to find. */
-export type KeytagAuditResult = 'verified' | 'unreadable' | 'stale';
+ *  The first two sit on the retake watchlist; the word only changes what he should expect to find.
+ *
+ *  ⭐⭐ 'check-vehicle' (2026-09-13, migration 143) IS THE ONE THAT LEAVES THE TAG. Both words above
+ *  resolve with a camera, so they share a list. This one cannot: the photo is sharp, current, and
+ *  genuinely this car's — and the tag still has no answer on it. Two ways that happens, both live:
+ *
+ *    • a HAND-WRITTEN replacement tag, which has no `Last9vin:` line at all (728NVJ, DEWN854)
+ *    • two records whose tags print the SAME unit and VIN — one car, re-plated (LZM516 / LZM539)
+ *
+ *  ⚠️ It is deliberately ABSENT from `retakeWatchlist`. Listing it there would hand him the single
+ *  instruction guaranteed not to work: a hundred fresh photos of a handwritten tag still print no
+ *  VIN. The errand is the barcode sticker in the door jamb, which is a different source, not a
+ *  better picture — so it gets its own list (`checkVehicleWatchlist`) and its own sentence. */
+export type KeytagAuditResult = 'verified' | 'unreadable' | 'stale' | 'check-vehicle';
 /* 'derived' (2026-08-19, migration 121): the value was DEDUCED from other fields FG already held —
  * a class code inferred from make + model + hybrid + year — rather than read off a tag or typed by a
  * person. It is deliberately weaker than both: a real tag reading OVERWRITES a derived value, where

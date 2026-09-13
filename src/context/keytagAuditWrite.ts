@@ -214,36 +214,51 @@ export function makeSaveKeytagAudit(deps: {
   };
 }
 
+/** The two outcomes that end an audit WITHOUT any values being read. Both leave the car audited and
+ *  both put it on a watchlist; which watchlist, and what the next person is told to do, is the whole
+ *  difference. See migration 143 and `KeytagAuditResult`. */
+export type KeytagFlag = 'unreadable' | 'check-vehicle';
+
 /**
- * "I can't read this one." — the tag photo is cropped, blurred, watermarked across the VIN, or
- * holds four tags at once.
+ * "I couldn't get it off the tag." — the two ways that happens, told apart.
  *
- * ⭐ THIS IS THE RETAKE WATCHLIST. There is no separate table: the flag is the same column that
- * advances the audit queue (migration 130), written by the same tap, so the list of cars needing a
- * fresh photo can never drift out of step with the audit that found them. A retake later clears
- * the result back to NULL, which puts the car straight back in line for the audit it never got.
+ *   'unreadable'    → the PHOTO failed: cropped, blurred, watermarked across the VIN, four tags in
+ *                     one frame. A better picture fixes it. → `retakeWatchlist`
+ *   'check-vehicle' → the photo is fine and the TAG has no answer on it: a hand-written replacement
+ *                     with no `Last9vin:` line, or two records printing the same unit. A better
+ *                     picture fixes nothing; the barcode sticker does. → `checkVehicleWatchlist`
  *
- * ⚠️ Writes NO identity fields. He did not read them, so there is nothing to record — and stamping
- * 'manual' here would lock values he never actually saw.
+ * ⭐ THIS IS THE WATCHLIST — either one. There is no separate table: the flag is the same column
+ * that advances the audit queue (migration 130), written by the same tap, so a list can never drift
+ * out of step with the audit that found it. A retake later clears the result back to NULL, which
+ * puts the car straight back in line for the audit it never got.
+ *
+ * ⚠️⚠️ GENERALISED 2026-09-13 rather than copied. The obvious move was a second
+ * `makeFlagKeytagCheckVehicle` beside this one — two functions identical but for a string literal,
+ * which is how the third and fourth outcomes would each arrive as another copy. The outcome is a
+ * PARAMETER because it was always a parameter; it just only had one value.
+ *
+ * ⚠️ Writes NO identity fields, under either flag. He did not read them, so there is nothing to
+ * record — and stamping 'manual' here would lock values he never actually saw.
  */
-export function makeFlagKeytagUnreadable(deps: {
+export function makeFlagKeytag(deps: {
   setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   userId: string | null;
 }) {
   const { setAllVehicles, userId } = deps;
 
-  return async (vehicleId: string): Promise<void> => {
+  return async (vehicleId: string, result: KeytagFlag = 'unreadable'): Promise<void> => {
     const now = new Date().toISOString();
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({
         keytag_audited_at: now,
         keytag_audited_by: userId,
-        keytag_audit_result: 'unreadable',
+        keytag_audit_result: result,
       }).eq('id', vehicleId)
     );
     if (error) throw new Error(`Failed to flag key tag: ${(error as { message?: string }).message}`);
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? {
-      ...v, keytagAuditedAt: now, keytagAuditedBy: userId, keytagAuditResult: 'unreadable' as const,
+      ...v, keytagAuditedAt: now, keytagAuditedBy: userId, keytagAuditResult: result,
     } : v)));
   };
 }

@@ -12,7 +12,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
   /** So the unit-conflict notice can OPEN the other car it names — see the notice below. */
   onOpenVehicle?: (vehicleId: string) => void;
 }) {
-  const { current, remaining, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, vinRejected, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
+  const { current, remaining, stats, retakes, checkVehicle, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, vinRejected, save, skip, flagUnreadable, flagCheckVehicle, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
   // ⭐ HELD HERE, ABOVE THE PER-CAR `key`. The card remounts on every save so its edits and zoom
   // scale reset; if the zoom FLAG lived there too it would reset as well, dropping him out of the
@@ -21,6 +21,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
   const [zoomed, setZoomed] = useState(false);
   // ⚠️ Collapsed by default: this line must not get taller on a busy day (`472020e`, same morning).
   const [showRetakes, setShowRetakes] = useState(false);
+  const [showCheckVehicle, setShowCheckVehicle] = useState(false);
   const open = !collapsed;
 
   return (
@@ -63,6 +64,16 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                 Fleet's "No keytag" chip. A count needs to name its items only when nothing else
                 does — duplicating a list that has a screen is clutter wearing an affordance's
                 clothes. ⚠️ Scale-dependent: if it ever drops to a handful, revisit. */}
+            {/* ⭐ ITS OWN COUNT, NOT FOLDED INTO THE RETAKES. Both are "audited, nothing recorded",
+                and lumping them would put cars on a retake list whose retake cannot help — the
+                photo is already perfect. Hidden entirely at zero: an always-visible "0 need the
+                car checked" is a line that costs space every day to describe an empty set. */}
+            {checkVehicle.length > 0 && (
+              <button type="button" onClick={() => setShowCheckVehicle(c => !c)} aria-expanded={showCheckVehicle}
+                className="underline underline-offset-2 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer">
+                🔎 {checkVehicle.length} need the car checked {showCheckVehicle ? '▲' : '▼'}
+              </button>
+            )}
             <span>📷 {stats.noPhoto} have no photo yet</span>
           </div>
 
@@ -83,6 +94,32 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                   {/* ⭐ One errand, two expectations — say which he'll find at the car. */}
                   <span className="text-amber-700/70 dark:text-amber-400/70">
                     {v.keytagAuditResult === 'stale' ? 'wrong tag on file' : 'photo unreadable'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* ⚠️ A DIFFERENT ERRAND, SO A DIFFERENT PANEL AND A DIFFERENT WORD. The amber list above
+              says "bring back a photo"; this one says "bring back what the CAR says". Neutral grey
+              rather than amber on purpose — nothing here is wrong or degraded, the tag simply never
+              carried the answer. Reason is derived from what FG holds, never stored. */}
+          {showCheckVehicle && checkVehicle.length > 0 && (
+            <ul className="space-y-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-2">
+              {checkVehicle.map(v => (
+                <li key={v.id} className="flex items-baseline gap-2 text-[11px]">
+                  {onOpenVehicle ? (
+                    <button type="button" onClick={() => onOpenVehicle(v.id)}
+                      className="font-semibold text-gray-700 dark:text-gray-300 underline underline-offset-2 cursor-pointer">
+                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {v.vinLast9 ? 'confirm the VIN is this car\u2019s' : 'no VIN on the tag'}
                   </span>
                 </li>
               ))}
@@ -148,6 +185,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                 onSave={save}
                 onSkip={skip}
                 onFlagUnreadable={flagUnreadable}
+                onFlagCheckVehicle={flagCheckVehicle}
               />
               <p className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{remaining} left in this sitting</p>
             </>

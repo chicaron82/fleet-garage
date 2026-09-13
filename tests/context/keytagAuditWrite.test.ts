@@ -20,7 +20,7 @@ vi.mock('../../src/lib/supabase', () => ({
   writeWithRefresh: (fn: () => unknown) => fn(),
 }));
 
-import { makeSaveKeytagAudit, makeFlagKeytagUnreadable, makeReopenKeytagAudit } from '../../src/context/keytagAuditWrite';
+import { makeSaveKeytagAudit, makeFlagKeytag, makeReopenKeytagAudit } from '../../src/context/keytagAuditWrite';
 
 const car = (over: Partial<Vehicle> & { id: string }): Vehicle => ({
   unitNumber: '5420427', licensePlate: 'LUR202', make: 'Toyota', model: 'RAV4', year: 2026,
@@ -144,18 +144,34 @@ describe('saveKeytagAudit — the unit# collision guard', () => {
   });
 });
 
-describe('flagKeytagUnreadable', () => {
+describe('flagKeytag', () => {
   it('⭐ stamps the car unreadable — this IS the retake watchlist', async () => {
-    const flag = makeFlagKeytagUnreadable({ setAllVehicles: setAll, userId: 'aaron' });
+    const flag = makeFlagKeytag({ setAllVehicles: setAll, userId: 'aaron' });
     await flag('me');
     expect(updates[0]).toMatchObject({ keytag_audit_result: 'unreadable', keytag_audited_by: 'aaron' });
   });
 
-  it('⚠️ writes no identity field — he did not read them', async () => {
-    const flag = makeFlagKeytagUnreadable({ setAllVehicles: setAll, userId: 'aaron' });
+  // ⭐ The default is load-bearing: every existing caller passes one argument, and a generalisation
+  // that silently changed what those calls write would be a migration disguised as a refactor.
+  it('⭐ defaults to unreadable when no outcome is named', async () => {
+    const flag = makeFlagKeytag({ setAllVehicles: setAll, userId: 'aaron' });
     await flag('me');
+    expect(updates[0]).toMatchObject({ keytag_audit_result: 'unreadable' });
+  });
+
+  it('⭐ stamps check-vehicle when the TAG is what has no answer on it', async () => {
+    const flag = makeFlagKeytag({ setAllVehicles: setAll, userId: 'aaron' });
+    await flag('me', 'check-vehicle');
+    expect(updates[0]).toMatchObject({ keytag_audit_result: 'check-vehicle', keytag_audited_by: 'aaron' });
+  });
+
+  it('⚠️ writes no identity field under EITHER flag — he did not read them', async () => {
+    const flag = makeFlagKeytag({ setAllVehicles: setAll, userId: 'aaron' });
+    await flag('me');
+    await flag('me', 'check-vehicle');
     for (const col of ['owning_area', 'rental_class', 'class_code', 'unit_number', 'vin_last9', 'field_sources']) {
       expect(updates[0], `unreadable must not write ${col}`).not.toHaveProperty(col);
+      expect(updates[1], `check-vehicle must not write ${col}`).not.toHaveProperty(col);
     }
   });
 });

@@ -29,7 +29,7 @@ import type { Vehicle } from '../../types';
  * is tedious."* Five fields was five round trips per car. Neither layout owns the inputs; they both
  * render `KeytagAuditFields`, so the two can never disagree about what a tag holds.
  */
-export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, zoomed, onZoomChange, remaining, onSave, onSkip, onFlagUnreadable }: {
+export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, zoomed, onZoomChange, remaining, onSave, onSkip, onFlagUnreadable, onFlagCheckVehicle }: {
   candidate: AuditCandidate<Vehicle>;
   saving: boolean;
   /** The two vocabularies FG already holds — the guard catches a value from one landing in the
@@ -62,6 +62,8 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   onSave: (edits: KeytagAuditEdits) => void;
   onSkip: () => void;
   onFlagUnreadable: () => void;
+  /** "The tag can't answer this one" — see KeytagAuditActions. */
+  onFlagCheckVehicle: () => void;
 }) {
   const { vehicle, missing } = candidate;
   const [edits, setEdits] = useState<KeytagAuditEdits>(() => ({
@@ -133,7 +135,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       {panelOpen && (
         <div className="px-3 pb-3 space-y-2.5">
           <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
-          <KeytagAuditActions saving={saving} tone="dark" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
+          <KeytagAuditActions saving={saving} tone="dark" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} onFlagCheckVehicle={onFlagCheckVehicle} />
         </div>
       )}
     </div>
@@ -173,7 +175,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
 
       <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
 
-      <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} />
+      <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} onFlagCheckVehicle={onFlagCheckVehicle} />
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500">
         Saving locks every filled field as <strong>manually verified</strong> — later scans can no longer overwrite them.

@@ -9,6 +9,7 @@ import {
   isAuditable,
   buildAuditQueue,
   retakeWatchlist,
+  checkVehicleWatchlist,
   auditQueueStats,
   auditWarnings,
   AUDIT_FIELD_HINTS,
@@ -145,6 +146,48 @@ describe('retakeWatchlist', () => {
 
   it('is empty when nothing has defeated him yet', () => {
     expect(retakeWatchlist([car(), car({ keytagAuditResult: 'verified' })])).toEqual([]);
+  });
+
+  // ⚠️⚠️ THE SEPARATION IS THE FEATURE, so it gets a test rather than a comment. A 'check-vehicle'
+  // car on this list would print "go take a photo" about a photo that is already perfect — the one
+  // instruction guaranteed not to work on a hand-written tag with no VIN line.
+  it('⚠️⚠️ never includes a check-vehicle car — a retake cannot fix a tag that never carried a VIN', () => {
+    expect(retakeWatchlist([car({ keytagAuditResult: 'check-vehicle' })])).toEqual([]);
+  });
+});
+
+describe('checkVehicleWatchlist', () => {
+  it('⭐ is exactly the cars the TAG cannot settle, plate-sorted', () => {
+    const list = checkVehicleWatchlist([
+      car({ id: 'ok' }),
+      car({ id: 'jam-2', licensePlate: 'ZZZ999', keytagAuditResult: 'check-vehicle' }),
+      car({ id: 'verified', keytagAuditResult: 'verified' }),
+      car({ id: 'jam-1', licensePlate: 'AAA111', keytagAuditResult: 'check-vehicle' }),
+    ]);
+    expect(list.map(v => v.id)).toEqual(['jam-1', 'jam-2']);
+  });
+
+  // ⚠️⚠️ The mirror of the guard above. These two lists partition the flags; an overlap in either
+  // direction would give one car two contradictory errands.
+  it('⚠️⚠️ never includes a retake car — a better photo is a different errand', () => {
+    expect(checkVehicleWatchlist([
+      car({ keytagAuditResult: 'unreadable' }),
+      car({ keytagAuditResult: 'stale' }),
+    ])).toEqual([]);
+  });
+
+  it('is empty when the tags have all been able to answer', () => {
+    expect(checkVehicleWatchlist([car(), car({ keytagAuditResult: 'verified' })])).toEqual([]);
+  });
+
+  // ⭐ Applied at BIRTH here rather than discovered later — `retakeWatchlist` shipped without the
+  // archived rule on 2026-09-07 and had to be repaired. A car that has left the fleet cannot have
+  // its door jamb read either.
+  it('⚠️ an archived car is not an errand — it cannot be walked out to', () => {
+    expect(checkVehicleWatchlist([
+      car({ id: 'gone', keytagAuditResult: 'check-vehicle', archivedAt: '2026-09-01T00:00:00Z' }),
+      car({ id: 'live', licensePlate: 'AAA111', keytagAuditResult: 'check-vehicle' }),
+    ]).map(v => v.id)).toEqual(['live']);
   });
 });
 

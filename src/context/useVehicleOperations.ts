@@ -19,7 +19,7 @@ import { makeAttachKeytagPhotoIfMissing, makeRetakeKeytagPhoto, makeRotateKeytag
 import { makeRecordOwningArea } from './owningAreaWrite';
 import { makeRecordClassCode } from './classCodeWrite';
 import { makeRecordVinLast9 } from './vinWrite';
-import { makeSaveKeytagAudit, makeFlagKeytagUnreadable, makeReopenKeytagAudit } from './keytagAuditWrite';
+import { makeSaveKeytagAudit, makeFlagKeytag, makeReopenKeytagAudit } from './keytagAuditWrite';
 import { makeAdoptPlate } from './plateWrite';
 import { makeRecordWinterTires } from './winterTiresWrite';
 import { makeRecordOnLot } from './onLotWrite';
@@ -181,7 +181,7 @@ export function useVehicleOperations({
   // CORRECT a value (a VIN included) and stamps 'manual', because he is the top of the provenance
   // ladder — the scan/batch guards stay exactly as strict as they are. See ./keytagAuditWrite.
   const saveKeytagAudit = makeSaveKeytagAudit({ setAllVehicles, allVehicles, userId });
-  const flagKeytagUnreadable = makeFlagKeytagUnreadable({ setAllVehicles, userId });
+  const flagKeytag = makeFlagKeytag({ setAllVehicles, userId });
   const reopenKeytagAudit = makeReopenKeytagAudit({ setAllVehicles });
 
   // ⚠️ The ONE tag write that overwrites a good value, gated twice: it must classify as a RE-PLATE
@@ -376,7 +376,7 @@ export function useVehicleOperations({
     recordClassCode,
     recordVinLast9,
     saveKeytagAudit,
-    flagKeytagUnreadable,
+    flagKeytag,
     reopenKeytagAudit,
     adoptPlate,
     recordOdometer,

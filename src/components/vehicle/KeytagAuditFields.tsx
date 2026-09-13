@@ -182,13 +182,17 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
   );
 }
 
-/** Save / Skip / Can't-read-this. Same three actions wherever the fields are. */
-export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreadable }: {
+/** Save / Skip / Can't-read-this / Not-on-the-tag. The same actions wherever the fields are. */
+export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreadable, onFlagCheckVehicle }: {
   saving: boolean;
   tone: 'light' | 'dark';
   onSave: () => void;
   onSkip: () => void;
   onFlagUnreadable: () => void;
+  /** ⚠️ A SEPARATE BUTTON, NOT A MODE OF THE ONE BESIDE IT. "Can't read this" blames the photo and
+   *  books a retake; this one says the photo is fine and the TAG has no answer on it. Same tap
+   *  count, opposite instruction to whoever picks the car up next. */
+  onFlagCheckVehicle: () => void;
 }) {
   const dark = tone === 'dark';
   return (
@@ -221,6 +225,17 @@ export function KeytagAuditActions({ saving, tone, onSave, onSkip, onFlagUnreada
             : 'border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
         }`}>
         Can't read this
+      </button>
+      {/* ⭐ THE TAG IS FINE AND STILL CANNOT ANSWER — 728NVJ and DEWN854 wear hand-written
+          replacement tags with no `Last9vin:` line on them at all, so "can't read this" would book
+          a retake that changes nothing. Sends him to the barcode sticker instead. Migration 143. */}
+      <button type="button" disabled={saving} onClick={onFlagCheckVehicle}
+        className={`rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40 transition cursor-pointer ${
+          dark
+            ? 'border-white/20 text-white/70 hover:bg-white/10'
+            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+        }`}>
+        Not on the tag
       </button>
     </div>
     </div>

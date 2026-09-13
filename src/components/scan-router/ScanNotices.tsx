@@ -89,6 +89,32 @@ export function ScanNotices({ scanRead, vehicle, codexToast }: {
               hand while you're here; that clears the flag and re-queues the audit.
             </p>
           )}
+          {/* ⭐⭐ THE TAG IS FINE AND STILL CANNOT ANSWER — so point at a different SOURCE, not a
+              better picture. Aaron, 2026-09-13, after five of thirteen tag photos turned out to be
+              untranscribable: *"wanna flag both priuses so the next scan will let me know to check
+              other sources on the vehicle. like what the barcode sticker has... also for the
+              handwritten ones to check for the VIN."*
+
+              ⚠️ IT MUST NOT READ LIKE THE TWO ABOVE. Both of those end in "take a photo", and that
+              is the one instruction that cannot work here: 728NVJ and DEWN854 wear HAND-WRITTEN
+              replacement tags with no `Last9vin:` line printed on them at all. The camera is not
+              the missing piece; the door jamb is.
+
+              ⭐ THE SECOND SENTENCE IS DERIVED, NOT STORED. The flag says "the tag can't settle
+              this"; what FG already holds says WHY, and the two cases want opposite things from
+              him. No VIN on file → bring one back. A VIN on file → confirm it is THIS car's, which
+              is precisely the LZM516/LZM539 question (two records, one printed unit `542 7497`).
+              Storing that reason would let it rot; deriving it keeps it true. */}
+          {vehicle?.keytagAuditResult === 'check-vehicle' && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+              🔎 The tag can’t settle this one — read the barcode sticker in the door jamb.{' '}
+              {vehicle.vinLast9
+                ? <>FG has <span className="font-mono font-semibold">{vehicle.vinLast9}</span> on file;
+                    confirm it belongs to <em>this</em> car.</>
+                : <>FG has no VIN for it, and this tag doesn’t carry one.</>}{' '}
+              A fresh photo of the tag won’t help.
+            </p>
+          )}
           {/* ⭐⭐ TELL HIM AT THE CAR, WHICH IS THE ONLY PLACE THIS IS ACTIONABLE. Aaron, 2026-08-30,
               after I had put the VIN checks on the vehicle record instead: *"the scanner worked
               perfectly, i just needed the flag on it so the next time i see it, the scan will tell

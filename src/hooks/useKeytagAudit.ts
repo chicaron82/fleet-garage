@@ -4,12 +4,13 @@ import {
   buildAuditQueue,
   auditQueueStats,
   retakeWatchlist,
+  checkVehicleWatchlist,
   type AuditCandidate,
   type AuditQueueStats,
 } from '../lib/keytagAuditQueue';
 import { owningFromUnit, type OwningGuess } from '../lib/owningFromUnit';
 import { owningPresets, type OwningPreset } from '../lib/owningPresets';
-import type { KeytagAuditEdits } from '../context/keytagAuditWrite';
+import type { KeytagAuditEdits, KeytagFlag } from '../context/keytagAuditWrite';
 import type { Vehicle } from '../types';
 
 /**
@@ -40,6 +41,13 @@ export interface KeytagAuditState {
    * so each row says which it is.
    */
   retakes: Vehicle[];
+  /**
+   * ⭐ THE OTHER LIST, AND IT IS NOT THE SAME ERRAND. `retakes` all end in "go take a photo".
+   * These end in "go read the car" — the tag is sharp, current, and still has no answer on it
+   * (a hand-written replacement with no VIN line; two records printing one unit). Merging them
+   * would hand him the one instruction that cannot work. See migration 143.
+   */
+  checkVehicle: Vehicle[];
   /** Every rental class in use, upper-cased — feeds the wrong-box guard. Derived rather than
    *  hard-coded: a class FG has never seen cannot be flagged as one, and a list I typed by hand
    *  would go stale the first time the fleet gained a group. */
@@ -64,11 +72,13 @@ export interface KeytagAuditState {
   save: (edits: KeytagAuditEdits) => Promise<void>;
   skip: () => void;
   flagUnreadable: () => Promise<void>;
+  /** "The tag can't answer this one" — audited, no values, pointed at the car instead. */
+  flagCheckVehicle: () => Promise<void>;
   dismissConflict: () => void;
 }
 
 export function useKeytagAudit(): KeytagAuditState {
-  const { allVehicles, saveKeytagAudit, flagKeytagUnreadable } = useVehicleHoldContext();
+  const { allVehicles, saveKeytagAudit, flagKeytag } = useVehicleHoldContext();
   const [skipped, setSkipped] = useState<ReadonlySet<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -89,6 +99,7 @@ export function useKeytagAudit(): KeytagAuditState {
   const queue = useMemo(() => buildAuditQueue(allVehicles), [allVehicles]);
   const stats = useMemo(() => auditQueueStats(allVehicles), [allVehicles]);
   const retakes = useMemo(() => retakeWatchlist(allVehicles), [allVehicles]);
+  const checkVehicle = useMemo(() => checkVehicleWatchlist(allVehicles), [allVehicles]);
   const pending = useMemo(() => queue.filter(c => !skipped.has(c.vehicle.id)), [queue, skipped]);
   const knownRentalClasses = useMemo(() => {
     const set = new Set<string>();
@@ -131,18 +142,23 @@ export function useKeytagAudit(): KeytagAuditState {
     }
   }, [current, saveKeytagAudit]);
 
-  const flagUnreadable = useCallback(async () => {
+  // ⭐ ONE CALLBACK FACTORY, TWO BUTTONS. The flags differ only in the word they write and the list
+  // they land on; duplicating the whole try/finally to change a string literal is how the two
+  // would drift apart the first time either grew an extra step.
+  const flagAs = useCallback((result: KeytagFlag) => async () => {
     if (!current) return;
     setSaving(true);
     setError('');
     try {
-      await flagKeytagUnreadable(current.vehicle.id);
+      await flagKeytag(current.vehicle.id, result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not flag that photo.');
+      setError(e instanceof Error ? e.message : 'Could not flag that tag.');
     } finally {
       setSaving(false);
     }
-  }, [current, flagKeytagUnreadable]);
+  }, [current, flagKeytag]);
+  const flagUnreadable = useMemo(() => flagAs('unreadable'), [flagAs]);
+  const flagCheckVehicle = useMemo(() => flagAs('check-vehicle'), [flagAs]);
 
   const skip = useCallback(() => {
     if (!current) return;
@@ -163,8 +179,9 @@ export function useKeytagAudit(): KeytagAuditState {
   );
 
   return {
-    current, remaining: pending.length, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
+    current, remaining: pending.length, stats, retakes, checkVehicle,
+    knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
     saving, error, unitConflict, vinRejected,
-    save, skip, flagUnreadable, dismissConflict,
+    save, skip, flagUnreadable, flagCheckVehicle, dismissConflict,
   };
 }
