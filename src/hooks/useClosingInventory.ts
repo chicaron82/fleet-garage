@@ -17,7 +17,7 @@ import { businessDateOf } from '../lib/shiftDay';
 import { loadSession, saveSession, clearSession } from '../lib/closingInventoryStore';
 import {
   entryFromScan, entryFromTag, handEntry, rowTally, summarise,
-  mergeEntries, sameEntries, visibleEntries,
+  mergeEntries, sameEntries, visibleEntries, linkUnlinked,
   type ActiveHold, type InventoryEntry, type InventoryStatus, type TagIdentity,
 } from '../lib/closingInventory';
 import { loadServerSheet, saveServerSheet } from '../lib/closingInventorySync';
@@ -47,7 +47,9 @@ export interface ClosingInventoryState {
   clear: () => void;
 }
 
-export function useClosingInventory(): ClosingInventoryState {
+/** `fleet` is optional so every existing test and caller keeps working; without it the hook simply
+ *  never heals, which is the behaviour it had before. */
+export function useClosingInventory(fleet: readonly Vehicle[] = []): ClosingInventoryState {
   /**
    * ⚠️⚠️ THE SHEET IS PERSISTED, AND THE REASON IS A BUG THAT ALREADY HAPPENED ONE SECTION DOWN.
    * The airport flip kept its session in `sessionStorage`, which dies with the PROCESS rather than
@@ -108,6 +110,35 @@ export function useClosingInventory(): ClosingInventoryState {
     document.addEventListener('visibilitychange', onVisible);
     return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [today]);
+
+  /**
+   * ⭐ Adopt hand-typed rows once FG knows the car — see `linkUnlinked` for the workflow this
+   * closes. Runs on every fleet change rather than once on mount, because the car is very often
+   * registered SECONDS AFTER the row is typed: the sheet is open, he scans the tag, the roster
+   * updates, and this is what notices. Skips itself when nothing is orphaned.
+   *
+   * ⚠️ THE SUPPRESSION IS DELIBERATE AND IT CONVERGES (2026-09-13). `set-state-in-effect` is
+   * already suppressed at 18 sites here — the load-then-setState shape is routine in FG — so this
+   * is the established pattern rather than a novel exception. What matters is that the loop the
+   * rule fears cannot form:
+   * `linkUnlinked` returns the SAME ARRAY REFERENCE unless a row was actually adopted, and an
+   * adopted row has a `vehicleId`, so the next call is a no-op. One extra render, once, the moment
+   * a car FG did not have becomes one it does.
+   *
+   * ⚠️ And a derived `useMemo` — the obvious way to dodge the rule — is WRONG here, not merely
+   * different. The heal has to be written back: the stored sheet is what syncs and what survives
+   * the night. Deriving it would show him a linked row while persisting an orphaned one, which is
+   * the same lie in nicer clothes, and would re-stamp `at` on every roster change forever because
+   * the underlying row never heals. State is the correct home precisely because this must stick.
+   */
+  useEffect(() => {
+    if (fleet.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- converges in one pass; see above
+    setEntries(prev => {
+      const healed = linkUnlinked(prev, fleet);
+      return healed === prev ? prev : healed;
+    });
+  }, [fleet]);
 
   /** Available cars per row, for the row suggestion's roll-to-next-row behaviour. */
   const filled = useMemo(() => {

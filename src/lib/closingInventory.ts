@@ -345,6 +345,7 @@ export function needsStatusChoice(d: DerivedStatus): boolean {
 
 // ⭐ Re-exported so the model still presents ONE interface to the surfaces, exactly as with
 // `closingInventoryLot` above. These splits are about the 330-line cap, not new seams to learn.
-export { visibleEntries, mergeEntries, sameEntries } from './closingInventoryMerge';
+export { visibleEntries, mergeEntries, sameEntries, linkUnlinked } from './closingInventoryMerge';
+export type { LinkableCar } from './closingInventoryMerge';
 export { GROUP_ORDER, groupEntries, seedClosingCounts,
          type GroupedRow, type EntryGroup } from './closingInventoryViews';

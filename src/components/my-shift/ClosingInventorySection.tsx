@@ -88,7 +88,7 @@ export function ClosingInventorySection() {
   const {
     entries, tally, counts, carriedStatus, carriedRow,
     addScan, addTag, commit, updateAt, removeAt, undoLast, clear,
-  } = useClosingInventory();
+  } = useClosingInventory(vehicles);
 
   /**
    * ⭐ The pending row is DERIVED from the scan, not copied into state by an effect.
