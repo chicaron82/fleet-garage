@@ -26,7 +26,7 @@ function vehicle(over: Partial<Vehicle>): Vehicle {
 }
 
 function result(over: Partial<KeytagScanResult>): KeytagScanResult {
-  return { rawPlate: 'LZM999', plate: 'LZM999', wasCorrected: false, vehicle: null, matchedByUnit: false, unitCandidates: [], resolution: { kind: 'new' }, ...over };
+  return { rawPlate: 'LZM999', plate: 'LZM999', wasCorrected: false, vehicle: null, matchedByUnit: false, matchedByClippedTag: false, unitCandidates: [], resolution: { kind: 'new' }, ...over };
 }
 
 describe('ScanBranch', () => {

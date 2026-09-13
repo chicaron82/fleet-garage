@@ -5,6 +5,7 @@
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { correctManitobaPlate } from '../../api/_lib/platePrefix';
 import { matchByUnitNumber } from './matchByUnitNumber';
+import { isClippedRead, matchByLeadingTruncation } from './clippedRead';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField, type KeytagExistingVehicle } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
@@ -105,6 +106,10 @@ export interface KeytagScanResult {
   /** The plate couldn't be read and the UNIT NUMBER identified the car instead. Surfaced on the
    *  card — FG never resolves by a weaker key without saying which key did the work. */
   matchedByUnit: boolean;
+  /** The tag is missing the first character of every line (a perforation through the label's left
+   *  column) and the car was identified by restoring it. Surfaced on the card: the read is short,
+   *  so nothing on that tag should be treated as authoritative. See lib/clippedRead. */
+  matchedByClippedTag: boolean;
   /** Two or more live vehicles carry the scanned unit, so nothing was matched. Not an error: the
    *  operator picks. Empty on every normal scan. */
   unitCandidates: Vehicle[];
@@ -242,9 +247,43 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   // written a query that forgot to filter `archived_at`, "confirmed" it, and built a whole theory on
   // top. A wrong comment does not sit still; it steers the next reader into a wrong question.
   const unitMatch = byPlate ? { kind: 'none' as const } : matchByUnitNumber(read.unitNumber, vehicles);
-  const vehicle = byPlate ?? (unitMatch.kind === 'one' ? unitMatch.vehicle : null);
+
+  // ── The clipped tag ─────────────────────────────────────────────────────────────────────────
+  // ⭐⭐ A THIRD PASS, AND ONLY FOR A TAG THAT PROVED IT IS SHORT. FTR2260's label was printed with
+  // the perforation through its left column, so every line lost its first character — the unit
+  // reads `627245`, the plate `TR2260`, and BOTH exact lookups above miss. FG then offered to
+  // register a car it already had. Aaron: *"each time i scan this tag it either asks me to register
+  // it or asks if its a replate."*
+  //
+  // ⚠️⚠️ GATED ON `isClippedRead`, NOT TRIED SPECULATIVELY. Suffix matching on every failed scan
+  // would be a standing invitation to attach a read to the wrong car — the guard is what makes it
+  // safe, and it is earned from the read itself (two fixed-length fields, each exactly one short).
+  // A scan that simply failed to read a digit gets nothing from this and must not.
+  //
+  // ⚠️ UNIT FIRST, THEN PLATE — the same precedence the exact passes use, for the same reason: the
+  // unit is the stronger key (~97.5% vs ~87.5%), and a clipped read is already the weaker evidence.
+  // ⚠️ And it stays STRICTLY LAST. An exact hit on either key always wins, so a tag that resolves
+  // today keeps resolving to the same car.
+  const clipped = !byPlate && unitMatch.kind === 'none' && isClippedRead(read);
+  const clippedMatch = clipped
+    ? (() => {
+        const byUnit = matchByLeadingTruncation(read.unitNumber, vehicles, v => v.unitNumber);
+        return byUnit.kind === 'none'
+          ? matchByLeadingTruncation(plate, vehicles, v => v.licensePlate)
+          : byUnit;
+      })()
+    : { kind: 'none' as const };
+
+  const vehicle = byPlate
+    ?? (unitMatch.kind === 'one' ? unitMatch.vehicle : null)
+    ?? (clippedMatch.kind === 'one' ? clippedMatch.vehicle : null);
   const matchedByUnit = !byPlate && unitMatch.kind === 'one';
-  const unitCandidates = unitMatch.kind === 'ambiguous' ? unitMatch.vehicles : [];
+  // ⭐ Said out loud on the card rather than resolved silently — FG never identifies a car by a
+  // weaker key without naming the key that did it (`matchedByUnitLabel`, 2026-08-18).
+  const matchedByClippedTag = !byPlate && unitMatch.kind !== 'one' && clippedMatch.kind === 'one';
+  const unitCandidates = unitMatch.kind === 'ambiguous'
+    ? unitMatch.vehicles
+    : clippedMatch.kind === 'ambiguous' ? clippedMatch.vehicles : [];
 
   const existing = vehicle ? keytagExistingFrom(vehicle) : null;
   return {
@@ -253,6 +292,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     wasCorrected: plate !== raw,
     vehicle,
     matchedByUnit,
+    matchedByClippedTag,
     unitCandidates,
     resolution: resolveKeytag(read, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
   };

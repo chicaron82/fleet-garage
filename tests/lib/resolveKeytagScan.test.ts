@@ -223,3 +223,87 @@ describe('resolving by unit number alone', () => {
     expect(r.matchedByUnit).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// FTR2260 · unit 5627245 — the tag printed with the perforation through its LEFT COLUMN, so every
+// line lost its first character. Aaron entered this car's details by hand from the barcode sticker
+// and the physical plate, and FG argued with him on every scan:
+// *"each time i scan this tag it either asks me to register it or asks if its a replate."*
+describe('the clipped tag — a perforation through the label’s left column', () => {
+  const K4 = vehicle({ id: 'k4', licensePlate: 'FTR2260', unitNumber: '5627245' });
+  const FLEET_K4 = [K4, vehicle({ id: 'other', licensePlate: 'LZM500', unitNumber: '5421615' })];
+  /** What the reader gets back when the leading character of every line is gone. */
+  const CLIPPED: KeytagRead = { plate: 'TR2260', unitNumber: '627245', vinLast9: 'SE150006' };
+
+  it('⭐⭐ resolves to the right car instead of offering to register it', () => {
+    const r = resolveKeytagScan(CLIPPED, FLEET_K4);
+    expect(r.vehicle?.id).toBe('k4');
+    expect(r.resolution.kind).not.toBe('new');
+  });
+
+  it('⭐ says which key did the work — never a silent resolve by a weaker key', () => {
+    expect(resolveKeytagScan(CLIPPED, FLEET_K4).matchedByClippedTag).toBe(true);
+  });
+
+  // ⚠️⚠️ THE GUARD. Suffix matching on every failed scan would be a standing invitation to attach a
+  // read to the wrong car. It is earned from the read itself — two fixed-length fields, each
+  // exactly one short — and a scan that merely fluffed a digit must get nothing from it.
+  it('⚠️⚠️ an ordinary bad read does NOT get suffix matching', () => {
+    const r = resolveKeytagScan({ plate: 'TR2260', unitNumber: '627245', vinLast9: '2SE150006' }, FLEET_K4);
+    expect(r.vehicle).toBeNull();
+    expect(r.matchedByClippedTag).toBe(false);
+  });
+
+  // ⚠️ An exact hit always wins, so a tag that resolves today keeps resolving to the same car.
+  it('⚠️ never overrides an exact plate match', () => {
+    const r = resolveKeytagScan({ plate: 'LZM500', unitNumber: '627245', vinLast9: 'SE150006' }, FLEET_K4);
+    expect(r.vehicle?.id).toBe('other');
+    expect(r.matchedByClippedTag).toBe(false);
+  });
+
+  it('⚠️ never overrides an exact unit match', () => {
+    const r = resolveKeytagScan({ plate: 'TR2260', unitNumber: '5627245', vinLast9: 'SE150006' }, FLEET_K4);
+    expect(r.vehicle?.id).toBe('k4');
+    expect(r.matchedByUnit).toBe(true);
+    expect(r.matchedByClippedTag).toBe(false);
+  });
+
+  // ⚠️⚠️ LUR271 and KUR271 are both live today and both end UR271. Measuring "zero suffix collisions
+  // across 762 units" proves the rule is exact on TODAY's fleet; it does not make it exact by
+  // construction, and the cost of being wrong is a scan attached to the wrong car.
+  it('⚠️⚠️ hands back both candidates when the restored character is ambiguous', () => {
+    const twins = [
+      vehicle({ id: 'l', licensePlate: 'LUR271', unitNumber: '5420001' }),
+      vehicle({ id: 'k', licensePlate: 'KUR271', unitNumber: '6420001' }),
+    ];
+    const r = resolveKeytagScan({ plate: 'UR271', unitNumber: '420001', vinLast9: 'SE150006' }, twins);
+    expect(r.vehicle).toBeNull();
+    expect(r.unitCandidates.map(v => v.id)).toEqual(['l', 'k']);
+  });
+
+  // ⭐ THE STRONGER KEY RESCUES THE WEAKER ONE, and this is the live LUR271/KUR271 shape: their
+  // PLATES are ambiguous once clipped (both end UR271) while their units are not. Unit is tried
+  // first precisely so that this resolves rather than stalling — the same precedence the exact
+  // passes use, for the same reason (~97.5% vs ~87.5%).
+  it('⭐ an ambiguous clipped PLATE still resolves when the clipped unit is unique', () => {
+    const twins = [
+      vehicle({ id: 'l', licensePlate: 'LUR271', unitNumber: '5420001' }),
+      vehicle({ id: 'k', licensePlate: 'KUR271', unitNumber: '5420002' }),
+    ];
+    const r = resolveKeytagScan({ plate: 'UR271', unitNumber: '420001', vinLast9: 'SE150006' }, twins);
+    expect(r.vehicle?.id).toBe('l');
+    expect(r.matchedByClippedTag).toBe(true);
+  });
+
+  it('falls back to the PLATE when the clipped unit finds nothing', () => {
+    const r = resolveKeytagScan({ plate: 'TR2260', unitNumber: '999999', vinLast9: 'SE150006' }, FLEET_K4);
+    expect(r.vehicle?.id).toBe('k4');
+    expect(r.matchedByClippedTag).toBe(true);
+  });
+
+  it('a clipped read for a car FG genuinely does not have is still new', () => {
+    const r = resolveKeytagScan(CLIPPED, [vehicle({ id: 'x', licensePlate: 'LZM500', unitNumber: '5421615' })]);
+    expect(r.vehicle).toBeNull();
+    expect(r.matchedByClippedTag).toBe(false);
+  });
+});

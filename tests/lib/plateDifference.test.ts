@@ -79,3 +79,32 @@ describe('shouldOfferPlateUpdate', () => {
     expect(shouldOfferPlateUpdate(null, 'LUR143')).toBe(false);
   });
 });
+
+// FTR2260's tag was printed with the perforation through its left column, so the plate reads
+// TR2260. AA9999 against AAA9999 — a format change, which the shape rule calls "the strongest
+// re-plate signal there is". It offered to overwrite a plate Aaron had verified against the car's
+// own barcode sticker and the physical plate.
+describe('a clipped tag is not a re-plate', () => {
+  it('⭐⭐ TR2260 against FTR2260 is a misread — the record is right and must not be touched', () => {
+    expect(classifyPlateDifference('TR2260', 'FTR2260')).toBe('misread');
+  });
+
+  it('⭐⭐ and therefore never offers the update', () => {
+    expect(shouldOfferPlateUpdate('TR2260', 'FTR2260')).toBe(false);
+  });
+
+  // ⚠️ THE ORDER IS THE FIX. Both hypotheses explain a format change; only one is destructive, so
+  // the non-destructive one is tested first and only the residue reaches the shape rule.
+  it('⚠️ the real re-plate still classifies as one — this did not blunt the shape rule', () => {
+    expect(classifyPlateDifference('0GK641', 'LZM500')).toBe('replate');
+    expect(shouldOfferPlateUpdate('0GK641', 'LZM500')).toBe(true);
+  });
+
+  it('⚠️ two missing characters is a different failure and is not absorbed here', () => {
+    expect(classifyPlateDifference('R2260', 'FTR2260')).toBe('replate');
+  });
+
+  it('⚠️ a LONGER tag read than the record is not a truncation', () => {
+    expect(classifyPlateDifference('FTR2260', 'TR2260')).toBe('replate');
+  });
+});

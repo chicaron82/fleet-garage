@@ -17,6 +17,7 @@
 // numbers are shared by two live vehicles each (5427497, 5738117, 5421656) — which is the whole
 // reason `useUnitConflict` exists: a unit gets reassigned and the old row isn't archived. A
 // single match identifies; anything else must be handed back to the operator to choose.
+import { isLeadingTruncation } from './clippedRead';
 import type { Vehicle } from '../types';
 
 /** Digits only — the tag prints the unit spaced ("542 4940") and FG stores it unspaced. */
@@ -74,16 +75,50 @@ export function matchedByUnitLabel(
   if (!matchedByUnit || !unit) return '';
   const tag = (tagPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
   const record = (recordPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
+  // ⚠️⚠️ A THIRD CAUSE, and this line asserted the wrong one AGAIN — the same defect the block above
+  // confesses to, one cause later. It read: *"Matched by unit #5627245 — the tag reads TR2260, but
+  // this car is on file as FTR2260. Re-plated? Open the record to update the plate."*
+  //
+  // FTR2260's tag was printed with the perforation through its LEFT COLUMN, so every line lost its
+  // first character. Nothing was re-plated; a letter is missing. Sending him to "open the record and
+  // update the plate" points him at the one action that would destroy a plate he had already
+  // verified against the car's barcode sticker and the physical plate itself.
+  //
+  // ⭐ Derived, never assumed — the same fix as last time. The clip is provable from the two strings
+  // in hand: the tag's plate is the record's minus exactly its first character.
+  if (tag && record && isLeadingTruncation(tag, record)) {
+    return `Matched by unit #${unit} — the tag's left edge is cut off, so it reads ${tag} for ${record}. The record is right; nothing to change.`;
+  }
   if (tag && record && tag !== record) {
     return `Matched by unit #${unit} — the tag reads ${tag}, but this car is on file as ${record}. Re-plated? Open the record to update the plate.`;
   }
   return `Matched by unit #${unit} — the plate wasn't readable on the tag.`;
 }
 
+/** The show-your-work line for a car found only by RESTORING the character a clipped tag lost.
+ *
+ *  ⭐ Same principle as `matchedByUnitLabel` above: FG never identifies a car by a weaker key
+ *  without naming the key. This one is weaker still — the value it matched on was incomplete — so
+ *  it also says what he should NOT do, which is trust the rest of that tag. */
+export function matchedByClippedTagLabel(
+  matchedByClippedTag: boolean,
+  vehicle: { licensePlate?: string | null; unitNumber?: string | null } | null,
+): string {
+  if (!matchedByClippedTag || !vehicle) return '';
+  const id = [vehicle.licensePlate, vehicle.unitNumber && `#${vehicle.unitNumber}`].filter(Boolean).join(' · ');
+  return `Matched ${id} — this tag is missing the first character of every line, so FG restored it. Don't trust the rest of the tag; the record is the better source.`;
+}
+
 /** True when the unit-number match was caused by a plate CHANGE rather than an unreadable tag.
- *  Drives the tone: a torn tag is an FYI, a re-plate is a thing to act on. */
+ *  Drives the tone: a torn tag is an FYI, a re-plate is a thing to act on.
+ *
+ *  ⚠️ A CLIPPED TAG IS THE FYI, NOT THE DECISION. "The strings differ" was standing in for "the
+ *  plate changed", and on FTR2260 those are not the same thing — a perforation through the label's
+ *  left column makes them differ with nothing whatsoever to act on. Colouring that amber tells him
+ *  a hand-verified record needs his attention when it does not, and amber he learns to ignore is
+ *  worse than no amber at all. */
 export function isPlateMismatch(tagPlate?: string | null, recordPlate?: string | null): boolean {
   const tag = (tagPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
   const record = (recordPlate ?? '').trim().toUpperCase().replace(/\s+/g, '');
-  return !!tag && !!record && tag !== record;
+  return !!tag && !!record && tag !== record && !isLeadingTruncation(tag, record);
 }

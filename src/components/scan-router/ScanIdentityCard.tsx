@@ -20,7 +20,7 @@ import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine'
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { cycleLabel, type ConsolidatedDamage } from '../../lib/consolidateDamage';
-import { matchedByUnitLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
+import { matchedByUnitLabel, matchedByClippedTagLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 
@@ -176,6 +176,15 @@ export function ScanIdentityCard({
             : 'text-blue-700 dark:text-blue-400'
         }`}>
           🔎 {matchedByUnitLabel(true, scanRead?.unitNumber, result.plate, vehicle?.licensePlate)}
+        </p>
+      )}
+      {/* ⭐ The car was found only by restoring the character the tag lost. Blue, never amber:
+          nothing here needs a decision — FG worked out which car it is and the record is already
+          the better source. Aaron, 2026-09-13: *"each time i scan this tag it either asks me to
+          register it or asks if its a replate."* This is the branch that used to be neither. */}
+      {result?.matchedByClippedTag && (
+        <p className="text-xs font-semibold mt-1 text-blue-700 dark:text-blue-400">
+          🔎 {matchedByClippedTagLabel(true, vehicle)}
         </p>
       )}
       {/* ⭐ The unit fallback already RESOLVED the car; this is the one case where the

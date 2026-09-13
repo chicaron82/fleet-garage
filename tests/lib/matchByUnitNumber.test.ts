@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchByUnitNumber, normalizeUnit, matchedByUnitLabel, isPlateMismatch } from '../../src/lib/matchByUnitNumber';
+import { matchByUnitNumber, normalizeUnit, matchedByUnitLabel, matchedByClippedTagLabel, isPlateMismatch } from '../../src/lib/matchByUnitNumber';
 import type { Vehicle } from '../../src/types';
 
 const car = (o: Partial<Vehicle> = {}): Vehicle => ({
@@ -102,5 +102,56 @@ describe('isPlateMismatch', () => {
     expect(isPlateMismatch('  lzm123 ', 'LZM123')).toBe(false);   // normalised, not a mismatch
     expect(isPlateMismatch(null, '0GK641')).toBe(false);          // unreadable tag is not a mismatch
     expect(isPlateMismatch('LZM123', null)).toBe(false);
+  });
+});
+
+// The orange line on Aaron's own screenshot, 2026-09-13:
+//   "Matched by unit #5627245 — the tag reads TR2260, but this car is on file as FTR2260.
+//    Re-plated? Open the record to update the plate."
+// Nothing was re-plated. The tag's perforation ate the first character of every line — and that
+// sentence points him at the one action that would destroy a plate he verified by hand.
+describe('matchedByUnitLabel — the clipped tag', () => {
+  it('⭐⭐ names the clip instead of inventing a re-plate', () => {
+    const s = matchedByUnitLabel(true, '5627245', 'TR2260', 'FTR2260');
+    expect(s).toMatch(/left edge is cut off/i);
+    expect(s).toMatch(/The record is right/i);
+  });
+
+  it('⚠️⚠️ never sends him to update the plate on a clipped tag', () => {
+    expect(matchedByUnitLabel(true, '5627245', 'TR2260', 'FTR2260')).not.toMatch(/re-?plated|update the plate/i);
+  });
+
+  it('⚠️ a genuine re-plate still says so — the third cause did not eat the second', () => {
+    expect(matchedByUnitLabel(true, '5627245', 'LZM500', '0GK641')).toMatch(/Re-plated\?/);
+  });
+
+  it('an unreadable plate still reads as the FYI it is', () => {
+    expect(matchedByUnitLabel(true, '5627245', '', 'FTR2260')).toMatch(/wasn't readable/);
+  });
+});
+
+describe('isPlateMismatch — tone', () => {
+  // ⚠️ Amber means "this needs a decision". A clipped tag needs none, and amber he learns to
+  // ignore is worse than no amber at all.
+  it('⚠️⚠️ a clipped tag is NOT a plate change', () => {
+    expect(isPlateMismatch('TR2260', 'FTR2260')).toBe(false);
+  });
+
+  it('a real plate change still is', () => {
+    expect(isPlateMismatch('LZM500', '0GK641')).toBe(true);
+  });
+});
+
+describe('matchedByClippedTagLabel', () => {
+  it('⭐ names the car AND tells him not to trust the rest of that tag', () => {
+    const s = matchedByClippedTagLabel(true, { licensePlate: 'FTR2260', unitNumber: '5627245' });
+    expect(s).toMatch(/FTR2260/);
+    expect(s).toMatch(/missing the first character of every line/i);
+    expect(s).toMatch(/Don't trust the rest of the tag|Don’t trust the rest of the tag/i);
+  });
+
+  it('is silent when the clip did not do the matching', () => {
+    expect(matchedByClippedTagLabel(false, { licensePlate: 'FTR2260', unitNumber: '5627245' })).toBe('');
+    expect(matchedByClippedTagLabel(true, null)).toBe('');
   });
 });

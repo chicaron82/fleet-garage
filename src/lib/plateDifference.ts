@@ -1,4 +1,5 @@
 import { normalizePlate, confusableKey, plateShape } from './fleetAudit';
+import { isLeadingTruncation } from './clippedRead';
 
 // Is a tag's plate different from the record's because the READ was wrong, or because the CAR was
 // RE-PLATED? — Aaron, 2026-08-26, with a Suburban that came from Alberta and got MB plates that day.
@@ -54,6 +55,26 @@ export function classifyPlateDifference(
   // Same plate once OCR confusion is collapsed (O↔0, I/L↔1, S↔5…). This is the 0GK641/OGK641 case
   // and it is unambiguously a bad read.
   if (confusableKey(tag) === confusableKey(record)) return 'misread';
+
+  // ⚠️⚠️ A CLIPPED TAG, CHECKED BEFORE THE SHAPE RULE — and the ORDER is the entire fix.
+  //
+  // `FTR2260`'s tag was printed with the perforation through the left column, so the plate reads
+  // `TR2260`. That is AA9999 against the record's AAA9999, so the rule below fired — the one whose
+  // comment calls a format change "the strongest re-plate signal there is" — and FG offered
+  // **"New plates — update"** on a plate Aaron had verified against the car's own barcode sticker
+  // and the physical plate. One tap from overwriting a hand-verified record with a truncated read.
+  //
+  // ⭐ The shape rule is not wrong; it is INCOMPLETE. It reads a format change as a jurisdiction
+  // change, and a dropped leading character is also a format change (AAA9999 → AA9999). Both
+  // hypotheses explain the evidence, and only one of them is destructive — so the non-destructive
+  // one is tested first, and only the residue reaches the shape rule.
+  //
+  // ⚠️ 'misread' is exactly the right word and not a euphemism: it already means "the record is
+  // right and must not be touched", which is precisely true here. Measured on the live fleet the
+  // day this shipped: NO plate's own one-character suffix is itself another live plate, so this
+  // cannot swallow a real car. (`LUR271`/`KUR271` share a suffix as each other's tail, but neither
+  // tail is a plate, so nothing here resolves to the wrong vehicle.)
+  if (isLeadingTruncation(tag, record)) return 'misread';
 
   // ⭐ A different province FORMAT is the strongest re-plate signal there is. Alberta reads 9AA999,
   // Manitoba AAA999 — a read does not turn one into the other, but a trip to the plate office does.
