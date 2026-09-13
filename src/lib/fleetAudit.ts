@@ -43,7 +43,9 @@ export interface AuditVehicle {
   owningArea?: string | null;
 }
 
-export type FleetAuditKind = 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate' | 'tesla-key-count' | 'plate-owning';
+export type FleetAuditKind =
+  | 'duplicate-unit' | 'duplicate-plate' | 'confusable-plate' | 'confusable-unit'
+  | 'tesla-key-count' | 'plate-owning';
 
 export interface FleetAuditFinding {
   /** Stable across runs so a dismissal sticks. Derived from the kind + the identifiers, never from
@@ -69,11 +71,32 @@ export function confusableKey(raw: string | null | undefined): string {
   return normalizePlate(raw).split('').map(c => LETTER_TO_DIGIT[c] ?? c).join('');
 }
 
+/**
+ * Two unit numbers of the same length that differ in exactly ONE position.
+ *
+ * ⚠️ Deliberately NOT built on `confusableKey`, which is the natural-looking move and the wrong one.
+ * `plateDifference.ts` was right to reuse it: it encodes which SHAPES a vision read swaps, and
+ * plates are mixed letters and digits. Unit numbers are all digits, and the misreads that actually
+ * happened were 5423082→5429082 (3→9), 5425814→5424814 (5→4) and, on the same tag, 7TM063592→
+ * 7TM062592 (3→2). Digit-for-digit, not shape-for-shape — a confusable key would have collapsed
+ * none of them. Position, not resemblance, is the signal here.
+ */
+export function unitOneApart(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && ++diff > 1) return false;
+  }
+  return diff === 1;
+}
+
 function describe(v: AuditVehicle): string {
   // ⚠️ `vehicleLabel`, not the badged form: this string is a COMPARISON key for duplicate
   // detection, and an emoji in it is decoration that can break a match.
   return `${v.licensePlate} · ${vehicleLabel(v)} · ${v.color}`;
 }
+
+const norm = (s: string) => s.trim().toLowerCase();
 
 /**
  * Do these records look like the same physical car?
@@ -89,7 +112,6 @@ function describe(v: AuditVehicle): string {
  * merging a record that holds someone's damage history.
  */
 function sameSpec(a: AuditVehicle, b: AuditVehicle): boolean {
-  const norm = (s: string) => s.trim().toLowerCase();
   return a.year === b.year
     && norm(a.make) === norm(b.make)
     && norm(a.model) === norm(b.model)
@@ -171,7 +193,54 @@ export function auditFleet(
     });
   }
 
-  // ── 4. A Tesla whose key count isn't one ───────────────────────────────────────────────────
+  // ── 4. Two unit numbers one misread apart, on the same model ───────────────────────────────
+  // The mirror of check 3, on the identifier check 1 calls "the hardest evidence there is" — and
+  // the asymmetry that let two more duplicates live for two weeks (found 2026-09-12): the audit
+  // looked for NEAR-miss plates but only EXACT-collision units. LZM527/LMS527 (unit …3082/…9082)
+  // and LFJ213/LPU213 (unit …5814/…4814) were one digit apart on the unit and TWO characters apart
+  // on the plate, so check 1 and check 3 both walked past them. Aaron, who reads the tags:
+  // *"LPU is a terrible read lol so i'm sure the jetta is also a misread."* Both tags confirmed it.
+  //
+  // ⭐ THE MAKE+MODEL GATE IS WHAT MAKES THIS USABLE, and it is measured rather than guessed —
+  // over all 803 rows on the day it was written:
+  //     unit numbers one character apart .................  8 pairs
+  //     ...and the same make and model ...................  2 pairs  ← both were real duplicates
+  //     (license plates one character apart, for contrast)  3,785 pairs
+  // Zero false positives at the gate; plates alone are pure noise on this test.
+  //
+  // ⚠️ YEAR AND COLOUR ARE DELIBERATELY OUT OF THE GATE, unlike `sameSpec`. They changed nothing in
+  // the measurement above, and requiring them would blind the check exactly when a read went wrong
+  // in more than one field — which is the failure being hunted. They still SOFTEN THE MESSAGE
+  // below, the same way check 3 uses them: gate on what is measured, hedge on what is uncertain.
+  //
+  // Grouped by model before comparing: pairwise over the whole fleet is ~322k comparisons, and this
+  // runs on his phone.
+  for (const [, group] of groupBy(vehicles, v => `${norm(v.make)}|${norm(v.model)}`)) {
+    const withUnits = group.filter(v => (v.unitNumber ?? '').trim());
+    for (let i = 0; i < withUnits.length; i++) {
+      for (let j = i + 1; j < withUnits.length; j++) {
+        const a = withUnits[i], b = withUnits[j];
+        const ua = (a.unitNumber ?? '').trim(), ub = (b.unitNumber ?? '').trim();
+        if (ua === ub) continue;                          // exact collision → check 1 owns it
+        if (!unitOneApart(ua, ub)) continue;
+        if (claimed.has(a.id) && claimed.has(b.id)) continue;
+        const units = [ua, ub].sort();
+        findings.push({
+          key: `confusable-unit:${units.join('|')}`,
+          kind: 'confusable-unit',
+          title: `Units ${units.join(' and ')} differ by one character on the same model`,
+          detail: sameSpec(a, b)
+            ? 'Same year, make, model and colour — one unit number was very likely read wrong, '
+              + 'leaving one car on two records.'
+            : 'The records disagree on year or colour, so this may be two real cars with close unit '
+              + 'numbers — worth confirming against the key tags rather than merging.',
+          vehicles: [a, b],
+        });
+      }
+    }
+  }
+
+  // ── 5. A Tesla whose key count isn't one ───────────────────────────────────────────────────
   // Not a gap — a contradiction. A Tesla carries exactly one keycard, so any other number means the
   // record is wrong or the card is gone, and a gone card means the car cannot be driven at all.
   for (const v of vehicles) {
@@ -193,7 +262,7 @@ export function auditFleet(
     });
   }
 
-  // ── 5. A plate that disagrees with the branch that owns it ─────────────────────────────────
+  // ── 6. A plate that disagrees with the branch that owns it ─────────────────────────────────
   // Aaron's design (2026-08-21): "that's why we double check, with the owning. ABCD123 paired with
   // toronto good. but if it read ABC0123 and toronto, then it should know that its not a 0 it may
   // be an O, so surface to get actual eyes to make the call."

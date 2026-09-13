@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { auditFleet, auditSummary, confusableKey, normalizePlate, type AuditVehicle } from '../../src/lib/fleetAudit';
+import { auditFleet, auditSummary, confusableKey, normalizePlate, unitOneApart, type AuditVehicle } from '../../src/lib/fleetAudit';
 
 const v = (o: Partial<AuditVehicle> & { id: string }): AuditVehicle => ({
   unitNumber: null, licensePlate: '', make: 'Nissan', model: 'Rogue', year: 2025, color: 'White', ...o,
@@ -212,5 +212,84 @@ describe('auditFleet — a plate that disagrees with its owning branch', () => {
     ], []);
     expect(f.filter(x => x.kind === 'plate-owning')).toHaveLength(0);
     expect(f.some(x => x.kind === 'duplicate-unit')).toBe(true);
+  });
+});
+
+// ── check 4: two unit numbers one character apart, on the same model ─────────────────────────────
+// The two duplicates found 2026-09-12. Both were invisible to checks 1 and 3: the units differ by
+// one digit (so no exact collision) and the plates differ by TWO characters (so no confusable key).
+const jettaGood = v({ id: 'j1', unitNumber: '5423082', licensePlate: 'LZM527', make: 'Volkswagen', model: 'Jetta', year: 2026, color: 'Blue' });
+const jettaBad  = v({ id: 'j2', unitNumber: '5429082', licensePlate: 'LMS527', make: 'Volkswagen', model: 'Jetta', year: 2026, color: 'Blue' });
+const fordGood  = v({ id: 'f1', unitNumber: '5425814', licensePlate: 'LFJ213', make: 'Ford', model: 'F-150', year: 2024, color: 'Gray' });
+const fordBad   = v({ id: 'f2', unitNumber: '5424814', licensePlate: 'LPU213', make: 'Ford', model: 'F-150', year: 2024, color: 'Gray' });
+
+describe('unitOneApart', () => {
+  it('⭐ catches the real misreads, which are digit-for-digit', () => {
+    expect(unitOneApart('5423082', '5429082')).toBe(true);   // 3 → 9
+    expect(unitOneApart('5425814', '5424814')).toBe(true);   // 5 → 4
+  });
+  it('rejects two characters apart — that is two cars, or a read too broken to guess at', () => {
+    expect(unitOneApart('5423082', '5429182')).toBe(false);
+  });
+  it('rejects identical and different-length units', () => {
+    expect(unitOneApart('5423082', '5423082')).toBe(false);  // exact collision is check 1's job
+    expect(unitOneApart('5423082', '542308')).toBe(false);
+  });
+  it('⚠️ would MISS these if it collapsed confusables instead of comparing positions', () => {
+    // The whole reason this is not built on confusableKey: 3/9, 5/4 and 3/2 are not confusable
+    // shapes, so a shape key maps both members of each pair to themselves and never groups them.
+    expect(confusableKey('5423082')).not.toBe(confusableKey('5429082'));
+    expect(unitOneApart('5423082', '5429082')).toBe(true);
+  });
+});
+
+describe('auditFleet — confusable units', () => {
+  it('⭐ finds the Jetta pair that checks 1 and 3 both walked past', () => {
+    const findings = auditFleet([jettaGood, jettaBad]);
+    expect(findings.map(f => f.kind)).toEqual(['confusable-unit']);
+    const [f] = findings;
+    expect(f.key).toBe('confusable-unit:5423082|5429082');
+    expect(f.title).toContain('5423082');
+    expect(f.title).toContain('5429082');
+    expect(f.detail).toMatch(/very likely read wrong/);
+    expect(f.vehicles.map(x => x.id).sort()).toEqual(['j1', 'j2']);
+  });
+
+  it('⭐ finds the F-150 pair too', () => {
+    const [f] = auditFleet([fordGood, fordBad]);
+    expect(f.kind).toBe('confusable-unit');
+    expect(f.vehicles.map(x => x.id).sort()).toEqual(['f1', 'f2']);
+  });
+
+  it('⭐ does NOT fire across different models, which is the gate that makes it usable', () => {
+    // Live pair on 2026-09-12: unit 5424874 (Nissan Versa) and 5424814 (Ford F-150) are one digit
+    // apart and are obviously two different cars. Eight such pairs exist in the fleet; the make and
+    // model gate takes all eight to zero.
+    const versa = v({ id: 'x1', unitNumber: '5424874', licensePlate: 'LUR900', make: 'Nissan', model: 'Versa', year: 2025, color: 'White' });
+    expect(auditFleet([versa, fordGood]).filter(f => f.kind === 'confusable-unit')).toHaveLength(0);
+  });
+
+  it('softens the message when year or colour disagree, instead of staying silent', () => {
+    // Gate on make+model (measured), hedge on year/colour (uncertain) — never drop the finding,
+    // because a read wrong in two fields is exactly the case being hunted.
+    const olderFord = v({ id: 'f3', unitNumber: '5424814', licensePlate: 'LPU213', make: 'Ford', model: 'F-150', year: 2023, color: 'Black' });
+    const [f] = auditFleet([fordGood, olderFord]);
+    expect(f.kind).toBe('confusable-unit');
+    expect(f.detail).toMatch(/worth confirming against the key tags/);
+  });
+
+  it('leaves an exact unit collision to check 1 rather than reporting it twice', () => {
+    const kinds = auditFleet([rogueGood, rogueBad]).map(f => f.kind);
+    expect(kinds).toContain('duplicate-unit');
+    expect(kinds).not.toContain('confusable-unit');
+  });
+
+  it('a blank unit number is a gap, not a near-collision', () => {
+    const blank = v({ id: 'b1', unitNumber: null, licensePlate: 'LUR901', make: 'Ford', model: 'F-150', year: 2024, color: 'Gray' });
+    expect(auditFleet([fordGood, blank]).filter(f => f.kind === 'confusable-unit')).toHaveLength(0);
+  });
+
+  it('a dismissal sticks, because the key is derived from the units not the row ids', () => {
+    expect(auditFleet([jettaGood, jettaBad], ['confusable-unit:5423082|5429082'])).toHaveLength(0);
   });
 });
