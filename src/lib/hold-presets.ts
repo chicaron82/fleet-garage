@@ -17,14 +17,17 @@ export const DAMAGE_PRESETS = [
 
 export interface MechanicalPresetMeta {
   emoji?: string;
-  subType: 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
+  subType: 'tire-swap' | 'tire-repair' | 'tire-replacement' | 'pm-due' | 'safety-recall' | 'other';
 }
 
 export const MECHANICAL_PRESET_META: Record<string, MechanicalPresetMeta> = {
   'PM due':               { emoji: '⚙️',  subType: 'pm-due' },
   'Tire repair needed':   { emoji: '🛞',  subType: 'tire-repair' },
   'Seasonal tire swap':   { emoji: '🔄',  subType: 'tire-swap' },
-  'Low tread':            { emoji: '🛞',  subType: 'tire-repair' },
+  // ⚠️ WAS `tire-repair` until 2026-09-13, and that button had never once been pressed — every
+  // tire hold on record was a repair or a seasonal swap, so the mis-mapping produced ZERO bad
+  // rows. Low tread is new rubber, not a patch: *"Low tread needs tire replacement"* (Aaron).
+  'Low tread':            { emoji: '🛞',  subType: 'tire-replacement' },
   'Check engine light':   { emoji: '🔦',  subType: 'other' },
   'Brake service needed': { emoji: '🔧',  subType: 'other' },
   'Battery concern':      { emoji: '🔋',  subType: 'other' },

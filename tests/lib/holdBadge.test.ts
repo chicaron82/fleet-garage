@@ -121,3 +121,27 @@ describe('holdTypePillClass', () => {
     expect(holdTypePillClass('hail')).toContain('indigo');
   });
 });
+
+// ── tire-replacement (2026-09-13) ────────────────────────────────────────────────────────────────
+// FG's two tire words were a PATCH and a SEASONAL SWAP. Aaron: "Low tread needs tire replacement."
+// Different job, different money, different shop — so the preset stopped borrowing `tire-repair`.
+describe('tire-replacement', () => {
+  it('⭐ gets its own badge, distinct from a repair', () => {
+    expect(holdBadgeConfig(['mechanical'], 'tire-replacement').label).toBe('🛞 Tire Replacement');
+    expect(holdBadgeConfig(['mechanical'], 'tire-repair').label).toBe('🛞 Tire Repair');
+  });
+
+  it('does not fall through to the generic mechanical "Held"', () => {
+    expect(holdBadgeConfig(['mechanical'], 'tire-replacement').label).not.toBe('Held');
+  });
+
+  it('carries the tire emoji without the generic wrench', () => {
+    const emojis = holdContextEmojis('CLEAR', ['mechanical'], null, 'tire-replacement');
+    expect(emojis).toContain('🛞');
+    expect(emojis).not.toContain('🔧');   // 🔧 is for `other` — the bucket this just left
+  });
+
+  it('⚠️ a multi-hold still wins, so the sub-type cannot hide a second hold type', () => {
+    expect(holdBadgeConfig(['mechanical', 'damage'], 'tire-replacement').label).toBe('Multi-Hold');
+  });
+});

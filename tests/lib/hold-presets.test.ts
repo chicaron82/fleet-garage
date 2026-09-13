@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DAMAGE_PRESETS, MECHANICAL_PRESET_META, MECHANICAL_PRESETS } from '../../src/lib/hold-presets';
 
-const VALID_SUBTYPES = ['tire-swap', 'tire-repair', 'pm-due', 'safety-recall', 'other'];
+const VALID_SUBTYPES = ['tire-swap', 'tire-repair', 'tire-replacement', 'pm-due', 'safety-recall', 'other'];
 
 describe('hold presets', () => {
   it('MECHANICAL_PRESETS is exactly the meta keys (stays in sync)', () => {
@@ -42,5 +42,15 @@ describe('hold presets', () => {
     for (const gone of ['Mechanical concern', 'Interior stain', 'Interior damage (seat / trim)', 'Tire damage / flat', 'Windshield chip — repaired (scar remaining)']) {
       expect(DAMAGE_PRESETS).not.toContain(gone);
     }
+  });
+});
+
+describe('Low tread maps to replacement, not repair', () => {
+  it('⭐ the preset stopped borrowing tire-repair (2026-09-13)', () => {
+    expect(MECHANICAL_PRESET_META['Low tread'].subType).toBe('tire-replacement');
+  });
+  it('a puncture and a seasonal change keep their own words', () => {
+    expect(MECHANICAL_PRESET_META['Tire repair needed'].subType).toBe('tire-repair');
+    expect(MECHANICAL_PRESET_META['Seasonal tire swap'].subType).toBe('tire-swap');
   });
 });

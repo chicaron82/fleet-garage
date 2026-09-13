@@ -176,6 +176,11 @@ export function HoldRecordCard({
                 🛞 Tire Repair
               </span>
             )}
+            {mechanicalOpen && hold.mechanicalSubType === 'tire-replacement' && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                🛞 Tire Replacement
+              </span>
+            )}
             {mechanicalOpen && hold.mechanicalSubType === 'pm-due' && (
               <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                 ⚙️ PM Due

@@ -35,6 +35,12 @@ export function holdBadgeConfig(
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
+  if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-replacement') {
+    return {
+      label: '🛞 Tire Replacement',
+      className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+    };
+  }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-repair') {
     return {
       label: '🛞 Tire Repair',
@@ -85,6 +91,7 @@ export function holdContextEmojis(
   if (vehicleStatus === 'OUT_ON_EXCEPTION')                                   emojis.push('⚠️');
   if (mechanicalSubType === 'tire-swap')                                       emojis.push(getTireSwapSeason());
   if (mechanicalSubType === 'tire-repair')                                     emojis.push('🛞');
+  if (mechanicalSubType === 'tire-replacement')                                emojis.push('🛞');
   if (mechanicalSubType === 'pm-due')                                          emojis.push('⚙️');
   if (holdTypes.includes('mechanical') && !mechanicalSubType || mechanicalSubType === 'other') emojis.push('🔧');
   if (holdTypes.includes('missing_accessories'))                               emojis.push('🔌');

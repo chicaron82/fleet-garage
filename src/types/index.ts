@@ -311,7 +311,11 @@ export function canManageVehicles(role: UserRole): boolean {
 export type HoldStatus = 'ACTIVE' | 'RELEASED' | 'RETURNED' | 'REPAIRED' | 'VOIDED';
 export type HoldType = 'damage' | 'hail' | 'detail' | 'mechanical' | 'sale_car' | 'missing_accessories';
 export type DetailReason = 'too-dirty' | 'pet-hair' | 'smoke-vape';
-export type MechanicalSubType = 'tire-swap' | 'tire-repair' | 'pm-due' | 'safety-recall' | 'other';
+/** ⚠️ `tire-repair` is a PATCH and `tire-swap` is the SEASONAL change. Neither is worn-out
+ *  rubber — Aaron, 2026-09-13: *"Low tread needs tire replacement"*. Different job, different
+ *  money, different shop, so it gets its own word rather than borrowing one of theirs. */
+export type MechanicalSubType =
+  | 'tire-swap' | 'tire-repair' | 'tire-replacement' | 'pm-due' | 'safety-recall' | 'other';
 
 /** Which kind of departure a `sale_car` hold is. ⚠️ A LABEL ONLY — all three behave identically
  *  (don't clean, don't write up in the closing inventory) and NOTHING branches on the value.
