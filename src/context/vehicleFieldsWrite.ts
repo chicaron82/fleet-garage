@@ -1,11 +1,17 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle, FieldSource } from '../types';
 import type { KeytagFill } from '../lib/resolveKeytag';
+import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
 import { findUnitConflict } from '../lib/identityConflict';
 
 /** What the write has to say for itself. `unitConflict` means the tag's unit number was NOT applied
  *  because another live record already carries it — everything else the tag read still was. */
-export interface UpdateFieldsResult { unitConflict?: Vehicle }
+export interface UpdateFieldsResult {
+  unitConflict?: Vehicle;
+  /** The raw VIN he typed, when it cannot be a real last-9. Nothing was written for that field;
+   *  every other field on the same save still landed. See the guard in keytagAuditWrite. */
+  vinRejected?: string;
+}
 
 /** The `vehicles` row shape a backfill can touch — typed explicitly (not a generic
  *  Record) because the Supabase client rejects an untyped update payload. */
@@ -52,12 +58,13 @@ export function makeUpdateVehicleFields(deps: {
     // — only the key tag can, and he is holding it at exactly this moment. So the unit is left
     // alone, everything else the tag read is still written, and the conflict is handed back to be
     // said out loud. Never silently create the duplicate; never silently "fix" it either.
+    let vinRejected: string | undefined;
     const unitFill = fills.find(f => f.field === 'unitNumber');
     const conflict = unitFill
       ? findUnitConflict(String(unitFill.value ?? ''), allVehicles, vehicleId)
       : undefined;
     const applied = conflict ? fills.filter(f => f.field !== 'unitNumber') : fills;
-    if (applied.length === 0) return { unitConflict: conflict };
+    if (applied.length === 0) return { unitConflict: conflict, vinRejected };
 
     const payload: VehicleFieldsUpdate = {};
     const patch: Partial<Pick<Vehicle,
@@ -70,7 +77,13 @@ export function makeUpdateVehicleFields(deps: {
       else if (f.field === 'rentalClass') { payload.rental_class = f.value as string; patch.rentalClass = f.value as string; }
       else if (f.field === 'owningArea')  { payload.owning_area = f.value as string; patch.owningArea = f.value as string; }
       else if (f.field === 'classCode')   { payload.class_code = f.value as string; patch.classCode = f.value as string; }
-      else if (f.field === 'vinLast9')    { payload.vin_last9 = f.value as string; patch.vinLast9 = f.value as string; }
+      else if (f.field === 'vinLast9')    {
+        // ⚠️ Same guard as the audit path — a VIN that fails its own check digit is refused, not
+        // written and not blanked. `LFJ400`'s tag prints one; this door used to accept it.
+        const vin = normalizeVinLast9(f.value as string);
+        if (!vin) { vinRejected = f.value as string; continue; }
+        payload.vin_last9 = vin; patch.vinLast9 = vin;
+      }
       else                                { payload[f.field] = f.value as string; patch[f.field] = f.value as string; }
       stamps[f.field] = 'tag';   // every field this path sets came from a scanned tag
     }
@@ -88,6 +101,6 @@ export function makeUpdateVehicleFields(deps: {
     );
     if (error) throw new Error(`Failed to update vehicle: ${(error as { message?: string }).message}`);
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, ...patch, fieldSources: merged } : v)));
-    return { unitConflict: conflict };
+    return { unitConflict: conflict, vinRejected };
   };
 }

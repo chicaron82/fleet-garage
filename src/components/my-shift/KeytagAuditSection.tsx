@@ -12,7 +12,7 @@ export function KeytagAuditSection({ onOpenVehicle }: {
   /** So the unit-conflict notice can OPEN the other car it names — see the notice below. */
   onOpenVehicle?: (vehicleId: string) => void;
 }) {
-  const { current, remaining, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
+  const { current, remaining, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets, saving, error, unitConflict, vinRejected, save, skip, flagUnreadable, dismissConflict } = useKeytagAudit();
   const [collapsed, setCollapsed] = useState(true);
   // ⭐ HELD HERE, ABOVE THE PER-CAR `key`. The card remounts on every save so its edits and zoom
   // scale reset; if the zoom FLAG lived there too it would reset as well, dropping him out of the
@@ -96,6 +96,13 @@ export function KeytagAuditSection({ onOpenVehicle }: {
           {/* ⚠️ Worth stopping for: a unit number is fleet-wide, so the same one on two records means
               it has drifted onto the wrong car. The data cannot say which record is right — only the
               tag can, and he is looking at it right now. */}
+          {vinRejected && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              <span className="font-semibold">VIN not saved — “{vinRejected}” can’t be a last-9.</span>{' '}
+              The first character has to be the check digit (0–9 or X). Everything else on this tag saved.
+              Worth reading it off the windshield.
+            </div>
+          )}
           {unitConflict && (
             <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 space-y-1">
               {/* ⭐ THE PLATE OPENS THE OTHER CAR. This notice exists to send him to a second record

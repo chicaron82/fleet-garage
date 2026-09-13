@@ -76,9 +76,26 @@ describe('saveKeytagAudit — filling and correcting', () => {
   it('⭐ CORRECTS a VIN that is already on file — the one write allowed to', async () => {
     // vinWrite refuses this by design: first good read wins, because a MODEL might be misreading.
     // Aaron with the tag in front of him is the other case entirely.
-    await save([car({ id: 'me', vinLast9: 'WRONG9999' })])('me', { ...FULL, vinLast9: 'ABC123456' });
-    expect(updates[0]).toMatchObject({ vin_last9: 'ABC123456' });
+    // ⚠️ FIXTURE IS THE REAL CASE (2026-09-13): LFJ400 held `VXSL47717` — its tag's own value, the
+    // right characters sliced one position too far left — and the windshield read `XSL477170`.
+    // The old fixture was `ABC123456`, which cannot be a VIN at all (A is not a check digit) and so
+    // stopped compiling as a test the moment the guard went on this path.
+    await save([car({ id: 'me', vinLast9: 'VXSL47717' })])('me', { ...FULL, vinLast9: 'XSL477170' });
+    expect(updates[0]).toMatchObject({ vin_last9: 'XSL477170' });
     expect((updates[0].field_sources as Record<string, string>).vinLast9).toBe('manual');
+  });
+
+  it('⭐⭐ REFUSES a VIN that cannot be one — and still saves every other field', async () => {
+    // The guard added 2026-09-13. `VXSL47717` is what LFJ400's tag prints; this path wrote it in on
+    // 2026-08-29 over a field that had just been cleared. It cannot happen again.
+    const result = await save([car({ id: 'me', vinLast9: null })])('me', { ...FULL, vinLast9: 'VXSL47717' });
+    expect(updates[0]).not.toHaveProperty('vin_last9');
+    expect(result.vinRejected).toBe('VXSL47717');
+  });
+
+  it('⚠️ a refused VIN is NOT stamped manual — the stamp claims a human confirmed what FG HOLDS', async () => {
+    await save([car({ id: 'me', vinLast9: null })])('me', { ...FULL, vinLast9: 'VXSL47717' });
+    expect(updates[0].field_sources).not.toHaveProperty('vinLast9');
   });
 
   it('⚠️ leaves a field he could not read alone — neither written nor stamped', async () => {

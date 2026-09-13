@@ -2,6 +2,7 @@ import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Vehicle, FieldSource } from '../types';
 import { AUDIT_FIELDS, isBlankField, type AuditField } from '../lib/keytagAuditQueue';
 import { normalizeOwning } from '../../api/_lib/owningArea';
+import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
 import { findUnitConflict } from '../lib/identityConflict';
 
 /** What the auditor read off the photo, field by field. A blank means he could not read that one
@@ -24,7 +25,33 @@ export type KeytagAuditEdits = Partial<Record<AuditField, string>> & {
 
 /** What the save has to say for itself. `unitConflict` means the unit number was NOT applied
  *  because another live record already carries it — everything else he read still was. */
-export interface KeytagAuditSaveResult { unitConflict?: Vehicle }
+/**
+ * ⚠️⚠️ THE VIN GUARD, and it belongs on EVERY door rather than the two it had.
+ *
+ * `normalizeVinLast9` is the only thing that separates a real last-9 from nine characters that merely
+ * look like one — position 1 must be a check digit (0-9 or X) and the whole string must sit in the
+ * VIN alphabet. Until 2026-09-13 it guarded exactly two paths: the SCAN (`vinWrite`) and the MODEL
+ * read (`keytagReader`). The three a PERSON types into — this audit, the field editor, register —
+ * wrote whatever they were handed.
+ *
+ * ⭐ That was backwards. The human paths are where a cropped tag and a keyring hole become a
+ * confident wrong VIN, and `LFJ400` proved it: its tag PRINTS `VXSL47717` — the right characters
+ * sliced one position too far left — and this path wrote it in on 2026-08-29, over a field that had
+ * just been cleared.
+ *
+ * ⚠️ REFUSES rather than blanks. Writing the normalizer's '' would erase a good value to save a bad
+ * one; refusing silently would let him believe it saved. So the field is skipped and the raw value
+ * comes back on the result, exactly like `unitConflict`.
+ */
+function guardVin(raw: string): string | null {
+  return normalizeVinLast9(raw) || null;
+}
+
+export interface KeytagAuditSaveResult {
+  unitConflict?: Vehicle;
+  /** The raw VIN the auditor typed, when it could not be a real last-9. Nothing was written for it. */
+  vinRejected?: string;
+}
 
 /** The `vehicles` columns an audit may touch — typed explicitly (not a generic Record) because
  *  the Supabase client rejects an untyped update payload. Mirrors vehicleFieldsWrite. */
@@ -44,15 +71,23 @@ interface KeytagAuditUpdate {
 
 /** Field → column, as an exhaustive switch rather than a lookup map. A `Record<AuditField, keyof
  *  Update>` reads tidier and then needs a cast to write through, which is exactly where a typo
- *  stops being a compile error. The switch costs five lines and cannot silently miss a field. */
-function applyField(payload: KeytagAuditUpdate, patch: Partial<Vehicle>, field: AuditField, value: string): void {
+ *  stops being a compile error. The switch costs five lines and cannot silently miss a field.
+ *
+ *  ⚠️ Returns the RAW value when a field was refused (VIN only, today) so the caller can report it.
+ *  Returning null for "written" rather than throwing keeps every other field on the same save. */
+function applyField(payload: KeytagAuditUpdate, patch: Partial<Vehicle>, field: AuditField, value: string): string | null {
   switch (field) {
     case 'owningArea':  payload.owning_area = value; patch.owningArea  = value; break;
     case 'rentalClass': payload.rental_class = value; patch.rentalClass = value; break;
     case 'classCode':   payload.class_code = value; patch.classCode    = value; break;
     case 'unitNumber':  payload.unit_number = value; patch.unitNumber  = value; break;
-    case 'vinLast9':    payload.vin_last9 = value; patch.vinLast9      = value; break;
+    case 'vinLast9': {
+      const vin = guardVin(value);
+      if (!vin) return value;                    // refused — caller reports it, nothing written
+      payload.vin_last9 = vin; patch.vinLast9 = vin; break;
+    }
   }
+  return null;
 }
 
 /**
@@ -102,6 +137,8 @@ export function makeSaveKeytagAudit(deps: {
     const unitChanged = !isBlankField(typedUnit) && typedUnit !== (current.unitNumber ?? '');
     const conflict = unitChanged ? findUnitConflict(typedUnit, allVehicles, vehicleId) : undefined;
 
+    let vinRejected: string | undefined;
+
     for (const field of AUDIT_FIELDS) {
       // ⚠️ UPPERCASED HERE TOO, not only in the form. The card is today's only caller, and a rule
       // that lives in a component is a rule the next caller does not inherit — the whole reason
@@ -123,7 +160,12 @@ export function makeSaveKeytagAudit(deps: {
 
       // Only CHANGED values reach the payload; an unchanged one needs no column write. Both get
       // the 'manual' stamp — that stamp is the whole point of a confirmation.
-      if (value !== (current[field] ?? '')) applyField(payload, patch, field, value);
+      if (value !== (current[field] ?? '')) {
+        const refused = applyField(payload, patch, field, value);
+        // ⚠️ A refused field is NOT stamped 'manual' — the stamp claims a human confirmed the value
+        // FG now holds, and FG does not hold this one.
+        if (refused) { vinRejected = refused; continue; }
+      }
       stamps[field] = 'manual';
     }
 
@@ -168,7 +210,7 @@ export function makeSaveKeytagAudit(deps: {
       keytagAuditedBy: userId,
       keytagAuditResult: 'verified' as const,
     } : v)));
-    return { unitConflict: conflict };
+    return { unitConflict: conflict, vinRejected };
   };
 }
 

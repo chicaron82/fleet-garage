@@ -26,6 +26,7 @@ import { makeRecordOnLot } from './onLotWrite';
 import { makeRecordOdometer, makeClearOdometer, makeCorrectOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
+import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
 import type { Vehicle, Hold, BranchId, VehicleStatus } from '../types';
 
 interface VehicleOperationsProps {
@@ -112,7 +113,11 @@ export function useVehicleOperations({
           // eight of them — dropped whatever the tag said. Added 2026-08-30 with the rest of the
           // chain; `?? null` because a tag that couldn't give one must record nothing, not ''.
           owning_area:       vehicle.owningArea ?? null,
-          vin_last9:         vehicle.vinLast9 ?? null,
+          // ⚠️ Guarded like every other VIN door (2026-09-13). Register can arrive from a scan
+          // (already normalised) or from a hand-typed form (not), so it normalises here rather than
+          // trusting the caller. An invalid one lands as null — the car still registers, and the
+          // VIN stays askable, which is strictly better than registering a wrong identity.
+          vin_last9:         normalizeVinLast9(vehicle.vinLast9 ?? '') || null,
           key_count:         keyCount,
           keytag_photo_url:  vehicle.keytagPhotoUrl ?? null,
           branch_id:         branchId,

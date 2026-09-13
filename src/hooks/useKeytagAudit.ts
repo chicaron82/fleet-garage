@@ -58,6 +58,9 @@ export interface KeytagAuditState {
   /** Set when the unit number he typed is already on another live record — that one field was not
    *  applied; everything else he read was. */
   unitConflict: Vehicle | null;
+  /** The VIN he typed that FG refused — nine characters that cannot be a real last-9. Shown rather
+   *  than swallowed: a silent refusal is how `LFJ400` got a wrong VIN written twice. */
+  vinRejected: string | null;
   save: (edits: KeytagAuditEdits) => Promise<void>;
   skip: () => void;
   flagUnreadable: () => Promise<void>;
@@ -70,6 +73,7 @@ export function useKeytagAudit(): KeytagAuditState {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [unitConflict, setUnitConflict] = useState<Vehicle | null>(null);
+  const [vinRejected, setVinRejected] = useState<string | null>(null);
 
   /**
    * ⭐ THE ARCHIVED RULE LIVES IN THE LIB, NOT HERE. `buildAuditQueue` and `auditQueueStats` both
@@ -113,10 +117,13 @@ export function useKeytagAudit(): KeytagAuditState {
     setSaving(true);
     setError('');
     try {
-      const { unitConflict: clash } = await saveKeytagAudit(current.vehicle.id, edits);
+      const { unitConflict: clash, vinRejected: badVin } = await saveKeytagAudit(current.vehicle.id, edits);
       // The car leaves the queue on its own once the fleet state updates — but a blocked unit
       // number is worth stopping for, so it is surfaced instead of scrolling past.
       setUnitConflict(clash ?? null);
+      // ⚠️ Every other field on that save DID land — only the VIN was skipped, so this is a notice,
+      // not an error. The car still leaves the queue.
+      setVinRejected(badVin ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that audit.');
     } finally {
@@ -157,7 +164,7 @@ export function useKeytagAudit(): KeytagAuditState {
 
   return {
     current, remaining: pending.length, stats, retakes, knownRentalClasses, knownModelCodes, guessOwning, owningPresets: presets,
-    saving, error, unitConflict,
+    saving, error, unitConflict, vinRejected,
     save, skip, flagUnreadable, dismissConflict,
   };
 }
