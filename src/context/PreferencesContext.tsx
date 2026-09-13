@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import type { Json } from '../types/database.types';
 import type { LandingTab } from '../types';
+import type { ThroughputBasis } from '../lib/throughputBasis';
 
 interface Preferences {
   darkMode: boolean;
@@ -44,6 +45,19 @@ interface Preferences {
    *  vehicles shown. unchecked hides them. can still be searched."* Defaults OFF — they sit waiting
    *  for an auction, not for work. */
   showSaleCars: boolean;
+  /** Which question the throughput number answers — see lib/throughputBasis.
+   *
+   *  Aaron, 2026-09-11: *"what if we had the option to choose which i can base throughput from.
+   *  cars logged on shift, vs the math version off the gas sheet. only counting things done within
+   *  my window."*
+   *
+   *  ⭐ A remembered preference rather than a per-view toggle — his call. The two bases answer
+   *  DIFFERENT questions (what the bay shipped vs what he did), so flipping it is a decision about
+   *  what he wants to track, not a view option to fiddle with.
+   *
+   *  Defaults to `gas-sheet`: it is the number FG has always shown, and a silent change of basis
+   *  would make every historical comparison lie. */
+  throughputBasis: ThroughputBasis;
 }
 
 interface PreferencesContextValue {
@@ -55,7 +69,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true, sparkles: true, showSaleCars: false };
+const DEFAULT_PREFS: Preferences = { darkMode: false, notifyNewFlags: true, notifyReleases: true, landingTab: 'last-visited', showModuleGuide: true, sparkles: true, showSaleCars: false, throughputBasis: 'gas-sheet' };
 
 function upsertRemote(userId: string, patch: { avatar?: string | null; prefs?: Preferences }) {
   void writeWithRefresh(() => supabase.from('user_preferences').upsert(

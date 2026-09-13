@@ -15,6 +15,9 @@ import {
   reducesDenominator,
 } from '../../lib/shift-metrics';
 import { useAirportFlip } from '../../hooks/useAirportFlip';
+import { usePreferences } from '../../context/PreferencesContext';
+import { useCarsTouched } from '../../hooks/useCarsTouched';
+import { BASIS_LABEL, BASIS_HINT, resolveNumerator, type ThroughputBasis } from '../../lib/throughputBasis';
 import { sentToFleet } from '../../lib/washbay-throughput';
 import { fmtHours } from '../../lib/ot';
 import { fmtMinutes } from './shiftSummaryUtils';
@@ -26,6 +29,8 @@ export function ShiftRatesCard() {
   const { getTodayWashbayLog, handoffNotes, getTodayCheckpoint, getMidArrival, getMidDeparture } = useWashbayContext();
   const { shifts } = useSchedule();
   const flipCount = useAirportFlip().rows.length;
+  const { prefs, updatePref } = usePreferences();
+  const basis = prefs.throughputBasis;
   const [entries, setEntries] = useState<{ startTime: string; minutes: number; presetReason?: string | null }[]>([]);
 
   useEffect(() => {
@@ -48,6 +53,13 @@ export function ShiftRatesCard() {
       });
   }, [user]);
 
+  // ⚠️ Above the early return: hooks must run in the same order every render, and `useCarsTouched`
+  // is one. `deriveUserShift` is pure and returns null for an absent user, so hoisting it is safe.
+  const myShift = deriveUserShift(shifts, user?.id ?? '');
+  const touched = useCarsTouched({
+    userId: user?.id, date: localDateStr(0), shift: myShift, enabled: basis === 'cars-touched',
+  });
+
   if (!user) return null;
 
   const washbayLog    = getTodayWashbayLog();
@@ -58,7 +70,6 @@ export function ShiftRatesCard() {
 
   const offTotal      = entries.filter(reducesDenominator).reduce((s, e) => s + e.minutes, 0);
 
-  const myShift       = deriveUserShift(shifts, user.id);
   const window        = deriveShiftWindow(myShift?.shiftType) ?? 'morning';
   const checkpoint    = getTodayCheckpoint();
   const midArrival    = getMidArrival();
@@ -68,7 +79,12 @@ export function ShiftRatesCard() {
   const { snapshot: mySnapshot, yourEffort } = resolveShiftRates({
     partition, shift: myShift, date: localDateStr(0), offStandardEntries: entries,
   });
-  const myCarsCleaned = mySnapshot.cleaned;
+  // ⭐ THE BASIS SWAP HAPPENS HERE AND NOWHERE ELSE. `mySnapshot.cleaned` is the gas-sheet DAY figure
+  // already partitioned to this window; the touched count is ALREADY shift-scoped by its query, so it
+  // replaces the numerator rather than travelling through `buildShiftPartition` a second time.
+  // ⚠️ Denominator untouched by design — Aaron's call: this feature changes what is counted, never
+  // how long he was there. `shiftRateWarning` and off-standard keep reading the same snapshot.
+  const myCarsCleaned = resolveNumerator(basis, mySnapshot.cleaned, touched);
   // Live-only flip credit (Aaron 2026-07-17): a flipped return is a rent-ready car — the same
   // output as a washbay clean, minus the ~27min transit. The flip TIME already sits in the rate
   // denominator (airport_flip is non-reducing), so flipping was silently DRAGGING the rate down —
@@ -119,8 +135,40 @@ export function ShiftRatesCard() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">{myCarsCleaned}</span>
           ) : (
             <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-              {window === 'morning' ? 'Submit handoff to see' : window === 'mid' ? 'Submit mid shift checkpoints to see' : 'Submit closing duties to see'}
+              {basis === 'cars-touched' ? 'Counting your shift…'
+                : window === 'morning' ? 'Submit handoff to see'
+                : window === 'mid' ? 'Submit mid shift checkpoints to see'
+                : 'Submit closing duties to see'}
             </span>
+          )}
+        </div>
+
+        {/* ⭐ Which question is this answering? Never guessable — the two bases count different
+            things, so the card names the one in force and lets him swap it. */}
+        <div className="-mt-2 space-y-1">
+          <div className="flex gap-1">
+            {(['gas-sheet', 'cars-touched'] as ThroughputBasis[]).map(b => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => updatePref('throughputBasis', b)}
+                aria-pressed={basis === b}
+                className={`flex-1 px-2 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+                  basis === b
+                    ? 'bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100'
+                    : 'bg-white text-gray-500 border-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-700'
+                }`}
+              >
+                {BASIS_LABEL[b]}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">{BASIS_HINT[basis]}</p>
+          {/* His asterisk: work outside the window is shown, never silently dropped or counted. */}
+          {basis === 'cars-touched' && touched && touched.outsideWindow > 0 && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-500">
+              * {touched.outsideWindow} more change{touched.outsideWindow === 1 ? '' : 's'} of yours fell outside this window
+            </p>
           )}
         </div>
 

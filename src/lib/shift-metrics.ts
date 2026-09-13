@@ -198,6 +198,38 @@ const BREAK_MIN_SPAN_HOURS = 5;
 // is long enough to include one. The car COUNTS are pinned to the timestamped
 // gas sheet by the user, so all we take from the schedule is the window; the
 // app's checkpoint loggedAt is deliberately not trusted (it's data-entry time).
+/**
+ * The shift's real clock edges in epoch ms — actual → planned → nothing.
+ *
+ * ⭐ EXTRACTED 2026-09-13 so the throughput basis can ask the SAME question the rate does. It was
+ * inline in `applyShiftWindow`, and this file's own header says why that matters: *"one function so
+ * the two surfaces cannot drift apart — the 540/hr lesson, locked."* A second copy of this
+ * precedence living in a hook is exactly how a shift-scoped count and a shift-scoped rate start
+ * disagreeing about when the shift was.
+ *
+ * ⚠️ Keeps the midnight bump: a closing shift runs 16:00 → 00:30, and without it the window is
+ * negative and the whole thing silently reads as no shift at all.
+ */
+export function shiftWindowBounds(args: {
+  date: string;
+  actualStart?: string | null;
+  actualEnd?: string | null;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+}): { startMs: number; endMs: number } | null {
+  const { date, actualStart, actualEnd, plannedStart, plannedEnd } = args;
+  const [start, end] =
+    actualStart && actualEnd     ? [actualStart, actualEnd]
+    : plannedStart && plannedEnd ? [plannedStart, plannedEnd]
+    : [null, null];
+  if (!start || !end) return null;
+  const startMs = new Date(`${date}T${start}`).getTime();
+  let endMs = new Date(`${date}T${end}`).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
+  if (endMs <= startMs) endMs += 86_400_000;   // crossed midnight (e.g. 16:00 → 00:30)
+  return { startMs, endMs };
+}
+
 export function applyShiftWindow(
   snapshot: ShiftSnapshot,
   args: {
@@ -211,15 +243,9 @@ export function applyShiftWindow(
   },
 ): ShiftSnapshot {
   const { date, actualStart, actualEnd, plannedStart, plannedEnd, offStandardEntries, breakHours = UNPAID_BREAK_HOURS } = args;
-  const [start, end] =
-    actualStart && actualEnd     ? [actualStart, actualEnd]
-    : plannedStart && plannedEnd ? [plannedStart, plannedEnd]
-    : [null, null];
-  if (!start || !end) return snapshot;
-  const startMs = new Date(`${date}T${start}`).getTime();
-  let endMs = new Date(`${date}T${end}`).getTime();
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return snapshot;
-  if (endMs <= startMs) endMs += 86_400_000; // crossed midnight (e.g. 16:00 → 00:30)
+  const bounds = shiftWindowBounds({ date, actualStart, actualEnd, plannedStart, plannedEnd });
+  if (!bounds) return snapshot;
+  const { startMs, endMs } = bounds;
   const span = (endMs - startMs) / 3_600_000;
   const hours = Math.max(0.1, span - (span > BREAK_MIN_SPAN_HOURS ? breakHours : 0));
   const oth = offStandardEntries

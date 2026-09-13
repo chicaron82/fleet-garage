@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { usePreferences } from '../../context/PreferencesContext';
+import { ratesForBasis } from '../../lib/carsTouchedQuery';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
 import { hapticMedium } from '../../lib/haptics';
@@ -12,6 +14,7 @@ import {
   buildShiftPartition,
   deriveUserShift,
   resolveShiftRates,
+  shiftWindowBounds,
 } from '../../lib/shift-metrics';
 import {
   buildReport,
@@ -27,6 +30,10 @@ import type { ShiftType } from '../../types';
 
 export function ShiftReportExport({ date }: { date: string }) {
   const { user } = useAuth();
+  // ⭐ The export follows the SAME basis the card shows — Aaron's decision #2 on the ticket: "the
+  //   shift report follows the chosen basis, so the export says the same thing the screen does."
+  //   A PDF that disagreed with the card it was exported from would be the 540/hr drift again.
+  const { prefs } = usePreferences();
   const { shifts } = useSchedule();
   // Live flip count for the "rate excludes N airport flips" note — only attributed
   // when this report is for the current shift day (the session self-scopes to it;
@@ -226,8 +233,23 @@ export function ShiftReportExport({ date }: { date: string }) {
         midDeparture: midDepRow ? { fullPages: midDepRow.full_pages, lastPageEntries: midDepRow.last_page_entries, loggedAt: midDepRow.logged_at } : null,
       });
       // Same shared seam as the live card — window from actual→planned→default.
-      const { baseline, yourEffort } = resolveShiftRates({
+      const { snapshot, baseline: gasBaseline, yourEffort: gasEffort } = resolveShiftRates({
         partition, shift: myShift, date, offStandardEntries: offEntries,
+      });
+
+      // ⭐ CARS-TOUCHED BASIS. Counted here rather than passed in, because the export is a
+      // point-in-time snapshot of the day being exported — which may not be today, and the live
+      // card's hook only ever knows about today.
+      // ⚠️ Same window function the rate uses (`shiftWindowBounds`), never a second copy.
+      const bounds = shiftWindowBounds({
+        date,
+        actualStart: myShift?.actualStartTime, actualEnd: myShift?.actualEndTime,
+        plannedStart: myShift?.startTime,      plannedEnd: myShift?.endTime,
+      });
+      const { baseline, yourEffort, carsTouched: touchedCount } = await ratesForBasis({
+        basis: prefs.throughputBasis, snapshot, gas: { baseline: gasBaseline, yourEffort: gasEffort },
+        userId: user.id, windowStartMs: bounds?.startMs ?? null, windowEndMs: bounds?.endMs ?? null,
+        dayStartISO, dayEndISO,
       });
 
       // When actual hours are logged, show the real clock window on the report
@@ -249,6 +271,8 @@ export function ShiftReportExport({ date }: { date: string }) {
         baseline,
         yourEffort,
         actualWindowLabel,
+        throughputBasis: prefs.throughputBasis,
+        carsTouched: touchedCount,
         carryOver: washbayRow?.carry_over ?? 0,
       };
     }

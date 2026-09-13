@@ -1,4 +1,5 @@
 import type { ShiftType, ShiftWithUser } from '../types';
+import type { ThroughputBasis } from './throughputBasis';
 import { type FuelReport } from './fuelReadings';
 import { holdTypeLabel } from './holdTypeLabels';
 import { shiftTypeSentence } from './shiftTypeMeta';
@@ -24,6 +25,12 @@ export interface ReportThroughput {
   // else null → renderers fall back to the standard per-type range label.
   actualWindowLabel: string | null;
   carryOver: number; // Vehicles inherited from previous shift's queue (0 = none / not recorded)
+  /** Which question the numbers above answer (lib/throughputBasis). Carried onto the report so a
+   *  printed page can never be mistaken for the other basis — the two count different things and a
+   *  PDF outlives the screen that produced it. */
+  throughputBasis?: ThroughputBasis;
+  /** Distinct vehicles he changed inside his window. Only set on the cars-touched basis. */
+  carsTouched?: number | null;
 }
 
 export interface ReportData {
