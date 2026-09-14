@@ -91,6 +91,10 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
     // Sunday" is not a variation on a scheduled preset.
     const preset = typeDefaults[t];
     if (preset.start && preset.end) actual.syncToScheduled(preset.start, preset.end);
+    // ⭐ …and a day NOT worked defaults to not worked. Without this, an unlogged shift flipped to
+    // sick / pto / day-off saved its schedule as hours worked, which `calcOT` then paid as OT. The
+    // hook refuses to clear hours that were really logged, so the called-in Sunday still survives.
+    else actual.clearUnloggedPrefill();
   };
 
   // Actual hours show for EVERY type, day-off included. Hiding them for day-off/pto/sick made

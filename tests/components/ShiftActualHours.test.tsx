@@ -34,6 +34,7 @@ function stubActual(start = '', end = ''): ActualHours {
     actualStart: start, actualEnd: end, isStat: false,
     setActualStart: vi.fn(), setActualEnd: vi.fn(), setIsStat: vi.fn(),
     syncToScheduled: vi.fn(),
+    clearUnloggedPrefill: vi.fn(),
     netHrs: 0, previewOT: 0, breakDeducted: false,
   };
 }

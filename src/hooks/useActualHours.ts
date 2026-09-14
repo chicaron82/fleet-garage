@@ -20,6 +20,9 @@ export interface ActualHours {
   setIsStat: (v: boolean) => void;
   /** Pre-fill actual to a scheduled preset's times (the "worked as scheduled" default). */
   syncToScheduled: (start: string, end: string) => void;
+  /** A flip to a day NOT worked (sick / pto / day-off): drop the schedule-derived pre-fill so the
+   *  default is "didn't work". No-op when the shift already has hours LOGGED — see below. */
+  clearUnloggedPrefill: () => void;
   netHrs: number;
   previewOT: number;
   breakDeducted: boolean;
@@ -38,6 +41,22 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
     setActualEnd(end);
   };
 
+  // ⚠️⚠️ THE PHANTOM-OT BUG (Aaron's own sick day, 2026-09-14). An unlogged MID pre-fills actual
+  // 09:30–18:00 "as scheduled"; flipping it to SICK kept that pre-fill (sick has no preset times, so
+  // nothing re-synced it) and Save logged it as WORKED. `calcOT` counts every actual hour on a
+  // full-day type as OT — correct for the Sunday he was called in on — so a paid sick day read as
+  // 0 regular + 8 OT instead of the 8 regular that PTO and sick both get in `calcPayEstimate`.
+  //
+  // ⚠️ AND IT MUST NEVER TOUCH LOGGED HOURS. That is the called-in-on-a-day-off case the actual-hours
+  // section exists for (see FlipShiftSheet), and the reason the old unconditional blanking was
+  // removed. Only a value that came from the SCHEDULE is cleared.
+  const hasLogged = !!(shift.actualStartTime || shift.actualEndTime);
+  const clearUnloggedPrefill = () => {
+    if (hasLogged) return;
+    setActualStart('');
+    setActualEnd('');
+  };
+
   const previewOT = calcOT({
     ...shift,
     shiftType: shiftType ?? shift.shiftType,
@@ -52,7 +71,7 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
   return {
     actualStart, actualEnd, isStat,
     setActualStart, setActualEnd, setIsStat,
-    syncToScheduled,
+    syncToScheduled, clearUnloggedPrefill,
     netHrs, previewOT, breakDeducted,
   };
 }

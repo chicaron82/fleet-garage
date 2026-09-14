@@ -39,3 +39,33 @@ describe('useActualHours pre-fill', () => {
     expect(result.current.actualEnd).toBe('22:00');
   });
 });
+
+describe('useActualHours — a day flipped to NOT worked (the phantom-OT bug, 2026-09-14)', () => {
+  // Aaron's own sick day: an unlogged MID flipped to sick saved 09:30–18:00 as worked, and calcOT
+  // paid all 8h as overtime. Sick and PTO are both 8 REGULAR hours in calcPayEstimate — with no actuals.
+  const mid: ShiftWithUser = { ...base, date: '2026-09-14', shiftType: 'mid', startTime: '09:30', endTime: '18:00' };
+
+  it('⭐ clears the schedule-derived pre-fill, so the day saves as not worked', () => {
+    const { result } = renderHook(() => useActualHours(mid, 'sick'));
+    expect(result.current.actualStart).toBe('09:30'); // the pre-fill that caused it
+    act(() => result.current.clearUnloggedPrefill());
+    expect(result.current.actualStart).toBe('');
+    expect(result.current.actualEnd).toBe('');
+    expect(result.current.previewOT).toBe(0);
+  });
+
+  it('⚠️ NEVER clears hours that were really logged — the called-in-on-a-day-off case', () => {
+    const logged: ShiftWithUser = { ...base, shiftType: 'day-off', startTime: undefined, endTime: undefined, actualStartTime: '10:00', actualEndTime: '14:00' };
+    const { result } = renderHook(() => useActualHours(logged, 'day-off'));
+    act(() => result.current.clearUnloggedPrefill());
+    expect(result.current.actualStart).toBe('10:00');
+    expect(result.current.actualEnd).toBe('14:00');
+  });
+
+  it('flipping back to a working type still pre-fills as scheduled', () => {
+    const { result } = renderHook(() => useActualHours(mid, 'sick'));
+    act(() => result.current.clearUnloggedPrefill());
+    act(() => result.current.syncToScheduled('09:30', '18:00'));
+    expect(result.current.actualStart).toBe('09:30');
+  });
+});
