@@ -30,6 +30,33 @@ function fmtTime(t?: string): string {
 
 interface Props { today: string; visibleUserIds: Set<string>; overlaps?: ReadonlyMap<string, number>; }
 
+// ⭐⭐ THE GRID KEEPS ITS EDGES IN VIEW (Aaron, 2026-09-14, on his phone scrolled to the counter block):
+// *"is there a way to make the date row sticky so it shows the date even when scrolling further down?"*
+//
+// ⚠️ A BARE `sticky top-0` WOULD DO NOTHING HERE. The wrapper is `overflow-x-auto`, and `position:
+// sticky` sticks to the nearest scroll container — which only ever scrolled sideways while the PAGE
+// scrolled down. So the grid is now its own bounded scroll box in both axes: the date row sticks to
+// its top, and the Staff column to its left (scrolling right to Fri–Sun used to lose the names the
+// same way scrolling down lost the dates). Rejected: a separate page-sticky date strip mirroring
+// `scrollLeft` — two things to keep aligned, and no sensible sticky names column.
+//
+// ⚠️ STICKY CELLS MUST BE OPAQUE, or the shifts sliding underneath show through. The row tints are
+// translucent, so each sticky cell paints the SAME tint composited over the base with color-mix —
+// the seam row and the "you" row look identical whether a cell is stuck or not.
+const ROW_TINT = {
+  me:    'bg-yellow-50/50 dark:bg-yellow-900/5',
+  seam:  'bg-slate-200/70 dark:bg-slate-700/40',
+  plain: '',
+};
+const STICKY_TINT = {
+  me:    'bg-[color-mix(in_oklab,var(--color-yellow-50)_50%,var(--color-white))] dark:bg-[color-mix(in_oklab,var(--color-yellow-900)_5%,var(--color-gray-900))]',
+  seam:  'bg-[color-mix(in_oklab,var(--color-slate-200)_70%,var(--color-white))] dark:bg-[color-mix(in_oklab,var(--color-slate-700)_40%,var(--color-gray-900))]',
+  plain: 'bg-white dark:bg-gray-900',
+};
+/** A hairline on the stuck edge — table borders do not travel with a sticky cell under border-collapse. */
+const STICKY_RIGHT_EDGE  = 'shadow-[inset_-1px_0_0_var(--color-gray-100)] dark:shadow-[inset_-1px_0_0_var(--color-gray-800)]';
+const STICKY_BOTTOM_EDGE = 'shadow-[inset_0_-1px_0_var(--color-gray-100)] dark:shadow-[inset_0_-1px_0_var(--color-gray-800)]';
+
 export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   const { shifts, currentDate, canEditShift, loading, goToPrev, goToNext } = useSchedule();
   const { user } = useAuth();
@@ -104,7 +131,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
     <>
       <div
         ref={scrollRef}
-        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto transition-colors"
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-auto max-h-[80dvh] overscroll-contain transition-colors"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -113,13 +140,14 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
         )}
         <table className="w-full text-xs min-w-[520px]">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800">
-              <th className="text-left py-2.5 px-3 text-gray-400 dark:text-gray-500 font-semibold w-20">Staff</th>
+            <tr>
+              {/* The corner sits above BOTH sticky edges. */}
+              <th className={`sticky top-0 left-0 z-30 text-left py-2.5 px-3 text-gray-400 dark:text-gray-500 font-semibold w-20 ${STICKY_TINT.plain} shadow-[inset_-1px_-1px_0_var(--color-gray-100)] dark:shadow-[inset_-1px_-1px_0_var(--color-gray-800)]`}>Staff</th>
               {days.map((d, i) => {
                 const iso = toISO(d);
                 const isToday = iso === today;
                 return (
-                  <th key={i} className={`text-center py-2.5 px-1 font-semibold ${
+                  <th key={i} className={`sticky top-0 z-20 text-center py-2.5 px-1 font-semibold ${STICKY_TINT.plain} ${STICKY_BOTTOM_EDGE} ${
                     isToday ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-500 dark:text-gray-400'
                   }`}>
                     <div>{DAY_NAMES[i]}</div>
@@ -132,14 +160,13 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
           <tbody>
             {visibleUsers.map(u => {
               const isMe = u.id === user?.id;
+              const tint = isMe ? 'me' : isSeamRow(u) ? 'seam' : 'plain';
               return (
                 <tr
                   key={u.id}
-                  className={`border-t border-gray-100 dark:border-gray-800 ${
-                    isMe ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : isSeamRow(u) ? 'bg-slate-200/70 dark:bg-slate-700/40' : ''
-                  }`}
+                  className={`border-t border-gray-100 dark:border-gray-800 ${ROW_TINT[tint]}`}
                 >
-                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  <td className={`sticky left-0 z-10 py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap ${STICKY_TINT[tint]} ${STICKY_RIGHT_EDGE}`}>
                     <div>{u.name.split(' ')[0]}</div>
                     <div className="text-gray-400 dark:text-gray-600 font-normal">{u.role.replace('Operations Manager', 'Ops Mgr').replace('Branch Manager', 'Br. Mgr')}</div>
                     {u.utility && (
