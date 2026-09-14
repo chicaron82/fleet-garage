@@ -1081,6 +1081,7 @@ export type Database = {
           role: string
           roster_only: boolean
           utility: boolean
+          work_days: number[] | null
         }
         Insert: {
           branch_id: string
@@ -1092,6 +1093,7 @@ export type Database = {
           role: string
           roster_only?: boolean
           utility?: boolean
+          work_days?: number[] | null
         }
         Update: {
           branch_id?: string
@@ -1103,6 +1105,7 @@ export type Database = {
           role?: string
           roster_only?: boolean
           utility?: boolean
+          work_days?: number[] | null
         }
         Relationships: []
       }
@@ -2118,6 +2121,7 @@ export type Database = {
           role: string
           roster_only: boolean
           utility: boolean
+          work_days: number[] | null
         }
         SetofOptions: {
           from: "*"

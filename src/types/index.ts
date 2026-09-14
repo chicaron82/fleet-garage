@@ -123,6 +123,9 @@ export interface User {
    *  Shades + tags their schedule row to set them apart from drivers — does NOT
    *  affect role or scheduling group. See migration 087. */
   utility?: boolean;
+  /** ISO weekdays (1=Mon..7=Sun) this person can be scheduled to WORK; null = any day. A working
+   *  shift outside them is warned on, never refused — see lib/workDays + migration 144. */
+  workDays?: number[] | null;
 }
 
 /**

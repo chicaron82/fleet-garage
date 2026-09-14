@@ -19,6 +19,8 @@ import { buildImportShifts, dateRange, nextType, type ImportRow } from '../../li
 import { isStatDay } from '../../lib/stats';
 import { findClopens, formatClopen } from '../../lib/scheduleClopens';
 import { ScheduleImportGrid } from './ScheduleImportGrid';
+import { findImportWorkDayConflicts } from '../../lib/workDays';
+import { WorkDayConflictsNotice } from './WorkDayConflictsNotice';
 
 export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   useEscapeKey(onClose);
@@ -92,6 +94,9 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
   const myClopens = myRow >= 0 && schedule
     ? findClopens(schedule.staff[myRow].cells.map((c, ci) => ({ date: c.date ?? '', type: typesGrid[myRow][ci] })).filter((x) => x.date))
     : [];
+
+  // Someone put on a day they can't work — checked on the preview, before the write (migration 144).
+  const workDay = findImportWorkDayConflicts(schedule?.staff ?? [], assignments, typesGrid, profiles);
 
   const assignedCount = assignments.filter(Boolean).length;
   const unmatchedCount = (schedule?.staff.length ?? 0) - assignedCount;
@@ -301,12 +306,14 @@ export function ScheduleImportModal({ onClose }: { onClose: () => void }) {
                   </div>
                 )
               )}
+              <WorkDayConflictsNotice conflicts={workDay.conflicts} lead="Check the sheet" />
               {schedule.staff.length > 0 && (
                 <ScheduleImportGrid
                   schedule={schedule}
                   roster={roster}
                   assignments={assignments}
                   types={typesGrid}
+                  conflictCells={workDay.cells}
                   onAssign={(i, id) => setNameOverrides((o) => ({ ...o, [i]: id }))}
                   onCycleCell={onCycleCell}
                 />

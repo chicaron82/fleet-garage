@@ -29,11 +29,13 @@ interface Props {
   roster: RosterProfile[];
   assignments: (string | null)[];
   types: ParsedShiftType[][]; // effective type per cell (parse + edits)
+  /** `"row-cell"` keys of cells that put someone on a day they can't work (lib/workDays). */
+  conflictCells: ReadonlySet<string>;
   onAssign: (rowIndex: number, profileId: string | null) => void;
   onCycleCell: (rowIndex: number, cellIndex: number) => void;
 }
 
-export function ScheduleImportGrid({ schedule, roster, assignments, types, onAssign, onCycleCell }: Props) {
+export function ScheduleImportGrid({ schedule, roster, assignments, types, conflictCells, onAssign, onCycleCell }: Props) {
   const dates = schedule.staff[0]?.cells.map((c) => c.date) ?? [];
 
   return (
@@ -74,12 +76,15 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
                 {row.cells.map((c, ci) => {
                   const t = types[ri]?.[ci] ?? c.type;
                   const times = c.startTime ? `${c.startTime}–${c.endTime ?? ''}` : '';
+                  // ⛔ A day this person can't work — ringed red on the cell itself, so the eye lands on
+                  // it in the grid rather than only in the sentence above.
+                  const conflict = conflictCells.has(`${ri}-${ci}`);
                   return (
                     <td key={ci} className="px-0.5 py-0.5 text-center">
                       <button
                         onClick={() => onCycleCell(ri, ci)}
-                        title={`${c.raw || c.type}${times ? ` (${times})` : ''} — tap to change`}
-                        className={`block w-full min-w-[3.2rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]}`}
+                        title={`${c.raw || c.type}${times ? ` (${times})` : ''}${conflict ? ' — a day they can\'t work' : ''} — tap to change`}
+                        className={`block w-full min-w-[3.2rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]} ${conflict ? 'ring-2 ring-red-500' : ''}`}
                       >
                         <span className="block leading-tight">{TYPE_LABEL[t]}</span>
                         {/* ⭐ THE END TIME, NOT THE START — and on a counter sheet that is the whole

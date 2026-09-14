@@ -28,6 +28,7 @@ function rowToProfile(row: Record<string, unknown>): Profile {
     branchId:   row.branch_id as BranchId,
     rosterOnly: (row.roster_only as boolean) ?? false,
     utility:    (row.utility as boolean) ?? false,
+    workDays:   (row.work_days as number[] | null) ?? null,
   };
 }
 
@@ -53,7 +54,7 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void supabase
       .from('profiles')
-      .select('id, employee_id, name, role, branch_id, roster_only, utility')
+      .select('id, employee_id, name, role, branch_id, roster_only, utility, work_days')
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error || !data) {
@@ -86,7 +87,7 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
               branch_id:   staff.branchId,
               roster_only: true,
             })
-            .select('id, employee_id, name, role, branch_id, roster_only, utility')
+            .select('id, employee_id, name, role, branch_id, roster_only, utility, work_days')
             .single();
           if (error) throw error;
           const row = rowToProfile(data as Record<string, unknown>);

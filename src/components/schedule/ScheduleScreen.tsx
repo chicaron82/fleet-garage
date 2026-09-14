@@ -14,6 +14,7 @@ import { FillScheduleModal } from './FillScheduleModal';
 import { CopyWeekModal } from './CopyWeekModal';
 import { ScheduleImportModal } from './ScheduleImportModal';
 import { UpcomingClopensBanner } from './UpcomingClopensBanner';
+import { WorkDayConflictsBanner } from './WorkDayConflictsNotice';
 import { LogSickDaySheet } from './LogSickDaySheet';
 import { RosterStaffModal } from './RosterStaffModal';
 import { SICK_DAYS_ENTITLEMENT } from '../../lib/payEstimate';
@@ -147,6 +148,8 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
 
       {/* Your upcoming clopens — read from the stored schedule, no re-upload. Null when none. */}
       <UpcomingClopensBanner userId={user?.id} />
+      {/* Someone scheduled on a day they can't work (migration 144). Null when none. */}
+      <WorkDayConflictsBanner />
 
       {/* Peak season banner. The READOUT is for everyone — it states what time closings start
           (14:30–23:00 in peak, 13:30–22:00 off), which is a fact about the reader's OWN shift, and
