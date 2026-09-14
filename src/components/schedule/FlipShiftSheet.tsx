@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { invalidTimeSpan } from '../../lib/ot';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { toISO } from '../../lib/schedule-helpers';
@@ -116,12 +117,14 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       }
       return;
     }
-    if (!isDayOff && startTime >= endTime) {
-      setError('End time must be after start time.');
+    // ⚠️ `invalidTimeSpan`, never a string compare — a closing that runs past midnight is ordinary,
+    // and `"23:08" >= "00:11"` is true. See lib/ot.ts for the night this cost.
+    if (!isDayOff && invalidTimeSpan(startTime, endTime)) {
+      setError('Start and end time can’t be the same.');
       return;
     }
-    if (showActual && actual.actualStart && actual.actualEnd && actual.actualStart >= actual.actualEnd) {
-      setError('Actual end time must be after start time.');
+    if (showActual && invalidTimeSpan(actual.actualStart, actual.actualEnd)) {
+      setError('Actual start and end time can’t be the same.');
       return;
     }
     setSaving(true);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, netActualHours, calcOT, fmtHours, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
+import { calcHours, netActualHours, calcOT, fmtHours, invalidTimeSpan, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -124,5 +124,49 @@ describe('fmtHours', () => {
   });
   it('formats large OT value', () => {
     expect(fmtHours(12.75)).toBe('12h 45m');
+  });
+});
+
+// Aaron, 2026-09-14 00:31, logging the night he came in to lock up and stayed to clear the path:
+// clocked 23:08 → 00:11, and the sheet refused him — "Actual end time must be after start time" —
+// while the summary right beneath it read "1h 3m actual · 1h 3m OT". The span calculator wrapped
+// midnight; the validator did a raw string compare. The wrong one held the Save button.
+describe('invalidTimeSpan — the midnight bug', () => {
+  it('⭐⭐ 23:08 → 00:11 is a real hour of work, not an error', () => {
+    expect(invalidTimeSpan('23:08', '00:11')).toBe(false);
+    expect(calcHours('23:08', '00:11')).toBeCloseTo(1.05, 2);   // 1h 3m — what the summary showed
+  });
+
+  // ⭐ The validator and the display must never disagree again: anything calcHours can measure is
+  // something a person can have worked.
+  it('⭐ agrees with calcHours on every span calcHours can measure', () => {
+    for (const [s, e] of [['22:00','00:30'], ['14:30','23:00'], ['06:45','15:15'], ['23:59','00:01']]) {
+      expect(invalidTimeSpan(s, e), `${s}-${e}`).toBe(false);
+      expect(calcHours(s, e), `${s}-${e}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('⚠️ a ZERO span is the only thing nobody works — calcHours has always said so', () => {
+    expect(invalidTimeSpan('23:08', '23:08')).toBe(true);
+    expect(calcHours('23:08', '23:08')).toBe(0);
+  });
+
+  it('normalises the two time formats, so 06:45 and 06:45:00 are one span', () => {
+    expect(invalidTimeSpan('06:45', '06:45:00')).toBe(true);
+  });
+
+  // ⚠️ Absence is the required-field check's job. Returning true here would make an empty actual
+  // block the save on every ordinary day, which is the opposite of the point.
+  it('⚠️ a missing time is not an invalid span', () => {
+    expect(invalidTimeSpan(undefined, '00:11')).toBe(false);
+    expect(invalidTimeSpan('23:08', undefined)).toBe(false);
+    expect(invalidTimeSpan(undefined, undefined)).toBe(false);
+  });
+
+  // ⚠️ Deliberate: a typo'd 09:00–08:00 reads as 23h rather than erroring. The summary prints "23h"
+  // in front of him, where a refusal printed nothing and blocked a TRUE entry. Loud beats silent.
+  it('⚠️ does not reject an implausibly long span — that is the summary\'s job to show', () => {
+    expect(invalidTimeSpan('09:00', '08:00')).toBe(false);
+    expect(calcHours('09:00', '08:00')).toBe(23);
   });
 });

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { invalidTimeSpan } from '../../lib/ot';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { toISO } from '../../lib/schedule-helpers';
@@ -103,7 +104,8 @@ export function FillScheduleModal({ onClose }: Props) {
     if (dows.length === 0)         return 'Select at least one day of the week.';
     if (!isDayOff && !startTime)   return 'Start time is required.';
     if (!isDayOff && !endTime)     return 'End time is required.';
-    if (!isDayOff && startTime >= endTime) return 'End time must be after start time.';
+    // ⚠️ Not a string compare — an overnight span is legal; only a ZERO span is not. lib/ot.ts.
+    if (!isDayOff && invalidTimeSpan(startTime, endTime)) return 'Start and end time can\u2019t be the same.';
     if (candidateDates.length === 0) return 'No new shifts to create (all dates already have shifts).';
     return '';
   };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { invalidTimeSpan } from '../../lib/ot';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
@@ -95,7 +96,8 @@ export function ShiftForm(props: Props) {
     if (!date)                     return 'Date is required.';
     if (!isDayOff && !startTime)   return 'Start time is required.';
     if (!isDayOff && !endTime)     return 'End time is required.';
-    if (!isDayOff && startTime >= endTime) return 'End time must be after start time.';
+    // ⚠️ Not a string compare — an overnight span is legal; only a ZERO span is not. lib/ot.ts.
+    if (!isDayOff && invalidTimeSpan(startTime, endTime)) return 'Start and end time can\u2019t be the same.';
     return '';
   };
 
