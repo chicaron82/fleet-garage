@@ -52,3 +52,28 @@ describe('resolveWeekSwipe', () => {
     expect(resolveWeekSwipe(120, shortOfRight)).toBeNull();
   });
 });
+
+describe('resolveWeekSwipe — judged from where the gesture STARTED (Aaron, 2026-09-14)', () => {
+  // "the swipe to saturday stops nicely, but the swipe back to monday almost always shifts back to the
+  //  previous week". The edge used to be read at touchEND — after the finger had already dragged the
+  //  grid to scrollLeft 0 — so the swipe that REVEALED Monday also counted as "already at the edge".
+  const PHONE = { scrollWidth: 586, clientWidth: 412 }; // ~174px of sideways travel at 412px
+
+  it('⭐ a swipe that scrolls the grid back to Monday does NOT change the week', () => {
+    const atStart = { ...PHONE, scrollLeft: 174 };            // on Saturday when the finger lands
+    expect(resolveWeekSwipe(-150, atStart, { endScrollLeft: 0 })).toBeNull();
+  });
+
+  it('⭐ the NEXT flick, starting on Monday and moving nothing, goes back a week', () => {
+    expect(resolveWeekSwipe(-150, { ...PHONE, scrollLeft: 0 }, { endScrollLeft: 0 })).toBe('prev');
+  });
+
+  it('the same on the Sunday side: revealing the weekend never also advances the week', () => {
+    expect(resolveWeekSwipe(150, { ...PHONE, scrollLeft: 0 }, { endScrollLeft: 174 })).toBeNull();
+    expect(resolveWeekSwipe(150, { ...PHONE, scrollLeft: 174 }, { endScrollLeft: 174 })).toBe('next');
+  });
+
+  it('a week that does not overflow still navigates on the first swipe', () => {
+    expect(resolveWeekSwipe(-150, { scrollLeft: 0, scrollWidth: 412, clientWidth: 412 }, { endScrollLeft: 0 })).toBe('prev');
+  });
+});

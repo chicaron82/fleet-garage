@@ -67,11 +67,16 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   const canSchedule = user ? canManageSchedule(user.role) : false;
   const touchStartX    = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
+  // ⚠️ The grid's scroll position when the finger LANDED — the edge must be judged before the gesture
+  // moves the grid, or the swipe that reveals Monday also jumps a week (lib/weekSwipe, 2026-09-14).
+  const touchStartScroll = useRef<{ scrollLeft: number; scrollWidth: number; clientWidth: number } | null>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current    = e.touches[0].clientX;
     touchStartTime.current = Date.now();
+    const el = scrollRef.current;
+    touchStartScroll.current = el ? { scrollLeft: el.scrollLeft, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth } : null;
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null || touchStartTime.current === null) return;
@@ -83,8 +88,12 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
     // resolveWeekSwipe so a mid-week swipe scrolls toward Sunday instead of
     // yanking to the next week before it's been seen.
     if (elapsed > 250) return;
+    const start = touchStartScroll.current;
+    touchStartScroll.current = null;
     const el = scrollRef.current;
-    const nav = resolveWeekSwipe(deltaX, el ?? { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 });
+    const nav = start
+      ? resolveWeekSwipe(deltaX, start, { endScrollLeft: el?.scrollLeft ?? start.scrollLeft })
+      : resolveWeekSwipe(deltaX, el ?? { scrollLeft: 0, scrollWidth: 0, clientWidth: 0 });
     if (nav === 'next')      goToNext();
     else if (nav === 'prev') goToPrev();
   };
