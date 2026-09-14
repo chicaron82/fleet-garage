@@ -47,15 +47,32 @@ export function holdBadgeConfig(
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
+  // ⭐ NO BADGE SAYS "HELD" ANY MORE (Aaron, 2026-09-14): *"things there are all held vehicles so having
+  // a "held" badge is redundant. whatcha think of matching it to the hold type."* Every card on the
+  // Holds list is held, so the word carried nothing — while damage, PM due and detail, the commonest
+  // holds after sale cars, all hid behind it. The badge now says WHAT; the colour lanes are unchanged.
+  // Multi-Hold stays as it is — *"listing everything might be too much to show"*.
+  if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'pm-due') {
+    return {
+      label: '⚙️ PM Due',
+      className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+    };
+  }
+  if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'safety-recall') {
+    return {
+      label: 'Safety Recall',
+      className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+    };
+  }
   switch (holdTypes[0]) {
     case 'mechanical':
       return {
-        label: 'Held',
+        label: '🔧 Mechanical',
         className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
       };
     case 'detail':
       return {
-        label: 'Held',
+        label: 'Detail',
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'sale_car':
@@ -74,8 +91,9 @@ export function holdBadgeConfig(
         className: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
       };
     default:
+      // 'damage' — the one type that lands here. Red, as it always was.
       return {
-        label: 'Held',
+        label: 'Damage',
         className: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
       };
   }

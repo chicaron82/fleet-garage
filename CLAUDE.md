@@ -110,7 +110,7 @@ the only person using the app. This has now bitten four times:
 | Where | What it hid | Verdict |
 |---|---|---|
 | `EffieCreditPanel` | his own API bill | wrong ROOM → moved (`d460412`) |
-| `HoldsVehicleRow` | the 📌 pin on his own holds board | wrong GATE → removed |
+| `HoldsVehicleRow` | the 📌 pin on his own holds board | wrong GATE → removed; then the pin itself removed 2026-09-14 — *"i don't use it"* (un-gating fixed access, never asked if he wanted it) |
 | `ScheduleScreen` | closing-hours readout (peak season) | wrong SCOPE → readout freed, toggle kept |
 | `TripList` | long-trip flag — `isManagement={false}` at **both** call sites | dead in the app entirely |
 

@@ -54,16 +54,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
-  const [pinnedVehicleIds, setPinnedVehicleIds] = useState<Set<string>>(new Set());
-
-  const togglePin = useCallback((vehicleId: string) => {
-    hapticLight();
-    setPinnedVehicleIds(prev => {
-      const next = new Set(prev);
-      if (next.has(vehicleId)) next.delete(vehicleId); else next.add(vehicleId);
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     sessionStorage.setItem('dashboard_page', String(currentPage));
@@ -125,7 +115,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
 
   // Which cars the board shows, in what order, on which page — all derived, never captured.
   const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, getDisplayHold } =
-    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage, showSaleCars: prefs.showSaleCars });
+    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars: prefs.showSaleCars });
 
   const { getName } = useUserResolver();
 
@@ -273,8 +263,6 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
               vehicle={vehicle}
               latestHold={getDisplayHold(vehicle.id, vehicle.status)}
               streak={releaseStreak(vehicle.id)}
-              isPinned={pinnedVehicleIds.has(vehicle.id)}
-              onTogglePin={togglePin}
               onOpen={handleOpenVehicle}
               getName={getName}
             />

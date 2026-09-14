@@ -64,10 +64,10 @@ describe('holdBadgeConfig', () => {
   });
 
   it.each([
-    ['mechanical', 'Held'],
-    ['detail', 'Held'],
+    ['mechanical', '🔧 Mechanical'],
+    ['detail', 'Detail'],
     ['sale_car', 'Sale Car'],
-    ['damage', 'Held'],
+    ['damage', 'Damage'],
     ['hail', '⛈️ Hail'],
   ] as [HoldType, string][])('single %s hold → label %s', (type, label) => {
     expect(holdBadgeConfig([type]).label).toBe(label);
@@ -143,5 +143,25 @@ describe('tire-replacement', () => {
 
   it('⚠️ a multi-hold still wins, so the sub-type cannot hide a second hold type', () => {
     expect(holdBadgeConfig(['mechanical', 'damage'], 'tire-replacement').label).toBe('Multi-Hold');
+  });
+});
+
+describe('holdBadgeConfig — the badge says WHAT is held (Aaron, 2026-09-14)', () => {
+  it('⭐ no known hold type falls back to the redundant word "Held"', () => {
+    const types: HoldType[] = ['damage', 'hail', 'detail', 'mechanical', 'sale_car', 'missing_accessories'];
+    for (const t of types) expect(holdBadgeConfig([t]).label).not.toBe('Held');
+    for (const sub of ['tire-swap', 'tire-repair', 'tire-replacement', 'pm-due', 'safety-recall', 'other'] as const) {
+      expect(holdBadgeConfig(['mechanical'], sub).label).not.toBe('Held');
+    }
+  });
+
+  it('names the mechanical sub-types he sees most', () => {
+    expect(holdBadgeConfig(['mechanical'], 'pm-due').label).toBe('⚙️ PM Due');
+    expect(holdBadgeConfig(['mechanical'], 'safety-recall').label).toBe('Safety Recall');
+    expect(holdBadgeConfig(['mechanical'], 'other').label).toBe('🔧 Mechanical');
+  });
+
+  it('keeps Multi-Hold — "listing everything might be too much to show"', () => {
+    expect(holdBadgeConfig(['damage', 'detail']).label).toBe('Multi-Hold');
   });
 });

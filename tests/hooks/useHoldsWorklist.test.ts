@@ -12,7 +12,7 @@ const fleet = [car('HELD1', 'HELD'), car('SALE1', 'SALE_CAR'), car('SALE2', 'SAL
 const run = (over: Partial<Parameters<typeof useHoldsWorklist>[0]> = {}) =>
   renderHook(() => useHoldsWorklist({
     vehicles: fleet, holds: [], archivedVehicles: [], search: '', activeStatusFilter: null,
-    pinnedVehicleIds: new Set(), currentPage: 1, ...over,
+    currentPage: 1, ...over,
   })).result.current;
 
 // Aaron, 2026-09-10: "unchecked hides them. can still be searched."

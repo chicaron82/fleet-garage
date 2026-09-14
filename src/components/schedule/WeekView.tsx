@@ -74,7 +74,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
   const shiftMap = new Map<string, ShiftWithUser>();
   for (const s of shifts) shiftMap.set(`${s.userId}-${s.date}`, s);
 
-  // ⭐⭐ Self pinned first, then FLOOR → COUNTER → DRIVERS, alphabetical inside each. Until
+  // ⭐⭐ Self pinned first, then FLOOR → DRIVERS → COUNTER (reordered 2026-09-14), alphabetical inside each. Until
   //    2026-09-06 the rest were listed in `useTeamMembers` order, which is Supabase's return order —
   //    so two VSAs sat below thirteen empty driver rows and a two-person closing shift read as one
   //    person alone. See `lib/rosterOrder.ts`.

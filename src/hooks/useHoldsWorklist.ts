@@ -5,7 +5,7 @@ import type { Hold, Vehicle, VehicleStatus } from '../types';
 //
 // Extracted out of HoldsView 2026-08-25, which had crept to two lines under the 330 cap. The
 // markup was never the weight: the file's real bulk was this derivation pipeline — status counts,
-// a search across five fields, the exception carve-out, the pinned-first sort, pagination, and the
+// a search across five fields, the exception carve-out, the recency sort, pagination, and the
 // two "did the search find anything" questions. All of it is a pure function of (fleet, holds,
 // filter state); none of it needs to be inside a component.
 //
@@ -17,7 +17,7 @@ const ITEMS_PER_PAGE = 15;
 export interface HoldsWorklist {
   /** Status tallies for the summary cards — the WHOLE fleet, never the filtered view. */
   counts: { held: number; returned: number; preExisting: number; cleared: number };
-  /** The filtered, sorted worklist — pinned first, then most-recently-touched. */
+  /** The filtered, sorted worklist — most-recently-touched first (the pinned tier was removed 2026-09-14). */
   filtered: Vehicle[];
   paginatedVehicles: Vehicle[];
   totalPages: number;
@@ -36,12 +36,11 @@ export function useHoldsWorklist(input: {
   archivedVehicles: Vehicle[];
   search: string;
   activeStatusFilter: VehicleStatus | null;
-  pinnedVehicleIds: Set<string>;
   currentPage: number;
   /** Include SALE_CAR vehicles in the default list (the Holds checkbox). A search finds them either way. */
   showSaleCars?: boolean;
 }): HoldsWorklist {
-  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, pinnedVehicleIds, currentPage, showSaleCars = false } = input;
+  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars = false } = input;
 
   const counts = {
     held:        vehicles.filter(v => v.status === 'HELD').length,
@@ -75,12 +74,7 @@ export function useHoldsWorklist(input: {
       if (v.status === 'SALE_CAR' && search === '' && !showSaleCars) return false;
       return true;
     })
-    .sort((a, b) => {
-      const aPinned = pinnedVehicleIds.has(a.id) ? 1 : 0;
-      const bPinned = pinnedVehicleIds.has(b.id) ? 1 : 0;
-      if (aPinned !== bPinned) return bPinned - aPinned;
-      return vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id);
-    });
+    .sort((a, b) => vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id));
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
