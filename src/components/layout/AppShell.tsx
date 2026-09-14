@@ -193,9 +193,15 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
 
             ⚠️ HORIZONTAL ONLY. Vertical padding stays with each view because it legitimately
             varies (py-5, py-6, py-8, py-16 for a centred empty state), and hoisting it would make
-            every view do arithmetic against this one. His complaint was the left and right. */}
+            every view do arithmetic against this one. His complaint was the left and right.
+
+            ⚠️ `h-full`, and it is load-bearing (2026-09-14). Without it the frame was auto-height, so a
+            screen that sizes itself `h-full` collapsed to its content — Effie's home rendered as a
+            FAB-sized card with the composer a third of the way down (*"it keeps its compacted FAB size
+            instead of displaying on the whole screen"*). Taller screens still scroll: their content
+            overflows the frame and this `overflow-auto` parent scrolls it, as before. */}
         <div ref={contentRef} className="flex-1 overflow-auto">
-          <div className="w-full max-w-3xl mx-auto px-4">
+          <div className="w-full h-full max-w-3xl mx-auto px-4">
             {children}
           </div>
         </div>
