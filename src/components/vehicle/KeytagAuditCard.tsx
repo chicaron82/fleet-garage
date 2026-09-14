@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { VehicleName } from '../shared/VehicleName';
 import { KeytagAuditFields, KeytagAuditActions } from './KeytagAuditFields';
-import { auditWarnings, auditKeyCountOffered, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
+import { auditWarnings, auditKeyCountOffered, auditMissingFields, type AuditField, type AuditCandidate } from '../../lib/keytagAuditQueue';
 import { asRotation, nextRotation } from '../../lib/keytagPhotoRotation';
 import { KeytagPhoto } from './KeytagPhoto';
 import type { OwningGuess } from '../../lib/owningFromUnit';
@@ -65,7 +65,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   /** "The tag can't answer this one" — see KeytagAuditActions. */
   onFlagCheckVehicle: () => void;
 }) {
-  const { vehicle, missing } = candidate;
+  const { vehicle } = candidate;
   const [edits, setEdits] = useState<KeytagAuditEdits>(() => ({
     owningArea:  vehicle.owningArea  ?? '',
     rentalClass: vehicle.rentalClass ?? '',
@@ -91,7 +91,11 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   // codex lookups normalise and would still resolve, but any exact match (the fleet queries, the
   // wrong-box guard's own vocabulary) would silently miss the car. Uppercasing here also means the
   // guard compares what he SEES rather than a value it quietly re-cased behind him.
-  const set = (f: AuditField, v: string) => setEdits(prev => ({ ...prev, [f]: v.toUpperCase() }));
+  const set = (f: AuditField | 'model', v: string) => setEdits(prev => ({ ...prev, [f]: v.toUpperCase() }));
+  // ⭐ The spelled-out switch seeds the box with the model FG holds, so a correct one is one tap to
+  // confirm — the same "show FG's value" call as every other field on this card.
+  const setSpelledOut = (on: boolean) => { hapticLight(); setEdits(prev => ({ ...prev, modelSpelledOut: on, model: prev.model ?? vehicle.model ?? '' })); };
+  const missing = auditMissingFields(candidate.missing, !!edits.modelSpelledOut, vehicle.model);
   // ⭐ A quarter-turn for a sideways tag. Local until he saves, so a stray tap costs nothing — and
   // the stored FILE is never re-encoded; this is display metadata only (migration 133).
   const [rotation, setRotation] = useState(() => asRotation(vehicle.keytagPhotoRotation));
@@ -105,7 +109,9 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
   const save = () => onSave({ ...edits, photoRotation: rotation });
   // Recomputed every keystroke — it is a pure read of what is in the boxes right now, and he should
   // see the mix-up while the tag is still in front of him, not after Save.
-  const warnings = auditWarnings(edits, knownRentalClasses, knownModelCodes);
+  // ⚠️ With the switch on the box holds a NAME, so the code guards (wrong-box, near-miss) have nothing
+  // to say about it — TUCSON is not a misread of any code.
+  const warnings = auditWarnings(edits.modelSpelledOut ? { ...edits, classCode: '' } : edits, knownRentalClasses, knownModelCodes);
   // Asked about the unit currently in the box, not the one on the record, so correcting the unit
   // moves the suggestion with it.
   const owningGuess = guessOwning(edits.unitNumber ?? '');
@@ -134,7 +140,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
       </div>
       {panelOpen && (
         <div className="px-3 pb-3 space-y-2.5">
-          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
+          <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="dark" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} onSpelledOutChange={setSpelledOut} />
           <KeytagAuditActions saving={saving} tone="dark" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} onFlagCheckVehicle={onFlagCheckVehicle} />
         </div>
       )}
@@ -173,7 +179,7 @@ export function KeytagAuditCard({ candidate, saving, knownRentalClasses, knownMo
         </div>
       )}
 
-      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} />
+      <KeytagAuditFields edits={edits} missing={missing} warnings={warnings} owningGuess={owningGuess} owningPresets={owningPresets} tone="light" keyCountOffered={keysOffered} onChange={set} onKeyCountChange={setKeyCount} onSpelledOutChange={setSpelledOut} />
 
       <KeytagAuditActions saving={saving} tone="light" onSave={save} onSkip={onSkip} onFlagUnreadable={onFlagUnreadable} onFlagCheckVehicle={onFlagCheckVehicle} />
 

@@ -87,10 +87,37 @@ export const AUDIT_FIELD_LABELS: Readonly<Record<AuditField, string>> = {
 export const AUDIT_FIELD_HINTS: Readonly<Record<AuditField, string>> = {
   owningArea:  'the branch number — 8199 is Winnipeg; a printed leading zero is dropped',
   rentalClass: 'the short size/type group — Q4, E9, P4',
-  classCode:   'the 4-letter code (CRVB, CTMY) — not every tag has one; leave it blank if the model is spelled out',
+  classCode:   'the 4-letter code (CRVB, CTMY) — not every tag has one; blank is fine, or tap spelled out for a model name',
   unitNumber:  'the Veh # — 7 digits, printed in two groups (574 7498)',
   vinLast9:    'the last 9 of the VIN — capped at 9, every stored VIN is exactly that',
 };
+
+/**
+ * ⭐ THE MODEL-CODE BOX, WHEN THE TAG SPELLS THE MODEL OUT.
+ *
+ * The labelled tag layout (US cars, old-Montreal 8892) prints `TUCSON` or `Model Y` and no model code
+ * at all. The auditor used to have nowhere for that name, so it landed in the code box — `COMPASS` and
+ * `TUSCON` in `class_code`. Kept beside the other labels so the two meanings of one box are defined in
+ * one place. See docs ticket-two-tag-formats.
+ */
+export const SPELLED_OUT_LABEL = 'Model (as printed)';
+export const SPELLED_OUT_HINT = 'the model name on a tag with no code — TUCSON, Model Y; FG keeps its own spelling';
+
+/**
+ * The blank fields to mark on the card, once the spelled-out switch is taken into account.
+ *
+ * ⚠️ With the switch on, the model-code box is asking for a MODEL, so it is blank exactly when the
+ * record has no model — a blank `class_code` is the tag's truth, not work.
+ */
+export function auditMissingFields(
+  missing: readonly AuditField[],
+  spelledOut: boolean,
+  recordModel: string | null | undefined,
+): AuditField[] {
+  if (!spelledOut) return [...missing];
+  const rest = missing.filter(f => f !== 'classCode');
+  return isBlankField(recordModel) ? [...rest, 'classCode'] : rest;
+}
 
 /** A field whose value looks like it landed in the wrong box — said out loud, never enforced. */
 export interface AuditWarning { field: AuditField; message: string; }

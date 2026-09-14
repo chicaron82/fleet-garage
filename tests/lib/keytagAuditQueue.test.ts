@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AUDIT_FIELDS,
+  auditMissingFields,
   nearMissCode,
   firstPhotoNote,
   AUDIT_FIELD_LABELS,
@@ -505,5 +506,19 @@ describe('a fragment of the CITY landing in the class box', () => {
   it('⚠️ does not shadow the model-code warning for a value that IS one', () => {
     const [w] = auditWarnings({ rentalClass: 'CVRS' }, none, new Set(['CVRS']));
     expect(w?.message).toContain('model code');
+  });
+});
+
+describe('auditMissingFields — the spelled-out switch', () => {
+  it('passes the missing list through untouched when the switch is off', () => {
+    expect(auditMissingFields(['classCode', 'vinLast9'], false, null)).toEqual(['classCode', 'vinLast9']);
+  });
+
+  it('⭐ a blank class_code is not work on a tag with no code — when the record has a model', () => {
+    expect(auditMissingFields(['classCode', 'vinLast9'], true, 'Tucson')).toEqual(['vinLast9']);
+  });
+
+  it('marks the box blank when the record has no MODEL, which is what the box now asks for', () => {
+    expect(auditMissingFields(['vinLast9'], true, '  ')).toEqual(['vinLast9', 'classCode']);
   });
 });

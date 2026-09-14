@@ -4,6 +4,7 @@ import { AUDIT_FIELDS, isBlankField, type AuditField } from '../lib/keytagAuditQ
 import { normalizeOwning } from '../../api/_lib/owningArea';
 import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
 import { findUnitConflict } from '../lib/identityConflict';
+import { resolveSpelledOutModel } from '../lib/spelledOutModel';
 
 /** What the auditor read off the photo, field by field. A blank means he could not read that one
  *  either — it is left alone rather than stamped, because "I couldn't see it" is not a fact. */
@@ -21,6 +22,15 @@ export type KeytagAuditEdits = Partial<Record<AuditField, string>> & {
   keyCount?: string;
   /** A quarter-turn for a sideways tag (migration 133). Display metadata; the file is untouched. */
   photoRotation?: number;
+  /**
+   * ⭐ THIS TAG SPELLS THE MODEL OUT — the labelled layout (US cars, old-Montreal 8892) prints
+   * `TUCSON` or `Model Y` where the Canadian tag prints a model CODE. When set, the model-code box
+   * held a NAME, so `classCode` is neither written nor stamped (he confirmed no code — the tag has
+   * none) and `model` below is written instead. See docs ticket-two-tag-formats.
+   */
+  modelSpelledOut?: boolean;
+  /** The model name as printed. Only read when `modelSpelledOut` is set. */
+  model?: string;
 };
 
 /** What the save has to say for itself. `unitConflict` means the unit number was NOT applied
@@ -61,6 +71,8 @@ interface KeytagAuditUpdate {
   class_code?: string;
   unit_number?: string;
   vin_last9?: string;
+  make?: string;
+  model?: string;
   key_count?: number;
   keytag_photo_rotation?: number;
   field_sources?: Record<string, FieldSource>;
@@ -157,6 +169,9 @@ export function makeSaveKeytagAudit(deps: {
       const value = field === 'owningArea' ? normalizeOwning(raw) : raw;
       if (isBlankField(value)) continue;          // he couldn't read it either — not a fact
       if (field === 'unitNumber' && conflict) continue;  // blocked, and reported back
+      // ⚠️ A spelled-out tag has no model code, so there is nothing to confirm — and stamping
+      // 'manual' would lock whatever FG holds (possibly a misfiled name) as human-verified.
+      if (field === 'classCode' && edits.modelSpelledOut) continue;
 
       // Only CHANGED values reach the payload; an unchanged one needs no column write. Both get
       // the 'manual' stamp — that stamp is the whole point of a confirmation.
@@ -167,6 +182,21 @@ export function makeSaveKeytagAudit(deps: {
         if (refused) { vinRejected = refused; continue; }
       }
       stamps[field] = 'manual';
+    }
+
+    // ⭐ THE SPELLED-OUT MODEL — the one tag layout where the model is PRINTED rather than derived.
+    // It OVERWRITES what FG holds (Aaron, 2026-09-14: a person holding the tag outranks an earlier
+    // guess, the `plateWrite` reasoning). FG's own spelling wins when it knows the model; make is
+    // filled only into a BLANK make, only when the evidence names one, and stamped 'derived' because
+    // no tag printed it.
+    const spelled = edits.modelSpelledOut ? resolveSpelledOutModel(edits.model ?? '', allVehicles, vehicleId) : null;
+    if (spelled) {
+      if (spelled.model !== (current.model ?? '')) { payload.model = spelled.model; patch.model = spelled.model; }
+      stamps.model = 'manual';
+      if (spelled.make && isBlankField(current.make)) {
+        payload.make = spelled.make; patch.make = spelled.make;
+        stamps.make = 'derived';
+      }
     }
 
     // ⭐ KEY COUNT — a number, not a tag field, and never provenance-stamped. It is counted off a

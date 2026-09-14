@@ -1,4 +1,4 @@
-import { AUDIT_FIELDS, AUDIT_FIELD_LABELS, AUDIT_FIELD_HINTS, type AuditField, type AuditWarning } from '../../lib/keytagAuditQueue';
+import { AUDIT_FIELDS, AUDIT_FIELD_LABELS, AUDIT_FIELD_HINTS, SPELLED_OUT_LABEL, SPELLED_OUT_HINT, type AuditField, type AuditWarning } from '../../lib/keytagAuditQueue';
 import { describeOwningGuess, type OwningGuess } from '../../lib/owningFromUnit';
 import type { OwningPreset } from '../../lib/owningPresets';
 import type { KeytagAuditEdits } from '../../context/keytagAuditWrite';
@@ -16,7 +16,7 @@ import { CodeInput, DigitsInput, KeyCountSelector } from '../shared/VehicleField
  * The fix is not a bigger thumbnail — it is the same inputs living in both places, which means ONE
  * definition. Two copies of a form is how one of them quietly grows a sixth field the other lacks.
  */
-export function KeytagAuditFields({ edits, missing, warnings, owningGuess, owningPresets, keyCountOffered, tone, onChange, onKeyCountChange }: {
+export function KeytagAuditFields({ edits, missing, warnings, owningGuess, owningPresets, keyCountOffered, tone, onChange, onKeyCountChange, onSpelledOutChange }: {
   edits: KeytagAuditEdits;
   /** Fields blank on the record — marked so his eye lands on what needs reading, not on a wall of
    *  pre-filled text. The honest cost of showing FG's current value is anchoring; this is the
@@ -39,8 +39,11 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
   keyCountOffered: boolean;
   /** 'dark' is over the photo, where the ground is black and the light palette disappears. */
   tone: 'light' | 'dark';
-  onChange: (field: AuditField, value: string) => void;
+  onChange: (field: AuditField | 'model', value: string) => void;
   onKeyCountChange: (value: string) => void;
+  /** ⭐ The labelled tag layout prints the model NAME and no model code — this flips the model-code
+   *  box into "Model (as printed)". See docs ticket-two-tag-formats. */
+  onSpelledOutChange: (spelledOut: boolean) => void;
 }) {
   const dark = tone === 'dark';
   const keys = edits.keyCount ?? '';
@@ -83,6 +86,9 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
         // ⚠️ Still a HINT, not a rule — a no-op on a hardware keyboard. Nothing here guarantees
         // digits; that lives on the write.
         const Field = f === 'owningArea' || f === 'unitNumber' ? DigitsInput : CodeInput;
+        // ⭐ ONE BOX, TWO MEANINGS — never a sixth field. A tag carries a model code OR spells the
+        // model out, never both, so the box he is already looking at is the right place for either.
+        const spelled = f === 'classCode' && !!edits.modelSpelledOut;
         return (
           <label key={f} className={f === 'vinLast9' ? 'col-span-2' : ''}>
             {/* ⚠️ THERE WAS A `•` HERE AND IT LIED BY POSITION. It meant "blank on the record" — me
@@ -95,7 +101,7 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
                 ? (dark ? 'text-amber-300/80' : 'text-amber-700 dark:text-amber-500')
                 : (dark ? 'text-white/60' : 'text-gray-500 dark:text-gray-400')
             }`}>
-              {AUDIT_FIELD_LABELS[f]}
+              {spelled ? SPELLED_OUT_LABEL : AUDIT_FIELD_LABELS[f]}
             </span>
             {/* ⚠️ THE SHARED PRIMITIVE, not a raw <input>. `shared/VehicleFields` was built in June
                 (77d7faa, *"keyboard/caps can't re-drift"*) and this file — written ten weeks later —
@@ -107,8 +113,8 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
                 instead of re-deriving them. Aaron, on the pattern: *"editing the license plate also
                 displays uppercase, so the VIN should have followed the same."* */}
             <Field
-              value={edits[f] ?? ''}
-              onValueChange={v => onChange(f, v)}
+              value={(spelled ? edits.model : edits[f]) ?? ''}
+              onValueChange={v => onChange(spelled ? 'model' : f, v)}
               placeholder={blank ? 'read it off the tag' : ''}
               {...(f === 'vinLast9' ? { maxLength: 9 } : {})}
               className={`w-full rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
@@ -124,8 +130,22 @@ export function KeytagAuditFields({ edits, missing, warnings, owningGuess, ownin
                 ? (dark ? 'text-amber-300' : 'text-amber-700 dark:text-amber-400')
                 : (dark ? 'text-white/35' : 'text-gray-400 dark:text-gray-500')
             }`}>
-              {warning ? `⚠️ ${warning.message}` : AUDIT_FIELD_HINTS[f]}
+              {warning ? `⚠️ ${warning.message}` : spelled ? SPELLED_OUT_HINT : AUDIT_FIELD_HINTS[f]}
             </span>
+            {/* ⚠️ BELOW THE INPUT, NEVER BEFORE IT. A <label> names its FIRST labelable descendant, so a
+                button above the box would steal the label and leave the input unnamed. */}
+            {f === 'classCode' && (
+                <button type="button" aria-pressed={spelled} onClick={() => onSpelledOutChange(!spelled)}
+                  title="This tag prints the model name instead of a code"
+                  className={`mt-1 rounded px-1.5 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
+                    spelled
+                      ? 'bg-fg-yellow text-gray-900'
+                      : (dark ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700')
+                  }`}>
+                  {spelled ? '✓ spelled out' : 'spelled out?'}
+                </button>
+              )}
             {/* ⭐ AARON'S OWN SHORTCUT, OFFERED BACK. He reads a unit prefix and knows the branch
                 — "anything with unit number 542**** or 549**** enter owning 8199". This is that,
                 computed live from the fleet so it moves when the numbering rotates.

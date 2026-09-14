@@ -73,11 +73,13 @@ Fields the tag MAY carry (read the ones present):
   • OWNING AREA: the 4–5 digit branch number that owns the vehicle ("08199", "8193"). Report the digits.
   • RENTAL CLASS: the short 1–3 char size/type group beside it ("Q4", "P4", "T", "L2", "B").
   Printed: "WINNIPEG / 08199  Q4" → owningCity "WINNIPEG", owningArea "08199", rentalClass "Q4". Handwritten: "8199  B" → owningArea "8199", rentalClass "B", owningCity "". Do NOT put the branch number in rentalClass, and do NOT put the city in either.
+  ⚠️ LABELLED tags are different. Some printed tags (US cars, older branches) have NO city header and instead list each field under a heading — "Own Area", "Veh #", "Lic #", "Model", "Color-YR", "Last9vin", "Class". On these, the single letter printed after the owning number ("01198  O") is a REGION MARKER, never the rental class — ignore it. The rental class is the value on the "Class" line ("Class  Q4" → rentalClass "Q4"). Example: "Own Area 01198 O … Class Q4" → owningArea "01198", rentalClass "Q4", owningCity "".
 - UNIT NUMBER: the vehicle number. Printed labels it "Veh #"; handwritten is often a bare ~7-digit number in digit groups. Join the groups (e.g. "542 4882" → "5424882").
 - LAST 9 OF THE VIN: printed tags label it "Last9vin:" and print exactly NINE characters (shaped like "0XX111111" — a check digit, a year letter, then seven more). Report those nine EXACTLY as shown, with no spaces. It is the last nine of the VIN, never the whole VIN — do not pad it, extend it, or infer the missing characters. VINs never contain the letters I, O or Q, so a character that looks like one is a 1 or a 0. Handwritten tags rarely carry it; leave it empty when absent. ⚠️ The shape above is an ILLUSTRATION, never a value to output. If you cannot read the nine characters on THIS tag, return an empty string. An empty field is correct; a remembered example is a fabricated vehicle identity.
 - LICENSE PLATE: printed as "Lic Plate"; handwritten is often just the plate itself (letters+digits, e.g. "LUR243").
-- MAKE / MODEL — the ONE real difference between the two formats:
-  • PRINTED tags do NOT write the make/model — they print a 4-char CLASS CODE ("CCVL", "CVRS") resolved to a model elsewhere. Report it as classCode; leave make/model empty.
+- MAKE / MODEL — the real difference between the formats:
+  • PRINTED tags with a city header do NOT write the make/model — they print a 4-char CLASS CODE ("CCVL", "CVRS") resolved to a model elsewhere. Report it as classCode; leave make/model empty.
+  • LABELLED tags print the model NAME on the "Model" line ("TUCSON", "Model Y", "COMPASS") and carry NO class code. Report it as model, exactly as printed; leave classCode empty — a model name is never a class code.
   • HANDWRITTEN tags usually write the MODEL directly ("versa", "Elantra") with NO 4-char code. Report model as written, and make only when it's unambiguous from that model (Versa→Nissan, Elantra→Hyundai, Camry→Toyota); leave classCode empty.
 - MODEL YEAR: printed on the class line ("CCVL 25" → 2025); handwritten a 2-digit year by the model ("25 versa" → 2025).
 - COLOUR: a code on printed tags (WHI→White, BLK→Black, SIL→Silver, GRY→Gray, BLU→Blue, RED→Red — else your best full-word reading); a plain word on handwritten ("Blue"). Report the colour name.
@@ -94,12 +96,12 @@ export const REPORT_TOOL: Anthropic.Tool = {
       plate: { type: 'string', description: 'License plate ("Lic Plate"), exactly as printed. "" if not legible.' },
       unitNumber: { type: 'string', description: 'Unit number ("Veh #"), digit groups joined. "" if not legible.' },
       vinLast9: { type: 'string', description: 'The NINE characters printed after "Last9vin:", exactly as shown, no spaces. Never the full VIN and never padded. "" if not present or not legible.' },
-      classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible.' },
-      rentalClass: { type: 'string', description: 'The rental class beside the branch number up top, e.g. "Q4", "P4", "T", "B". "" if not legible.' },
+      classCode: { type: 'string', description: 'The class-line letters, e.g. "CCVL". "" if not legible, and "" on a LABELLED tag, which prints a model name instead.' },
+      rentalClass: { type: 'string', description: 'The rental class beside the branch number up top, e.g. "Q4", "P4", "T", "B" — or, on a LABELLED tag, the value on the "Class" line (the letter after its owning number is a region marker, not the class). "" if not legible.' },
       owningArea: { type: 'string', description: 'The 4–5 digit OWNING branch number on that same top line, e.g. "08199", "8193". Digits only. "" if not legible.' },
       owningCity: { type: 'string', description: 'The branch CITY printed on that same top line, e.g. "WINNIPEG", "CALGARY", "HALIFAX", "VAN DTG". Exactly as shown — report a partial reading if it is cropped, and never complete or infer it from the number. "" if absent or not legible.' },
       make: { type: 'string', description: 'Make — ONLY when written on the tag (handwritten) or unambiguous from a written model (Versa→Nissan). "" on a printed tag (make is derived from the class code downstream).' },
-      model: { type: 'string', description: 'Model — when written DIRECTLY on the tag (handwritten, e.g. "Versa"). "" on a printed tag (derived from the class code).' },
+      model: { type: 'string', description: 'Model — when written DIRECTLY on the tag: handwritten (e.g. "Versa") or the "Model" line of a LABELLED tag (e.g. "TUCSON"). "" on a tag that prints a class code (derived from it).' },
       year: { type: 'integer', description: 'Model year from the class line (e.g. 2025). 0 if not legible.' },
       color: { type: 'string', description: 'Colour name mapped from the code (WHI→White…). "" if not legible.' },
       bodyStyle: { type: 'string', description: 'Body style from the colour/body line (e.g. "4DR"). "" if none.' },

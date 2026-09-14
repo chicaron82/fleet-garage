@@ -573,3 +573,39 @@ describe('how much is left, while zoomed', () => {
     expect(strip.getByText('12 left')).toBeInTheDocument();
   });
 });
+
+describe('KeytagAuditCard — a tag that spells the model out', () => {
+  // docs ticket-two-tag-formats: the labelled tag prints TUCSON where the Canadian one prints a code.
+  beforeEach(() => onSave.mockClear());
+
+  it('⭐ the switch turns the model-code box into "Model (as printed)", seeded with FG\'s model', () => {
+    setup();
+    fireEvent.click(screen.getByText('spelled out?'));
+    expect((screen.getByLabelText(/Model \(as printed\)/) as HTMLInputElement).value).toBe('RAV4');
+    expect(screen.queryByLabelText(/Model code/)).toBeNull();
+  });
+
+  it('⭐ saves the model with the switch — the code he did not read is left behind', () => {
+    setup();
+    fireEvent.click(screen.getByText('spelled out?'));
+    fireEvent.change(screen.getByLabelText(/Model \(as printed\)/), { target: { value: 'tucson' } });
+    fireEvent.click(screen.getByText('✓ Save & next'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modelSpelledOut: true, model: 'TUCSON', classCode: 'CCVL' }));
+  });
+
+  it('⚠️ a rental-class-looking name raises no code warning while the switch is on', () => {
+    setup();
+    fireEvent.click(screen.getByText('spelled out?'));
+    fireEvent.change(screen.getByLabelText(/Model \(as printed\)/), { target: { value: 'E9' } });
+    expect(screen.queryByText(/is a rental class/)).toBeNull();
+  });
+
+  it('the switch reaches the overlay too, and the two layouts agree', () => {
+    setup();
+    openZoom();
+    fireEvent.click(within(overlay()).getByText('spelled out?'));
+    expect(within(overlay()).getByLabelText(/Model \(as printed\)/)).toBeTruthy();
+    fireEvent.click(within(overlay()).getByLabelText('Close the full-size tag'));
+    expect(screen.getByText('✓ spelled out')).toBeTruthy();
+  });
+});

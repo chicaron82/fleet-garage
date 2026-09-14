@@ -230,3 +230,52 @@ describe('saveKeytagAudit — the owning area is normalised on the way in', () =
     expect(updates[0]).not.toHaveProperty('owning_area');
   });
 });
+
+describe('saveKeytagAudit — a tag that spells the model out (the labelled layout)', () => {
+  // docs ticket-two-tag-formats: the US / old-Montreal tag prints `TUCSON` where the Canadian tag
+  // prints a model CODE. The auditor had nowhere to put a name, so it landed in `class_code`.
+  const SPELLED = { owningArea: '1198', rentalClass: 'Q4', unitNumber: '5420427', vinLast9: 'ABC123456', modelSpelledOut: true };
+
+  it('⭐ writes the model and leaves class_code neither written NOR stamped', async () => {
+    await save([car({ id: 'me', model: '', classCode: undefined })])('me', { ...SPELLED, classCode: 'TUCSON', model: 'TUCSON' });
+    expect(updates[0]).toMatchObject({ model: 'Tucson' }); // the codex knows the spelling
+    expect(updates[0]).not.toHaveProperty('class_code');
+    expect(updates[0].field_sources).not.toHaveProperty('classCode');
+    expect((updates[0].field_sources as Record<string, string>).model).toBe('manual');
+  });
+
+  it('⭐ OVERWRITES the model FG holds — a person holding the tag outranks an earlier guess', async () => {
+    await save([car({ id: 'me', make: 'Hyundai', model: 'Elantra' })])('me', { ...SPELLED, model: 'Tucson' });
+    expect(updates[0]).toMatchObject({ model: 'Tucson' });
+  });
+
+  it('adopts FG\'s spelling and fills a BLANK make, stamped derived', async () => {
+    const fleet = [car({ id: 'me', make: '', model: '' }), car({ id: 'sib', make: 'Hyundai', model: 'Tucson', unitNumber: '5429999' })];
+    await save(fleet)('me', { ...SPELLED, model: 'TUCSON' });
+    expect(updates[0]).toMatchObject({ model: 'Tucson', make: 'Hyundai' });
+    expect((updates[0].field_sources as Record<string, string>).make).toBe('derived');
+  });
+
+  it('⚠️ never replaces a make that is already on the record', async () => {
+    await save([car({ id: 'me', make: 'Jeep', model: '' })])('me', { ...SPELLED, model: 'Tucson' });
+    expect(updates[0]).not.toHaveProperty('make');
+  });
+
+  it('a confirmed spelling that already matches writes no column but still stamps it', async () => {
+    await save([car({ id: 'me', make: 'Hyundai', model: 'Tucson' })])('me', { ...SPELLED, model: 'TUCSON' });
+    expect(updates[0]).not.toHaveProperty('model');
+    expect((updates[0].field_sources as Record<string, string>).model).toBe('manual');
+  });
+
+  it('⚠️ ignores a model when the switch is OFF — the code box meant a code', async () => {
+    await save([car({ id: 'me' })])('me', { ...FULL, model: 'Tucson' });
+    expect(updates[0]).not.toHaveProperty('model');
+    expect(updates[0].field_sources).not.toHaveProperty('model');
+  });
+
+  it('a blank spelled-out model is not a claim', async () => {
+    await save([car({ id: 'me' })])('me', { ...SPELLED, model: '  ' });
+    expect(updates[0]).not.toHaveProperty('model');
+    expect(updates[0].field_sources).not.toHaveProperty('model');
+  });
+});
