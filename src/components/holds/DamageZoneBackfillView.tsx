@@ -128,7 +128,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
           </p>
         )}
         <button type="button" onClick={onBack}
-                className="rounded-lg bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
+                className="rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
           Back
         </button>
       </div>
@@ -200,7 +200,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
 
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={saveAndNext} disabled={busy}
-                  className="rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
+                  className="rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 px-4 py-2 text-sm font-semibold text-gray-900 cursor-pointer">
             {busy ? 'Saving…' : draft.length > 0 ? `Save ${draft.length} & next` : 'Skip'}
           </button>
           {preset && draft.length === 0 && (

@@ -68,8 +68,11 @@ gave the GM credentials (told 2026-09-05). `GM-001` *looks* seeded and is not. *
 carries no truth; only the name does.**
 
 ⚠️ **Still ungrounded — ASK before filtering, do not guess again:** `Big Boss` (BOSS, City Manager),
-`Linh T.` (YVR-VSA-01), `Marcus L.` (YYC-VSA-01). And **`ZeeDric` (DRV-002) is a crew name not in
-[[user_uv7_family]]** — ground it before relying on it.
+`Linh T.` (YVR-VSA-01), `Marcus L.` (YYC-VSA-01).
+
+✅ **`ZeeDric` (DRV-002) — grounded 2026-09-05.** Not a crew member: he is the name Aaron almost gave
+DiZee (the Alfred-style butler, before the battle-maid won), kept as a seeded Driver profile. Filter
+him out with the crew — but he is a keepsake, not noise ([[user_uv7_family]]).
 
 ⚠️ **FG's real record starts 2026-04-05.** Aaron: *"we only started FG April of this year."* Every
 earlier row is seeded — a Nov 2025 hold with a full approval narrative timestamped 04:20 a.m. is an
@@ -434,7 +437,10 @@ in `api/_lib` (and inline in `api/*.ts`) is size-capped but still slips test-les
 silently.** Rule of
 thumb: if a piece of logic is subtle enough that you *hand-verify* it (a shift-day
 cutover, a plate-prefix snap, a dedup key), it's subtle enough to deserve a test —
-extract it to `api/_lib` and test it under `tests/api/_lib/`. R35 caught
+extract it to `api/_lib` and test it under `tests/api/_lib/` (six older api tests —
+`owningArea`, `keytagEscalation`, `classCodeCandidates`, `vehicleClassCodex`, `apiSpend`,
+`keytag-read-fallback` — sit one level up in `tests/api/`; search both before calling a module
+untested). R35 caught
 `shiftBusinessDate` inline+untested in `fg-chat.ts` this way (the h23/h24 midnight
 footgun was verified by hand, then pinned in a test).
 
@@ -705,22 +711,28 @@ strings in `src/`: zero remaining cases, and every standing-habit claim reads un
 
 ## Build & Test
 
-⚠️ **THREE things call themselves "the gate", and only ONE runs the flow tests.**
+⚠️ **THREE things call themselves "the gate". CI is the one that does NOT run the flow tests.**
 
 | | `tsc -b` | lint | vitest | **flows** |
 |---|---|---|---|---|
 | `scripts/gate.sh` | ✓ | ✓ | ✓ | **✓** |
-| `.git/hooks/pre-push` | ✓ | ✓ | ✓ | **✗** |
+| `.git/hooks/pre-push` | ✓ | ✓ | ✓ | **✓** (it is `exec bash scripts/gate.sh`) |
 | `.github/workflows/ci.yml` | ✓ | ✓ | ✓ | **✗** |
 
-So a broken **journey** is invisible to `git push` and to CI, and the pre-push hook still prints
-"✓ CI gate green locally" — true of CI, false of the gate this file names. It cost real time:
-`e040f6f` (2026-08-26) renamed a label from "Class code" to "Model code" and the scan-router flow
-spec, last touched 2026-08-21, went red. It stayed red across **30 commits and two days** while
-every push reported green, and was found by a cold /line-check running `gate.sh` by hand.
+**History, because the fix is the lesson.** Until 2026-08-27 the hook inlined tsc/lint/vitest to
+mirror CI, so a broken **journey** was invisible to `git push` *and* CI while the hook printed "✓ CI
+gate green locally". `e040f6f` (2026-08-26) renamed "Class code" to "Model code", the scan-router flow
+spec went red, and it stayed red across **30 commits and two days** until a cold /line-check ran
+`gate.sh` by hand (`f86f5f9`). The same day the hook was rewritten to exec `gate.sh` — one
+definition of the gate. *(This table kept the old ✗ for pre-push until a 2026-09-14 line-check
+caught the doc describing a hole that had already been closed.)*
 
-**So: "gates green" in a commit message means `bash scripts/gate.sh`.** A push that only survived
-the hook has not run the journeys, and the journeys are the only thing that sees the seam.
+⚠️ **The hook is NOT tracked.** It lives in `.git/hooks/` (no `core.hooksPath`), so it exists on this
+machine only — a fresh clone pushes with no gate at all, and CI still skips the flows.
+
+**So: "gates green" in a commit message means `bash scripts/gate.sh`** — which a normal push now
+runs. `SKIP_FLOWS=1 git push` or `--no-verify` has not run the journeys, and the journeys are the only
+thing that sees the seam.
 
 ```bash
 # Run all gates from the repo root (structural — no ambient-cwd risk):

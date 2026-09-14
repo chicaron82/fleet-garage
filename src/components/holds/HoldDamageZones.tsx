@@ -78,7 +78,7 @@ export function HoldDamageZones({ hold }: { hold: Hold }) {
           )}
           <div className="mt-2 flex items-center gap-2">
             <button type="button" onClick={save} disabled={busy}
-                    className="rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-gray-900 cursor-pointer">
+                    className="rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-gray-900 cursor-pointer">
               {busy ? 'Saving…' : changed ? 'Save' : 'Done'}
             </button>
             <span className="text-xs text-gray-400 dark:text-gray-500">

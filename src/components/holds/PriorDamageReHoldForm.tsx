@@ -203,7 +203,7 @@ export function PriorDamageReHoldForm({
           type="button"
           disabled={submitting}
           onClick={handleLocalSubmit}
-          className="flex-1 py-2.5 bg-fg-yellow-hi hover:bg-fg-yellow disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 text-gray-900 font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
         >
           {submitting ? 'Saving...' : 'Confirm Re-hold'}
         </button>

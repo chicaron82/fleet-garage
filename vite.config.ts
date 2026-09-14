@@ -93,7 +93,8 @@ export default defineConfig({
       // (crossOriginIsolated stays true → SharedArrayBuffer works) but loads
       // no-CORS cross-origin subresources *without credentials* instead of
       // blocking them — so public Supabase damage photos render in dev instead of
-      // tripping ERR_BLOCKED_BY_RESPONSE. Dev-only; prod (Vercel) sets no COEP.
+      // tripping ERR_BLOCKED_BY_RESPONSE. These do NOT inherit into prod: `vercel.json` carries
+      // the same pair (COEP `credentialless`, since c5dc30d). Change one, change both.
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
