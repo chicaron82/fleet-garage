@@ -12,6 +12,7 @@ import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
 import { orderRoster, driverBlockUnloaded, isSeamRow } from '../../lib/rosterOrder';
+import { useRowScrollAnchor } from '../../hooks/useRowScrollAnchor';
 
 // The grid's compact ALL-CAPS badges are this view's own dialect (not the shared
 // short labels), and the 12h '4:00p' time is deliberately compact for cell width.
@@ -100,6 +101,8 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
 
   // Build 7 days of this week (Mon–Sun)
   const { start } = getWeekBounds(currentDate);
+  // Switching weeks keeps you on the same PEOPLE, not the same pixel offset (2026-09-14).
+  const captureAnchor = useRowScrollAnchor(scrollRef, `${toISO(start)}|${shifts.length}|${loading}`);
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
@@ -143,15 +146,17 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
         className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-auto max-h-[80dvh] overscroll-contain transition-colors"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onScroll={captureAnchor}
       >
-        {loading && (
-          <div className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500">Loading…</div>
-        )}
         <table className="w-full text-xs min-w-[520px]">
           <thead>
             <tr>
               {/* The corner sits above BOTH sticky edges. */}
-              <th className={`sticky top-0 left-0 z-30 text-left py-2.5 px-3 text-gray-400 dark:text-gray-500 font-semibold w-20 ${STICKY_TINT.plain} shadow-[inset_-1px_-1px_0_var(--color-gray-100)] dark:shadow-[inset_-1px_-1px_0_var(--color-gray-800)]`}>Staff</th>
+              <th className={`sticky top-0 left-0 z-30 text-left py-2.5 px-3 text-gray-400 dark:text-gray-500 font-semibold w-20 ${STICKY_TINT.plain} shadow-[inset_-1px_-1px_0_var(--color-gray-100)] dark:shadow-[inset_-1px_-1px_0_var(--color-gray-800)]`}>
+                {/* ⚠️ "Loading…" lives HERE, not as a line above the table inside the scroll box — that
+                    line pushed every row down mid-switch and moved the grid off the person he was on. */}
+                {loading ? 'Loading…' : 'Staff'}
+              </th>
               {days.map((d, i) => {
                 const iso = toISO(d);
                 const isToday = iso === today;
@@ -173,6 +178,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
               return (
                 <tr
                   key={u.id}
+                  data-row-id={u.id}
                   className={`border-t border-gray-100 dark:border-gray-800 ${ROW_TINT[tint]}`}
                 >
                   <td className={`sticky left-0 z-10 py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap ${STICKY_TINT[tint]} ${STICKY_RIGHT_EDGE}`}>
