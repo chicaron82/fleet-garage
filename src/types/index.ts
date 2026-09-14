@@ -15,7 +15,7 @@ export interface BranchConfig {
 
 // ── Roles ────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'City Manager' | 'AGM' | 'GM' | 'Driver';
+export type UserRole = 'VSA' | 'Lead VSA' | 'CSR' | 'Lead CSR' | 'HIR' | 'Branch Manager' | 'Operations Manager' | 'City Manager' | 'AGM' | 'GM' | 'Driver';
 
 export const CAN_RELEASE: UserRole[] = ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
@@ -59,7 +59,7 @@ export function canLogHandoff(role: UserRole): boolean {
   return CAN_LOG_HANDOFF.includes(role);
 }
 
-const CAN_ACTION_LOST_FOUND: UserRole[] = ['CSR', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
+const CAN_ACTION_LOST_FOUND: UserRole[] = ['CSR', 'Lead CSR', 'Lead VSA', 'Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'];
 
 /**
  * Who can action (contact / return / throw out) a lost-and-found item. The role

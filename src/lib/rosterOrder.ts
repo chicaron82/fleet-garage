@@ -2,7 +2,7 @@ import type { UserRole } from '../types';
 import { SCHEDULE_GROUPS } from './scheduleGroups';
 
 /**
- * ⭐⭐⭐ THE ORDER THE SCHEDULE GRID LISTS PEOPLE IN — floor, then counter, then drivers.
+ * ⭐⭐⭐ THE ORDER THE SCHEDULE GRID LISTS PEOPLE IN — floor, then drivers, then counter (2026-09-14).
  *
  * Aaron, 2026-09-06, reading Monday off the live schedule:
  *
@@ -30,6 +30,23 @@ export function rosterRank(role: UserRole): number {
 }
 
 export interface RosterMember { id: string; name: string; role: UserRole; utility?: boolean }
+
+/**
+ * ⭐ THE SHADED SEAM ROW OF A BLOCK — Larry C (utility) at the top of the drivers, and the Lead CSR at
+ * the top of the counter (Aaron, 2026-09-14: *"following how Larry C's shaded row breaks up VSA and
+ * drivers… since Jagdeep is a Lead CSR, have his shaded"*). One predicate, so the sort that puts the
+ * row FIRST and the renderer that SHADES it can never disagree — a shaded row that sorts mid-block is
+ * exactly the full stop that hid a driver on 2026-09-12.
+ */
+export function isSeamRow(m: { role: UserRole; utility?: boolean }): boolean {
+  return !!m.utility || m.role === 'Lead CSR';
+}
+
+/**
+ * Order INSIDE the counter block: Lead CSR, then CSRs, then HIRs (*"sorted by counter than HIR"*).
+ * ⚠️ Counter only, on purpose — floor stays alphabetical across VSA and Lead VSA, as it always was.
+ */
+const WITHIN_GROUP: Partial<Record<UserRole, number>> = { 'Lead CSR': 0, CSR: 1, HIR: 2 };
 
 /**
  * Self first, then grouped by role, then UTILITY, then alphabetical inside each group.
@@ -64,8 +81,10 @@ export function orderRoster<T extends RosterMember>(members: readonly T[], selfI
     if (b.id === selfId) return 1;
     const r = rosterRank(a.role) - rosterRank(b.role);
     if (r !== 0) return r;
-    // Utility ahead of the rest of its own group — the shaded row becomes the group's header edge.
-    if (!!a.utility !== !!b.utility) return a.utility ? -1 : 1;
+    // The seam row ahead of the rest of its own group — the shaded row becomes the group's header edge.
+    if (isSeamRow(a) !== isSeamRow(b)) return isSeamRow(a) ? -1 : 1;
+    const w = (WITHIN_GROUP[a.role] ?? 0) - (WITHIN_GROUP[b.role] ?? 0);
+    if (w !== 0) return w;
     return a.name.localeCompare(b.name);
   });
 }

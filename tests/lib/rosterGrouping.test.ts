@@ -11,10 +11,14 @@ describe('roleGroup', () => {
     expect(roleGroup('VSA')).toBe('vsa');
     expect(roleGroup('Lead VSA')).toBe('vsa');
   });
-  it('separates drivers, and buckets everyone else as other', () => {
+  it('separates drivers, and leaves managers as other', () => {
     expect(roleGroup('Driver')).toBe('driver');
-    expect(roleGroup('CSR')).toBe('other');
     expect(roleGroup('GM')).toBe('other');
+  });
+  it('⭐ counter and HIR are their own groups now — not "other" beside the managers', () => {
+    expect(roleGroup('CSR')).toBe('counter');
+    expect(roleGroup('Lead CSR')).toBe('counter');
+    expect(roleGroup('HIR')).toBe('hir');
   });
 });
 
@@ -82,8 +86,18 @@ describe('groupRoster', () => {
   });
 
   it('holds a fixed group order so the list does not reshuffle under his thumb', () => {
-    expect(groupRoster(team, '10:00').map(s => s.group)).toEqual(['vsa', 'driver', 'other']);
-    expect(groupRoster(team, '22:00').map(s => s.group)).toEqual(['vsa', 'driver', 'other']);
+    expect(groupRoster(team, '10:00').map(s => s.group)).toEqual(['vsa', 'driver', 'counter']);
+    expect(groupRoster(team, '22:00').map(s => s.group)).toEqual(['vsa', 'driver', 'counter']);
+  });
+
+  it('⭐ the full order matches the schedule pills: VSAs · Drivers · Counter · HIR · Other', () => {
+    const everyone = [
+      mate('Boss', '09:00', '17:00', 'Branch Manager'), mate('Aszad', '09:00', '17:00', 'HIR'),
+      mate('Jagdeep', '09:00', '17:00', 'Lead CSR'), mate('Ray', '09:00', '17:00', 'Driver'),
+      mate('Geoff', '09:00', '17:00'),
+    ];
+    const sections = groupRoster(everyone, '10:00');
+    expect(sections.map(s => s.label)).toEqual(['VSAs', 'Drivers', 'Counter', 'HIR', 'Other']);
   });
 
   it('drops empty groups rather than rendering a header with nothing under it', () => {

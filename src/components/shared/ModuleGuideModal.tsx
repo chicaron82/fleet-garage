@@ -11,7 +11,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; dataNote: str
   },
   'holds': {
     what: 'The core of Fleet Garage. Log damage holds, mechanical issues, and detail flags. Every hold is timestamped and tied to the person who created it. Managers approve releases — their Employee ID is permanently attached to every decision. A release streak counter flags vehicles being sent out repeatedly without repair.',
-    roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
+    roles: ['VSA', 'Lead VSA', 'CSR', 'Lead CSR', 'HIR', 'Manager'],
     dataNote: 'The release streak counter and pre-existing-damage suggestion run live on every vehicle — a car sent out repeatedly without repair gets flagged, and damage that recurs on the same panel surfaces as pre-existing.',
   },
   'audits': {
@@ -36,7 +36,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; dataNote: str
   },
   'lost-and-found': {
     what: 'Log items found in returned vehicles. Scan or enter the unit number, photograph the item, and the record is timestamped to your Employee ID. Creates a clear chain of custody from discovery through resolution.',
-    roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Manager'],
+    roles: ['VSA', 'Lead VSA', 'CSR', 'Lead CSR', 'HIR', 'Manager'],
     dataNote: 'Every found item logs live — timestamped to your Employee ID, photographed, and tracked from discovery through match to resolution.',
   },
   'schedule': {
@@ -46,7 +46,7 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; dataNote: str
   },
   'issue-log': {
     what: 'Facility and equipment issue tracker. Log broken equipment, facility problems, or anything affecting operations. Issues stay open until manually cleared — every entry gets a timestamp, severity, and a resolution path.',
-    roles: ['VSA', 'Lead VSA', 'CSR', 'HIR', 'Branch Manager', 'Operations Manager', 'City Manager'],
+    roles: ['VSA', 'Lead VSA', 'CSR', 'Lead CSR', 'HIR', 'Branch Manager', 'Operations Manager', 'City Manager'],
     dataNote: 'Every entry is a real issue you log — timestamped with severity and a resolution path, staying open until you clear it.',
   },
   'manifest': {

@@ -6,7 +6,7 @@ import { useRosterStaff } from '../../context/ProfilesContext';
 import type { BranchId, UserRole } from '../../types';
 
 // Roles you'd transcribe off the breakroom board — floor + drivers + counter.
-const ROSTER_ROLES: UserRole[] = ['VSA', 'Lead VSA', 'Driver', 'CSR', 'HIR'];
+const ROSTER_ROLES: UserRole[] = ['VSA', 'Lead VSA', 'Driver', 'CSR', 'Lead CSR', 'HIR'];
 
 export function RosterStaffModal({ onClose }: { onClose: () => void }) {
   const { user, activeBranch } = useAuth();

@@ -147,7 +147,7 @@ export function makeAddRelease({ holds, allVehicles, setAllVehicles, setAllHolds
       );
 
       const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
-      await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'HIR'], '✅',
+      await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'Lead CSR', 'HIR'], '✅',
         `Unit ${unitForRelease} released — ${release.releaseType === 'EXCEPTION' ? 'on exception' : 'pre-existing'}`, 'success', { vehicleId: hold.vehicleId });
 
       const { error: vehErr } = await writeWithRefresh(() =>

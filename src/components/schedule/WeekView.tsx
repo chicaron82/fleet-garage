@@ -11,7 +11,7 @@ import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
 import type { ShiftType, ShiftWithUser } from '../../types';
 import { SHIFT_TYPE_PILL } from '../../lib/shiftTypeMeta';
-import { orderRoster, driverBlockUnloaded } from '../../lib/rosterOrder';
+import { orderRoster, driverBlockUnloaded, isSeamRow } from '../../lib/rosterOrder';
 
 // The grid's compact ALL-CAPS badges are this view's own dialect (not the shared
 // short labels), and the 12h '4:00p' time is deliberately compact for cell width.
@@ -136,7 +136,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                 <tr
                   key={u.id}
                   className={`border-t border-gray-100 dark:border-gray-800 ${
-                    isMe ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : u.utility ? 'bg-slate-200/70 dark:bg-slate-700/40' : ''
+                    isMe ? 'bg-yellow-50/50 dark:bg-yellow-900/5' : isSeamRow(u) ? 'bg-slate-200/70 dark:bg-slate-700/40' : ''
                   }`}
                 >
                   <td className="py-2 px-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">

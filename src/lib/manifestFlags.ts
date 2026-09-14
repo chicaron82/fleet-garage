@@ -8,7 +8,7 @@ const flagKey = (date: Date = new Date()) => {
 };
 
 export function canFlagReservation(role: UserRole): boolean {
-  return ['Branch Manager', 'Operations Manager', 'City Manager', 'CSR'].includes(role);
+  return ['Branch Manager', 'Operations Manager', 'City Manager', 'CSR', 'Lead CSR'].includes(role);
 }
 
 export function loadFlags(date?: Date): Set<string> {

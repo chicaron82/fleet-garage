@@ -29,7 +29,7 @@ export const CLASS_LABELS: Record<RentalClass, string> = {
   'O6': 'Mid Truck',
 };
 
-const CAN_OVERRIDE: UserRole[] = ['Lead VSA', 'CSR', 'Branch Manager', 'Operations Manager', 'City Manager'];
+const CAN_OVERRIDE: UserRole[] = ['Lead VSA', 'CSR', 'Lead CSR', 'Branch Manager', 'Operations Manager', 'City Manager'];
 
 export function canSetOverride(role: UserRole): boolean {
   return CAN_OVERRIDE.includes(role);

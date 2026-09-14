@@ -23,18 +23,24 @@ import type { TeamMate } from './myDay';
 // filter. Everyone remains present and tappable, and both readings — "who's left with me" and "who
 // is working right now" — are answerable off one list.
 
-/** The three roster groups he actually thinks in. Everything that is not a VSA or a driver is
- *  `other` (managers, CSR, HIR) — real people on the roster, but not his line. */
-export type RoleGroup = 'vsa' | 'driver' | 'other';
+/** The roster groups he actually thinks in. `other` is managers — real people, not his line.
+ *
+ * ⭐ COUNTER AND HIR SPLIT OUT (Aaron, 2026-09-14): *"improving how My Day displays info now that we
+ * have counter staff / separate counter staff from HIR"*. Once the counter schedule was imported,
+ * every CSR and HIR landed in "Other" beside the managers. Same order as the schedule pills —
+ * floor, drivers, counter — so all three surfaces read the same way. */
+export type RoleGroup = 'vsa' | 'driver' | 'counter' | 'hir' | 'other';
 
 export function roleGroup(role: UserRole): RoleGroup {
   if (role === 'VSA' || role === 'Lead VSA') return 'vsa';
   if (role === 'Driver') return 'driver';
+  if (role === 'CSR' || role === 'Lead CSR') return 'counter';
+  if (role === 'HIR') return 'hir';
   return 'other';
 }
 
 export const ROLE_GROUP_LABEL: Record<RoleGroup, string> = {
-  vsa: 'VSAs', driver: 'Drivers', other: 'Other',
+  vsa: 'VSAs', driver: 'Drivers', counter: 'Counter', hir: 'HIR', other: 'Other',
 };
 
 /** Where a teammate sits relative to right now. */
@@ -73,11 +79,11 @@ export interface RosterSection {
  * ⚠️ Ordering, NOT filtering. `done` mates stay in the list — dimmed by the renderer — so a
  * forgotten attendance tap is still reachable at 9pm.
  *
- * Groups come back in a fixed order (VSAs, Drivers, Other) rather than by size, so the list doesn't
+ * Groups come back in a fixed order (VSAs, Drivers, Counter, HIR, Other) rather than by size, so the list doesn't
  * reshuffle under his thumb as the day progresses. Empty groups are dropped.
  */
 export function groupRoster(team: readonly TeamMate[], nowHHMM: string): RosterSection[] {
-  const order: RoleGroup[] = ['vsa', 'driver', 'other'];
+  const order: RoleGroup[] = ['vsa', 'driver', 'counter', 'hir', 'other'];
   return order.flatMap(group => {
     const mates = team
       .filter(m => roleGroup(m.role) === group)

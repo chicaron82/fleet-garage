@@ -6,7 +6,7 @@
  * other two VSA listed."*
  */
 import { describe, expect, it } from 'vitest';
-import { orderRoster, rosterRank, driverBlockUnloaded } from '../../src/lib/rosterOrder';
+import { orderRoster, rosterRank, driverBlockUnloaded, isSeamRow } from '../../src/lib/rosterOrder';
 import type { UserRole } from '../../src/types';
 
 const m = (id: string, name: string, role: UserRole) => ({ id, name, role });
@@ -33,11 +33,11 @@ describe('roster order', () => {
     expect(orderRoster(asItCame)[0]!.role).not.toBe('Driver');
   });
 
-  it('groups floor → counter → drivers, the order the filter bar above it already uses', () => {
+  it('groups floor → drivers → counter, the order of the filter pills above it (2026-09-14)', () => {
     const roles = orderRoster([
       m('d', 'D', 'Driver'), m('c', 'C', 'CSR'), m('v', 'V', 'VSA'), m('h', 'H', 'HIR'),
     ]).map(u => u.role);
-    expect(roles).toEqual(['VSA', 'CSR', 'HIR', 'Driver']);
+    expect(roles).toEqual(['VSA', 'Driver', 'CSR', 'HIR']);
   });
 
   it('sorts alphabetically inside a group so a name is findable', () => {
@@ -125,5 +125,34 @@ describe('the utility row is a boundary, not a terminator', () => {
   it('still pins self above even a utility row', () => {
     const ordered = orderRoster(realSaturday, 'larryj');
     expect(ordered[0]!.name).toBe('Larry J');
+  });
+});
+
+describe('the counter block — Lead CSR is its seam (Aaron, 2026-09-14)', () => {
+  // "following how Larry C's shaded row breaks up VSA and drivers… since Jagdeep is a Lead CSR, have
+  //  his shaded then sorted by counter than HIR"
+  const counter = [
+    m('nav', 'Navneet', 'HIR'), m('jas', 'Jashan', 'CSR'), m('asz', 'Aszad', 'HIR'),
+    m('jag', 'Jagdeep', 'Lead CSR'), m('ren', 'Rena', 'CSR'),
+  ];
+
+  it('⭐ Lead CSR first, then CSRs, then HIRs — alphabetical inside each', () => {
+    expect(orderRoster(counter).map(x => x.name)).toEqual(['Jagdeep', 'Jashan', 'Rena', 'Aszad', 'Navneet']);
+  });
+
+  it('⭐ the shaded rows land exactly on the two seams: floor→drivers and drivers→counter', () => {
+    const all = orderRoster([
+      ...counter, m('v', 'Erick', 'VSA'), u('lc', 'Larry C', 'Driver', true), m('dj', 'Donna', 'Driver'),
+    ]);
+    const seams = all.map((x, i) => (isSeamRow(x) ? i : -1)).filter(i => i >= 0);
+    const firstDriver = all.findIndex(x => x.role === 'Driver');
+    const firstCounter = all.findIndex(x => x.role === 'Lead CSR' || x.role === 'CSR' || x.role === 'HIR');
+    expect(seams).toEqual([firstDriver, firstCounter]);
+  });
+
+  it('⚠️ floor order is unchanged — Lead VSA still sorts alphabetically among the VSAs', () => {
+    const floor = orderRoster([m('g', 'Geoff', 'Lead VSA'), m('e', 'Erick', 'VSA'), m('p', 'Parth', 'VSA')]);
+    expect(floor.map(x => x.name)).toEqual(['Erick', 'Geoff', 'Parth']);
+    expect(floor.some(isSeamRow)).toBe(false);
   });
 });

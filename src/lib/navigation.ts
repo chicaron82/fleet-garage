@@ -36,6 +36,7 @@ const ROLE_MODULES: Record<UserRole, Module[]> = {
   'VSA':                 ['my-day', 'holds', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
   'Lead VSA':            ['my-day', 'holds', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
   'CSR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
+  'Lead CSR':            ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'HIR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'Branch Manager':      ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
   'Operations Manager':  ['holds', 'audits', 'analytics', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
@@ -78,7 +79,7 @@ export function getDefaultScreenForRole(role: UserRole, activeBranch: BranchId =
   let preferred: Screen = { name: 'dashboard' };
   if (role === 'VSA' || role === 'Lead VSA') preferred = { name: 'my-day' };
   if (role === 'Driver') preferred = { name: 'movement-log' };
-  if (role === 'CSR') preferred = { name: 'manifest' };
+  if (role === 'CSR' || role === 'Lead CSR') preferred = { name: 'manifest' };
   if (role === 'Branch Manager' || role === 'Operations Manager' || role === 'City Manager' || role === 'AGM' || role === 'GM') preferred = { name: 'analytics' };
 
   // Ensure preferred module is enabled for the branch, otherwise fallback to first available

@@ -2,8 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { SCHEDULE_GROUPS } from '../../src/lib/scheduleGroups';
 
 describe('SCHEDULE_GROUPS', () => {
-  it('has floor, counter, and drivers groups', () => {
-    expect(SCHEDULE_GROUPS.map(g => g.id)).toEqual(['floor', 'counter', 'drivers']);
+  it('⭐ Floor, Drivers, Counter — the pill order Aaron asked for, which is also the grid order', () => {
+    expect(SCHEDULE_GROUPS.map(g => g.id)).toEqual(['floor', 'drivers', 'counter']);
+  });
+
+  it('counter carries the Lead CSR first, then CSRs, then HIRs', () => {
+    expect(SCHEDULE_GROUPS.find(g => g.id === 'counter')!.roles).toEqual(['Lead CSR', 'CSR', 'HIR']);
   });
 
   it('floor is VSAs, drivers is Drivers', () => {

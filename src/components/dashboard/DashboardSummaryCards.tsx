@@ -81,7 +81,7 @@ export function DashboardSummaryCards({
   }
 
   // CSR & HIR — returned count only (display, no filter — single card has no drill-down value)
-  if (role === 'CSR' || role === 'HIR') {
+  if (role === 'CSR' || role === 'Lead CSR' || role === 'HIR') {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
         <Card value={returned} label="Returned" color="text-gray-500 dark:text-gray-400" />
