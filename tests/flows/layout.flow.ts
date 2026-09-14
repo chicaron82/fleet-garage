@@ -40,6 +40,16 @@ test('switching weeks keeps the same PERSON at the top of the grid (200ce99)', a
   await page.waitForTimeout(300);
   const before = await topRowId();
   expect(before).not.toBeNull();
+  // ⚠️ PRECONDITIONS, or this passes VACUOUSLY (found in the ticket's second pass): if the grid stops
+  // overflowing — the groups key renamed so it falls back to Floor only, a smaller roster, a taller
+  // viewport — nothing scrolls, the top row is just the first row both times, and "same person" is
+  // trivially true while guarding nothing.
+  const { scrollTop, firstId } = await page.evaluate(() => ({
+    scrollTop: document.querySelector('table')!.parentElement!.scrollTop,
+    firstId: document.querySelector<HTMLElement>('tbody tr[data-row-id]')!.dataset.rowId,
+  }));
+  expect(scrollTop).toBeGreaterThan(0);
+  expect(before).not.toBe(firstId);
 
   await page.getByText('›').first().click();
   await page.waitForTimeout(1500);
