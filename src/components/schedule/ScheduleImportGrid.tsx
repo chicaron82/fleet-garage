@@ -2,6 +2,7 @@
 // them against the photo); the only editable bit is the per-row name → roster assignment,
 // since name-matching is the fuzzy part. Cell editing + the write are Phase 2.
 import type { ParsedSchedule, ParsedShiftType, RosterProfile } from '../../../api/_lib/scheduleParse';
+import { shiftLabel } from '../../lib/shiftLabel';
 
 const TYPE_STYLE: Record<ParsedShiftType, string> = {
   opening: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
@@ -81,7 +82,22 @@ export function ScheduleImportGrid({ schedule, roster, assignments, types, onAss
                         className={`block w-full min-w-[3.2rem] cursor-pointer rounded px-1 py-0.5 ${TYPE_STYLE[t]}`}
                       >
                         <span className="block leading-tight">{TYPE_LABEL[t]}</span>
-                        {times && <span className="block text-[9px] leading-none opacity-70">{c.startTime}</span>}
+                        {/* ⭐ THE END TIME, NOT THE START — and on a counter sheet that is the whole
+                            point. "closing" covers an HIR finishing at 22:00, a washbay closer at
+                            23:00 and a counter close running to 01:00; the start times of the last
+                            two are nearly identical and the finishes are two hours apart. Showing
+                            the start told him the least distinguishing half.
+                            ⚠️ `overnight` is flagged explicitly because 01:00 is the SMALLEST end
+                            time on the sheet and the LATEST finish in the building — the one fact a
+                            number cannot convey on its own. See lib/shiftLabel. */}
+                        {times && (() => {
+                          const { detail, overnight } = shiftLabel(c.startTime, c.endTime);
+                          return (
+                            <span className="block text-[9px] leading-none opacity-70">
+                              {overnight ? `↷ ${detail}` : detail || c.startTime}
+                            </span>
+                          );
+                        })()}
                       </button>
                     </td>
                   );

@@ -97,7 +97,14 @@ vi.mock('../../src/hooks/useUserResolver', () => ({
 // jsdom has no scrollIntoView; ManifestView scrolls its now-line on mount.
 Element.prototype.scrollIntoView = vi.fn();
 
-describe('view smoke renders', () => {
+// ⚠️ 15s, not the 5s default, and the reason is worth writing down. These three do a dynamic
+// import() of an entire view tree and then render it — under full-suite parallel load that is the
+// slowest thing in the repo, and it sits right on the default budget. It flaked once on 2026-09-13
+// and then failed consistently the moment one more module joined the graph (lib/shiftLabel), while
+// passing 3/3 in isolation. ⭐ The assertion is "it mounts", never "it mounts in five seconds" — so
+// a tight timeout here only ever reports on the machine's mood. Raising it does not weaken a single
+// thing this file checks.
+describe('view smoke renders', { timeout: 15_000 }, () => {
   it('MyShiftView mounts', async () => {
     const { MyShiftView } = await import('../../src/components/my-shift/MyShiftView');
     const { container } = render(<MyShiftView />);
