@@ -144,6 +144,20 @@ for (const step of steps) {
   }
   await page.waitForTimeout(900);
 }
+// DARK=1 — render the dark theme WITHOUT touching the database.
+//
+// ⚠️ FG's dark mode is a user PREFERENCE (`prefs.darkMode`, PreferencesContext) that is upserted to the
+// profile row. Toggling it through the UI would be a WRITE, and this helper's contract is render-only.
+// So the class is applied directly, right before the shot: `@custom-variant dark` in index.css keys
+// every `dark:` style off `.dark` on <html>, so the pixels are identical to a real dark session.
+//
+// ⭐ Added 2026-09-14 because the line-check skill gained a "Looked at, not just read" station that
+// asks for "one dark pass" — and the tool that station points at had no way to take one. A ritual
+// step its own instrument cannot perform is a step that silently gets skipped.
+if (process.env.DARK === '1') {
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.waitForTimeout(300);
+}
 await page.screenshot({ path: shot, fullPage: true });
 console.log('SHOT', shot);
 
