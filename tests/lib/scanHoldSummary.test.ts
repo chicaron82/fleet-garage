@@ -94,3 +94,18 @@ describe('flaggedOnLabel', () => {
     expect(flaggedOnLabel('nope')).toBe('');
   });
 });
+
+// ⚠️ The scan sheet used to hardcode 🔧 before every type — "🔧 Hail" at the car. Each line now carries
+// its hold's own emoji.
+describe('scanHoldLines — each line carries its own emoji', () => {
+  it('⭐ a hail hold is ⛈️ and a two-type hold is 🧩, not a wrench', () => {
+    const base = { vehicleId: 'v', status: 'ACTIVE', flaggedAt: '2026-09-01T00:00:00Z', damageDescription: '', resolvedTypes: [] };
+    const lines = scanHoldLines([
+      { ...base, id: 'a', holdTypes: ['hail'] },
+      { ...base, id: 'b', holdTypes: ['damage', 'detail'] },
+    ] as never, 'v');
+    const byId = Object.fromEntries(lines.map(l => [l.id, l.typeEmoji]));
+    expect(byId.a).toBe('⛈️');
+    expect(byId.b).toBe('🧩');
+  });
+});

@@ -9,12 +9,16 @@
 // wrong* and then made him navigate to find out what: the doorway problem in miniature, and the one
 // remaining gap in a card that already surfaces key count, EV kit, geotab and backfill results.
 import { holdTypeLabel } from './holdTypeLabels';
+import { holdEmoji } from './holdBadge';
 import type { Hold } from '../types';
 
 export interface ScanHoldLine {
   id: string;
   /** "Damage", or "Damage + Detail" when a hold carries several types. */
   typeLabel: string;
+  /** The hold's own emoji — 🧩 for several types. From `holdEmoji`, never a hardcoded glyph: the scan
+   *  sheet used to put 🔧 in front of every type, so a hail hold read "🔧 Hail" at the car. */
+  typeEmoji: string;
   /** The damage description as flagged — the "windshield chip" part. '' when none was written. */
   detail: string;
   /** ISO of when it was flagged. Age matters: a chip flagged in May that's still open reads
@@ -53,6 +57,7 @@ export function scanHoldLines(holds: readonly Hold[], vehicleId: string): ScanHo
     .map(h => ({
       id: h.id,
       typeLabel: h.holdTypes.map(holdTypeLabel).join(' + '),
+      typeEmoji: holdEmoji(h.holdTypes, h.mechanicalSubType),
       detail: (h.damageDescription ?? '').trim(),
       flaggedAt: h.flaggedAt,
       // An EXCEPTION release with no actualReturn means the car went out carrying this. That's the

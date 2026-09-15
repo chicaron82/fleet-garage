@@ -24,6 +24,8 @@ export interface ConsolidatedDamage {
   /** The newest hold in the group — its id keys the rendered row. */
   id: string;
   typeLabel: string;
+  /** The newest hold's emoji — see `ScanHoldLine.typeEmoji`. */
+  typeEmoji: string;
   detail: string;
   /** How many hold/release cycles this one defect has been through. 1 for most. */
   cycles: number;
@@ -93,6 +95,7 @@ export function consolidateDamage(lines: readonly ScanHoldLine[]): ConsolidatedD
     return {
       id: newest.id,
       typeLabel: newest.typeLabel,
+      typeEmoji: newest.typeEmoji,
       detail: newest.detail,
       cycles: g.members.length,
       firstFlaggedAt: flagged[0],

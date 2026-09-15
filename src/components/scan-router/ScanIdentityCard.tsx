@@ -108,7 +108,7 @@ export function ScanIdentityCard({
                     : TONE_BLOCK[scanStatusLine(vehicle.status, liveHolds).tone]
                 }`}>
                   <p className="font-semibold">
-                    {l.onException ? '⚠️ Out on exception' : '🔧'} {l.typeLabel}
+                    {l.onException ? '⚠️ Out on exception' : l.typeEmoji} {l.typeLabel}
                     {/* One cycle reads as before. Several say so, with the date it was
                         FIRST put on record — which is what "pre-existing" actually means,
                         and the history his re-flagging deliberately created. */}

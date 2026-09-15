@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HOLD_TYPE_EMOJI } from '../../lib/holdBadge';
 import { hapticLight } from '../../lib/haptics';
 import { DAMAGE_PRESETS } from '../../lib/hold-presets';
 import { buildReHoldSubmission, reHoldPhotoBypassActive, canSubmitReHold, type ReHoldDraft } from '../../lib/reHoldDescription';
@@ -111,11 +112,9 @@ export function NewIssueReHoldForm({
                   : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700'
               }`}
             >
-              {ht === 'damage'
-                ? '🔧 Damage'
-                : ht === 'detail'
-                ? '🧹 Detail'
-                : '⚙️ Mechanical'}
+              {/* ⚠️ From HOLD_TYPE_EMOJI — this used to say 🔧 Damage / ⚙️ Mechanical, the wrench and gear
+                  swapped against every badge on the Holds list. */}
+              {HOLD_TYPE_EMOJI[ht]} {ht === 'damage' ? 'Damage' : ht === 'detail' ? 'Detail' : 'Mechanical'}
             </button>
           ))}
         </div>

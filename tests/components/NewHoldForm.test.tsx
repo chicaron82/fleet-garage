@@ -98,7 +98,11 @@ vi.mock('../../src/lib/barcode', () => ({
   parseFleetBarcode: vi.fn().mockReturnValue({ ok: false }),
 }));
 
-vi.mock('../../src/lib/holdBadge', () => ({
+// ⚠️ Partial — keep the real module and override only what this test controls. A wholesale mock hid
+// every OTHER export, so the day the form started reading HOLD_TYPE_EMOJI (2026-09-14) thirteen tests
+// broke on an export that simply didn't exist inside the mock.
+vi.mock('../../src/lib/holdBadge', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/holdBadge')>()),
   getTireSwapSeason:  vi.fn().mockReturnValue('Winter'),
   holdContextEmojis:  vi.fn().mockReturnValue([]),
 }));

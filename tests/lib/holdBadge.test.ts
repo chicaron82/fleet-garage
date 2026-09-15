@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getTireSwapSeason, holdBadgeConfig, holdContextEmojis, holdTypePillClass, unresolvedHoldTypes } from '../../src/lib/holdBadge';
+import { holdEmoji, HOLD_TYPE_EMOJI, getTireSwapSeason, holdBadgeConfig, holdContextEmojis, holdTypePillClass, unresolvedHoldTypes } from '../../src/lib/holdBadge';
 import type { HoldType } from '../../src/types';
 
 describe('unresolvedHoldTypes', () => {
@@ -184,5 +184,33 @@ describe('every hold badge is emoji + word', () => {
   it('⚠️ damage and mechanical never share a glyph', () => {
     const g = (l: string) => [...l][0];
     expect(g(holdBadgeConfig(['damage']).label)).not.toBe(g(holdBadgeConfig(['mechanical']).label));
+  });
+});
+
+// ⭐ ONE EMOJI PER HOLD TYPE (2026-09-14). The re-hold form had 🔧/⚙️ swapped and the scan sheet put 🔧
+// in front of every type. These pin the one source the surfaces now read.
+describe('holdEmoji / HOLD_TYPE_EMOJI — one glyph per type', () => {
+  it('⭐ every hold type has its own, and no two share one', () => {
+    const glyphs = Object.values(HOLD_TYPE_EMOJI);
+    expect(Object.keys(HOLD_TYPE_EMOJI).sort()).toEqual(['damage', 'detail', 'hail', 'mechanical', 'missing_accessories', 'sale_car']);
+    expect(new Set(glyphs).size).toBe(glyphs.length);
+  });
+  it('⚠️ the wrench is mechanical, never damage', () => {
+    expect(HOLD_TYPE_EMOJI.mechanical).toBe('🔧');
+    expect(HOLD_TYPE_EMOJI.damage).not.toBe('🔧');
+  });
+  it('a multi-type hold is 🧩; mechanical sub-types refine the glyph', () => {
+    expect(holdEmoji(['damage', 'hail'])).toBe('🧩');
+    expect(holdEmoji(['mechanical'], 'pm-due')).toBe('⚙️');
+    expect(holdEmoji(['mechanical'], 'tire-replacement')).toBe('🛞');
+    expect(holdEmoji(['mechanical'], 'safety-recall')).toBe('⚠️');
+    expect(holdEmoji(['mechanical'], 'other')).toBe('🔧');
+    expect(holdEmoji(['hail'])).toBe('⛈️');
+  });
+  it('⭐ every badge leads with exactly what holdEmoji says — the badge cannot drift from the source', () => {
+    for (const t of Object.keys(HOLD_TYPE_EMOJI) as HoldType[])
+      expect(holdBadgeConfig([t]).label.startsWith(holdEmoji([t]))).toBe(true);
+    for (const sub of ['tire-repair', 'tire-replacement', 'pm-due', 'safety-recall'] as const)
+      expect(holdBadgeConfig(['mechanical'], sub).label.startsWith(holdEmoji(['mechanical'], sub))).toBe(true);
   });
 });

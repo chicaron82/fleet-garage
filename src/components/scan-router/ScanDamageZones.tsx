@@ -1,6 +1,6 @@
 // WHERE the damage is, on the car in his hand — the other half of what the scan sheet tells him.
 //
-// The sheet has said WHAT since 2026-08-16 ("🔧 Damage · Windshield chip · flagged 3 days ago"). The
+// The sheet has said WHAT since 2026-08-16 ("💥 Damage · Windshield chip · flagged 3 days ago"). The
 // panel lived one navigation step away on the vehicle screen, which is a step he takes one-handed
 // while holding a key tag and a paper slip. Aaron, from the floor 2026-08-24: "showing me the damage
 // map if there are things marked."

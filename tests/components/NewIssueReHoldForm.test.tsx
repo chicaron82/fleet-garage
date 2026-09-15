@@ -104,7 +104,7 @@ describe('NewIssueReHoldForm — bypass submit payloads', () => {
     const Form = await importComponent();
     render(<Form {...props} />);
 
-    await user.click(screen.getByRole('button', { name: '⚙️ Mechanical' }));
+    await user.click(screen.getByRole('button', { name: '🔧 Mechanical' }));
     await user.click(screen.getByRole('checkbox', { name: /PM due/i }));
     await user.click(screen.getByRole('button', { name: /Confirm Re-hold/i }));
 

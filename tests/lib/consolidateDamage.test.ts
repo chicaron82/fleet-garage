@@ -3,7 +3,7 @@ import { consolidateDamage, cycleLabel } from '../../src/lib/consolidateDamage';
 import type { ScanHoldLine } from '../../src/lib/scanHoldSummary';
 
 const line = (o: Partial<ScanHoldLine> & { id: string; flaggedAt: string }): ScanHoldLine => ({
-  typeLabel: 'Damage', detail: 'Scratch — paint surface', onException: false, zones: [], ...o,
+  typeLabel: 'Damage', typeEmoji: '💥', detail: 'Scratch — paint surface', onException: false, zones: [], ...o,
 });
 
 // Every fixture below is a REAL live group from the fleet on 2026-08-29, named by its plate, so the

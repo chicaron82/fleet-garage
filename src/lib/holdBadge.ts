@@ -18,32 +18,65 @@ export function getTireSwapSeason(): '☀️' | '❄️' {
   return (month >= 5 && month <= 8) ? '☀️' : '❄️';
 }
 
+/**
+ * ⭐ ONE EMOJI PER HOLD TYPE — the single source every surface reads (2026-09-14).
+ *
+ * The same type used to wear different glyphs depending on where he looked: the re-hold form had the
+ * wrench and gear SWAPPED (`🔧 Damage`, `⚙️ Mechanical`), and the scan sheet hardcoded `🔧` in front of
+ * every type, so it said `🔧 Hail` and `🔧 Sale Car` at the car. A glyph is only worth having if it means
+ * the same thing on the sheet at the car, in the form that flags it, and on the badge on the list.
+ *
+ * ⚠️ The wrench is MECHANICAL's — Aaron: *"a wrench on a mechanical hold is enough."* Damage is 💥.
+ * 🧹 Detail and 🏷️ Sale came from the hold forms, 🔌 from the row context emojis, ⚠️ from the
+ * Safety / Recall preset.
+ */
+export const HOLD_TYPE_EMOJI: Readonly<Record<HoldType, string>> = {
+  damage:              '💥',
+  hail:                '⛈️',
+  detail:              '🧹',
+  mechanical:          '🔧',
+  sale_car:            '🏷️',
+  missing_accessories: '🔌',
+};
+
+/** The emoji for a whole hold: 🧩 when it carries several types, else its type — refined by the
+ *  mechanical sub-type where one has its own (PM, tires, recall). */
+export function holdEmoji(holdTypes: readonly HoldType[], mechanicalSubType?: MechanicalSubType | null): string {
+  if (holdTypes.length > 1) return '🧩';
+  if (holdTypes[0] === 'mechanical') {
+    if (mechanicalSubType === 'tire-swap') return getTireSwapSeason();
+    if (mechanicalSubType === 'tire-repair' || mechanicalSubType === 'tire-replacement') return '🛞';
+    if (mechanicalSubType === 'pm-due') return '⚙️';
+    if (mechanicalSubType === 'safety-recall') return '⚠️';
+  }
+  return HOLD_TYPE_EMOJI[holdTypes[0] ?? 'damage'];
+}
+
 export function holdBadgeConfig(
   holdTypes: HoldType[],
   mechanicalSubType?: MechanicalSubType | null,
 ): { label: string; className: string } {
   if (holdTypes.length > 1) {
     return {
-      label: '🧩 Multi-Hold',
+      label: `${holdEmoji(holdTypes)} Multi-Hold`,
       className: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',
     };
   }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-swap') {
-    const season = getTireSwapSeason();
     return {
-      label: `${season} Tire Swap`,
+      label: `${holdEmoji(holdTypes, mechanicalSubType)} Tire Swap`,
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-replacement') {
     return {
-      label: '🛞 Tire Replacement',
+      label: `${holdEmoji(holdTypes, mechanicalSubType)} Tire Replacement`,
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'tire-repair') {
     return {
-      label: '🛞 Tire Repair',
+      label: `${holdEmoji(holdTypes, mechanicalSubType)} Tire Repair`,
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
@@ -63,46 +96,46 @@ export function holdBadgeConfig(
   // damage takes 💥, and 🧩 Multi-Hold is the one with no prior in FG at all.
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'pm-due') {
     return {
-      label: '⚙️ PM Due',
+      label: `${holdEmoji(holdTypes, mechanicalSubType)} PM Due`,
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'safety-recall') {
     return {
-      label: '⚠️ Safety Recall',
+      label: `${holdEmoji(holdTypes, mechanicalSubType)} Safety Recall`,
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
   switch (holdTypes[0]) {
     case 'mechanical':
       return {
-        label: '🔧 Mechanical',
+        label: `${HOLD_TYPE_EMOJI.mechanical} Mechanical`,
         className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
       };
     case 'detail':
       return {
-        label: '🧹 Detail',
+        label: `${HOLD_TYPE_EMOJI.detail} Detail`,
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'sale_car':
       return {
-        label: '🏷️ Sale Car',
+        label: `${HOLD_TYPE_EMOJI.sale_car} Sale Car`,
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'missing_accessories':
       return {
-        label: '🔌 Missing Assets',
+        label: `${HOLD_TYPE_EMOJI.missing_accessories} Missing Assets`,
         className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
       };
     case 'hail':
       return {
-        label: '⛈️ Hail',
+        label: `${HOLD_TYPE_EMOJI.hail} Hail`,
         className: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
       };
     default:
       // 'damage' — the one type that lands here. Red, as it always was.
       return {
-        label: '💥 Damage',
+        label: `${HOLD_TYPE_EMOJI.damage} Damage`,
         className: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
       };
   }
@@ -120,9 +153,9 @@ export function holdContextEmojis(
   if (mechanicalSubType === 'tire-repair')                                     emojis.push('🛞');
   if (mechanicalSubType === 'tire-replacement')                                emojis.push('🛞');
   if (mechanicalSubType === 'pm-due')                                          emojis.push('⚙️');
-  if (holdTypes.includes('mechanical') && !mechanicalSubType || mechanicalSubType === 'other') emojis.push('🔧');
-  if (holdTypes.includes('missing_accessories'))                               emojis.push('🔌');
-  if (holdTypes.includes('hail'))                                              emojis.push('⛈️');
+  if (holdTypes.includes('mechanical') && !mechanicalSubType || mechanicalSubType === 'other') emojis.push(HOLD_TYPE_EMOJI.mechanical);
+  if (holdTypes.includes('missing_accessories'))                               emojis.push(HOLD_TYPE_EMOJI.missing_accessories);
+  if (holdTypes.includes('hail'))                                              emojis.push(HOLD_TYPE_EMOJI.hail);
   if (detailReason === 'smoke-vape')                                           emojis.push('🚬');
   if (detailReason === 'pet-hair')                                             emojis.push('🐾');
   return emojis;

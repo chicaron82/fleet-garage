@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { HOLD_TYPE_EMOJI } from '../../lib/holdBadge';
 import { DISPOSITIONS, DISPOSITION_LABELS, DISPOSITION_LONG } from '../../lib/disposition';
 import { NewHoldDamageZones } from './NewHoldDamageZones';
 import type { RefObject } from 'react';
@@ -50,7 +51,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">Damage</span>
+          <span className="block font-semibold">{HOLD_TYPE_EMOJI.damage} Damage</span>
           <span className="block text-xs opacity-70 mt-0.5">Dents, scratches…</span>
         </button>
         <button
@@ -62,7 +63,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">Detail</span>
+          <span className="block font-semibold">{HOLD_TYPE_EMOJI.detail} Detail</span>
           <span className="block text-xs opacity-70 mt-0.5">Pet hair, smoke…</span>
         </button>
         <button
@@ -74,7 +75,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">Mechanical</span>
+          <span className="block font-semibold">{HOLD_TYPE_EMOJI.mechanical} Mechanical</span>
           <span className="block text-xs opacity-70 mt-0.5">PM, tires, repairs…</span>
         </button>
         <button
@@ -86,7 +87,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">🏷️ Sale / TB / BB</span>
+          <span className="block font-semibold">{HOLD_TYPE_EMOJI.sale_car} Sale / TB / BB</span>
           <span className="block text-xs opacity-70 mt-0.5">Leaving the fleet — don't clean, don't record</span>
         </button>
         <button
@@ -98,7 +99,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
               : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
           }`}
         >
-          <span className="block font-semibold">⛈️ Hail</span>
+          <span className="block font-semibold">{HOLD_TYPE_EMOJI.hail} Hail</span>
           <span className="block text-xs opacity-70 mt-0.5">Storm batch — assess</span>
         </button>
       </div>
