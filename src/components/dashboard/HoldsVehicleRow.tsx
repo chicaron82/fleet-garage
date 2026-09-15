@@ -66,7 +66,7 @@ export function HoldsVehicleRow({
             )}
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <StatusBadge status={vehicle.status} holdTypes={latestHold ? unresolvedHoldTypes(latestHold) : undefined} mechanicalSubType={latestHold?.mechanicalSubType} />
+            <StatusBadge status={vehicle.status} holdTypes={latestHold ? unresolvedHoldTypes(latestHold) : undefined} mechanicalSubType={latestHold?.mechanicalSubType} disposition={latestHold?.disposition} />
             {streak >= 2 && (
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 streak >= 3

@@ -36,7 +36,7 @@ export function PendingVehicleSheet({ vehicle, hold, onClose, onConfirm }: Props
                   </p>
                 )}
               </div>
-              <StatusBadge status={vehicle.status} holdTypes={hold?.holdTypes} mechanicalSubType={hold?.mechanicalSubType} />
+              <StatusBadge status={vehicle.status} holdTypes={hold?.holdTypes} mechanicalSubType={hold?.mechanicalSubType} disposition={hold?.disposition} />
             </div>
             <div className="flex gap-2">
               <button

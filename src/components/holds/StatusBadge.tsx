@@ -1,4 +1,4 @@
-import type { VehicleStatus, HoldStatus, HoldType, MechanicalSubType } from '../../types';
+import type { VehicleStatus, HoldStatus, HoldType, MechanicalSubType, Disposition } from '../../types';
 import { holdBadgeConfig } from '../../lib/holdBadge';
 
 // ⚠️⚠️ SALE_CAR BORROWS ITS LABEL FROM `holdBadgeConfig` — it does not get its own copy. On the Holds
@@ -25,16 +25,29 @@ const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {
   VOIDED:   { label: 'Voided',     className: 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700/50' },
 };
 
-export function StatusBadge({ status, holdTypes, mechanicalSubType }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null }) {
+export function StatusBadge({ status, holdTypes, mechanicalSubType, disposition }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null; disposition?: Disposition | null }) {
   const config =
     status in VEHICLE_CONFIG
       ? VEHICLE_CONFIG[status as VehicleStatus]
       : HOLD_CONFIG[status as HoldStatus];
 
+  // ⚠️ SALE_CAR's entry above is computed ONCE at module load, so it can never see a per-car value.
+  // A turnback and a buy-back therefore rendered identically to a sale for as long as the sub-type has
+  // existed. Recomputed here when a disposition is supplied — still through `holdBadgeConfig`, so the
+  // "SALE_CAR borrows its label, it does not get its own copy" rule above survives intact.
+  //
+  // ⚠️ KNOWN GAP, CHOSEN NOT MISSED: `VehicleHistory` renders this badge from `vehicle.status` with no
+  // hold in scope, so the vehicle record still reads "Sale Car" for a TB. Aaron scoped it 2026-09-15 —
+  // *"Hold list can still say TB/BB"*. Pass `disposition` there too if the record ever needs to agree.
+  const saleConfig =
+    status === 'SALE_CAR' && disposition && disposition !== 'sale'
+      ? { ...config, label: holdBadgeConfig(['sale_car'], null, disposition).label }
+      : config;
+
   const resolved =
     holdTypes && holdTypes.length > 0 && (status === 'HELD' || status === 'ACTIVE')
-      ? holdBadgeConfig(holdTypes, mechanicalSubType)
-      : config ?? { label: String(status), className: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
+      ? holdBadgeConfig(holdTypes, mechanicalSubType, disposition)
+      : saleConfig ?? { label: String(status), className: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
 
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${resolved.className}`}>

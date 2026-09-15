@@ -1,7 +1,8 @@
-import type { HoldType, MechanicalSubType, DetailReason, VehicleStatus } from '../types';
+import type { HoldType, MechanicalSubType, DetailReason, VehicleStatus, Disposition } from '../types';
 // The WORD comes from the one label list, the glyph from HOLD_TYPE_EMOJI — the badge owns neither, so
 // neither can drift (it once said "Missing Assets" while the list said "Missing Accessories").
 import { HOLD_TYPE_LABELS } from './holdTypeLabels';
+import { DISPOSITION_LABELS, isDisposition } from './disposition';
 
 /**
  * The hold types still OPEN — `holdTypes` minus what's been resolved. A resolved
@@ -55,9 +56,24 @@ export function holdEmoji(holdTypes: readonly HoldType[], mechanicalSubType?: Me
   return HOLD_TYPE_EMOJI[holdTypes[0] ?? 'damage'];
 }
 
+/**
+ * ⭐ `disposition` distinguishes the three kinds of sale car on the badge (Aaron, 2026-09-15):
+ * *"How bout having turn backs and buy backs be a little distinguishable. LUR333 is a turn back,
+ * maybe show TB with the sale flag?"* The sub-type has existed since migration 136 and `a5e9fc7`;
+ * only the badge never read it, so all three rendered identically as `🏷️ Sale Car`.
+ *
+ * ⚠️ A PLAIN SALE IS UNCHANGED — his call: *"Keep the sale unchanged. Only change TB/BB."* So `sale`,
+ * null, and anything unrecognised all stay `🏷️ Sale Car`; only turnback and buyback move. The word
+ * still comes from a label list rather than being typed here (`DISPOSITION_LABELS`), so the badge
+ * owns neither its glyph nor its word — the rule that stopped "Missing Assets" drifting.
+ *
+ * ⚠️ Nothing BRANCHES on the disposition; this is a label, and `lib/disposition` explains at length
+ * why it must stay one. Rendering it is the most that may ever be done with it.
+ */
 export function holdBadgeConfig(
   holdTypes: HoldType[],
   mechanicalSubType?: MechanicalSubType | null,
+  disposition?: Disposition | null,
 ): { label: string; className: string } {
   if (holdTypes.length > 1) {
     return {
@@ -122,7 +138,11 @@ export function holdBadgeConfig(
       };
     case 'sale_car':
       return {
-        label: `${HOLD_TYPE_EMOJI.sale_car} ${HOLD_TYPE_LABELS.sale_car}`,
+        // ⚠️ `sale` falls through to the hold-type label ON PURPOSE — a plain sale car reads exactly as
+        // it always has. Only TB and BB take the shorthand, which is what he asked for and no more.
+        label: isDisposition(disposition) && disposition !== 'sale'
+          ? `${HOLD_TYPE_EMOJI.sale_car} ${DISPOSITION_LABELS[disposition]}`
+          : `${HOLD_TYPE_EMOJI.sale_car} ${HOLD_TYPE_LABELS.sale_car}`,
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'missing_accessories':

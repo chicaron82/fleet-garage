@@ -193,7 +193,7 @@ export function HoldRecordCard({
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} />
+            <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} disposition={hold.disposition} />
             <button
               type="button"
               onClick={() => (editing ? exitEdit() : startEdit())}

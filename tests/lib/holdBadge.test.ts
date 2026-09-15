@@ -75,6 +75,39 @@ describe('holdBadgeConfig', () => {
     expect(holdBadgeConfig([type]).label).toBe(label);
   });
 
+  // ── the three kinds of sale car ────────────────────────────────────────────────
+  // Aaron, 2026-09-15: *"maybe show TB with the sale flag?"* The sub-type has existed since
+  // migration 136; only the badge never read it, so all three rendered as "🏷️ Sale Car".
+  describe('disposition on the sale badge', () => {
+    it('shows TB for a turnback', () => {
+      expect(holdBadgeConfig(['sale_car'], null, 'turnback').label).toBe('🏷️ TB');
+    });
+
+    it('shows BB for a buy-back', () => {
+      expect(holdBadgeConfig(['sale_car'], null, 'buyback').label).toBe('🏷️ BB');
+    });
+
+    // ⚠️ HIS EXPLICIT CALL — *"Keep the sale unchanged. Only change TB/BB."* These three must stay
+    // byte-identical to the pre-2026-09-15 badge, so a plain sale car reads exactly as it always did.
+    it('leaves a plain sale car unchanged — explicit, null, and unrecognised alike', () => {
+      expect(holdBadgeConfig(['sale_car'], null, 'sale').label).toBe('🏷️ Sale Car');
+      expect(holdBadgeConfig(['sale_car'], null, null).label).toBe('🏷️ Sale Car');
+      expect(holdBadgeConfig(['sale_car']).label).toBe('🏷️ Sale Car');
+      // a value from a future migration this build has never heard of
+      expect(holdBadgeConfig(['sale_car'], null, 'lease-return' as never).label).toBe('🏷️ Sale Car');
+    });
+
+    it('does not let a disposition leak onto a non-sale hold', () => {
+      expect(holdBadgeConfig(['damage'], null, 'turnback').label).toBe('💥 Damage');
+      expect(holdBadgeConfig(['mechanical'], 'pm-due', 'buyback').label).toBe('⚙️ PM Due');
+    });
+
+    it('keeps the teal lane whatever the disposition — colour carries the TYPE, not the kind', () => {
+      expect(holdBadgeConfig(['sale_car'], null, 'turnback').className).toContain('teal');
+      expect(holdBadgeConfig(['sale_car'], null, 'buyback').className).toContain('teal');
+    });
+  });
+
   it('gives sale_car a distinct (teal) className vs damage (red)', () => {
     expect(holdBadgeConfig(['sale_car']).className).toContain('teal');
     expect(holdBadgeConfig(['damage']).className).toContain('red');
