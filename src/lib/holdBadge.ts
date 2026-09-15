@@ -24,7 +24,7 @@ export function holdBadgeConfig(
 ): { label: string; className: string } {
   if (holdTypes.length > 1) {
     return {
-      label: 'Multi-Hold',
+      label: '🧩 Multi-Hold',
       className: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',
     };
   }
@@ -52,6 +52,15 @@ export function holdBadgeConfig(
   // Holds list is held, so the word carried nothing — while damage, PM due and detail, the commonest
   // holds after sale cars, all hid behind it. The badge now says WHAT; the colour lanes are unchanged.
   // Multi-Hold stays as it is — *"listing everything might be too much to show"*.
+  //
+  // ⭐ EVERY BADGE IS EMOJI + WORD (Aaron, same evening: *"let's finish it off and plate things properly
+  // add emojis to the other badges too"*). Half of them had one and half didn't, which read as unfinished
+  // rather than chosen. REUSED from FG's own vocabulary so a type looks the same on the badge as in the
+  // form that created it: 🧹 Detail and 🏷️ Sale (NewIssueReHoldForm / NewHoldDetailsSection), 🔌 missing
+  // accessories (`holdContextEmojis` below), ⚠️ Safety / Recall (`hold-presets.ts`).
+  // ⚠️ DAMAGE IS NOT 🔧, even though the re-hold form and scan sheet use 🔧 for it: the wrench belongs to
+  // Mechanical — *"a wrench on a mechanical hold is enough"* — and two badges must not share a glyph. So
+  // damage takes 💥, and 🧩 Multi-Hold is the one with no prior in FG at all.
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'pm-due') {
     return {
       label: '⚙️ PM Due',
@@ -60,7 +69,7 @@ export function holdBadgeConfig(
   }
   if (holdTypes[0] === 'mechanical' && mechanicalSubType === 'safety-recall') {
     return {
-      label: 'Safety Recall',
+      label: '⚠️ Safety Recall',
       className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
     };
   }
@@ -72,17 +81,17 @@ export function holdBadgeConfig(
       };
     case 'detail':
       return {
-        label: 'Detail',
+        label: '🧹 Detail',
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'sale_car':
       return {
-        label: 'Sale Car',
+        label: '🏷️ Sale Car',
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'missing_accessories':
       return {
-        label: 'Missing Assets',
+        label: '🔌 Missing Assets',
         className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
       };
     case 'hail':
@@ -93,7 +102,7 @@ export function holdBadgeConfig(
     default:
       // 'damage' — the one type that lands here. Red, as it always was.
       return {
-        label: 'Damage',
+        label: '💥 Damage',
         className: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
       };
   }

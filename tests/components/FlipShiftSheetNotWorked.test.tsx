@@ -13,8 +13,15 @@ vi.mock('../../src/context/ScheduleContext', () => ({
 }));
 
 import { FlipShiftSheet } from '../../src/components/schedule/FlipShiftSheet';
+import { toISO } from '../../src/lib/schedule-helpers';
 
-const today = new Date().toISOString().slice(0, 10);
+// ⚠️⚠️ LOCAL "today", from the component's OWN helper — never `toISOString().slice(0, 10)`.
+// That is the UTC date, and at 19:00 in Winnipeg UTC has already rolled to tomorrow: the test built a
+// shift dated tomorrow, FlipShiftSheet (`shift.date <= toISO(new Date())`) correctly treated it as a
+// future shift with no actual hours, and all four cases failed — every evening from 19:00 to midnight,
+// green all day. Found 2026-09-14 at 19:10, an hour after it passed a full-suite run. Two definitions of
+// "today" is the same defect as the midnight shift validator the night before.
+const today = toISO(new Date());
 const mid: ShiftWithUser = {
   id: 's1', userId: 'u1', date: today, shiftType: 'mid', startTime: '09:30', endTime: '18:00',
   createdAt: '', updatedAt: '', branchId: 'YWG', user: { name: 'Aaron S.', role: 'VSA' },

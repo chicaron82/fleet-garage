@@ -45,14 +45,14 @@ const PROPS = {
 describe('HoldHistorySection — resolution-aware badge & pills', () => {
   it('a 2-type hold with both types open shows Multi-Hold + both pills', () => {
     render(<HoldHistorySection {...PROPS} holds={[hold(['damage', 'mechanical'], [])]} />);
-    expect(screen.getByText('Multi-Hold')).toBeTruthy();
+    expect(screen.getByText('🧩 Multi-Hold')).toBeTruthy();
     expect(screen.getByText('Mechanical')).toBeTruthy();
     expect(screen.getByText('Damage')).toBeTruthy();
   });
 
   it('with mechanical resolved, drops Multi-Hold + the Mechanical pill — only damage remains', () => {
     render(<HoldHistorySection {...PROPS} holds={[hold(['damage', 'mechanical'], ['mechanical'])]} />);
-    expect(screen.queryByText('Multi-Hold')).toBeNull();
+    expect(screen.queryByText('🧩 Multi-Hold')).toBeNull();
     expect(screen.queryByText('Mechanical')).toBeNull();
     // damage-only remainder shows no type pill (damage is the implied default) but the record stays
     expect(screen.getByText('CX-5 front bumper + check engine light')).toBeTruthy();

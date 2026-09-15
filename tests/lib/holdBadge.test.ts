@@ -51,7 +51,7 @@ describe('getTireSwapSeason', () => {
 
 describe('holdBadgeConfig', () => {
   it('more than one hold type → Multi-Hold', () => {
-    expect(holdBadgeConfig(['mechanical', 'detail']).label).toBe('Multi-Hold');
+    expect(holdBadgeConfig(['mechanical', 'detail']).label).toBe('🧩 Multi-Hold');
   });
 
   it('mechanical tire-swap shows the seasonal label', () => {
@@ -65,9 +65,10 @@ describe('holdBadgeConfig', () => {
 
   it.each([
     ['mechanical', '🔧 Mechanical'],
-    ['detail', 'Detail'],
-    ['sale_car', 'Sale Car'],
-    ['damage', 'Damage'],
+    ['detail', '🧹 Detail'],
+    ['sale_car', '🏷️ Sale Car'],
+    ['damage', '💥 Damage'],
+    ['missing_accessories', '🔌 Missing Assets'],
     ['hail', '⛈️ Hail'],
   ] as [HoldType, string][])('single %s hold → label %s', (type, label) => {
     expect(holdBadgeConfig([type]).label).toBe(label);
@@ -142,7 +143,7 @@ describe('tire-replacement', () => {
   });
 
   it('⚠️ a multi-hold still wins, so the sub-type cannot hide a second hold type', () => {
-    expect(holdBadgeConfig(['mechanical', 'damage'], 'tire-replacement').label).toBe('Multi-Hold');
+    expect(holdBadgeConfig(['mechanical', 'damage'], 'tire-replacement').label).toBe('🧩 Multi-Hold');
   });
 });
 
@@ -157,11 +158,31 @@ describe('holdBadgeConfig — the badge says WHAT is held (Aaron, 2026-09-14)', 
 
   it('names the mechanical sub-types he sees most', () => {
     expect(holdBadgeConfig(['mechanical'], 'pm-due').label).toBe('⚙️ PM Due');
-    expect(holdBadgeConfig(['mechanical'], 'safety-recall').label).toBe('Safety Recall');
+    expect(holdBadgeConfig(['mechanical'], 'safety-recall').label).toBe('⚠️ Safety Recall');
     expect(holdBadgeConfig(['mechanical'], 'other').label).toBe('🔧 Mechanical');
   });
 
   it('keeps Multi-Hold — "listing everything might be too much to show"', () => {
-    expect(holdBadgeConfig(['damage', 'detail']).label).toBe('Multi-Hold');
+    expect(holdBadgeConfig(['damage', 'detail']).label).toBe('🧩 Multi-Hold');
+  });
+});
+
+// Aaron, 2026-09-14: "plate things properly add emojis to the other badges too." Half the badges had
+// an emoji and half didn't. This holds the shape so a future badge can't quietly ship bare.
+describe('every hold badge is emoji + word', () => {
+  const lead = (label: string) => /^\p{Extended_Pictographic}/u.test(label);
+  it('⭐ no single-type badge renders without an emoji', () => {
+    const types: HoldType[] = ['damage', 'hail', 'detail', 'mechanical', 'sale_car', 'missing_accessories'];
+    for (const t of types) expect(lead(holdBadgeConfig([t]).label), t).toBe(true);
+  });
+  it('⭐ no mechanical sub-type badge renders without one, and neither does Multi-Hold', () => {
+    for (const sub of ['tire-swap', 'tire-repair', 'tire-replacement', 'pm-due', 'safety-recall', 'other'] as const)
+      expect(lead(holdBadgeConfig(['mechanical'], sub).label), sub).toBe(true);
+    expect(lead(holdBadgeConfig(['damage', 'detail']).label)).toBe(true);
+  });
+  // ⚠️ The wrench is Mechanical's. Two badges sharing a glyph would undo the point of the emoji.
+  it('⚠️ damage and mechanical never share a glyph', () => {
+    const g = (l: string) => [...l][0];
+    expect(g(holdBadgeConfig(['damage']).label)).not.toBe(g(holdBadgeConfig(['mechanical']).label));
   });
 });

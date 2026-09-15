@@ -59,3 +59,32 @@ test('switching weeks keeps the same PERSON at the top of the grid (200ce99)', a
   // A round trip must land back on the same person; before the fix it drifted a row or two each way.
   expect(await topRowId()).toBe(before);
 });
+
+test('a hold card never grows past a phone-width screen — the badge stays on it (HoldsVehicleRow min-w-0)', async ({ page }) => {
+  // ⚠️ 412px, set HERE: the flows project is Desktop Chrome at 1280, where a card has room to spare and
+  // this bug cannot exist. Aaron's phone is where it lived.
+  await page.setViewportSize({ width: 412, height: 4200 });
+  await page.goto('/holds', { waitUntil: 'networkidle' });
+  await expect(page.getByText('Flagged by').first()).toBeVisible();
+
+  const { cards, truncating, worst, vw } = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const cardEls = [...document.querySelectorAll<HTMLElement>('button')].filter(b => b.textContent?.includes('Flagged by'));
+    // ⚠️ By CONTENT, not by layout. The first cut counted descriptions whose scrollWidth exceeded their
+    // clientWidth — but without the fix a description never truncates (the card grows instead), so that
+    // precondition measured the fix itself and failed on the wrong line. The row cuts any description
+    // over 40 characters and appends "…", which is true whatever the layout does.
+    const truncating = cardEls.filter(b =>
+      [...b.querySelectorAll<HTMLElement>('p')].some(p => p.textContent?.trim().endsWith('…'))).length;
+    const worst = Math.max(...cardEls.map(b => b.getBoundingClientRect().right));
+    return { cards: cardEls.length, truncating, worst, vw };
+  });
+
+  // ⚠️ PRECONDITIONS, or this passes VACUOUSLY: with no cards, or no description long enough to need
+  // truncating, nothing can overflow and "every card fits" is trivially true. LUR327 ("Damage - written up
+  // as 'DMG', detail not…") was the live case on 2026-09-14.
+  expect(cards).toBeGreaterThan(0);
+  expect(truncating).toBeGreaterThan(0);
+  // Before the fix that card's right edge ran past the screen and clipped its "💥 Damage" badge.
+  expect(worst).toBeLessThanOrEqual(vw + 1);
+});

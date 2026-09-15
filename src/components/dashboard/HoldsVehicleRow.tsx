@@ -31,11 +31,16 @@ export function HoldsVehicleRow({
     latestHold?.mechanicalSubType,
   );
 
+  // ⚠️ `min-w-0` ON THE flex-1 CARD IS LOAD-BEARING. A flex item's minimum width defaults to its
+  // content, so without it a long description could not shrink to its `truncate` — the whole card
+  // grew past the screen instead, losing its right border and pushing the type badge off the edge
+  // (LUR327, "Damage - written up as 'DMG', detail not…", at 412px). It had been clipping quietly;
+  // the badge gaining an emoji on 2026-09-14 is what made it visible.
   return (
     <div className="flex items-stretch">
       <button
         onClick={() => { hapticLight(); onOpen(vehicle); }}
-        className="flex-1 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-left hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:shadow-sm transition-all cursor-pointer group"
+        className="flex-1 min-w-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 text-left hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:shadow-sm transition-all cursor-pointer group"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 overflow-hidden">
