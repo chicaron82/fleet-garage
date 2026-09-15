@@ -12,7 +12,7 @@
 // phone — *"I have available cars in 3 different rows but only shows the last row I used."* The
 // carry is what the next car inherits; `rowTally` is where they actually are. Both are exposed, and
 // they are never conflated.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { businessDateOf } from '../lib/shiftDay';
 import { loadSession, saveSession, clearSession } from '../lib/closingInventoryStore';
 import {
@@ -21,6 +21,7 @@ import {
   type ActiveHold, type InventoryEntry, type InventoryStatus, type TagIdentity,
 } from '../lib/closingInventory';
 import { loadServerSheet, saveServerSheet } from '../lib/closingInventorySync';
+import { archiveSheet, clearArchivedDay } from '../lib/closingInventoryArchive';
 import type { Vehicle } from '../types';
 
 export interface ClosingInventoryState {
@@ -87,6 +88,31 @@ export function useClosingInventory(fleet: readonly Vehicle[] = []): ClosingInve
   useEffect(() => {
     if (all.length === 0) return;
     void saveServerSheet(today, all, Date.now());
+  }, [today, all]);
+
+  /**
+   * ⭐⭐ KEEP THE CLOSE (migration 146). The sheet itself is a working surface that expires at the
+   * shift-day cutover and is upserted over by the next night — three closes entered the weekend of
+   * 2026-09-11/12/13 were lost exactly that way. This writes the same rows to a table that keeps
+   * them, so a census he already performs stops evaporating. Aaron: *"data is still data why not add
+   * it in when its available."*
+   *
+   * ⚠️ It rides the SAME cadence as the server push rather than a "finish" button. Nothing may
+   * depend on him remembering to close the sheet out — that is precisely how the weekend was lost.
+   *
+   * ⭐ Cheap by construction: `planArchive` writes only rows newer than the high-water mark, using
+   * the `at` stamp the per-row merge already maintains. A 57-car sheet pushes 57 rows once, then one
+   * row per edit.
+   *
+   * ⚠️ The mark only ever ADVANCES. Two changes in flight at once would otherwise let the slower
+   * one wind it backwards and replay rows — harmless (every write is an upsert by id) but pointless.
+   */
+  const archivedThrough = useRef(0);
+  useEffect(() => {
+    if (all.length === 0) return;
+    void archiveSheet(all, today, archivedThrough.current).then(mark => {
+      archivedThrough.current = Math.max(archivedThrough.current, mark);
+    });
   }, [today, all]);
 
   /**
@@ -255,6 +281,11 @@ export function useClosingInventory(fleet: readonly Vehicle[] = []): ClosingInve
     // outcome of a destructive button and exactly the trap the local-only version already documented.
     // Written directly because the push effect deliberately skips an empty sheet.
     void saveServerSheet(today, [], Date.now());
+    // ⚠️ AND THE ARCHIVE — the record must never outlive the sheet it mirrors. Leaving the rows
+    // behind would build a dwell count on cars he had explicitly removed, and nothing on any screen
+    // would reveal the divergence. The mark resets so a fresh sheet archives from scratch.
+    archivedThrough.current = 0;
+    void clearArchivedDay(today);
   }, [today]);
 
   return {

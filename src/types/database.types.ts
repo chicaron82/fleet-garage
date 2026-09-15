@@ -140,6 +140,62 @@ export type Database = {
         }
         Relationships: []
       }
+      closing_inventory_entries: {
+        Row: {
+          day: string
+          id: string
+          lot_row: string
+          note: string
+          owning_area: string | null
+          plate: string
+          recorded_at: string
+          rental_class: string | null
+          seq: number
+          status: string
+          unit_number: string | null
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          day: string
+          id: string
+          lot_row?: string
+          note?: string
+          owning_area?: string | null
+          plate: string
+          recorded_at?: string
+          rental_class?: string | null
+          seq?: number
+          status: string
+          unit_number?: string | null
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          day?: string
+          id?: string
+          lot_row?: string
+          note?: string
+          owning_area?: string | null
+          plate?: string
+          recorded_at?: string
+          rental_class?: string | null
+          seq?: number
+          status?: string
+          unit_number?: string | null
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closing_inventory_entries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       effie_ledger: {
         Row: {
           amount_usd: number

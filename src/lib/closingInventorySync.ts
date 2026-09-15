@@ -17,7 +17,8 @@ import type { InventoryEntry } from './closingInventory';
 
 export interface ServerSheet { day: string; entries: InventoryEntry[]; at: number; }
 
-async function currentUserId(): Promise<string | null> {
+/** Exported so the archive (closingInventoryArchive) resolves the same identity the sheet syncs under. */
+export async function currentUserId(): Promise<string | null> {
   try {
     const { data } = await supabase.auth.getSession();
     return data.session?.user.id ?? null;
