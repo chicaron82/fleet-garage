@@ -9,7 +9,7 @@ describe('HOLD_TYPE_LABELS', () => {
       detail: 'Detail',
       mechanical: 'Mechanical',
       sale_car: 'Sale Car',
-      missing_accessories: 'Missing Accessories',
+      missing_accessories: 'Missing Assets',
     });
   });
 });
@@ -17,7 +17,7 @@ describe('HOLD_TYPE_LABELS', () => {
 describe('holdTypeLabel', () => {
   it('returns the canonical label for a known type', () => {
     expect(holdTypeLabel('mechanical')).toBe('Mechanical');
-    expect(holdTypeLabel('missing_accessories')).toBe('Missing Accessories');
+    expect(holdTypeLabel('missing_accessories')).toBe('Missing Assets');
   });
 
   it('title-cases an unknown raw string as a fallback', () => {

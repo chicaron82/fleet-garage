@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { holdEmoji, HOLD_TYPE_EMOJI, getTireSwapSeason, holdBadgeConfig, holdContextEmojis, holdTypePillClass, unresolvedHoldTypes } from '../../src/lib/holdBadge';
 import type { HoldType } from '../../src/types';
+import { HOLD_TYPE_LABELS } from '../../src/lib/holdTypeLabels';
 
 describe('unresolvedHoldTypes', () => {
   it('drops resolved types, keeps open ones (history stays in holdTypes)', () => {
@@ -212,5 +213,14 @@ describe('holdEmoji / HOLD_TYPE_EMOJI — one glyph per type', () => {
       expect(holdBadgeConfig([t]).label.startsWith(holdEmoji([t]))).toBe(true);
     for (const sub of ['tire-repair', 'tire-replacement', 'pm-due', 'safety-recall'] as const)
       expect(holdBadgeConfig(['mechanical'], sub).label.startsWith(holdEmoji(['mechanical'], sub))).toBe(true);
+  });
+});
+
+// ⚠️ One name per hold type (2026-09-14): the badge said "Missing Assets" while the label list said
+// "Missing Accessories". The badge now reads its word from HOLD_TYPE_LABELS; this holds them together.
+describe('badge words come from HOLD_TYPE_LABELS', () => {
+  it('⭐ every single-type badge is exactly  emoji + the canonical label', () => {
+    for (const t of Object.keys(HOLD_TYPE_LABELS) as HoldType[])
+      expect(holdBadgeConfig([t]).label).toBe(`${HOLD_TYPE_EMOJI[t]} ${HOLD_TYPE_LABELS[t]}`);
   });
 });

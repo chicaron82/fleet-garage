@@ -1,4 +1,7 @@
 import type { HoldType, MechanicalSubType, DetailReason, VehicleStatus } from '../types';
+// The WORD comes from the one label list, the glyph from HOLD_TYPE_EMOJI — the badge owns neither, so
+// neither can drift (it once said "Missing Assets" while the list said "Missing Accessories").
+import { HOLD_TYPE_LABELS } from './holdTypeLabels';
 
 /**
  * The hold types still OPEN — `holdTypes` minus what's been resolved. A resolved
@@ -109,33 +112,33 @@ export function holdBadgeConfig(
   switch (holdTypes[0]) {
     case 'mechanical':
       return {
-        label: `${HOLD_TYPE_EMOJI.mechanical} Mechanical`,
+        label: `${HOLD_TYPE_EMOJI.mechanical} ${HOLD_TYPE_LABELS.mechanical}`,
         className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
       };
     case 'detail':
       return {
-        label: `${HOLD_TYPE_EMOJI.detail} Detail`,
+        label: `${HOLD_TYPE_EMOJI.detail} ${HOLD_TYPE_LABELS.detail}`,
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'sale_car':
       return {
-        label: `${HOLD_TYPE_EMOJI.sale_car} Sale Car`,
+        label: `${HOLD_TYPE_EMOJI.sale_car} ${HOLD_TYPE_LABELS.sale_car}`,
         className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800',
       };
     case 'missing_accessories':
       return {
-        label: `${HOLD_TYPE_EMOJI.missing_accessories} Missing Assets`,
+        label: `${HOLD_TYPE_EMOJI.missing_accessories} ${HOLD_TYPE_LABELS.missing_accessories}`,
         className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
       };
     case 'hail':
       return {
-        label: `${HOLD_TYPE_EMOJI.hail} Hail`,
+        label: `${HOLD_TYPE_EMOJI.hail} ${HOLD_TYPE_LABELS.hail}`,
         className: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
       };
     default:
       // 'damage' — the one type that lands here. Red, as it always was.
       return {
-        label: `${HOLD_TYPE_EMOJI.damage} Damage`,
+        label: `${HOLD_TYPE_EMOJI.damage} ${HOLD_TYPE_LABELS.damage}`,
         className: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
       };
   }
