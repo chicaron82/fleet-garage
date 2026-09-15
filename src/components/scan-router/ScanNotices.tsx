@@ -18,15 +18,41 @@ import type { Vehicle } from '../../types';
  * decision: the codex is not taught here, the owning area is not corrected here, and the photo is
  * not replaced here. Each says what it knows and leaves the doing to him.
  */
-export function ScanNotices({ scanRead, vehicle, codexToast }: {
+export function ScanNotices({ scanRead, vehicle, codexToast, photographed }: {
   scanRead: KeytagRead | null;
   /** The matched car, when the plate resolved to one. */
   vehicle: Vehicle | null;
   /** Set when this very scan TAUGHT the codex — suppresses the unknown-code notice. */
   codexToast: string;
+  /** Whether a tag was actually PHOTOGRAPHED to get here. False on the typed-plate door, which
+   *  sets `scanPhoto` to null — *"no tag was photographed"*. Gates the missing-photo notice below. */
+  photographed: boolean;
 }) {
   return (
     <>
+          {/* ⭐⭐ FG HAS NEVER SEEN THIS CAR'S TAG, AND HE IS HOLDING IT RIGHT NOW.
+              Aaron, 2026-09-15, having looked a car up by typing: *"it doesn't tell me that it needed
+              a keytag photo. Else I would have scanned it for the keytag photo to get attached. I've
+              probably come across many of these. But because I typed instead of using API on the scan
+              the missing keytags never surfaced."*
+
+              ⚠️⚠️ A CAPABILITY GAP, NOT A DEFECT — no file was wrong. A SCAN quietly fixes this
+              (`useBackfillOnScan` → `attachKeytagPhotoIfMissing`), so the hole only ever existed on the
+              typed door, where there is no photo to attach and nothing asked for one. 41 of 763 live
+              cars had no tag photo when this was written (5%) — bounded, and clearable at his
+              throughput now that it surfaces where he can act on it.
+
+              ⚠️ GATED ON `photographed`, NOT ON THE URL ALONE. After a real scan the attach is in
+              flight for a second or two, and keying only off `keytagPhotoUrl` would flash "no photo"
+              at him about a photo he had just taken. The typed door is the only place this belongs.
+
+              ⚠️ It REPORTS AND DOES NOT ACT, per this file's rule — the 📷 Scan a tag button is
+              already on the sheet. No second way to do the same thing. */}
+          {!photographed && vehicle && !vehicle.keytagPhotoUrl && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+              🏷️ No key tag photo on file — scan the tag while you have it.
+            </p>
+          )}
           {/* Say WHY registration degraded. Before this the scan just quietly offered less
               and the operator had to infer the cause from the shape of the failure.
               Suppressed when the scan TAUGHT the code instead — asking him to add by hand

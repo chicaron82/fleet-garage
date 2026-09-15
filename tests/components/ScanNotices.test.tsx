@@ -12,8 +12,10 @@ const car = (over: Partial<Vehicle> = {}) => ({
   color: 'White', status: 'CLEAR', branchId: 'YWG', ...over,
 } as Vehicle);
 
+// ⚠️ `photographed` defaults TRUE here because every case below is a SCAN — a tag was in hand and a
+// photo was taken. The typed-plate door is the false case, and it has its own describe at the bottom.
 const show = (p: Partial<Parameters<typeof ScanNotices>[0]> = {}) =>
-  render(<ScanNotices scanRead={null} vehicle={null} codexToast="" {...p} />);
+  render(<ScanNotices scanRead={null} vehicle={null} codexToast="" photographed {...p} />);
 
 describe('ScanNotices — the retake watchlist, at the car', () => {
   // Aaron, 2026-08-27: "I pictured it like the geotab watch list. anytime I scan one that is on that
@@ -196,5 +198,41 @@ describe('ScanNotices — when the TAG is what cannot answer', () => {
       expect(screen.queryByText(/barcode sticker/i), `${v?.keytagAuditResult}`).toBeNull();
       unmount();
     }
+  });
+});
+
+// ⭐⭐ THE TYPED DOOR'S BLIND SPOT (Aaron, 2026-09-15). A scan quietly attaches a missing tag photo
+// (`useBackfillOnScan` → `attachKeytagPhotoIfMissing`), so the gap only ever existed where he TYPED:
+// *"because I typed instead of using API on the scan the missing keytags never surfaced."*
+// 41 of 763 live cars had no tag photo when this landed.
+describe('ScanNotices — FG has never seen this car\'s tag', () => {
+  it('⭐ asks for the tag when he typed the plate and FG has no photo', () => {
+    show({ vehicle: car({ keytagPhotoUrl: undefined }), photographed: false });
+    expect(screen.getByText(/no key tag photo on file/i)).toBeTruthy();
+  });
+
+  // ⚠️ THE FLASH GUARD. After a real scan the attach is in flight for a second or two, so keying off
+  // the URL alone would tell him a photo is missing about one he just took.
+  it('⚠️ stays silent on a real scan, even before the upload has landed', () => {
+    show({ vehicle: car({ keytagPhotoUrl: undefined }), photographed: true });
+    expect(screen.queryByText(/no key tag photo on file/i)).toBeNull();
+  });
+
+  it('stays silent when FG already has the tag', () => {
+    show({ vehicle: car({ keytagPhotoUrl: 'https://x/keytag.jpg' }), photographed: false });
+    expect(screen.queryByText(/no key tag photo on file/i)).toBeNull();
+  });
+
+  // Nothing resolved = nothing to ask about; the notice must not fire on a bare lookup miss.
+  it('stays silent when no car resolved', () => {
+    show({ vehicle: null, photographed: false });
+    expect(screen.queryByText(/no key tag photo on file/i)).toBeNull();
+  });
+
+  // ⚠️ This file's standing rule: every notice REPORTS and never ACTS. The 📷 Scan a tag button is
+  // already on the sheet — a second way to do the same thing is how two surfaces start to disagree.
+  it('⚠️ reports only — it offers no button of its own', () => {
+    const { container } = show({ vehicle: car({ keytagPhotoUrl: undefined }), photographed: false });
+    expect(container.querySelectorAll('button').length).toBe(0);
   });
 });

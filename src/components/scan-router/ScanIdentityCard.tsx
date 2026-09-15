@@ -35,6 +35,8 @@ interface Props {
   /** Two live cars share the scanned unit and the plate was unreadable: open the one he picks. */
   onPickCandidate: (vehicleId: string) => void;
   geotabPending: boolean;
+  /** Whether a tag was photographed to get here — false on the typed-plate door. */
+  photographed: boolean;
   backfillToast: string | null;
   conflictToast: string | null;
   codexToast: string;
@@ -42,7 +44,7 @@ interface Props {
 
 export function ScanIdentityCard({
   scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate,
-  geotabPending, backfillToast, conflictToast, codexToast,
+  geotabPending, photographed, backfillToast, conflictToast, codexToast,
 }: Props) {
   const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate } = useVehicleHoldContext();
   const vehicle = result.vehicle ?? null;
@@ -230,7 +232,7 @@ export function ScanIdentityCard({
       {codexToast && (
         <p className="text-[11px] font-semibold mt-1 text-green-700 dark:text-green-400">{codexToast}</p>
       )}
-      <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} />
+      <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed} />
     </div>
   );
 }
