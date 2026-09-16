@@ -77,8 +77,21 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
   const s = LOT_STATUS_BANNER[latestHandoff.lotStatus];
   const time = new Date(latestHandoff.loggedAt).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
 
+  // ⭐⭐ THE WHOLE CARD IS THE EDIT TARGET (Aaron, 2026-09-16: *"Show it if already logged, with tap
+  // to edit."*) — not a small "Log again" link in the corner. The card already SHOWS the hand-off,
+  // so showing it and letting him tap it is one affordance instead of two, and the tap target is
+  // the card rather than a 40px word. The corner still carries "Edit →" as the visible signal that
+  // the card does something; both fire the same handler.
+  //
+  // ⚠️ A <div onClick> would be a trap for the keyboard and for the ⓘ readers, so when he can log,
+  // the card IS the button. When he cannot, it stays a plain div — a disabled-looking button that
+  // does nothing is worse than no button ([[feedback_blank_is_an_answer]]).
+  const Card = canLog ? 'button' : 'div';
   return (
-    <div className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${s.bg} ${s.border}`}>
+    <Card
+      {...(canLog ? { type: 'button' as const, onClick: onLogHandoff, 'aria-label': 'Edit today’s shift handoff' } : {})}
+      className={`w-full text-left rounded-xl border px-4 py-3 space-y-2 transition-colors ${s.bg} ${s.border} ${canLog ? 'cursor-pointer hover:brightness-95 dark:hover:brightness-110' : ''}`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
@@ -86,11 +99,7 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
             {latestHandoff.lotStatus.charAt(0).toUpperCase() + latestHandoff.lotStatus.slice(1)} · Shift Handoff
           </p>
         </div>
-        {canLog && (
-          <button type="button" onClick={onLogHandoff} className={`text-xs font-semibold hover:underline cursor-pointer ${s.text}`}>
-            Log again →
-          </button>
-        )}
+        {canLog && <span className={`text-xs font-semibold ${s.text}`} aria-hidden="true">Edit →</span>}
       </div>
       <div className={`flex gap-4 text-xs ${s.text}`}>
         <span><strong>{latestHandoff.fullPages * 19 + latestHandoff.lastPageEntries}</strong> cars cleaned this shift</span>
@@ -107,7 +116,7 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
       <ShiftLogPhotoView url={latestHandoff.photoUrl} alt="The board at hand-off" caption="Logged with this hand-off" />
 
       <p className={`text-[10px] ${s.text} opacity-60`}>Logged by {latestHandoff.loggedByName} · {time}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -137,7 +146,7 @@ export function MyShiftView({ onOpenVehicle }: {
   onOpenVehicle?: (vehicleId: string) => void;
 }) {
   const { user, activeBranch } = useAuth();
-  const { latestHandoff, getTodayCheckpoint, loadError, reload } = useWashbayContext();
+  const { latestHandoff, loadError, reload } = useWashbayContext();
   const { shifts } = useSchedule();
 
   const todayISO          = toISO(new Date());
@@ -148,16 +157,25 @@ export function MyShiftView({ onOpenVehicle }: {
 
   const { upsertEntry, getTodayEntry, getProjection } = useFleetBalanceContext();
 
-  const checkInDoneToday  = !!getTodayCheckpoint();
   const handoffDoneToday  = !!latestHandoff && businessDateOf(latestHandoff.loggedAt) === localDateStr(0);
   const [activeTab, setActiveTab]             = useState<'closing-duties' | 'summary' | 'whiteboard'>('closing-duties');
   const [showHandoffForm, setShowHandoffForm] = useState(false);
-  const [handoffOpen, setHandoffOpen]         = useState(checkInDoneToday);
+  // ⭐⭐ THE HAND-OFF IS NEVER COLLAPSED (Aaron, 2026-09-16: *"Yes just open. That's the reason for
+  // the complaint. Why I need to tap twice to log something."*)
+  //
+  // It used to seed `useState(checkInDoneToday)` — collapsed until the mid-shift check-in was done,
+  // on the theory that the hand-off is a LATER step. That theory cost a tap on every single shift,
+  // in both states: collapsed → expand → then act. Progressive disclosure is only worth a tap when
+  // it hides complexity, and what it was hiding was one button.
+  //
+  // ⚠️ Kept for `closingLogOpen`, deliberately: the closing log expands into a whole multi-field
+  // form, so gating it behind the hand-off is real staging rather than a toll booth.
+  const [handoffOpen, setHandoffOpen]         = useState(true);
   const [closingLogOpen, setClosingLogOpen]   = useState(handoffDoneToday);
   const [airportFlipOpen, setAirportFlipOpen] = useState(true); // surfaced high + open: the no-HIR flip tool is what he opens My Shift for mid-shift
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (checkInDoneToday)  setHandoffOpen(true);    }, [checkInDoneToday]);
+  // The hand-off's re-open effect went with its seed — it only ever set `true`, which is now the
+  // initial value, so it had nothing left to do.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (handoffDoneToday)  setClosingLogOpen(true); }, [handoffDoneToday]);
 
@@ -262,7 +280,14 @@ export function MyShiftView({ onOpenVehicle }: {
       {activeTab === 'whiteboard' && <WhiteboardView />}
 
       {/* Handoff form */}
-      {showHandoffForm && <HandoffForm onClose={() => setShowHandoffForm(false)} />}
+      {/* `existing` only when today's — so tapping the card EDITS today's entry, while a stale
+          hand-off from a previous shift-day correctly opens a fresh one. */}
+      {showHandoffForm && (
+        <HandoffForm
+          onClose={() => setShowHandoffForm(false)}
+          existing={handoffDoneToday ? latestHandoff : undefined}
+        />
+      )}
 
     </div>
   );

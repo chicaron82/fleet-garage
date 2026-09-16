@@ -10,10 +10,26 @@ import { convertToBackendFormat, convertFromBackend, carsFromPageCounter, gasShe
 import { shiftDateStr } from '../../lib/shiftDay';
 import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { findPriorShiftLog, buildBackfillClose } from '../../lib/washbayLineage';
-import type { LotStatus } from '../../types';
+import type { HandoffNote, LotStatus } from '../../types';
 
 interface Props {
   onClose: () => void;
+  /** ⭐⭐ TODAY'S HAND-OFF, WHEN ONE EXISTS — so re-opening this form EDITS rather than starts over.
+   *  Aaron, 2026-09-16: *"Show it if already logged, with tap to edit."*
+   *
+   *  ⚠️⚠️ WITHOUT THIS THE WORD "EDIT" WOULD HAVE BEEN A LIE THAT COST HIM DATA. The form read no
+   *  existing entry at all: `lotStatus` defaulted to 'manageable', `notes` to '', `photo` to null.
+   *  So tapping a card that said "Edit" would have opened a blank form, and submitting it would
+   *  have **silently dropped his notes and the board photo** — his 15:07 hand-off carried "5 dirty"
+   *  — because `submitHandoff` INSERTS and every reader takes `order logged_at desc, limit 1`
+   *  (WashbayContext:33, ShiftReportExport:119, useSidebar:98). The newest row wins everywhere, so
+   *  a blank re-log erases the real one in effect while leaving it in the table.
+   *
+   *  ⭐ Appending rather than updating is kept deliberately: the old rows are a record of what was
+   *  believed at the time, and nothing double-counts because all three readers take the newest.
+   *  Same reasoning as [[project_fg_archived_is_an_inference]] — keep the history, let the latest
+   *  claim win. */
+  existing?: HandoffNote;
 }
 
 const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; description: string; color: string }[] = [
@@ -25,7 +41,7 @@ const LOT_STATUS_OPTIONS: { value: LotStatus; label: string; description: string
 const STEP_BTN = 'w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 text-lg font-semibold text-gray-600 dark:text-gray-400 hover:border-fg-yellow hover:text-gray-900 dark:hover:text-gray-100 transition cursor-pointer flex items-center justify-center';
 const STEP_VAL = 'text-xl font-bold text-gray-900 dark:text-gray-100 w-6 text-center tabular-nums';
 
-export function HandoffForm({ onClose }: Props) {
+export function HandoffForm({ onClose, existing }: Props) {
   const { submitHandoff, submitWashbayLog, getLatestGasSheetReading, washbayLogs } = useWashbayContext();
   const { shifts } = useSchedule();
   const { user } = useAuth();
@@ -42,9 +58,14 @@ export function HandoffForm({ onClose }: Props) {
   // null = user hasn't touched the field yet — reads live from the seed until then,
   // so async context load after mount doesn't freeze a stale zero.
   const seed      = getLatestGasSheetReading();
-  const seedPages = seed
-    ? convertFromBackend(seed.fullPages, seed.lastPageEntries)
-    : { totalPages: 0, entriesOnCurrentPage: 0 };
+  // ⭐ EDITING BEATS THE LIVE SEED. When today's hand-off already exists he is correcting a RECORDED
+  // number, so the stored count wins over the running gas-sheet reading — otherwise opening the form
+  // to fix a typo in the notes would quietly re-count the cars underneath him.
+  const seedPages = existing
+    ? convertFromBackend(existing.fullPages, existing.lastPageEntries)
+    : seed
+      ? convertFromBackend(seed.fullPages, seed.lastPageEntries)
+      : { totalPages: 0, entriesOnCurrentPage: 0 };
 
   const [userPages,   setUserPages]   = useState<number | null>(null);
   const [userEntries, setUserEntries] = useState<number | null>(null);
@@ -71,12 +92,18 @@ export function HandoffForm({ onClose }: Props) {
   // Default team size = who actually showed (roster minus no-shows). The label
   // still shows the roster, so the existing "roster shows N (logging M)" mismatch
   // highlight lights up automatically when someone's absent.
-  const teamSize = userTeamSize ?? (presentTeam || 2);
-  const [lotStatus,       setLotStatus]       = useState<LotStatus>('manageable');
-  const [photo,           setPhoto]           = useState<string | null>(null);
-  const [notes,           setNotes]           = useState('');
-  const [adjustMorning,    setAdjustMorning]   = useState(false);
-  const [morningHours,     setMorningHours]    = useState(8.0);
+  const teamSize = userTeamSize ?? existing?.teamSize ?? (presentTeam || 2);
+  // ⚠️ SEEDING useState FROM A PROP IS THE SEED-ONCE TRAP THE REST OF THIS FILE GUARDS AGAINST — and
+  // it is correct here, for one specific reason: the form is mounted FRESH on every open
+  // (`{showHandoffForm && <HandoffForm …>}` unmounts it on close), so "once, at mount" is exactly
+  // once per edit. There is no re-entry of an already-mounted form to go stale. The null-sentinels
+  // above exist for the opposite case — values that resolve ASYNC after mount — and `existing` is
+  // already in hand when this renders.
+  const [lotStatus,       setLotStatus]       = useState<LotStatus>(existing?.lotStatus ?? 'manageable');
+  const [photo,           setPhoto]           = useState<string | null>(existing?.photoUrl ?? null);
+  const [notes,           setNotes]           = useState(existing?.notes ?? '');
+  const [adjustMorning,    setAdjustMorning]   = useState(existing ? existing.morningHours !== 8.0 : false);
+  const [morningHours,     setMorningHours]    = useState(existing?.morningHours ?? 8.0);
   // Auto-derived, not asked. FG already knows whether flipping happened — the airport-flip list
   // he's been adding to this shift, and/or a logged OTH `airport_flip` entry — so making him
   // re-attest it by memory is a recall test the app is giving itself (Aaron, 2026-07-19).
@@ -85,7 +112,8 @@ export function HandoffForm({ onClose }: Props) {
   // forever, the seed-once trap from e86441b). Once he taps it, his choice wins permanently.
   const flippingKnown = flip.rows.length > 0 || flippedOthToday;
   const [userFlipping, setUserFlipping] = useState<boolean | null>(null);
-  const airportFlipping = userFlipping ?? flippingKnown;
+  // On an edit, what he ATTESTED last time outranks the live signal — same reason as seedPages.
+  const airportFlipping = userFlipping ?? existing?.airportFlipping ?? flippingKnown;
   const [submitting,       setSubmitting]      = useState(false);
 
   // Backfill: when last night's close was never logged, the opener records how
@@ -144,7 +172,7 @@ export function HandoffForm({ onClose }: Props) {
 
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Log Shift Handoff</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{existing ? 'Edit Shift Handoff' : 'Log Shift Handoff'}</p>
           <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer text-lg leading-none">×</button>
         </div>
 
