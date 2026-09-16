@@ -76,6 +76,11 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
+        {/* ⭐ The × lives INSIDE the field, so the relative wrapper is on the input alone and the
+            "Look up" button keeps its own place in the row. Aaron, 2026-09-15: *"some search fields
+            don't have the x to clear, fleet, the header's look up, and the scan header's own manual
+            type fallback"* — the last two are THIS component, reached through the same overlay. */}
+        <div className="relative flex-1">
         <input
           value={query}
           onChange={e => setQuery(e.target.value.toUpperCase())}
@@ -87,8 +92,22 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
           aria-label="Look up a vehicle by plate or unit number"
           autoFocus={autoFocus}
           autoCapitalize="characters" autoCorrect="off" spellCheck={false}
-          className="flex-1 h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
+          className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-3 pr-9 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
         />
+        {/* ⚠️ `onMouseDown` + preventDefault, NOT onClick: the input's onBlur closes the suggestion
+            list on a 200ms delay, and a plain click would fire the blur first and move the layout
+            under the thumb before the tap landed. Same reason the suggestion list is delayed. */}
+        {query && (
+          <button
+            type="button"
+            onMouseDown={e => { e.preventDefault(); setQuery(''); }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
+        </div>
         {/* 44px, gloves on — the standard every other target on a scan surface holds to. */}
         <button type="button" onClick={commitTyped} disabled={!query.trim() || busy}
           className="h-11 shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">

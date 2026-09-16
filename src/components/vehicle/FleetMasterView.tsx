@@ -154,13 +154,32 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
 
       {/* Search + add */}
       <div className="flex gap-2">
+        {/* ⭐ The × matches HoldsView's exactly rather than being styled fresh — two clear buttons
+            that look different is how a house style stops being one. Aaron, 2026-09-15: *"some
+            search fields don't have the x to clear, fleet, …"* */}
+        <div className="relative flex-1">
         <input
           type="text"
           placeholder="Search plate, unit, or class (e.g. Q4)…"
+          /* ⚠️ A placeholder is not a label — it vanishes the moment he types, leaving a screen
+             reader (and the verify helper) with an unnamed box. Every other search field in FG has
+             one; this was the outlier, found while trying to render the new × into it. */
+          aria-label="Search the fleet by plate, unit, or class"
           value={search}
           onChange={e => setSearch(e.target.value.toUpperCase())}
-          className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
+          className="w-full pl-3 pr-9 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
         />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
+        </div>
         {/* ⚠️ CARRIES THE SEARCH TERM, and it did not until 2026-08-26. Aaron, on a faded tag he
             could not scan: *"entered the plate, no match. register. get to the form but the plate
             didn't transfer. so had to enter it again."* The no-match CTA below always passed it —
