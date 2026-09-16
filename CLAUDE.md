@@ -36,6 +36,36 @@ car, or has the number moved?"*
 
 Fully written up under *"The counter-rule"* below. Do not re-derive it from `ROLE_MODULES`.
 
+### 4. Cars with NO unit number → geotab watchlist, awaiting a first sighting. Resolved.
+
+**16 live cars have a null `unit_number`, no VIN and no tag photo.** They are not a data-quality
+problem and nothing is missing. Aaron, 2026-09-15: *"the 16 plate only cars are the geotab cars that
+haven't come back on my shift."*
+
+⭐ **Verified the same day: 15 of 15 are on `geotab_watchlist`, all created `2026-07-18` (one import),
+all carrying holds.** (The 16th, LZM516, has a unit — it is one of the shared-tag Priuses.)
+
+⚠️ **A plate-only car is the EXPECTED shape of a car FG learned from a LIST rather than from a tag.**
+The unit, VIN, class and photo all come off the key tag, and he has not held one yet. They fill in
+the first time the car reaches him ([[reference_geotab_watchlist_clearing]]). **Do not report them as
+incomplete records, and do not try to backfill them from anything.**
+
+### 5. ⚠️ THE CANONICAL FILTER HAS A NULL TRAP — and it bit on 2026-09-15
+
+```sql
+from vehicles where archived_at is null and unit_number not like 'HRZ-%'
+```
+
+⚠️⚠️ **`not like 'HRZ-%'` SILENTLY DROPS ROWS WHERE `unit_number` IS NULL** — SQL three-valued logic,
+`NULL not like …` is NULL, not true. So the documented filter excludes the 16 geotab cars above.
+
+**DiZee reported the live fleet as 764 and then 780 within minutes of the same database**, because a
+client-side `!(v.unit_number||'').startsWith('HRZ-')` keeps nulls and the server-side filter does not.
+Both were "correct"; they answer different questions.
+
+⭐ **Say which you mean, every time.** *"764 cars FG has met"* (has a unit) vs *"780 cars FG knows of"*
+(includes plate-only geotab rows). A fleet count with no stated filter is not a number, it is two.
+
 ### ⚠️ Keep this list growing — a recurrence that lives only in a conversation will recur
 
 **When he re-explains a resolved finding, add it here in the same turn.** The cost of a repeat lands
