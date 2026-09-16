@@ -42,8 +42,20 @@ const NOT_A_SEARCH: Record<string, string> = {
   'OdometerCapture.tsx':           'km off the dash — a reading, and it already has its own clear/correct affordance.',
 };
 
-/** Reads like a search/filter box rather than a form field. */
-const SEARCHY = /placeholder=["'{`][^"'`}]*\b([Ss]earch|[Ll]ook up)\b/;
+/**
+ * Reads like a search/filter box rather than a form field.
+ *
+ * ⚠️⚠️ THE aria-label HALF IS LOAD-BEARING, and the first cut did not have it. Matching only literal
+ * `placeholder="Search…"` missed **`VehicleLookup`**, whose placeholder is a PROP
+ * (`placeholder={placeholder}`) — and that component is the header 🔍, the scan sheet's typed
+ * fallback, the airport flip and the closing inventory. **Five surfaces, and the census built to
+ * protect search fields could not see the biggest one.**
+ *
+ * ⭐ Found on the second pass, 2026-09-15, the same day the pattern was written — because the regex
+ * was written against the six files in front of me and reported as covering the class. A guard whose
+ * reach is narrower than its claim is worse than no guard: it makes the gap look checked.
+ */
+const SEARCHY = /(placeholder|aria-label)=["'{`][^"'`}]*\b([Ss]earch|[Ll]ook up)\b/;
 
 describe('every search field can be cleared, and every clear looks the same', () => {
   const files = tsxFiles(join(ROOT, 'src/components'))
@@ -51,6 +63,9 @@ describe('every search field can be cleared, and every clear looks the same', ()
 
   it('⭐ finds search fields at all — a census that matches nothing is not a census', () => {
     expect(files.length).toBeGreaterThan(4);
+    // ⚠️ VehicleLookup is the one that proves the aria-label half works — a prop placeholder, and
+    // five surfaces behind it. If this drops out, the census has quietly narrowed again.
+    expect(files.some(f => f.endsWith('VehicleLookup.tsx'))).toBe(true);
   });
 
   it('⭐⭐ every search field has a Clear search button, or a NAMED reason it is not a search', () => {
@@ -60,6 +75,19 @@ describe('every search field can be cleared, and every clear looks the same', ()
       return !readFileSync(f, 'utf8').includes('aria-label="Clear search"');
     }).map(f => f.replace(ROOT + '/', ''));
     expect(missing, `These have a search field and no way to clear it. Add the × (copy any existing one — they are identical on purpose), or add the file to NOT_A_SEARCH with a reason:\n  ${missing.join('\n  ')}`).toEqual([]);
+  });
+
+  // ⚠️⚠️ AND EVERY SEARCH FIELD MUST BE NAMED. Fleet's, Issue Log's and Lost & Found's had a
+  // placeholder and no `aria-label` — and a placeholder VANISHES the moment he types, leaving a
+  // screen reader with an unnamed box. Every one of them was found the same way: the verify helper
+  // could not target the field to render into it. ⭐ THE TOOLING COULD NOT REACH THEM FOR THE SAME
+  // REASON A SCREEN READER COULD NOT, which is the most useful thing an accessibility gap can do.
+  it('⚠️ every search field carries an aria-label — a placeholder is not a label', () => {
+    const unnamed = files.filter(f => {
+      const src = readFileSync(f, 'utf8');
+      return !/aria-label=["'{`][^"'`}]*\b([Ss]earch|[Ll]ook up)\b/.test(src);
+    }).map(f => f.split('/').pop());
+    expect(unnamed, `Search fields with no aria-label — a placeholder disappears as soon as he types:\n  ${unnamed.join('\n  ')}`).toEqual([]);
   });
 
   // ⚠️ THE DRIFT HALF, and the one that would have caught Lost & Found. A button that exists but

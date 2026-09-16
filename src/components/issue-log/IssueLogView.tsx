@@ -118,6 +118,7 @@ export function IssueLogView() {
         <input
           type="text"
           placeholder="Search issues…"
+          aria-label="Search issues"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className={`${inputCls} w-full pr-9`}
