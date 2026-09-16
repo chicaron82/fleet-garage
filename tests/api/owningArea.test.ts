@@ -158,6 +158,15 @@ describe('owningLabel — the branch Aaron confirmed tonight', () => {
     // three independent axes. It had been confirmed in memory for four days while FG still showed
     // the bare number.
     expect(owningLabel('8898')).toBe('Toronto (8898)');
+    // ⭐⭐ PASS TWO FOUND THIS, and it is the part I shipped blind. `KNOWN` also builds
+    // CITY_TO_OWNINGS, so naming 8898 silently changed `checkOwningCity`: a tag reading
+    // `TORONTO / 08898` — which is exactly what HFE872's tag says — used to come back **conflict**,
+    // telling Aaron the tag disagreed with itself when it never did. It now agrees. The fix was
+    // right and the blast radius was wider than the map entry; lock both halves.
+    expect(checkOwningCity('TORONTO', '08898').kind).toBe('agree');
+    expect(checkOwningCity('TORONTO', '08197').kind).toBe('agree');
+    // ⚠️ And it must NOT have widened Halifax — HFE872 WEARS Halifax plates while being Toronto's.
+    expect(checkOwningCity('HALIFAX', '08898').kind).toBe('conflict');
     // ⚠️ And it is a DIFFERENT number from the current Toronto, deliberately — same city, same
     // label, the code carries the distinction (as with Winnipeg 8199/8999).
     expect(owningLabel('8197')).toBe('Toronto (8197)');

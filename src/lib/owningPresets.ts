@@ -34,9 +34,22 @@ export interface OwningPresetVehicle { owningArea?: string | null }
  * his tenure."* Winnipeg is 284 of 365 today and sits first; if the fleet's shape changes, so does
  * the order, with nobody remembering to update anything.
  *
- * ⚠️ INTERSECTED WITH THE LIVE FLEET, which quietly drops `8999` — Winnipeg's pre-renumber number.
- * It stays in `KNOWN` so historical cars still read as Winnipeg, but no car wears it today and a
- * button for it would be an invitation to file a car under a branch that no longer exists.
+ * ⚠️ INTERSECTED WITH THE LIVE FLEET — a code nothing carries gets no button.
+ *
+ * ⚠⚠ **THIS COMMENT USED TO CLAIM THE INTERSECTION "QUIETLY DROPS 8999", AND IT DOES NOT
+ * (corrected 2026-09-16, found by a pass-two sweep of everything `KNOWN` reaches).** The claim
+ * rested on "no car wears it today", which is false and has been for a while: **`KUR261` (the lot
+ * shuttle) and `LJF670` both carry 8999 right now**, so the list renders an 8999 button and always
+ * has. The reasoning was sound — a button for a retired owning IS an invitation to file a car under
+ * a branch that no longer exists — but it was a stated INTENT that no code implements, sitting in a
+ * position that reads like a description of behaviour. ⭐ **A comment describing what the code does
+ * is a claim, and a claim about live data expires.** Whether 8999 should be suppressed is Aaron's
+ * call (the two cars are real and he scans the shuttle like anything else), so nothing was gated on
+ * my opinion — only the false sentence removed. Same treatment as the archived badge's
+ * "viewing only".
+ *
+ * The counts in the paragraph above are likewise a snapshot, not a guarantee — it was 284 of 365
+ * when written and is 525 of 770 today.
  */
 export function owningPresets(vehicles: readonly OwningPresetVehicle[]): OwningPreset[] {
   const known = new Set(knownOwningCodes());
