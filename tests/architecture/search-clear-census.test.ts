@@ -98,6 +98,12 @@ describe('every search field can be cleared, and every clear looks the same', ()
   // ⚠️ Terminate the tag on `/>`, NOT on `>`. JSX attributes contain arrow functions (`e => …`), so a
   // `[^>]*` scan stops inside `onChange` and reports a labelled input as unlabelled. That mistake was
   // made and caught while writing this line.
+  // ⚠️ KNOWN BLIND SPOT, verified latent 2026-09-15: a file that passes a search-ish placeholder DOWN
+  // to a child component and owns no `<input>` itself would be flagged here as unnamed, even though
+  // the child is labelled. `<VehicleLookup placeholder="Search for a plate" />` is the shape. No such
+  // file exists today (checked: all 7 own their input), and resolving component references is beyond
+  // what a census should attempt — so it is written down rather than guarded. **If this fires on a
+  // file with no input of its own, the census is wrong, not the file.**
   it('⚠️ every search INPUT carries an accessible name — a placeholder vanishes as he types', () => {
     const unnamed: string[] = [];
     for (const f of files) {
