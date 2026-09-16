@@ -109,13 +109,27 @@ export function IssueLogView() {
 
       {/* Search + new issue */}
       <div className="flex gap-2">
+        {/* ⚠️⚠️ WAS `type="search"`, which is why this one LOOKED fine to anyone but him: the browser
+            draws its own clear on some desktop engines and NONE on Android, so the field he uses had
+            nothing while a reviewer's had something. A native affordance that is absent on the only
+            device that matters is worse than no affordance — it hides the gap. Explicit now, so it is
+            the same button everywhere (2026-09-15). */}
+        <div className="relative flex-1">
         <input
-          type="search"
+          type="text"
           placeholder="Search issues…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className={`${inputCls} flex-1`}
+          className={`${inputCls} w-full pr-9`}
         />
+        {searchQuery && (
+          <button type="button" onClick={() => setSearchQuery('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+            aria-label="Clear search">
+            ×
+          </button>
+        )}
+        </div>
         <PrimaryAction label="Issue" onClick={() => setShowNewForm(true)} disabled={showNewForm} />
       </div>
 

@@ -73,8 +73,22 @@ export function CrewRow({ member, showRemove, onChange, onRemove }: {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setTimeout(() => setFocused(false), 150)}
                 placeholder="Search crew by name…"
-                className={`w-full ${INPUT}`}
+                aria-label="Search crew by name"
+                className={`w-full pr-9 ${INPUT}`}
               />
+              {/* ⚠️ `onMouseDown` + preventDefault, not `onClick` — the 150 ms blur above closes the
+                  candidate dropdown, and a plain click fires blur first and moves the list out from
+                  under the thumb before the tap lands. Same reason as VehicleLookup's. */}
+              {query && (
+                <button
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); setQuery(''); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
               {showDrop && (
                 <div className="absolute z-20 top-full mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden">
                   {candidates.map(c => (

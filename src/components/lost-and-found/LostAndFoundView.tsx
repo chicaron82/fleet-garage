@@ -86,10 +86,16 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
             onChange={e => setQuery(e.target.value)}
             className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
           />
+          {/* ⚠️ THIS ONE EXISTED AND HAD DRIFTED (normalised 2026-09-15): `✕` U+2715 instead of `×`
+              U+00D7, `text-sm` instead of `text-base`, and NO aria-label — which is also why a sweep
+              grepping for "Clear search" could not see it. Aaron: *"each new addition forgets what
+              came before it. so fields don't always have the same thing."* Three different clear
+              buttons in one app is the drift, not the missing ones. */}
           {query && (
             <button type="button" onClick={() => setQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm leading-none cursor-pointer transition">
-              ✕
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer transition"
+              aria-label="Clear search">
+              ×
             </button>
           )}
         </div>
