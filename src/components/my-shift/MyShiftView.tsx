@@ -48,9 +48,27 @@ function HandoffSection({ latestHandoff, canLog, onLogHandoff }: {
   const isToday = latestHandoff ? businessDateOf(latestHandoff.loggedAt) === localDateStr(0) : false;
 
   if (!latestHandoff || !isToday) {
+    // ⚠️⚠️ THIS IS A SOLID BUTTON BECAUSE A DASHED ONE COST HIM A TAP, EVERY DAY (Aaron,
+    // 2026-09-16): *"why I need to tap log shift hand-off twice before I can actually log
+    // anything"* — then, pinning it exactly: *"Shift hand-off, then log shift hand-off."*
+    //
+    // Nothing was broken. `StepSection` renders its COLLAPSED state as a dashed, rounded, full-width
+    // `py-3` grey row, and this CTA was a dashed, rounded, full-width `py-3` grey row — so the first
+    // tap swapped a placeholder for a near-identical placeholder IN THE SAME SLOT. One shade of
+    // grey, one font weight, and ▶ becoming → were the entire difference. The tap worked; it just
+    // did not LOOK like it had, so the honest reading of the screen was "that did nothing."
+    //
+    // ⭐ The rule: **a dashed border means "nothing here yet"; an action must not wear it.** This is
+    // the section's primary action, so it takes the same solid `bg-fg-yellow` the Check In button
+    // above it uses — now expanding visibly turns an empty step into a thing to press.
+    //
+    // ⚠️ And note WHEN it bit: only while no hand-off exists. Once one is logged this renders a
+    // coloured status card and the ambiguity disappears — so the failure mode lived exactly in the
+    // state where he needed the button. A bug that hides once you have succeeded once is one only
+    // the operator can report; no gate would have asked.
     return (
       <button type="button" onClick={onLogHandoff}
-        className="w-full py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-fg-yellow dark:hover:border-fg-yellow-hi hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
+        className="w-full py-3 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi text-gray-900 text-sm font-semibold transition cursor-pointer">
         Log Morning Shift Handoff →
       </button>
     );
