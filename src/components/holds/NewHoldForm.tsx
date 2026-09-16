@@ -182,6 +182,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                       ref={unitInputRef}
                       type="text"
                       placeholder="Search by unit # or plate…"
+                      aria-label="Search for a vehicle by unit number or plate"
                       value={h.unitSearch}
                       onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
                       autoFocus

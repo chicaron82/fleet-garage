@@ -192,6 +192,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
               ref={searchRef}
               type="text"
               placeholder="Search unit #, plate, make…"
+              aria-label="Search holds by unit number, plate, or make"
               value={search}
               onChange={e => {
                 setSearch(e.target.value.toUpperCase());

@@ -85,7 +85,13 @@ describe('every search field can be cleared, and every clear looks the same', ()
   it('⚠️ every search field carries an aria-label — a placeholder is not a label', () => {
     const unnamed = files.filter(f => {
       const src = readFileSync(f, 'utf8');
-      return !/aria-label=["'{`][^"'`}]*\b([Ss]earch|[Ll]ook up)\b/.test(src);
+      // ⚠️⚠️ EXCLUDE "Clear search" — found on the second pass, 2026-09-15, and it made this whole
+      // assertion circular: every clear button is labelled "Clear search", which CONTAINS "search",
+      // so the button satisfied the requirement meant for the INPUT. `HoldsView` and `NewHoldForm`
+      // both passed with unnamed search boxes. **The thing that made a file match was also the thing
+      // that cleared the requirement.**
+      const labels = [...src.matchAll(/aria-label=["'{`]([^"'`}]*)["'`}]/g)].map(m => m[1]);
+      return !labels.some(l => /\b([Ss]earch|[Ll]ook up)\b/.test(l) && !/^Clear search$/.test(l));
     }).map(f => f.split('/').pop());
     expect(unnamed, `Search fields with no aria-label — a placeholder disappears as soon as he types:\n  ${unnamed.join('\n  ')}`).toEqual([]);
   });
