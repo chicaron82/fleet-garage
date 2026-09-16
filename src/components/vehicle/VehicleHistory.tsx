@@ -141,7 +141,17 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
                   not. Whether they SHOULD be live is Aaron's call and he did not ask for it — he asked
                   to look at the car. So the claim came out rather than the actions being gated on my
                   own opinion. A badge that overstates the screen is the same defect as a screen that
-                  overstates its data. */}
+                  overstates its data.
+
+                  ⭐⭐ RULED — IT STAYS WRITEABLE (Aaron, 2026-09-16). Asked directly, he settled it:
+                  *"let it be writeable. if i scanned it, it may have gone out for rent sometime
+                  between me archiving it and between my shifts when i wasnt there."* ⚠️ **Archived is an
+                  INFERENCE, not an event.** FG archives a car because nobody SAW it — not because
+                  anything happened to it — and he is away from the lot for whole days at a time, during
+                  which it can rent, return and move without a single FG row. So a tag in his hand is
+                  EVIDENCE THE INFERENCE WAS WRONG, and locking the record would mean the one moment he
+                  can correct it is the moment FG stops listening. The badge is the entire treatment:
+                  it dates the guess, and he overwrites it. Do not re-litigate this into read-only. */}
               {vehicle.archivedAt && (
                 <p className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700">
                   📦 Archived {new Date(vehicle.archivedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
