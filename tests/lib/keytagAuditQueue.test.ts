@@ -181,6 +181,56 @@ describe('checkVehicleWatchlist', () => {
     expect(checkVehicleWatchlist([car(), car({ keytagAuditResult: 'verified' })])).toEqual([]);
   });
 
+  // ── the errand can finally be FINISHED (migration 147) ────────────────────────────────────────
+  // This list's instruction is "read the barcode sticker in the door jamb". Before `vinSource` it
+  // could only ever grow, because nothing could tell that the reading had happened. LFJ437 and
+  // LZM516 were identical rows with opposite meanings.
+  it('⭐⭐ drops a car whose VIN came off the DOOR JAMB — the errand, carried out', () => {
+    expect(checkVehicleWatchlist([
+      car({ id: 'lfj437', keytagAuditResult: 'check-vehicle',
+            vinLast9: '6S7384010', vinSource: 'sticker' }),
+    ])).toEqual([]);
+  });
+
+  // ⚠️ THE LZM516 CASE, and the reason 'any VIN' would have been the wrong rule. Its VIN is real and
+  // clean — and it came off a tag the OTHER Prius also prints, which is the whole question.
+  it('⚠️ KEEPS a car whose VIN came off a tag, however clean the value', () => {
+    const list = checkVehicleWatchlist([
+      car({ id: 'lzm516', keytagAuditResult: 'check-vehicle',
+            vinLast9: '0T3076384', vinSource: 'tag' }),
+    ]);
+    expect(list.map(v => v.id)).toEqual(['lzm516']);
+  });
+
+  // ⚠️ 719 rows predate the column. Unknown must keep work VISIBLE, never assume it away.
+  it('⚠️ keeps a car whose VIN source is unknown — null is not "settled"', () => {
+    const list = checkVehicleWatchlist([
+      car({ id: 'legacy', keytagAuditResult: 'check-vehicle', vinLast9: '1S7793886', vinSource: null }),
+      car({ id: 'novin',  keytagAuditResult: 'check-vehicle', vinLast9: null }),
+    ]);
+    expect(list.map(v => v.id)).toEqual(['legacy', 'novin']);
+  });
+
+  // ⚠️ An INFERRED VIN was never read by anyone — LUR173. It cannot settle an errand whose whole
+  // point is that somebody go and LOOK.
+  it('⚠️ keeps a car whose VIN was inferred rather than read', () => {
+    expect(checkVehicleWatchlist([
+      car({ id: 'lur173', keytagAuditResult: 'check-vehicle',
+            vinLast9: '1S7793886', vinSource: 'inferred' }),
+    ]).map(v => v.id)).toEqual(['lur173']);
+  });
+
+  // ⭐ The live list on 2026-09-15, as a whole: one settles, three stay.
+  it('⭐ the real four: LFJ437 settles, the other three remain', () => {
+    const list = checkVehicleWatchlist([
+      car({ id: '728NVJ', licensePlate: '728NVJ', keytagAuditResult: 'check-vehicle', vinLast9: null }),
+      car({ id: 'LFJ437', licensePlate: 'LFJ437', keytagAuditResult: 'check-vehicle', vinLast9: '6S7384010', vinSource: 'sticker' }),
+      car({ id: 'LZM516', licensePlate: 'LZM516', keytagAuditResult: 'check-vehicle', vinLast9: '0T3076384', vinSource: 'tag' }),
+      car({ id: 'LZM539', licensePlate: 'LZM539', keytagAuditResult: 'check-vehicle', vinLast9: null }),
+    ]);
+    expect(list.map(v => v.id)).toEqual(['728NVJ', 'LZM516', 'LZM539']);
+  });
+
   // ⭐ Applied at BIRTH here rather than discovered later — `retakeWatchlist` shipped without the
   // archived rule on 2026-09-07 and had to be repaired. A car that has left the fleet cannot have
   // its door jamb read either.

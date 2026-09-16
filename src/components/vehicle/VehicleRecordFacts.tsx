@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { offersOnLotCheck, onLotLabel, onLotState } from '../../lib/onLotObservation';
-import { vinFindings, vinFindingHint } from '../../lib/vinChecks';
+import { vinFindings, vinFindingHint, VIN_SOURCE_NOTE } from '../../lib/vinChecks';
 import { identityGaps, describeIdentityGaps } from '../../lib/vehicleName';
 import { lookupVehicleClass } from '../../../api/_lib/vehicleClassCodex';
 import { useGeotabInstall } from '../../hooks/useGeotabInstall';
@@ -11,7 +11,7 @@ import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
 import { useProfiles } from '../../context/ProfilesContext';
-import type { KeytagAuditResult } from '../../types';
+import type { KeytagAuditResult, VinSource } from '../../types';
 import { keyOptionsFor } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
@@ -50,7 +50,7 @@ import { OdometerCapture } from '../shared/OdometerCapture';
 // one of them is noise, not a nudge. Read-only without `onEdit`, so surfaces that shouldn't edit
 // simply don't pass it.
 
-export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, make, model, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, year, isUs, winterTires, winterTiresAt, onLot, onEditCodes }: {
+export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPhotoRotation, keytagPhotoConfirmedAt, keytagPhotoConfirmedBy, keytagAudit, make, model, keyCount, isTesla, classCode, rentalClass, odometer, odometerAt, vinLast9, vinSource, year, isUs, winterTires, winterTiresAt, onLot, onEditCodes }: {
   vehicleId: string;
   /** Drives the "last seen" lookup — sightings are keyed on plate, not id (see migrations/114). */
   plate?: string | null;
@@ -78,6 +78,8 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   rentalClass?: string | null;
   /** Last 9 of the VIN (migration 126). Never the full VIN — nothing may decode a make from it. */
   vinLast9?: string | null;
+  /** Where that VIN came from (migration 147). Null on rows written before the column. */
+  vinSource?: VinSource | null;
   /** Needed only to cross-check the VIN's model-year code against it. See vinChecks. */
   year?: number | null;
   /** US-plated: 🇺🇸 badge, and every odometer figure on this record reads MILES. */
@@ -392,9 +394,15 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
                 ? 'border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-400'
                 : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
             }`}
+            /* ⚠️⚠️ THIS TOOLTIP USED TO ASSERT "read off the key tag" ABOUT EVERY VIN, and as of
+               2026-09-15 that is simply false: LFJ437's came off its door-jamb sticker, because its
+               tag is handwritten and has no `Last9vin:` line to read. A hardcoded provenance is the
+               same class of error as a screen claiming an observation it never got — it was true of
+               most rows and stated as true of all. Now it reads the column (migration 147) and says
+               "source not recorded" for the 726 rows that predate it, rather than guessing. */
             title={finding
               ? `${finding.detail}\n${vinFindingHint(finding)}`
-              : 'Last 9 of the VIN, read off the key tag — not the full VIN'}
+              : `Last 9 of the VIN — not the full VIN. ${VIN_SOURCE_NOTE[vinSource ?? 'unknown']}`}
           >
             {finding ? '⚠️' : '🔖'} {vinLast9}
           </span>

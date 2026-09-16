@@ -1766,6 +1766,7 @@ export type Database = {
           unit_number: string | null
           updated_at: string | null
           vin_last9: string | null
+          vin_source: string | null
           winter_tires: boolean | null
           winter_tires_at: string | null
           year: number
@@ -1818,6 +1819,7 @@ export type Database = {
           unit_number?: string | null
           updated_at?: string | null
           vin_last9?: string | null
+          vin_source?: string | null
           winter_tires?: boolean | null
           winter_tires_at?: string | null
           year: number
@@ -1870,6 +1872,7 @@ export type Database = {
           unit_number?: string | null
           updated_at?: string | null
           vin_last9?: string | null
+          vin_source?: string | null
           winter_tires?: boolean | null
           winter_tires_at?: string | null
           year?: number

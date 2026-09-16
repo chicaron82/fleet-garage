@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useRef } from 
 import { holdLatestActivity } from '../lib/displayHold';
 import type { UpdateFieldsResult } from './vehicleFieldsWrite';
 import type { KeytagAuditEdits, KeytagAuditSaveResult, KeytagFlag } from './keytagAuditWrite';
-import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus, Disposition } from '../types';
+import type { Vehicle, Hold, Release, Repair, HoldType, DetailReason, MechanicalSubType, EvSource, EvAssetLoan, EvLoanAsset, VehicleStatus, Disposition, VinSource } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { mapVehicle, mapHold } from '../lib/garage-mappers';
@@ -42,7 +42,8 @@ export interface VehicleHoldContextValue {
   recordClassCode: (vehicleId: string, classCode: string) => Promise<void>;
   /** Record the last 9 of the VIN read off a tag, if the vehicle has none yet. Immutable — the
    *  first good read stands. See vinWrite. */
-  recordVinLast9: (vehicleId: string, vinLast9: string) => Promise<void>;
+  /** `source` defaults to 'tag' — every in-app caller is a tag read (migration 147). */
+  recordVinLast9: (vehicleId: string, vinLast9: string, source?: VinSource) => Promise<void>;
   /** The auditor's write: a HUMAN read the stored tag photo. May CORRECT any tag field (a VIN
    *  included — the one place that is allowed) and stamps every non-blank field 'manual', which
    *  locks it against later misreads. Returns a unit# conflict when that one field was blocked.

@@ -58,6 +58,7 @@ export function mapVehicle(row: Row): Vehicle {
     onLotPresent:   (row['on_lot_present'] as boolean | null) ?? null,
     onLotCheckedAt: optStr(row, 'on_lot_checked_at') ?? null,
     vinLast9:     optStr(row, 'vin_last9') ?? null,
+    vinSource:    (optStr(row, 'vin_source') ?? null) as Vehicle['vinSource'],
     isUs:          row.is_us === true,
     winterTires:   (row.winter_tires as boolean | null | undefined) ?? null,
     winterTiresAt: optStr(row, 'winter_tires_at') ?? null,

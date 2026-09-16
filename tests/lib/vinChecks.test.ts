@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkVinFraming, checkVinYear, vinFindings, vinFindingHint } from '../../src/lib/vinChecks';
+import { checkVinFraming, checkVinYear, vinFindings, vinFindingHint, VIN_SOURCE_NOTE } from '../../src/lib/vinChecks';
 
 // ⭐ Every fixture below is a REAL car from the fleet on 2026-08-29, named by its plate. Aaron
 // derived the year-code rule himself from two tags he had read, and corrected two cars by hand
@@ -118,6 +118,35 @@ describe('vinFindingHint — the two fixes are different actions', () => {
     for (const vin of ['VXSL47717', '9TB189231', '68L484889']) {
       const hint = vinFindingHint(vinFindings(vin, 2025)[0]);
       expect(hint).not.toMatch(/should be|change it to|correct value/i);
+    }
+  });
+});
+
+// ⚠️⚠️ The record's VIN chip used to hardcode "read off the key tag" about EVERY VIN. LFJ437 made
+// that false on 2026-09-15 — handwritten tag, no `Last9vin:` line, VIN read off the door jamb.
+describe('VIN_SOURCE_NOTE — the chip stops asserting a provenance it does not have', () => {
+  it('⭐ names the door jamb for a sticker read, and does not say "key tag"', () => {
+    expect(VIN_SOURCE_NOTE.sticker).toMatch(/door-jamb/i);
+    expect(VIN_SOURCE_NOTE.sticker).not.toMatch(/key tag/i);
+  });
+
+  // ⚠️ THE LOAD-BEARING ONE. 726 rows predate the column; calling them "key tag" would re-commit
+  // the exact error this map was written to fix, just with a data source instead of a hardcode.
+  it('⚠️ says unknown for an unrecorded source — never guesses "tag"', () => {
+    expect(VIN_SOURCE_NOTE.unknown).toMatch(/not recorded/i);
+    expect(VIN_SOURCE_NOTE.unknown).not.toMatch(/tag|sticker|jamb/i);
+  });
+
+  it('marks an inferred VIN as never having been read by anyone', () => {
+    expect(VIN_SOURCE_NOTE.inferred).toMatch(/never read/i);
+  });
+
+  // Every VinSource value plus the unknown fallback must resolve — a missing key renders "undefined"
+  // into a tooltip, which is worse than the hardcode it replaced.
+  it('covers every source, and the fallback', () => {
+    for (const k of ['sticker', 'tag', 'inferred', 'unknown']) {
+      expect(typeof VIN_SOURCE_NOTE[k]).toBe('string');
+      expect(VIN_SOURCE_NOTE[k].length).toBeGreaterThan(0);
     }
   });
 });

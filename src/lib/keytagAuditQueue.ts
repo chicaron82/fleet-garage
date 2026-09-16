@@ -7,7 +7,7 @@
 // than two models arguing over a watermark, and fits the gaps he already has between cars.
 //
 // Pure: no DB, no React, no fetch. The caller hands in the fleet it already holds.
-import type { KeytagAuditResult } from '../types';
+import type { KeytagAuditResult, VinSource } from '../types';
 import { cityTailInRentalClass } from '../../api/_lib/owningArea';
 export type { KeytagAuditResult };
 
@@ -246,6 +246,8 @@ export interface AuditableVehicle {
   classCode?: string | null;
   unitNumber?: string | null;
   vinLast9?: string | null;
+  /** Where that VIN came from (migration 147) — what lets `checkVehicleWatchlist` close. */
+  vinSource?: VinSource | null;
 }
 
 /** One car in the queue, with the gaps that put it there. */
@@ -345,6 +347,24 @@ export function checkVehicleWatchlist<V extends AuditableVehicle>(vehicles: read
     // Applying it here at birth rather than discovering it later is the actual lesson from that.
     .filter(v => !v.archivedAt)
     .filter(v => v.keytagAuditResult === 'check-vehicle')
+    // ⭐⭐ AND THE ERRAND CAN NOW BE FINISHED (migration 147). This list's own instruction is *"read
+    // the barcode sticker in the door jamb"* — so a VIN that CAME from the door jamb is that
+    // instruction, carried out. Before the source column existed nothing could tell, and the list
+    // could only ever grow: LFJ437 (jamb-read, nothing left to do) and LZM516 (VIN off a tag the
+    // other Prius also claims, very much still a question) were identical rows with opposite
+    // meanings.
+    //
+    // ⚠️ ONLY 'sticker' CLOSES IT. A `tag` VIN does not — that is the LZM516 case, and the whole
+    // reason the flag exists. NULL does not either: 719 rows predate the column and their provenance
+    // is genuinely unknown, so they stay on the list. **Unknown keeps work visible**, which is the
+    // safe direction for a to-do list and the opposite of the assumption that would empty it.
+    //
+    // ⚠️ The stamp itself is NOT cleared — it stays true. A handwritten tag with no `Last9vin:` line
+    // is permanently a tag that cannot settle its car, whatever anyone later reads off a door jamb.
+    // Aaron, 2026-09-15, on whether LFJ437 counted even though he had already fixed it: *"It didn't
+    // have a VIN before today. Doesn't that count as needs details."* It does. The FACT stays and the
+    // LIST moves on — the record says what is true, the work list says what is left.
+    .filter(v => v.vinSource !== 'sticker')
     .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
 }
 

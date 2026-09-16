@@ -200,6 +200,20 @@ export type FieldSource = 'tag' | 'manual' | 'derived';
  *  instruction guaranteed not to work: a hundred fresh photos of a handwritten tag still print no
  *  VIN. The errand is the barcode sticker in the door jamb, which is a different source, not a
  *  better picture — so it gets its own list (`checkVehicleWatchlist`) and its own sentence. */
+/** Where a `vinLast9` came from (migration 147) — the VIN is the one identity field that used to
+ *  carry no provenance at all, while make/model/year/colour/class/unit all had `fieldSources`.
+ *
+ *  ⭐ `sticker` is the car's own door-jamb label: the strongest source there is, and the ONLY one
+ *  that settles a `check-vehicle` flag — there is nothing left to go and check.
+ *  ⚠️ `tag` is provisional however clean the read. A key tag can be SHARED (LZM516/LZM539 print the
+ *  same unit and VIN), SLICED (FTR2260 lost the first character of every line), or handwritten with
+ *  no `Last9vin:` line at all (LFJ437, DEWN854).
+ *  ⚠️ `inferred` was never read by anyone — LUR173's `S17793886` transposed to `1S7793886`, which
+ *  satisfies both the check digit and the year. Stamped so it can never be mistaken for a reading.
+ *  ⚠️ NULL means UNKNOWN, not "tag". 719 rows predate this column and are deliberately not guessed;
+ *  unknown keeps a car ON the watchlist, which is the safe direction for a to-do list. */
+export type VinSource = 'sticker' | 'tag' | 'inferred';
+
 export type KeytagAuditResult = 'verified' | 'unreadable' | 'stale' | 'check-vehicle';
 /* 'derived' (2026-08-19, migration 121): the value was DEDUCED from other fields FG already held —
  * a class code inferred from make + model + hybrid + year — rather than read off a tag or typed by a
@@ -272,6 +286,8 @@ export interface Vehicle {
    *  (manufacturer, attributes) are not printed on the tag, so nothing may decode a make from it.
    *  Immutable per car: first good read wins. The one identity key that survives a re-plate. */
   vinLast9?: string | null;
+  /** Where `vinLast9` came from (migration 147). Null on every row written before it. */
+  vinSource?: VinSource | null;
   /** US-plated (2026-08-27, FG's first — a Florida Jeep up from Fargo). Drives the 🇺🇸 badge and
    *  makes every odometer surface read MILES. Aaron also knows it means "not rentable locally";
    *  he declined a louder treatment because the car has a route home (driven back to Fargo). */

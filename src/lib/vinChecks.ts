@@ -124,3 +124,22 @@ export function vinFindingHint(f: VinFinding): string {
     ? 'Read the VIN off the car itself — the door jamb, not the tag. The tag may be the wrong one.'
     : 'Check the tag: either the VIN or the year on this record is wrong.';
 }
+
+/**
+ * What a VIN's provenance means, in a sentence he'd actually say (migration 147).
+ *
+ * ⚠️⚠️ WHY THIS EXISTS AT ALL. The record's VIN chip hardcoded *"read off the key tag"* about every
+ * VIN — true of most rows and stated as true of ALL of them. On 2026-09-15 LFJ437 made it false:
+ * its tag is handwritten with no `Last9vin:` line, so its VIN came off the DOOR-JAMB STICKER. A
+ * hardcoded provenance is the same class of error as a screen claiming an observation it never
+ * got, so the sentence now comes from the column.
+ *
+ * ⚠️ `unknown` is NOT a synonym for 'tag'. 726 rows predate the column, and guessing them would
+ * re-commit the exact error this map was written to fix.
+ */
+export const VIN_SOURCE_NOTE: Record<string, string> = {
+  sticker:  "Read off the door-jamb sticker — the car's own label.",
+  tag:      'Read off the key tag.',
+  inferred: 'Deduced from the check digit and year, never read off anything.',
+  unknown:  'Source not recorded.',
+};

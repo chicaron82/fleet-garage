@@ -1,6 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
-import type { Vehicle } from '../types';
+import type { Vehicle, VinSource } from '../types';
 
 /** Records the LAST 9 OF THE VIN read off a key tag (migrations/126).
  *
@@ -27,7 +27,15 @@ export function makeRecordVinLast9(deps: {
 }) {
   const { setAllVehicles, currentVehicle } = deps;
 
-  return async (vehicleId: string, rawVin: string): Promise<void> => {
+  /** ⭐ `source` defaults to 'tag' because EVERY in-app writer is a tag read — the scan router, the
+   *  audit card and registration all read the same printed line. 'sticker' has no UI yet and is set
+   *  where a door-jamb photo was actually read (LFJ437, 2026-09-15); 'inferred' likewise, for a value
+   *  deduced and never seen (LUR173). Migration 147.
+   *
+   *  ⚠️ The source travels WITH the value, in the same statement — it can never describe a different
+   *  write than the one it landed with. A separate follow-up update could be lost or reordered, and
+   *  a VIN wearing another read's provenance is worse than a VIN wearing none. */
+  return async (vehicleId: string, rawVin: string, source: VinSource = 'tag'): Promise<void> => {
     const vin = normalizeVinLast9(rawVin);
     if (!vin) return;
     if (currentVehicle(vehicleId)?.vinLast9) return;   // immutable — first reading stands
@@ -35,12 +43,12 @@ export function makeRecordVinLast9(deps: {
     const { data, error } = await writeWithRefresh(() =>
       supabase
         .from('vehicles')
-        .update({ vin_last9: vin })
+        .update({ vin_last9: vin, vin_source: source })
         .eq('id', vehicleId)
         .is('vin_last9', null)
         .select('id')
     );
     if (error || !data?.length) return;
-    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, vinLast9: vin } : v)));
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, vinLast9: vin, vinSource: source } : v)));
   };
 }
