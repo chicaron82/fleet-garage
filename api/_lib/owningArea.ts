@@ -62,6 +62,17 @@ const KNOWN: Record<string, string> = {
   // 8194 Montreal below. Named plainly "Montreal" for the same reason 8999 is plainly "Winnipeg" —
   // the NUMBER already distinguishes the old owning from the current one.
   '8892': 'Montreal',
+
+  // ⭐ Added 2026-09-16 — and the reason it was late is the finding. Aaron CONFIRMED this on
+  // 2026-09-12 (`reference_owning_area_codes`): *8898 = Toronto, the older owning*, worked out from
+  // `HFE872`, which is **Toronto-owned and wears Halifax plates** — it got them when it was flipped,
+  // and they match what Halifax issues. That confirmation landed in memory and never landed HERE, so
+  // for four days FG rendered a branch Aaron had already named as a bare number, while a note in the
+  // memory file said it was known. ⚠️ **A fact confirmed in one store and not the other is the same
+  // defect as a fact nobody confirmed — worse, because it looks answered from whichever side you
+  // check.** Named plainly "Toronto" for the same reason 8999 is plainly "Winnipeg": the NUMBER
+  // already distinguishes the old owning from 8197.
+  '8898': 'Toronto',
 };
 
 // ⚠️ STILL UNNAMED, deliberately: 1198 and 2294 — FG's only two US cars (SSDY46 and SPHV03, both

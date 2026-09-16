@@ -152,6 +152,17 @@ describe('owningLabel — the branch Aaron confirmed tonight', () => {
     expect(owningLabel('8198')).toBe('Halifax (8198)');
   });
 
+  it('names Toronto\'s older owning — confirmed 2026-09-12, landed in the map 2026-09-16', () => {
+    // HFE872: Toronto-owned (8898), wearing HALIFAX plates, sitting in Winnipeg. Three cities, one
+    // ordinary car — the worked example for why owning area, plate province and tag format are
+    // three independent axes. It had been confirmed in memory for four days while FG still showed
+    // the bare number.
+    expect(owningLabel('8898')).toBe('Toronto (8898)');
+    // ⚠️ And it is a DIFFERENT number from the current Toronto, deliberately — same city, same
+    // label, the code carries the distinction (as with Winnipeg 8199/8999).
+    expect(owningLabel('8197')).toBe('Toronto (8197)');
+  });
+
   it('⚠️ still shows an unconfirmed branch as a bare number rather than a guess', () => {
     expect(owningLabel('2294')).toBe('2294');
     // ⚠️ Was 8892 until 2026-09-07, when Aaron named it (old Montreal) and it stopped being an
