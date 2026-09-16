@@ -127,6 +127,26 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
                   about the same car, in the same app. */}
               <p className="text-base text-gray-500 dark:text-gray-400 mt-0.5"><VehicleName vehicle={vehicle} /> · {vehicle.color}</p>
               <p className="text-base text-gray-400 dark:text-gray-500 mt-0.5">Plate: {vehicle.licensePlate}</p>
+              {/* ⭐⭐ SAY IT IS ARCHIVED, ON THE RECORD ITSELF (2026-09-15). This screen can now be
+                  reached for an archived car — Aaron: *"i really just need the ability to view
+                  archived vehicles without having to restore it first."* Everything below reads
+                  exactly like a live car's record, so without this the only difference between a car
+                  in service and one retired months ago is a missing action he might not notice.
+                  ⚠️ It carries the DATE, for the same reason `onLotPresent` and `odometer` do: a
+                  state with no timestamp rots into a claim about now.
+
+                  ⚠️⚠️ AND IT SAYS ONLY WHAT IS TRUE. The first cut read "Archived … · viewing only",
+                  which the RENDER immediately disproved: Log odometer, Leave a note and + Flag Issue
+                  are all still live on an archived car, three lines below a badge promising they were
+                  not. Whether they SHOULD be live is Aaron's call and he did not ask for it — he asked
+                  to look at the car. So the claim came out rather than the actions being gated on my
+                  own opinion. A badge that overstates the screen is the same defect as a screen that
+                  overstates its data. */}
+              {vehicle.archivedAt && (
+                <p className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700">
+                  📦 Archived {new Date(vehicle.archivedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
               <div className="mt-2"><VehicleRecordFacts vehicleId={vehicle.id} plate={vehicle.licensePlate} keytagPhotoUrl={vehicle.keytagPhotoUrl} keytagPhotoRotation={vehicle.keytagPhotoRotation} keytagPhotoConfirmedAt={vehicle.keytagPhotoConfirmedAt} keytagPhotoConfirmedBy={vehicle.keytagPhotoConfirmedBy} make={vehicle.make} model={vehicle.model} keytagAudit={{ at: vehicle.keytagAuditedAt, by: vehicle.keytagAuditedBy, result: vehicle.keytagAuditResult }} keyCount={vehicle.keyCount} isTesla={vehicle.isTesla} odometer={vehicle.odometer} odometerAt={vehicle.odometerAt} classCode={vehicle.classCode} rentalClass={vehicle.rentalClass} vinLast9={vehicle.vinLast9} vinSource={vehicle.vinSource} year={vehicle.year} isUs={vehicle.isUs} winterTires={vehicle.winterTires} winterTiresAt={vehicle.winterTiresAt} onLot={{ present: vehicle.onLotPresent, checkedAt: vehicle.onLotCheckedAt, vehicleStatus: vehicle.status }} onEditCodes={() => setShowDirectEdit(true)} /><VehicleNote vehicleId={vehicle.id} note={vehicle.note} noteAt={vehicle.noteAt} /></div>
               {vehicle.editStatus === 'pending' && (
                 <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">

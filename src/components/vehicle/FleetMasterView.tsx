@@ -334,7 +334,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       {/* ⭐ Archived cars, at the foot — collapsed, and it opens itself when a search matches one.
           Moved here from Holds 2026-09-06: Fleet's search is the one that answers "does FG know this
           car", and for an archived plate it was answering NO while the row sat one module away. */}
-      <FleetArchivedSection search={search} />
+      <FleetArchivedSection search={search} onOpen={id => onNavigate({ name: 'vehicle', vehicleId: id })} />
     </div>
   );
 }

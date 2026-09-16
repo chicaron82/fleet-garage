@@ -23,6 +23,8 @@ export interface VehicleHoldContextValue {
   loadError: boolean;
   reload: () => void;
   getVehicle: (id: string) => Vehicle | undefined;
+  /** Includes ARCHIVED cars. Only the vehicle-record screen should use this — see the impl. */
+  getAnyVehicle: (id: string) => Vehicle | undefined;
   getVehicleByUnit: (unitNumber: string) => Vehicle | undefined;
   getHoldsForVehicle: (vehicleId: string) => Hold[];
   getActiveHold: (vehicleId: string) => Hold | undefined;
@@ -267,6 +269,17 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
 
   // ── Computed values ──────────────────────────────────────────────────────────
   const getVehicle = (id: string) => vehicles.find(v => v.id === id);
+  /** ⭐ The record screen's lookup — the ONE place archived cars must resolve (2026-09-15).
+   *
+   *  Aaron: *"i really just need the ability to view archived vehicles without having to restore it
+   *  first."* He had been RESTORING a car merely to look at it, which the 60-day sweep then undid on
+   *  the next Fleet open — so the workaround could not work even in principle.
+   *
+   *  ⚠️⚠️ DELIBERATELY NOT A WIDENING OF `getVehicle`. Every other consumer — the scan router, holds,
+   *  trips, the register form — asks "is this a car in service?" and must keep getting `undefined`
+   *  for an archived one. Widening the shared accessor would silently let an archived car be flagged,
+   *  scanned onto a trip or re-registered. One screen needs the wider view; one screen gets it. */
+  const getAnyVehicle = (id: string) => allVehicles.find(v => v.id === id);
   const getVehicleByUnit = (unitNumber: string) =>
     vehicles.find(v => v.unitNumber?.toLowerCase() === unitNumber.toLowerCase());
 
@@ -311,6 +324,7 @@ export function VehicleHoldProvider({ children }: { children: React.ReactNode })
       evAssetLoans, createEvAssetLoan, returnEvAssetLoan,
       ...ops,
       archivedVehicles,
+      getAnyVehicle,
       shuttlePlate, setShuttlePlate,
     }}>
       {children}

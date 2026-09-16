@@ -11,7 +11,7 @@ export function useVehicleHistory(vehicleId: string) {
   // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
   const { photoError, takeMany } = usePhotoIntake();
   const { user } = useAuth();
-  const { getVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
+  const { getAnyVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   // The hold(s) being repaired in the confirm step — an array so one confirm can
@@ -35,7 +35,10 @@ export function useVehicleHistory(vehicleId: string) {
     void syncVehicleStatus(vehicleId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const vehicle = getVehicle(vehicleId);
+  // ⚠️ `getAnyVehicle`, not `getVehicle` — this screen is the one place an ARCHIVED car must still
+  // resolve, so he can look one up without restoring it first (2026-09-15). Its only consumer is
+  // VehicleHistory; nothing else widens.
+  const vehicle = getAnyVehicle(vehicleId);
   const holds = getHoldsForVehicle(vehicleId);
   const activeHold = getActiveHold(vehicleId);
   const activeHolds = getActiveHolds(vehicleId);

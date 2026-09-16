@@ -20,7 +20,7 @@ import { canManageVehicles } from '../../types';
  * wrong shape. This is a thin adapter so `FleetMasterView` does not grow a context dependency (and
  * so its register-path test can stub one component instead of mocking a provider).
  */
-export function FleetArchivedSection({ search }: { search: string }) {
+export function FleetArchivedSection({ search, onOpen }: { search: string; onOpen?: (vehicleId: string) => void }) {
   const { user } = useAuth();
   const { archivedVehicles, restoreVehicle } = useVehicleHoldContext();
   if (!user || !canManageVehicles(user.role)) return null;
@@ -28,6 +28,7 @@ export function FleetArchivedSection({ search }: { search: string }) {
     <ArchivedVehiclesSection
       archivedVehicles={archivedVehicles}
       onRestore={restoreVehicle}
+      onOpen={onOpen}
       search={search}
     />
   );
