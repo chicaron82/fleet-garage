@@ -82,18 +82,29 @@ describe('every search field can be cleared, and every clear looks the same', ()
   // screen reader with an unnamed box. Every one of them was found the same way: the verify helper
   // could not target the field to render into it. ⭐ THE TOOLING COULD NOT REACH THEM FOR THE SAME
   // REASON A SCREEN READER COULD NOT, which is the most useful thing an accessibility gap can do.
-  it('⚠️ every search field carries an aria-label — a placeholder is not a label', () => {
-    const unnamed = files.filter(f => {
-      const src = readFileSync(f, 'utf8');
-      // ⚠️⚠️ EXCLUDE "Clear search" — found on the second pass, 2026-09-15, and it made this whole
-      // assertion circular: every clear button is labelled "Clear search", which CONTAINS "search",
-      // so the button satisfied the requirement meant for the INPUT. `HoldsView` and `NewHoldForm`
-      // both passed with unnamed search boxes. **The thing that made a file match was also the thing
-      // that cleared the requirement.**
-      const labels = [...src.matchAll(/aria-label=["'{`]([^"'`}]*)["'`}]/g)].map(m => m[1]);
-      return !labels.some(l => /\b([Ss]earch|[Ll]ook up)\b/.test(l) && !/^Clear search$/.test(l));
-    }).map(f => f.split('/').pop());
-    expect(unnamed, `Search fields with no aria-label — a placeholder disappears as soon as he types:\n  ${unnamed.join('\n  ')}`).toEqual([]);
+  // ⚠️⚠️ SCOPED TO THE <input> TAG, and the two cuts before this one were both wrong.
+  //
+  // ① Checking the FILE for a search-ish aria-label was CIRCULAR: every clear button is labelled
+  //    "Clear search", which contains "search", so the button satisfied the requirement meant for the
+  //    input. `HoldsView` and `NewHoldForm` — the two files held up as the correct examples — both
+  //    passed with unnamed search boxes.
+  // ② Excluding that exact string fixed the circularity and introduced a worse fault: it demanded the
+  //    label CONTAIN "search". A perfectly good `aria-label="Filter by plate"` would have FAILED.
+  //    ⭐ A guard that fails you for doing the right thing is one people delete.
+  //
+  // So: find the <input> tags that ARE the search field, and require the name on the ELEMENT — which
+  // is the actual requirement, with no opinion about wording.
+  //
+  // ⚠️ Terminate the tag on `/>`, NOT on `>`. JSX attributes contain arrow functions (`e => …`), so a
+  // `[^>]*` scan stops inside `onChange` and reports a labelled input as unlabelled. That mistake was
+  // made and caught while writing this line.
+  it('⚠️ every search INPUT carries an accessible name — a placeholder vanishes as he types', () => {
+    const unnamed: string[] = [];
+    for (const f of files) {
+      const tags = (readFileSync(f, 'utf8').match(/<input[\s\S]*?\/>/g) ?? []).filter(t => SEARCHY.test(t));
+      if (!tags.length || tags.some(t => !t.includes('aria-label='))) unnamed.push(f.split('/').pop()!);
+    }
+    expect(unnamed, `Search inputs with no aria-label — a placeholder disappears the moment he types, leaving a screen reader (and the verify helper) with an unnamed box:\n  ${unnamed.join('\n  ')}`).toEqual([]);
   });
 
   // ⚠️ THE DRIFT HALF, and the one that would have caught Lost & Found. A button that exists but
