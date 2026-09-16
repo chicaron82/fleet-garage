@@ -84,7 +84,23 @@ test('a hold card never grows past a phone-width screen — the badge stays on i
   // truncating, nothing can overflow and "every card fits" is trivially true. LUR327 ("Damage - written up
   // as 'DMG', detail not…") was the live case on 2026-09-14.
   expect(cards).toBeGreaterThan(0);
-  expect(truncating).toBeGreaterThan(0);
+
+  // ⚠️⚠️ NO LONG DESCRIPTION TODAY IS NOT A FAILURE — it is an UNCHECKABLE DAY (2026-09-15).
+  //
+  // This assertion was `expect(truncating).toBeGreaterThan(0)`, which made the gate red whenever the
+  // LOT happened not to contain a car with a long write-up. It did on 2026-09-14 (LUR327) and did not
+  // on the 15th, and the test cannot tell those two days apart from "the layout broke" — so it blocked
+  // four pushes in a row, none of them its business, and every one was waved through with SKIP_FLOWS=1.
+  //
+  // ⭐ A guard that cries wolf on a quiet lot teaches exactly one lesson: bypass the guard. Skipping
+  // reports the truth — *"could not check"* — and shows up as a SKIP rather than hiding in a pass.
+  //
+  // ⚠️ AND IT MUST NOT BE THE ONLY COVER, because a skipped test is one nobody looks at: a quiet
+  // stretch would silently retire the rule. The synthetic case below runs every time, on a card this
+  // file builds itself, so the LAYOUT RULE is always checked and this one confirms it against the real
+  // lot whenever the lot can supply the ingredient. Aaron greenlit the pair: *"whatever you recommend"*.
+  test.skip(truncating === 0, 'no hold on the lot today has a description long enough to truncate — guard inconclusive, see the synthetic case');
+
   // Before the fix that card's right edge ran past the screen and clipped its "💥 Damage" badge.
   expect(worst).toBeLessThanOrEqual(vw + 1);
 });
