@@ -67,18 +67,47 @@ test('a hold card never grows past a phone-width screen — the badge stays on i
   await page.goto('/holds', { waitUntil: 'networkidle' });
   await expect(page.getByText('Flagged by').first()).toBeVisible();
 
-  const { cards, truncating, worst, vw } = await page.evaluate(() => {
+  // ⚠️⚠️ PAGE 1 IS NOT THE LOT — found on the second pass, 2026-09-15, and it invalidates the first
+  // diagnosis entirely. The Holds board paginates at 20 (`paginatedVehicles`, 10 pages), so
+  // `truncating === 0` never meant "no car has a long write-up" — it meant "page ONE doesn't". Both
+  // ingredients existed the whole time (LUR367, 57 chars; LUR327, 54) sitting several pages deep,
+  // pushed down by 34 sale cars. So the original red was not a quiet lot and the skip that replaced
+  // it would have fired on nearly every run, silently retiring the guard while the evidence sat on
+  // page 4.
+  //
+  // ⭐ So WALK the pages until the ingredient turns up, and measure the width on every page visited —
+  // which also widens the check from 20 cards to the whole board. Bounded by the Next button, so it
+  // stops at the end rather than trusting a page count.
+  const measure = () => page.evaluate(() => {
     const vw = document.documentElement.clientWidth;
     const cardEls = [...document.querySelectorAll<HTMLElement>('button')].filter(b => b.textContent?.includes('Flagged by'));
-    // ⚠️ By CONTENT, not by layout. The first cut counted descriptions whose scrollWidth exceeded their
-    // clientWidth — but without the fix a description never truncates (the card grows instead), so that
-    // precondition measured the fix itself and failed on the wrong line. The row cuts any description
-    // over 40 characters and appends "…", which is true whatever the layout does.
     const truncating = cardEls.filter(b =>
       [...b.querySelectorAll<HTMLElement>('p')].some(p => p.textContent?.trim().endsWith('…'))).length;
-    const worst = Math.max(...cardEls.map(b => b.getBoundingClientRect().right));
+    const worst = cardEls.length ? Math.max(...cardEls.map(b => b.getBoundingClientRect().right)) : 0;
     return { cards: cardEls.length, truncating, worst, vw };
   });
+
+  let seen = 0, sawTruncating = 0, worstOverall = 0, vwOverall = 0, pagesWalked = 0;
+  for (let i = 0; i < 15; i++) {
+    const m = await measure();
+    seen += m.cards; sawTruncating += m.truncating;
+    worstOverall = Math.max(worstOverall, m.worst); vwOverall = m.vw;
+    pagesWalked++;
+    // ⚠️ Every page is MEASURED even after the ingredient is found — a card can overflow on any page,
+    // and stopping at the first truncating one would check less than the old single-page version did.
+    // ⚠️ `getByRole('button', {name:/^Next$/})` broke the walk after ONE page on the first attempt and
+    // did it SILENTLY, because both guards fell back to "stop" on error (`.catch(() => false)` /
+    // `.catch(() => true)`). A locator that cannot resolve then looks exactly like the last page. Use
+    // the plain text locator, and assert the pager is actually gone rather than inferring it.
+    const next = page.locator('button', { hasText: /^Next$/ }).last();
+    if (await next.count() === 0) break;
+    if (await next.isDisabled()) break;
+    await next.click();
+    await page.waitForTimeout(400);
+  }
+  const cards = seen, truncating = sawTruncating, worst = worstOverall, vw = vwOverall;
+  console.log(`[card-width] walked ${pagesWalked} page(s), ${cards} cards, ${truncating} truncating`);
+
 
   // ⚠️ PRECONDITIONS, or this passes VACUOUSLY: with no cards, or no description long enough to need
   // truncating, nothing can overflow and "every card fits" is trivially true. LUR327 ("Damage - written up
@@ -99,7 +128,7 @@ test('a hold card never grows past a phone-width screen — the badge stays on i
   // stretch would silently retire the rule. The synthetic case below runs every time, on a card this
   // file builds itself, so the LAYOUT RULE is always checked and this one confirms it against the real
   // lot whenever the lot can supply the ingredient. Aaron greenlit the pair: *"whatever you recommend"*.
-  test.skip(truncating === 0, 'no hold on the lot today has a description long enough to truncate — guard inconclusive, see the synthetic case');
+  test.skip(truncating === 0, 'no card on ANY page has a description long enough to truncate — guard inconclusive, see HoldsVehicleRowWidth.test.tsx');
 
   // Before the fix that card's right edge ran past the screen and clipped its "💥 Damage" badge.
   expect(worst).toBeLessThanOrEqual(vw + 1);
