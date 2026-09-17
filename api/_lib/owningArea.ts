@@ -38,13 +38,18 @@ const KNOWN: Record<string, string> = {
   // Each was CONFIRMED, not guessed:
   //   8190 — all three cars carry 111AAA plates (Saskatchewan's format). Aaron called it.
   //   8194 — both cars carry AAA1111 plates (Quebec's format).
-  //   8890 — read straight off two stored key tags: "VAN DTG / 08890". Vancouver, the
-  //          Dollar/Thrifty side of it, which is why it sits alongside 8191. Named plainly
-  //          "Vancouver" for the same reason 8999 is plainly "Winnipeg" — the number carries
-  //          the distinction. Aaron called this one too; the PLATES had me doubting it (its
-  //          five cars carry AB, MB and BC plates) until the tag settled it — those are
-  //          long-stay 2022 Teslas re-plated where they sit, so a car's owning branch and its
-  //          plate's province legitimately diverge. Don't infer a branch from plates.
+  //   8890 — read straight off two stored key tags: "VAN DTG / 08890". **Vancouver's OLDER owning
+  //          number** — Aaron, 2026-09-17: *"8890 is an older vancouver owning #"*. Same pattern
+  //          as 8999 (older Winnipeg), 8892 (older Montreal) and 8898 (older Toronto), and named
+  //          plainly "Vancouver" for the same reason: the number carries the distinction.
+  //          ⚠️ THIS COMMENT USED TO SAY "the Dollar/Thrifty side of it". That was an inference
+  //          from the letters DTG on the tag, never something he said, and it sat here for weeks
+  //          reading like a fact. Retracted. The tag text is recorded as printed; the meaning is his.
+  //          ⭐ And it is corroborated by the fleet itself: every live 8890 car is a 2022 Tesla (23
+  //          of 23) while every live 8191 car is 2024–2026 (52 of 52). The older number is on the
+  //          older cars — it is a place, not a pool. Their plates (AB, MB, BC) diverge because
+  //          they are long-stay cars re-plated where they sat, so a car's owning branch and its
+  //          plate's province legitimately differ. Don't infer a branch from plates.
   '8190': 'Saskatchewan',
   '8194': 'Montreal',
   '8890': 'Vancouver',
@@ -261,8 +266,8 @@ export function isForeignOwning(raw: string | null | undefined): boolean {
 // is why `fleetAudit` stays silent at 2+ characters off. Do not "fix" the outliers; they are the
 // fingerprint of a car that moved.
 //
-// 8890 is deliberately absent even though it is a known branch: its five cars carry MB, AB and BC
-// plates, because they are long-stay Teslas re-plated where they sit. A branch whose own fleet
+// 8890 is deliberately absent even though it is a known branch (Vancouver's OLDER owning number):
+// its cars carry MB, AB and BC plates, because they are long-stay 2022 Teslas re-plated where they sat. A branch whose own fleet
 // disagrees about its format cannot vouch for a plate, and inventing one for it would flag four
 // correct cars. Same for 8999 (historical Winnipeg) — no live cars to measure.
 
