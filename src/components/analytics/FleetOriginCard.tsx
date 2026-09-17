@@ -45,7 +45,12 @@ export function FleetOriginCard({ vehicles, onOpenVehicle }: {
   const pct = (n: number) => `${((n / o.live) * 100).toFixed(1)}%`;
   const teslas = allTeslas ? o.convertedHere.teslas : o.convertedHere.teslas.slice(0, TESLA_PREVIEW);
   const hiddenTeslas = o.convertedHere.teslas.length - teslas.length;
-  const maxCity = Math.max(1, ...o.cities.map(c => c.count));
+  // ⭐ WINNIPEG IS NOT A ROW HERE (Aaron, 2026-09-17): *"its better to remove winnipeg from what each city
+  // sends us. since that number is already in the card above it."* Its total is the Local headline, and
+  // its one car on foreign plates is already under Converted away. Leaving it in showed "553 · MB-plated
+  // 552" beside "Local 552" — correct, and reading exactly like a car had gone missing.
+  const others = o.cities.filter(c => c.city !== 'Winnipeg');
+  const maxCity = Math.max(1, ...others.map(c => c.count));
 
   return (<>
     {/* ── where the fleet comes from ────────────────────────────────────── */}
@@ -129,11 +134,11 @@ export function FleetOriginCard({ vehicles, onOpenVehicle }: {
     )}
 
     {/* ── by owning city ──────────────────────────────────────────────────── */}
-    <div className={CARD}>
+    {others.length > 0 && <div className={CARD}>
       <p className={TITLE}>What each city sends us</p>
-      <p className={SUB}>Older and newer owning numbers fold into their city. Tap one for its class mix.</p>
+      <p className={SUB}>Cars owned by other branches. Older and newer owning numbers fold into their city — tap one for its class mix.</p>
       <div className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">
-        {o.cities.map(c => {
+        {others.map(c => {
           const open = openCity === c.city;
           return (
             <div key={c.city}>
@@ -149,8 +154,9 @@ export function FleetOriginCard({ vehicles, onOpenVehicle }: {
                   <span className="block h-full bg-fg-yellow" style={{ width: `${Math.max(2, (c.count / maxCity) * 100)}%` }} />
                 </span>
                 <span className="flex text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                  <span className={c.mbPlated > 0 && c.city !== 'Winnipeg' ? 'text-amber-700 dark:text-amber-400 font-semibold' : ''}>
-                    MB-plated {c.mbPlated}
+                  {/* For a city other than Winnipeg, an MB plate IS a conversion — so say that. */}
+                  <span className={c.mbPlated > 0 ? 'text-amber-700 dark:text-amber-400 font-semibold' : ''}>
+                    {c.mbPlated > 0 ? `${c.mbPlated} converted here` : 'none converted'}
                   </span>
                   <span className="ml-auto">{open ? 'classes ▴' : 'classes ▾'}</span>
                 </span>
@@ -168,6 +174,6 @@ export function FleetOriginCard({ vehicles, onOpenVehicle }: {
           );
         })}
       </div>
-    </div>
+    </div>}
   </>);
 }

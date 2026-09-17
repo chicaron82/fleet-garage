@@ -4,10 +4,11 @@ import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
 import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
-import { fleetCohortCounts, matchesCohort, autoArchivePlan, lastContact, AUTO_ARCHIVE_AFTER_DAYS, CONTACT_LABEL, type FleetCohortId } from '../../lib/fleetCohorts';
+import { fleetCohortCounts, matchesCohort, fleetClassCounts, matchesClass, autoArchivePlan, lastContact, AUTO_ARCHIVE_AFTER_DAYS, CONTACT_LABEL, type FleetCohortId } from '../../lib/fleetCohorts';
 import { fetchGeotabPendingPlates } from '../../hooks/useGeotabPending';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { pushNotification } from '../../lib/garage-uploads';
+import { FleetClassPills } from './FleetClassPills';
 import { FleetHealthChips } from './FleetHealthChips';
 import { FleetHistorySection } from '../analytics/FleetHistorySection';
 import { useFleetHistory, type FleetHistoryRows } from '../../hooks/useFleetHistory';
@@ -64,6 +65,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [cohort, setCohort] = useState<FleetCohortId | null>(null);
+  const [classFilter, setClassFilter] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<FleetStatus>>(new Set(COLLAPSED_BY_DEFAULT));
   // Fetched once, shared: the history cards AND the "gone quiet" chip read the same sightings.
   const history = useFleetHistory();
@@ -121,7 +123,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   // Each car carries its newest sighting so the "gone quiet" cohort can be a plain predicate.
   const seen = withTraces(vehicles, history);
   const cohortCounts = fleetCohortCounts(seen);
-  const filtered = seen.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort));
+  const classCounts = fleetClassCounts(seen);   // whole-fleet pulse, like the cohort counts
+  const filtered = seen.filter(v => matchesFleetSearch(v, term) && matchesCohort(v, cohort) && matchesClass(v, classFilter));
 
   // ── Movement, not just level ────────────────────────────────────────────────────────────────
   // Two different sources, and the split is the point (see fleetTrend.ts / migration 115):
@@ -212,6 +215,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       {vehicles.length > 0 && (
         <FleetHealthChips total={vehicles.length} counts={cohortCounts} active={cohort} onSelect={setCohort} deltas={deltas} />
       )}
+      {vehicles.length > 0 && (
+        <FleetClassPills counts={classCounts} active={classFilter} onSelect={setClassFilter} />
+      )}
 
       {/* The trend line. Registrations are an ACTIVITY, not a gap, so they get a line rather than a
           chip — there is nothing to filter the list down to. The "since" phrase names the real
@@ -275,7 +281,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
             if (group.length === 0) return null;
             // A search term OR an active cohort expands every group — otherwise the collapsed
             // Clear group (where most cars live) would hide the very cohort you just tapped.
-            const isCollapsed = (term || cohort) ? false : collapsed.has(status);
+            const isCollapsed = (term || cohort || classFilter) ? false : collapsed.has(status);
             return (
               <div key={status} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <button

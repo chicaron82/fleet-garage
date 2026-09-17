@@ -192,3 +192,34 @@ export function matchesCohort(v: FleetVehicle, cohort: FleetCohortId | null, now
   const found = FLEET_COHORTS.find((c) => c.id === cohort);
   return found ? found.match(v, now) : true;
 }
+
+// ── Class pills (2026-09-17) ──────────────────────────────────────────────────────────────────
+//
+// Aaron, reading the live origin card: *"where we could display how much of each class we have, how
+// bout showing that underneath fleet view's search as additional filtered pills."* The class mix had
+// been a tap-to-expand inside the Winnipeg city row; as pills it FILTERS the list instead of only
+// counting. Same contract as the health chips: whole-fleet counts, never narrowed by the search box.
+
+/** The pill value for a car with no rental class — so it is counted, never silently dropped. */
+export const NO_CLASS = '__none__';
+
+const classKey = (rentalClass: string | null | undefined): string => {
+  const c = (rentalClass ?? '').trim().toUpperCase();
+  return c || NO_CLASS;
+};
+
+/** Every class on the fleet with its count, commonest first; ties alphabetical. NO_CLASS goes last. */
+export function fleetClassCounts(vehicles: readonly Pick<FleetVehicle, 'rentalClass'>[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const v of vehicles) {
+    const k = classKey(v.rentalClass);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) =>
+    (a[0] === NO_CLASS ? 1 : 0) - (b[0] === NO_CLASS ? 1 : 0) || b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+/** Does a vehicle match the selected class pill? `null` = no class filter → everything matches. */
+export function matchesClass(v: Pick<FleetVehicle, 'rentalClass'>, cls: string | null): boolean {
+  return cls == null || classKey(v.rentalClass) === cls;
+}

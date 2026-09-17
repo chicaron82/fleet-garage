@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fleetCohortCounts, matchesCohort, FLEET_COHORTS, autoArchiveCandidates, autoArchivePlan, lastContactAt, lastContact } from '../../src/lib/fleetCohorts';
+import { fleetCohortCounts, matchesCohort, FLEET_COHORTS, autoArchiveCandidates, autoArchivePlan, lastContactAt, lastContact, fleetClassCounts, matchesClass, NO_CLASS } from '../../src/lib/fleetCohorts';
 import type { FleetVehicle } from '../../src/lib/fleet-master';
 
 // Minimal healthy vehicle; override the field a case cares about.
@@ -184,5 +184,32 @@ describe('fleetCohorts — exception cars that never came back', () => {
     expect(autoArchivePlan([lur270, other], null, now)).toEqual([]);
     // and a loaded shield still behaves
     expect(autoArchivePlan([lur270, other], new Set(['LUR270']), now).map(c => c.id)).toEqual(['other']);
+  });
+});
+
+
+// ── class pills — Aaron, 2026-09-17: "showing that underneath fleet view's search as additional filtered pills"
+describe('fleetClassCounts / matchesClass', () => {
+  const c = (rentalClass: string | null) => v({ rentalClass });
+
+  it('counts every class, commonest first, ties alphabetical', () => {
+    expect(fleetClassCounts([c('B5'), c('C'), c('B5'), c('Q4'), c('C'), c('B5')]))
+      .toEqual([['B5', 3], ['C', 2], ['Q4', 1]]);
+  });
+
+  it('a car with no class is COUNTED as NO_CLASS, and always sorts last however many there are', () => {
+    expect(fleetClassCounts([c(null), c(''), c(null), c('B5')])).toEqual([['B5', 1], [NO_CLASS, 3]]);
+  });
+
+  it('normalises case and whitespace so "b5 " and "B5" are one pill', () => {
+    expect(fleetClassCounts([c('b5 '), c('B5')])).toEqual([['B5', 2]]);
+  });
+
+  it('matchesClass: null matches everything; a class matches only itself; NO_CLASS matches the blanks', () => {
+    expect(matchesClass(c('B5'), null)).toBe(true);
+    expect(matchesClass(c('B5'), 'B5')).toBe(true);
+    expect(matchesClass(c('B4'), 'B5')).toBe(false);
+    expect(matchesClass(c(null), NO_CLASS)).toBe(true);
+    expect(matchesClass(c('B5'), NO_CLASS)).toBe(false);
   });
 });
