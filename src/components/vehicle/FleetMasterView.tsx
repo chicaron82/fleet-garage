@@ -5,6 +5,7 @@ import { PrimaryAction } from '../shared/PrimaryAction';
 import { loadFleet, matchesFleetSearch } from '../../lib/fleet-master';
 import type { FleetVehicle, FleetStatus } from '../../lib/fleet-master';
 import { fleetCohortCounts, matchesCohort, autoArchiveCandidates, lastContact, AUTO_ARCHIVE_AFTER_DAYS, CONTACT_LABEL, type FleetCohortId } from '../../lib/fleetCohorts';
+import { fetchGeotabPendingPlates } from '../../hooks/useGeotabPending';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { pushNotification } from '../../lib/garage-uploads';
 import { FleetHealthChips } from './FleetHealthChips';
@@ -79,9 +80,21 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   useEffect(() => {
     if (autoArchiveRan.current || loading || vehicles.length === 0 || history.loading || history.error || !user) return;
     autoArchiveRan.current = true;
-    const candidates = autoArchiveCandidates(withTraces(vehicles, history));
-    if (candidates.length === 0) return;
     void (async () => {
+      // ⚠️⚠️ THE GEOTAB SHIELD, AND IT MUST BE LOADED BEFORE ANYTHING IS ARCHIVED (2026-09-16).
+      // This effect archived 10 of his 15 pending geotab cars, and he reported it as "I think FG
+      // archived my geotab watchlist". A pending geotab plate is a car flagged for an install that
+      // HASN'T COME BACK YET — its silence is the reason it is on the list, so inferring abandonment
+      // from that silence is always wrong. See autoArchiveCandidates for the principle.
+      //
+      // ⚠️ `null` means the query FAILED, and we stand down entirely rather than archive with an
+      // empty shield — the same reasoning as the history.error guard above. Protecting nothing
+      // because the lookup broke is precisely the defect this is fixing.
+      const shield = await fetchGeotabPendingPlates();
+      if (shield === null) return;
+
+      const candidates = autoArchiveCandidates(withTraces(vehicles, history), Date.now(), shield);
+      if (candidates.length === 0) return;
       for (const c of candidates) await archiveVehicle(c.id);
       const ids = candidates.map(c => c.id);
       await pushNotification(

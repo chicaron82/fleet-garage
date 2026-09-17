@@ -137,4 +137,40 @@ describe('fleetCohorts — exception cars that never came back', () => {
     expect(autoArchiveCandidates([lur310, ljf720], now)).toEqual([]);
     expect(matchesCohort(lur310, 'gone-quiet', now)).toBe(false);
   });
+
+  // ⚠️⚠️⚠️ THE TEN CARS THIS ARCHIVED ON 2026-09-16, and the reason it was always wrong.
+  //
+  // Aaron opened Fleet and it took 10 of his 15 pending geotab cars. Nothing was deleted, but the
+  // view drops archived vehicles, so what he saw was: "I think FG archived my geotab watchlist."
+  //
+  // ⭐ The two rules have OPPOSITE premises. This one infers abandonment FROM SILENCE. A pending
+  // geotab row says the opposite out loud — the car is flagged for an install and has not come back
+  // yet. His words, naming these exact cars: "the 16 plate only cars are the geotab cars that
+  // haven't come back on my shift." Their silence is WHY they are on the list.
+  it('⛔ a pending geotab plate is never archived, however quiet', () => {
+    const quiet = { status: 'on-exception' as const, holdActivityAt: daysAgo(132) };
+    const lur270 = v({ id: 'LUR270', licensePlate: 'LUR270', ...quiet });
+    const other  = v({ id: 'other',  licensePlate: 'ZZZ999', ...quiet });
+
+    // unshielded: both go
+    expect(autoArchiveCandidates([lur270, other], now).map(c => c.id)).toEqual(['LUR270', 'other']);
+    // shielded: only the one nobody is waiting for
+    const shield = new Set(['LUR270']);
+    expect(autoArchiveCandidates([lur270, other], now, shield).map(c => c.id)).toEqual(['other']);
+  });
+
+  it('the shield is case- and whitespace-insensitive — a plate is a plate', () => {
+    const car = v({ id: 'c', licensePlate: 'lur270 ', status: 'on-exception', holdActivityAt: daysAgo(132) });
+    expect(autoArchiveCandidates([car], now, new Set([' LUR270'])).map(c => c.id)).toEqual([]);
+  });
+
+  // ⚠️⚠️ AND THE CALLER MUST STAND DOWN WHEN THE LIST CANNOT LOAD. An empty Set and a failed query
+  // look identical here, so `fetchGeotabPendingPlates` returns null on failure and FleetMasterView
+  // returns early on null. This test pins the half that lives in THIS function: an empty shield
+  // protects nothing, which is correct behaviour and precisely why the caller must not pass one by
+  // accident. Same shape as the history.error stand-down that already guards this effect.
+  it('⚠️ an EMPTY shield protects nothing — which is why a failed fetch must not produce one', () => {
+    const lur270 = v({ id: 'LUR270', licensePlate: 'LUR270', status: 'on-exception', holdActivityAt: daysAgo(132) });
+    expect(autoArchiveCandidates([lur270], now, new Set()).map(c => c.id)).toEqual(['LUR270']);
+  });
 });

@@ -126,10 +126,40 @@ export const AUTO_ARCHIVE_AFTER_DAYS = 60;
  * we can just restore it at that point in time."* EXCEPTION ONLY: an exception car is expected back,
  * so 60 days of nothing means it went somewhere FG will never see (sold, transferred, written off).
  * A pre-existing or clear car that goes quiet is usually just out on rent; it only reaches the chip.
+ *
+ * ⚠️⚠️⚠️ A PENDING GEOTAB PLATE IS NEVER A CANDIDATE, AND IT COST HIM THE LIST TO FIND OUT.
+ *
+ * On 2026-09-16 Aaron opened Fleet and this archived **10 of his 15 pending geotab cars** in three
+ * batches. Nothing was deleted — the watchlist table has no archive concept — but the view drops
+ * archived vehicles, so from where he stood: *"I think FG archived my geotab watchlist."*
+ *
+ * ⭐⭐⭐ THE TWO RULES HAVE OPPOSITE PREMISES, AND THE WATCHLIST'S IS THE STRONGER ONE. This rule
+ * infers abandonment FROM SILENCE: sixty quiet days means it went somewhere FG will never see. A
+ * pending geotab row says the opposite OUT LOUD — the car is flagged for an install and has not come
+ * back yet. Aaron, 2026-09-15, naming exactly these cars: *"the 16 plate only cars are the geotab
+ * cars that haven't come back on my shift."* **Their silence is the reason they are on the list.**
+ *
+ * ⭐⭐ So the principle, which is bigger than this one guard: **an explicit open intent outranks an
+ * inference drawn from absence.** Same family as [[project_fg_archived_is_an_inference]] — archived
+ * means "nobody saw it", never "it is gone" — and the geotab list is a standing declaration that
+ * somebody is still looking.
+ *
+ * ⚠️⚠️ AND THE CALLER MUST STAND DOWN IF IT CANNOT LOAD THE LIST. `protectedPlates` defaulting to
+ * empty is safe ONLY when the caller knows it is genuinely empty. A failed fetch that silently
+ * yields `new Set()` re-creates this exact bug — identical in shape to the `history.error` stand-down
+ * the effect already carries, and for identical reasons: a query that failed must never read as
+ * "nothing matched".
  */
-export function autoArchiveCandidates(vehicles: readonly FleetVehicle[], now: number = Date.now()): FleetVehicle[] {
+export function autoArchiveCandidates(
+  vehicles: readonly FleetVehicle[],
+  now: number = Date.now(),
+  /** Plates that must never be auto-archived, however quiet. Compared case-insensitively. */
+  protectedPlates: ReadonlySet<string> = new Set(),
+): FleetVehicle[] {
+  const shielded = new Set([...protectedPlates].map(p => p.trim().toUpperCase()));
   return vehicles.filter(v => {
     if (v.status !== 'on-exception') return false;
+    if (shielded.has((v.licensePlate ?? '').trim().toUpperCase())) return false;
     const last = lastContactAt(v);
     return last !== null && now - Date.parse(last) > AUTO_ARCHIVE_AFTER_DAYS * 86_400_000;
   });
