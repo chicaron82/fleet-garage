@@ -123,11 +123,21 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
             // with what he typed, the unit is what found this car, and he should see that.
             const byUnit = !v.license_plate.toUpperCase().startsWith(query.trim());
             return (
-              <li key={v.license_plate}>
+              // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car
+              // (2026-09-17), or a re-plate that made a duplicate record — and `key={plate}` gave
+              // React duplicate keys for exactly the case the list most needs to render correctly.
+              <li key={`${v.license_plate}·${v.unit_number ?? ''}`}>
                 <button type="button" onMouseDown={e => e.preventDefault()}
                   onClick={() => { onPick({ vehicle: v }); setQuery(''); setResults([]); setOpen(false); }}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition">
-                  <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{v.license_plate}</span>
+                  <span className="flex items-center gap-1.5 font-bold text-sm text-gray-900 dark:text-gray-100">
+                    {v.license_plate}
+                    {/* Archived cars stay findable — a typed plate is evidence the archive was wrong
+                        — but they must never look like a live car with the same plate. */}
+                    {v.archived_at && (
+                      <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-300">📦 archived</span>
+                    )}
+                  </span>
                   {/* ⚠️⚠️ NEVER HAND-ASSEMBLE THE NAME. Interpolating the year, make and model
                       renders perfectly and silently drops the powertrain badge — which is how a
                       hybrid Civic read identically to a petrol one on three screens at once. FG's

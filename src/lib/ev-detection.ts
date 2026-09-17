@@ -132,6 +132,39 @@ export interface VehicleSearchResult {
    *  an absence asserting a fact. Selecting them is cheaper than that lie. */
   is_hybrid: boolean;
   is_tesla: boolean;
+  /** ⭐ Set when the car is archived. Kept FINDABLE on purpose — archived means nobody has seen it,
+   *  never that it is gone ([[project_fg_archived_is_an_inference]]), and a man typing a plate he is
+   *  holding is evidence the archive was wrong. It ranks below live matches and the UI marks it. */
+  archived_at?: string | null;
+}
+
+/** The write-test sandbox's unit prefix — see reference_fg_mock_units. */
+const MOCK_UNIT_PREFIX = 'HRZ-';
+
+/**
+ * ⚠️⚠️ MOCK ROWS ARE NEVER AN ANSWER, AND THIS CANNOT BE DONE IN THE QUERY.
+ *
+ * Aaron, 2026-09-17, typing `LUR486` into Find a car: *"Can you look into that mock vehicle showing
+ * up"* — two results, a 2023 Malibu on unit `HRZ-3307` (mock, archived since 09-03) above the real
+ * 2026 Trax on unit 5429592. `searchVehicles` read `vehicles` with no exclusion at all, so the
+ * sandbox was offered on all three typed surfaces (header look-up, closing inventory, trip form).
+ *
+ * ⚠️ NOT `.not('unit_number','like','HRZ-%')`: `NOT LIKE` against a NULL unit yields NULL, which
+ * would silently drop every plate-only car — including the geotab cars stamped 8199 that same
+ * morning, none of which has a unit number. That is the canonical-filter NULL trap (CLAUDE.md READ
+ * FIRST #5) and it would have traded a visible fake for an invisible absence. So: fetch wider,
+ * filter in memory, then trim.
+ *
+ * ⭐ Live before archived, because the complaint was two identical plates with nothing to separate
+ * them — not that the archived one appeared at all. Array#sort is stable, so equal rows keep the
+ * order the query gave them.
+ */
+export function rankVehicleMatches(rows: readonly VehicleSearchResult[], limit = 5): VehicleSearchResult[] {
+  return rows
+    .filter(v => !(v.unit_number ?? '').startsWith(MOCK_UNIT_PREFIX))
+    .slice()
+    .sort((a, b) => Number(!!a.archived_at) - Number(!!b.archived_at))
+    .slice(0, limit);
 }
 
 /**
@@ -160,11 +193,13 @@ export async function searchVehicles(query: string): Promise<VehicleSearchResult
   const trimmed = query.trim().replace(/[^A-Za-z0-9-]/g, '');
   if (trimmed.length < 2) return [];
 
+  // Fetch wider than we show: mock rows are removed AFTER the query (see rankVehicleMatches), so a
+  // limit of 5 here could spend slots on rows nobody may pick.
   const { data } = await supabase
     .from('vehicles')
-    .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla')
+    .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at')
     .or(`license_plate.ilike.${trimmed}%,unit_number.ilike.${trimmed}%`)
-    .limit(5);
+    .limit(15);
 
-  return (data as VehicleSearchResult[]) || [];
+  return rankVehicleMatches((data as VehicleSearchResult[]) || []);
 }
