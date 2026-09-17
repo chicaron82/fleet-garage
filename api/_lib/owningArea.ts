@@ -211,6 +211,17 @@ export function cityTailInRentalClass(rawClass: string | null | undefined): stri
   return null;
 }
 
+/**
+ * The CITY an owning number belongs to — "Winnipeg" for both 8199 and 8999 — or null when he has
+ * never named it. ⭐ Added for the fleet-by-origin card, where Aaron ruled (2026-09-17): *"winnipeg
+ * 8199 and winnipeg 8999 are still winnipeg… no need to separate them."* It reads KNOWN and nothing
+ * else, so grouping by city can never invent a branch the map does not already confirm.
+ */
+export function owningCity(raw: string | null | undefined): string | null {
+  const o = normalizeOwning(raw);
+  return o ? (KNOWN[o] ?? null) : null;
+}
+
 /** "Calgary (8193)" when known, "8193" when not, '' when absent. Never guesses a branch name. */
 export function owningLabel(raw: string | null | undefined): string {
   const o = normalizeOwning(raw);

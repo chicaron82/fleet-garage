@@ -7,6 +7,7 @@ import {
   liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings, mostSeen,
 } from '../../lib/fleetHistory';
 import { TopSeenCard } from './TopSeenCard';
+import { FleetOriginCard } from './FleetOriginCard';
 
 // What FG has RECORDED — the half of Analytics built on real rows rather than demo scaffolding.
 //
@@ -261,6 +262,9 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
 
       {/* ── 4 · the cars that keep coming back ─────────────────────────────── */}
       <TopSeenCard ranking={model.ranking} vehiclesById={model.vehiclesById} since={win?.first ?? null} onOpen={onOpenVehicle} />
+
+      {/* ── 5 · what's in our fleet, by origin (2026-09-17) ─────────────────── */}
+      <FleetOriginCard vehicles={vehicles} onOpenVehicle={onOpenVehicle} />
       </>)}
     </section>
   );
