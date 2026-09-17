@@ -6,6 +6,7 @@ import { withSubmitLock } from '../lib/submitLock';
 import { mapWashbayLog, mapHandoffNote } from '../lib/garage-mappers';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { uploadShiftLogPhoto } from '../lib/garage-uploads';
+import { planHandoffPhoto } from '../lib/handoffPhoto';
 
 export interface WashbayHandoffSlice {
   washbayLogs: WashbayLog[];
@@ -15,7 +16,7 @@ export interface WashbayHandoffSlice {
    *  for the normal "today" close. Upserts on (branch_id, date) either way. */
   submitWashbayLog: (data: Omit<WashbayLog, 'id' | 'branchId' | 'date' | 'loggedById' | 'loggedAt'>, targetDate?: string, photo?: string | null) => Promise<boolean>;
   getTodayWashbayLog: () => WashbayLog | undefined;
-  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number; carryOverCleared?: number; airportFlipping?: boolean; photo?: string | null }) => Promise<boolean>;
+  submitHandoff: (data: { fullPages: number; lastPageEntries: number; teamSize: number; lotStatus: LotStatus; notes?: string; morningHours?: number; carryOverCleared?: number; airportFlipping?: boolean; photo?: string | null; existingPhotoUrl?: string | null }) => Promise<boolean>;
 }
 
 export function useWashbayHandoff(
@@ -108,6 +109,9 @@ export function useWashbayHandoff(
      *  failed upload degrades to photo_url = null — the counts are the part that can never be
      *  reconstructed, so they must never be lost to a flaky camera or a slow bay signal. */
     photo?: string | null;
+    /** ⚠️ The photo already on the hand-off being EDITED. A hand-off inserts a fresh row every save,
+     *  so without this an edit saves photo_url = null — see src/lib/handoffPhoto.ts. */
+    existingPhotoUrl?: string | null;
   }): Promise<boolean> => {
     const branchId = activeBranch === 'ALL' ? 'YWG' : activeBranch;
     const loggedAt = new Date().toISOString();
@@ -116,9 +120,10 @@ export function useWashbayHandoff(
     // tap resolves undefined → report false (no insert performed).
     // Uploaded outside the lock and before the insert: a slow upload must not extend the
     // double-tap guard's window, and a failed one must not abort the log.
-    const photoUrl = data.photo
-      ? await uploadShiftLogPhoto(data.photo, `handoff/${branchId}-${localDateStr(0)}-${user!.id}`)
-      : null;
+    const photoPlan = planHandoffPhoto(data.photo, data.existingPhotoUrl);
+    const photoUrl = photoPlan.kind === 'upload'
+      ? await uploadShiftLogPhoto(photoPlan.base64, `handoff/${branchId}-${localDateStr(0)}-${user!.id}`)
+      : photoPlan.url;
 
     const result = await withSubmitLock(`handoff:${branchId}:${user!.id}:${localDateStr(0)}`, async (): Promise<boolean> => {
       try {

@@ -100,7 +100,12 @@ export function HandoffForm({ onClose, existing }: Props) {
   // above exist for the opposite case — values that resolve ASYNC after mount — and `existing` is
   // already in hand when this renders.
   const [lotStatus,       setLotStatus]       = useState<LotStatus>(existing?.lotStatus ?? 'manageable');
-  const [photo,           setPhoto]           = useState<string | null>(existing?.photoUrl ?? null);
+  // ⚠️⚠️ `photo` is a NEW CAPTURE (base64) ONLY — never seeded from `existing`. It used to be, and
+  // submitHandoff uploads whatever `photo` holds, to the same storage key as the original: editing a
+  // hand-off that had a board photo dropped it or overwrote the real image. The stored photo is
+  // DISPLAYED via `existingUrl` and CARRIED FORWARD via `existingPhotoUrl` on submit.
+  // See src/lib/handoffPhoto.ts.
+  const [photo,           setPhoto]           = useState<string | null>(null);
   const [notes,           setNotes]           = useState(existing?.notes ?? '');
   const [adjustMorning,    setAdjustMorning]   = useState(existing ? existing.morningHours !== 8.0 : false);
   const [morningHours,     setMorningHours]    = useState(existing?.morningHours ?? 8.0);
@@ -157,6 +162,7 @@ export function HandoffForm({ onClose, existing }: Props) {
       teamSize,
       lotStatus,
       photo,
+      existingPhotoUrl: existing?.photoUrl ?? null,
       notes: notes.trim() || undefined,
       morningHours: adjustMorning ? morningHours : undefined,
       carryOverCleared: inheritedBacklog > 0 ? inheritedBacklog : undefined,
@@ -298,7 +304,7 @@ export function HandoffForm({ onClose, existing }: Props) {
 
           {/* Evidence for the word just picked — see ShiftLogPhotoField. Directly under the pills,
               NOT down in Notes: a "backlog" pill and a photo of the board are the same fact. */}
-          <ShiftLogPhotoField value={photo} onChange={setPhoto} />
+          <ShiftLogPhotoField value={photo} onChange={setPhoto} existingUrl={existing?.photoUrl} />
 
           {/* Notes */}
           <div>

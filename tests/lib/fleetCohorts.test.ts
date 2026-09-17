@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fleetCohortCounts, matchesCohort, FLEET_COHORTS, autoArchiveCandidates, lastContactAt, lastContact } from '../../src/lib/fleetCohorts';
+import { fleetCohortCounts, matchesCohort, FLEET_COHORTS, autoArchiveCandidates, autoArchivePlan, lastContactAt, lastContact } from '../../src/lib/fleetCohorts';
 import type { FleetVehicle } from '../../src/lib/fleet-master';
 
 // Minimal healthy vehicle; override the field a case cares about.
@@ -172,5 +172,17 @@ describe('fleetCohorts — exception cars that never came back', () => {
   it('⚠️ an EMPTY shield protects nothing — which is why a failed fetch must not produce one', () => {
     const lur270 = v({ id: 'LUR270', licensePlate: 'LUR270', status: 'on-exception', holdActivityAt: daysAgo(132) });
     expect(autoArchiveCandidates([lur270], now, new Set()).map(c => c.id)).toEqual(['LUR270']);
+  });
+
+  // ⭐⭐⭐ THE HALF 3e4599b CALLED LOAD-BEARING AND DID NOT TEST.
+  // A failed watchlist fetch returns null. Treating null as an empty shield is the bug; the only
+  // correct answer is to archive NOTHING this visit. `shield ?? new Set()` is the tidy-up that would
+  // silently reinstate it — this is the test that says no.
+  it('⛔ a watchlist that FAILED to load archives nothing — not "no shield", "not today"', () => {
+    const lur270 = v({ id: 'LUR270', licensePlate: 'LUR270', status: 'on-exception', holdActivityAt: daysAgo(132) });
+    const other  = v({ id: 'other',  licensePlate: 'ZZZ999', status: 'on-exception', holdActivityAt: daysAgo(132) });
+    expect(autoArchivePlan([lur270, other], null, now)).toEqual([]);
+    // and a loaded shield still behaves
+    expect(autoArchivePlan([lur270, other], new Set(['LUR270']), now).map(c => c.id)).toEqual(['other']);
   });
 });

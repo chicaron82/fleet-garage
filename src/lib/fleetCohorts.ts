@@ -165,6 +165,27 @@ export function autoArchiveCandidates(
   });
 }
 
+/**
+ * ⚠️⚠️⚠️ THE STAND-DOWN, AS A TESTABLE DECISION — `null` shield means ARCHIVE NOTHING.
+ *
+ * `3e4599b` shipped the geotab shield with the stand-down written inline in FleetMasterView
+ * (`if (shield === null) return`), called it "the load-bearing half" in its own commit message, and
+ * then tested only the OTHER half. Replacing that line with `shield ?? new Set()` — the most natural
+ * "tidy-up" anyone could make — passed every test while reinstating the exact bug: a failed watchlist
+ * query reading as "protect nothing". Caught at the 2026-09-16 /reflect. So the decision lives here,
+ * where a test can hold it.
+ *
+ * `null` = the watchlist could not be loaded. The answer is not "no shield"; it is "not today".
+ */
+export function autoArchivePlan(
+  vehicles: readonly FleetVehicle[],
+  shield: ReadonlySet<string> | null,
+  now: number = Date.now(),
+): FleetVehicle[] {
+  if (shield === null) return [];
+  return autoArchiveCandidates(vehicles, now, shield);
+}
+
 /** Does a vehicle belong to the selected cohort? `null` = no cohort filter → everything matches. */
 export function matchesCohort(v: FleetVehicle, cohort: FleetCohortId | null, now: number = Date.now()): boolean {
   if (cohort == null) return true;
