@@ -14,13 +14,13 @@
 // broken, because the defect lived in the WIRING between them. A unit test cannot reach a seam —
 // only a test that renders the card and flips the basis can. That is the entire point of this file.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { TouchedCount } from '../../src/lib/throughputBasis';
 
 const q = () => {
   const b: Record<string, unknown> = {};
   for (const m of ['select', 'eq', 'gte', 'or']) b[m] = () => b;
-  b.then = (res: (r: { data: unknown[] }) => void) => { res({ data: [] }); return Promise.resolve(); };
+  b.then = (res: (r: { data: unknown[] }) => void) => { res({ data: state.oth }); return Promise.resolve(); };
   return b;
 };
 vi.mock('../../src/lib/supabase', () => ({ supabase: { from: () => q() } }));
@@ -35,6 +35,8 @@ const state = vi.hoisted(() => ({
   touched: null as TouchedCount | null,
   flips: 0,
   today: '',
+  /** Off-standard rows the card's effect reads. Empty by default. */
+  oth: [] as { start_time: string; minutes: number; preset_reason: string | null }[],
 }));
 const updatePref = vi.hoisted(() => vi.fn());
 
@@ -82,6 +84,7 @@ describe('ShiftRatesCard — the basis toggle must reach the RATES, not just the
     state.basis = 'gas-sheet';
     state.touched = null;
     state.flips = 3;      // his live airport flips that day
+    state.oth = [];
     updatePref.mockClear();
   });
 
@@ -138,6 +141,45 @@ describe('ShiftRatesCard — the basis toggle must reach the RATES, not just the
     expect(screen.getByText('Counting your shift…')).toBeInTheDocument();
     expect(screen.queryByText('Your effort')).toBeNull();
     expect(screen.queryByText('7.1 / hr')).toBeNull();   // the stale gas-sheet rate must not appear
+  });
+
+  // ⚠️⚠️ THE UNTESTED COMBINATION, added at /reflect 79. Every case above runs with off-standard at
+  // ZERO, which makes *Shift baseline* and *Your effort* the same number — so they could not tell
+  // each other apart, and the interaction most likely to surprise him on a real shift had no test at
+  // either basis: flips ADD to the numerator while off-standard SHRINKS the denominator, and they
+  // land on the two rows differently (baseline keeps the full window; effort does not).
+  describe('flips × off-standard — the two rates must diverge, on BOTH bases', () => {
+    const thirtyMin = () => [{ start_time: `${state.today}T10:00:00`, minutes: 30, preset_reason: null }];
+
+    it('gas sheet: 54 + 3 over 8.0h baseline, but over 7.5h effort', async () => {
+      state.oth = thirtyMin();
+      render(<ShiftRatesCard />);
+      // 57 / 8.0 = 7.125 → 7.1 baseline.  57 / 7.5 = 7.6 effort.  ⭐ Two DIFFERENT numbers.
+      await waitFor(() => expect(screen.getByText('7.6 / hr')).toBeInTheDocument());
+      expect(screen.getByText('7.1 / hr')).toBeInTheDocument();
+      expect(screen.getByText('Adjusted for 30m off-standard')).toBeInTheDocument();
+    });
+
+    it('⭐ cars-touched: the SAME off-standard applies to the touched numerator too', async () => {
+      state.basis = 'cars-touched';
+      state.touched = count(59);
+      state.oth = thirtyMin();
+      render(<ShiftRatesCard />);
+      // 62 / 7.5 = 8.27 → 8.3 effort;  62 / 8.0 = 7.75 → 7.8 baseline.
+      await waitFor(() => expect(screen.getByText('8.3 / hr')).toBeInTheDocument());
+      expect(screen.getByText('7.8 / hr')).toBeInTheDocument();
+    });
+
+    it('⚠️ off-standard moves the DENOMINATOR only — the count row never changes', async () => {
+      state.basis = 'cars-touched';
+      state.touched = count(59);
+      state.oth = thirtyMin();
+      render(<ShiftRatesCard />);
+      // His call, documented at the basis swap: "this feature changes what is counted, never how
+      // long he was there." So 59 stays 59 no matter what the off-standard does.
+      await waitFor(() => expect(screen.getByText('8.3 / hr')).toBeInTheDocument());
+      expect(screen.getByText('59')).toBeInTheDocument();
+    });
   });
 
   it('the toggle is wired to the preference, so the choice survives the session', () => {
