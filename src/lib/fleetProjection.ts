@@ -28,6 +28,49 @@
 /** How many same-kind days the average looks back over. The knee of the error curve, measured. */
 export const PROJECTION_WINDOW = 4;
 
+// ⭐⭐ SHAPE FROM THE WEEKDAY, LEVEL FROM THIS WEEK (2026-09-17, `ticket-fleet-projection-anchor.md`).
+//
+// The same-weekday average carries real signal about the DAY — it beats a flat trailing mean on MAE,
+// which is why it stays. But four same-weekdays reach FOUR WEEKS back, so it also carries that
+// month's volume LEVEL, and the level moves (mean OUT 69.8 → 94.4 across the period). It was
+// answering *"what is a Friday like?"* with last month's idea of how big a day is — a persistent
+// −5.0 on OUT.
+//
+// So the weekday average is blended with the last few DAYS: the weekday half says what kind of day
+// it is, the recent half says how big days are right now.
+//
+// ⭐ HOW THE SHAPE WAS CHOSEN (candidate sweep, every candidate scored on the same 81 days — scoring
+// each over only the days IT can answer hands the fussiest model the easiest slice):
+//
+//   predictor                      OUT mae  OUT bias   IN mae  IN bias
+//   same-weekday n≤4 (was)            17.5      −5.0     15.2     −3.3
+//   trailing-7 only                   17.9      −1.6     15.7     −0.8
+//   trailing-5 only                   17.4      −1.1     15.2     −0.5
+//   50/50 weekday + trailing-5        15.8      −3.2     14.2     −2.3   ← chosen
+//
+// Swept w ∈ {0.3…0.7} × anchor ∈ {5,7,10}: w=0.5/anchor=5 ranked FIRST both over all history and
+// over just since 2026-08-01, and the optimum is FLAT across w = 0.4–0.6 rather than a spike — both
+// facts argue against a lucky fit.
+//
+// ⭐⭐ WHAT THIS FUNCTION ACTUALLY MEASURES, replayed after it was written (the numbers above are a
+// prototype's; these are THIS code's, which is the only pair worth quoting):
+//
+//   window                  OUT mae         IN mae        OUT bias      IN bias
+//   all history (n=87)    18.5 → 16.9    15.3 → 14.4    −3.6 → −2.0  −2.5 → −1.5   (−7.4% sum)
+//   since 2026-08-01 (28) 20.3 → 19.5    19.0 → 16.7    −1.1 → −1.0  −4.6 → −2.9   (−7.8% sum)
+//
+// ⚠️ Not oversold: 16.9 is still large on a ~95-car day, and no window rescues 2026-08-21 (135
+// actual vs 71 estimated) or 2026-08-31 (52 vs 108). This buys ~7%, not clairvoyance.
+//
+// ⚠️ WEEKENDS ARE DELIBERATELY UNTOUCHED. The weekend tier is already `prior-7` — there is no
+// weekday component to re-anchor, and blending prior-7 with prior-5 is a trailing average wearing a
+// costume.
+
+/** How many recent DAYS the level anchor averages. Measured: beat 7 and 10 in both windows. */
+export const RECENT_ANCHOR = 5;
+/** Weight on the same-weekday half. 0.5 measured best; the optimum is flat across 0.4–0.6. */
+export const WEEKDAY_WEIGHT = 0.5;
+
 export interface BalanceEntry { date: string; outCount: number; inCount: number }
 
 export interface FleetProjection {
@@ -46,7 +89,9 @@ export function dayOfWeek(date: string): number {
   return new Date(date + 'T00:00:00').getDay();
 }
 
-const mean = (xs: number[]) => Math.round(xs.reduce((s, x) => s + x, 0) / xs.length);
+// ⚠️ UNROUNDED. The blend below rounds ONCE, at the end — rounding each half first would throw
+// away up to half a car per side before they are even combined.
+const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
 
 /**
  * Estimate `target` from `history`.
@@ -58,8 +103,8 @@ const mean = (xs: number[]) => Math.round(xs.reduce((s, x) => s + x, 0) / xs.len
 export function projectFleetBalance(target: string, history: readonly BalanceEntry[]): FleetProjection | null {
   const d = dayOfWeek(target);
   const build = (rows: readonly BalanceEntry[], label: string, basis: string): FleetProjection => ({
-    avgOut: mean(rows.map(r => r.outCount)),
-    avgIn:  mean(rows.map(r => r.inCount)),
+    avgOut: Math.round(mean(rows.map(r => r.outCount))),
+    avgIn:  Math.round(mean(rows.map(r => r.inCount))),
     label, basis,
   });
 
@@ -71,12 +116,25 @@ export function projectFleetBalance(target: string, history: readonly BalanceEnt
     return build(prior, `Based on the last ${prior.length} days`, `prior-7 n=${prior.length}`);
   }
 
-  // ⭐ THE FIX: the last N same-weekdays, not every one ever recorded.
+  // ⭐ The last N same-weekdays (not every one ever recorded), re-anchored to the last few days.
   const sameDay = history.filter(e => dayOfWeek(e.date) === d).slice(-PROJECTION_WINDOW);
   if (sameDay.length >= 2) {
     const name = DAY_NAMES[d];
-    return build(sameDay, `Based on the last ${sameDay.length} ${name}s`,
-                 `same-weekday ${name} n=${sameDay.length}`);
+    // `sameDay` is a subset of `history`, so history.length >= 2 here and the anchor always exists.
+    const recent = history.slice(-RECENT_ANCHOR);
+    const mix = (pick: (e: BalanceEntry) => number) =>
+      Math.round(mean(sameDay.map(pick)) * WEEKDAY_WEIGHT + mean(recent.map(pick)) * (1 - WEEKDAY_WEIGHT));
+    return {
+      avgOut: mix(e => e.outCount),
+      avgIn:  mix(e => e.inCount),
+      // The label says what it DID. The cautionary tale in this file's header is a label that
+      // claimed a window it did not have, so a blend must read as a blend.
+      label: `Half the last ${sameDay.length} ${name}s, half the last ${recent.length} days`,
+      // ⚠️ A DISTINGUISHABLE basis is the only defence against reading accuracy off the stored
+      // column and averaging two different models together — which is exactly how this ticket
+      // started. Every change to this file must write a basis the next reader can separate.
+      basis: `blend${WEEKDAY_WEIGHT} same-weekday ${name} n=${sameDay.length} + prior-${RECENT_ANCHOR} n=${recent.length}`,
+    };
   }
 
   // Fallback for a weekday with almost no history of its own. ⚠️ This carried the SAME unbounded

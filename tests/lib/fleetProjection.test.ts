@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectFleetBalance, dayOfWeek, PROJECTION_WINDOW, type BalanceEntry } from '../../src/lib/fleetProjection';
+import { projectFleetBalance, dayOfWeek, PROJECTION_WINDOW, RECENT_ANCHOR, WEEKDAY_WEIGHT, type BalanceEntry } from '../../src/lib/fleetProjection';
 
 // 2026-09-01 is a Tuesday; 2026-09-05 a Saturday.
 const e = (date: string, outCount: number, inCount = outCount): BalanceEntry => ({ date, outCount, inCount });
@@ -21,8 +21,9 @@ describe('dayOfWeek', () => {
 describe('projectFleetBalance — the window', () => {
   it('⭐⭐ averages only the LAST 4 same-weekdays, not every one ever recorded', () => {
     const p = projectFleetBalance('2026-09-01', TUESDAYS);
-    // last 4 = 90,100,110,120 → 105.  All-time would be 65 — the old rule, 40 cars low.
-    expect(p?.avgOut).toBe(105);
+    // weekday half: last 4 Tuesdays = 90,100,110,120 → 105.  All-time would be 65 — the old rule,
+    // 40 cars low.  The level anchor (last 5 entries = 92) then pulls it to (105 + 92) / 2 = 98.5.
+    expect(p?.avgOut).toBe(99);
     expect(PROJECTION_WINDOW).toBe(4);
   });
 
@@ -33,16 +34,85 @@ describe('projectFleetBalance — the window', () => {
   });
 
   it('uses everything it has when there are fewer than 4 same-weekdays', () => {
-    const two = TUESDAYS.slice(0, 2);                 // 10, 20
+    const two = TUESDAYS.slice(0, 2);                 // 10, 20 — and the anchor sees the same two
     const p = projectFleetBalance('2026-09-01', two);
     expect(p?.avgOut).toBe(15);
-    expect(p?.label).toBe('Based on the last 2 Tuesdays');
+    expect(p?.label).toBe('Half the last 2 Tuesdays, half the last 2 days');
   });
 
-  it('⚠️ a label must not claim a window it does not have', () => {
+  it('⚠️ a label must not claim a window it does not have — and a BLEND must read as a blend', () => {
     const p = projectFleetBalance('2026-09-01', TUESDAYS);
-    expect(p?.label).toBe('Based on the last 4 Tuesdays');
-    expect(p?.basis).toBe('same-weekday Tuesday n=4');
+    expect(p?.label).toBe('Half the last 4 Tuesdays, half the last 5 days');
+    expect(p?.basis).toBe('blend0.5 same-weekday Tuesday n=4 + prior-5 n=5');
+  });
+});
+
+// ⭐⭐ WHY THESE EXIST (2026-09-17, `ticket-fleet-projection-anchor.md`). The last-4 window fixed the
+// staleness of an all-time mean but kept a smaller version of it: four same-weekdays reach FOUR
+// WEEKS back, so the estimate still carried last month's idea of how big a day is — a standing −3.6
+// on OUT across 87 replayed days. The weekday half says what KIND of day it is; the recent half says
+// what SIZE days are now. Replayed on this code: OUT mae 18.5 → 16.9, IN 15.3 → 14.4.
+describe('projectFleetBalance — the level anchor', () => {
+  it('⭐⭐⭐ a stale-high weekday average gets pulled toward the week that actually just happened', () => {
+    const staleHigh: BalanceEntry[] = [
+      e('2026-08-04', 100), e('2026-08-11', 100), e('2026-08-18', 100), e('2026-08-25', 100), // Tuesdays
+      e('2026-08-26', 50), e('2026-08-27', 50), e('2026-08-28', 50), e('2026-08-31', 50),     // this week
+    ];
+    const p = projectFleetBalance('2026-09-01', staleHigh);     // Tuesday
+    // weekday half = 100 (what the OLD rule would have answered, alone).
+    // anchor half   = last 5 entries = (100 + 50 + 50 + 50 + 50) / 5 = 60.
+    expect(p?.avgOut).toBe(80);
+    expect(p?.avgOut).not.toBe(100);
+  });
+
+  it('…and a stale-LOW one gets pulled up — the correction is not one-directional', () => {
+    const staleLow: BalanceEntry[] = [
+      e('2026-08-04', 50), e('2026-08-11', 50), e('2026-08-18', 50), e('2026-08-25', 50),
+      e('2026-08-26', 100), e('2026-08-27', 100), e('2026-08-28', 100), e('2026-08-31', 100),
+    ];
+    const p = projectFleetBalance('2026-09-01', staleLow);
+    // weekday half = 50; anchor = (50 + 100·4) / 5 = 90 → (50 + 90) / 2 = 70.
+    expect(p?.avgOut).toBe(70);
+  });
+
+  it('OUT and IN are anchored independently — they move on different days', () => {
+    const split: BalanceEntry[] = [
+      { date: '2026-08-18', outCount: 100, inCount: 20 }, { date: '2026-08-25', outCount: 100, inCount: 20 },
+      { date: '2026-08-26', outCount: 20,  inCount: 100 }, { date: '2026-08-27', outCount: 20, inCount: 100 },
+      { date: '2026-08-28', outCount: 20,  inCount: 100 },
+    ];
+    const p = projectFleetBalance('2026-09-01', split);
+    // OUT: weekday 100, anchor (100+100+20+20+20)/5 = 52 → (100 + 52)/2 = 76.
+    // IN:  weekday  20, anchor ( 20+ 20+100+100+100)/5 = 68 → ( 20 + 68)/2 = 44.
+    // ⭐ The two columns land in different places off the SAME five days — which is the point: a
+    // heavy-out week and a heavy-in week are different weeks, and one anchor cannot serve both.
+    expect(p?.avgOut).toBe(76);
+    expect(p?.avgIn).toBe(44);
+  });
+
+  it('⚠️ rounds ONCE, at the end — not each half before combining', () => {
+    const halves: BalanceEntry[] = [e('2026-08-18', 10), e('2026-08-25', 11), e('2026-08-26', 20)];
+    const p = projectFleetBalance('2026-09-01', halves);        // Tuesday
+    // weekday half = 10.5, anchor = 41/3 = 13.67 → 12.08 → 12.
+    // Rounding each half FIRST gives 11 and 14 → 12.5 → 13. The off-by-one is the whole point.
+    expect(p?.avgOut).toBe(12);
+  });
+
+  it('the constants are the measured ones — a silent re-tune should fail here', () => {
+    expect(RECENT_ANCHOR).toBe(5);
+    expect(WEEKDAY_WEIGHT).toBe(0.5);
+  });
+
+  // ⚠️ The weekend tier has no weekday component to re-anchor, and blending prior-7 with prior-5 is
+  // a trailing average wearing a costume. It was deliberately left alone; this pins that.
+  it('⚠️ weekends are NOT blended — that tier is untouched', () => {
+    const week = [
+      e('2026-08-30', 1), e('2026-08-31', 2), e('2026-09-01', 3), e('2026-09-02', 4),
+      e('2026-09-03', 5), e('2026-09-04', 6), e('2026-09-05', 7),
+    ];
+    const p = projectFleetBalance('2026-09-12', week);          // Saturday
+    expect(p?.basis).toBe('prior-7 n=7');
+    expect(p?.basis).not.toContain('blend');
   });
 });
 
