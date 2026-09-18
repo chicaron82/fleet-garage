@@ -76,7 +76,9 @@ export function ShiftRatesCard() {
   const midDeparture  = getMidDeparture();
   const partition     = buildShiftPartition({ handoff: todayHandoff, checkpoint, fullDayCleaned, offStandardEntries: entries, midArrival, midDeparture });
   // Shared seam: window from actual→planned→default, OTH scoped to it, then rated.
-  const { snapshot: mySnapshot, yourEffort } = resolveShiftRates({
+  // ⚠️ Only the SNAPSHOT is taken. Its `yourEffort` is the gas-sheet rate and used to gate the render
+  // — which is precisely the bug fixed below, so it is deliberately not destructured any more.
+  const { snapshot: mySnapshot } = resolveShiftRates({
     partition, shift: myShift, date: localDateStr(0), offStandardEntries: entries,
   });
   // ⭐ THE BASIS SWAP HAPPENS HERE AND NOWHERE ELSE. `mySnapshot.cleaned` is the gas-sheet DAY figure
@@ -92,16 +94,32 @@ export function ShiftRatesCard() {
   // Read live from the ephemeral session (this shift, this device) — NOT baked into the durable
   // snapshot/PDF (flips don't persist), so resolveShiftRates stays flip-free.
   const flipsCredited = myCarsCleaned != null ? flipCount : 0;
-  const credited = creditFlipsToRate(mySnapshot, flipCount);
+  // ⚠️⚠️ THE NUMERATOR MUST TRAVEL INTO THE RATES, NOT JUST THE COUNT ROW. Until 2026-09-17 this
+  // read `creditFlipsToRate(mySnapshot, …)` — so the toggle moved the "Cars cleaned" line and
+  // NOTHING else, and both rates went on dividing the gas-sheet figure. On Aaron's 2026-09-17 mid,
+  // an airport-flip day with a near-empty gas sheet, the card showed 7.0/hr where the touched basis
+  // owed him ~7.6. ⭐ It under-reported on exactly the shift the toggle exists for.
+  //
+  // ⚠️ Neither side was untested — `creditFlipsToRate` and `resolveNumerator` both had passing unit
+  // tests all day. The defect lived in the WIRING between them, which no unit test can see. That is
+  // why the test for this is a component test that flips the basis and asserts the rate moves.
+  const credited = creditFlipsToRate({ ...mySnapshot, cleaned: myCarsCleaned }, flipCount);
   const dispBaseline = credited.baseline;
   const dispEffort = credited.yourEffort;
-  const hasShiftData  = yourEffort != null;
+  // ⭐ Gate on what is actually RENDERED, not on the gas-sheet rate. Under `cars-touched` the count
+  // is null for a beat while the query runs, so a gate reading `yourEffort` (flip-free, gas-sheet)
+  // would be true while `dispEffort` was null — rendering `null.toFixed(1)`. Aaron's call: blank the
+  // block for that beat rather than hold a stale number, since a wrong-basis rate is the bug.
+  // ⚠️ Also closes a pre-existing crash: `baseline` is null when hours === 0 while `yourEffort` is
+  // not (it divides by max(0.1, …)), so the old gate let `dispBaseline!.toFixed(1)` through.
+  // Both consts, so this narrows them — the non-null assertions are gone rather than justified.
+  const hasShiftData  = dispEffort != null && dispBaseline != null;
   const activeMinutes = Math.max(0, mySnapshot.hours * 60 - offTotal);
   const rateWarning   = shiftRateWarning(mySnapshot);
 
   const rateColor = !hasShiftData ? 'text-gray-400 dark:text-gray-500'
-    : dispEffort! >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
-    : dispEffort! >= 2.5 ? 'text-amber-500'
+    : dispEffort >= STANDARD_RATE ? 'text-green-600 dark:text-green-400'
+    : dispEffort >= 2.5 ? 'text-amber-500'
     : 'text-red-600 dark:text-red-400';
 
   return (
@@ -182,9 +200,9 @@ export function ShiftRatesCard() {
 
         {hasShiftData && (
           <div className={`rounded-lg px-4 py-3 border ${
-            dispEffort! >= STANDARD_RATE
+            dispEffort >= STANDARD_RATE
               ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50'
-              : dispEffort! >= 2.5
+              : dispEffort >= 2.5
               ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50'
               : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
           }`}>
@@ -194,11 +212,11 @@ export function ShiftRatesCard() {
             </div>
             <div className="flex justify-between items-baseline mt-1">
               <span className="text-xs text-gray-500 dark:text-gray-400">Shift baseline ({fmtHours(mySnapshot.hours)} window)</span>
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dispBaseline!.toFixed(1)} / hr</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dispBaseline.toFixed(1)} / hr</span>
             </div>
             <div className="flex justify-between items-baseline mt-1 pt-1 border-t border-gray-100 dark:border-gray-800">
               <span className="text-xs text-gray-500 dark:text-gray-400">Your effort</span>
-              <span className={`text-lg font-bold ${rateColor}`}>{dispEffort!.toFixed(1)} / hr</span>
+              <span className={`text-lg font-bold ${rateColor}`}>{dispEffort.toFixed(1)} / hr</span>
             </div>
             {offTotal > 0 && (
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
