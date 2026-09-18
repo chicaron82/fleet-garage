@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { vehicleLabel, powertrainBadge, type NamedVehicle, vehicleNameText, identityGaps, describeIdentityGaps } from '../../src/lib/vehicleName';
+import { vehicleLabel, powertrainBadge, type NamedVehicle, vehicleNameText, identityGaps, describeIdentityGaps, vehicleCodesLine } from '../../src/lib/vehicleName';
 
 const car = (over: Partial<NamedVehicle> = {}): NamedVehicle =>
   ({ year: 2026, make: 'Toyota', model: 'RAV4', ...over });
@@ -163,5 +163,49 @@ describe('identityGaps — "Unknown" is a placeholder', () => {
   it('⚠️ never accuses a real model that merely contains the word', () => {
     expect(identityGaps({ year: 2025, make: 'Tesla', model: 'Model Y' })).toEqual([]);
     expect(identityGaps({ year: 2025, make: 'Jeep', model: 'Unknown Trail' })).toEqual([]);
+  });
+});
+
+// ⭐⭐ THE TRANSCRIPTION LINE (2026-09-17, `ticket-scan-card-class-and-code.md`).
+//
+// Aaron keeps FG open through a return and reads the scan card as inspection-slip prep while the
+// driver is still writing the tag info onto the gas sheet — *"so i don't have to wait for the driver
+// to hand me the keytag"*. Asked what the card gave him for LUR162: *"it gives me the unit, license
+// plate, the damage map. what it does not give me is the model code and class."*
+//
+// FG held both the whole time (761 of 788 live vehicles carry them). These pin the formatting; the
+// journey itself is pinned in tests/flows/scan-router.flow.ts, on the TYPED door he actually uses.
+describe('vehicleCodesLine', () => {
+  it('reads code then labelled class — the shape he copies onto the slip', () => {
+    expect(vehicleCodesLine({ classCode: 'CKSE', rentalClass: 'B5' })).toBe('CKSE · class B5');
+  });
+
+  it('⚠️⚠️ ALWAYS returns a line — a vanishing line is the bug, not the tidy case', () => {
+    // 19 live cars have NEITHER field. I first wrote this to return null there, which is wrong for
+    // the reason the ticket gives: on a field being copied onto paper, a line that disappears
+    // teaches him nothing, so he fills it from memory and never learns the record is empty.
+    expect(vehicleCodesLine({})).toBe('— · class —');
+    expect(vehicleCodesLine({ classCode: null, rentalClass: null })).toBe('— · class —');
+  });
+
+  it('shows WHICH half is missing, not just that something is', () => {
+    expect(vehicleCodesLine({ rentalClass: 'B5' })).toBe('— · class B5');
+    expect(vehicleCodesLine({ classCode: 'CKSE' })).toBe('CKSE · class —');
+  });
+
+  it('⚠️ "Unknown" is a placeholder, not a code — it reads as a gap', () => {
+    // Same trap `identityGaps` documents: a non-blank string that means nothing. A slip filled with
+    // the literal word "Unknown" in the class box is worse than an obvious blank.
+    expect(vehicleCodesLine({ classCode: 'unknown', rentalClass: 'Unknown' })).toBe('— · class —');
+  });
+
+  it('normalises what it prints — the paper wants one canonical form', () => {
+    expect(vehicleCodesLine({ classCode: ' ckse ', rentalClass: ' b5 ' })).toBe('CKSE · class B5');
+  });
+
+  it('⚠️ never derives the class from the code — that is a record to fix, not a number to compute', () => {
+    // Class codes move with model year (the Kicks went B4→B5 for 2026), so a code alone can NOT
+    // imply a class. CKSE with no class stays a visible gap rather than a guess.
+    expect(vehicleCodesLine({ classCode: 'CKSE' })).not.toContain('B5');
   });
 });

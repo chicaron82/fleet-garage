@@ -156,3 +156,27 @@ test.afterAll(async () => {
     }
   } catch { /* cleanup is best-effort */ }
 });
+
+test('⭐ the TYPED door gives the model code and class — slip prep with no tag in hand', async ({ page }) => {
+  // Aaron's real workflow, 2026-09-17 (`ticket-scan-card-class-and-code.md`): FG stays open through
+  // a return, he looks the plate up while the driver is still writing the tag info onto the gas
+  // sheet, and fills the inspection slip off this card — *"so i don't have to wait for the driver to
+  // hand me the keytag"*. The model code and class were the only two fields it withheld.
+  //
+  // ⚠️ Driven through the 🔍 door on purpose. There is no tag yet in that workflow, so the scanned
+  // path would be testing a journey he is not on.
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Find a car' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Find a car' });
+  await expect(dialog).toBeVisible();
+
+  // `Look up` commits the typed query outright — deterministic, unlike racing the suggestion list.
+  await dialog.getByPlaceholder('Plate or unit').fill(FIXTURE.plate);
+  await dialog.getByRole('button', { name: 'Look up' }).click();
+
+  // ⚠️ Asserted as a SHAPE, not as `CHVP · class B4`. The fixture really is a 2026 Hyundai Venue at
+  // CHVP/B4 today, but a class legitimately moves with model year, and pinning the value would turn
+  // an ordinary re-class into a red gate. The regex still fails on an em-dash gap, which is the
+  // thing worth catching: it means the card rendered but FG had nothing to put in it.
+  await expect(dialog.getByText(/^[A-Z0-9]{2,6} · class [A-Z0-9]{1,3}$/)).toBeVisible();
+});

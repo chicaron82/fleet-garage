@@ -15,6 +15,7 @@ import { ScanDamageZones } from './ScanDamageZones';
 import { ScanNotices } from './ScanNotices';
 import { ScanVehicleCapture } from './ScanVehicleCapture';
 import { VehicleName } from '../shared/VehicleName';
+import { vehicleCodesLine } from '../../lib/vehicleName';
 import { Sparkles } from '../shared/Sparkles';
 import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
 import { evAssetScanStatus } from '../../lib/ev-detection';
@@ -83,6 +84,15 @@ export function ScanIdentityCard({
                 header calls that out by name — "above all the scan sheet" — and the scan
                 sheet was still joining the fields by hand. */}
             <VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}
+          </p>
+          {/* ⭐ THE TRANSCRIPTION LINE (2026-09-17, `ticket-scan-card-class-and-code.md`). Aaron
+              reads this card as inspection-slip prep while the driver is still writing the tag info
+              onto the gas sheet — *"so i don't have to wait for the driver to hand me the keytag"* —
+              and the model code and class were the only two fields it did not give him. FG held both
+              the whole time. MONO for the same reason the plate line above is mono: these get copied
+              onto paper character-for-character, not read for comprehension. */}
+          <p className="font-mono text-xs text-gray-700 dark:text-gray-300 mt-0.5">
+            {vehicleCodesLine(vehicle)}
           </p>
           {/* Derived from the vehicle's STATUS, never from the hold count — see
               scanStatusLine.ts. The count only adds a suffix. */}

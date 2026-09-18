@@ -164,3 +164,43 @@ export function powertrainBadge(v: NamedVehicle): '⚡' | '🔋' | null {
   if (v.isHybrid) return '🔋';
   return null;
 }
+
+/** The two codes he transcribes onto the inspection slip. Separate from the identity line because
+ *  these are COPIED, not read: the plate, the model code and the class all go onto paper
+ *  character-for-character, which is why the card renders this in monospace alongside the plate. */
+export interface CodedVehicle {
+  /** The manufacturer/model code off the key tag — e.g. `CKSE` for a Kia Seltos. */
+  classCode?: string | null;
+  /** The rental class — e.g. `B5`. ⚠️ Stored per vehicle and NEVER derived here: class codes move
+   *  with model year (the Kicks went B4→B5 for 2026), so inferring one across a year boundary is
+   *  how a slip gets the wrong class. A wrong value is a record to fix, not a number to compute. */
+  rentalClass?: string | null;
+}
+
+/** Placeholder for a code FG does not have. An em dash, so a gap is visibly a gap on a line being
+ *  copied onto paper — see `vehicleCodesLine`. */
+export const CODE_GAP = '—';
+
+/**
+ * `CKSE · class B5` — the model code and rental class, for the identity card.
+ *
+ * ⭐ Aaron's ask, 2026-09-17 (`ticket-scan-card-class-and-code.md`). He reads the scan card as
+ * inspection-slip prep while the driver is still writing, *"so i don't have to wait for the driver
+ * to hand me the keytag"* — and these were the only two fields the card did not give him. FG had
+ * both all along (761 of 788 live vehicles carry them); they were simply never rendered.
+ *
+ * ⚠️⚠️ ALWAYS RETURNS A LINE, including `— · class —` when FG knows neither (19 live cars). I first
+ * wrote this to return null in that case and it is wrong for exactly the reason the ticket gives:
+ * on a field being copied onto a slip, a line that VANISHES teaches him nothing, so he fills it from
+ * memory and never learns the record is empty. A visible gap is a real answer and prompts a fix
+ * ([[feedback_blank_is_an_answer]]).
+ *
+ * ⚠️ The class is labelled and the code is not, on purpose. `CKSE · B5` is two codes side by side
+ * with nothing saying which is which at a glance, and the common case (96.6% of the fleet) should
+ * stay short — so the label goes on the one that needs disambiguating.
+ */
+export function vehicleCodesLine(v: CodedVehicle): string {
+  const code = missing(v.classCode) ? CODE_GAP : v.classCode!.trim().toUpperCase();
+  const cls  = missing(v.rentalClass) ? CODE_GAP : v.rentalClass!.trim().toUpperCase();
+  return `${code} · class ${cls}`;
+}
