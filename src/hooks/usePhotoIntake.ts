@@ -52,5 +52,11 @@ export function usePhotoIntake() {
     return photos;
   }, []);
 
-  return { photoError, clearPhotoError, takeOne, takeMany };
+  /** Say something that went wrong with a photo AFTER it was read — an upload that didn't land.
+   *  ⭐ The read half has always spoken (`takeMany`); the upload half was silent until 2026-09-19
+   *  (docs/September/ticket-photos-that-never-uploaded.md). Same channel, same wording style, so a
+   *  photo that goes missing reads the same to him wherever it went missing. */
+  const reportPhotoError = useCallback((message: string) => setPhotoError(message), []);
+
+  return { photoError, clearPhotoError, reportPhotoError, takeOne, takeMany };
 }

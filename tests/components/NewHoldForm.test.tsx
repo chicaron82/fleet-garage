@@ -19,6 +19,7 @@ const VEHICLE: Vehicle = {
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const addHoldSpy    = vi.fn().mockResolvedValue(undefined);
+const addPhotosSpy  = vi.fn().mockResolvedValue({ added: 0, failed: 0 });
 const editZonesSpy  = vi.fn().mockResolvedValue(undefined);
 const markReviewSpy = vi.fn().mockResolvedValue(undefined);
 const addVehicleSpy = vi.fn().mockResolvedValue('v-new');
@@ -39,6 +40,7 @@ vi.mock('../../src/context/VehicleHoldContext', () => ({
     getActiveHold:    (id: string) => getActiveHoldImpl(id),
     getActiveHolds:   (id: string) => getActiveHoldsImpl(id),
     addHold:          addHoldSpy,
+    addPhotosToHold:  addPhotosSpy,
     addVehicle:       addVehicleSpy,
     setCoverPhoto:    vi.fn(),
     editHoldDamageZones: editZonesSpy,
@@ -131,6 +133,8 @@ function addPhoto(file: File) {
 beforeEach(() => {
   addHoldSpy.mockClear();
   addHoldSpy.mockResolvedValue(undefined);
+  addPhotosSpy.mockClear();
+  addPhotosSpy.mockResolvedValue({ added: 0, failed: 0 });
   editZonesSpy.mockClear();
   markReviewSpy.mockClear();
   compressImageSpy.mockClear();
@@ -350,5 +354,75 @@ describe('NewHoldForm — where on the car', () => {
     await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
     await waitFor(() => expect(editZonesSpy).toHaveBeenCalledWith('h-new', ['roof']));
     expect(markReviewSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ⭐⭐ SAVED, BUT THE EVIDENCE DIDN'T ALL LAND (2026-09-19,
+// docs/September/ticket-photos-that-never-uploaded.md). The upload half of the photo pipeline used
+// to fail in SILENCE: `addHold` filtered out the URLs that came back null and wrote the hold with
+// whatever survived, so three photos in, one timeout, and the form navigated away looking exactly
+// like a clean save. The operator is standing at the car with one bar of signal when that happens.
+describe('NewHoldForm — a photo that never uploaded', () => {
+  async function submitWithFailures(failedPhotos: string[]) {
+    addHoldSpy.mockResolvedValue({
+      holdId: 'h-new', photoUrls: [], photosFailed: failedPhotos.length, failedPhotos,
+    });
+    const user = userEvent.setup();
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+    await user.click(screen.getByTestId('damage-preset-stub'));
+    addPhoto(new File(['img'], 'damage.jpg', { type: 'image/jpeg' }));
+    await waitFor(() => expect(compressImageSpy).toHaveBeenCalled());
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    return user;
+  }
+
+  it('⚠️ says so instead of navigating away as if nothing was lost', async () => {
+    await submitWithFailures(['data:one']);
+    expect(await screen.findByText(/Hold saved — 1 photo didn't upload/i)).toBeInTheDocument();
+    expect(BASE_PROPS.onSuccess).not.toHaveBeenCalled();     // the form HOLDS
+  });
+
+  // ⚠️⚠️ THE GUARD THAT MATTERS MOST. The hold already exists, so the remedy must re-offer the
+  // photos to THAT hold — never flag the car a second time. The submit button is replaced rather
+  // than re-enabled for exactly this reason.
+  it('⚠️⚠️ retry adds the photos to the hold that exists — it never flags twice', async () => {
+    const user = await submitWithFailures(['data:one']);
+    addPhotosSpy.mockResolvedValue({ added: 1, failed: 0 });
+    await user.click(screen.getByRole('button', { name: /Try again/i }));
+    await waitFor(() => expect(BASE_PROPS.onSuccess).toHaveBeenCalledWith('v-1'));
+    expect(addPhotosSpy).toHaveBeenCalledWith('h-new', ['data:one']);
+    expect(addHoldSpy).toHaveBeenCalledTimes(1);             // ⚠️ still ONE hold
+  });
+
+  it('a retry that fails again keeps the banner up rather than pretending', async () => {
+    const user = await submitWithFailures(['data:one']);
+    addPhotosSpy.mockResolvedValue({ added: 0, failed: 1 });
+    await user.click(screen.getByRole('button', { name: /Try again/i }));
+    await waitFor(() => expect(addPhotosSpy).toHaveBeenCalled());
+    expect(screen.getByText(/1 photo didn't upload/i)).toBeInTheDocument();
+    expect(BASE_PROPS.onSuccess).not.toHaveBeenCalled();
+  });
+
+  // Giving up is a legitimate answer — the hold and whatever landed still stand.
+  it('⭐ he can go without them; the hold is not held hostage to a dead connection', async () => {
+    const user = await submitWithFailures(['data:one', 'data:two']);
+    expect(screen.getByText(/2 photos didn't upload/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Done without them/i }));
+    await waitFor(() => expect(BASE_PROPS.onSuccess).toHaveBeenCalledWith('v-1'));
+    expect(addPhotosSpy).not.toHaveBeenCalled();
+  });
+
+  it('a clean save still navigates exactly as before', async () => {
+    addHoldSpy.mockResolvedValue({ holdId: 'h-new', photoUrls: [], photosFailed: 0, failedPhotos: [] });
+    const user = userEvent.setup();
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
+    await user.click(screen.getByTestId('damage-preset-stub'));
+    addPhoto(new File(['img'], 'damage.jpg', { type: 'image/jpeg' }));
+    await waitFor(() => expect(compressImageSpy).toHaveBeenCalled());
+    await user.click(screen.getByRole('button', { name: /Flag Issue/i }));
+    await waitFor(() => expect(BASE_PROPS.onSuccess).toHaveBeenCalledWith('v-1'));
+    expect(screen.queryByText(/didn't upload/i)).not.toBeInTheDocument();
   });
 });

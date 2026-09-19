@@ -50,6 +50,57 @@ export async function uploadPhoto(base64: string, holdId: string): Promise<strin
   return supabase.storage.from('damage-photos').getPublicUrl(path).data.publicUrl;
 }
 
+/** Several photos → the ones that made it, and an honest count of the ones that didn't.
+ *
+ * ⭐⭐ THE UPLOAD HALF OF `compressBatch` (2026-09-19, docs/September/ticket-photos-that-never-uploaded.md).
+ * A photo that could not be READ has said so since `2eb56cb`; a photo that could not be UPLOADED
+ * said nothing — `addHold` filtered the nulls out and wrote the hold with whatever survived. The
+ * operator is standing at the car with one bar of signal when that happens, and the photo IS the
+ * record ([[reference_new_vs_preexisting_damage]]).
+ *
+ * ⚠️ ONE RETRY, then report. `uploadPhoto`'s failure mode here is a 15s TIMEOUT that resolves — a
+ * transient, and a second attempt on a fresh path is the cheapest thing that actually recovers it.
+ * A retry LOOP would hold a damage form hostage to a dead connection, so it stops at two.
+ *
+ * ⚠️ `failedPhotos` carries the base64s back OUT, not just a count: the caller can re-offer them
+ * against the hold that now exists (`addPhotosToHold`) instead of asking him to shoot the car again.
+ */
+export async function uploadPhotos(
+  base64s: readonly string[],
+  holdId: string,
+): Promise<{ urls: string[]; failed: number; failedPhotos: string[] }> {
+  // ⚠️⚠️ ORDER IS LOAD-BEARING, so the results are written back BY INDEX and never appended.
+  // `useNewHold` pins the card photo with `coverPhotoUrlFor(pinnedPhotoIndex, photos, photoUrls)`:
+  // it lines the returned URLs up against the photos he picked from. A retry that appended its
+  // successes at the end would keep the COUNTS matching (so the guard would pass) while pinning
+  // the wrong picture — a silent wrong answer in place of the silent loss this fix is about.
+  const slots: (string | null)[] = base64s.map(() => null);
+
+  const attempt = async (idxs: readonly number[]): Promise<number[]> => {
+    const results = await Promise.all(
+      idxs.map(async i => {
+        const b = base64s[i];
+        return { i, url: b.startsWith('data:') ? await uploadPhoto(b, holdId) : b };
+      }),
+    );
+    const stillPending: number[] = [];
+    for (const { i, url } of results) {
+      if (url === null) stillPending.push(i);
+      else slots[i] = url;
+    }
+    return stillPending;
+  };
+
+  let pending = await attempt(base64s.map((_, i) => i));
+  if (pending.length > 0) pending = await attempt(pending);
+
+  return {
+    urls: slots.filter((u): u is string => u !== null),
+    failed: pending.length,
+    failedPhotos: pending.map(i => base64s[i]),
+  };
+}
+
 /** Delete damage photos from the bucket by their public URLs. Best-effort: a failed storage
  *  remove does NOT throw — an orphaned file is recoverable, a blocked hold/photo edit isn't.
  *  Callers do the DB change (the source of truth) and call this for the storage cleanup. */

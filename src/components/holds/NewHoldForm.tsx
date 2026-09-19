@@ -259,7 +259,35 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
             </div>
           )}
 
-          {/* Submit */}
+          {/* ⭐⭐ SAVED, BUT THE EVIDENCE DIDN'T ALL LAND (docs/September/ticket-photos-that-never-uploaded.md).
+              The hold is written; only the photos that timed out are missing, and they are still in
+              hand. So the form holds open instead of navigating — the remedy is one tap, on a car he
+              is still standing next to. ⚠️ Retry re-offers them to the hold that EXISTS; it never
+              flags a second time, which is why the submit button is replaced rather than re-enabled. */}
+          {h.photoRetry ? (
+            <div className="space-y-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
+              <p className="text-sm text-amber-900 dark:text-amber-300">
+                Hold saved — {h.photoRetry.photos.length} photo{h.photoRetry.photos.length === 1 ? '' : 's'} didn't upload.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { const id = h.dismissPhotoRetry(); if (id) onSuccess(id); }}
+                  className="flex-1 py-2.5 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 font-medium text-sm rounded-lg cursor-pointer"
+                >
+                  Done without {h.photoRetry.photos.length === 1 ? 'it' : 'them'}
+                </button>
+                <button
+                  type="button"
+                  disabled={h.retrying}
+                  onClick={async () => { const id = await h.retryFailedPhotos(); if (id) { hapticMedium(); onSuccess(id); } }}
+                  className="flex-1 py-2.5 bg-fg-yellow hover:bg-fg-yellow-hi disabled:bg-gray-200 dark:disabled:bg-gray-800 text-black font-semibold text-sm rounded-lg cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {h.retrying ? 'Uploading…' : 'Try again'}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="flex gap-2">
             <button
               type="button"
@@ -276,6 +304,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
               {h.submitting ? 'Flagging…' : 'Flag Issue'}
             </button>
           </div>
+          )}
 
         </form>
       </div>

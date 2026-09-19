@@ -5,7 +5,7 @@
 // identityReconcile). Resolution/editing ops live in their own siblings; this
 // file is the "new hold data lands" half.
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { uploadPhoto, pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
+import { uploadPhotos, pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
 import { withSubmitLock } from '../lib/submitLock';
 import { commitSightingFor } from '../hooks/useVehicleSightings';
@@ -56,9 +56,11 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
       const flaggedAt = new Date().toISOString();
       const branchId = (activeBranch === 'ALL' ? 'YWG' : activeBranch) as BranchId;
 
-      const photoUrls = (await Promise.all(
-        (photos ?? []).map(b => b.startsWith('data:') ? uploadPhoto(b, holdId) : Promise.resolve(b))
-      )).filter((url): url is string => url !== null);
+      // ⭐ Honest counts, not a silent filter (docs/September/ticket-photos-that-never-uploaded.md).
+      // This used to drop failed uploads on the floor: three photos in, one timeout, a hold saved
+      // with two and nothing said. `uploadPhotos` retries once and hands back what still failed, so
+      // the caller can re-offer those photos against the hold that now exists.
+      const { urls: photoUrls, failed: photosFailed, failedPhotos } = await uploadPhotos(photos ?? [], holdId);
 
       const { error } = await writeWithRefresh(() =>
         supabase.from('holds').insert({
@@ -105,7 +107,7 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
       setAllHolds(prev => prev.some(h => h.id === holdId) ? prev : [newHold, ...prev]);
       if (!vehErr) setAllVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: 'HELD' } : v));
 
-      return { holdId, photoUrls };
+      return { holdId, photoUrls, photosFailed, failedPhotos };
     });
   };
 }
@@ -166,14 +168,16 @@ export function makeAddRelease({ holds, allVehicles, setAllVehicles, setAllHolds
 export function makeAddPhotosToHold({ holds, setAllHolds }: HoldWriteDeps) {
   return async (holdId: string, newPhotos: string[]) => {
     const hold = holds.find(h => h.id === holdId);
-    if (!hold) return;
-    const uploadedUrls = (await Promise.all(newPhotos.map(b => uploadPhoto(b, holdId))))
-      .filter((url): url is string => url !== null);
-    if (uploadedUrls.length === 0) return;
+    if (!hold) return { added: 0, failed: 0 };
+    const { urls: uploadedUrls, failed } = await uploadPhotos(newPhotos, holdId);
+    // ⚠️ A total failure used to return here in silence — no write, no message, no trace. The count
+    // goes back to the caller now; `useVehicleHistory` says it where he is still standing.
+    if (uploadedUrls.length === 0) return { added: 0, failed };
     const merged = [...(hold.photos ?? []), ...uploadedUrls];
     await writeWithRefresh(() =>
       supabase.from('holds').update({ photos: merged }).eq('id', holdId)
     );
     setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, photos: merged }));
+    return { added: uploadedUrls.length, failed };
   };
 }

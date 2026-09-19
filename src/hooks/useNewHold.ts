@@ -16,7 +16,7 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
   const { photoError, takeMany } = usePhotoIntake();
   const { user } = useAuth();
-  const { vehicles, getActiveHold, getActiveHolds, addHold, setCoverPhoto, editHoldDamageZones, markZonesReviewed } = useVehicleHoldContext();
+  const { vehicles, getActiveHold, getActiveHolds, addHold, addPhotosToHold, setCoverPhoto, editHoldDamageZones, markZonesReviewed } = useVehicleHoldContext();
 
   const [unitSearch, setUnitSearch] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(preselectedId ?? null);
@@ -60,6 +60,11 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // ⭐ "Saved, but the evidence didn't all land" — the one state between success and failure
+  // (docs/September/ticket-photos-that-never-uploaded.md). The hold EXISTS, so the form must not
+  // re-submit; it holds open with the failed photos in hand so they can be re-offered to that hold.
+  const [photoRetry, setPhotoRetry] = useState<{ vehicleId: string; holdId: string; photos: string[] } | null>(null);
+  const [retrying, setRetrying] = useState(false);
   // Synchronous in-flight lock — `submitting` is async state, so it can't guard
   // against two taps fired in the same render frame (see `submit`). The load-bearing
   // dedup now lives in `addHold` itself (shared `withSubmitLock`), so every caller is
@@ -261,6 +266,13 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
         try { await setCoverPhoto(selectedVehicle.id, coverUrl); }
         catch { /* the hold is created; the card-photo pin is a nicety */ }
       }
+      // ⚠️ RETURNS null ON PURPOSE when evidence was lost — null is "don't navigate yet", not
+      // "nothing happened". The caller reads it as a failed submit and stays put, which is exactly
+      // what is wanted: the banner below owns the close. The hold is already written either way.
+      if (result && result.photosFailed > 0) {
+        setPhotoRetry({ vehicleId: selectedVehicle.id, holdId: result.holdId, photos: result.failedPhotos });
+        return null;
+      }
       return selectedVehicle.id;
     } catch {
       setSubmitError('Something went wrong. Please try again.');
@@ -269,6 +281,27 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
       setSubmitting(false);
       inFlightRef.current = false;
     }
+  };
+
+  /** Re-offer the photos that didn't upload to the hold that already exists. Never a second hold. */
+  const retryFailedPhotos = async (): Promise<string | null> => {
+    if (!photoRetry || retrying) return null;
+    setRetrying(true);
+    try {
+      const { failed } = await addPhotosToHold(photoRetry.holdId, photoRetry.photos);
+      if (failed === 0) { const id = photoRetry.vehicleId; setPhotoRetry(null); return id; }
+      setPhotoRetry({ ...photoRetry, photos: photoRetry.photos.slice(-failed) });
+      return null;
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  /** Give up on the stragglers and go — the hold, and whatever landed, stand. */
+  const dismissPhotoRetry = (): string | null => {
+    const id = photoRetry?.vehicleId ?? null;
+    setPhotoRetry(null);
+    return id;
   };
 
   return {
@@ -295,6 +328,7 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
     // one he can see is a default.
     pinnedPhotoIndex: effectivePinnedIndex(pinnedPhotoIndex, photos.length), togglePinPhoto,
     submitting, submitError, canSubmit, photosOk,
+    photoRetry, retrying, retryFailedPhotos, dismissPhotoRetry,
     selectVehicle, clearVehicle,
     submit,
     MAX_PHOTOS,

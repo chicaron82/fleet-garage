@@ -94,9 +94,11 @@ export interface VehicleHoldContextValue {
    *  Pass false to un-confirm; a retake clears it automatically. */
   confirmKeytagPhoto: (vehicleId: string, confirmed: boolean) => Promise<boolean>;
   releaseUnitNumber: (vehicleId: string) => Promise<void>;
-  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null, disposition?: Disposition | null) => Promise<{ holdId: string; photoUrls: string[] } | undefined>;
+  addHold: (vehicleId: string, damageDescription: string, notes: string, flaggedById: string, photos?: string[], holdTypes?: HoldType[], detailReason?: DetailReason, mechanicalSubType?: MechanicalSubType | null, linkedHoldId?: string, flaggedSource?: string | null, disposition?: Disposition | null) => Promise<{ holdId: string; photoUrls: string[]; photosFailed: number; failedPhotos: string[] } | undefined>;
   addRelease: (holdId: string, release: Omit<Release, 'id'>) => Promise<void>;
-  addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<void>;
+  /** Returns how many photos landed and how many could not be uploaded (after one retry) — a
+   *  silent drop is the defect this reports; see docs/September/ticket-photos-that-never-uploaded.md. */
+  addPhotosToHold: (holdId: string, newPhotos: string[]) => Promise<{ added: number; failed: number }>;
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markRepairedBatch: (holdIds: string[], repair: Omit<Repair, 'id'>) => Promise<void>;
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;

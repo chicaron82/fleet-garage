@@ -43,8 +43,25 @@ vi.mock('../../src/lib/supabase', () => ({
   writeWithRefresh: (...args: unknown[]) => writeWithRefreshMock(...args),
 }));
 
+// ⚠️ `uploadPhotos` MUST delegate to the same spy. The hold writes batch their uploads through it
+// (one retry, honest counts — docs/September/ticket-photos-that-never-uploaded.md), and a stub that
+// resolved independently would leave every assertion below asserting nothing. Same reasoning as the
+// compressBatch stub in NewHoldForm.test: "uploadPhoto is what uploads" stays true through the new
+// layer, including the retry — a photo the mock fails twice is a genuine failure here too.
 vi.mock('../../src/lib/garage-uploads', () => ({
   uploadPhoto:      (...args: unknown[]) => uploadPhotoMock(...args),
+  uploadPhotos:     async (base64s: string[], holdId: string) => {
+    const slots: (string | null)[] = [];
+    for (const b of base64s) slots.push(b.startsWith('data:') ? await uploadPhotoMock(b, holdId) : b);
+    for (let i = 0; i < slots.length; i++) {
+      if (slots[i] === null) slots[i] = await uploadPhotoMock(base64s[i], holdId);
+    }
+    return {
+      urls: slots.filter((u): u is string => u !== null),
+      failed: slots.filter(u => u === null).length,
+      failedPhotos: base64s.filter((_, i) => slots[i] === null),
+    };
+  },
   pushNotification: (...args: unknown[]) => pushNotificationMock(...args),
   NOTIFY_MGMT:      ['Branch Manager', 'Operations Manager'],
   NOTIFY_MGMT_WIDE: ['Branch Manager', 'Operations Manager', 'City Manager'],

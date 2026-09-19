@@ -9,7 +9,7 @@ import { usePhotoIntake } from './usePhotoIntake';
 
 export function useVehicleHistory(vehicleId: string) {
   // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
-  const { photoError, takeMany } = usePhotoIntake();
+  const { photoError, takeMany, reportPhotoError } = usePhotoIntake();
   const { user } = useAuth();
   const { getAnyVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
@@ -81,7 +81,20 @@ export function useVehicleHistory(vehicleId: string) {
     const holdId = pendingHoldId.current;
     setUploadingFor(holdId);
     const compressed = await takeMany(files);
-    if (compressed.length) await addPhotosToHold(holdId, compressed);
+    if (compressed.length) {
+      // ⭐ An upload that didn't land is SAID now, not swallowed — `addPhotosToHold` used to return
+      // in silence when every photo failed (docs/September/ticket-photos-that-never-uploaded.md).
+      // He is still on this screen with the car in front of him, which is the one moment a retry
+      // costs nothing.
+      const { added, failed } = await addPhotosToHold(holdId, compressed);
+      if (failed > 0) {
+        reportPhotoError(
+          added > 0
+            ? `${failed} photo${failed === 1 ? '' : 's'} didn't upload — the other ${added} saved. Try adding ${failed === 1 ? 'it' : 'them'} again.`
+            : `${failed === 1 ? "That photo didn't" : `Those ${failed} photos didn't`} upload — check the signal and try again.`,
+        );
+      }
+    }
     setUploadingFor(null);
     e.target.value = '';
   };
