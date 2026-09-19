@@ -82,7 +82,7 @@ Fields the tag MAY carry (read the ones present):
   • LABELLED tags print the model NAME on the "Model" line ("TUCSON", "Model Y", "COMPASS") and carry NO class code. Report it as model, exactly as printed; leave classCode empty — a model name is never a class code.
   • HANDWRITTEN tags usually write the MODEL directly ("versa", "Elantra") with NO 4-char code. Report model as written, and make only when it's unambiguous from that model (Versa→Nissan, Elantra→Hyundai, Camry→Toyota); leave classCode empty.
 - MODEL YEAR: printed on the class line ("CCVL 25" → 2025); handwritten a 2-digit year by the model ("25 versa" → 2025).
-- COLOUR: a code on printed tags (WHI→White, BLK→Black, SIL→Silver, GRY→Gray, BLU→Blue, RED→Red — else your best full-word reading); a plain word on handwritten ("Blue"). Report the colour name.
+- COLOUR: printed tags use the FIRST THREE LETTERS of the colour word — WHI→White, BLA→Black, GRA→Gray, GRE→Green, SIL→Silver, BLU→Blue, RED→Red, BRO→Brown, PLU→Plum. An unlisted 3-letter code: expand it by that same rule and report the full word. Handwritten tags write a plain word ("Blue"). GRA/GRE and BLA/BLU differ by a single character, so READ the code — never infer a colour from the car. Report the colour name.
 - BODY STYLE: e.g. "4DR", if present. Ignore other scribbles (options like "AC L1", stall/location notes).
 
 Push through an angled, low-contrast, handwritten, or partial tag and read what you can. Only if the image is NOT a key tag at all, call report_keytag with everything empty. Call report_keytag with what you read.`;

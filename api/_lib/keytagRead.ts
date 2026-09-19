@@ -73,7 +73,9 @@ export interface KeytagRead {
   isHybrid?: boolean;
   /** Model year — the trailing number on the class line ("CCVL 25" → 2025). */
   year?: number;
-  /** Colour, mapped from the tag's colour code (WHI→White, BLK→Black, …). */
+  /** Colour, mapped from the tag's colour code — the FIRST THREE LETTERS of the colour word
+   *  (WHI→White, BLA→Black, GRA→Gray, GRE→Green, …). ⚠️ NOT the conventional abbreviations: the
+   *  tags print no GRY and no BLK, and this comment said otherwise until 2026-09-18. */
   color?: string;
   /** Body style off the colour/body line (e.g. "4DR"). Informational; not resolved. */
   bodyStyle?: string;
