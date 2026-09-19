@@ -22,8 +22,8 @@ export interface KeytagRead {
    *  ⚠️ Reported RAW, never resolved against the number. `checkOwningCity` compares them and a
    *  person decides; nothing here corrects one half from the other. */
   owningCity?: string;
-  /** License plate ("Lic Plate") — the match key. The caller normalizes
-   *  (correctManitobaPlate) and looks up an existing vehicle by this before resolving. */
+  /** License plate ("Lic Plate") — the match key. The caller looks up an existing vehicle by
+   *  this AS READ first, and by its correction only on a miss (`plateCandidates`). */
   plate?: string;
   /** "Veh #", digit groups joined (e.g. "542 0427" → "5420427"). */
   unitNumber?: string;

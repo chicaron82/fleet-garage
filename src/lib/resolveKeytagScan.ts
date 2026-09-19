@@ -1,6 +1,6 @@
-// One step up from resolveKeytag: given a raw key-tag read and the fleet, normalize the
-// plate (correctManitobaPlate — the misread-prefix safety net), match it to a fleet
-// vehicle, and resolve to new / complete / partial. Pure — the fleet is passed in; the
+// One step up from resolveKeytag: given a raw key-tag read and the fleet, match its plate to a
+// fleet vehicle — the plate AS READ first, its correction (the misread-prefix safety net) only on
+// a miss (`plateCandidates`) — and resolve to new / complete / partial. Pure — the fleet is passed in; the
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { plateCandidates } from '../../api/_lib/platePrefix';
