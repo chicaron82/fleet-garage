@@ -12,7 +12,9 @@ import { hapticLight } from '../../lib/haptics';
  * had drifted into four labels and three text weights:
  *
  *   • KeytagSearchScan      solid, px-4 py-2.5, text-black,     font-semibold, "Scan Key Tag"  ← also wrong: CLAUDE.md says yellow takes text-gray-900
- *   • BatchKeytagScan       solid, px-3.5 py-2, text-gray-900,  font-bold,     no camera at all
+ *   • BatchKeytagScan       ⚠️ GONE 2026-09-19 — the batch register was built for 30+ tags shot on
+ *                           a day off; arrivals trickle 3–6, and it could not capture key counts, so
+ *                           every car it registered was incomplete until its next scan
  *   • ClosingInventory      solid, full-width py-3,             font-semibold, "Scan a key tag"
  *   • OverflowSendForm      ⚠️ GONE 2026-09-09 — the overflow half merged into the trip card and
  *                           now uses the SHARED KeytagSearchScan above it, so its dashed drop-zone
@@ -30,9 +32,9 @@ import { hapticLight } from '../../lib/haptics';
  *
  * ⚠️⚠️ TWO CALL SITES DELIBERATELY DO NOT USE THIS, and both are decisions rather than debt:
  *
- *   • **BatchKeytagScan** takes `multiple` files and omits `capture` ON PURPOSE — you photograph a
- *     stack of tags and then select them from the gallery. It is an ATTACH gesture, not a scan; its
- *     button even says "Attach key tags". Forcing it through here would break the stack-select.
+ *   • ~~**BatchKeytagScan**~~ took `multiple` files and omitted `capture` on purpose — an ATTACH
+ *     gesture, not a scan. Removed 2026-09-19; `OverflowSendForm` still uses that same stack-select
+ *     shape (its own comment cites this one), so the reasoning is preserved there, not lost.
  *   • **LostFoundDetailsStep** routes its capture through `useLostFoundItemForm.handlePhotoCapture`,
  *     which also sets the photo on the form. Moving it would mean changing a hook other steps share
  *     — a bigger edit than the win justifies. Left for a session with room to do it properly.

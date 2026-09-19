@@ -102,8 +102,10 @@ export function OverflowSendForm({ onLogged, plate, onPlateSent }: {
       </div>
 
       <PhotoError message={photoError} />
-      {/* ⚠️ `multiple`, and NO `capture` — same reasoning as BatchKeytagScan: you photograph a
-          stack of tags first and attach them after, so forcing the camera would be wrong here. */}
+      {/* ⚠️ `multiple`, and NO `capture` — you photograph a stack of tags first and attach them
+          after, so forcing the camera would be wrong here. (BatchKeytagScan shared this shape and
+          was removed 2026-09-19; this is now the only stack-select door, so the reasoning lives
+          here.) */}
       <input
         ref={filesRef}
         type="file"

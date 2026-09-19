@@ -18,7 +18,6 @@ import { AirportFlipSection } from './AirportFlipSection';
 import { PendingWritesSection } from '../pending/PendingWritesSection';
 import { EffieAuditSection } from '../pending/EffieAuditSection';
 import { EffieMisfiresSection } from '../pending/EffieMisfiresSection';
-import { BatchKeytagScan } from '../holds/BatchKeytagScan';
 import { KeytagAuditSection } from './KeytagAuditSection';
 import { HybridGapsSection } from './HybridGapsSection';
 import { ClosingInventorySection } from './ClosingInventorySection';
@@ -222,9 +221,6 @@ export function MyShiftView({ onOpenVehicle }: {
         ))}
       </div>
 
-      {/* Batch key-tag register — stage a stack of tags into the queue below in one pass */}
-      <BatchKeytagScan />
-
       {/* Read the tags FG couldn't — one car at a time, between cars, no API spend */}
       <KeytagAuditSection onOpenVehicle={onOpenVehicle} />
 
@@ -240,9 +236,6 @@ export function MyShiftView({ onOpenVehicle }: {
 
       {/* Where Effie misfires — the tuning signal grouped from rejected writes (self-hides when empty) */}
       <EffieMisfiresSection />
-
-      {/* Effie's write history — the provenance trail of resolved writes (self-hides when empty) */}
-      <EffieAuditSection />
 
       {/* Shift Duties */}
       {activeTab === 'closing-duties' && (
@@ -278,6 +271,10 @@ export function MyShiftView({ onOpenVehicle }: {
 
       {/* Whiteboard */}
       {activeTab === 'whiteboard' && <WhiteboardView />}
+
+      {/* ⭐ Effie's write history — LAST ON PURPOSE (Aaron, 2026-09-19). It is a provenance trail he
+          reads rarely and never acts on mid-shift, so it sits below the work. Self-hides when empty. */}
+      <EffieAuditSection />
 
       {/* Handoff form */}
       {/* `existing` only when today's — so tapping the card EDITS today's entry, while a stale
