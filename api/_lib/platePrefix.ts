@@ -6,6 +6,13 @@
 // real one, never touch a prefix that's already valid or a foreign/out-of-province
 // plate (VR…, SB…, OCC…, DBHJ…) whose prefix is nowhere near a known one.
 //
+// ⚠️ THAT LAST CLAUSE WAS AN ASSUMPTION, AND IT FAILED ONCE (2026-09-18, `0GE511` → `KGE511`).
+// "Nowhere near" is not a property foreign plates actually have — a Saskatchewan prefix sat one
+// character from `KGE`. The digit gate in `snapPrefix` now enforces the part of it that IS
+// structural (an MB prefix is three letters); the rest still rests on the one-unique-hit rule, so
+// an ALL-LETTER foreign prefix one character from an MB one would still snap. See
+// `docs/ticket-plate-correction-resolves-first.md` for the real fix.
+//
 // TWO passes, and the second one only runs once the first has PROVEN the plate is ours:
 //   1. prefix — snap a one-character-off prefix to the known one (the U→M/N handwriting case)
 //   2. body   — with a confirmed MB fleet prefix, the remaining three characters MUST be digits
@@ -85,6 +92,24 @@ function oneCharOff(a: string, b: string): boolean {
 function snapPrefix(norm: string): string {
   const prefix = norm.slice(0, 3);
   if (prefix.length < 3 || (MB_PLATE_PREFIXES as readonly string[]).includes(prefix)) return norm;
+  // ⚠️⚠️ A PREFIX CONTAINING A DIGIT IS NOT AN MB PREFIX, AND THIS IS THE GATE THAT SAYS SO.
+  //
+  // An MB passenger plate is AAA111 — three LETTERS then three digits. A prefix with a digit in it
+  // is a different province's format entirely, not a handwriting misread of ours, so `oneCharOff`
+  // must never be allowed to reach for it.
+  //
+  // Aaron typed `0GE511` off a SASK tag (owning 08190) on 2026-09-18 and the lookup searched for
+  // `KGE511`: `0GE` differs from `KGE` in exactly one position — the leading `0` against the `K` —
+  // and uniquely so, so pass 1 snapped it. The car then came back "Not in the fleet", and after he
+  // gave up and scanned, the re-plate offer told him *"Tag reads KGE511 — record has 0GE511. That's
+  // a different plate, not a misread"* and offered to write the corrupted plate over the correct
+  // record. ⭐ It was a misread — ours.
+  //
+  // This file's header claimed the function can "never touch a foreign/out-of-province plate whose
+  // prefix is nowhere near a known one." The claim was load-bearing and the assumption behind it was
+  // wrong: `0GE` IS near one. Three live cars were silently rewritten — 0GE511, 0GE608, 0GE650,
+  // owned by Saskatchewan, Vancouver and Calgary. No Manitoba plate in the fleet begins with a digit.
+  if (!/^[A-Z]{3}$/.test(prefix)) return norm;
   const hits = MB_PLATE_PREFIXES.filter((p) => oneCharOff(prefix, p));
   return hits.length === 1 ? hits[0] + norm.slice(3) : norm;
 }

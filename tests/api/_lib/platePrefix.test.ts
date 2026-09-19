@@ -181,3 +181,42 @@ describe('a correction is all-or-nothing', () => {
     expect(correctManitobaPlate('DFJK947')).toBe('DFJK947');
   });
 });
+
+// ⚠️⚠️ THE SASKATCHEWAN PLATE THE CORRECTOR ATE (2026-09-18).
+//
+// Aaron typed `0GE511` — a real plate, off a real SASK tag (owning 08190), on a car really in the
+// fleet — and the lookup searched for `KGE511` and told him it was not in the fleet. `0GE` differs
+// from `KGE` in exactly one position, uniquely, so pass 1 snapped it.
+//
+// ⭐ The harm did not stop at a failed lookup. He gave up and scanned, and the re-plate offer said
+// *"Tag reads KGE511 — record has 0GE511. That's a different plate, not a misread"* and offered a
+// button to write the corrupted plate over the correct record. FG was proposing to persist its own
+// misread, with a sentence asserting it was not one.
+//
+// The rule that settles it is structural: an MB passenger plate is AAA111, so an MB prefix is three
+// LETTERS. Three live cars were being rewritten — all of them out-of-province.
+describe('snapPrefix — a prefix with a digit is not a Manitoba prefix', () => {
+  it('⭐ leaves 0GE511 alone — the SASK plate that was being turned into KGE511', () => {
+    expect(correctManitobaPlate('0GE511')).toBe('0GE511');
+  });
+
+  it('leaves the other two live cars it was silently rewriting', () => {
+    expect(correctManitobaPlate('0GE608')).toBe('0GE608');   // Vancouver-owned
+    expect(correctManitobaPlate('0GE650')).toBe('0GE650');   // Calgary-owned
+  });
+
+  it('⚠️ the digit can sit anywhere in the prefix, not just the front', () => {
+    expect(correctManitobaPlate('L0R143')).toBe('L0R143');   // one char from LUR, but not a prefix
+    expect(correctManitobaPlate('LU8143')).toBe('LU8143');   // one char from LUR
+  });
+
+  it('still corrects the handwriting case it exists for — a LETTER prefix one char off', () => {
+    expect(correctManitobaPlate('LMR143')).toBe('LUR143');   // U read as M
+    expect(correctManitobaPlate('KMR250')).toBe('KUR250');
+  });
+
+  it('and still leaves a valid MB plate exactly as it arrived', () => {
+    expect(correctManitobaPlate('LUR436')).toBe('LUR436');
+    expect(correctManitobaPlate('KGE609')).toBe('KGE609');   // KGE is real; only 0GE is not
+  });
+});
