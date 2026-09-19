@@ -1,8 +1,10 @@
 // "Audit key tags" — he reads the tags FG couldn't, one car at a time, between cars.
 // A thin surface over useKeytagAudit (the queue) and KeytagAuditCard (the car); this file owns
 // only the collapse, the headline counts, and the two things worth stopping for — a failed write
-// and a blocked unit number. Lives beside Batch Keytag Scan because it is the same downtime
-// session: one control captures tags, the other reads them. Collapsed by default.
+// and a blocked unit number. It used to live beside "Batch register key tags" — one control
+// captured tags, this one read them — but the batch was retired 2026-09-19 (it could not take a
+// key count, so it registered cars it could not finish). This is now the whole downtime session:
+// the tags are already on the records, and this reads them. Collapsed by default.
 import { useState } from 'react';
 import { useKeytagAudit } from '../../hooks/useKeytagAudit';
 import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
