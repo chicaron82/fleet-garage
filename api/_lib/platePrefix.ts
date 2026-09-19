@@ -155,3 +155,26 @@ export function correctManitobaPlate(plate: string): string {
   // correction happened, not a half of one.
   return /^\d{3}$/.test(fixed) ? prefix + fixed : raw;
 }
+
+/**
+ * ⭐⭐ THE PLATES TO TRY, IN ORDER: exactly as given first, then the Manitoba correction if it differs.
+ *
+ * **A correction is a FALLBACK, and a fallback must never override a HIT.** Every caller used to run
+ * `correctManitobaPlate` BEFORE looking anything up, so a plate that already named a real car could be
+ * rewritten into a different one before anyone checked. Aaron typed `0GE511` — a real Saskatchewan
+ * plate on a car really in the fleet — and FG searched for `KGE511`, told him the car did not exist,
+ * and then offered to write `KGE511` over the correct record (`docs/ticket-plate-correction-resolves-
+ * first.md`). The digit gate in `snapPrefix` closed that one case; this closes the class.
+ *
+ * Callers look the candidates up IN THIS ORDER and stop at the first hit, so the plate as typed or
+ * read always wins when it names a real car, and the corrector only ever speaks when nothing did.
+ *
+ * Pure, no lookup of its own — `correctManitobaPlate` stays pure, and each surface does its lookup
+ * against whatever it has (the in-memory fleet, a DB query, the geotab watchlist).
+ */
+export function plateCandidates(plate: string): string[] {
+  const raw = plate.trim().toUpperCase().replace(/\s+/g, '');
+  if (!raw) return [];
+  const corrected = correctManitobaPlate(raw);
+  return corrected !== raw ? [raw, corrected] : [raw];
+}

@@ -3,7 +3,7 @@
 // vehicle, and resolve to new / complete / partial. Pure — the fleet is passed in; the
 // caller (<KeytagScan>) renders the branch and stages the register/backfill.
 // See docs/ticket-misc-effie-keytag-scan.md.
-import { correctManitobaPlate } from '../../api/_lib/platePrefix';
+import { plateCandidates } from '../../api/_lib/platePrefix';
 import { matchByUnitNumber } from './matchByUnitNumber';
 import { isClippedRead, matchByLeadingTruncation } from './clippedRead';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField, type KeytagExistingVehicle } from './resolveKeytag';
@@ -220,10 +220,20 @@ export function changeNote(changes: KeytagChange[]): string {
 
 export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): KeytagScanResult {
   const raw = (read.plate ?? '').trim().toUpperCase().replace(/\s+/g, '');
-  const plate = correctManitobaPlate(read.plate ?? '');
-  const byPlate = plate
-    ? vehicles.find(v => v.licensePlate.trim().toUpperCase() === plate) ?? null
-    : null;
+  // ⭐⭐ RAW FIRST, CORRECTION ONLY ON A MISS (2026-09-19, `ticket-plate-correction-resolves-first.md`).
+  //
+  // This used to correct BEFORE looking, so a plate already naming a real car could be rewritten into
+  // another. Aaron typed `0GE511`; the overlay above is careful NOT to correct typed input — its own
+  // comment says so at length — and then handed the raw plate here, where it was corrected anyway.
+  // **The promise made in one file was broken in the next.** Searched `KGE511`, found nothing.
+  const candidates = plateCandidates(read.plate ?? '');
+  const corrected = candidates[candidates.length - 1] ?? '';
+  let byPlate: Vehicle | null = null;
+  let hitPlate: string | null = null;
+  for (const c of candidates) {
+    const v = vehicles.find(x => x.licensePlate.trim().toUpperCase() === c) ?? null;
+    if (v) { byPlate = v; hitPlate = c; break; }
+  }
 
   // ── Unit-number fallback ────────────────────────────────────────────────────────────────────
   // The tag carries TWO identity keys and this only ever used one. A crumpled or torn tag loses
@@ -269,7 +279,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     ? (() => {
         const byUnit = matchByLeadingTruncation(read.unitNumber, vehicles, v => v.unitNumber);
         return byUnit.kind === 'none'
-          ? matchByLeadingTruncation(plate, vehicles, v => v.licensePlate)
+          ? matchByLeadingTruncation(corrected, vehicles, v => v.licensePlate)
           : byUnit;
       })()
     : { kind: 'none' as const };
@@ -284,6 +294,17 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   const unitCandidates = unitMatch.kind === 'ambiguous'
     ? unitMatch.vehicles
     : clippedMatch.kind === 'ambiguous' ? clippedMatch.vehicles : [];
+
+  // ⭐⭐ WHICH PLATE WE REPORT. A plate hit reports the candidate that hit. With NO plate hit, the
+  // correction is only worth anything while we are still LOOKING for a car — it is what lets a vision
+  // misread register under the right prefix. **Once another key has found the car, report what the
+  // tag actually SAYS.** Every consumer from here compares it to the record (the re-plate offer on
+  // five surfaces, `isPlateMismatch`, "the tag reads X…"), and comparing a CORRECTED plate is how FG
+  // told Aaron *"Tag reads KGE511 — that's a different plate, not a misread"* and offered to write
+  // it: `KGE511` is shape AAA999 against the record's 9AA999, and a shape change is the strongest
+  // re-plate signal `classifyPlateDifference` knows. **The corrector manufactured the evidence the
+  // classifier then trusted.** A raw read can be wrong; it can never be invented.
+  const plate = hitPlate ?? (vehicle ? raw : corrected);
 
   const existing = vehicle ? keytagExistingFrom(vehicle) : null;
   return {

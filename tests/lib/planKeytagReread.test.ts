@@ -156,3 +156,23 @@ describe('planKeytagReread — a human overrules a misread', () => {
     expect(p.wrongPhoto).toEqual({ readPlate: 'XN294Z', recordPlate: 'XN294J' });
   });
 });
+
+// ⭐ Tracks the matcher's raw-first rule (2026-09-19). A stored photo whose plate matches the record
+// EXACTLY used to be flagged as another car's photo whenever its CORRECTION differed — the corrector
+// rewrote a correct read and then called it a mismatch.
+describe('planKeytagReread — wrongPhoto is raw-first too', () => {
+  it('⭐ a tag that matches the record exactly is never "the wrong photo", whatever its correction says', () => {
+    const p = planKeytagReread({ ...TAG, plate: 'LIR500' }, vehicle({ licensePlate: 'LIR500' }));
+    expect(p.wrongPhoto).toBeUndefined();           // before the fix: { readPlate: 'LUR500', recordPlate: 'LIR500' }
+  });
+
+  it('…and a correction that matches still counts as agreement, as it always did', () => {
+    const p = planKeytagReread({ ...TAG, plate: 'LIR500' }, vehicle({ licensePlate: 'LUR500' }));
+    expect(p.wrongPhoto).toBeUndefined();
+  });
+
+  it('a genuinely different car is still caught', () => {
+    const p = planKeytagReread({ ...TAG, plate: 'MCN147' }, vehicle({ licensePlate: 'LUR554' }));
+    expect(p.wrongPhoto).toEqual({ readPlate: 'MCN147', recordPlate: 'LUR554' });
+  });
+});

@@ -16,7 +16,7 @@
 // is an INPUT here, never a lookup.
 import { resolveKeytag, type KeytagFill, type KeytagChange, type KeytagConflict } from './resolveKeytag';
 import { keytagExistingFrom, lockedFromSources } from './resolveKeytagScan';
-import { correctManitobaPlate } from '../../api/_lib/platePrefix';
+import { plateCandidates } from '../../api/_lib/platePrefix';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../types';
 
@@ -92,10 +92,14 @@ function wrongPhotoCheck(read: KeytagRead, vehicle: Vehicle): RereadPlan['wrongP
   // correction, then trim/upper/strip-spaces on both sides. Anything looser would call a formatting
   // difference a mismatch; anything stricter would let a tag FG itself would have matched slip past.
   // Deliberately NOT one of the two rival `normalizePlate` helpers — this must track the matcher.
+  // ⚠️ Tracks the matcher's RAW-FIRST rule (2026-09-19): if the plate as read OR its correction
+  // names this car, the tag agrees with the record and there is nothing to re-read. Correcting first
+  // would report a mismatch on a plate that matched exactly — the 0GE511 → KGE511 shape.
   const canon = (p: string) => p.trim().toUpperCase().replace(/\s+/g, '');
-  const readPlate = canon(correctManitobaPlate(raw));
+  const candidates = plateCandidates(raw);
   const recordPlate = canon(vehicle.licensePlate ?? '');
-  if (!readPlate || !recordPlate || readPlate === recordPlate) return undefined;
+  const readPlate = candidates[candidates.length - 1] ?? '';
+  if (!readPlate || !recordPlate || candidates.includes(recordPlate)) return undefined;
   return { readPlate, recordPlate };
 }
 

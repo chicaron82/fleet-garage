@@ -2,22 +2,23 @@
 // last-known location, class-code decode). Split from effieExecutors.ts (2026-07-24, pure move).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { summarizeLookup, type HoldFact, type VehicleLookupResult } from '../vehicleSummary.js';
-import { correctManitobaPlate } from '../platePrefix.js';
+import { plateCandidates } from '../platePrefix.js';
 import { normalizePlate, resolveVehicleRow, toVehicleFact, SCHED_TZ, scheduleDateLabel } from '../effieHelpers.js';
 import { lookupVehicleClass } from '../vehicleClassCodex.js';
 
 /** Is this plate on the Geotab install watchlist and still pending? Keyed by the
  *  MB-corrected plate, matching how the sheet plates are stored (see migration 095). */
 async function isGeotabPending(supabase: SupabaseClient, rawPlate: string): Promise<boolean> {
-  const plate = correctManitobaPlate(rawPlate);
-  if (!plate) return false;
+  // ⭐ Raw first, then the correction — a pending plate that is already exact must never be missed
+  // because the corrector rewrote it first (2026-09-19, ticket-plate-correction-resolves-first).
+  const candidates = plateCandidates(rawPlate);
+  if (candidates.length === 0) return false;
   const { data } = await supabase
     .from('geotab_watchlist')
     .select('plate')
-    .eq('plate', plate)
-    .is('installed_at', null)
-    .maybeSingle();
-  return !!data;
+    .in('plate', candidates)
+    .is('installed_at', null);
+  return (data ?? []).length > 0;
 }
 
 /** Run the read-only vehicle lookup as the asking user (RLS-scoped via the JWT client). */

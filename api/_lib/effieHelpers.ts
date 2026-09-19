@@ -2,7 +2,7 @@
 // resolution, and the Winnipeg date formatting the schedule/trip tools use. Lifted out
 // of fg-chat verbatim so each tool module imports them instead of living in a god-file.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { correctManitobaPlate } from './platePrefix.js';
+import { plateCandidates } from './platePrefix.js';
 import type { VehicleFact } from './vehicleSummary.js';
 
 /** Canonical plate form for matching — mirrors src/lib/vehicleByPlate.ts normalizePlate. */
@@ -25,10 +25,6 @@ export interface VehicleRow {
 export async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: string): Promise<VehicleRow | null> {
   const norm = normalizePlate(rawPlate);
   if (!norm) return null;
-  // Also try the MB-prefix-corrected form, so a handwriting/keytag misread (KMR250 →
-  // KUR250) still resolves. Only snaps a not-in-fleet prefix to a known one, so it
-  // can add a match but never breaks the exact one (checked first).
-  const corrected = correctManitobaPlate(norm);
   // The fleet is small and plates aren't stored normalized, so match in JS the same
   // way the app does (allVehicles.find). RLS limits the rows to this user's reach.
   const { data: vehicles, error } = await supabase
@@ -36,16 +32,19 @@ export async function resolveVehicleRow(supabase: SupabaseClient, rawPlate: stri
     .select('id, license_plate, unit_number, make, model, year, color')
     .is('archived_at', null);
   if (error) throw error;
-  return (
-    (vehicles ?? []).find((v) => {
-      const plate = normalizePlate(v.license_plate ?? '');
-      return (
-        plate === norm ||
-        plate === corrected ||
-        (v.unit_number ? normalizePlate(v.unit_number) === norm : false)
-      );
-    }) ?? null
-  );
+  const rows = vehicles ?? [];
+  // ⚠️⚠️ THIS COMMENT USED TO SAY THE EXACT PLATE WAS "checked first". IT WAS NOT. The match was one
+  // `.find()` over `plate === norm || plate === corrected || unit === norm`, so it returned whichever
+  // row came FIRST IN DATABASE ORDER — if a raw plate and its correction were both real cars, Effie
+  // could hand back the wrong one, and a unit match on an earlier row could beat a plate match on a
+  // later one. Found 2026-09-19 while fixing the 0GE511 → KGE511 lookup
+  // (`docs/ticket-plate-correction-resolves-first.md`).
+  // ⭐ Now three passes, in strength order: the plate as given, then its MB correction, then the unit.
+  for (const candidate of plateCandidates(norm)) {
+    const hit = rows.find((v) => normalizePlate(v.license_plate ?? '') === candidate);
+    if (hit) return hit;
+  }
+  return rows.find((v) => (v.unit_number ? normalizePlate(v.unit_number) === norm : false)) ?? null;
 }
 
 export function toVehicleFact(row: VehicleRow): VehicleFact {

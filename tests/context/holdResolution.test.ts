@@ -6,11 +6,18 @@ import type { Hold, HoldType, Repair } from '../../src/types';
 // written) and reports success; the supabase stub records every from() chain.
 
 const fromCalls: string[] = [];
+// ⚠️ The geotab watchlist is now read BEFORE it is stamped (`markGeotabInstalled` looks up which
+// candidate plate is actually pending, then stamps exactly that row — 2026-09-19). So the stub has to
+// answer that read with real rows, or the stamp is silently skipped and a test that only checks the
+// table was TOUCHED would still pass. `geotab.pending` is the watchlist as the stub reports it.
+const geotab = { pending: [] as string[] };
 const chain = {
   insert: vi.fn(() => chain),
   update: vi.fn(() => chain),
   eq:     vi.fn(() => chain),
   is:     vi.fn(() => chain),
+  select: vi.fn(() => chain),
+  in:     vi.fn(() => ({ is: vi.fn(() => Promise.resolve({ data: geotab.pending.map(plate => ({ plate })), error: null })) })),
 };
 
 vi.mock('../../src/lib/supabase', () => ({
@@ -66,6 +73,7 @@ function deps(holds: Hold[], allVehicles: { id: string; licensePlate: string }[]
 beforeEach(() => {
   vi.clearAllMocks();
   fromCalls.length = 0;
+  geotab.pending = [];
 });
 
 // ── The single-vehicle contract ──────────────────────────────────────────────
@@ -206,9 +214,20 @@ describe('makeMarkIssueRepaired (per-issue resolution)', () => {
 // "on the install list" forever (found 2026-07-21, LZM531).
 describe('geotab watchlist sync on repair', () => {
   it('repairing the geotab hold stamps the install watchlist', async () => {
+    geotab.pending = ['LZM531'];
     const hold = makeHold('h-1', 'v-1', { damageDescription: GEOTAB_HOLD_DESC });
     await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
     expect(fromCalls).toContain('geotab_watchlist');
+    // ⭐ The STAMP, not merely a touch — the assertion this test was missing, and the one that would
+    // have gone quietly green if the look-before-stamp read had found nothing.
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ installed_at: expect.any(String) }));
+  });
+
+  it('⚠️ stamps NOTHING when the plate is not actually pending — it looks before it writes', async () => {
+    geotab.pending = [];
+    const hold = makeHold('h-1', 'v-1', { damageDescription: GEOTAB_HOLD_DESC });
+    await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
+    expect(chain.update).not.toHaveBeenCalledWith(expect.objectContaining({ installed_at: expect.any(String) }));
   });
 
   it('repairing a NON-geotab hold never touches the watchlist', async () => {

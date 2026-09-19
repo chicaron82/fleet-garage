@@ -78,3 +78,22 @@ describe('toVehicleFact', () => {
     });
   });
 });
+
+// ⚠️⚠️ THE COMMENT SAID THE EXACT PLATE WAS "checked first". IT WAS ONE OR'D .find() IN DATABASE ORDER.
+// So if a plate and its correction were both real cars, Effie returned whichever row the database
+// happened to list first. Found 2026-09-19 fixing the 0GE511 → KGE511 lookup.
+describe('resolveVehicleRow — exact plate genuinely first', () => {
+  it('⭐ the plate as asked wins over its correction, even when the correction comes FIRST in the rows', async () => {
+    const fleet = [
+      row({ id: 'corrected-car', license_plate: 'LUR500', unit_number: '1111' }),   // listed first
+      row({ id: 'real-car', license_plate: 'LIR500', unit_number: '2222' }),
+    ];
+    const match = await resolveVehicleRow(fakeSupabase(fleet), 'LIR500');
+    expect(match?.id).toBe('real-car');              // before the fix: 'corrected-car'
+  });
+
+  it('still falls back to the correction when the plate as asked is no car', async () => {
+    const match = await resolveVehicleRow(fakeSupabase([row({ id: 'c', license_plate: 'LUR500' })]), 'LIR500');
+    expect(match?.id).toBe('c');
+  });
+});

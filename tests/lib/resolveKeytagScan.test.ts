@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveKeytagScan, newVehicleToRegisterOnScan, backfillFieldsOnScan, keytagConflictsOnScan, conflictNote, changeNote, fillNote } from '../../src/lib/resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Vehicle } from '../../src/types';
+import { classifyPlateDifference } from '../../src/lib/plateDifference';
 
 function vehicle(over: Partial<Vehicle>): Vehicle {
   return {
@@ -305,5 +306,57 @@ describe('the clipped tag — a perforation through the label’s left column', 
     const r = resolveKeytagScan(CLIPPED, [vehicle({ id: 'x', licensePlate: 'LZM500', unitNumber: '5421615' })]);
     expect(r.vehicle).toBeNull();
     expect(r.matchedByClippedTag).toBe(false);
+  });
+});
+
+// ⚠️⚠️ THE 0GE511 BUG, AND THE CLASS BEHIND IT (2026-09-19, docs/ticket-plate-correction-resolves-first.md)
+//
+// Aaron typed `0GE511` — a real SASK plate on a car really in the fleet. The overlay deliberately does
+// NOT correct typed input (its comment says so at length) and then handed the raw plate here, which
+// corrected it anyway, searched `KGE511`, and found nothing. On the scan, the car resolved by unit and
+// the re-plate offer said *"Tag reads KGE511 — record has 0GE511. That's a different plate, not a
+// misread"* and offered to WRITE it. `KGE511` is AAA999 against the record's 9AA999, and a shape
+// change is the strongest re-plate signal the classifier knows. **The corrector manufactured the
+// evidence the classifier then trusted.**
+describe('resolveKeytagScan — raw first, correction only on a miss', () => {
+  it('⭐⭐ a plate that IS a real car wins over its correction — even when the correction is ALSO a car', () => {
+    const fleet = [
+      vehicle({ id: 'corrected-car', licensePlate: 'LUR500', unitNumber: '1111111' }),
+      vehicle({ id: 'real-car', licensePlate: 'LIR500', unitNumber: '2222222' }),
+    ];
+    const r = resolveKeytagScan({ plate: 'LIR500' } as KeytagRead, fleet);
+    expect(r.vehicle?.id).toBe('real-car');          // before the fix: 'corrected-car'
+    expect(r.plate).toBe('LIR500');
+    expect(r.wasCorrected).toBe(false);
+  });
+
+  it('still fixes his fat-finger when the plate as typed names no car (LIR → LUR)', () => {
+    const r = resolveKeytagScan({ plate: 'LIR500' } as KeytagRead, [vehicle({ licensePlate: 'LUR500' })]);
+    expect(r.vehicle?.licensePlate).toBe('LUR500');
+    expect(r.plate).toBe('LUR500');
+    expect(r.wasCorrected).toBe(true);
+  });
+
+  it('⭐ found by UNIT with no plate hit → reports what the tag SAYS, never a correction', () => {
+    // Every consumer from here compares this to the record — the re-plate offer on five surfaces.
+    const car = vehicle({ licensePlate: 'ABC123', unitNumber: '5591326' });
+    const r = resolveKeytagScan({ plate: 'LIR500', unitNumber: '5591326' } as KeytagRead, [car]);
+    expect(r.matchedByUnit).toBe(true);
+    expect(r.plate).toBe('LIR500');                   // before the fix: 'LUR500', which the tag never said
+    expect(r.wasCorrected).toBe(false);
+  });
+
+  it('⚠️ end to end: the SASK plate resolves, and the re-plate offer has nothing to offer', () => {
+    const car = vehicle({ licensePlate: '0GE511', unitNumber: '5591326' });
+    const r = resolveKeytagScan({ plate: '0GE511', unitNumber: '5591326' } as KeytagRead, [car]);
+    expect(r.vehicle?.id).toBe(car.id);
+    expect(r.plate).toBe('0GE511');
+    expect(classifyPlateDifference(r.plate, car.licensePlate)).toBe('same');
+  });
+
+  it('a car found by nothing still gets the correction — it is what registers a vision misread right', () => {
+    const r = resolveKeytagScan({ plate: 'LIR500' } as KeytagRead, [vehicle({ licensePlate: 'ZZZ999' })]);
+    expect(r.vehicle).toBeNull();
+    expect(r.plate).toBe('LUR500');
   });
 });

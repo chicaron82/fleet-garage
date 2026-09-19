@@ -7,21 +7,21 @@
 // can read (trusted-crew allow-all).
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { correctManitobaPlate } from '../../api/_lib/platePrefix';
+import { plateCandidates } from '../../api/_lib/platePrefix';
 
 /** Returns a checker: given a scanned plate, resolves true when it's on the Geotab install
  *  watchlist and NOT yet installed (still pending → hold until installed). */
 export function useGeotabPending() {
   return useCallback(async (rawPlate: string): Promise<boolean> => {
-    const plate = correctManitobaPlate(rawPlate);
-    if (!plate) return false;
+    // ⭐ Raw first, then the correction (ticket-plate-correction-resolves-first).
+    const candidates = plateCandidates(rawPlate);
+    if (candidates.length === 0) return false;
     const { data } = await supabase
       .from('geotab_watchlist')
       .select('plate')
-      .eq('plate', plate)
-      .is('installed_at', null)
-      .maybeSingle();
-    return !!data;
+      .in('plate', candidates)
+      .is('installed_at', null);
+    return (data ?? []).length > 0;
   }, []);
 }
 
@@ -52,7 +52,20 @@ export async function fetchGeotabPendingPlates(): Promise<ReadonlySet<string> | 
  *  reader of it (Effie's `isGeotabPending`, the scanner badge) — stays in lockstep with the resolved
  *  exception. Without this the two drift: the hold says done, the table still says pending. */
 export async function markGeotabInstalled(rawPlate: string, userId: string): Promise<void> {
-  const plate = correctManitobaPlate(rawPlate);
+  // ⚠️⚠️ THIS ONE WRITES, SO IT LOOKS BEFORE IT STAMPS. It used to stamp the CORRECTED plate blind, so a
+  // plate the corrector rewrote into another watchlist entry would have marked the WRONG car installed
+  // and left the real one pending forever. Now: find which candidate is actually pending — the plate
+  // as given wins over its correction — and stamp exactly that row, or nothing.
+  // (2026-09-19, docs/ticket-plate-correction-resolves-first.md)
+  const candidates = plateCandidates(rawPlate);
+  if (candidates.length === 0) return;
+  const { data } = await supabase
+    .from('geotab_watchlist')
+    .select('plate')
+    .in('plate', candidates)
+    .is('installed_at', null);
+  const pending = new Set((data ?? []).map(r => String(r.plate)));
+  const plate = candidates.find(c => pending.has(c));
   if (!plate) return;
   await supabase
     .from('geotab_watchlist')

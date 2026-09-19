@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { correctManitobaPlate, MB_PLATE_PREFIXES } from '../../../api/_lib/platePrefix';
+import { correctManitobaPlate, MB_PLATE_PREFIXES, plateCandidates } from '../../../api/_lib/platePrefix';
 
 describe('correctManitobaPlate', () => {
   it('snaps the U-read-as-M/N misreads to the real prefix (the sheet hazard)', () => {
@@ -218,5 +218,29 @@ describe('snapPrefix — a prefix with a digit is not a Manitoba prefix', () => 
   it('and still leaves a valid MB plate exactly as it arrived', () => {
     expect(correctManitobaPlate('LUR436')).toBe('LUR436');
     expect(correctManitobaPlate('KGE609')).toBe('KGE609');   // KGE is real; only 0GE is not
+  });
+});
+
+// ⭐⭐ RAW FIRST, CORRECTION ONLY ON A MISS (2026-09-19, docs/ticket-plate-correction-resolves-first.md).
+// Every caller used to correct BEFORE looking anything up. `plateCandidates` gives the order they must
+// look in instead: the plate exactly as given, THEN its correction.
+describe('plateCandidates — the order every lookup tries', () => {
+  it('⭐ the plate as given comes FIRST, then the correction', () => {
+    // LIR is one key from LUR — Aaron's own fat-finger, the case the corrector genuinely helps with.
+    expect(plateCandidates('LIR500')).toEqual(['LIR500', 'LUR500']);
+  });
+
+  it('a plate the corrector leaves alone is a single candidate — nothing to fall back to', () => {
+    expect(plateCandidates('LUR500')).toEqual(['LUR500']);
+    expect(plateCandidates('0GE511')).toEqual(['0GE511']);   // the SASK plate, kept by the digit gate
+  });
+
+  it('normalises exactly as the corrector does — spaces and case', () => {
+    expect(plateCandidates(' lir 500 ')).toEqual(['LIR500', 'LUR500']);
+  });
+
+  it('nothing in, nothing to try', () => {
+    expect(plateCandidates('')).toEqual([]);
+    expect(plateCandidates('   ')).toEqual([]);
   });
 });
