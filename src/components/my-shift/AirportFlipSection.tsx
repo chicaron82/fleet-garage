@@ -18,6 +18,7 @@ import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import { NeededClasses } from './NeededClasses';
 import { FlipRowsList } from './FlipRowsList';
 import { checkKeys, keyShortNoteFor, keyOptionsFor, keyShortSeverity } from '../../lib/keyCount';
+import { collectLostWrites, lostWritesNote, type FollowedWrite } from '../../lib/lostWrites';
 import { parseOdometer, describeOdometer, odometerUnitFor } from '../../lib/odometer';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
 import { useGeotabPending } from '../../hooks/useGeotabPending';
@@ -176,22 +177,46 @@ export function AirportFlipSection() {
     const shortNote = keyCheck ? keyShortNoteFor(keyCheck, capture.vehicle?.isTesla === true) : '';
     const counterNotes = [notes.trim(), shortNote].filter(Boolean).join(' · ');
     flip.add({ plate: capture.plate, unit: capture.unit, rentalClass: capture.rentalClass, odo, fuel: level, isEv: capture.isEv, damaged, notes: counterNotes });
+    // ⭐⭐ THE CARD STILL CLOSES IMMEDIATELY — the counter list is the job and must never wait on a
+    // database (2026-09-19, docs/September/ticket-writes-that-vanish-into-void.md). What changed is
+    // that these three writes are no longer thrown into a `void`: `recordKeyCount` THROWS on
+    // failure (an unhandled rejection no error boundary catches) and `recordOdometer` returns
+    // quietly, so on a weak signal at the lot the card closed clean and the numbers he typed were
+    // simply gone. They are followed now, and anything that didn't land is SAID.
+    const { vehicleId, isTesla } = capture;
+    const km = parseOdometer(odo);
+    void saveCapture(vehicleId, keys, km, isTesla);
+    setCapture(null);
+    setGeotabPending(false);
+  };
+
+  /** The flip's three side-writes, followed to their end and reported if they don't land.
+   *  ⚠️ Deliberately NOT awaited by `addToList` — a lost write is worth a sentence, never a pause
+   *  at the return lane. The counter row is already in the list by the time this resolves. */
+  const saveCapture = async (vehicleId: string | null, keyCount: number | null, km: number | null, isTesla: boolean) => {
+    if (!vehicleId) return;
+    const writes: FollowedWrite[] = [];
     // Latest count is the new truth (and seeds the baseline the first time a car is counted).
-    if (keys !== null && capture.vehicleId) void recordKeyCount(capture.vehicleId, keys);
+    if (keyCount !== null) writes.push({ label: 'keys', run: () => recordKeyCount(vehicleId, keyCount) });
     // The odo he already typed for the counter — kept rather than discarded (migration 123). Free
     // data: it costs him nothing extra, and it is what the airport is actually asking about when
     // they want "a high-km out-of-province car for a one-way".
-    const km = parseOdometer(odo);
-    if (km !== null && capture.vehicleId) void recordOdometer(capture.vehicleId, km);
+    // ⚠️ `recordOdometer` also returns silently when a HIGHER reading already stands — that is a
+    // deliberate no-op, not a loss, and it cannot be told apart from here. It resolves either way,
+    // so it is only reported when it actually throws.
+    if (km !== null) writes.push({ label: 'odometer', run: () => recordOdometer(vehicleId, km) });
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
     // still chargeable, where the same loss found later in the washbay is just gone. Seeded boxes
     // mean this always writes for a Tesla: a re-affirmation is itself worth recording, since it's
-    // what keeps "last checked" current instead of aging out. Best-effort: never blocks the list.
-    if (capture.isTesla && capture.vehicleId && cable && adapter) {
-      void updateVehicleEVAssets(capture.vehicleId, cable === 'present', adapter === 'present', 'check_in', notes.trim() || undefined);
+    // what keeps "last checked" current instead of aging out.
+    if (isTesla && cable && adapter) {
+      writes.push({
+        label: 'EV check',
+        run: () => updateVehicleEVAssets(vehicleId, cable === 'present', adapter === 'present', 'check_in', notes.trim() || undefined),
+      });
     }
-    setCapture(null);
-    setGeotabPending(false);
+    const note = lostWritesNote(await collectLostWrites(writes));
+    if (note) say(note, 'alert');
   };
 
   const copyForCounter = async () => {

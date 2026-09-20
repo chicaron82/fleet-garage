@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { keyOptionsFor, keyNoun } from '../../lib/keyCount';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import { OdometerCapture } from '../shared/OdometerCapture';
 import { ScanEvAssets } from './ScanEvAssets';
 import { ScanFlipCapture } from './ScanFlipCapture';
@@ -28,6 +30,10 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
   correctOdometer: (vehicleId: string, km: number) => Promise<boolean>;
 }) {
   const [savingEv, setSavingEv] = useState(false);
+  // ⭐ `recordKeyCount` THROWS on a failed write, and this used to call it into a `void` — an
+  // unhandled rejection no error boundary can catch, so the tap did nothing and said nothing
+  // (docs/September/ticket-writes-that-vanish-into-void.md).
+  const { writeError, guard } = useWriteGuard();
 
   return (
     <>
@@ -59,7 +65,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
                             answer — and this row is tapped with gloves on. Offering only the real
                             option removes the mis-tap instead of asking him to avoid it. */}
                         {keyOptionsFor(vehicle.isTesla).map(n => (
-                          <button key={n} type="button" onClick={() => void recordKeyCount(vehicle.id, n)}
+                          <button key={n} type="button" onClick={() => void guard(() => recordKeyCount(vehicle.id, n), "That didn't save — tap it again.")}
                             aria-pressed={vehicle.keyCount === n}
                             aria-label={`${n} key${n === 1 ? '' : 's'} on the ring`}
                             /* 44px — the Apple/Google minimum touch target. This was 24px, which is
@@ -73,6 +79,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
                           </button>
                         ))}
                       </div>
+                      <SaveNote message={writeError} />
                     </div>
                     {/* The EV kit, in the same beat as the keycard — he already has the trunk open.
                         Teslas only: on a gas car these are questions with no true answer, and this
@@ -84,8 +91,10 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordKeyC
                         saving={savingEv}
                         onSet={(cable, adapter) => {
                           setSavingEv(true);
-                          void updateVehicleEVAssets(vehicle.id, cable, adapter, 'vsa_washbay')
-                            .finally(() => setSavingEv(false));
+                          void guard(
+                            () => updateVehicleEVAssets(vehicle.id, cable, adapter, 'vsa_washbay'),
+                            "The EV check didn't save — tap it again.",
+                          ).finally(() => setSavingEv(false));
                         }}
                       />
                     )}

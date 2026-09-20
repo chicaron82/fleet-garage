@@ -7,12 +7,15 @@ import { useGeotabInstall } from '../../hooks/useGeotabInstall';
 import { asRotation } from '../../lib/keytagPhotoRotation';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { KeytagZoomOverlay } from './KeytagZoomOverlay';
+import { VehicleKeyChip } from './VehicleKeyChip';
 import { hapticLight } from '../../lib/haptics';
 import { useVehicleSightings } from '../../hooks/useVehicleSightings';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import { describeLastSeen, isStaleSighting, sightingLines } from '../../lib/sightings';
 import { useProfiles } from '../../context/ProfilesContext';
 import type { KeytagAuditResult, VinSource } from '../../types';
-import { keyOptionsFor } from '../../lib/keyCount';
+import { } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
 
@@ -116,14 +119,13 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
     ? `${codexSays.make} ${codexSays.model}` : null;
   const geotab = useGeotabInstall(plate);
   const [seenOpen, setSeenOpen] = useState(false);
-  const [editingKeys, setEditingKeys] = useState(false);
+  const { writeError, guard } = useWriteGuard();
   const [editingOdo, setEditingOdo] = useState(false);
 
-  const setCount = (n: number) => {
-    hapticLight();
-    setEditingKeys(false);
-    void recordKeyCount(vehicleId, n);
-  };
+  // ⚠️⚠️ THE CLOSE USED TO BE THE LIE — `setCount` shut the picker BEFORE the write and fired it
+  // into a `void`, and `recordKeyCount` THROWS on failure (no error boundary catches that). A write
+  // that never landed looked exactly like one that did. The picker lives in VehicleKeyChip now and
+  // closes on the guard's answer. (2026-09-19, docs/September/ticket-writes-that-vanish-into-void.md)
 
   // ⭐ FOUR STATES IN ONE CHIP, because they are four answers to the same question — *what does FG
   // know about this car's tag?* A separate "audited" chip would have split that question across two
@@ -163,7 +165,12 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           type="button"
           onClick={() => {
             hapticLight();
-            void recordOnLot(vehicleId, { present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null });
+            // ⚠️ Returns false on a failed write and skips the local flip, so the chip simply did
+            // not change — indistinguishable from a missed tap. Now it says so.
+            void guard(
+              () => recordOnLot(vehicleId, { present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null }),
+              "That didn't save — tap it again.",
+            );
           }}
           className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
             onLotState({ present: onLot?.present ?? null, checkedAt: onLot?.checkedAt ?? null }) === 'present'
@@ -201,33 +208,11 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
         <span className={`text-xs ${tagChip.text}`}>{tagChip.label}</span>
       </button>
 
-      {editingKeys ? (
-        <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400">{isTesla ? '⚡' : '🔑'}</span>
-          {keyOptionsFor(isTesla === true).map(n => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setCount(n)}
-              className={`w-7 h-7 rounded-lg text-xs font-semibold border transition cursor-pointer ${keyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
-            >
-              {n}
-            </button>
-          ))}
-          <button type="button" onClick={() => setEditingKeys(false)} className="ml-0.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => { hapticLight(); setEditingKeys(true); }}
-          className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
-        >
-          {/* ⭐ Emoji + value, nothing else (Aaron, 2026-09-12): *"how bout having the key emoji
-              plus key count"*. The noun was doing no work — the emoji already says "keys" — and the
-              ✏️ was a hint, which the row does not need when every chip on it is tappable. */}
-          {isTesla ? '⚡' : '🔑'} {keyCount ?? '—'}
-        </button>
-      )}
+      <VehicleKeyChip
+        isTesla={isTesla}
+        keyCount={keyCount}
+        onPick={n => guard(() => recordKeyCount(vehicleId, n), "That didn't save — tap it again.")}
+      />
 
       {/* The odometer, always with its age — the airport's "high km?" question is about a number
           whose meaning decays. A bare figure from April would invite a decision on a stale fact. */}
@@ -293,7 +278,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           no date because it is the resting state, not an observation. */}
       <button
         type="button"
-        onClick={() => { hapticLight(); void recordWinterTires(vehicleId, !winterTires); }}
+        onClick={() => { hapticLight(); void guard(() => recordWinterTires(vehicleId, !winterTires), "That didn't save — tap it again."); }}
         className={`rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
           winterTires
             ? 'border-sky-300 dark:border-sky-700/60 text-sky-800 dark:text-sky-300 hover:border-sky-400'
@@ -516,6 +501,10 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           ))}
         </div>
       )}
+
+      {/* Its own line in the wrap — a chip row is no place for a sentence, and this one only
+          appears when a tap didn't take (useWriteGuard). */}
+      {writeError && <div className="w-full"><SaveNote message={writeError} /></div>}
 
       {zoom && (
         <KeytagZoomOverlay
