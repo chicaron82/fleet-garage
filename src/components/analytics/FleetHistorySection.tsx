@@ -8,6 +8,7 @@ import {
 } from '../../lib/fleetHistory';
 import { TopSeenCard } from './TopSeenCard';
 import { FleetOriginCard } from './FleetOriginCard';
+import { FleetMakeupCard } from './FleetMakeupCard';
 
 // What FG has RECORDED — the half of Analytics built on real rows rather than demo scaffolding.
 //
@@ -293,6 +294,11 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
 
       {/* ── 5 · what's in our fleet, by origin (2026-09-17) ─────────────────── */}
       <FleetOriginCard vehicles={vehicles} onOpenVehicle={onOpenVehicle} />
+
+      {/* ── 6 · what the fleet is made of (2026-09-19) ─────────────────────── */}
+      {/* ⚠️ `liveFleet(vehicles)`, the same rows the class bars count, so a make's total and a
+          class's fleet size can never tell him two different stories about one car. */}
+      <FleetMakeupCard vehicles={liveFleet(vehicles)} />
       </>)}
     </section>
   );
