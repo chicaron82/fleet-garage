@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { compressImage, compressBatch, ImageDecodeError } from '../../src/lib/image';
+import { compressImage, compressBatch, rotateDataUrl, ImageDecodeError } from '../../src/lib/image';
 
 // ⚠️ Two stored key-tag photos (LFJ204, 0ET028) are 759-byte 1×1 JPEGs. Both records carry a class
 // code, so the vision READ worked — the file written afterwards was empty. And `compress` had no
@@ -79,5 +79,62 @@ describe('compressBatch — one bad photo must not cost the good ones', () => {
     const { photos, failed } = await compressBatch([file(), file()]);
     expect(photos).toEqual([]);
     expect(failed).toBe(2);
+  });
+});
+
+// ⭐⭐ THE PIXELS, NOT A PROMPT (2026-09-20, docs/September/ticket-a-failed-read-is-not-a-verdict.md).
+// A tag photographed on a bench lands sideways and the reader cannot read 90° text. I shipped a
+// prompt paragraph telling the model to expect rotation; Aaron tried again and it STILL failed —
+// *"couldn't read it. i just rotated it first then tried it again, then it accepted it."* So FG
+// turns the image. The axis swap below is the part worth pinning: get it wrong and the label is
+// cropped out of its own frame, which looks exactly like a worse read.
+describe('rotateDataUrl', () => {
+  let canvas: { width: number; height: number; getContext: () => unknown; toDataURL: () => string };
+  const ops: string[] = [];
+
+  beforeEach(() => {
+    ops.length = 0;
+    canvas = {
+      width: 0, height: 0,
+      getContext: () => ({
+        translate: (x: number, y: number) => ops.push(`translate ${x},${y}`),
+        rotate: (r: number) => ops.push(`rotate ${r.toFixed(4)}`),
+        drawImage: (_i: unknown, x: number, y: number) => ops.push(`draw ${x},${y}`),
+      }),
+      toDataURL: () => 'data:image/jpeg;base64,TURNED',
+    };
+    vi.stubGlobal('document', { createElement: () => canvas });
+    nextImage = img => { img.width = 400; img.height = 300; img.onload?.(); };
+  });
+
+  it('⭐ a quarter turn SWAPS the canvas axes', async () => {
+    await rotateDataUrl('data:image/jpeg;base64,X', 90);
+    expect([canvas.width, canvas.height]).toEqual([300, 400]);
+  });
+
+  it('⚠️ a half turn does NOT swap them', async () => {
+    await rotateDataUrl('data:image/jpeg;base64,X', 180);
+    expect([canvas.width, canvas.height]).toEqual([400, 300]);
+  });
+
+  it('270° swaps again — three quarters is still a quarter off the axis', async () => {
+    await rotateDataUrl('data:image/jpeg;base64,X', 270);
+    expect([canvas.width, canvas.height]).toEqual([300, 400]);
+  });
+
+  it('draws about the centre so nothing falls outside the frame', async () => {
+    await rotateDataUrl('data:image/jpeg;base64,X', 90);
+    expect(ops).toEqual(['translate 150,200', `rotate ${(Math.PI / 2).toFixed(4)}`, 'draw -200,-150']);
+  });
+
+  it('returns the re-encoded photo', async () => {
+    expect(await rotateDataUrl('data:image/jpeg;base64,X', 90)).toBe('data:image/jpeg;base64,TURNED');
+  });
+
+  // ⚠️ A photo that will not decode must REJECT, never hang — the exact defect this file was
+  // created for (`compress` had no reject at all and the caller awaited forever).
+  it('⚠️ rejects when the photo will not decode', async () => {
+    nextImage = img => img.onerror?.();
+    await expect(rotateDataUrl('data:image/jpeg;base64,X', 90)).rejects.toBeInstanceOf(ImageDecodeError);
   });
 });

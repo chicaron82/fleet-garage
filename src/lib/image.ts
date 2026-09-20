@@ -107,6 +107,40 @@ export async function compressBatch(files: readonly File[]): Promise<{ photos: s
   return { photos, failed };
 }
 
+/**
+ * Turn an already-compressed photo a quarter at a time, for a tag the camera caught sideways.
+ *
+ * ⭐⭐ MEASURED, NOT ASSUMED (2026-09-20, docs/September/ticket-a-failed-read-is-not-a-verdict.md).
+ * Aaron scanned a camera-roll tag lying sideways and the read came back with no plate. I shipped a
+ * line in the reader prompt telling the model a tag MAY be rotated; he tried again and it still
+ * failed — *"couldn't read it. i just rotated it first then tried it again, then it accepted it."*
+ * **A prompt is a hint; the pixels are the fix.** So FG turns them.
+ *
+ * ⚠️ NEVER AUTOMATIC. A re-read costs a real API call against credits he watches (the backfill that
+ * drained them, 2026-08-25, is why the typed fallback exists at all). This is wired to a button.
+ */
+export function rotateDataUrl(dataUrl: string, degrees: 90 | 180 | 270): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onerror = () => reject(new ImageDecodeError('could not decode the photo to rotate it'));
+    img.onload = () => {
+      // A quarter turn swaps the axes; a half turn does not. Getting this wrong crops the label
+      // out of its own frame, which would look exactly like a worse read.
+      const quarter = degrees % 180 !== 0;
+      const canvas = document.createElement('canvas');
+      canvas.width = quarter ? img.height : img.width;
+      canvas.height = quarter ? img.width : img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new ImageDecodeError('no 2d canvas context available')); return; }
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.src = dataUrl;
+  });
+}
+
 /** Read a file (e.g. a PDF) to a base64 data URL as-is — no resizing. */
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

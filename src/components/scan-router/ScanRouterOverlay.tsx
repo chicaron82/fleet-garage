@@ -22,6 +22,7 @@ import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
 import { failedScanCarryover, readWithTypedKey } from '../../lib/failedScanCarryover';
+import { rotateDataUrl } from '../../lib/image';
 import { commitPendingSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -51,6 +52,12 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   const [scanPhoto, setScanPhoto] = useState<string | null>(null);
   const [geotabPending, setGeotabPending] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+  // The un-turned pixels + how far they have been turned so far — see `rotateAndRetry` below.
+  // ⚠️ STATE, not a ref: the button below renders off it, and a ref read during render is both a
+  // lint error and a component that forgets to re-draw when the photo arrives.
+  const [originalPhoto, setOriginalPhoto] = useState<string | null>(null);
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
+
   // Set when the scan taught the codex a code off this car's own record (see classCodeLesson).
   const [codexToast, setCodexToast] = useState('');
   const reading = status === 'reading';
@@ -80,6 +87,8 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
       return;
     }
     setScanPhoto(base64);
+    setOriginalPhoto(base64);   // the un-turned pixels, so a rotate never stacks on a rotate
+    setRotation(0);
     const read = await readKeytag(base64);
     // Bail only when the tag gave us NEITHER identity key. It used to bail on a missing plate
     // alone — so a crumpled tag whose "Veh #" was perfectly legible reported "Could not read that
@@ -157,6 +166,37 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
       : { plate: raw };
     await applyRead(readWithTypedKey(orphaned, key), orphaned?.photo);
   }, [applyRead, scanPhoto, scanRead, vehicles]);
+
+  // ⭐⭐ THE PIXELS, NOT A PROMPT (2026-09-20, docs/September/ticket-a-failed-read-is-not-a-verdict.md).
+  // A tag photographed on a bench lands sideways, and the reader cannot read 90° text: Aaron's line
+  // was *"couldn't read it. i just rotated it first then tried it again, then it accepted it."* I had
+  // just shipped a prompt paragraph telling the model to expect rotation — it did not rescue the
+  // read. So FG turns the image itself.
+  //
+  // ⚠️ ALWAYS FROM THE ORIGINAL, never turn-on-turn: re-encoding a JPEG each quarter would soften
+  // the small print that is the whole point of the photo.
+  // ⚠️ AND ONLY ON HIS TAP. Every attempt is a real API call against credits he watches.
+
+  const rotateAndRetry = useCallback(async () => {
+    if (!originalPhoto) return;
+    const next = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
+    setErrMsg('');
+    let turned: string;
+    try {
+      turned = next === 0 ? originalPhoto : await rotateDataUrl(originalPhoto, next);
+    } catch {
+      setErrMsg('That photo could not be turned — try the shot again.');
+      return;
+    }
+    setRotation(next);
+    setScanPhoto(turned);
+    const read = await readKeytag(turned);
+    if (!read?.plate && !read?.unitNumber?.trim()) {
+      setErrMsg(`Still nothing at ${next}° — turn it again, or type the plate above.`);
+      return;
+    }
+    await applyRead(read, turned);
+  }, [originalPhoto, rotation, readKeytag, applyRead]);
 
   // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,
   // so the photo arrives AFTER mount rather than from a button in here. Keyed on the nonce, not on
@@ -246,6 +286,20 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
           )}
 
           {errMsg && <p className="text-xs text-red-500">{errMsg}</p>}
+
+          {/* ⭐ Offered exactly when a photographed scan did NOT land on a car — the sideways-tag
+              case. One tap, one quarter turn, one read; the label under it says what it will cost
+              him, because it costs an API call. */}
+          {originalPhoto && (errMsg !== '' || (result != null && result.vehicle == null)) && (
+            <button
+              type="button"
+              disabled={reading}
+              onClick={() => void rotateAndRetry()}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:border-fg-yellow disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {reading ? 'Reading…' : `↻ Turn the photo ${((rotation + 90) % 360)}° and read it again`}
+            </button>
+          )}
 
           {/* ✋ THE AMBUSH — leads the sheet, and renders WITH OR WITHOUT A RESOLVED VEHICLE.
               Both halves matter. Leading, because a watch is the one thing that changes what he

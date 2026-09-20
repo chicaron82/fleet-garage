@@ -183,9 +183,22 @@ export function ScanIdentityCard({
           Couldn’t read the tag — no plate or unit number found. Scan again, or type it above.
         </p>
       ) : (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          Not in the fleet{canRegister ? '' : ' — couldn’t read enough to register it'}
-        </p>
+        <>
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Not in the fleet{canRegister ? '' : ' — couldn’t read enough to register it'}
+          </p>
+          {/* ⭐⭐ SAY WHAT IT SEARCHED WITH (2026-09-20). Aaron scanned a sideways tag: the plate
+              came back empty and the UNIT came back misread, so FG searched for a car that does not
+              exist and told him a car it has held since May was new. He could not see why, because
+              the sentence named no key. The keys are what make a wrong read obvious in one look —
+              he knows his own unit numbers. */}
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+            Searched {[
+              scanRead?.plate?.trim() ? `plate ${scanRead.plate.trim().toUpperCase()}` : null,
+              scanRead?.unitNumber?.trim() ? `unit ${scanRead.unitNumber.trim()}` : null,
+            ].filter(Boolean).join(' · ') || 'nothing — no plate or unit was read'}
+          </p>
+        </>
       ))}
       {/* Which key did the work. FG never resolves by the weaker key silently — if the
           plate was unreadable and the unit number found the car, say so. */}
