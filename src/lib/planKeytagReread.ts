@@ -49,7 +49,11 @@ export function planKeytagReread(read: KeytagRead, vehicle: Vehicle): RereadPlan
   const resolution = resolveKeytag(read, keytagExistingFrom(vehicle), lockedFromSources(vehicle.fieldSources));
   if (resolution.kind !== 'partial') return { fills: [], disagreements: [] };
   return {
-    fills: resolution.fills,
+    // ⭐ ENFORCED, not merely documented (audit, 2026-09-20). `REREAD_NEVER_WRITES` described a rule
+    // nothing checked — its own comment admitted the protection was "true by ACCIDENT of the type
+    // rather than by decision, and a future field added to `KeytagField` would inherit this job
+    // silently." Now the rule is the filter, so the key count stays his to make whatever else moves.
+    fills: resolution.fills.filter(f => !(REREAD_NEVER_WRITES as readonly string[]).includes(f.field)),
     disagreements: [...resolution.changes, ...resolution.conflicts],
   };
 }

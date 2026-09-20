@@ -338,10 +338,16 @@ export function entryFromTag(
   };
 }
 
-/** ⚠️ Exported for the surface: a status the operator has not chosen yet is not a row. */
-export function needsStatusChoice(d: DerivedStatus): boolean {
-  return d.status === null;
-}
+/* ⚰️ `needsStatusChoice` REMOVED 2026-09-20 (housekeeping audit). It answered "has he picked a
+ * status yet?" for a surface that can never ask: `entryFromScan` writes `status: status ?? 'A'`, so
+ * an InventoryEntry's status is non-nullable and a card always has one. The null lives in
+ * `DerivedStatus`, one step earlier, where the only consumer is that `??`.
+ *
+ * ⚠️ WHAT IS WORTH HIS EYES IS THE `??` ITSELF, not this function: his rule was *"no default. just
+ * carry the status until I change it"*, and a car with no carry and no holds silently arrives
+ * Available with `why: null` — FG choosing a pile and saying nothing about having chosen. Raised
+ * with him 2026-09-20 rather than changed on a guess; see docs/September/ticket-audit-dead-ends.md.
+ */
 
 // ⭐ Re-exported so the model still presents ONE interface to the surfaces, exactly as with
 // `closingInventoryLot` above. These splits are about the 330-line cap, not new seams to learn.
