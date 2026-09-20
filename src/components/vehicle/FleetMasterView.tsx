@@ -26,7 +26,6 @@ interface Props {
   refreshKey?: number;
 }
 
-const COLLAPSED_BY_DEFAULT = new Set<FleetStatus>(['clear']);
 
 const STATUS_GROUPS: { status: FleetStatus; label: string; dot: string; badgeClass: string; headerClass: string }[] = [
   { status: 'held',               label: 'Held',               dot: '🔴', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/40',           headerClass: 'text-red-700 dark:text-red-400' },
@@ -38,6 +37,20 @@ const STATUS_GROUPS: { status: FleetStatus; label: string; dot: string; badgeCla
   { status: 'available',          label: 'Available',          dot: '🟢', badgeClass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/40',    headerClass: 'text-green-700 dark:text-green-400' },
   { status: 'clear',              label: 'Clear',              dot: '⚪', badgeClass: 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700',             headerClass: 'text-gray-600 dark:text-gray-400' },
 ];
+
+/** Every status the list groups by — the source for "start collapsed", so a group added to
+ *  STATUS_GROUPS can never quietly ship expanded. */
+const STATUS_GROUPS_ORDER = STATUS_GROUPS.map(g => g.status);
+
+// ⭐ EVERY GROUP STARTS SHUT (Aaron, 2026-09-20): *"when i'm on fleet module, holds, pre-existing,
+// sale, and clear are all expanded. those are the ones i want collapsed. keeps it cleaner. if i want
+// it viewed i can expand it."* The module opens as a list of counts he can read at a glance, and a
+// tap is the whole cost of seeing any of them.
+//
+// ⚠️ A search, a cohort chip or a class pill still forces every group OPEN (see `isCollapsed`
+// below) — those say he is LOOKING for something, and a hit hiding inside a shut group would be the
+// module answering "no" when it means "yes, in here".
+const COLLAPSED_BY_DEFAULT = new Set<FleetStatus>(STATUS_GROUPS_ORDER);
 
 /** Every trace FG has of each car rides on the row, so the quiet cohort and the auto-archive stay
  *  plain predicates over one shape (see fleetCohorts.lastContact). */
