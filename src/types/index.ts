@@ -682,6 +682,10 @@ export interface FacilityIssue {
   photoUrl?: string;
   status: 'open' | 'resolved' | 'reopened';
   reopenCount: number;
+  /** ⭐ What is wrong with this machine NOW — the newest reopen note (lib/currentFault). Derived on
+   *  load, never stored: `description` stays the FIRST fault so the history cannot be overwritten.
+   *  Undefined for a machine that has only ever had the one fault. */
+  currentFault?: string;
 }
 
 // ── Washbay Log ───────────────────────────────────────────────────────────────

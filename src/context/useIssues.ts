@@ -93,6 +93,10 @@ export function useIssues(
     );
   };
 
+  // ⚠️ `note` is the FAULT now, not a nicety — the card requires it (2026-09-20,
+  // docs/September/ticket-the-machine-is-the-record.md). Kept optional in the signature because the
+  // assistant path and older callers exist; a blank one simply leaves the card showing the first
+  // fault, which is what every reopen before today did.
   const reopenIssue = async (issueId: string, note?: string) => {
     const currentCount = facilityIssues.find(i => i.id === issueId)?.reopenCount ?? 0;
     const newCount = currentCount + 1;
@@ -114,7 +118,15 @@ export function useIssues(
     );
     setFacilityIssues(prev =>
       prev.map(i => i.id === issueId
-        ? { ...i, clearedById: undefined, clearedAt: undefined, status: 'reopened' as const, reopenCount: newCount }
+        ? {
+            ...i,
+            clearedById: undefined, clearedAt: undefined,
+            status: 'reopened' as const,
+            reopenCount: newCount,
+            // ⭐ Optimistic, so the card says what's wrong the moment he taps rather than after a
+            // reload — the derived value the loader would compute from the event just written.
+            currentFault: note?.trim() || i.currentFault,
+          }
         : i
       )
     );

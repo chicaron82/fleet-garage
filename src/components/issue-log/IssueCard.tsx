@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { faultLine } from '../../lib/currentFault';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { daysOpen } from './issueDate';
 import { ShareAction } from '../shared';
@@ -52,6 +53,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
   const [reopenNote, setReopenNote]       = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [events, setEvents]               = useState<IssueEvent[] | null>(null);
+  const fault = faultLine(issue, issue.currentFault);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -182,8 +184,17 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
         )}
       </p>
 
-      {issue.description && (
-        <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{issue.description}"</p>
+      {/* ⭐⭐ WHAT'S WRONG WITH IT NOW (Aaron, 2026-09-20). The record is the MACHINE — "Mat machine",
+          "Auto wash" — so the line under the title has to be the fault it has TODAY, not the one it
+          had in April. `faultLine` reads the newest reopen note and falls back to the original for a
+          machine that has only ever broken once. ⚠️ `description` is never overwritten: the first
+          fault stays on the record and the trail keeps the rest, because a field rewritten on every
+          reopen loses exactly the history this change exists to keep. */}
+      {fault && (
+        <p className="text-sm text-gray-600 dark:text-gray-300 italic">
+          {issue.currentFault ? <span className="not-italic font-semibold text-gray-500 dark:text-gray-400">Now: </span> : null}
+          "{fault}"
+        </p>
       )}
 
       {issue.photoUrl && (
@@ -267,9 +278,13 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
 
       {isReopening && (
         <div className="mt-2 space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          {/* ⭐⭐ REQUIRED, and that is the whole point (his ruling, 2026-09-20). It was optional, so
+              both reopens on file carry an EMPTY note — and with the record renamed to the machine,
+              a blank reopen leaves the card describing April's fault while the machine is down for a
+              new one. The question is the record. */}
           <input
             type="text"
-            placeholder="Reopen note (optional)"
+            placeholder="What's wrong this time?"
             value={reopenNote}
             onChange={e => setReopenNote(e.target.value)}
             className={inputCls}
@@ -278,8 +293,9 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
           <div className="flex gap-2">
             <button
               type="button"
+              disabled={!reopenNote.trim()}
               onClick={handleConfirmReopen}
-              className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition cursor-pointer"
+              className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 text-white text-xs font-semibold transition cursor-pointer disabled:cursor-not-allowed"
             >
               ↩ Confirm Reopen
             </button>
