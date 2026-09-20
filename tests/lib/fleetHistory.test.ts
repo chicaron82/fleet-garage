@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings, THIN_CLASS_FLEET,
   mostSeen, movement,
+  dormantClasses,
 } from '../../src/lib/fleetHistory';
 
 describe('monthlyHolds', () => {
@@ -167,3 +168,67 @@ describe('movement', () => {
     expect(movement({ rank: 2, prevRank: 1 })).toEqual({ kind: 'down', by: 1 });
   });
 });
+
+// ⭐⭐ THE AUDIT HALF OF THE COVERAGE PANEL (2026-09-19,
+// docs/September/ticket-classes-off-the-live-fleet.md). Aaron, reading "how much of each class FG
+// has met" the evening `35` turned up on an archived Taos: *"how come it doesn't surface from here?
+// … this list was for me to see if there were any other incorrect classes in the fleet."*
+//
+// ⚠️⚠️ FG archives on SILENCE, not on an event — so a mistyped class goes invisible EXACTLY when its
+// car stops being seen, which is also when nobody will catch it at the car.
+describe('dormantClasses', () => {
+  const car = (over: Record<string, unknown> = {}) =>
+    ({ rentalClass: 'B5', archivedAt: null, unitNumber: '5500001', ...over }) as never;
+
+  it('⭐ THE CASE: a class whose only car is archived', () => {
+    expect(dormantClasses([
+      car(),
+      car({ rentalClass: '35', archivedAt: '2026-09-11T04:49:08Z', unitNumber: '5569322' }),
+    ])).toEqual([{ rentalClass: '35', archived: 1, mock: 0 }]);
+  });
+
+  // ⚠️ THE GUARD THAT KEEPS IT HONEST. One archived B5 among 193 live ones is an ordinary car
+  // leaving the fleet, not a gap — listing it would bury the one row that matters.
+  it('⚠️ a class with even ONE live car is not dormant', () => {
+    expect(dormantClasses([
+      car(),
+      car({ archivedAt: '2026-09-11T04:49:08Z' }),
+    ])).toEqual([]);
+  });
+
+  it('counts every archived car carrying the class', () => {
+    expect(dormantClasses([
+      car({ rentalClass: 'X9', archivedAt: '2026-01-01T00:00:00Z' }),
+      car({ rentalClass: 'X9', archivedAt: '2026-02-01T00:00:00Z' }),
+    ])).toEqual([{ rentalClass: 'X9', archived: 2, mock: 0 }]);
+  });
+
+  // The mock rows exist so writes can be tested against something harmless — they are not fleet,
+  // and a class that lives only on one is worth saying so in its own words.
+  it('keeps HRZ- mock cars apart from real archived ones', () => {
+    expect(dormantClasses([
+      car({ rentalClass: 'ZZ', unitNumber: 'HRZ-0001' }),
+    ])).toEqual([{ rentalClass: 'ZZ', archived: 0, mock: 1 }]);
+  });
+
+  it('a car with no class at all is a different gap, not this one', () => {
+    expect(dormantClasses([
+      car({ rentalClass: null, archivedAt: '2026-01-01T00:00:00Z' }),
+      car({ rentalClass: '  ', archivedAt: '2026-01-01T00:00:00Z' }),
+    ])).toEqual([]);
+  });
+
+  it('commonest first, then alphabetical — a stable read on a line he scans', () => {
+    expect(dormantClasses([
+      car({ rentalClass: 'B1', archivedAt: '2026-01-01T00:00:00Z' }),
+      car({ rentalClass: 'A1', archivedAt: '2026-01-01T00:00:00Z' }),
+      car({ rentalClass: 'C1', archivedAt: '2026-01-01T00:00:00Z' }),
+      car({ rentalClass: 'C1', archivedAt: '2026-01-01T00:00:00Z' }),
+    ]).map(d => d.rentalClass)).toEqual(['C1', 'A1', 'B1']);
+  });
+
+  it('an all-live fleet says nothing', () => {
+    expect(dormantClasses([car(), car({ rentalClass: 'Q4' })])).toEqual([]);
+  });
+});
+

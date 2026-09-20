@@ -164,6 +164,48 @@ export function classCoverage(
     .sort((a, b) => b.share - a.share || b.fleet - a.fleet);
 }
 
+export interface DormantClass { rentalClass: string; archived: number; mock: number }
+
+/**
+ * Every class FG holds that has NO LIVE CAR — the audit half of the coverage panel.
+ *
+ * ⭐⭐ WHY IT EXISTS. Aaron, 2026-09-19, looking at "how much of each class FG has met" the evening
+ * I found `35` on XP140X: *"how come it doesn't surface from here? … this list was for me to see if
+ * there were any other incorrect classes in the fleet."* The panel is a coverage RATE, built on
+ * `liveFleet`, and he has been reading it as an AUDIT. Both readings are fair; only one was served.
+ *
+ * ⚠️⚠️ AND THE BLIND SPOT HAS TEETH, because FG archives on SILENCE rather than on an event
+ * (project_fg_archived_is_an_inference). A car simply stops being seen — so a mistyped class goes
+ * invisible EXACTLY when its car goes quiet, which is also when nobody will catch it at the car.
+ * `35` sat on the one Taos archived 2026-09-11 and vanished from the only surface that could show it.
+ *
+ * ⛔ It does NOT change what the bars measure. An archived car cannot be met, so counting it in a
+ * share would drag the rate down with a car that is not there — trading one wrong answer for another.
+ *
+ * ⚠️ AND IT FLAGS NOTHING. "No live car" is a STRUCTURAL fact about where a class sits, never a
+ * claim that it is wrong — a dead class legitimately looks like this the week after its last car
+ * leaves. Rarity is deliberately not a signal here: singleton-as-suspect is a 92% false-positive
+ * rule Aaron already ruled out on the 13 singleton codes (2026-09-18). It reports and stops.
+ */
+export function dormantClasses<T extends { rentalClass?: string | null; archivedAt?: string | null; unitNumber?: string | null }>(
+  vehicles: readonly T[],
+): DormantClass[] {
+  const live = new Set<string>();
+  const dormant = new Map<string, DormantClass>();
+  for (const v of vehicles) {
+    const cls = v.rentalClass?.trim();
+    if (!cls) continue;                                   // no class is its own gap, not this one
+    const isMock = (v.unitNumber ?? '').startsWith('HRZ-');
+    if (!v.archivedAt && !isMock) { live.add(cls); continue; }
+    const row = dormant.get(cls) ?? { rentalClass: cls, archived: 0, mock: 0 };
+    if (isMock) row.mock += 1; else row.archived += 1;
+    dormant.set(cls, row);
+  }
+  return [...dormant.values()]
+    .filter(d => !live.has(d.rentalClass))
+    .sort((a, b) => (b.archived + b.mock) - (a.archived + a.mock) || a.rentalClass.localeCompare(b.rentalClass));
+}
+
 // ── 4 · where this is going ─────────────────────────────────────────────────────────────────────
 
 export interface Projection { label: string; sightings: number; cars: number; multiple: number }

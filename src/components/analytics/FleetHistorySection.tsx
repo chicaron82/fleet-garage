@@ -4,7 +4,7 @@ import { FG_RECORD_START, type FleetHistoryRows } from '../../hooks/useFleetHist
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import {
-  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, projectSightings, mostSeen,
+  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, dormantClasses, projectSightings, mostSeen,
 } from '../../lib/fleetHistory';
 import { TopSeenCard } from './TopSeenCard';
 import { FleetOriginCard } from './FleetOriginCard';
@@ -52,7 +52,10 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
     holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
     window: win, loading, error,
   } = history;
-  const { vehicles } = useVehicleHoldContext();
+  // ⚠️⚠️ `vehicles` is ALREADY archive-free (VehicleHoldContext:150) — the context filters, and
+  // `liveFleet` filters again. So the dormant-class line below needs the ARCHIVED list explicitly:
+  // wired to `vehicles` it rendered nothing, which is the bug it exists to catch, one layer up.
+  const { vehicles, archivedVehicles } = useVehicleHoldContext();
 
   const model = useMemo(() => {
     const live = liveFleet(vehicles);
@@ -80,6 +83,10 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
       classes: damageByClass(fleet, hitByClass),
       spread: seenSpread(metCars.map(([, n]) => n)),
       coverage: classCoverage(fleet, seenByClass),
+      // ⭐ Live AND archived together — this line's whole job is the classes the live filter above
+      // removes, so it cannot be fed a list that has already dropped them
+      // (docs/September/ticket-classes-off-the-live-fleet.md).
+      dormant: dormantClasses([...vehicles, ...archivedVehicles]),
       metCount: metCars.length,
       totalSightings,
       // Same rows, same live-fleet filter as the cards above, so the two can never disagree.
@@ -90,7 +97,7 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
         ? projectSightings({ days: win.days, sightings: totalSightings, cars: metCars.length }, fleet.length, HORIZONS)
         : [],
     };
-  }, [vehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, win]);
+  }, [vehicles, archivedVehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, win]);
 
   if (loading) return <EmptyState message="Reading the record…" />;
   if (error) return <EmptyState message="Couldn't read the history. It's a read — try again." />;
@@ -221,6 +228,27 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
             </div>
           ))}
         </div>
+
+        {/* ⭐⭐ THE AUDIT HALF (Aaron, 2026-09-19): *"if 35 existed, shouldn't 35 show up in this
+            list? this list was for me to see if there were any other incorrect classes in the
+            fleet."* Everything above is built on `liveFleet`, so a class whose only car is archived
+            has no row at all — and FG archives on SILENCE, so a mistyped class disappears exactly
+            when its car goes quiet. `35` sat on one Taos archived 2026-09-11 and left the only
+            surface that could have shown it.
+            ⚠️ It reports WHERE the class is and stops. No share, no flag, no suspicion — a class
+            that genuinely left the fleet looks identical, and rarity is not a signal here. */}
+        {model.dormant.length > 0 && (
+          <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500">
+            Not on the live fleet:{' '}
+            {model.dormant.map((d, i) => (
+              <span key={d.rentalClass}>
+                {i > 0 && ' · '}
+                <span className="font-mono font-semibold text-gray-500 dark:text-gray-400">{d.rentalClass}</span>
+                {' '}×{d.archived + d.mock}{d.mock > 0 && d.archived === 0 ? ' mock' : ' archived'}
+              </span>
+            ))}
+          </p>
+        )}
 
         {model.projection.length > 0 && (
           /* ⚠️⚠️ DASHED AND LABELLED, because a forecast that looks like a measurement is the
