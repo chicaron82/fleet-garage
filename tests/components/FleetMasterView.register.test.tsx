@@ -17,8 +17,21 @@ vi.mock('../../src/context/AuthContext', () => ({
 vi.mock('../../src/lib/fleet-master', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadFleet: async () => ([{
+    // ⚠️⚠️ A HELD car, because `clear` was ALREADY collapsed before 2026-09-20 — a fixture with only
+    // a clear car passes under the OLD default too, which a positive control proved (the tests went
+    // green with `COLLAPSED_BY_DEFAULT = ['clear']` restored). This row is what makes them mean
+    // something.
+    id: 'v2', unitNumber: '5422283', licensePlate: 'LZM441', make: 'Kia', model: 'Seltos',
+    year: 2026, color: 'Black', status: 'held', branchId: 'YWG', rentalClass: 'B5',
+    // Required on the real row (`FleetVehicle.holdSummary: string[]`, always initialised by
+    // loadFleet) — a held row renders it, so a fixture without it throws rather than fails.
+    holdCount: 1, holdSummary: ['Dent'],
+  }, {
     id: 'v1', unitNumber: '5422282', licensePlate: 'LUR330', make: 'Nissan', model: 'Kicks',
-    year: 2026, color: 'White', status: 'CLEAR', branchId: 'YWG', rentalClass: 'B5',
+    // ⚠️ LOWERCASE. `FleetStatus` is 'clear', not the vehicle table's 'CLEAR' — with the uppercase
+    // value this car matched no STATUS_GROUP and rendered in no group at all, which nothing noticed
+    // because the only test here was about the register CTA (found at pass two, 2026-09-20).
+    year: 2026, color: 'White', status: 'clear', branchId: 'YWG', rentalClass: 'B5',
   }]),
 }));
 vi.mock('../../src/hooks/useFleetAudit', () => ({
@@ -92,5 +105,43 @@ describe('registering from Fleet carries what he typed', () => {
     fireEvent.click(screen.getByRole('button', { name: /Register a vehicle/i }));
     expect(onRegisterNew).toHaveBeenCalledTimes(1);
     expect(onRegisterNew.mock.calls[0][0]).toBeUndefined();
+  });
+});
+
+// ⭐ EVERY GROUP STARTS SHUT (Aaron, 2026-09-20): *"when i'm on fleet module, holds, pre-existing,
+// sale, and clear are all expanded. those are the ones i want collapsed. keeps it cleaner."*
+//
+// ⚠️ Written at PASS TWO, because the change shipped with a screenshot and no test — and the
+// property that actually matters is not "it is collapsed" but "a SEARCH still opens it". A hit
+// hiding inside a shut group would be the module answering "no" when it means "yes, in here".
+describe('Fleet status groups start collapsed', () => {
+  it('the group headers show, and every row stays hidden — held included', async () => {
+    await mount();
+    expect(screen.getByText('Held')).toBeInTheDocument();
+    expect(screen.getByText('Clear')).toBeInTheDocument();
+    expect(screen.queryByText('LZM441')).not.toBeInTheDocument();   // held — expanded before today
+    expect(screen.queryByText('LUR330')).not.toBeInTheDocument();
+  });
+
+  it('a tap opens that group, and leaves the others shut', async () => {
+    await mount();
+    fireEvent.click(screen.getByText('Held'));
+    await waitFor(() => expect(screen.getByText('LZM441')).toBeInTheDocument());
+    expect(screen.queryByText('LUR330')).not.toBeInTheDocument();
+  });
+
+  // ⚠️⚠️ THE ONE THAT MATTERS. Searching is him LOOKING for a car; a match must never be hidden.
+  it('⚠️⚠️ a search forces the groups open so a hit can never hide', async () => {
+    await mount();
+    fireEvent.change(searchBox(), { target: { value: 'LUR330' } });
+    await waitFor(() => expect(screen.getByText('LUR330')).toBeInTheDocument());
+  });
+
+  it('clearing the search shuts them again', async () => {
+    await mount();
+    fireEvent.change(searchBox(), { target: { value: 'LUR330' } });
+    await waitFor(() => expect(screen.getByText('LUR330')).toBeInTheDocument());
+    fireEvent.change(searchBox(), { target: { value: '' } });
+    await waitFor(() => expect(screen.queryByText('LUR330')).not.toBeInTheDocument());
   });
 });
