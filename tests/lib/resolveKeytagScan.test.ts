@@ -360,3 +360,39 @@ describe('resolveKeytagScan — raw first, correction only on a miss', () => {
     expect(r.plate).toBe('LUR500');
   });
 });
+
+// ⚠️⚠️ A READ THAT CARRIED NEITHER KEY SEARCHED FOR NOTHING (2026-09-20,
+// docs/September/ticket-a-failed-read-is-not-a-verdict.md). Aaron scanned a camera-roll photo of a
+// tag lying SIDEWAYS; the read came back with a class code and nothing else (logged as `CCLM`,
+// plate NULL) and the card told him **"Not in the fleet"** about a car FG had held since May.
+//
+// That sentence is a verdict manufactured by a failed read — the same family as the corrector
+// inventing a plate (`3be868a`). Its cost is in FG's own history: `0EJ761`/`OEJ761` and
+// `LUR143`/`LURL43` are one car each, entered twice off a single misread, at exactly this prompt.
+describe('resolveKeytagScan — a read with no identifying key', () => {
+  const fleet = [vehicle({ id: 'v-1', licensePlate: '261PDU', unitNumber: '2148476' })];
+
+  it('⚠️ says so when the read has neither a plate nor a unit', () => {
+    const r = resolveKeytagScan({ classCode: 'CCLM' } as KeytagRead, fleet);
+    expect(r.noIdentityKey).toBe(true);
+    expect(r.vehicle).toBeNull();
+  });
+
+  it('⚠️ a plate alone is a key — not this state', () => {
+    expect(resolveKeytagScan({ plate: 'ZZZ999' } as KeytagRead, fleet).noIdentityKey).toBe(false);
+  });
+
+  it('⚠️ a unit alone is a key too — the tag loses the plate long before the unit', () => {
+    expect(resolveKeytagScan({ unitNumber: '9999999' } as KeytagRead, fleet).noIdentityKey).toBe(false);
+  });
+
+  it('whitespace is not a key', () => {
+    expect(resolveKeytagScan({ plate: '   ', unitNumber: '  ' } as KeytagRead, fleet).noIdentityKey).toBe(true);
+  });
+
+  it('a normal resolving scan is never flagged', () => {
+    const r = resolveKeytagScan({ plate: '261PDU' } as KeytagRead, fleet);
+    expect(r.noIdentityKey).toBe(false);
+    expect(r.vehicle?.id).toBe('v-1');
+  });
+});

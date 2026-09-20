@@ -173,10 +173,20 @@ export function ScanIdentityCard({
           ))}
         </div>
       ) : (
+        /* ⚠️⚠️ A READ WITH NEITHER KEY SEARCHED FOR NOTHING, so it cannot report on the fleet
+           (2026-09-20, docs/September/ticket-a-failed-read-is-not-a-verdict.md). Aaron scanned a
+           tag photographed sideways; the read returned the class code alone and this line told him
+           a car FG has held since May was new. Duplicates are born at exactly this prompt —
+           `0EJ761`/`OEJ761` is one car entered twice off one misread. Say what happened instead. */
+        result?.noIdentityKey ? (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Couldn’t read the tag — no plate or unit number found. Scan again, or type it above.
+        </p>
+      ) : (
         <p className="text-xs text-amber-700 dark:text-amber-400">
           Not in the fleet{canRegister ? '' : ' — couldn’t read enough to register it'}
         </p>
-      )}
+      ))}
       {/* Which key did the work. FG never resolves by the weaker key silently — if the
           plate was unreadable and the unit number found the car, say so. */}
       {result?.matchedByUnit && (

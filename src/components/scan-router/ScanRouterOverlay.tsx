@@ -21,6 +21,7 @@ import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
 import { resolveKeytagScan } from '../../lib/resolveKeytagScan';
+import { failedScanCarryover, readWithTypedKey } from '../../lib/failedScanCarryover';
 import { commitPendingSighting } from '../../hooks/useVehicleSightings';
 import { actionImpliesPresence } from '../../lib/sightings';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -120,8 +121,25 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
     // before searching is not.
     const raw = typed.trim().toUpperCase().replace(/\s+/g, '');
     if (!raw) return;
+    // ⭐⭐ THE PHOTO SURVIVES A SCAN THAT FAILED (2026-09-20,
+    // docs/September/ticket-a-failed-read-is-not-a-verdict.md). This used to drop it unconditionally
+    // — *"no tag was photographed"* — which is true when the scan never ran and FALSE when it ran
+    // and came back blind. Aaron was mining his camera roll to feed records: *"the scan was merely so
+    // it would attach the keytag to the record that has it missing. and the scan would fill in the
+    // VIN since the info is on the tag."* His tag photographed sideways read as a class code and
+    // nothing else, so the one artifact that had NOT failed was thrown away the moment he typed the
+    // plate himself. (`ac3deb7` fixed the identical mistake on the batch path.)
+    //
+    // ⚠️ ONLY when this scan resolved NOTHING. A scan that matched has already attached its photo
+    // via `backfillFromRead`, and carrying it onto a different typed car is exactly the
+    // "a stale one would lie" case the old comment was right about.
+    // Re-resolved here rather than read off `result` below — this callback is declared before it,
+    // and `resolveKeytagScan` is pure, so asking again costs nothing and keeps the hook honest.
+    const orphaned = failedScanCarryover(
+      scanPhoto, scanRead, !!(scanRead && resolveKeytagScan(scanRead, vehicles).vehicle),
+    );
     resetScanState();
-    setScanPhoto(null);   // no tag was photographed — nothing to attach, and a stale one would lie
+    if (!orphaned) setScanPhoto(null);
     // ⭐⭐ AN ALL-DIGIT ENTRY IS A UNIT NUMBER, NOT A PLATE — and `resolveKeytagScan` has matched on
     // the unit since it was written (`matchByUnitNumber`, reporting `matchedByUnit`). It simply
     // never got one from here: this path always built `{ plate }`, so the fallback had nothing to
@@ -130,10 +148,15 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
     // Aaron, 2026-09-04: *"plate may be unreadable but you can still look up the unit right? how
     // does the header scanner work. just plate only?"* — it was, and this is the whole fix.
     const digits = raw.replace(/\D/g, '');
-    await applyRead(digits.length === raw.length && digits.length >= 5
+    // ⭐ The typed key WINS over anything the failed read produced — he is looking at the tag, and
+    // the read already proved it could not identify the car. Everything else the read did manage
+    // (VIN, class code, colour, owning area) rides along, so the lookup fills the record's blanks
+    // exactly as a clean scan would, and the photo lands with it.
+    const key = digits.length === raw.length && digits.length >= 5
       ? { unitNumber: digits }
-      : { plate: raw });
-  }, [applyRead]);
+      : { plate: raw };
+    await applyRead(readWithTypedKey(orphaned, key), orphaned?.photo);
+  }, [applyRead, scanPhoto, scanRead, vehicles]);
 
   // A header/My Day tap fires the camera at app scope and opens this overlay in the same gesture,
   // so the photo arrives AFTER mount rather than from a button in here. Keyed on the nonce, not on

@@ -67,6 +67,8 @@ function isTransient(err: unknown): boolean {
 // rather than an estimate.
 export const PROMPT = `You are reading a photo of a Hertz vehicle KEY TAG. It may be PRINTED or HANDWRITTEN — read whichever fields are present and report them exactly as shown. Never guess or invent; leave a field empty if it isn't there or isn't legible. Handwritten tags vary a lot and often carry FEWER fields, in any order or style — read the ones you find and blank the rest. A missing field is normal, not a failure.
 
+⚠️ THE TAG MAY BE ROTATED. Photographed on a bench or in a lap, the label often lands sideways or upside down — its text running vertically up or down the frame, or inverted. Read it in ITS OWN orientation: turn the label mentally until the printed lines read left-to-right, then read them. A rotated tag is an ordinary tag, not an unreadable one, and it is the NORMAL case for a photo taken from a camera roll rather than held up to the lens.
+
 Fields the tag MAY carry (read the ones present):
 - OWNING CITY + OWNING AREA + RENTAL CLASS — the top line carries all three, report them separately:
   • OWNING CITY: the branch's CITY NAME printed above or beside the number ("WINNIPEG", "CALGARY", "HALIFAX", "VAN DTG"). Report it exactly as shown, even partially — if it is cropped or cut off, report the letters you can actually see and nothing more. Never complete it from the number, and never infer a city you cannot read.

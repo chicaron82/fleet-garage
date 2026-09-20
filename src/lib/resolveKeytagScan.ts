@@ -101,8 +101,16 @@ export interface KeytagScanResult {
   plate: string;
   /** The MB-prefix snap changed the read → show-your-work before offering to register. */
   wasCorrected: boolean;
-  /** The matched fleet vehicle, or null = not in the fleet (new). */
+  /** The matched fleet vehicle, or null = not in the fleet (new) — UNLESS `noIdentityKey`, in
+   *  which case null means FG never had anything to look with. */
   vehicle: Vehicle | null;
+  /** ⚠️⚠️ THE READ CARRIED NEITHER KEY — no plate, no unit number — so nothing was searched and
+   *  "not in the fleet" is a verdict FG cannot support (2026-09-20,
+   *  docs/September/ticket-a-failed-read-is-not-a-verdict.md). Aaron scanned a tag photographed
+   *  SIDEWAYS; the read came back with the class code alone (logged as `CCLM`, plate NULL) and the
+   *  card told him a car FG has held since May was new. Duplicates are born at exactly that prompt:
+   *  `0EJ761`/`OEJ761` and `LUR143`/`LURL43` are one car each, entered twice off one misread. */
+  noIdentityKey: boolean;
   /** The plate couldn't be read and the UNIT NUMBER identified the car instead. Surfaced on the
    *  card — FG never resolves by a weaker key without saying which key did the work. */
   matchedByUnit: boolean;
@@ -310,6 +318,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   return {
     rawPlate: read.plate,
     plate,
+    noIdentityKey: candidates.length === 0 && !read.unitNumber?.trim(),
     wasCorrected: plate !== raw,
     vehicle,
     matchedByUnit,
