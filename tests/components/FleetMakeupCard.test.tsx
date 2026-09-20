@@ -60,6 +60,20 @@ describe('FleetMakeupCard', () => {
     expect(screen.getByText(/not what is on the lot right now/i)).toBeInTheDocument();
   });
 
+  // ⭐ His ruling after seeing 14 of them on the first render: *"i think it should filter those out
+  // until they have data attached to them."* ⚠️ Set aside, and SAID — a census that quietly drops
+  // rows is lying about its own total.
+  it('⭐ keeps plate-only rows out of the makes, and says how many were set aside', () => {
+    render(<FleetMakeupCard vehicles={[...FLEET, { make: '', model: '', rentalClass: null }]} />);
+    expect(screen.queryByRole('button', { name: /—/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/1 plate-only row not counted/i)).toBeInTheDocument();
+  });
+
+  it('says nothing about plate-only rows when there are none', () => {
+    render(<FleetMakeupCard vehicles={FLEET} />);
+    expect(screen.queryByText(/plate-only/i)).not.toBeInTheDocument();
+  });
+
   it('renders nothing at all for an empty fleet', () => {
     const { container } = render(<FleetMakeupCard vehicles={[]} />);
     expect(container).toBeEmptyDOMElement();

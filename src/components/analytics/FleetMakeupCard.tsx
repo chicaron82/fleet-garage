@@ -17,7 +17,7 @@ const CARD = 'rounded-xl border border-gray-200 dark:border-gray-700 bg-white da
 export function FleetMakeupCard({ vehicles }: {
   vehicles: readonly { make?: string | null; model?: string | null; rentalClass?: string | null }[];
 }) {
-  const makes = useMemo(() => fleetMakeup(vehicles), [vehicles]);
+  const { makes, plateOnly } = useMemo(() => fleetMakeup(vehicles), [vehicles]);
   const [open, setOpen] = useState<string | null>(null);
 
   if (makes.length === 0) return null;
@@ -32,6 +32,12 @@ export function FleetMakeupCard({ vehicles }: {
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
         {total} cars · {makes.length} makes · {makes.reduce((t, m) => t + m.models.length, 0)} models.
         What the branch <b>holds</b> — not what is on the lot right now. Tap a make for its models.
+        {/* ⚠️ Said, not hidden. These are cars FG knows OF and has never MET — the plate-only rows
+            from the Geotab install list. Aaron: *"filter those out until they have data attached."*
+            Dropping them SILENTLY would be the census lying about its own total. */}
+        {plateOnly > 0 && <> <span className="text-gray-400 dark:text-gray-500">
+          ({plateOnly} plate-only {plateOnly === 1 ? 'row' : 'rows'} not counted — no make or model yet.)
+        </span></>}
       </p>
 
       <div className="mt-3 space-y-1">

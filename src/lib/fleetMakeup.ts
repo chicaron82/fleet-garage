@@ -2,8 +2,10 @@
 export interface MakeupModel { model: string; count: number; classes: string[] }
 /** A make the branch holds, with its models commonest-first. */
 export interface MakeupMake { make: string; count: number; models: MakeupModel[] }
+/** The makes, and how many rows were set aside for having no name at all. */
+export interface FleetMakeup { makes: MakeupMake[]; plateOnly: number }
 
-/** What a car with no make or model shows as — counted, never silently dropped. */
+/** Shown for a car that has a make but no model — a real car with a gap, still counted. */
 export const NO_NAME = '—';
 
 const label = (v: string | null | undefined): string => {
@@ -32,12 +34,20 @@ const label = (v: string | null | undefined): string => {
  */
 export function fleetMakeup(
   fleet: readonly { make?: string | null; model?: string | null; rentalClass?: string | null }[],
-): MakeupMake[] {
+): FleetMakeup {
   const makes = new Map<string, Map<string, { count: number; classes: Set<string> }>>();
+  let plateOnly = 0;
 
   for (const v of fleet) {
     const make = label(v.make);
     const model = label(v.model);
+    // ⭐⭐ NEITHER a make NOR a model = a car FG knows OF and has never MET — the plate-only shape
+    // (`year: 0`, `make: ''`, `model: ''`) the geotab-watchlist rows have carried since 2026-07-18
+    // (see resolveKeytagScan: *"not broken records"*). This card counts what the branch HOLDS, and a
+    // plate on an install list is not yet a car to hold. Aaron, seeing 14 of them bucketed under
+    // "—" on the first render: *"i think it should filter those out until they have data attached
+    // to them."* ⚠️ Set ASIDE, never hidden — the count comes back so the card can say so.
+    if (make === NO_NAME && model === NO_NAME) { plateOnly += 1; continue; }
     const models = makes.get(make) ?? new Map();
     const row = models.get(model) ?? { count: 0, classes: new Set<string>() };
     row.count += 1;
@@ -50,7 +60,7 @@ export function fleetMakeup(
   const byCountThenName = <T extends { count: number }>(name: (x: T) => string) =>
     (a: T, b: T) => b.count - a.count || name(a).localeCompare(name(b));
 
-  return [...makes.entries()]
+  const out = [...makes.entries()]
     .map(([make, models]) => ({
       make,
       count: [...models.values()].reduce((t, m) => t + m.count, 0),
@@ -59,4 +69,6 @@ export function fleetMakeup(
         .sort(byCountThenName<MakeupModel>(m => m.model)),
     }))
     .sort(byCountThenName<MakeupMake>(m => m.make));
+
+  return { makes: out, plateOnly };
 }
