@@ -26,6 +26,7 @@ import { resolveRentalClass } from './classPin.js';
 import type { KeytagRead } from './keytagRead.js';
 import { priceUsage } from './apiSpend.js';
 import { recordSpend } from './recordSpend.js';
+import { normalizeTagColour } from './tagColour.js';
 
 // ── Two-tier reading ────────────────────────────────────────────────────────────────────────────
 // FIRST pass is cheap. Only a read FG can't check against the fleet pays for the strong model.
@@ -188,7 +189,9 @@ function toKeytagRead(input: unknown): KeytagRead {
     // ever un-check the box.
     isHybrid: hybridFromModel(vc?.model ?? s(r.model)) ?? vc?.isHybrid ?? hybridFromRentalClass(s(r.rentalClass)),
     year,
-    color: s(r.color),
+    // ⚠️ The schema asks the model to map the code to a word; 31 live cars proved it does not always
+    // comply, so the expansion is enforced HERE rather than hoped for. See `tagColour`.
+    color: normalizeTagColour(s(r.color)),
     bodyStyle: s(r.bodyStyle),
   };
 }
