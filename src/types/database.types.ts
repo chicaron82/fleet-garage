@@ -866,6 +866,32 @@ export type Database = {
           },
         ]
       }
+      lookup_recents: {
+        Row: {
+          looked_up_at: string
+          user_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          looked_up_at?: string
+          user_id: string
+          vehicle_id: string
+        }
+        Update: {
+          looked_up_at?: string
+          user_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lookup_recents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found: {
         Row: {
           branch_id: string

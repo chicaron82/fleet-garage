@@ -24,7 +24,7 @@ import { useEffect, useRef, useState } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
 import { VehicleName } from './VehicleName';
 
-export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults }: {
+export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults, recents }: {
   /** The chosen car, or — when he commits text that matched nothing — the raw string he typed. */
   onPick: (choice: { vehicle: VehicleSearchResult } | { typed: string }) => void;
   placeholder?: string;
@@ -37,10 +37,19 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
    * only hit the one sliver of the first row that showed, *"if I'm precise with my tap"*.
    */
   inlineResults?: boolean;
+  /**
+   * ⭐ His last few look-ups, shown while the field is focused and EMPTY (Aaron, 2026-09-21: *"When I
+   * tap the field it would show the last 3"*). Same row, same pick path as a typed match — a recent
+   * is a shortcut to a look-up, never a different act. Only Find a car passes it (useLookupRecents).
+   */
+  recents?: readonly VehicleSearchResult[];
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VehicleSearchResult[]>([]);
   const [open, setOpen] = useState(false);
+  // Focused and not yet committed to anything — the only moment the recents belong on screen. A pick
+  // disarms it, so the list does not spring back over the car card he just opened.
+  const [armed, setArmed] = useState(false);
   // ⚠️ Guards against a slow early request landing after a fast later one and repainting the list
   // with results for a query he has already typed past.
   const seq = useRef(0);
@@ -70,8 +79,15 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
     // ⚠️ TYPED, THEREFORE NEVER CORRECTED — the misread corrector belongs under a camera, not under
     // his thumbs. Same rule the airport flip states.
     onPick({ typed: raw });
-    setQuery(''); setResults([]); setOpen(false);
+    setQuery(''); setResults([]); setOpen(false); setArmed(false);
   };
+
+  const pickVehicle = (v: VehicleSearchResult) => {
+    onPick({ vehicle: v }); setQuery(''); setResults([]); setOpen(false); setArmed(false);
+  };
+
+  const showRecents = armed && !query.trim() && (recents?.length ?? 0) > 0;
+  const listClass = `${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`;
 
   return (
     <div className="relative">
@@ -84,9 +100,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         <input
           value={query}
           onChange={e => setQuery(e.target.value.toUpperCase())}
-          onFocus={() => { if (visible.length) setOpen(true); }}
+          onFocus={() => { setArmed(true); if (visible.length) setOpen(true); }}
           // ⚠️ Delayed so a tap on a suggestion lands before the list closes under the thumb.
-          onBlur={() => setTimeout(() => setOpen(false), 200)}
+          onBlur={() => setTimeout(() => { setOpen(false); setArmed(false); }, 200)}
           onKeyDown={e => { if (e.key === 'Enter') commitTyped(); if (e.key === 'Escape') setOpen(false); }}
           placeholder={placeholder}
           aria-label="Look up a vehicle by plate or unit number"
@@ -115,48 +131,63 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         </button>
       </div>
 
+      {showRecents && (
+        <div className={listClass}>
+          <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Recent</p>
+          <ul>
+            {recents!.map(v => (
+              <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query="" onChoose={pickVehicle} /></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {open && visible.length > 0 && (
-        <ul className={`${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`}>
-          {visible.map(v => {
-            // ⭐ SAY WHICH KEY MATCHED. FG never resolves on a weaker key without saying so — the
-            // rule the scan card already follows with `matchedByUnit`. If the plate does not start
-            // with what he typed, the unit is what found this car, and he should see that.
-            const byUnit = !v.license_plate.toUpperCase().startsWith(query.trim());
-            return (
-              // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car
-              // (2026-09-17), or a re-plate that made a duplicate record — and `key={plate}` gave
-              // React duplicate keys for exactly the case the list most needs to render correctly.
-              <li key={`${v.license_plate}·${v.unit_number ?? ''}`}>
-                <button type="button" onMouseDown={e => e.preventDefault()}
-                  onClick={() => { onPick({ vehicle: v }); setQuery(''); setResults([]); setOpen(false); }}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition">
-                  <span className="flex items-center gap-1.5 font-bold text-sm text-gray-900 dark:text-gray-100">
-                    {v.license_plate}
-                    {/* Archived cars stay findable — a typed plate is evidence the archive was wrong
-                        — but they must never look like a live car with the same plate. */}
-                    {v.archived_at && (
-                      <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-300">📦 archived</span>
-                    )}
-                  </span>
-                  {/* ⚠️⚠️ NEVER HAND-ASSEMBLE THE NAME. Interpolating the year, make and model
-                      renders perfectly and silently drops the powertrain badge — which is how a
-                      hybrid Civic read identically to a petrol one on three screens at once. FG's
-                      architecture test caught exactly this line, and `is_hybrid`/`is_tesla` are in
-                      the search result FOR this.
-                      ⭐ It also caught the first version of THIS COMMENT, which quoted the banned
-                      shape verbatim. The detector reads raw source, so writing the anti-pattern
-                      down is writing it — and rewording is cheaper than an allowlist, which is
-                      where a real identity line would eventually hide. */}
-                  <span className="flex min-w-0 items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                    {byUnit && v.unit_number ? `unit ${v.unit_number} · ` : ''}
-                    <VehicleName vehicle={{ year: v.year, make: v.make, model: v.model, isHybrid: v.is_hybrid, isTesla: v.is_tesla }} />
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+        <ul className={listClass}>
+          {visible.map(v => (
+            // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car
+            // (2026-09-17), or a re-plate that made a duplicate record — and `key={plate}` gave
+            // React duplicate keys for exactly the case the list most needs to render correctly.
+            <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query={query.trim()} onChoose={pickVehicle} /></li>
+          ))}
         </ul>
       )}
     </div>
+  );
+}
+
+/** One car in either list — a typed match or a recent. One row so the two can never drift apart. */
+function LookupRow({ v, query, onChoose }: { v: VehicleSearchResult; query: string; onChoose: (v: VehicleSearchResult) => void }) {
+  // ⭐ SAY WHICH KEY MATCHED. FG never resolves on a weaker key without saying so — the rule the
+  // scan card already follows with `matchedByUnit`. If the plate does not start with what he typed,
+  // the unit is what found this car, and he should see that. (A recent passes an empty query, which
+  // every plate starts with, so it never claims a unit match it did not make.)
+  const byUnit = !v.license_plate.toUpperCase().startsWith(query);
+  return (
+    <button type="button" onMouseDown={e => e.preventDefault()}
+      onClick={() => onChoose(v)}
+      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition">
+      <span className="flex items-center gap-1.5 font-bold text-sm text-gray-900 dark:text-gray-100">
+        {v.license_plate}
+        {/* Archived cars stay findable — a typed plate is evidence the archive was wrong
+            — but they must never look like a live car with the same plate. */}
+        {v.archived_at && (
+          <span className="rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-300">📦 archived</span>
+        )}
+      </span>
+      {/* ⚠️⚠️ NEVER HAND-ASSEMBLE THE NAME. Interpolating the year, make and model
+          renders perfectly and silently drops the powertrain badge — which is how a
+          hybrid Civic read identically to a petrol one on three screens at once. FG's
+          architecture test caught exactly this line, and `is_hybrid`/`is_tesla` are in
+          the search result FOR this.
+          ⭐ It also caught the first version of THIS COMMENT, which quoted the banned
+          shape verbatim. The detector reads raw source, so writing the anti-pattern
+          down is writing it — and rewording is cheaper than an allowlist, which is
+          where a real identity line would eventually hide. */}
+      <span className="flex min-w-0 items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
+        {byUnit && v.unit_number ? `unit ${v.unit_number} · ` : ''}
+        <VehicleName vehicle={{ year: v.year, make: v.make, model: v.model, isHybrid: v.is_hybrid, isTesla: v.is_tesla }} />
+      </span>
+    </button>
   );
 }

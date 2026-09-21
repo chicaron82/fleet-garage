@@ -16,6 +16,7 @@ import { scanHoldLines } from '../../lib/scanHoldSummary';
 import { consolidateDamage } from '../../lib/consolidateDamage';
 import { useAuth } from '../../context/AuthContext';
 import { VehicleLookup } from '../shared/VehicleLookup';
+import { useLookupRecents } from '../../hooks/useLookupRecents';
 import { ScanPlateWatch } from './ScanPlateWatch';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
@@ -38,6 +39,8 @@ interface Props {
 
 export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   const { readKeytag, status, error, errorRef } = useKeytagRead();
+  // ⭐ Find a car's recents (2026-09-21) — the 🔍 door only; see useLookupRecents for why.
+  const { recents: lookupRecentList, record: recordLookup } = useLookupRecents(mode === 'search');
   const { user } = useAuth();
   const { vehicles, holds, updateVehicleFields, attachKeytagPhotoIfMissing, recordOwningArea, recordClassCode, recordVinLast9 } = useVehicleHoldContext();
   const checkGeotab = useGeotabPending();
@@ -164,8 +167,13 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
     const key = digits.length === raw.length && digits.length >= 5
       ? { unitNumber: digits }
       : { plate: raw };
-    await applyRead(readWithTypedKey(orphaned, key), orphaned?.photo);
-  }, [applyRead, scanPhoto, scanRead, vehicles]);
+    const typedRead = readWithTypedKey(orphaned, key);
+    // ⭐ Remembered only when it RESOLVED — his call: a typo never becomes a recent. Resolved with the
+    // same pure matcher the card uses below, so "found" means the same thing in both places.
+    const found = resolveKeytagScan(typedRead, vehicles).vehicle;
+    if (found) void recordLookup(found.id);
+    await applyRead(typedRead, orphaned?.photo);
+  }, [applyRead, scanPhoto, scanRead, vehicles, recordLookup]);
 
   // ⭐⭐ THE PIXELS, NOT A PROMPT (2026-09-20, docs/September/ticket-a-failed-read-is-not-a-verdict.md).
   // A tag photographed on a bench lands sideways, and the reader cannot read 90° text: Aaron's line
@@ -262,6 +270,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
               busy={reading}
               autoFocus={mode === 'search'}
               inlineResults
+              recents={lookupRecentList}
               placeholder={mode === 'search' ? 'Plate or unit' : undefined} />
           </div>
         </div>
