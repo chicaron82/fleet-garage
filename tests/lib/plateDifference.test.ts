@@ -108,3 +108,45 @@ describe('a clipped tag is not a re-plate', () => {
     expect(classifyPlateDifference('FTR2260', 'TR2260')).toBe('replate');
   });
 });
+
+/**
+ * ⭐⭐ A FADED CHARACTER IS A DROPPED CHARACTER. Aaron, 2026-09-20: *"the reader kept reading 482NWW
+ * as 48?NWW and asking if it was a replate, mistaking the 2 as a question mark probably because it
+ * was a little faded."*
+ *
+ * `normalizePlate` strips anything outside A-Z0-9, so the `?` is not preserved — it is deleted, and
+ * the read arrives as the five-character `48NWW`. That is not equal, not confusable, and not a
+ * LEADING truncation, so it used to reach the shape rule (`99AAA` vs `999AAA`) which reads a length
+ * change as a change of province. One faded digit and FG offered to overwrite a verified plate.
+ */
+describe('a character the reader could not make out', () => {
+  const RECORD = '482NWW';   // 2025 Ford Escape, unit 5591177 — a real car in the fleet
+
+  it('⭐ 48?NWW is a MISREAD of 482NWW, not a re-plate', () => {
+    expect(classifyPlateDifference('48?NWW', RECORD)).toBe('misread');
+  });
+
+  it('⭐⭐ and FG must not offer to adopt it', () => {
+    expect(shouldOfferPlateUpdate('48?NWW', RECORD)).toBe(false);
+  });
+
+  it('holds however the unreadable character is rendered — or simply absent', () => {
+    for (const read of ['48?NWW', '48 NWW', '48-NWW', '48NWW']) {
+      expect(classifyPlateDifference(read, RECORD), read).toBe('misread');
+    }
+  });
+
+  it('covers a drop at the END as well as the middle', () => {
+    expect(classifyPlateDifference('482NW', RECORD)).toBe('misread');
+  });
+
+  it('⚠️ TWO missing characters is a different failure and is NOT absorbed here', () => {
+    expect(classifyPlateDifference('48NW', RECORD)).not.toBe('misread');
+  });
+
+  it('⚠️ a genuine re-plate still reads as one — this must not swallow the real case', () => {
+    // Alberta digit-first → Manitoba AAA999, the case the shape rule exists for.
+    expect(classifyPlateDifference('LZM500', '0GK641')).toBe('replate');
+    expect(shouldOfferPlateUpdate('LZM500', '0GK641')).toBe(true);
+  });
+});

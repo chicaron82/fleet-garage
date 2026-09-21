@@ -43,6 +43,25 @@ export type PlateDifference =
  * odometer and the plate-authoritative rule both exist because FG's default is to protect a good
  * record from a bad read, and that default stays.
  */
+/**
+ * Is `short` exactly `full` with ONE character removed from anywhere?
+ *
+ * ⚠️ Exactly one, and order-preserving — a single deletion, never a general similarity score. Two
+ * missing characters is a different failure and must not be absorbed here (the same strictness
+ * `isLeadingTruncation` documents for its own case, which this generalises).
+ */
+function isOneCharacterDrop(short: string, full: string): boolean {
+  if (full.length !== short.length + 1) return false;
+  let i = 0, j = 0, skipped = false;
+  while (i < short.length && j < full.length) {
+    if (short[i] === full[j]) { i++; j++; continue; }
+    if (skipped) return false;
+    skipped = true;
+    j++;
+  }
+  return true;
+}
+
 export function classifyPlateDifference(
   tagPlate?: string | null,
   recordPlate?: string | null,
@@ -75,6 +94,22 @@ export function classifyPlateDifference(
   // cannot swallow a real car. (`LUR271`/`KUR271` share a suffix as each other's tail, but neither
   // tail is a plate, so nothing here resolves to the wrong vehicle.)
   if (isLeadingTruncation(tag, record)) return 'misread';
+
+  // ⚠️⚠️ A CHARACTER THE READER COULD NOT MAKE OUT IS A DROPPED CHARACTER — anywhere, not just the
+  // front. Aaron, 2026-09-20: *"the reader kept reading 482NWW as 48?NWW and asking if it was a
+  // replate, mistaking the 2 as a question mark probably because it was a little faded."*
+  //
+  // ⭐ Follow it through: `normalizePlate` STRIPS anything that is not A-Z0-9, so the `?` is not
+  // preserved — it is DELETED, and `48?NWW` arrives here as the five-character `48NWW`. Against the
+  // record's `482NWW` that is not equal, not a confusable pair, and not a LEADING truncation, so it
+  // fell through to the shape rule — `99AAA` vs `999AAA` — which reads a length change as a change
+  // of PROVINCE and returns 'replate'. One faded digit, and FG offers to overwrite a good plate.
+  //
+  // ⭐⭐ This is `FTR2260` again with the loss in the MIDDLE instead of the front. `isLeadingTruncation`
+  // is the same idea pinned to position 0; a faded character has no such courtesy. Same reasoning
+  // applies unchanged: both hypotheses explain the evidence, only one is destructive, so the
+  // non-destructive one is tested first and only the residue reaches the shape rule.
+  if (isOneCharacterDrop(tag, record)) return 'misread';
 
   // ⭐ A different province FORMAT is the strongest re-plate signal there is. Alberta reads 9AA999,
   // Manitoba AAA999 — a read does not turn one into the other, but a trip to the plate office does.
