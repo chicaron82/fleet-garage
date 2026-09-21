@@ -21,7 +21,13 @@ import { SYSTEM_PROMPT as EFFIE_PROMPT } from '../../api/_lib/effiePrompt';
 /** Every colour code observed on a real tag in this fleet, with what it expands to. */
 const REAL_CODES: [string, string][] = [
   ['WHI', 'White'], ['BLA', 'Black'], ['GRA', 'Gray'], ['GRE', 'Green'],
-  ['SIL', 'Silver'], ['BLU', 'Blue'], ['RED', 'Red'], ['BRO', 'Brown'], ['PLU', 'Plum'],
+  ['SIL', 'Silver'], ['BLU', 'Blue'], ['RED', 'Red'], ['BRO', 'Brown'],
+  // ⚠️ PLU IS NOT PLUM — corrected 2026-09-20 when Aaron sent Kia's configurator:
+  // `exteriorColourCode=PLU` = "Pluton Blue". The code is the first three letters of the
+  // MANUFACTURER'S name for the colour, not of a generic colour word. FG had written Plum onto a
+  // blue 2025 Seltos (LFJ306). ⭐ Which also kills the "expand an unlisted code by the same rule"
+  // line both prompts carried — that rule is exactly what produces Plum.
+  ['PLU', 'Blue'],
 ];
 
 /** Codes the tags do NOT print. Both were in both prompts until 2026-09-18. */
