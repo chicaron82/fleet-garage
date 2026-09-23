@@ -851,3 +851,28 @@ verify now.)
 - React + TypeScript (strict) + Vite + Tailwind
 - Supabase (Postgres + auth + storage); migrations live in top-level `migrations/` (058+), **not** `supabase/migrations/`
 - PWA (no OAuth redirects)
+
+## A new table — four parts, not three (Supabase change, effective 2026-10-30)
+
+From **October 30, 2026** Supabase stops auto-granting Data API access to new tables in `public`
+([changelog 45329](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically)).
+Every table that exists today keeps its grants — **nothing to backfill.** But a table created after
+that date without an explicit `GRANT` is invisible to the client: it works in SQL and the app says
+it does not exist, which is a miserable thing to debug from the lot.
+
+Until now, every new table got `ALL` for `anon`, `authenticated` and `service_role` by default
+(checked on `148_lookup_recents`). So FG's posture is preserved by granting it explicitly:
+
+1. **The numbered migration file first** (`migrations/NNN_*.sql`) — never a raw Management-API table.
+2. **RLS on + the allow-all policy** — FG's standard trusted-crew posture.
+3. **The grants**, in the same migration:
+   ```sql
+   grant select, insert, update, delete on public.<table> to anon, authenticated;
+   grant all on public.<table> to service_role;
+   -- only if the table has a serial/identity column:
+   grant usage, select on sequence public.<table>_<col>_seq to anon, authenticated;
+   ```
+4. **`gen:types` + `gen:schema`** — the typed client and the snapshot.
+
+⚠️ RLS decides which ROWS a role sees; a GRANT decides whether it may touch the TABLE at all. They
+are two different layers, and after Oct 30 a table with a perfect policy and no grant is still shut.
