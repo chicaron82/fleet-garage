@@ -82,13 +82,13 @@ export function IssueLogView() {
 
   // ⚠️ The SECOND reopen door, and it must obey the card's rule (08d4bee): the note is the fault. It
   // used to reopen with none and then clear what he'd typed — Aaron, 2026-09-24: *"couldn't explain
-  // what broke."* The description he wrote IS the note. A photo carries only onto an issue that has
-  // none: an issue holds ONE photo (ticket-reopen-instead-drops-the-fault).
+  // what broke."* The description he wrote IS the note, and the photo rides on the reopen as THIS
+  // fault's picture (migration 149, ticket-a-photo-per-fault).
   const handleReopenDuplicate = (dup: FacilityIssue) => {
     const note = newDescription.trim();
     if (!note) return;
     hapticMedium();
-    void reopenIssue(dup.id, note).then(() => { if (newPhoto && !dup.photoUrl) void attachPhoto(dup.id, newPhoto); });
+    void reopenIssue(dup.id, note, newPhoto ?? undefined);
     setShowNewForm(false);
     setNewTitle(''); setNewDescription(''); setNewSeverity('medium'); setNewPhoto(null);
   };

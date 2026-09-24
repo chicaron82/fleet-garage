@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { currentFaultByIssue, faultLine, type FaultEvent } from '../../src/lib/currentFault';
+import { currentFaultByIssue, currentPhotoByIssue, faultLine, type FaultEvent } from '../../src/lib/currentFault';
 
 // ⭐⭐ THE MACHINE IS THE RECORD (Aaron, 2026-09-20): *"instead of having a second mat machine issue
 // for it eating mats, we'd just rename the record as mat machine, and what's currently wrong with it
@@ -80,5 +80,36 @@ describe('faultLine', () => {
   it('says nothing rather than empty quotes when there is nothing to say', () => {
     expect(faultLine({ description: '   ', status: 'open' }, undefined)).toBeNull();
     expect(faultLine({ status: 'open' }, undefined)).toBeNull();
+  });
+});
+
+// ⭐⭐ THE PICTURE BELONGS TO THE FAULT (2026-09-24, migration 149). Aaron, after the auto wash's
+// rinse pipe snapped: *"couldn't … attach a new photo of it in the issue log."* The current photo is
+// read off the SAME event as the current fault, so the card's picture and its "Now:" line can never
+// describe two different breakdowns. docs/September/ticket-a-photo-per-fault.md
+describe('currentPhotoByIssue', () => {
+  it('⭐ is the photo on the reopen that IS the current fault', () => {
+    const map = currentPhotoByIssue([
+      ev({ issueId: 'wash', note: 'E-stop pressed', createdAt: '2026-06-08T10:00:00Z', photoUrl: 'june.jpg' }),
+      ev({ issueId: 'wash', note: 'Rinse pipe snapped off the arch', createdAt: '2026-09-24T22:00:00Z', photoUrl: 'pipe.jpg' }),
+    ]);
+    expect(map.get('wash')).toBe('pipe.jpg');
+  });
+
+  it('⚠️ never an OLDER fault\'s photo when the current one has none', () => {
+    const map = currentPhotoByIssue([
+      ev({ issueId: 'wash', note: 'E-stop pressed', createdAt: '2026-06-08T10:00:00Z', photoUrl: 'june.jpg' }),
+      ev({ issueId: 'wash', note: 'Rinse pipe snapped off the arch', createdAt: '2026-09-24T22:00:00Z' }),
+    ]);
+    expect(map.has('wash')).toBe(false);
+  });
+
+  it('agrees with currentFaultByIssue about WHICH event is current — a blank reopen is not it', () => {
+    const events = [
+      ev({ issueId: 'wash', note: 'Rinse pipe snapped', createdAt: '2026-09-24T22:00:00Z', photoUrl: 'pipe.jpg' }),
+      ev({ issueId: 'wash', note: null, createdAt: '2026-09-25T09:00:00Z', photoUrl: 'orphan.jpg' }),
+    ];
+    expect(currentFaultByIssue(events).get('wash')).toBe('Rinse pipe snapped');
+    expect(currentPhotoByIssue(events).get('wash')).toBe('pipe.jpg');
   });
 });

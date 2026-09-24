@@ -93,3 +93,28 @@ describe('IssueCard — reopening asks what broke', () => {
     await waitFor(() => expect(props.onReopen).toHaveBeenCalledWith('mat', 'eating the mats'));
   });
 });
+
+// ⭐ THE PICTURE FOLLOWS THE FAULT (2026-09-24, migration 149). The auto wash's card said "Now: Rinse
+// pipe snapped off the arch" — and the only photo it had was June's E-stop. Showing that under the
+// new line would be a confident, wrong image. docs/September/ticket-a-photo-per-fault.md
+describe('IssueCard — the photo belongs to the fault it sits under', () => {
+  const wash = (over: Partial<FacilityIssue> = {}) => issue({
+    id: 'aw', title: 'Auto wash', photoUrl: 'https://cdn/june-estop.jpg', ...over,
+  });
+
+  it('⚠️ a current fault with no photo shows NO photo — never the first fault\'s', () => {
+    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped off the arch' })} {...props} />);
+    expect(screen.queryByAltText('Issue photo')).toBeNull();
+    expect(screen.getByText(/add photo/i)).toBeInTheDocument();     // …and offers to add THIS one
+  });
+
+  it('shows the current fault\'s own photo', () => {
+    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped', currentPhoto: 'https://cdn/pipe.jpg' })} {...props} />);
+    expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/pipe.jpg');
+  });
+
+  it('a machine that only broke once still shows its first photo', () => {
+    render(<IssueCard issue={wash({ status: 'open', reopenCount: 0 })} {...props} />);
+    expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/june-estop.jpg');
+  });
+});

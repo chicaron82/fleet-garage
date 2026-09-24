@@ -1,9 +1,13 @@
 /** One line of a machine's fault trail, as `issue_events` stores it. */
 export interface FaultEvent {
+  /** The event's own id — present when a WRITE needs to target it (attaching a photo). */
+  id?: string;
   issueId: string;
   eventType: string;
   note?: string | null;
   createdAt: string;
+  /** A photo of THIS event's fault (migration 149). */
+  photoUrl?: string | null;
 }
 
 /**
@@ -25,6 +29,29 @@ export interface FaultEvent {
  * Reset"* — which is the opposite of what is wrong now.
  */
 export function currentFaultByIssue(events: readonly FaultEvent[]): Map<string, string> {
+  return new Map([...currentFaultEvents(events)].map(([id, e]) => [id, e.note!.trim()]));
+}
+
+/**
+ * The photo of what is wrong NOW — read off the SAME event `currentFaultByIssue` picks, so the card's
+ * picture and its "Now:" line can never describe two different breakdowns (migration 149).
+ *
+ * ⚠️ When the current fault has no photo, the machine has NO current photo — never an older fault's.
+ * June's E-stop picture under September's "rinse pipe snapped" would be a confident, wrong image.
+ * docs/September/ticket-a-photo-per-fault.md
+ */
+export function currentPhotoByIssue(events: readonly FaultEvent[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const [id, e] of currentFaultEvents(events)) {
+    const url = e.photoUrl?.trim();
+    if (url) out.set(id, url);
+  }
+  return out;
+}
+
+/** The one choice both functions above share: per machine, the newest reopen that SAYS something.
+ *  Exported so a WRITE can target the same event the card reads (attaching a photo to the fault). */
+export function currentFaultEvents(events: readonly FaultEvent[]): Map<string, FaultEvent> {
   const newest = new Map<string, FaultEvent>();
   for (const e of events) {
     if (e.eventType !== 'reopened') continue;
@@ -33,7 +60,7 @@ export function currentFaultByIssue(events: readonly FaultEvent[]): Map<string, 
     const held = newest.get(e.issueId);
     if (!held || e.createdAt > held.createdAt) newest.set(e.issueId, e);
   }
-  return new Map([...newest].map(([id, e]) => [id, e.note!.trim()]));
+  return newest;
 }
 
 /**

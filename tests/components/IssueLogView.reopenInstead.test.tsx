@@ -40,7 +40,8 @@ describe('"Reopen instead" — the duplicate door', () => {
     await startDuplicate();
     await userEvent.type(screen.getByPlaceholderText(/description|what's wrong/i), 'Rinse pipe snapped off the arch');
     await userEvent.click(screen.getByRole('button', { name: /reopen instead/i }));
-    expect(reopenIssue).toHaveBeenCalledWith('aw', 'Rinse pipe snapped off the arch');
+    // Third argument: the photo, which rides on the reopen as THIS fault's picture (migration 149).
+    expect(reopenIssue).toHaveBeenCalledWith('aw', 'Rinse pipe snapped off the arch', undefined);
   });
 
   it('will not reopen with no note — same rule as the card', async () => {

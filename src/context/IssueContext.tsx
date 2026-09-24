@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { currentFaultByIssue } from '../lib/currentFault';
+import { currentFaultByIssue, currentPhotoByIssue } from '../lib/currentFault';
 import { mapIssue } from '../lib/garage-mappers';
 import { useIssues, type IssuesSlice } from './useIssues';
 
@@ -35,17 +35,20 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
       // showing its first fault, which is exactly what it showed before this existed.
       const { data: trail } = await supabase
         .from('issue_events')
-        .select('issue_id, event_type, note, created_at')
+        .select('issue_id, event_type, note, created_at, photo_url')
         .eq('event_type', 'reopened');
-      const current = currentFaultByIssue((trail ?? []).map(r => ({
+      const events = (trail ?? []).map(r => ({
         issueId: r.issue_id as string,
         eventType: r.event_type as string,
         note: r.note as string | null,
         createdAt: r.created_at as string,
-      })));
+        photoUrl: r.photo_url as string | null,
+      }));
+      const current = currentFaultByIssue(events);
+      const photos = currentPhotoByIssue(events);   // same event as the fault — see lib/currentFault
       setFacilityIssues(data.map(row => {
         const issue = mapIssue(row);
-        return { ...issue, currentFault: current.get(issue.id) };
+        return { ...issue, currentFault: current.get(issue.id), currentPhoto: photos.get(issue.id) };
       }));
     })();
   }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps

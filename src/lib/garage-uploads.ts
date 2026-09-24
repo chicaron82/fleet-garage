@@ -112,6 +112,9 @@ export async function deleteDamagePhotos(urls: string[]): Promise<void> {
   try { await supabase.storage.from('damage-photos').remove(paths); } catch { /* orphan, not a blocker */ }
 }
 
+/** ⚠️ ONE path per issue — `{issue}/photo.jpg`, no upsert — so this can only ever succeed ONCE for an
+ *  issue; a second call fails and returns null. That's fine for the issue's FIRST-fault photo, which
+ *  is written once. A photo of a later fault goes through `uploadIssueFaultPhoto` below. */
 export async function uploadIssuePhoto(base64: string, issueId: string): Promise<string | null> {
   const blob = base64ToBlob(base64);
   const path = `${issueId}/photo.jpg`;
@@ -176,4 +179,16 @@ export async function uploadShiftLogPhoto(base64: string, logKey: string): Promi
   );
   if (error) return null;
   return supabase.storage.from('shift-log-photos').getPublicUrl(path).data.publicUrl;
+}
+
+/** A photo of ONE fault on a machine (migration 149) — its own path, so every reopen can carry a
+ *  picture without colliding with the first fault's `photo.jpg` or with another reopen's. */
+export async function uploadIssueFaultPhoto(base64: string, issueId: string): Promise<string | null> {
+  const blob = base64ToBlob(base64);
+  const path = `${issueId}/fault-${Date.now()}.jpg`;
+  const { error } = await withUploadTimeout(
+    supabase.storage.from('issue-bucket').upload(path, blob, { contentType: 'image/jpeg', cacheControl: LONG_CACHE })
+  );
+  if (error) return null;
+  return supabase.storage.from('issue-bucket').getPublicUrl(path).data.publicUrl;
 }

@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import type { FacilityIssue, IssueSeverity, BranchId } from '../types';
 import type { User } from '../types';
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { uploadIssuePhoto } from '../lib/garage-uploads';
+import { uploadIssuePhoto, uploadIssueFaultPhoto } from '../lib/garage-uploads';
+import { currentFaultEvents } from '../lib/currentFault';
 import { withSubmitLock } from '../lib/submitLock';
 
 export interface IssuesSlice {
@@ -10,7 +11,7 @@ export interface IssuesSlice {
   addIssue: (data: { title: string; description?: string; severity: IssueSeverity; photo?: string }) => Promise<void>;
   attachPhoto: (issueId: string, photo: string) => Promise<void>;
   clearIssue: (issueId: string, notes?: string) => Promise<void>;
-  reopenIssue: (issueId: string, note?: string) => Promise<void>;
+  reopenIssue: (issueId: string, note?: string, photo?: string) => Promise<void>;
 }
 
 export function useIssues(
@@ -56,7 +57,26 @@ export function useIssues(
     });
   };
 
+  // ⭐ FAULT-AWARE (2026-09-24, migration 149). A machine with a CURRENT fault gets the photo on that
+  // fault's reopen event — the one the card reads (lib/currentFault) — so "+ Add photo" after a
+  // reopen pictures what broke THIS time. Only a machine with no later fault takes it on the issue
+  // itself, as its first-fault photo. Aaron: *"couldn't … attach a new photo of it in the issue log."*
   const attachPhoto = async (issueId: string, photo: string) => {
+    if (facilityIssues.find(i => i.id === issueId)?.currentFault) {
+      const { data: trail } = await supabase.from('issue_events')
+        .select('id, issue_id, event_type, note, created_at')
+        .eq('issue_id', issueId).eq('event_type', 'reopened');
+      const target = currentFaultEvents((trail ?? []).map(r => ({
+        issueId: r.issue_id as string, eventType: r.event_type as string,
+        note: r.note as string | null, createdAt: r.created_at as string, id: r.id as string,
+      }))).get(issueId);
+      if (!target?.id) return;
+      const url = await uploadIssueFaultPhoto(photo, issueId);
+      if (!url) return;
+      await writeWithRefresh(() => supabase.from('issue_events').update({ photo_url: url }).eq('id', target.id!));
+      setFacilityIssues(prev => prev.map(i => i.id === issueId ? { ...i, currentPhoto: url } : i));
+      return;
+    }
     const photoUrl = await uploadIssuePhoto(photo, issueId);
     if (!photoUrl) return;
     await writeWithRefresh(() =>
@@ -97,8 +117,10 @@ export function useIssues(
   // docs/September/ticket-the-machine-is-the-record.md). Kept optional in the signature because the
   // assistant path and older callers exist; a blank one simply leaves the card showing the first
   // fault, which is what every reopen before today did.
-  const reopenIssue = async (issueId: string, note?: string) => {
+  const reopenIssue = async (issueId: string, note?: string, photo?: string) => {
     const currentCount = facilityIssues.find(i => i.id === issueId)?.reopenCount ?? 0;
+    // A photo of THIS fault rides on its own event (migration 149); a failed upload still reopens.
+    const photoUrl = photo ? await uploadIssueFaultPhoto(photo, issueId) : null;
     const newCount = currentCount + 1;
     await writeWithRefresh(() =>
       supabase.from('facility_issues').update({
@@ -114,6 +136,7 @@ export function useIssues(
         event_type: 'reopened',
         user_id:    user!.id,
         note:       note || null,
+        photo_url:  photoUrl,
       })
     );
     setFacilityIssues(prev =>
@@ -126,6 +149,8 @@ export function useIssues(
             // ⭐ Optimistic, so the card says what's wrong the moment he taps rather than after a
             // reload — the derived value the loader would compute from the event just written.
             currentFault: note?.trim() || i.currentFault,
+            // A new fault replaces the picture too — its own photo, or none. Never the old fault's.
+            currentPhoto: note?.trim() ? (photoUrl ?? undefined) : i.currentPhoto,
           }
         : i
       )

@@ -4,19 +4,25 @@
 // the write-layer guarantee. Other useIssues ops are update-shaped (converge).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import type { User } from '../../src/types';
 
-const { writeWithRefreshMock, uploadIssuePhotoMock } = vi.hoisted(() => ({
+const { writeWithRefreshMock, uploadIssuePhotoMock, uploadFaultPhotoMock } = vi.hoisted(() => ({
   writeWithRefreshMock: vi.fn(),
   uploadIssuePhotoMock: vi.fn(),
+  uploadFaultPhotoMock: vi.fn(),
 }));
+// What the reopen trail read returns — the events the fault-aware attach must choose among.
+let trailRows: Record<string, unknown>[] = [];
 
 const fromCalls: string[] = [];
 const chain = {
   insert: vi.fn(() => chain),
   update: vi.fn(() => chain),
   eq:     vi.fn(() => chain),
+  select: vi.fn(() => chain),
+  // Awaiting the chain after .select().eq().eq() resolves to the trail rows.
+  then: (resolve: (v: unknown) => unknown) => resolve({ data: trailRows, error: null }),
 };
 
 vi.mock('../../src/lib/supabase', () => ({
@@ -26,6 +32,7 @@ vi.mock('../../src/lib/supabase', () => ({
 
 vi.mock('../../src/lib/garage-uploads', () => ({
   uploadIssuePhoto: (...args: unknown[]) => uploadIssuePhotoMock(...args),
+  uploadIssueFaultPhoto: (...args: unknown[]) => uploadFaultPhotoMock(...args),
 }));
 
 import { useIssues } from '../../src/context/useIssues';
@@ -42,6 +49,8 @@ beforeEach(() => {
   fromCalls.length = 0;
   writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { error: null }; });
   uploadIssuePhotoMock.mockResolvedValue('https://cdn.test/issue.jpg');
+  uploadFaultPhotoMock.mockResolvedValue('https://cdn.test/fault.jpg');
+  trailRows = [];
 });
 
 describe('addIssue', () => {
@@ -63,5 +72,57 @@ describe('addIssue', () => {
     await Promise.all([p1, p2]);
 
     expect(fromCalls.filter(t => t === 'facility_issues')).toHaveLength(1);
+  });
+});
+
+// ⭐ A PHOTO PER FAULT (2026-09-24, migration 149). Aaron, after the auto wash's rinse pipe snapped:
+// *"couldn't … attach a new photo of it in the issue log."* docs/September/ticket-a-photo-per-fault.md
+describe('reopenIssue — the fault carries its own photo', () => {
+  it('uploads to the FAULT path and stores the url on the reopen event', async () => {
+    const slice = makeSlice();
+    await slice.reopenIssue('aw', 'Rinse pipe snapped off the arch', 'data:PIPE');
+    expect(uploadFaultPhotoMock).toHaveBeenCalledWith('data:PIPE', 'aw');
+    expect(uploadIssuePhotoMock).not.toHaveBeenCalled();         // never the issue's one fixed path
+    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({
+      event_type: 'reopened', note: 'Rinse pipe snapped off the arch', photo_url: 'https://cdn.test/fault.jpg',
+    }));
+  });
+
+  it('without a photo the event says so (null), and nothing is uploaded', async () => {
+    const slice = makeSlice();
+    await slice.reopenIssue('aw', 'Rinse pipe snapped off the arch');
+    expect(uploadFaultPhotoMock).not.toHaveBeenCalled();
+    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({ photo_url: null }));
+  });
+});
+
+describe('attachPhoto — follows the fault', () => {
+  function sliceWith(issue: Record<string, unknown>) {
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => result.current.setFacilityIssues([issue as never]));
+    return result;
+  }
+
+  it('⭐ a machine with a CURRENT fault: the photo lands on THAT fault\'s event', async () => {
+    trailRows = [
+      { id: 'ev-june', issue_id: 'aw', event_type: 'reopened', note: 'E-stop', created_at: '2026-06-08T10:00:00Z' },
+      { id: 'ev-pipe', issue_id: 'aw', event_type: 'reopened', note: 'Rinse pipe snapped', created_at: '2026-09-24T22:00:00Z' },
+      { id: 'ev-blank', issue_id: 'aw', event_type: 'reopened', note: null, created_at: '2026-09-25T09:00:00Z' },
+    ];
+    const r = sliceWith({ id: 'aw', branchId: 'YWG', title: 'Auto wash', status: 'reopened', reopenCount: 2, currentFault: 'Rinse pipe snapped', photoUrl: 'june.jpg' });
+    await act(() => r.current.attachPhoto('aw', 'data:PIPE'));
+    expect(uploadFaultPhotoMock).toHaveBeenCalled();
+    expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/fault.jpg' });
+    expect(chain.eq).toHaveBeenCalledWith('id', 'ev-pipe');   // the fault the card shows — not a blank one
+    expect(r.current.facilityIssues[0].currentPhoto).toBe('https://cdn.test/fault.jpg');
+    expect(r.current.facilityIssues[0].photoUrl).toBe('june.jpg');   // the first fault's photo survives
+  });
+
+  it('a machine that has only broken once: the photo is the issue\'s own, as before', async () => {
+    const r = sliceWith({ id: 'door', branchId: 'YWG', title: 'Bay door', status: 'open', reopenCount: 0 });
+    await act(() => r.current.attachPhoto('door', 'data:DOOR'));
+    expect(uploadIssuePhotoMock).toHaveBeenCalledWith('data:DOOR', 'door');
+    expect(uploadFaultPhotoMock).not.toHaveBeenCalled();
+    expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/issue.jpg' });
   });
 });

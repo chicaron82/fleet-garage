@@ -54,6 +54,9 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [events, setEvents]               = useState<IssueEvent[] | null>(null);
   const fault = faultLine(issue, issue.currentFault);
+  // The picture follows the fault (migration 149): a live current fault shows ITS photo or none —
+  // never the first fault's under a newer "Now:" line. A resolved or once-broken machine: the first.
+  const shownPhoto = issue.status !== 'resolved' && issue.currentFault ? issue.currentPhoto : issue.photoUrl;
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -197,16 +200,16 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
         </p>
       )}
 
-      {issue.photoUrl && (
+      {shownPhoto && (
         <img
           loading="lazy"
-          src={issue.photoUrl}
+          src={shownPhoto}
           alt="Issue photo"
           className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
         />
       )}
 
-      {!issue.photoUrl && !cleared && (
+      {!shownPhoto && !cleared && (
         isAddingPhoto ? (
           <div className="flex items-center gap-2">
             {uploadingPhoto ? (

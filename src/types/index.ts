@@ -686,6 +686,9 @@ export interface FacilityIssue {
    *  load, never stored: `description` stays the FIRST fault so the history cannot be overwritten.
    *  Undefined for a machine that has only ever had the one fault. */
   currentFault?: string;
+  /** The photo of THAT fault (migration 149, lib/currentFault) — read off the same event, so it can
+   *  never picture a different breakdown. Undefined when the current fault has none. */
+  currentPhoto?: string;
 }
 
 // ── Washbay Log ───────────────────────────────────────────────────────────────

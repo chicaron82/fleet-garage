@@ -838,6 +838,7 @@ export type Database = {
           id: string
           issue_id: string
           note: string | null
+          photo_url: string | null
           user_id: string
         }
         Insert: {
@@ -846,6 +847,7 @@ export type Database = {
           id?: string
           issue_id: string
           note?: string | null
+          photo_url?: string | null
           user_id: string
         }
         Update: {
@@ -854,6 +856,7 @@ export type Database = {
           id?: string
           issue_id?: string
           note?: string | null
+          photo_url?: string | null
           user_id?: string
         }
         Relationships: [
