@@ -80,9 +80,15 @@ export function IssueLogView() {
     setSubmitting(false);
   };
 
-  const handleReopenDuplicate = (id: string) => {
+  // ⚠️ The SECOND reopen door, and it must obey the card's rule (08d4bee): the note is the fault. It
+  // used to reopen with none and then clear what he'd typed — Aaron, 2026-09-24: *"couldn't explain
+  // what broke."* The description he wrote IS the note. A photo carries only onto an issue that has
+  // none: an issue holds ONE photo (ticket-reopen-instead-drops-the-fault).
+  const handleReopenDuplicate = (dup: FacilityIssue) => {
+    const note = newDescription.trim();
+    if (!note) return;
     hapticMedium();
-    reopenIssue(id);
+    void reopenIssue(dup.id, note).then(() => { if (newPhoto && !dup.photoUrl) void attachPhoto(dup.id, newPhoto); });
     setShowNewForm(false);
     setNewTitle(''); setNewDescription(''); setNewSeverity('medium'); setNewPhoto(null);
   };
@@ -202,11 +208,15 @@ export function IssueLogView() {
                   ? ' (cleared). Reopen it instead of logging a duplicate?'
                   : ' and is already open.'}
               </p>
+              {duplicateMatch.status === 'resolved' && !newDescription.trim() && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">Say what&apos;s wrong this time in the description first.</p>
+              )}
               {duplicateMatch.status === 'resolved' && (
                 <button
                   type="button"
-                  onClick={() => handleReopenDuplicate(duplicateMatch.id)}
-                  className="px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                  disabled={!newDescription.trim()}
+                  onClick={() => handleReopenDuplicate(duplicateMatch)}
+                  className="px-3 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   ↩ Reopen instead
                 </button>
