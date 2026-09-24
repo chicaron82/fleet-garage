@@ -45,11 +45,14 @@ export interface IssueRow {
   title: string;
   severity: string;
   reportedLabel: string;
+  /** What is wrong with the machine NOW — the newest reopen note (api/_lib/currentFault). */
+  fault?: string;
 }
 
 export function formatIssues(items: IssueRow[]): string {
   if (items.length === 0) return 'No open facility issues.';
-  const lines = items.slice(0, 8).map((i) => `${i.title} [${i.severity}], reported ${i.reportedLabel}`);
+  const lines = items.slice(0, 8).map((i) =>
+    `${i.title} [${i.severity}]${i.fault ? ` — now: ${i.fault}` : ''}, reported ${i.reportedLabel}`);
   const more = items.length > 8 ? ` (+${items.length - 8} more)` : '';
   const n = items.length;
   return `${n} open issue${n === 1 ? '' : 's'}: ${lines.join('; ')}${more}.`;

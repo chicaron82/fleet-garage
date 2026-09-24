@@ -1,3 +1,4 @@
+import { fetchShiftIssueLines } from '../../lib/fetchShiftIssueLines';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usePreferences } from '../../context/PreferencesContext';
@@ -102,11 +103,8 @@ export function ShiftReportExport({ date }: { date: string }) {
         .eq('date', date)
         .order('created_at', { ascending: true }),
 
-      supabase.from('facility_issues')
-        .select('reported_at, title, severity')
-        .eq('reported_by', user.id)
-        .gte('reported_at', dayStartISO).lt('reported_at', dayEndISO)
-        .order('reported_at', { ascending: true }),
+      // New issues AND reopens — lib/fetchShiftIssueLines (a reopen never changes reported_at).
+      fetchShiftIssueLines(user.id, dayStartISO, dayEndISO),
 
       // Fleet balance — 90 days for projection fallback
       supabase.from('fleet_balance')
@@ -327,11 +325,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         vehicleNumber: r.vehicle_number as string,
         status:        r.status as string,
       })),
-      issues: (issueRes.data ?? []).map((r: Record<string, unknown>) => ({
-        reportedAt: r.reported_at as string,
-        title:      r.title as string,
-        severity:   r.severity as string,
-      })),
+      issues: issueRes,
       fleetBalance,
       throughput,
       // True if flipping shows up through ANY channel that day: a VSA's own OTH log,

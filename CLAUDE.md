@@ -451,9 +451,9 @@ no longer a warning tier. The only carve-outs in `eslint.config.js` are the
 ## Tests
 
 Tests live in the top-level **`tests/`** tree, mirroring `src/` (e.g.
-`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 170 of 179 `src/lib`
-modules are tested; the remaining 9 gaps are all IO/glue (`addPersonalEvent`,
-`addWhiteboardReminder`, `airportFlipSync`, `audit-export`, `closingInventorySync`, `effieThreadSync`, `hold-export`, `supabase`, `vsaTripWrite`). When a new pure function
+`tests/lib/fleet-master.test.ts`). Lib coverage is strong — 171 of 181 `src/lib`
+modules are tested; the remaining 10 gaps are all IO/glue (`addPersonalEvent`,
+`addWhiteboardReminder`, `airportFlipSync`, `audit-export`, `closingInventorySync`, `effieThreadSync`, `fetchShiftIssueLines`, `hold-export`, `supabase`, `vsaTripWrite`). When a new pure function
 lands in `src/lib/`, add its test under `tests/lib/` in the same commit.
 *(A 2026-06-20 line-check caught ~10 pure modules that had trickled in test-less
 while this count drifted from 47 → 70 — the rule slips one commit at a time, so

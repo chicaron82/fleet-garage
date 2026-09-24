@@ -48,4 +48,11 @@ describe('formatIssues', () => {
   it('reports none', () => {
     expect(formatIssues([])).toBe('No open facility issues.');
   });
+  // ⭐ Asked what's open, Effie said "Auto wash" — never what broke. Since 08d4bee the machine is the
+  // record and the fault is what's wrong NOW (ticket-reopens-invisible-downstream, 2026-09-24).
+  it('says what is wrong with a machine NOW when it has a current fault', () => {
+    expect(
+      formatIssues([{ title: 'Auto wash', severity: 'high', reportedLabel: 'Jun 8', fault: 'Rinse pipe snapped off the arch' }]),
+    ).toBe('1 open issue: Auto wash [high] — now: Rinse pipe snapped off the arch, reported Jun 8.');
+  });
 });

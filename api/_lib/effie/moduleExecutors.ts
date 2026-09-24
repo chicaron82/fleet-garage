@@ -3,6 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { scheduleDateLabel } from '../effieHelpers.js';
 import { formatLostFound, formatIssues, type LostItem, type IssueRow } from '../moduleReads.js';
+import { currentFaultByIssue } from '../currentFault.js';
 import { buildLostItemProposal, describeLostItemProposal, type LostItemProposal } from '../lostItemProposal.js';
 
 /** Read-only: current (unreturned) lost & found items, optionally text-matched. */
@@ -36,15 +37,28 @@ export async function executeSearchLostFound(supabase: SupabaseClient, input: { 
 export async function executeLookupIssues(supabase: SupabaseClient, input: { status?: string }): Promise<string> {
   let q = supabase
     .from('facility_issues')
-    .select('title, severity, reported_at, cleared_at')
+    .select('id, title, severity, reported_at, cleared_at')
     .order('reported_at', { ascending: false });
   if (input.status !== 'all') q = q.is('cleared_at', null);
   const { data, error } = await q;
   if (error) throw error;
+  // ⭐ What's wrong with each machine NOW — the SAME rule the Issue Log card uses (api/_lib/currentFault,
+  // which the app re-exports). Asked what's open, she used to say "Auto wash" and never "rinse pipe
+  // snapped" (2026-09-24, ticket-reopens-invisible-downstream). A failed trail read costs the fault,
+  // never the list — each machine then reads as it did before this existed.
+  const { data: trail } = await supabase
+    .from('issue_events')
+    .select('issue_id, event_type, note, created_at')
+    .eq('event_type', 'reopened');
+  const fault = currentFaultByIssue((trail ?? []).map((e) => ({
+    issueId: e.issue_id, eventType: e.event_type, note: e.note, createdAt: e.created_at,
+  })));
   const items: IssueRow[] = (data ?? []).map((r) => ({
     title: r.title,
     severity: r.severity,
     reportedLabel: scheduleDateLabel((r.reported_at ?? '').slice(0, 10)),
+    // A cleared machine has no current fault — only an open one is described by what broke.
+    fault: r.cleared_at ? undefined : fault.get(r.id),
   }));
   return JSON.stringify({ count: items.length, summary: formatIssues(items) });
 }

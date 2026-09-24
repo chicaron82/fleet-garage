@@ -1,3 +1,4 @@
+import type { ShiftIssueLine } from './shiftReportIssues';
 import type { ShiftType, ShiftWithUser } from '../types';
 import type { ThroughputBasis } from './throughputBasis';
 import { type FuelReport } from './fuelReadings';
@@ -45,7 +46,7 @@ export interface ReportData {
   checkIns:     { checkedInAt: string; vehicleUnit: string; vehiclePlate: string }[];
   lostFound:    { foundAt: string; description: string; location: string; unitNumber: string | null }[];
   audits:       { createdAt: string; vehicleNumber: string; status: string }[];
-  issues:       { reportedAt: string; title: string; severity: string }[];
+  issues:       ShiftIssueLine[];   // new issues AND reopens — lib/shiftReportIssues
   fleetBalance: { outCount: number; inCount: number; isProjected: boolean } | null;
   throughput:   ReportThroughput | null;
   // True when flipping was recorded that day through ANY channel — a VSA's own
@@ -340,7 +341,9 @@ export function buildReport(d: ReportData): string {
     lines.push('', 'ISSUES REPORTED', SEP);
     for (const i of d.issues) {
       const sev = i.severity.charAt(0).toUpperCase() + i.severity.slice(1);
-      lines.push(`[${sev}] ${i.title}  (${fmtTime(i.reportedAt)})`);
+      // A reopen says so, and what broke — never passed off as a brand-new issue.
+      const reopen = i.reopenedFault === undefined ? '' : ` — reopened${i.reopenedFault ? `: ${i.reopenedFault}` : ''}`;
+      lines.push(`[${sev}] ${i.title}${reopen}  (${fmtTime(i.reportedAt)})`);
     }
   }
 

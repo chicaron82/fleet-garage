@@ -292,6 +292,23 @@ describe('buildReport — conditional sections', () => {
     expect(r).toContain('ISSUES REPORTED');
     expect(r).toContain('[High] Bay light out');
   });
+
+  // ⭐ A reopen is a breakdown he logged today — the auto wash, 2026-09-24. It says it's a REOPEN
+  // and what broke, so it can't be mistaken for a brand-new issue (ticket-reopens-invisible-downstream).
+  it('a reopen prints as a reopen, with the fault he wrote', () => {
+    const r = buildReport(baseData({
+      issues: [{ reportedAt: '2026-09-24T22:02:00Z', title: 'Auto wash', severity: 'high', reopenedFault: 'Rinse pipe snapped off the arch' }],
+    }));
+    expect(r).toContain('[High] Auto wash — reopened: Rinse pipe snapped off the arch');
+  });
+
+  it('an old blank reopen still says it was reopened', () => {
+    const r = buildReport(baseData({
+      issues: [{ reportedAt: '2026-09-24T22:02:00Z', title: 'Mat machine', severity: 'low', reopenedFault: '' }],
+    }));
+    expect(r).toContain('[Low] Mat machine — reopened');
+    expect(r).not.toContain('reopened:');
+  });
 });
 
 describe('buildReport — fuel section', () => {
