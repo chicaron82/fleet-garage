@@ -102,13 +102,18 @@ export function makeRetakeKeytagPhoto(deps: {
         // direction: its comment claimed a retake cleared the audit stamp, and the code did not.
         keytag_photo_confirmed_at: null,
         keytag_photo_confirmed_by: null,
+        // ⚠️ AND THE ROTATION (migration 133) — found 2026-09-24 when a re-plate began retaking
+        // automatically. The angle is a property of ONE photo, same as the two stamps above: a
+        // sideways old tag turned 90° would have turned its upright replacement 90° too. The scan
+        // path already stores the turned pixels, so a new photo starts at 0.
+        keytag_photo_rotation: 0,
       }).eq('id', vehicleId).select('id')
     );
     if (error || !data?.length) return false;
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? {
       ...v, keytagPhotoUrl: url,
       keytagAuditedAt: null, keytagAuditedBy: null, keytagAuditResult: null,
-      keytagPhotoConfirmedAt: null, keytagPhotoConfirmedBy: null,
+      keytagPhotoConfirmedAt: null, keytagPhotoConfirmedBy: null, keytagPhotoRotation: 0,
     } : v)));
     return true;
   };

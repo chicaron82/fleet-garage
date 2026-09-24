@@ -57,6 +57,50 @@ describe('ScanReplateOffer', () => {
     expect(screen.queryByText(/Plate updated to/)).not.toBeInTheDocument();
   });
 
+  // ⭐⭐ THE SCAN'S PHOTO IS THE NEW TAG (2026-09-24, unit 5421649 → TM169N). Aaron: *"Having to retake
+  // a photo of the tag instead of using the one from the scan is too much friction."* Adopting from a
+  // scan that photographed the tag must keep THAT photo — through the deliberate-replace path, which
+  // also clears the 'stale' flag the adopt sets.
+  it('keeps the scan\'s own photo as the new tag photo, after the plate is adopted', async () => {
+    const calls: string[] = [];
+    const adoptPlate = vi.fn(async () => { calls.push('adopt'); return true; });
+    const retakePhoto = vi.fn(async () => { calls.push('retake'); return true; });
+    render(<ScanReplateOffer vehicle={car('0GK641')} tagPlate="LZM500" scanNonce={1}
+      adoptPlate={adoptPlate} tagPhoto="data:image/jpeg;base64,NEW" retakePhoto={retakePhoto} />);
+    await userEvent.click(screen.getByRole('button', { name: /new plates/i }));
+    expect(await screen.findByText(/Plate updated to/)).toBeInTheDocument();
+    expect(retakePhoto).toHaveBeenCalledWith('v1', 'data:image/jpeg;base64,NEW');
+    expect(calls).toEqual(['adopt', 'retake']);          // the photo only follows a plate that landed
+    expect(screen.getByText(/tag photo too/i)).toBeInTheDocument();
+  });
+
+  it('never replaces the photo when the plate write is refused', async () => {
+    const retakePhoto = vi.fn().mockResolvedValue(true);
+    render(<ScanReplateOffer vehicle={car('0GK641')} tagPlate="LZM500" scanNonce={1}
+      adoptPlate={vi.fn().mockResolvedValue(false)} tagPhoto="data:NEW" retakePhoto={retakePhoto} />);
+    await userEvent.click(screen.getByRole('button', { name: /new plates/i }));
+    expect(await screen.findByText(/Didn't save/)).toBeInTheDocument();
+    expect(retakePhoto).not.toHaveBeenCalled();
+  });
+
+  it('says so when the plate landed but the photo did not', async () => {
+    render(<ScanReplateOffer vehicle={car('0GK641')} tagPlate="LZM500" scanNonce={1}
+      adoptPlate={vi.fn().mockResolvedValue(true)} tagPhoto="data:NEW"
+      retakePhoto={vi.fn().mockResolvedValue(false)} />);
+    await userEvent.click(screen.getByRole('button', { name: /new plates/i }));
+    expect(await screen.findByText(/Plate updated to/)).toBeInTheDocument();
+    expect(screen.getByText(/photo didn't save/i)).toBeInTheDocument();
+  });
+
+  it('with no scan photo (typed door) nothing is retaken — the old behaviour', async () => {
+    const retakePhoto = vi.fn().mockResolvedValue(true);
+    render(<ScanReplateOffer vehicle={car('0GK641')} tagPlate="LZM500" scanNonce={1}
+      adoptPlate={vi.fn().mockResolvedValue(true)} tagPhoto={null} retakePhoto={retakePhoto} />);
+    await userEvent.click(screen.getByRole('button', { name: /new plates/i }));
+    expect(await screen.findByText(/Plate updated to/)).toBeInTheDocument();
+    expect(retakePhoto).not.toHaveBeenCalled();
+  });
+
   // A fresh scan of the same car must offer again rather than staying "done" from last time.
   it('re-offers on a new scan', async () => {
     const adoptPlate = vi.fn().mockResolvedValue(true);

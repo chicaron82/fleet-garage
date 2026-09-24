@@ -20,16 +20,28 @@ import type { Vehicle } from '../../types';
 // ⚠️ OFFERS, NEVER APPLIES. FG's default everywhere is to protect a good record from a bad read —
 // the forward-only odometer, first-good-read-wins on the VIN, attach-if-missing on the keytag photo.
 // A re-plate is a real-world event, not a data correction, so a person confirms it. One tap.
-export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate }: {
+//
+// ⭐⭐ AND THE SCAN'S PHOTO COMES WITH IT (2026-09-24). Aaron, on unit 5421649 → TM169N: *"Having to
+// retake a photo of the tag instead of using the one from the scan is too much friction."* Adopting
+// marks the stored photo 'stale' (plateWrite) and then asked him to "snap the one in your hand" — but
+// the scan he had just made WAS the one in his hand. When a photo is passed, it replaces the stored
+// one through the deliberate-replace path (retakeKeytagPhoto), which also clears 'stale' and
+// re-queues the audit. docs/September/ticket-replate-uses-the-scan-photo.md
+export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate, tagPhoto, retakePhoto }: {
   vehicle: Vehicle;
   /** The plate as READ from the tag, already normalized + MB-corrected upstream. */
   tagPlate: string | null | undefined;
   /** Per-scan nonce — a fresh scan of the same car must offer again, not stay "done". */
   scanNonce: string | number;
   adoptPlate: (vehicleId: string, tagPlate: string) => Promise<boolean>;
+  /** The photo this scan read the tag FROM — it shows the new plate. Absent on the typed door. */
+  tagPhoto?: string | null;
+  retakePhoto?: (vehicleId: string, photo: string) => Promise<boolean>;
 }) {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle');
-  useRoutedProp(scanNonce, () => setState('idle'));
+  // null = no photo was offered; true/false = whether the scan's photo became the tag on file.
+  const [photoKept, setPhotoKept] = useState<boolean | null>(null);
+  useRoutedProp(scanNonce, () => { setState('idle'); setPhotoKept(null); });
 
   // Recomputed on every render rather than remembered: the classification is a pure function of two
   // strings that are already props, and a remembered verdict is one more thing that can go stale.
@@ -40,6 +52,14 @@ export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate }: {
     return (
       <p className="text-xs font-semibold mt-1 text-green-700 dark:text-green-400">
         ✓ Plate updated to <span className="font-mono">{next}</span>
+        {photoKept === true && ' — and the tag photo too'}
+        {/* ⚠️ Never silent: the plate landed, the evidence did not, and the record now says the
+            photo is an older tag. He should hear that here, not discover it on the record. */}
+        {photoKept === false && (
+          <span className="block font-normal text-amber-700 dark:text-amber-400">
+            The tag photo didn&apos;t save — it&apos;s flagged for a retake.
+          </span>
+        )}
       </p>
     );
   }
@@ -60,7 +80,11 @@ export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate }: {
           onClick={async () => {
             hapticLight();
             setState('busy');
-            setState(await adoptPlate(vehicle.id, next) ? 'done' : 'failed');
+            const adopted = await adoptPlate(vehicle.id, next);
+            // ⚠️ The photo only follows a plate that LANDED. A refused adopt means the record is not
+            // what the tag says, and swapping the evidence onto it would make the two disagree.
+            if (adopted && tagPhoto && retakePhoto) setPhotoKept(await retakePhoto(vehicle.id, tagPhoto));
+            setState(adopted ? 'done' : 'failed');
           }}
           /* 44px — gloves on, same standard as the key-count and odometer rows. */
           className="h-11 px-3 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-xs font-semibold text-black cursor-pointer transition"

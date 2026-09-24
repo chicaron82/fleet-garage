@@ -36,8 +36,9 @@ interface Props {
   /** Two live cars share the scanned unit and the plate was unreadable: open the one he picks. */
   onPickCandidate: (vehicleId: string) => void;
   geotabPending: boolean;
-  /** Whether a tag was photographed to get here — false on the typed-plate door. */
-  photographed: boolean;
+  /** The tag photo this scan read — null on the typed-plate door. The card derives "photographed"
+   *  from it, and hands it to the re-plate offer so an adopted re-plate keeps THIS photo. */
+  scanPhoto: string | null;
   backfillToast: string | null;
   conflictToast: string | null;
   codexToast: string;
@@ -45,9 +46,10 @@ interface Props {
 
 export function ScanIdentityCard({
   scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate,
-  geotabPending, photographed, backfillToast, conflictToast, codexToast,
+  geotabPending, scanPhoto, backfillToast, conflictToast, codexToast,
 }: Props) {
-  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate } = useVehicleHoldContext();
+  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
+  const photographed = !!scanPhoto;
   const vehicle = result.vehicle ?? null;
   // NOT "active" — holdLines is ACTIVE **or RELEASED** since 2026-08-17. The old name is what let
   // a released hold speak as though it were holding the car. Count only; never the label.
@@ -231,6 +233,8 @@ export function ScanIdentityCard({
           tagPlate={result?.plate}
           scanNonce={scanNonce}
           adoptPlate={adoptPlate}
+          tagPhoto={scanPhoto}
+          retakePhoto={retakeKeytagPhoto}
         />
       )}
       {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at

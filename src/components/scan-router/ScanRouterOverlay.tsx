@@ -335,7 +335,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
             <>
               {/* What the car IS + its state — resolve first, so the menu below is smart. */}
               <ScanIdentityCard
-                photographed={!!scanPhoto}
+                scanPhoto={scanPhoto}
                 scanRead={scanRead}
                 result={result}
                 holdLines={holdLines}
