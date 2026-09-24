@@ -101,6 +101,19 @@ describe('ScanReplateOffer', () => {
     expect(retakePhoto).not.toHaveBeenCalled();
   });
 
+  // ⚠️⚠️ THE CONFIRMATION MUST SURVIVE THE RECORD CHANGING UNDER IT. The overlay recomputes the scan
+  // result from LIVE vehicles, so the instant an adopt lands the car's plate equals the tag's — and
+  // the offer used to hide itself on "the plates agree" before it could say "✓ Plate updated". Every
+  // test above passes a vehicle that never changes, which is why none of them saw it (2026-09-24).
+  it('still confirms after the record updates to the new plate', async () => {
+    const adoptPlate = vi.fn().mockResolvedValue(true);
+    const { rerender } = render(
+      <ScanReplateOffer vehicle={car('0GK641')} tagPlate="LZM500" scanNonce={1} adoptPlate={adoptPlate} />);
+    await userEvent.click(screen.getByRole('button', { name: /new plates/i }));
+    rerender(<ScanReplateOffer vehicle={car('LZM500')} tagPlate="LZM500" scanNonce={1} adoptPlate={adoptPlate} />);
+    expect(await screen.findByText(/Plate updated to/)).toBeInTheDocument();
+  });
+
   // A fresh scan of the same car must offer again rather than staying "done" from last time.
   it('re-offers on a new scan', async () => {
     const adoptPlate = vi.fn().mockResolvedValue(true);

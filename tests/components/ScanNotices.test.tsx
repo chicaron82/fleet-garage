@@ -17,6 +17,21 @@ const car = (over: Partial<Vehicle> = {}) => ({
 const show = (p: Partial<Parameters<typeof ScanNotices>[0]> = {}) =>
   render(<ScanNotices scanRead={null} vehicle={null} codexToast="" photographed {...p} />);
 
+describe('ScanNotices — the older-plate notice steps aside for a scan that IS the current tag', () => {
+  // 2026-09-24 (ticket-keep-a-matching-scan-as-the-tag): when the photo in his hand matches the
+  // record, the acting offer beside the re-plate one keeps it — "snap the one in your hand" would be
+  // asking for the photo he just took.
+  it('still tells him on a scan that is NOT the current tag', () => {
+    show({ vehicle: car({ keytagAuditResult: 'stale' }) });
+    expect(screen.getByText(/older tag/i)).toBeTruthy();
+  });
+
+  it('stays quiet when the scan in his hand is the current tag', () => {
+    show({ vehicle: car({ keytagAuditResult: 'stale' }), scanIsCurrentTag: true });
+    expect(screen.queryByText(/older tag/i)).toBeNull();
+  });
+});
+
 describe('ScanNotices — the retake watchlist, at the car', () => {
   // Aaron, 2026-08-27: "I pictured it like the geotab watch list. anytime I scan one that is on that
   // list it tells me." The flag had been written by the auditor since migration 130 and read by

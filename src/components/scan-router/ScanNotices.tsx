@@ -18,7 +18,7 @@ import type { Vehicle } from '../../types';
  * decision: the codex is not taught here, the owning area is not corrected here, and the photo is
  * not replaced here. Each says what it knows and leaves the doing to him.
  */
-export function ScanNotices({ scanRead, vehicle, codexToast, photographed }: {
+export function ScanNotices({ scanRead, vehicle, codexToast, photographed, scanIsCurrentTag }: {
   scanRead: KeytagRead | null;
   /** The matched car, when the plate resolved to one. */
   vehicle: Vehicle | null;
@@ -27,6 +27,8 @@ export function ScanNotices({ scanRead, vehicle, codexToast, photographed }: {
   /** Whether a tag was actually PHOTOGRAPHED to get here. False on the typed-plate door, which
    *  sets `scanPhoto` to null — *"no tag was photographed"*. Gates the missing-photo notice below. */
   photographed: boolean;
+  /** Photographed AND the plate agrees exactly with the record — this scan IS the current tag. */
+  scanIsCurrentTag?: boolean;
 }) {
   return (
     <>
@@ -109,7 +111,11 @@ export function ScanNotices({ scanRead, vehicle, codexToast, photographed }: {
               when a re-plate is adopted (context/plateWrite). Telling him "you couldn't read this"
               would send him looking for a blur that is not there; what he actually needs to know is
               that the tag in his hand is the NEW one and the photo on file is not. */}
-          {vehicle?.keytagAuditResult === 'stale' && (
+          {/* ⚠️ Steps aside when the scan in his hand IS the current tag (2026-09-24): then the
+              acting offer beside the re-plate one keeps it with a tap, and "snap the one in your
+              hand" would be asking for the photo he just took. It also stops the wrong one-second
+              flash of this line while a re-plate adopt is still keeping its photo. */}
+          {vehicle?.keytagAuditResult === 'stale' && !scanIsCurrentTag && (
             <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
               🏷️ The photo on file is an older tag — this car was re-plated. Snap the one in your
               hand while you're here; that clears the flag and re-queues the audit.

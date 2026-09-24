@@ -45,8 +45,18 @@ export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate, tag
 
   // Recomputed on every render rather than remembered: the classification is a pure function of two
   // strings that are already props, and a remembered verdict is one more thing that can go stale.
-  if (classifyPlateDifference(tagPlate, vehicle.licensePlate) !== 'replate') return null;
+  // ⚠️⚠️ BUT ONLY WHILE IDLE. Once he has tapped, the outcome must render whatever the plates say NOW:
+  // the overlay recomputes the scan result from live vehicles, so the instant the adopt lands the
+  // record EQUALS the tag — and this guard used to hide the offer before "✓ Plate updated" could
+  // show. It never rendered on the lot (2026-09-24, ticket-keep-a-matching-scan-as-the-tag).
+  if (state === 'idle' && classifyPlateDifference(tagPlate, vehicle.licensePlate) !== 'replate') return null;
   const next = (tagPlate ?? '').trim().toUpperCase();
+
+  // While the photo uploads the plate has usually already landed, so the offer's own sentence ("record
+  // has X — a different plate") would name the NEW plate twice. Say only what is happening.
+  if (state === 'busy') {
+    return <p className="text-xs font-semibold mt-1 text-gray-500 dark:text-gray-400">Updating plate…</p>;
+  }
 
   if (state === 'done') {
     return (
@@ -74,9 +84,10 @@ export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate, tag
         {' '}That&apos;s a different plate, not a misread.
       </p>
       <div className="flex items-center gap-2 mt-1.5">
+        {/* No `disabled`: the moment it is tapped the whole card becomes "Updating plate…" above, so a
+            second tap has nothing to land on. */}
         <button
           type="button"
-          disabled={state === 'busy'}
           onClick={async () => {
             hapticLight();
             setState('busy');
@@ -89,7 +100,7 @@ export function ScanReplateOffer({ vehicle, tagPlate, scanNonce, adoptPlate, tag
           /* 44px — gloves on, same standard as the key-count and odometer rows. */
           className="h-11 px-3 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-xs font-semibold text-black cursor-pointer transition"
         >
-          {state === 'busy' ? 'Updating…' : 'New plates — update'}
+          New plates — update
         </button>
         {/* No "dismiss". Doing nothing already dismisses it, and the card is gone on the next scan;
             a second button would imply the choice is recorded somewhere, and it isn't. */}

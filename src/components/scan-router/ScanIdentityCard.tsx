@@ -11,6 +11,8 @@
 // against the overlay, and moving it in here would silently gate it on a resolved vehicle.
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { ScanReplateOffer } from './ScanReplateOffer';
+import { ScanKeepTagPhoto } from './ScanKeepTagPhoto';
+import { classifyPlateDifference } from '../../lib/plateDifference';
 import { ScanDamageZones } from './ScanDamageZones';
 import { ScanNotices } from './ScanNotices';
 import { ScanVehicleCapture } from './ScanVehicleCapture';
@@ -51,6 +53,11 @@ export function ScanIdentityCard({
   const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
   const photographed = !!scanPhoto;
   const vehicle = result.vehicle ?? null;
+  // The photo in his hand is a picture of the car's CURRENT tag: it was photographed, and its plate
+  // agrees exactly with the record. ScanNotices uses this to stop telling him to "snap the one in
+  // your hand" when he already did (ticket-keep-a-matching-scan-as-the-tag).
+  const scanIsCurrentTag = photographed && !!vehicle
+    && classifyPlateDifference(result?.plate, vehicle.licensePlate) === 'same';
   // NOT "active" — holdLines is ACTIVE **or RELEASED** since 2026-08-17. The old name is what let
   // a released hold speak as though it were holding the car. Count only; never the label.
   const liveHolds = holdLines.length;
@@ -237,6 +244,16 @@ export function ScanIdentityCard({
           retakePhoto={retakeKeytagPhoto}
         />
       )}
+      {/* The other half: a car ALREADY flagged "Older plate" whose scan matches — keep it, one tap. */}
+      {vehicle && (
+        <ScanKeepTagPhoto
+          vehicle={vehicle}
+          tagPlate={result?.plate}
+          tagPhoto={scanPhoto}
+          scanNonce={scanNonce}
+          retakePhoto={retakeKeytagPhoto}
+        />
+      )}
       {/* EV kit (Tesla) — last-seen status of the charge cable + J1772 adapter, surfaced at
           the car so a missing one gets caught the moment the tag is read, not at dispatch. */}
       {evScan && (
@@ -269,7 +286,8 @@ export function ScanIdentityCard({
       {codexToast && (
         <p className="text-[11px] font-semibold mt-1 text-green-700 dark:text-green-400">{codexToast}</p>
       )}
-      <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed} />
+      <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed}
+        scanIsCurrentTag={scanIsCurrentTag} />
     </div>
   );
 }
