@@ -50,6 +50,9 @@ export const TAG_COLOUR_CODES: Readonly<Record<string, string>> = {
   // FG's colour vocabulary is what you'd say looking at the car, so it lands on Blue — not on the
   // marketing name, and emphatically not on Plum. ⚠️ Manufacturer-scoped: PLU is evidence about KIA.
   PLU: 'Blue',
+  // ⭐ Confirmed by Aaron 2026-09-25 on two Kia Seltos (LUR154, LUR171): *"yes those two are actually
+  // orange cars. we had more but those were sent to auction"*. Seen on a tag AND confirmed against the car.
+  ORA: 'Orange',
 };
 
 /**

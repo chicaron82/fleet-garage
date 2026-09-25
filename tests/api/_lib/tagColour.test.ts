@@ -55,7 +55,14 @@ describe('PLU is Pluton Blue, not Plum', () => {
 describe('what it refuses to guess', () => {
   it('holds only the evidenced codes — no speculative entries', () => {
     expect(Object.keys(TAG_COLOUR_CODES).sort())
-      .toEqual(['BLA', 'BLU', 'BRO', 'GRA', 'GRE', 'PLU', 'RED', 'SIL', 'WHI']);
+      .toEqual(['BLA', 'BLU', 'BRO', 'GRA', 'GRE', 'ORA', 'PLU', 'RED', 'SIL', 'WHI']);
+  });
+
+  // ⭐ ORA was on the speculative list above, and it earned its place the only way a code may: SEEN on
+  // two Kia Seltos tags (LUR154, LUR171) and confirmed at the cars. Aaron, 2026-09-25: *"yes those two
+  // are actually orange cars."* The rest of that list stays out.
+  it('ORA is Orange — seen on tags and confirmed at the cars', () => {
+    expect(normalizeTagColour('ORA')).toBe('Orange');
   });
 
   // ⭐ These two were pulled out in an over-correction after PLU proved wrong, then restored when

@@ -28,6 +28,8 @@ const REAL_CODES: [string, string][] = [
   // blue 2025 Seltos (LFJ306). ⭐ Which also kills the "expand an unlisted code by the same rule"
   // line both prompts carried — that rule is exactly what produces Plum.
   ['PLU', 'Blue'],
+  // Aaron, 2026-09-25: LUR154 and LUR171 (Kia Seltos) — "those two are actually orange cars".
+  ['ORA', 'Orange'],
 ];
 
 /** Codes the tags do NOT print. Both were in both prompts until 2026-09-18. */
