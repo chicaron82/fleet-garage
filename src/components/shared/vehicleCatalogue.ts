@@ -24,7 +24,7 @@ export const MAKES_MODELS: Record<string, string[]> = {
   Audi:            ['A4', 'A6', 'Q3', 'Q5', 'Q7'],
   Mazda:           ['CX-30', 'CX-5'],
   Volkswagen:      ['Atlas', 'Jetta', 'Passat', 'Taos', 'Tiguan'],
-  Volvo:           ['XC40', 'XC60', 'XC90'],
+  Volvo:           ['V60 Cross Country', 'XC40', 'XC60', 'XC90'],
   Tesla:           ['Model 3', 'Model S', 'Model X', 'Model Y'],
   Other:           ['Other'],
 };

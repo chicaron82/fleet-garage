@@ -101,7 +101,10 @@ const CODEX: Record<string, VehicleClass> = {
   C3US: { make: 'Tesla', model: 'Model 3' }, // 3rd Model 3 code — Aaron confirmed at the car, 2026-07-20 (unit 5515358 / LJF689, VAN DTG, rental class B9)
   // Volvo
   CX96: { make: 'Volvo', model: 'XC90' },
-  C6CU: { make: 'Volvo', model: 'XC60' }, // surfaced live 2026-07-20 (Aaron, unit 5427752 / LJF700) — visually confirmed XC60
+  // ⚠️ NOT an XC60. Filed as one on 2026-07-20 (unit 5427752 / LJF700), and it was the only "XC60" in P4
+  // while every other XC60 is H4. Aaron, 2026-09-25, from Volvo's own site: a V60 Cross Country wagon.
+  // The odd class was the tell that the model was wrong.
+  C6CU: { make: 'Volvo', model: 'V60 Cross Country' },
   CX4U: { make: 'Volvo', model: 'XC40' }, // surfaced live 2026-07-20 (Aaron, unit 5429683 / LUR478, rental class W4) — confirmed XC40
   CXRU: { make: 'Volvo', model: 'XC40' }, // a SECOND XC40 code, off LUR478's own tag in the 2026-08-30 audit. Aaron on why Volvos lagged: *"volvos, buicks were absent from our fleet so i didn't have them in my own memory to confidently add them."*
   // Mazda

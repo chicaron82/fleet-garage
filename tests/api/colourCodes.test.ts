@@ -64,3 +64,10 @@ describe.each(PROMPTS)('%s prompt — colour codes', (_name, prompt) => {
     expect(prompt).toMatch(/never infer a colour from the car/i);
   });
 });
+
+// Aaron, 2026-09-25: LJF700 read "Orange". Its tag prints BLA, and an orange key fob sat in the photo.
+describe('key-tag reader — the colour comes from the tag, not the keys', () => {
+  it('tells the model never to take the colour from the keys or fob', () => {
+    expect(KEYTAG_PROMPT).toMatch(/never from the KEYS or FOB/);
+  });
+});

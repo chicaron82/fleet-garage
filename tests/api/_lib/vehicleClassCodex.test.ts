@@ -41,7 +41,8 @@ describe('lookupVehicleClass', () => {
     expect(lookupVehicleClass('CSEH')).toEqual({ make: 'Kia', model: 'Sportage', isHybrid: true }); // hybrid is a flag now (migration 109), base model + hint (cf CSPT)
     expect(lookupVehicleClass('CALE')).toEqual({ make: 'GMC', model: 'Acadia' }); // added 2026-07-17, the gap Aaron flagged
     expect(lookupVehicleClass('CTLT')).toEqual({ make: 'Chevrolet', model: 'Traverse' }); // added 2026-07-17 (L2 class)
-    expect(lookupVehicleClass('C6CU')).toEqual({ make: 'Volvo', model: 'XC60' }); // added 2026-07-20, Aaron visually confirmed on unit 5427752
+    // Corrected 2026-09-25: a V60 Cross Country wagon (P4), not the XC60 it was filed as in July.
+    expect(lookupVehicleClass('C6CU')).toEqual({ make: 'Volvo', model: 'V60 Cross Country' });
     expect(lookupVehicleClass('CX4U')).toEqual({ make: 'Volvo', model: 'XC40' }); // added 2026-07-20, Aaron confirmed XC40 (unit 5429683)
     expect(lookupVehicleClass('CWUR')).toEqual({ make: 'Jeep', model: 'Wrangler' }); // added 2026-07-20, the boss's "V class" (unit 5427331 / LUR573)
     expect(lookupVehicleClass('CGXA')).toEqual({ make: 'Buick', model: 'Encore' }); // added 2026-07-20, Aaron confirmed (unit 5427851 / LUR575)
