@@ -104,16 +104,18 @@ describe('attachPhoto — follows the fault', () => {
   }
 
   it('⭐ a machine with a CURRENT fault: the photo lands on THAT fault\'s event', async () => {
+    // A REAL trail (ticket-the-current-spell): every reopen follows a resolve, so the NEWEST reopen is
+    // the current spell. The query filters to reopens; the resolves between them just aren't fetched.
     trailRows = [
-      { id: 'ev-june', issue_id: 'aw', event_type: 'reopened', note: 'E-stop', created_at: '2026-06-08T10:00:00Z' },
+      { id: 'ev-may', issue_id: 'aw', event_type: 'reopened', note: 'Brush jammed', created_at: '2026-05-08T10:00:00Z' },
       { id: 'ev-pipe', issue_id: 'aw', event_type: 'reopened', note: 'Rinse pipe snapped', created_at: '2026-09-24T22:00:00Z' },
-      { id: 'ev-blank', issue_id: 'aw', event_type: 'reopened', note: null, created_at: '2026-09-25T09:00:00Z' },
     ];
-    const r = sliceWith({ id: 'aw', branchId: 'YWG', title: 'Auto wash', status: 'reopened', reopenCount: 2, currentFault: 'Rinse pipe snapped', photoUrl: 'june.jpg' });
+    const r = sliceWith({ id: 'aw', branchId: 'YWG', title: 'Auto wash', status: 'reopened', reopenCount: 2,
+      currentFault: 'Rinse pipe snapped', reopenedAt: '2026-09-24T22:00:00Z', photoUrl: 'june.jpg' });
     await act(() => r.current.attachPhoto('aw', 'data:PIPE'));
     expect(uploadFaultPhotoMock).toHaveBeenCalled();
     expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/fault.jpg' });
-    expect(chain.eq).toHaveBeenCalledWith('id', 'ev-pipe');   // the fault the card shows — not a blank one
+    expect(chain.eq).toHaveBeenCalledWith('id', 'ev-pipe');   // the CURRENT spell — the newest reopen
     expect(r.current.facilityIssues[0].currentPhoto).toBe('https://cdn.test/fault.jpg');
     expect(r.current.facilityIssues[0].photoUrl).toBe('june.jpg');   // the first fault's photo survives
   });
@@ -124,5 +126,20 @@ describe('attachPhoto — follows the fault', () => {
     expect(uploadIssuePhotoMock).toHaveBeenCalledWith('data:DOOR', 'door');
     expect(uploadFaultPhotoMock).not.toHaveBeenCalled();
     expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/issue.jpg' });
+  });
+});
+
+// ⭐ The optimistic reopen IS the new spell — never carrying the previous one's fault or photo.
+describe('reopenIssue — the optimistic card is the new spell', () => {
+  it('a blank note leaves NO current fault, not the previous spell\'s', async () => {
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => result.current.setFacilityIssues([{ id: 'mat', branchId: 'YWG', title: 'Mat machine',
+      status: 'resolved', reopenCount: 1, currentFault: 'tripping breaker', currentPhoto: 'may.jpg' } as never]));
+    await act(() => result.current.reopenIssue('mat'));
+    const mat = result.current.facilityIssues[0];
+    expect(mat.currentFault).toBeUndefined();
+    expect(mat.currentPhoto).toBeUndefined();
+    expect(mat.reopenedAt).toBeDefined();
+    expect(mat.reopenedById).toBe('u-1');
   });
 });

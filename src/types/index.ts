@@ -689,6 +689,11 @@ export interface FacilityIssue {
   /** The photo of THAT fault (migration 149, lib/currentFault) — read off the same event, so it can
    *  never picture a different breakdown. Undefined when the current fault has none. */
   currentPhoto?: string;
+  /** When the CURRENT down spell began — the newest reopen — and who reopened it. The card's day
+   *  counter runs from here, not from the first report (ticket-the-current-spell). Undefined for a
+   *  machine that never reopened. */
+  reopenedAt?: string;
+  reopenedById?: string;
 }
 
 // ── Washbay Log ───────────────────────────────────────────────────────────────

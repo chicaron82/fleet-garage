@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { currentFaultByIssue, currentPhotoByIssue } from '../lib/currentFault';
+import { currentFaultByIssue, currentPhotoByIssue, currentSpellByIssue } from '../lib/currentFault';
 import { mapIssue } from '../lib/garage-mappers';
 import { useIssues, type IssuesSlice } from './useIssues';
 
@@ -35,7 +35,7 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
       // showing its first fault, which is exactly what it showed before this existed.
       const { data: trail } = await supabase
         .from('issue_events')
-        .select('issue_id, event_type, note, created_at, photo_url')
+        .select('issue_id, event_type, note, created_at, photo_url, user_id')
         .eq('event_type', 'reopened');
       const events = (trail ?? []).map(r => ({
         issueId: r.issue_id as string,
@@ -43,12 +43,16 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
         note: r.note as string | null,
         createdAt: r.created_at as string,
         photoUrl: r.photo_url as string | null,
+        userId: r.user_id as string | null,
       }));
       const current = currentFaultByIssue(events);
       const photos = currentPhotoByIssue(events);   // same event as the fault — see lib/currentFault
+      const spells = currentSpellByIssue(events);   // …and the day counter starts there
       setFacilityIssues(data.map(row => {
         const issue = mapIssue(row);
-        return { ...issue, currentFault: current.get(issue.id), currentPhoto: photos.get(issue.id) };
+        const spell = spells.get(issue.id);
+        return { ...issue, currentFault: current.get(issue.id), currentPhoto: photos.get(issue.id),
+          reopenedAt: spell?.at, reopenedById: spell?.by };
       }));
     })();
   }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps

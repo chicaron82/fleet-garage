@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
@@ -103,18 +103,44 @@ describe('IssueCard — the photo belongs to the fault it sits under', () => {
   });
 
   it('⚠️ a current fault with no photo shows NO photo — never the first fault\'s', () => {
-    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped off the arch' })} {...props} />);
+    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped off the arch', reopenedAt: '2026-09-24T22:02:00Z' })} {...props} />);
     expect(screen.queryByAltText('Issue photo')).toBeNull();
     expect(screen.getByText(/add photo/i)).toBeInTheDocument();     // …and offers to add THIS one
   });
 
   it('shows the current fault\'s own photo', () => {
-    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped', currentPhoto: 'https://cdn/pipe.jpg' })} {...props} />);
+    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped', currentPhoto: 'https://cdn/pipe.jpg', reopenedAt: '2026-09-24T22:02:00Z' })} {...props} />);
     expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/pipe.jpg');
   });
 
   it('a machine that only broke once still shows its first photo', () => {
     render(<IssueCard issue={wash({ status: 'open', reopenCount: 0 })} {...props} />);
     expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/june-estop.jpg');
+  });
+});
+
+// ⭐ THE DAY COUNTER COUNTS THE SPELL (ticket-the-current-spell). Aaron, 2026-09-24: *"currently reads
+// like its Day 108, and its still down"* — the auto wash was first reported June 8; the pipe snapped
+// that afternoon.
+describe('IssueCard — the counter starts at the current spell', () => {
+  const NOW = new Date('2026-09-24T23:30:00Z');
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('⭐ a reopened machine reads "Reopened · Today", not "Day 108"', () => {
+    render(<IssueCard issue={issue({ id: 'aw', title: 'Auto wash', reportedAt: '2026-06-08T11:48:00Z',
+      reopenedAt: '2026-09-24T22:02:00Z', reopenedById: 'u1', currentFault: 'Rinse pipe snapped off the arch' })} {...props} />);
+    expect(screen.getByText(/Reopened by Aaron S\. · Today/)).toBeInTheDocument();
+    expect(screen.queryByText(/Day 108/)).toBeNull();
+  });
+
+  it('a machine that never reopened still counts from its first report', () => {
+    render(<IssueCard issue={issue({ status: 'open', reopenCount: 0, reportedAt: '2026-09-20T15:00:00Z' })} {...props} />);
+    expect(screen.getByText(/Reported by Aaron S\. · Day 4/)).toBeInTheDocument();
+  });
+
+  it('⚠️ a blank spell shows no fault line — never the first, already-fixed fault', () => {
+    render(<IssueCard issue={issue({ reopenedAt: '2026-08-04T15:00:00Z', currentFault: undefined })} {...props} />);
+    expect(screen.queryByText(/Keeps on tripping the outlet/)).toBeNull();
   });
 });

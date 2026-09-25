@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { currentFaultByIssue, currentPhotoByIssue, faultLine, type FaultEvent } from '../../src/lib/currentFault';
+import { currentFaultByIssue, currentPhotoByIssue, currentSpellByIssue, faultLine, type FaultEvent } from '../../src/lib/currentFault';
 
 // ⭐⭐ THE MACHINE IS THE RECORD (Aaron, 2026-09-20): *"instead of having a second mat machine issue
 // for it eating mats, we'd just rename the record as mat machine, and what's currently wrong with it
@@ -39,15 +39,25 @@ describe('currentFaultByIssue', () => {
     expect(map.get('mat')).toBe('eating the mats');
   });
 
-  // ⚠️ THE REAL DATA: both reopen events on file (2026-08-04) carry an empty note, because the field
-  // was optional until today. A blank must not become the fault line.
-  it('⚠️ a blank reopen note says nothing and is skipped', () => {
-    const map = currentFaultByIssue([
-      ev({ note: 'tripping the outlet', createdAt: '2026-08-01T10:00:00Z' }),
-      ev({ note: '   ',                 createdAt: '2026-08-04T10:00:00Z' }),
-      ev({ note: null,                  createdAt: '2026-08-05T10:00:00Z' }),
-    ]);
-    expect(map.get('mat')).toBe('tripping the outlet');
+  // ⚠️⚠️ CORRECTED 2026-09-24 (ticket-the-current-spell). This test used to say a blank reopen is
+  // SKIPPED and an older note wins — with a fixture that had no resolve between the reopens, which the
+  // app cannot produce (a machine must be cleared to be reopened). With the resolve put back, that rule
+  // resurrected a FIXED fault: the mat machine's real trail is reopened May 6 "tripping breaker" →
+  // resolved May 8 "Fixed" → reopened Aug 4 with NO note, and the card said "Now: tripping breaker".
+  // The newest reopen IS the current spell. A blank note means the cause wasn't recorded — never
+  // an older fault brought back. (Still true: a blank never becomes the fault line.)
+  it('⚠️ a blank newest reopen means "not recorded" — never an older, FIXED fault', () => {
+    const trail = [
+      ev({ note: 'Mat machine tripping breaker from time to time.', createdAt: '2026-05-06T10:00:00Z' }),
+      ev({ eventType: 'resolved', note: 'Fixed', createdAt: '2026-05-08T10:00:00Z' }),
+      ev({ note: null, createdAt: '2026-08-04T10:00:00Z' }),
+    ];
+    expect(currentFaultByIssue(trail).has('mat')).toBe(false);
+    expect(currentSpellByIssue(trail).get('mat')?.at).toBe('2026-08-04T10:00:00Z');
+  });
+
+  it('a blank note never becomes the fault line, even whitespace', () => {
+    expect(currentFaultByIssue([ev({ note: '   ' })]).has('mat')).toBe(false);
   });
 
   it('a machine that never reopened has no current fault', () => {
@@ -81,6 +91,13 @@ describe('faultLine', () => {
     expect(faultLine({ description: '   ', status: 'open' }, undefined)).toBeNull();
     expect(faultLine({ status: 'open' }, undefined)).toBeNull();
   });
+
+  // ⚠️ A REOPENED machine whose spell has no note must NOT fall back to the first fault — that is
+  // April's (fixed) problem wearing today's clothes (ticket-the-current-spell).
+  it('⚠️ a reopened spell with no note shows NO fault line, not the first fault', () => {
+    expect(faultLine({ description: 'Keeps on tripping the outlet', status: 'reopened',
+      reopenedAt: '2026-08-04T10:00:00Z' }, undefined)).toBeNull();
+  });
 });
 
 // ⭐⭐ THE PICTURE BELONGS TO THE FAULT (2026-09-24, migration 149). Aaron, after the auto wash's
@@ -104,12 +121,30 @@ describe('currentPhotoByIssue', () => {
     expect(map.has('wash')).toBe(false);
   });
 
-  it('agrees with currentFaultByIssue about WHICH event is current — a blank reopen is not it', () => {
+  it('reads the photo off the CURRENT spell — even when that spell\'s note was left blank', () => {
     const events = [
       ev({ issueId: 'wash', note: 'Rinse pipe snapped', createdAt: '2026-09-24T22:00:00Z', photoUrl: 'pipe.jpg' }),
-      ev({ issueId: 'wash', note: null, createdAt: '2026-09-25T09:00:00Z', photoUrl: 'orphan.jpg' }),
+      ev({ issueId: 'wash', eventType: 'resolved', note: 'Replaced pipe', createdAt: '2026-09-25T08:00:00Z' }),
+      ev({ issueId: 'wash', note: null, createdAt: '2026-09-26T09:00:00Z', photoUrl: 'brush.jpg' }),
     ];
-    expect(currentFaultByIssue(events).get('wash')).toBe('Rinse pipe snapped');
-    expect(currentPhotoByIssue(events).get('wash')).toBe('pipe.jpg');
+    expect(currentFaultByIssue(events).has('wash')).toBe(false);          // cause not recorded
+    expect(currentPhotoByIssue(events).get('wash')).toBe('brush.jpg');    // but its picture is this spell's
+  });
+});
+
+// ⭐ THE DAY COUNTER COUNTS THE SPELL, NOT THE MACHINE. Aaron, 2026-09-24: *"should it reset the day
+// counter. currently reads like its Day 108, and its still down"* — the auto wash was first reported
+// June 8; this breakdown began at 17:02 today.
+describe('currentSpellByIssue', () => {
+  it('⭐ starts at the newest reopen, and knows who reopened it', () => {
+    const spell = currentSpellByIssue([
+      ev({ issueId: 'aw', note: 'E-stop', createdAt: '2026-06-08T12:00:00Z', userId: 'u-old' }),
+      ev({ issueId: 'aw', note: 'Rinse pipe snapped', createdAt: '2026-09-24T22:02:00Z', userId: 'u-aaron' }),
+    ]).get('aw');
+    expect(spell).toEqual({ at: '2026-09-24T22:02:00Z', by: 'u-aaron' });
+  });
+
+  it('a machine that never reopened has no spell — its counter stays on the first report', () => {
+    expect(currentSpellByIssue([ev({ eventType: 'opened' })]).size).toBe(0);
   });
 });

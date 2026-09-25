@@ -54,9 +54,14 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [events, setEvents]               = useState<IssueEvent[] | null>(null);
   const fault = faultLine(issue, issue.currentFault);
-  // The picture follows the fault (migration 149): a live current fault shows ITS photo or none —
-  // never the first fault's under a newer "Now:" line. A resolved or once-broken machine: the first.
-  const shownPhoto = issue.status !== 'resolved' && issue.currentFault ? issue.currentPhoto : issue.photoUrl;
+  // ⭐ THE CURRENT SPELL (ticket-the-current-spell): a reopened, not-yet-cleared machine is judged by
+  // its newest reopen — its photo (or none, never the first fault's) and a day counter from THAT day.
+  // Aaron: *"currently reads like its Day 108, and its still down"*. Once-broken or resolved: the first.
+  const inSpell = issue.status !== 'resolved' && !!issue.reopenedAt;
+  const shownPhoto = inSpell ? issue.currentPhoto : issue.photoUrl;
+  const since = inSpell
+    ? `Reopened by ${getUserName(issue.reopenedById ?? issue.reportedById)} · ${daysOpen(issue.reopenedAt!)}`
+    : `Reported by ${getUserName(issue.reportedById)} · ${daysOpen(issue.reportedAt)}`;
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -73,7 +78,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
       text: [
         `${cfg.icon} Issue: ${issue.title}`,
         `${SEVERITY_CONFIG[issue.severity].label} severity`,
-        `Reported by: ${getUserName(issue.reportedById)} · ${daysOpen(issue.reportedAt)}`,
+        since,
         issue.description ? `"${issue.description}"` : null,
         `Status: ${status}`,
         cleared && issue.notes ? `✓ ${issue.notes}` : null,
@@ -181,7 +186,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Reported by {getUserName(issue.reportedById)} · {daysOpen(issue.reportedAt)}
+        {since}
         {cleared && issue.clearedAt && (
           <span> · Cleared {new Date(issue.clearedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
         )}

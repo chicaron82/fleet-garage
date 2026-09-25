@@ -62,7 +62,10 @@ export function useIssues(
   // reopen pictures what broke THIS time. Only a machine with no later fault takes it on the issue
   // itself, as its first-fault photo. Aaron: *"couldn't … attach a new photo of it in the issue log."*
   const attachPhoto = async (issueId: string, photo: string) => {
-    if (facilityIssues.find(i => i.id === issueId)?.currentFault) {
+    // Keyed on the SPELL, not on whether it has a note — a blank reopen is still the current spell
+    // and its photo belongs to it (ticket-the-current-spell).
+    const targetIssue = facilityIssues.find(i => i.id === issueId);
+    if (targetIssue?.reopenedAt && targetIssue.status !== 'resolved') {
       const { data: trail } = await supabase.from('issue_events')
         .select('id, issue_id, event_type, note, created_at')
         .eq('issue_id', issueId).eq('event_type', 'reopened');
@@ -146,11 +149,13 @@ export function useIssues(
             clearedById: undefined, clearedAt: undefined,
             status: 'reopened' as const,
             reopenCount: newCount,
-            // ⭐ Optimistic, so the card says what's wrong the moment he taps rather than after a
-            // reload — the derived value the loader would compute from the event just written.
-            currentFault: note?.trim() || i.currentFault,
-            // A new fault replaces the picture too — its own photo, or none. Never the old fault's.
-            currentPhoto: note?.trim() ? (photoUrl ?? undefined) : i.currentPhoto,
+            // ⭐ Optimistic — exactly what the loader derives from the event just written: this reopen
+            // IS the new spell. Its note, its photo, its start — never the previous spell's (a blank
+            // note used to keep the old fault; ticket-the-current-spell).
+            currentFault: note?.trim() || undefined,
+            currentPhoto: photoUrl ?? undefined,
+            reopenedAt:   new Date().toISOString(),
+            reopenedById: user!.id,
           }
         : i
       )

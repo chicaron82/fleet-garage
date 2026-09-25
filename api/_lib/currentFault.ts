@@ -8,6 +8,8 @@ export interface FaultEvent {
   createdAt: string;
   /** A photo of THIS event's fault (migration 149). */
   photoUrl?: string | null;
+  /** Who wrote the event — for a reopen, who reopened the machine. */
+  userId?: string | null;
 }
 
 /**
@@ -29,7 +31,26 @@ export interface FaultEvent {
  * Reset"* — which is the opposite of what is wrong now.
  */
 export function currentFaultByIssue(events: readonly FaultEvent[]): Map<string, string> {
-  return new Map([...currentFaultEvents(events)].map(([id, e]) => [id, e.note!.trim()]));
+  const out = new Map<string, string>();
+  for (const [id, e] of currentFaultEvents(events)) {
+    const note = e.note?.trim();
+    if (note) out.set(id, note);             // a blank spell = cause not recorded — never an older fault
+  }
+  return out;
+}
+
+/**
+ * When the machine's CURRENT down spell began, and who reopened it — the day counter's start.
+ * Aaron, 2026-09-24: *"should it reset the day counter. currently reads like its Day 108, and its
+ * still down"* — counted from the FIRST report, the auto wash read 108 days down for a pipe that
+ * snapped that afternoon. No entry = never reopened: the counter stays on the first report.
+ */
+export function currentSpellByIssue(events: readonly FaultEvent[]): Map<string, { at: string; by?: string }> {
+  const out = new Map<string, { at: string; by?: string }>();
+  for (const [id, e] of currentFaultEvents(events)) {
+    out.set(id, e.userId ? { at: e.createdAt, by: e.userId } : { at: e.createdAt });
+  }
+  return out;
 }
 
 /**
@@ -49,14 +70,20 @@ export function currentPhotoByIssue(events: readonly FaultEvent[]): Map<string, 
   return out;
 }
 
-/** The one choice both functions above share: per machine, the newest reopen that SAYS something.
- *  Exported so a WRITE can target the same event the card reads (attaching a photo to the fault). */
+/**
+ * The one choice every function above shares: per machine, its NEWEST reopen — the start of the down
+ * spell it is in now. Exported so a WRITE can target the same event the card reads (a photo).
+ *
+ * ⚠️⚠️ CORRECTED 2026-09-24 (ticket-the-current-spell). This used to pick "the newest reopen that
+ * SAYS something" and skip blank ones — which resurrected FIXED faults: the mat machine was reopened
+ * May 6 "tripping breaker", resolved May 8 "Fixed", reopened Aug 4 with no note, and the card said
+ * "Now: tripping breaker". A machine must be cleared before it can be reopened, so the newest reopen
+ * is ALWAYS the current spell; an older note belongs to a spell that already ended.
+ */
 export function currentFaultEvents(events: readonly FaultEvent[]): Map<string, FaultEvent> {
   const newest = new Map<string, FaultEvent>();
   for (const e of events) {
     if (e.eventType !== 'reopened') continue;
-    const note = e.note?.trim();
-    if (!note) continue;                       // a blank reopen says nothing — the old ones are blank
     const held = newest.get(e.issueId);
     if (!held || e.createdAt > held.createdAt) newest.set(e.issueId, e);
   }
@@ -70,9 +97,12 @@ export function currentFaultEvents(events: readonly FaultEvent[]): Map<string, F
  * wrong with it as though it still were is the kind of confident-and-stale line FG exists to remove.
  */
 export function faultLine(
-  issue: { description?: string; status: string },
+  issue: { description?: string; status: string; reopenedAt?: string },
   current: string | undefined,
 ): string | null {
   if (issue.status === 'resolved') return null;
+  // ⚠️ A reopened spell with no note says nothing — never the FIRST fault, which is a problem that
+  // was already fixed, dressed as today's (ticket-the-current-spell).
+  if (issue.reopenedAt) return current?.trim() || null;
   return (current ?? issue.description ?? '').trim() || null;
 }
