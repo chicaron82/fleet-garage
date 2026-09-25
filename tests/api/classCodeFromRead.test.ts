@@ -40,3 +40,15 @@ describe('the read the car page is built from', () => {
     expect(toKeytagRead({ model: 'Versa', make: 'Nissan' }).model).toBe('Versa');
   });
 });
+
+// Pass two: Effie proposes registrations from her own reading of a tag, outside the key-tag reader,
+// so she could hand over "CM3L" as the model too.
+import { modelNotCode } from '../../api/_lib/effie/holdExecutors';
+describe("Effie's register proposals", () => {
+  it('⭐ turn a known code into its model name', () => {
+    expect(modelNotCode('CM3L')).toBe('Model 3');
+  });
+  it('leave real names alone', () => {
+    for (const name of ['XC60', 'RAV4', 'Versa', 'Model Y']) expect(modelNotCode(name)).toBe(name);
+  });
+});

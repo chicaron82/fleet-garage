@@ -3,6 +3,7 @@
 // the client confirms. Split from effieExecutors.ts (2026-07-24, pure move).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describeVehicle } from '../vehicleSummary.js';
+import { lookupVehicleClass } from '../vehicleClassCodex.js';
 import { resolveVehicleRow, toVehicleFact } from '../effieHelpers.js';
 import {
   buildHoldProposal,
@@ -77,6 +78,13 @@ export async function executeProposeHold(
  * real addVehicle then addHold. Refuses if the plate is already in the fleet (use
  * propose_hold instead).
  */
+/** The model name, even when Effie passed a class code the codex knows ("CM3L" → "Model 3"). A real
+ *  name is never a codex key, so XC60 / RAV4 pass through untouched. */
+export function modelNotCode(model: string | undefined): string {
+  const m = `${model}`.trim();
+  return lookupVehicleClass(m)?.model ?? m;
+}
+
 export async function executeProposeRegisterHold(
   supabase: SupabaseClient,
   input: {
@@ -107,7 +115,8 @@ export async function executeProposeRegisterHold(
       unitNumber: `${input.unit_number}`.trim(),
       plate: `${input.plate}`.trim().toUpperCase(),
       make: `${input.make}`.trim(),
-      model: `${input.model}`.trim(),
+      // A known class code handed over as the model is the code (0AN391's "CM3L", 2026-09-25).
+      model: modelNotCode(input.model),
       year: Number(input.year),
       color: `${input.color}`.trim(),
     },
@@ -222,7 +231,8 @@ export async function executeProposeRegisterVehicle(
       unitNumber: `${input.unit_number}`.trim(),
       plate: `${input.plate}`.trim().toUpperCase(),
       make: `${input.make}`.trim(),
-      model: `${input.model}`.trim(),
+      // A known class code handed over as the model is the code (0AN391's "CM3L", 2026-09-25).
+      model: modelNotCode(input.model),
       year: Number(input.year),
       color: `${input.color}`.trim(),
     },
