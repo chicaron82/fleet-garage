@@ -6,7 +6,8 @@ import { useUserResolver } from '../../hooks/useUserResolver';
 import { HoldContextPanel } from './HoldContextPanel';
 import { DetailReEvalCard } from './DetailReEvalCard';
 import { isOnExceptionStatus } from '../../lib/vehicle-status';
-import { markGeotabInstalled } from '../../hooks/useGeotabPending';
+import { markGeotabInstalled, fetchGeotabPendingPlates } from '../../hooks/useGeotabPending';
+import { geotabLens, type GeotabLensItem } from '../../lib/geotabLens';
 import { GEOTAB_HOLD_DESC } from '../../lib/hold-presets';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
@@ -47,6 +48,14 @@ export function ExceptionReturnSection({ search = '', onOpenVehicle }: Props) {
   const { vehicles, holds, getHoldsForVehicle, addHold, closeException } = useVehicleHoldContext();
   const re = useReEval();
   const [open, setOpen] = useState(false);
+  // ⭐ The 📡 list is the WATCHLIST, not the holds (lib/geotabLens: "FG only has 11 … the list has 14").
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const [pendingNonce, setPendingNonce] = useState(0);
+  useEffect(() => {
+    let live = true;
+    void fetchGeotabPendingPlates().then(p => { if (live && p) setPending(p); });
+    return () => { live = false; };
+  }, [pendingNonce]);
 
   const items = useMemo<ExceptionItem[]>(() => {
     // Detail-hold exception returns (mirrors useReEval's filter)
@@ -93,8 +102,11 @@ export function ExceptionReturnSection({ search = '', onOpenVehicle }: Props) {
   };
 
   const visibleItems = search.trim() ? items.filter(item => matchesSearch(item.vehicle)) : items;
-  // Split the two populations: real condition returns vs geotab-install exceptions.
-  const visibleGeotab  = visibleItems.filter(i => i.hold.damageDescription === GEOTAB_HOLD_DESC);
+  // Condition returns come from the holds; the geotab installs come from the watchlist.
+  const geotab = geotabLens(pending, vehicles, getHoldsForVehicle);
+  const visibleGeotab = search.trim()
+    ? geotab.filter(g => g.plate.includes(search.toUpperCase()) || (g.vehicle && matchesSearch(g.vehicle)))
+    : geotab;
   const visibleReturns = visibleItems.filter(i => i.hold.damageDescription !== GEOTAB_HOLD_DESC);
 
   // Their own worklist, in the order they are shown — deliberately NOT merged with the main list,
@@ -132,12 +144,12 @@ export function ExceptionReturnSection({ search = '', onOpenVehicle }: Props) {
         v.model.toUpperCase().includes(q);
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (hasMatch) setOpen(true);
-  }, [search, items]);
+    if (hasMatch || visibleGeotab.length > 0) setOpen(true);
+  }, [search, items, visibleGeotab.length]);
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && geotab.length === 0) return null;
   // Search is active but no exceptions match — don't distract from the vehicle list
-  if (search.trim() && visibleItems.length === 0) return null;
+  if (search.trim() && visibleItems.length === 0 && visibleGeotab.length === 0) return null;
 
   return (
     <div className="space-y-3">
@@ -176,13 +188,14 @@ export function ExceptionReturnSection({ search = '', onOpenVehicle }: Props) {
               </p>
               {visibleGeotab.map(item => (
                 <GeotabReturnCard
-                  key={item.hold.id}
-                  vehicle={item.vehicle}
-                  hold={item.hold}
+                  key={item.plate}
+                  item={item}
                   onInstalled={async () => {
                     if (!user) return;
-                    await closeException(item.hold.id, user.name);
-                    await markGeotabInstalled(item.vehicle.licensePlate, user.id); // keep the watchlist in lockstep
+                    // An open exception closes with it; a car never let out on one has nothing to close.
+                    if (item.hold) await closeException(item.hold.id, user.name);
+                    await markGeotabInstalled(item.plate, user.id);
+                    setPendingNonce(n => n + 1);
                   }}
                 />
               ))}
@@ -274,9 +287,8 @@ function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold, 
 // A geotab return asks one binary question — installed yet? — so it gets a simpler card than the
 // damage re-hold flow: mark it installed and it burns off the list (closeException resolves the
 // hold + re-derives the vehicle CLEAR). If it's NOT installed, leave it — it stays on the list.
-function GeotabReturnCard({ vehicle, hold, onInstalled }: {
-  vehicle: Vehicle;
-  hold: Hold;
+function GeotabReturnCard({ item: { plate, vehicle, hold }, onInstalled }: {
+  item: GeotabLensItem;
   onInstalled: () => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -293,14 +305,16 @@ function GeotabReturnCard({ vehicle, hold, onInstalled }: {
     <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 p-4 space-y-2 transition-colors">
       <div className="flex items-center justify-between gap-2">
         <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-          {vehicle.unitNumber ?? '—'} · {vehicle.licensePlate}
+          {vehicle?.unitNumber ?? '—'} · {plate}
         </p>
         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">📡 Geotab</span>
       </div>
       <p className="text-xs text-gray-600 dark:text-gray-300">
-        <VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}
+        {vehicle ? <><VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}</> : 'Plate only'}
       </p>
-      <p className="text-xs text-amber-700 dark:text-amber-400">Held for Geotab install · circulating (flagged {fmtDate(hold.flaggedAt)})</p>
+      <p className="text-xs text-amber-700 dark:text-amber-400">
+        {hold ? `Held for Geotab install · circulating (flagged ${fmtDate(hold.flaggedAt)})` : 'On the Geotab install list · hold when it comes in'}
+      </p>
       {!confirming ? (
         <button
           type="button"
