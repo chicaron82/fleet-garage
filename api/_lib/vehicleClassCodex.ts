@@ -442,3 +442,21 @@ export function lookupVehicleClass(code: string | undefined | null): VehicleClas
   const key = normalizeClassCode(code);
   return key ? (CODEX[key] ?? null) : null;
 }
+
+/**
+ * The class code a tag read carries, even when the reader filed it under MODEL.
+ *
+ * ⭐ Aaron, 2026-09-25, on 0AN391 (a Vancouver-issued Tesla, "VAN DTG"): *"FG keeps putting the model
+ * code as the model"*. The car's page read "2022 Tesla CM3L". That tag has no city header FG knows and
+ * no "Model" label: it prints the code line "CM3L 22" on its own. The reader reported it as
+ * `model: "CM3L"` with an empty `classCode`, so the lookup that turns CM3L into Model 3 never ran. The
+ * codex knew CM3L the whole time.
+ *
+ * ⚠️ Only a code the CODEX KNOWS is recovered. A model name ("Kona", "Versa") is never a codex key, so
+ * a real name can't be mistaken for a code. An unknown 4-letter string stays where the reader put it,
+ * and the caller asks, as before.
+ */
+export function classCodeFromRead(classCode: string | undefined, model: string | undefined): string | undefined {
+  if (classCode) return classCode;
+  return model && lookupVehicleClass(model) ? normalizeClassCode(model) : undefined;
+}

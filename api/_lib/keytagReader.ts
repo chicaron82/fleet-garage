@@ -21,7 +21,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './keytagEscalation.js';
 import { normalizeOwning } from './owningArea.js';
 import { normalizeVinLast9 } from './vinLast9.js';
-import { lookupVehicleClass, normalizeClassCode, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
 import { resolveRentalClass } from './classPin.js';
 import type { KeytagRead } from './keytagRead.js';
 import { priceUsage } from './apiSpend.js';
@@ -149,12 +149,13 @@ interface RawKeytag {
  */
 const PROMPT_EXAMPLE_VINS: ReadonlySet<string> = new Set(['9TR289777', '8NF258345']);
 
-function toKeytagRead(input: unknown): KeytagRead {
+export function toKeytagRead(input: unknown): KeytagRead {
   const r = (input ?? {}) as RawKeytag;
   const s = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
   let year: number | undefined;
   if (typeof r.year === 'number' && r.year > 0) year = r.year < 100 ? 2000 + r.year : r.year;
-  const classCode = s(r.classCode);
+  // A known code the reader filed under MODEL is still the code (0AN391's "CM3L", 2026-09-25).
+  const classCode = classCodeFromRead(s(r.classCode), s(r.model));
   // Resolve the class code → make/model here (the codex is server-side). An unknown code
   // leaves make/model empty — the caller then asks, exactly as Effie does in chat.
   const vc = lookupVehicleClass(classCode);
