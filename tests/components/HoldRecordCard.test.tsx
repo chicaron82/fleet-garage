@@ -30,8 +30,8 @@ const HOLD: Hold = {
   flaggedAt: '2026-07-08T19:20:00Z', notes: '', status: 'ACTIVE', branchId: 'YWG',
   photos: ['https://x/damage-photos/hold-1/keytag.jpg', 'https://x/damage-photos/hold-1/roof.jpg'],
 };
-const VEHICLE: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl'> = {
-  id: 'veh-1', unitNumber: '5427802', branchId: 'YWG',
+const VEHICLE: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'licensePlate'> = {
+  id: 'veh-1', unitNumber: '5427802', branchId: 'YWG', licensePlate: 'ABC123',
 };
 
 const passthrough = {

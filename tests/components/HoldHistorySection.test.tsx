@@ -28,7 +28,7 @@ function hold(holdTypes: HoldType[], resolvedTypes: HoldType[]): Hold {
 
 const PROPS = {
   vehicle: {
-    id: 'v-1', unitNumber: '5421433', branchId: 'YWG' as const, coverPhotoUrl: undefined,
+    id: 'v-1', unitNumber: '5421433', branchId: 'YWG' as const, coverPhotoUrl: undefined, licensePlate: 'ABC123',
     // Vehicle status decides whether a RETURNED hold still reads as owing a re-eval — see
     // the grouping suite below and lib/holdGrouping.
     status: 'HELD' as const,

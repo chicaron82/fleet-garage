@@ -21,7 +21,7 @@ function fmtDate(iso: string) {
 }
 
 interface Props {
-  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'status'>;
+  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'status' | 'licensePlate'>;
   holds: Hold[];
   showHoldPicker: boolean;
   repairableHolds: Hold[];

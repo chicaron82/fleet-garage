@@ -10,6 +10,7 @@ import { canMarkPreExisting } from '../../types';
 import { StatusBadge } from './StatusBadge';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { HoldDamageZones } from './HoldDamageZones';
+import { HoldGeotabInstalled } from './HoldGeotabInstalled';
 import type { Hold, Vehicle } from '../../types';
 
 const MAX_PHOTOS = 4;
@@ -28,7 +29,7 @@ const HOLD_LABEL: Record<'delete-hold' | 'void-hold', string> = {
 
 interface Props {
   hold: Hold;
-  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl'>;
+  vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'licensePlate'>;
   uploadingFor: string | null;
   addPhotoClick: (holdId: string, ref: RefObject<HTMLInputElement | null>) => void;
   cameraInputRef: RefObject<HTMLInputElement | null>;
@@ -211,6 +212,7 @@ export function HoldRecordCard({
           {' '}· {getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)} · {fmt(hold.flaggedAt)}
           {hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
         </p>
+        <HoldGeotabInstalled hold={hold} plate={vehicle.licensePlate} getName={getName} fmt={fmt} />
         {/* WHERE the damage is — chips, and the diagram behind an Edit tap. Lives in its own
             component: this file is at the 330-line cap and the map is not a two-liner. */}
         <HoldDamageZones hold={hold} />
