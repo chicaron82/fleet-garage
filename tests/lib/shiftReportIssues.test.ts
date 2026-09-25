@@ -1,43 +1,43 @@
 import { describe, it, expect } from 'vitest';
 import { shiftIssueLines } from '../../src/lib/shiftReportIssues';
 
-// ⭐ A REOPEN IS A BREAKDOWN HE LOGGED TODAY (2026-09-24, ticket-reopens-invisible-downstream).
-// Since 08d4bee a breakdown on a known machine is a REOPEN, not a new issue — and the shift report
-// filtered on reported_at, which a reopen never changes. Today's auto wash (reopened 17:02, "Rinse
-// pipe snapped off the arch") was missing from his own report.
+// ⭐ His shift report lists every FAULT he opened today (migration 150) — a new issue, a reopen, or a
+// fault added to a machine already down. The first version filtered on `reported_at`, which a reopen
+// never changes, so the auto wash's snapped rinse pipe (2026-09-24, 17:02) was missing from his day.
 
-const NEW = [{ reported_at: '2026-09-24T12:10:00Z', title: 'Bay light out', severity: 'medium' }];
-const REOPEN = [{
-  created_at: '2026-09-24T22:02:00Z', note: 'Rinse pipe snapped off the arch',
-  facility_issues: { title: 'Auto wash', severity: 'high' },
-}];
+const machine = (title: string, severity = 'high') => ({ title, severity });
 
 describe('shiftIssueLines', () => {
-  it('⭐ includes the day\'s reopens, with the fault he wrote', () => {
-    const lines = shiftIssueLines(NEW, REOPEN);
-    expect(lines).toContainEqual({
-      reportedAt: '2026-09-24T22:02:00Z', title: 'Auto wash', severity: 'high',
-      reopenedFault: 'Rinse pipe snapped off the arch',
-    });
-  });
-
-  it('keeps new issues exactly as before', () => {
-    expect(shiftIssueLines(NEW, [])).toEqual([
-      { reportedAt: '2026-09-24T12:10:00Z', title: 'Bay light out', severity: 'medium' },
+  it('⭐ lists each fault he opened, with what broke', () => {
+    expect(shiftIssueLines([
+      { opened_at: '2026-09-24T22:02:00Z', note: 'Rinse pipe snapped off the arch', facility_issues: machine('Auto wash') },
+    ])).toEqual([
+      { reportedAt: '2026-09-24T22:02:00Z', title: 'Auto wash', severity: 'high', note: 'Rinse pipe snapped off the arch' },
     ]);
   });
 
-  it('orders the whole list by time, new and reopened together', () => {
-    const titles = shiftIssueLines(NEW, REOPEN).map(l => l.title);
-    expect(titles).toEqual(['Bay light out', 'Auto wash']);
+  it('two faults on one machine in one day are two lines', () => {
+    const lines = shiftIssueLines([
+      { opened_at: '2026-09-24T22:02:00Z', note: 'Rinse pipe snapped', facility_issues: machine('Auto wash') },
+      { opened_at: '2026-09-24T23:40:00Z', note: 'Wheel brush not spinning', facility_issues: machine('Auto wash') },
+    ]);
+    expect(lines.map(l => l.note)).toEqual(['Rinse pipe snapped', 'Wheel brush not spinning']);
   });
 
-  it('an old BLANK reopen still counts — it happened — it just has no fault to show', () => {
-    const [line] = shiftIssueLines([], [{ ...REOPEN[0], note: null }]);
-    expect(line.reopenedFault).toBe('');
+  it('orders the day by time', () => {
+    const lines = shiftIssueLines([
+      { opened_at: '2026-09-24T22:02:00Z', note: 'late', facility_issues: machine('A') },
+      { opened_at: '2026-09-24T12:10:00Z', note: 'early', facility_issues: machine('B') },
+    ]);
+    expect(lines.map(l => l.title)).toEqual(['B', 'A']);
   });
 
-  it('drops a reopen whose machine could not be read, rather than printing "undefined"', () => {
-    expect(shiftIssueLines([], [{ ...REOPEN[0], facility_issues: null }])).toEqual([]);
+  it('a new issue with no description does not repeat its title as the note', () => {
+    const [line] = shiftIssueLines([{ opened_at: '2026-09-24T12:10:00Z', note: 'Bay light out', facility_issues: machine('Bay light out', 'medium') }]);
+    expect(line).not.toHaveProperty('note');
+  });
+
+  it('drops a fault whose machine could not be read, rather than printing "undefined"', () => {
+    expect(shiftIssueLines([{ opened_at: '2026-09-24T12:10:00Z', note: 'x', facility_issues: null }])).toEqual([]);
   });
 });

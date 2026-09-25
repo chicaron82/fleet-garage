@@ -34,8 +34,10 @@ import { resolve, join } from 'node:path';
 //    behind addVehicle's lock upstream.
 //  - usePendingWrites.ts: payload carries a client id by contract; the drain
 //    upserts on it, so a lost-ack retry converges instead of duplicating.
-//  - useIssues.ts: 2 of 4 sites are inside the locked addIssue; the other 2
-//    are issue_events appends behind converging status updates.
+//  - useIssues.ts: facility_issues + its 'opened' event sit inside the locked addIssue; the
+//    issue_faults insert (insertFault, migration 150) is only reached through locked callers —
+//    addIssue, reopenIssue, addFault; the 'resolved' event is an append behind a converging
+//    status update.
 //  - useVehicleSightings.ts: append-only "last seen" log — a row IS the event
 //    (he scanned this car at this moment), so two scans SHOULD be two rows and a
 //    same-frame dupe is impossible anyway: it fires once per completed key-tag
@@ -63,7 +65,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/context/evAssetWrite.ts':        1, // EXEMPT: timeline append (see above)
   'src/context/holdResolution.ts':      2, // finalizeRepairedHold + batch — reached only via locked fns
   'src/context/holdWrite.ts':           2, // makeAddHold / makeAddRelease — locked
-  'src/context/useIssues.ts':           4, // addIssue locked; 2 issue_events appends EXEMPT
+  'src/context/useIssues.ts':           5, // addIssue / reopenIssue / addFault locked (faults, mig 150); resolved-event append EXEMPT
   'src/context/useLostFound.ts':        1, // addLostFoundItem — locked
   'src/context/useVehicleOperations.ts':1, // addVehicle — locked
   'src/context/useWashbayHandoff.ts':   1, // submitHandoff — locked
@@ -121,6 +123,8 @@ const GUARDED_FNS: GuardedFn[] = [
   { file: 'src/context/holdResolution.ts',         fn: 'makeMarkRepairedBatch' },
   { file: 'src/context/ProfilesContext.tsx',       fn: 'addRosterStaff' },
   { file: 'src/context/useIssues.ts',              fn: 'addIssue' },
+  { file: 'src/context/useIssues.ts',              fn: 'reopenIssue' },
+  { file: 'src/context/useIssues.ts',              fn: 'addFault' },
   { file: 'src/context/useLostFound.ts',           fn: 'addLostFoundItem' },
   { file: 'src/context/ScheduleContext.tsx',       fn: 'createShift' },
   { file: 'src/context/ScheduleContext.tsx',       fn: 'bulkCreateShifts' },

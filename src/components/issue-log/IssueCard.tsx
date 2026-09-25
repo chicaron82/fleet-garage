@@ -1,12 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { faultLine } from '../../lib/currentFault';
+import { downSince, faultsSummary } from '../../../api/_lib/issueFaults';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { daysOpen } from './issueDate';
 import { ShareAction } from '../shared';
 import type { FacilityIssue, IssueSeverity } from '../../types';
-import { usePhotoIntake } from '../../hooks/usePhotoIntake';
-import { PhotoError } from '../shared/PhotoError';
+import { IssueFaultList } from './IssueFaultList';
 
 interface IssueEvent {
   id: string;
@@ -41,31 +40,25 @@ interface IssueCardProps {
   cleared?: boolean;
   onClear: (issueId: string, note?: string) => Promise<void>;
   onReopen: (issueId: string, note?: string) => Promise<void>;
-  onAttachPhoto: (issueId: string, photo: string) => Promise<void>;
   getUserName: (id: string) => string;
 }
 
-export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachPhoto, getUserName }: IssueCardProps) {
-  const { photoError, takeOne } = usePhotoIntake();
+export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserName }: IssueCardProps) {
   const [isClearing, setIsClearing]       = useState(false);
   const [clearNote, setClearNote]         = useState('');
   const [isReopening, setIsReopening]     = useState(false);
   const [reopenNote, setReopenNote]       = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [events, setEvents]               = useState<IssueEvent[] | null>(null);
-  const fault = faultLine(issue, issue.currentFault);
-  // ⭐ THE CURRENT SPELL (ticket-the-current-spell): a reopened, not-yet-cleared machine is judged by
-  // its newest reopen — its photo (or none, never the first fault's) and a day counter from THAT day.
-  // Aaron: *"currently reads like its Day 108, and its still down"*. Once-broken or resolved: the first.
-  const inSpell = issue.status !== 'resolved' && !!issue.reopenedAt;
-  const shownPhoto = inSpell ? issue.currentPhoto : issue.photoUrl;
-  const since = inSpell
-    ? `Reopened by ${getUserName(issue.reopenedById ?? issue.reportedById)} · ${daysOpen(issue.reopenedAt!)}`
-    : `Reported by ${getUserName(issue.reportedById)} · ${daysOpen(issue.reportedAt)}`;
-  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
+  // ⭐ FAULTS AS ROWS (migration 150): an open machine is judged by its open faults — each with its own
+  // note, photo, days and Clear (IssueFaultList). The line here summarises: one fault reads as before;
+  // several read "2 faults · Day 31", counted from the OLDEST. A cleared machine: its first report.
+  const faults = !cleared ? (issue.faults ?? []) : [];
+  const since = faults.length > 1
+    ? `${faults.length} faults · ${daysOpen(downSince(faults)!)}`
+    : faults.length === 1
+      ? `Reported by ${getUserName(faults[0].openedBy)} · ${daysOpen(faults[0].openedAt)}`
+      : `Reported by ${getUserName(issue.reportedById)} · ${daysOpen(issue.reportedAt)}`;
 
   const cfg = SEVERITY_CONFIG[issue.severity];
 
@@ -79,7 +72,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
         `${cfg.icon} Issue: ${issue.title}`,
         `${SEVERITY_CONFIG[issue.severity].label} severity`,
         since,
-        issue.description ? `"${issue.description}"` : null,
+        faults.length ? `"${faultsSummary(faults)}"` : issue.description ? `"${issue.description}"` : null,
         `Status: ${status}`,
         cleared && issue.notes ? `✓ ${issue.notes}` : null,
       ].filter(Boolean).join('\n'),
@@ -100,18 +93,6 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
     setIsReopening(false);
     setReopenNote('');
     setEvents(null);
-  };
-
-  const handlePhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPhoto(true);
-    hapticMedium();
-    const compressed = await takeOne(file);
-    if (compressed) await onAttachPhoto(issue.id, compressed);
-    setIsAddingPhoto(false);
-    setUploadingPhoto(false);
-    e.target.value = '';
   };
 
   const handleToggleHistory = async () => {
@@ -192,63 +173,19 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, onAttachP
         )}
       </p>
 
-      {/* ⭐⭐ WHAT'S WRONG WITH IT NOW (Aaron, 2026-09-20). The record is the MACHINE — "Mat machine",
-          "Auto wash" — so the line under the title has to be the fault it has TODAY, not the one it
-          had in April. `faultLine` reads the newest reopen note and falls back to the original for a
-          machine that has only ever broken once. ⚠️ `description` is never overwritten: the first
-          fault stays on the record and the trail keeps the rest, because a field rewritten on every
-          reopen loses exactly the history this change exists to keep. */}
-      {fault && (
-        <p className="text-sm text-gray-600 dark:text-gray-300 italic">
-          {issue.currentFault ? <span className="not-italic font-semibold text-gray-500 dark:text-gray-400">Now: </span> : null}
-          "{fault}"
-        </p>
-      )}
-
-      {shownPhoto && (
-        <img
-          loading="lazy"
-          src={shownPhoto}
-          alt="Issue photo"
-          className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-        />
-      )}
-
-      {!shownPhoto && !cleared && (
-        isAddingPhoto ? (
-          <div className="flex items-center gap-2">
-            {uploadingPhoto ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500">Uploading…</p>
-            ) : (
-              <>
-                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
-                  📷 Take photo
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoFile} />
-                </label>
-                <label className="px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:border-fg-yellow hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer">
-                  Gallery
-                  <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
-                  <PhotoError message={photoError} />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => { hapticLight(); setIsAddingPhoto(false); }}
-                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => { hapticLight(); setIsAddingPhoto(true); setIsClearing(false); setIsReopening(false); }}
-            className="text-xs text-gray-400 dark:text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition cursor-pointer"
-          >
-            + Add photo
-          </button>
-        )
+      {faults.length > 0 ? (
+        <IssueFaultList issue={issue} getUserName={getUserName} />
+      ) : (
+        <>
+          {/* A cleared machine — or one whose faults couldn't load — shows its first report. */}
+          {!cleared && issue.description && (
+            <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{issue.description}"</p>
+          )}
+          {issue.photoUrl && (
+            <img loading="lazy" src={issue.photoUrl} alt="Issue photo"
+              className="w-full max-h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+          )}
+        </>
       )}
 
       {cleared && issue.notes && (

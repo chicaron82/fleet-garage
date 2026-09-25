@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { FacilityIssue } from '../../src/types';
+import type { IssueFault } from '../../api/_lib/issueFaults';
 
 // ⭐⭐ THE MACHINE IS THE RECORD (Aaron, 2026-09-20): *"instead of having a second mat machine issue
 // for it eating mats, we'd just rename the record as mat machine, and what's currently wrong with it
@@ -15,6 +16,8 @@ vi.mock('../../src/lib/supabase', () => ({
 }));
 vi.mock('../../src/lib/haptics', () => ({ hapticLight: vi.fn(), hapticMedium: vi.fn(), hapticHeavy: vi.fn() }));
 vi.mock('../../src/components/shared/ShareAction', () => ({ ShareAction: () => null }));
+const ctx = vi.hoisted(() => ({ addFault: vi.fn(async () => {}), clearFault: vi.fn(async () => {}), attachFaultPhoto: vi.fn(async () => {}) }));
+vi.mock('../../src/context/IssueContext', () => ({ useIssueContext: () => ctx }));
 
 import { IssueCard } from '../../src/components/issue-log/IssueCard';
 
@@ -27,30 +30,32 @@ const issue = (over: Partial<FacilityIssue> = {}): FacilityIssue => ({
 const props = {
   onClear: vi.fn(async () => {}),
   onReopen: vi.fn(async () => {}),
-  onAttachPhoto: vi.fn(async () => {}),
   getUserName: () => 'Aaron S.',
 };
 
 beforeEach(() => { props.onReopen.mockClear(); props.onClear.mockClear(); });
 
+const fault = (over: Partial<IssueFault> = {}): IssueFault => ({
+  id: 'f1', issueId: 'mat', note: 'Eating mats and getting stuck', openedAt: '2026-08-04T15:00:00Z',
+  openedBy: 'u1', ...over,
+});
+
 describe('IssueCard — what is wrong with it now', () => {
-  it('⭐ shows the CURRENT fault, marked as now', () => {
-    render(<IssueCard issue={issue({ currentFault: 'eating the mats being fed in' })} {...props} />);
-    expect(screen.getByText(/eating the mats being fed in/)).toBeInTheDocument();
-    expect(screen.getByText(/Now:/)).toBeInTheDocument();
+  it('⭐ an open machine shows its open fault', () => {
+    render(<IssueCard issue={issue({ faults: [fault()] })} {...props} />);
+    expect(screen.getByText(/Eating mats and getting stuck/)).toBeInTheDocument();
   });
 
-  // ⚠️ The first fault is NOT overwritten — it stays on the record and in the history. What changes
-  // is which one the card leads with.
-  it('⚠️ a machine that only ever broke once still shows its original fault, unlabelled', () => {
-    render(<IssueCard issue={issue({ reopenCount: 0, status: 'open', currentFault: undefined })} {...props} />);
-    expect(screen.getByText(/Keeps on tripping the outlet/)).toBeInTheDocument();
-    expect(screen.queryByText(/Now:/)).not.toBeInTheDocument();
+  // ⚠️ The FIRST fault (description) is never shown in place of a newer one — it stays on the record.
+  it('⚠️ never shows the first report while a fault is open', () => {
+    render(<IssueCard issue={issue({ faults: [fault()] })} {...props} />);
+    expect(screen.queryByText(/Keeps on tripping the outlet/)).toBeNull();
   });
 
-  it('⚠️ a cleared machine shows no fault line at all — it is not down', () => {
-    render(<IssueCard issue={issue({ status: 'resolved', currentFault: 'eating the mats' })} cleared {...props} />);
-    expect(screen.queryByText(/eating the mats/)).not.toBeInTheDocument();
+  it('⚠️ a cleared machine shows no fault at all — it is not down', () => {
+    render(<IssueCard issue={issue({ status: 'resolved', faults: [] })} cleared {...props} />);
+    expect(screen.queryByText(/Eating mats/)).toBeNull();
+    expect(screen.queryByText(/Keeps on tripping the outlet/)).toBeNull();
   });
 });
 
@@ -94,53 +99,71 @@ describe('IssueCard — reopening asks what broke', () => {
   });
 });
 
-// ⭐ THE PICTURE FOLLOWS THE FAULT (2026-09-24, migration 149). The auto wash's card said "Now: Rinse
-// pipe snapped off the arch" — and the only photo it had was June's E-stop. Showing that under the
-// new line would be a confident, wrong image. docs/September/ticket-a-photo-per-fault.md
-describe('IssueCard — the photo belongs to the fault it sits under', () => {
-  const wash = (over: Partial<FacilityIssue> = {}) => issue({
-    id: 'aw', title: 'Auto wash', photoUrl: 'https://cdn/june-estop.jpg', ...over,
-  });
-
-  it('⚠️ a current fault with no photo shows NO photo — never the first fault\'s', () => {
-    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped off the arch', reopenedAt: '2026-09-24T22:02:00Z' })} {...props} />);
-    expect(screen.queryByAltText('Issue photo')).toBeNull();
-    expect(screen.getByText(/add photo/i)).toBeInTheDocument();     // …and offers to add THIS one
-  });
-
-  it('shows the current fault\'s own photo', () => {
-    render(<IssueCard issue={wash({ currentFault: 'Rinse pipe snapped', currentPhoto: 'https://cdn/pipe.jpg', reopenedAt: '2026-09-24T22:02:00Z' })} {...props} />);
-    expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/pipe.jpg');
-  });
-
-  it('a machine that only broke once still shows its first photo', () => {
-    render(<IssueCard issue={wash({ status: 'open', reopenCount: 0 })} {...props} />);
-    expect(screen.getByAltText('Issue photo')).toHaveAttribute('src', 'https://cdn/june-estop.jpg');
-  });
-});
-
-// ⭐ THE DAY COUNTER COUNTS THE SPELL (ticket-the-current-spell). Aaron, 2026-09-24: *"currently reads
-// like its Day 108, and its still down"* — the auto wash was first reported June 8; the pipe snapped
-// that afternoon.
-describe('IssueCard — the counter starts at the current spell', () => {
+// ⭐⭐ FAULTS AS ROWS (migration 150). Aaron, 2026-09-24, at the auto wash: *"there's also another
+// issue … The wheel brush on the passenger side isn't spinning. That one has been non functional for
+// a month now"* — on top of the rinse pipe that snapped that afternoon. docs/September/ticket-faults-as-rows.md
+describe('IssueCard — a machine down for two reasons', () => {
   const NOW = new Date('2026-09-24T23:30:00Z');
-  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW); });
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW); Object.values(ctx).forEach(f => f.mockClear()); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('⭐ a reopened machine reads "Reopened · Today", not "Day 108"', () => {
-    render(<IssueCard issue={issue({ id: 'aw', title: 'Auto wash', reportedAt: '2026-06-08T11:48:00Z',
-      reopenedAt: '2026-09-24T22:02:00Z', reopenedById: 'u1', currentFault: 'Rinse pipe snapped off the arch' })} {...props} />);
-    expect(screen.getByText(/Reopened by Aaron S\. · Today/)).toBeInTheDocument();
-    expect(screen.queryByText(/Day 108/)).toBeNull();
+  const BRUSH = fault({ id: 'brush', issueId: 'aw', note: 'Passenger side wheel brush not spinning',
+    openedAt: '2026-08-24T17:00:00Z', photoUrl: 'https://cdn/brush.jpg' });
+  const PIPE = fault({ id: 'pipe', issueId: 'aw', note: 'Rinse pipe snapped off the arch', openedAt: '2026-09-24T22:02:00Z' });
+  const wash = () => issue({ id: 'aw', title: 'Auto wash', reportedAt: '2026-06-08T11:48:00Z',
+    photoUrl: 'https://cdn/june-estop.jpg', faults: [BRUSH, PIPE] });
+
+  it('⭐ shows BOTH faults, and the header counts from the OLDEST', () => {
+    render(<IssueCard issue={wash()} {...props} />);
+    expect(screen.getByText(/Rinse pipe snapped off the arch/)).toBeInTheDocument();
+    expect(screen.getByText(/wheel brush not spinning/)).toBeInTheDocument();
+    expect(screen.getByText(/2 faults · Day 31/)).toBeInTheDocument();
+    expect(screen.queryByText(/Day 108/)).toBeNull();                 // never the machine's first report
   });
 
-  it('a machine that never reopened still counts from its first report', () => {
-    render(<IssueCard issue={issue({ status: 'open', reopenCount: 0, reportedAt: '2026-09-20T15:00:00Z' })} {...props} />);
+  it('each fault counts its OWN days', () => {
+    render(<IssueCard issue={wash()} {...props} />);
+    expect(screen.getByText(/Aaron S\. · Day 31/)).toBeInTheDocument();
+    expect(screen.getByText(/Aaron S\. · Today/)).toBeInTheDocument();
+  });
+
+  it('⭐ each fault has its own photo — or its own "+ Add photo" — never the first report\'s', () => {
+    render(<IssueCard issue={wash()} {...props} />);
+    const photos = screen.getAllByAltText('Issue photo').map(i => i.getAttribute('src'));
+    expect(photos).toEqual(['https://cdn/brush.jpg']);               // June's E-stop photo is not shown
+    expect(screen.getByText(/\+ Add photo/)).toBeInTheDocument();    // …the pipe can take its own
+  });
+
+  it('⭐ each fault clears ON ITS OWN', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    render(<IssueCard issue={wash()} {...props} />);
+    const clears = screen.getAllByRole('button', { name: 'Clear' });
+    expect(clears.length).toBe(3);                                    // the machine's + one per fault
+    await user.click(clears[2]);                                      // the pipe's
+    await user.click(screen.getByRole('button', { name: /Clear this fault/ }));
+    expect(ctx.clearFault).toHaveBeenCalledWith(PIPE, undefined);
+  });
+
+  it('a single fault has no Clear of its own — the machine\'s Clear already means it', () => {
+    render(<IssueCard issue={issue({ faults: [fault()] })} {...props} />);
+    expect(screen.getAllByRole('button', { name: 'Clear' })).toHaveLength(1);
+  });
+
+  it('⭐ "+ Add fault" asks what else is wrong, and will not add a blank', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    render(<IssueCard issue={issue({ faults: [fault()] })} {...props} />);
+    await user.click(screen.getByRole('button', { name: '+ Add fault' }));
+    const add = screen.getByRole('button', { name: '+ Add fault' });
+    expect(add).toBeDisabled();
+    await user.type(screen.getByPlaceholderText(/What else is wrong/), 'Belt slipping');
+    await user.click(add);
+    expect(ctx.addFault).toHaveBeenCalledWith('mat', 'Belt slipping');
+  });
+
+  it('a machine that has only its first fault reads "Reported by X · Day N"', () => {
+    render(<IssueCard issue={issue({ faults: [fault({ openedAt: '2026-09-20T15:00:00Z' })] })} {...props} />);
     expect(screen.getByText(/Reported by Aaron S\. · Day 4/)).toBeInTheDocument();
-  });
-
-  it('⚠️ a blank spell shows no fault line — never the first, already-fixed fault', () => {
-    render(<IssueCard issue={issue({ reopenedAt: '2026-08-04T15:00:00Z', currentFault: undefined })} {...props} />);
-    expect(screen.queryByText(/Keeps on tripping the outlet/)).toBeNull();
   });
 });

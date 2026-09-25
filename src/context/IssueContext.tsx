@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { currentFaultByIssue, currentPhotoByIssue, currentSpellByIssue } from '../lib/currentFault';
+import { openFaultsByIssue, type IssueFaultRow } from '../../api/_lib/issueFaults';
 import { mapIssue } from '../lib/garage-mappers';
 import { useIssues, type IssuesSlice } from './useIssues';
 
@@ -28,31 +28,17 @@ export function IssueProvider({ children }: { children: React.ReactNode }) {
         setLoadError(true);
       }
       if (!data) return;
-      // ⭐ The CURRENT fault rides in with the list (Aaron, 2026-09-20: the machine is the record,
-      // the fault is what's wrong with it this time). One extra read of the trail, not one per card
-      // — the card's own lazy event fetch stays for the full history.
-      // ⚠️ A failed trail read must not cost him the issues: the list still renders, each machine
-      // showing its first fault, which is exactly what it showed before this existed.
-      const { data: trail } = await supabase
-        .from('issue_events')
-        .select('issue_id, event_type, note, created_at, photo_url, user_id')
-        .eq('event_type', 'reopened');
-      const events = (trail ?? []).map(r => ({
-        issueId: r.issue_id as string,
-        eventType: r.event_type as string,
-        note: r.note as string | null,
-        createdAt: r.created_at as string,
-        photoUrl: r.photo_url as string | null,
-        userId: r.user_id as string | null,
-      }));
-      const current = currentFaultByIssue(events);
-      const photos = currentPhotoByIssue(events);   // same event as the fault — see lib/currentFault
-      const spells = currentSpellByIssue(events);   // …and the day counter starts there
+      // ⭐ Every OPEN fault rides in with the list (migration 150) — one read for all machines, not one
+      // per card. ⚠️ A failed read must not cost him the issues: the list still renders, and each card
+      // falls back to its first report, which is what it showed before faults existed.
+      const { data: faultRows } = await supabase
+        .from('issue_faults')
+        .select('id, issue_id, note, photo_url, opened_at, opened_by, cleared_at')
+        .is('cleared_at', null);
+      const faults = openFaultsByIssue((faultRows ?? []) as IssueFaultRow[]);
       setFacilityIssues(data.map(row => {
         const issue = mapIssue(row);
-        const spell = spells.get(issue.id);
-        return { ...issue, currentFault: current.get(issue.id), currentPhoto: photos.get(issue.id),
-          reopenedAt: spell?.at, reopenedById: spell?.by };
+        return { ...issue, faults: faults.get(issue.id) ?? [] };
       }));
     })();
   }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps

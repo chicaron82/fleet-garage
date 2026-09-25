@@ -341,9 +341,8 @@ export function buildReport(d: ReportData): string {
     lines.push('', 'ISSUES REPORTED', SEP);
     for (const i of d.issues) {
       const sev = i.severity.charAt(0).toUpperCase() + i.severity.slice(1);
-      // A reopen says so, and what broke — never passed off as a brand-new issue.
-      const reopen = i.reopenedFault === undefined ? '' : ` — reopened${i.reopenedFault ? `: ${i.reopenedFault}` : ''}`;
-      lines.push(`[${sev}] ${i.title}${reopen}  (${fmtTime(i.reportedAt)})`);
+      // Each fault he opened today, with what broke (migration 150 — new, reopened or added alike).
+      lines.push(`[${sev}] ${i.title}${i.note ? ` — ${i.note}` : ''}  (${fmtTime(i.reportedAt)})`);
     }
   }
 

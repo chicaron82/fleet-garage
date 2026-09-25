@@ -1,18 +1,15 @@
-// The ISSUES section of his shift report: what he logged today — new issues AND reopens.
+// The ISSUES section of his shift report: every fault he OPENED today.
 //
-// ⭐ Aaron's day, 2026-09-24: the auto wash's rinse pipe snapped off the arch and he reopened the
-// machine at 17:02. His shift report filtered issues on `reported_at`, which a reopen never changes,
-// so the day's one real breakdown was missing from his own report. Since 08d4bee (2026-09-20, "the
-// machine is the record") FG deliberately steers a breakdown on a known machine into a REOPEN — so
-// the report was undercounting exactly the breakdowns. docs/September/ticket-reopens-invisible-downstream.md
+// ⭐ History. The report first listed issues by `reported_at`, which a reopen never changes — so the
+// auto wash's snapped rinse pipe (reopened 17:02, 2026-09-24) was missing from his own day. The fix
+// read reopen events too. Then faults became rows (migration 150): a new issue, a reopen and a
+// "+ Add fault" on a machine already down ALL open a fault — so one question now covers all three:
+// *which faults did he open today?* docs/September/ticket-faults-as-rows.md
 
-/** A `facility_issues` row he reported today. */
-export interface NewIssueRow { reported_at: string; title: string; severity: string }
-
-/** An `issue_events` reopen he made today, with its machine embedded. */
-export interface ReopenRow {
-  created_at: string;
-  note: string | null;
+/** An `issue_faults` row he opened today, with its machine embedded. */
+export interface FaultOpenedRow {
+  opened_at: string;
+  note: string;
   facility_issues: { title: string; severity: string } | null;
 }
 
@@ -20,21 +17,20 @@ export interface ShiftIssueLine {
   reportedAt: string;
   title: string;
   severity: string;
-  /** Present on a reopen: what he said broke this time ('' for an old blank reopen). */
-  reopenedFault?: string;
+  /** What broke — omitted when it only repeats the machine's title (a new issue with no description). */
+  note?: string;
 }
 
-export function shiftIssueLines(newIssues: readonly NewIssueRow[], reopens: readonly ReopenRow[]): ShiftIssueLine[] {
-  const lines: ShiftIssueLine[] = newIssues.map(r => ({ reportedAt: r.reported_at, title: r.title, severity: r.severity }));
-  for (const r of reopens) {
-    // ⚠️ A reopen whose machine didn't come back with it is dropped, not printed as "undefined".
+export function shiftIssueLines(rows: readonly FaultOpenedRow[]): ShiftIssueLine[] {
+  const lines: ShiftIssueLine[] = [];
+  for (const r of rows) {
+    // ⚠️ A fault whose machine didn't come back with it is dropped, not printed as "undefined".
     if (!r.facility_issues) continue;
-    lines.push({
-      reportedAt: r.created_at,
-      title: r.facility_issues.title,
-      severity: r.facility_issues.severity,
-      reopenedFault: r.note?.trim() ?? '',
-    });
+    const note = r.note?.trim();
+    const { title, severity } = r.facility_issues;
+    lines.push(note && note !== title.trim()
+      ? { reportedAt: r.opened_at, title, severity, note }
+      : { reportedAt: r.opened_at, title, severity });
   }
   return lines.sort((a, b) => a.reportedAt.localeCompare(b.reportedAt));
 }

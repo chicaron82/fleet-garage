@@ -869,6 +869,50 @@ export type Database = {
           },
         ]
       }
+      issue_faults: {
+        Row: {
+          clear_note: string | null
+          cleared_at: string | null
+          cleared_by: string | null
+          id: string
+          issue_id: string
+          note: string
+          opened_at: string
+          opened_by: string
+          photo_url: string | null
+        }
+        Insert: {
+          clear_note?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
+          id?: string
+          issue_id: string
+          note: string
+          opened_at?: string
+          opened_by: string
+          photo_url?: string | null
+        }
+        Update: {
+          clear_note?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
+          id?: string
+          issue_id?: string
+          note?: string
+          opened_at?: string
+          opened_by?: string
+          photo_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_faults_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "facility_issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lookup_recents: {
         Row: {
           looked_up_at: string

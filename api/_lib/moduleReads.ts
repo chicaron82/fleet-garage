@@ -45,7 +45,7 @@ export interface IssueRow {
   title: string;
   severity: string;
   reportedLabel: string;
-  /** What is wrong with the machine NOW — the newest reopen note (api/_lib/currentFault). */
+  /** What is wrong with the machine NOW — its open faults (api/_lib/issueFaults, migration 150). */
   fault?: string;
 }
 

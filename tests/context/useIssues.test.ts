@@ -21,6 +21,8 @@ const chain = {
   update: vi.fn(() => chain),
   eq:     vi.fn(() => chain),
   select: vi.fn(() => chain),
+  is:     vi.fn(() => chain),
+  single: vi.fn(() => chain),
   // Awaiting the chain after .select().eq().eq() resolves to the trail rows.
   then: (resolve: (v: unknown) => unknown) => resolve({ data: trailRows, error: null }),
 };
@@ -75,71 +77,99 @@ describe('addIssue', () => {
   });
 });
 
-// ⭐ A PHOTO PER FAULT (2026-09-24, migration 149). Aaron, after the auto wash's rinse pipe snapped:
-// *"couldn't … attach a new photo of it in the issue log."* docs/September/ticket-a-photo-per-fault.md
-describe('reopenIssue — the fault carries its own photo', () => {
-  it('uploads to the FAULT path and stores the url on the reopen event', async () => {
-    const slice = makeSlice();
-    await slice.reopenIssue('aw', 'Rinse pipe snapped off the arch', 'data:PIPE');
+// ⭐⭐ FAULTS AS ROWS (migration 150). The machine is open while any fault is; each fault has its own
+// note, photo and Clear. Aaron, 2026-09-24: *"there's also another issue for the auto wash."*
+// docs/September/ticket-faults-as-rows.md
+const faultInsert = () => (chain.insert.mock.calls as unknown as [Record<string, unknown>][])
+  .map(c => c[0]).find(r => 'opened_by' in r);
+
+function sliceWith(issues: Record<string, unknown>[]) {
+  const { result } = renderHook(() => useIssues(USER, 'YWG'));
+  act(() => result.current.setFacilityIssues(issues.map(i => ({ branchId: 'YWG', reopenCount: 0, ...i })) as never));
+  return result;
+}
+const F = (id: string, issueId = 'aw') => ({ id, issueId, note: id, openedAt: '2026-09-24T22:00:00Z', openedBy: 'u-1' });
+
+describe('addIssue — opens its FIRST fault', () => {
+  it('writes a fault carrying the description', async () => {
+    await makeSlice().addIssue({ title: 'Bay door', description: 'Won\'t close', severity: 'high' });
+    expect(faultInsert()).toMatchObject({ note: "Won't close", opened_by: 'u-1' });
+  });
+  it('with no description, the fault is the title', async () => {
+    await makeSlice().addIssue({ title: 'Bay light out', severity: 'low' });
+    expect(faultInsert()).toMatchObject({ note: 'Bay light out' });
+  });
+});
+
+describe('reopenIssue — a new fault, with its own photo', () => {
+  it('uploads to the FAULT path, writes the fault, and reopens the machine', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'resolved', faults: [] }]);
+    await act(() => r.current.reopenIssue('aw', 'Rinse pipe snapped off the arch', 'data:PIPE'));
     expect(uploadFaultPhotoMock).toHaveBeenCalledWith('data:PIPE', 'aw');
-    expect(uploadIssuePhotoMock).not.toHaveBeenCalled();         // never the issue's one fixed path
-    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({
-      event_type: 'reopened', note: 'Rinse pipe snapped off the arch', photo_url: 'https://cdn.test/fault.jpg',
-    }));
+    expect(faultInsert()).toMatchObject({ issue_id: 'aw', note: 'Rinse pipe snapped off the arch', photo_url: 'https://cdn.test/fault.jpg' });
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'reopened' }));
+    expect(r.current.facilityIssues[0].faults?.map(f => f.note)).toEqual(['Rinse pipe snapped off the arch']);
   });
-
-  it('without a photo the event says so (null), and nothing is uploaded', async () => {
-    const slice = makeSlice();
-    await slice.reopenIssue('aw', 'Rinse pipe snapped off the arch');
-    expect(uploadFaultPhotoMock).not.toHaveBeenCalled();
-    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({ photo_url: null }));
+  it('a blank reopen is recorded as "Not recorded", never an older fault', async () => {
+    const r = sliceWith([{ id: 'mat', status: 'resolved', faults: [] }]);
+    await act(() => r.current.reopenIssue('mat'));
+    expect(faultInsert()).toMatchObject({ note: 'Not recorded' });
   });
 });
 
-describe('attachPhoto — follows the fault', () => {
-  function sliceWith(issue: Record<string, unknown>) {
-    const { result } = renderHook(() => useIssues(USER, 'YWG'));
-    act(() => result.current.setFacilityIssues([issue as never]));
-    return result;
-  }
+describe('addFault — one MORE thing wrong', () => {
+  it('⭐ on a machine already down: adds a fault, does NOT touch the machine', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'reopened', faults: [F('pipe')] }]);
+    await act(() => r.current.addFault('aw', 'Passenger side wheel brush not spinning'));
+    expect(faultInsert()).toMatchObject({ note: 'Passenger side wheel brush not spinning' });
+    expect(chain.update).not.toHaveBeenCalled();
+    expect(r.current.facilityIssues[0].faults).toHaveLength(2);
+  });
+  it('on a CLEARED machine: that is a reopen — one path, not two', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'resolved', faults: [] }]);
+    await act(() => r.current.addFault('aw', 'Brush dead'));
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'reopened' }));
+  });
+});
 
-  it('⭐ a machine with a CURRENT fault: the photo lands on THAT fault\'s event', async () => {
-    // A REAL trail (ticket-the-current-spell): every reopen follows a resolve, so the NEWEST reopen is
-    // the current spell. The query filters to reopens; the resolves between them just aren't fetched.
-    trailRows = [
-      { id: 'ev-may', issue_id: 'aw', event_type: 'reopened', note: 'Brush jammed', created_at: '2026-05-08T10:00:00Z' },
-      { id: 'ev-pipe', issue_id: 'aw', event_type: 'reopened', note: 'Rinse pipe snapped', created_at: '2026-09-24T22:00:00Z' },
-    ];
-    const r = sliceWith({ id: 'aw', branchId: 'YWG', title: 'Auto wash', status: 'reopened', reopenCount: 2,
-      currentFault: 'Rinse pipe snapped', reopenedAt: '2026-09-24T22:00:00Z', photoUrl: 'june.jpg' });
-    await act(() => r.current.attachPhoto('aw', 'data:PIPE'));
-    expect(uploadFaultPhotoMock).toHaveBeenCalled();
+describe('clearFault — one fixed, the machine stays down for the rest', () => {
+  it('⭐ clearing one of two closes THAT fault only; the machine stays open', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'reopened', faults: [F('brush'), F('pipe')] }]);
+    await act(() => r.current.clearFault(F('pipe') as never, 'New pipe fitted'));
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ clear_note: 'New pipe fitted' }));
+    expect(chain.eq).toHaveBeenCalledWith('id', 'pipe');
+    expect(chain.update).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'resolved' }));
+    expect(r.current.facilityIssues[0].faults?.map(f => f.id)).toEqual(['brush']);
+    expect(r.current.facilityIssues[0].status).toBe('reopened');
+  });
+  it('⭐ clearing the LAST fault clears the machine', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'reopened', faults: [F('brush')] }]);
+    await act(() => r.current.clearFault(F('brush') as never));
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'resolved' }));
+    expect(r.current.facilityIssues[0].status).toBe('resolved');
+    expect(r.current.facilityIssues[0].faults).toEqual([]);
+  });
+});
+
+describe('attachFaultPhoto', () => {
+  it('uploads to the fault path and writes THAT fault only', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'reopened', faults: [F('brush'), F('pipe')] }]);
+    await act(() => r.current.attachFaultPhoto(F('pipe') as never, 'data:PIPE'));
     expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/fault.jpg' });
-    expect(chain.eq).toHaveBeenCalledWith('id', 'ev-pipe');   // the CURRENT spell — the newest reopen
-    expect(r.current.facilityIssues[0].currentPhoto).toBe('https://cdn.test/fault.jpg');
-    expect(r.current.facilityIssues[0].photoUrl).toBe('june.jpg');   // the first fault's photo survives
-  });
-
-  it('a machine that has only broken once: the photo is the issue\'s own, as before', async () => {
-    const r = sliceWith({ id: 'door', branchId: 'YWG', title: 'Bay door', status: 'open', reopenCount: 0 });
-    await act(() => r.current.attachPhoto('door', 'data:DOOR'));
-    expect(uploadIssuePhotoMock).toHaveBeenCalledWith('data:DOOR', 'door');
-    expect(uploadFaultPhotoMock).not.toHaveBeenCalled();
-    expect(chain.update).toHaveBeenCalledWith({ photo_url: 'https://cdn.test/issue.jpg' });
+    expect(chain.eq).toHaveBeenCalledWith('id', 'pipe');
+    const faults = r.current.facilityIssues[0].faults!;
+    expect(faults.find(f => f.id === 'pipe')?.photoUrl).toBe('https://cdn.test/fault.jpg');
+    expect(faults.find(f => f.id === 'brush')?.photoUrl).toBeUndefined();
   });
 });
 
-// ⭐ The optimistic reopen IS the new spell — never carrying the previous one's fault or photo.
-describe('reopenIssue — the optimistic card is the new spell', () => {
-  it('a blank note leaves NO current fault, not the previous spell\'s', async () => {
-    const { result } = renderHook(() => useIssues(USER, 'YWG'));
-    act(() => result.current.setFacilityIssues([{ id: 'mat', branchId: 'YWG', title: 'Mat machine',
-      status: 'resolved', reopenCount: 1, currentFault: 'tripping breaker', currentPhoto: 'may.jpg' } as never]));
-    await act(() => result.current.reopenIssue('mat'));
-    const mat = result.current.facilityIssues[0];
-    expect(mat.currentFault).toBeUndefined();
-    expect(mat.currentPhoto).toBeUndefined();
-    expect(mat.reopenedAt).toBeDefined();
-    expect(mat.reopenedById).toBe('u-1');
+describe('the double-tap lock on a new fault', () => {
+  it('two same-frame "+ Add fault" taps add it ONCE', async () => {
+    const r = sliceWith([{ id: 'aw', status: 'reopened', faults: [F('pipe')] }]);
+    await act(() => Promise.all([
+      r.current.addFault('aw', 'Brush dead'), r.current.addFault('aw', 'Brush dead'),
+    ]).then(() => undefined));
+    const faultInserts = (chain.insert.mock.calls as unknown as [Record<string, unknown>][]).filter(c => 'opened_by' in c[0]);
+    expect(faultInserts).toHaveLength(1);
   });
 });

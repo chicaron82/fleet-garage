@@ -1,3 +1,4 @@
+import type { IssueFault } from '../../api/_lib/issueFaults';
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
 export type Module = 'my-day' | 'holds' | 'movement-log' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master' | 'effie';
@@ -682,18 +683,10 @@ export interface FacilityIssue {
   photoUrl?: string;
   status: 'open' | 'resolved' | 'reopened';
   reopenCount: number;
-  /** ⭐ What is wrong with this machine NOW — the newest reopen note (lib/currentFault). Derived on
-   *  load, never stored: `description` stays the FIRST fault so the history cannot be overwritten.
-   *  Undefined for a machine that has only ever had the one fault. */
-  currentFault?: string;
-  /** The photo of THAT fault (migration 149, lib/currentFault) — read off the same event, so it can
-   *  never picture a different breakdown. Undefined when the current fault has none. */
-  currentPhoto?: string;
-  /** When the CURRENT down spell began — the newest reopen — and who reopened it. The card's day
-   *  counter runs from here, not from the first report (ticket-the-current-spell). Undefined for a
-   *  machine that never reopened. */
-  reopenedAt?: string;
-  reopenedById?: string;
+  /** ⭐ Every OPEN fault on this machine, oldest first (migration 150, api/_lib/issueFaults). The
+   *  machine is open while any fault is; `description` stays the FIRST fault, never overwritten.
+   *  Aaron, 2026-09-24: *"there's also another issue for the auto wash."* */
+  faults?: IssueFault[];
 }
 
 // ── Washbay Log ───────────────────────────────────────────────────────────────
