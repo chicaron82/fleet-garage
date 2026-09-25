@@ -109,6 +109,12 @@ export function ScanIdentityCard({
             const line = scanStatusLine(vehicle.status, liveHolds);
             return <p className={`text-xs font-semibold mt-0.5 ${TONE_TEXT[line.tone]}`}>{line.text}</p>;
           })()}
+          {/* ⭐ THE NOTICES GO HERE, right under the status — not at the end of the card. They are the
+              lines that ask him to do something while the tag is in his hand, and at the bottom they
+              sat below holds, damage map, keys and odometer. Aaron, 2026-09-24, on LUR345: *"I didn't
+              realize it needed a keytag photo until scrolling."* (ticket-tag-notice-above-the-fold) */}
+          <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed}
+            scanIsCurrentTag={scanIsCurrentTag} />
           {/* WHAT'S WRONG WITH IT — Aaron's ask (2026-08-16), the last gap in this card.
               The overlay always had these holds in scope and counted them into "On hold
               (2)", dropping the description: it said something's wrong, then made him
@@ -286,8 +292,11 @@ export function ScanIdentityCard({
       {codexToast && (
         <p className="text-[11px] font-semibold mt-1 text-green-700 dark:text-green-400">{codexToast}</p>
       )}
-      <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed}
-        scanIsCurrentTag={scanIsCurrentTag} />
+      {/* No car resolved: nothing above to bury them, so they stay at the end. */}
+      {!vehicle && (
+        <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed}
+          scanIsCurrentTag={scanIsCurrentTag} />
+      )}
     </div>
   );
 }
