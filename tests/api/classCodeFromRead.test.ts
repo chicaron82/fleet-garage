@@ -52,3 +52,16 @@ describe("Effie's register proposals", () => {
     for (const name of ['XC60', 'RAV4', 'Versa', 'Model Y']) expect(modelNotCode(name)).toBe(name);
   });
 });
+
+// Pass two on ORA: Effie's proposals stored her colour verbatim, never through the tag table.
+import { colourNotCode } from '../../api/_lib/effie/holdExecutors';
+describe("Effie's register proposal colour", () => {
+  it('⭐ expands a raw tag code the way the reader does', () => {
+    expect(colourNotCode('ORA')).toBe('Orange');
+    expect(colourNotCode('BLA')).toBe('Black');
+  });
+  it('leaves a word, and an unknown code, as given', () => {
+    expect(colourNotCode('Blue')).toBe('Blue');
+    expect(colourNotCode('TAN')).toBe('TAN');
+  });
+});

@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describeVehicle } from '../vehicleSummary.js';
 import { lookupVehicleClass } from '../vehicleClassCodex.js';
+import { normalizeTagColour } from '../tagColour.js';
 import { resolveVehicleRow, toVehicleFact } from '../effieHelpers.js';
 import {
   buildHoldProposal,
@@ -85,6 +86,12 @@ export function modelNotCode(model: string | undefined): string {
   return lookupVehicleClass(m)?.model ?? m;
 }
 
+/** The colour as a word, even when Effie passed the raw tag code: expands exactly as the key-tag
+ *  reader does (ORA → Orange, 2026-09-25), and anything unknown passes through untouched. */
+export function colourNotCode(color: string | undefined): string {
+  return normalizeTagColour(`${color}`.trim()) ?? '';
+}
+
 export async function executeProposeRegisterHold(
   supabase: SupabaseClient,
   input: {
@@ -118,7 +125,7 @@ export async function executeProposeRegisterHold(
       // A known class code handed over as the model is the code (0AN391's "CM3L", 2026-09-25).
       model: modelNotCode(input.model),
       year: Number(input.year),
-      color: `${input.color}`.trim(),
+      color: colourNotCode(input.color),
     },
     (input.hold_type ?? 'damage').toLowerCase(),
     input.damage_description ?? '',
@@ -234,7 +241,7 @@ export async function executeProposeRegisterVehicle(
       // A known class code handed over as the model is the code (0AN391's "CM3L", 2026-09-25).
       model: modelNotCode(input.model),
       year: Number(input.year),
-      color: `${input.color}`.trim(),
+      color: colourNotCode(input.color),
     },
     isTesla,
   );
