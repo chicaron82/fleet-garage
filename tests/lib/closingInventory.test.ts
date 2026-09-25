@@ -147,6 +147,7 @@ describe('sale, turnback and buy-back are not written up', () => {
   it('names which kind, for the skip card\'s own words', () => {
     expect(exclusionReason([{ holdType: 'sale_car', disposition: 'turnback' }])).toBe('Turnback');
     expect(exclusionReason([{ holdType: 'sale_car', disposition: 'buyback' }])).toBe('Buy-back');
+    expect(exclusionReason([{ holdType: 'sale_car', disposition: 'salvage' }])).toBe('Salvage');
     expect(exclusionReason([{ holdType: 'sale_car', disposition: 'sale' }])).toBe('Sale car');
   });
 

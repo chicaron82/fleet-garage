@@ -87,6 +87,11 @@ describe('holdBadgeConfig', () => {
       expect(holdBadgeConfig(['sale_car'], null, 'buyback').label).toBe('🏷️ BB');
     });
 
+    // Aaron, 2026-09-25, LUR337: *"Damaged. Assessed and too much to fix. Going for salvage."*
+    it('shows Salvage for a car going to salvage', () => {
+      expect(holdBadgeConfig(['sale_car'], null, 'salvage').label).toBe('🏷️ Salvage');
+    });
+
     // ⚠️ HIS EXPLICIT CALL — *"Keep the sale unchanged. Only change TB/BB."* These three must stay
     // byte-identical to the pre-2026-09-15 badge, so a plain sale car reads exactly as it always did.
     it('leaves a plain sale car unchanged — explicit, null, and unrecognised alike', () => {

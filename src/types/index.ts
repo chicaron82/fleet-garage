@@ -357,7 +357,7 @@ export type MechanicalSubType =
 /** Which kind of departure a `sale_car` hold is. ⚠️ A LABEL ONLY — all three behave identically
  *  (don't clean, don't write up in the closing inventory) and NOTHING branches on the value.
  *  See lib/disposition for why that is the design rather than an omission. */
-export type Disposition = 'sale' | 'turnback' | 'buyback';
+export type Disposition = 'sale' | 'turnback' | 'buyback' | 'salvage';
 
 export const DETAIL_REASON_LABELS: Record<DetailReason, string> = {
   'too-dirty': 'Too dirty',

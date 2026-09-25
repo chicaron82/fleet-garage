@@ -36,6 +36,12 @@ describe('StatusBadge — turnbacks and buy-backs are distinguishable', () => {
     expect(screen.getByText('🏷️ BB')).toBeTruthy();
   });
 
+  // Aaron, 2026-09-25: the fourth kind of departure, LUR337 going for salvage after the July hail.
+  it('⭐ and a salvage car reads Salvage', () => {
+    render(<StatusBadge status="SALE_CAR" disposition="salvage" />);
+    expect(screen.getByText('🏷️ Salvage')).toBeTruthy();
+  });
+
   // ⚠️ His explicit scope — *"Keep the sale unchanged. Only change TB/BB."*
   it('⚠️ a plain sale car is untouched, with or without an explicit disposition', () => {
     const { unmount } = render(<StatusBadge status="SALE_CAR" disposition="sale" />);

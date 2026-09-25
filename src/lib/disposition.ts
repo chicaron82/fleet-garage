@@ -20,15 +20,21 @@ import type { Disposition } from '../types';
 //
 // ⚠️ SO: if you are about to write `if (disposition === 'turnback')`, stop and go ask what a
 // turnback actually is. Do not infer one from the name.
+//
+// ⭐ SALVAGE, the fourth (Aaron, 2026-09-25): LUR337, a '26 Kicks with hail damage to the windshield,
+// hood and roof from July. *"Damaged. Assessed and too much to fix. Going for salvage."* It's another
+// car leaving and not coming back, so it's another name for the same behaviour (don't clean, don't
+// write up) and not a new hold type.
 
 /** Ordered as they appear on the form: the common one first. */
-export const DISPOSITIONS: readonly Disposition[] = ['sale', 'turnback', 'buyback'];
+export const DISPOSITIONS: readonly Disposition[] = ['sale', 'turnback', 'buyback', 'salvage'];
 
 /** The tile's own shorthand — the letters he would write on a key tag. */
 export const DISPOSITION_LABELS: Record<Disposition, string> = {
   sale:     'Sale',
   turnback: 'TB',
   buyback:  'BB',
+  salvage:  'Salvage',
 };
 
 /** Spelled out, for anywhere with room (a hold record, an export). */
@@ -36,6 +42,7 @@ export const DISPOSITION_LONG: Record<Disposition, string> = {
   sale:     'Sale car',
   turnback: 'Turnback',
   buyback:  'Buy-back',
+  salvage:  'Salvage',
 };
 
 export function isDisposition(v: string | null | undefined): v is Disposition {

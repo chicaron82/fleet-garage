@@ -107,7 +107,7 @@ export interface ActiveHold {
 }
 
 /**
- * ⚠️ NOT WRITTEN UP AT ALL: sale, turnback and buy-back.
+ * ⚠️ NOT WRITTEN UP AT ALL: sale, turnback, buy-back and salvage.
  *
  * ⭐ Aaron: *"sale cars aren't written up in inventory. the one writing it down wasn't trained
  * properly"* — the `FS · for sale` row on his Sept 1 sheet is somebody else's mistake. And the rule
@@ -131,6 +131,7 @@ export function exclusionReason(holds: readonly ActiveHold[]): string | null {
   const d = sale.disposition;
   if (isDisposition(d) && d === 'turnback') return 'Turnback';
   if (isDisposition(d) && d === 'buyback') return 'Buy-back';
+  if (isDisposition(d) && d === 'salvage') return 'Salvage';
   return 'Sale car';
 }
 

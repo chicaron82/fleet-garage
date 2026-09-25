@@ -208,7 +208,7 @@ export function NewHoldDetailsSection({ h, cameraInputRef, galleryInputRef }: Pr
             ))}
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            All three are treated the same — {DISPOSITION_LONG[h.disposition].toLowerCase()} is just what it's called.
+            All four are treated the same — {DISPOSITION_LONG[h.disposition].toLowerCase()} is just what it's called.
           </p>
         </div>
       )}

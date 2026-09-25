@@ -10,14 +10,14 @@ import {
 // under sale car when flagging".
 
 describe('the three names for one behaviour', () => {
-  it('offers exactly sale, turnback and buyback, common one first', () => {
-    expect(DISPOSITIONS).toEqual(['sale', 'turnback', 'buyback']);
+  it('offers exactly sale, turnback, buyback and salvage, common one first', () => {
+    expect(DISPOSITIONS).toEqual(['sale', 'turnback', 'buyback', 'salvage']);
   });
 
   // ⭐ TB / BB rather than "Turnback" / "Buy-back": those are the letters he would write on a key
   // tag, and a tile in his own shorthand reads faster than one in mine.
   it('labels the chips in his shorthand', () => {
-    expect(DISPOSITION_LABELS).toEqual({ sale: 'Sale', turnback: 'TB', buyback: 'BB' });
+    expect(DISPOSITION_LABELS).toEqual({ sale: 'Sale', turnback: 'TB', buyback: 'BB', salvage: 'Salvage' });
   });
 
   it('spells them out where there is room', () => {
@@ -43,11 +43,12 @@ describe('a sale_car hold with no disposition', () => {
   it('names the ones it knows', () => {
     expect(describeDisposition('turnback')).toBe('Turnback');
     expect(describeDisposition('buyback')).toBe('Buy-back');
+    expect(describeDisposition('salvage')).toBe('Salvage');
   });
 });
 
 describe('isDisposition', () => {
-  it('accepts the three and nothing else', () => {
+  it('accepts the four and nothing else', () => {
     for (const d of DISPOSITIONS) expect(isDisposition(d)).toBe(true);
     for (const bad of [null, undefined, '', 'SALE', 'turn-back', 'buy back', 'sale_car']) {
       expect(isDisposition(bad)).toBe(false);
