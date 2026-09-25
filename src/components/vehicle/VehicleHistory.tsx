@@ -88,7 +88,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
         <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
           {vehicle.unitNumber ?? <span className="text-gray-400 italic">Unit # pending</span>}
         </span>
-        <StatusBadge status={vehicle.status} />
+        <StatusBadge status={vehicle.status} disposition={h.saleHold?.disposition} />
 
         <CohortNav cohort={cohort} vehicleId={vehicleId} onOpenVehicle={onOpenVehicle} />
       </nav>
@@ -176,7 +176,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
               )}
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <StatusBadge status={vehicle.status} />
+              <StatusBadge status={vehicle.status} disposition={h.saleHold?.disposition} />
               {streak >= 2 && (
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                   streak >= 3

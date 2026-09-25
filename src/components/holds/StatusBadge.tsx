@@ -36,9 +36,9 @@ export function StatusBadge({ status, holdTypes, mechanicalSubType, disposition 
   // existed. Recomputed here when a disposition is supplied — still through `holdBadgeConfig`, so the
   // "SALE_CAR borrows its label, it does not get its own copy" rule above survives intact.
   //
-  // ⚠️ KNOWN GAP, CHOSEN NOT MISSED: `VehicleHistory` renders this badge from `vehicle.status` with no
-  // hold in scope, so the vehicle record still reads "Sale Car" for a TB. Aaron scoped it 2026-09-15 —
-  // *"Hold list can still say TB/BB"*. Pass `disposition` there too if the record ever needs to agree.
+  // `VehicleHistory` passes its sale hold's disposition too (Aaron, 2026-09-25). Until then the vehicle
+  // header read "Sale Car" while the hold card underneath said "Salvage" (LUR337). That gap was scoped
+  // out on 09-15 ("Hold list can still say TB/BB"), and salvage made it worth closing.
   const saleConfig =
     status === 'SALE_CAR' && disposition && disposition !== 'sale'
       ? { ...config, label: holdBadgeConfig(['sale_car'], null, disposition).label }
