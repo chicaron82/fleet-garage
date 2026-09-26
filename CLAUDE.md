@@ -546,6 +546,15 @@ the *fix* twice without proving it.
 > and `types/index` (clean moves). Keep all new tests in `tests/` — this rule has
 > needed re-enforcing twice now, so don't co-locate "just this one."
 
+## Writing data — a write that fails must SAY so
+
+A context write that fails **throws** (or returns `false`); it never updates local state as if it
+landed, and it never invents an id for a row the DB refused. Every tap site runs it through
+`useWriteGuard` (`src/hooks/useWriteGuard.ts`) and keeps the form (and what he typed) open on failure.
+⚠️ This defect has now shipped FIVE times (Reflections 61, 62, `381d708` ×2, and the 09-24 fault
+writes: a failed fault insert put a phantom fault on the card, and "Reopen instead" fired into a
+`void`; fixed `afee213`). A new writer is checked against this rule before it ships, not after.
+
 ## Writing data — the submit lock
 
 Insert-shaped writes (anything that mints a fresh row id) go through
