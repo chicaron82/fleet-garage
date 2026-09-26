@@ -49,6 +49,22 @@ export function resolveActiveLog(
   return recentPrimary.date >= latestBackfill.date ? recentPrimary : latestBackfill;
 }
 
+/**
+ * Which day the VSA strip is about: the newest of the last full washbay log and HIS last handoff.
+ *
+ * ⭐ Aaron, 2026-09-25, at dinner: *"the opening 6.2/hr why is it last Friday's date?"* The strip was
+ * anchored on washbay logs WITH page counts, i.e. a closer's full log. Every log since 09-18 was an
+ * opener's carry-over backfill (0/0), so it reached back a week. *"Should we then switch it to shift
+ * numbers since I am not closing for a while?"* His own handoff carries pages, entries, morning hours
+ * and carry-over, which is everything his shift's rate needs.
+ * docs/September/ticket-sidebar-rate-from-his-shift.md
+ */
+export function stripAnchorDate(logDate: string | undefined, handoffDate: string | undefined): string | undefined {
+  if (!logDate) return handoffDate;
+  if (!handoffDate) return logDate;
+  return handoffDate > logDate ? handoffDate : logDate;
+}
+
 export interface ShiftCheckpointLike {
   date: string;
   checkpointType: string;
@@ -69,6 +85,8 @@ export interface VsaProductivityInputs {
   userShiftType: ShiftType | null;
   isPeakSeason: boolean;
   washbayLogs: PrimaryLog[];
+  /** The day the strip is about (stripAnchorDate). Defaults to the active log's date. */
+  anchorDate?: string;
   now?: Date;
 }
 
@@ -95,9 +113,12 @@ export interface VsaProductivity {
  */
 export function deriveVsaProductivity({
   activeLog, offStandardEntries, todayHandoff, shiftCheckpoints,
-  userShiftType, isPeakSeason, washbayLogs, now = new Date(),
+  userShiftType, isPeakSeason, washbayLogs, anchorDate, now = new Date(),
 }: VsaProductivityInputs): VsaProductivity {
-  const recentLogDate = activeLog?.date;
+  const recentLogDate = anchorDate ?? activeLog?.date;
+  // A full log from ANOTHER day says nothing about this one: with the anchor on his handoff day, only
+  // his shift's numbers count.
+  if (activeLog && activeLog.date !== recentLogDate) activeLog = null;
 
   const carsIn = activeLog
     ? (isBackfillLog(activeLog)
@@ -137,14 +158,20 @@ export function deriveVsaProductivity({
 
   const morningAdjustedHours = morningOpHours != null ? Math.max(0.1, morningOpHours - morningOTH / 60) : null;
   const closingAdjustedHours = closingOpHours != null ? Math.max(0.1, closingOpHours - closingOTH / 60) : null;
-  const morningRate = morningCleaned != null && morningAdjustedHours != null ? Math.round((morningCleaned / morningAdjustedHours) * 10) / 10 : null;
+  // ⭐ Carry-over cleared counts toward HIS rate: yesterday's cars his crew got through today, with no
+  // fresh line on today's sheet. (It stays out of `closingStartCount` above, which is sheet-only.)
+  const morningWork = morningCleaned != null ? morningCleaned + (todayHandoff?.carryOverCleared ?? 0) : null;
+  const morningRate = morningWork != null && morningAdjustedHours != null ? Math.round((morningWork / morningAdjustedHours) * 10) / 10 : null;
   const closingRate = closingCleaned != null && closingAdjustedHours != null ? Math.round((closingCleaned / closingAdjustedHours) * 10) / 10 : null;
 
   const hasSplit = morningRate != null && closingRate != null;
-  const resolvedRate = hasSplit && userShiftType
-    ? userShiftType === 'opening' ? morningRate : userShiftType === 'closing' ? closingRate : dailyRate
-    : dailyRate;
-  const resolvedShiftIcon = hasSplit && userShiftType === 'opening' ? '☀️'
+  // His shift alone (no full log that day): the handoff IS the day's number.
+  const shiftOnly = dailyRate == null && morningRate != null;
+  const resolvedRate = shiftOnly ? morningRate
+    : hasSplit && userShiftType
+      ? userShiftType === 'opening' ? morningRate : userShiftType === 'closing' ? closingRate : dailyRate
+      : dailyRate;
+  const resolvedShiftIcon = shiftOnly || (hasSplit && userShiftType === 'opening') ? '☀️'
     : hasSplit && userShiftType === 'closing' ? '🌙' : null;
 
   const recentLabel = recentLogDate === shiftDateStr(0, now)  ? 'Earlier today'

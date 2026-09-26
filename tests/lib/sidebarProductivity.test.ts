@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  resolveActiveLog, deriveVsaProductivity, deriveDriverWeek,
+  resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, stripAnchorDate,
   type PrimaryLog, type BackfillLog,
 } from '../../src/lib/sidebarProductivity';
 import type { HandoffNote } from '../../src/types';
@@ -152,5 +152,47 @@ describe('deriveDriverWeek', () => {
     ];
     expect(deriveDriverWeek(trips, NOW).weekAvgTrips).toBe(2); // (2+1+3)/3
     expect(deriveDriverWeek(trips.slice(0, 3), NOW).weekAvgTrips).toBeNull();
+  });
+});
+
+// ⭐ Aaron, 2026-09-25: "the opening 6.2/hr why is it last Friday's date?" … "Should we then switch it to
+// shift numbers since I am not closing for a while?" The strip anchors on the newer of the last full log
+// and HIS last handoff; on a handoff-only day the rate is his shift's.
+describe('the strip follows his shift', () => {
+  it('⭐ anchors on the newer of the last full log and his last handoff', () => {
+    expect(stripAnchorDate('2026-09-18', '2026-09-25')).toBe('2026-09-25');
+    expect(stripAnchorDate('2026-09-18', '2026-09-10')).toBe('2026-09-18');
+    expect(stripAnchorDate(undefined, '2026-09-25')).toBe('2026-09-25');
+    expect(stripAnchorDate('2026-09-18', undefined)).toBe('2026-09-18');
+  });
+
+  it('⭐ a handoff-only day reads his shift: pages + carry-over, over his morning hours', () => {
+    const r = deriveVsaProductivity({
+      activeLog: log({ date: '2026-06-05' }),           // last full log a week back
+      anchorDate: '2026-06-12',
+      offStandardEntries: [], shiftCheckpoints: [], userShiftType: 'opening', isPeakSeason: false, washbayLogs: [],
+      todayHandoff: handoff({ fullPages: 2, lastPageEntries: 4, carryOverCleared: 2, morningHours: 8 }),
+      now: NOW,
+    });
+    // (2×19 + 4 + 2) / 8 = 44 / 8 = 5.5
+    expect(r.resolvedRate).toBe(5.5);
+    expect(r.resolvedShiftIcon).toBe('☀️');
+    expect(r.recentLogDate).toBe('2026-06-12');
+    expect(r.recentLabel).toBe('Earlier today');
+    expect(r.dailyRate).toBeNull();                   // the week-old full log says nothing about today
+  });
+
+  // His real Friday: last full log 09-18 (the 6.2/hr he asked about); his handoff 09-25 15:00, 2 pages + 18.
+  it('⭐ his 2026-09-25 handoff reads 7.0/hr, not last Friday\'s 6.2', () => {
+    const r = deriveVsaProductivity({
+      activeLog: log({ date: '2026-09-18', fullPages: 4, lastPageEntries: 16, carsRemaining: 2 }),
+      anchorDate: stripAnchorDate('2026-09-18', '2026-09-25'),
+      offStandardEntries: [], shiftCheckpoints: [], userShiftType: 'opening', isPeakSeason: false, washbayLogs: [],
+      todayHandoff: handoff({ loggedAt: '2026-09-25T15:00:59', fullPages: 2, lastPageEntries: 18, teamSize: 2, carryOverCleared: 0 }),
+      now: new Date('2026-09-25T23:40:00'),
+    });
+    expect(r.recentLogDate).toBe('2026-09-25');
+    expect(r.resolvedRate).toBe(7);
+    expect(r.resolvedShiftIcon).toBe('☀️');
   });
 });

@@ -7,8 +7,8 @@ import { usePendingWritesContext } from '../../context/PendingWritesContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { useFleetBalanceContext } from '../../context/FleetBalanceContext';
-import { shiftDayStartISO, shiftDayWindow } from '../../lib/shiftDay';
-import { resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, type BackfillLog } from '../../lib/sidebarProductivity';
+import { shiftDayStartISO, shiftDayWindow, businessDateOf } from '../../lib/shiftDay';
+import { resolveActiveLog, deriveVsaProductivity, deriveDriverWeek, stripAnchorDate, type BackfillLog } from '../../lib/sidebarProductivity';
 import { getNavItemsForRole } from '../../lib/navigation';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { loadSidebarPrefs, saveSidebarPrefs, clearSidebarPrefs, fetchSidebarPrefs, syncSidebarPrefs } from '../../lib/sidebarPrefs';
@@ -46,6 +46,7 @@ export function useSidebar() {
   const [latestBackfill, setLatestBackfill]     = useState<BackfillLog | null>(null);
   const [todayHandoff, setTodayHandoff]         = useState<HandoffNote | null>(null);
   const [userShiftType, setUserShiftType]       = useState<ShiftType | null>(null);
+  const [lastHandoffDate, setLastHandoffDate]   = useState<string | undefined>(undefined);
 
   // ── Washbay backfill loader (VSA/Lead VSA) ──────────────────────────────────
   useEffect(() => {
@@ -58,7 +59,22 @@ export function useSidebar() {
   // Active-log selection + all productivity math live in lib/sidebarProductivity
   // (pure, tested) — this hook owns I/O and wiring only.
   const activeLog = resolveActiveLog(washbayLogs, latestBackfill);
-  const recentLogDate = activeLog?.date;
+
+  // ── HIS latest handoff with page counts: the strip's other anchor (lib/sidebarProductivity) ──
+  useEffect(() => {
+    if (!user || (user.role !== 'VSA' && user.role !== 'Lead VSA')) return;
+    supabase
+      .from('handoff_notes')
+      .select('logged_at')
+      .eq('logged_by', user.id)
+      .or('full_pages.gt.0,last_page_entries.gt.0')
+      .order('logged_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setLastHandoffDate(data?.logged_at ? businessDateOf(data.logged_at as string) : undefined));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recentLogDate = stripAnchorDate(activeLog?.date, lastHandoffDate);
 
   // ── Driver week trips loader ─────────────────────────────────────────────────
   useEffect(() => {
@@ -149,7 +165,7 @@ export function useSidebar() {
   // ── Productivity readouts (pure math in lib/sidebarProductivity) ────────────
   const vsa = deriveVsaProductivity({
     activeLog, offStandardEntries, todayHandoff, shiftCheckpoints,
-    userShiftType, isPeakSeason, washbayLogs,
+    userShiftType, isPeakSeason, washbayLogs, anchorDate: recentLogDate,
   });
   const { tripsToday, weekAvgTrips } = deriveDriverWeek(driverWeekTrips);
   const deltaColor = vsa.delta != null
