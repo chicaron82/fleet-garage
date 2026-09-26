@@ -38,12 +38,6 @@ export type PlateDifference =
   | 'unclear';
 
 /**
- * ⚠️ ADVISORY ONLY. This never writes. Its whole job is to let the scan card ASK
- * ("new plates on this car?") in the one case where the record is the stale half — the forward-only
- * odometer and the plate-authoritative rule both exist because FG's default is to protect a good
- * record from a bad read, and that default stays.
- */
-/**
  * Is `short` exactly `full` with ONE character removed from anywhere?
  *
  * ⚠️ Exactly one, and order-preserving — a single deletion, never a general similarity score. Two
@@ -62,6 +56,12 @@ function isOneCharacterDrop(short: string, full: string): boolean {
   return true;
 }
 
+/**
+ * ⚠️ ADVISORY ONLY. This never writes. Its whole job is to let the scan card ASK
+ * ("new plates on this car?") in the one case where the record is the stale half — the forward-only
+ * odometer and the plate-authoritative rule both exist because FG's default is to protect a good
+ * record from a bad read, and that default stays.
+ */
 export function classifyPlateDifference(
   tagPlate?: string | null,
   recordPlate?: string | null,

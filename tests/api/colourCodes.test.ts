@@ -51,10 +51,16 @@ describe.each(PROMPTS)('%s prompt — colour codes', (_name, prompt) => {
     expect(prompt).toContain(word);
   });
 
-  // ⭐ The RULE matters more than the table: a code not on the list must still resolve, rather than
-  // falling through to "your best full-word reading" and being stored raw. 29 live rows hold a bare
-  // three-letter code today because the old prompt had no rule to fall back on.
-  it('states the first-three-letters RULE, so an unlisted code resolves instead of guessing', () => {
+  // ⚠️⚠️ REVERSED 2026-09-20 (`e03334c`). This test used to pin the opposite: that an unlisted code
+  // "must still resolve" by the first-three-letters rule. That rule is what wrote PLUM onto a blue
+  // Seltos — the letters are the MANUFACTURER'S marketing name, not a colour word. After e03334c
+  // the old assertion still passed (the prompt still says FIRST THREE LETTERS, as a description),
+  // so it guarded nothing while its name taught the retired rule. Now it pins the rule that holds:
+  // an unlisted code comes back AS-IS, and `normalizeTagColour` passes it through untouched.
+  it('reports an unlisted code AS-IS — never expands one "by the rule"', () => {
+    expect(prompt).toMatch(/unlisted 3-letter code: report it AS-IS/);
+    expect(prompt).toMatch(/do NOT guess a colour from the letters/);
+    expect(prompt).not.toMatch(/Expand an unlisted/i);
     expect(prompt).toMatch(/FIRST THREE LETTERS/i);
   });
 
