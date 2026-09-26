@@ -93,7 +93,18 @@ export function useIssues(
 
   const clearIssue = async (issueId: string, notes?: string) => {
     const clearedAt = new Date().toISOString();
-    await writeWithRefresh(() =>
+    // ⚠️ BOTH WRITES CHECKED, AND FAULTS FIRST (ZeeRah's 2026-09-26 line-check — the sixth instance of
+    // "a write that fails must SAY so"). This checked nothing and marked the machine fixed regardless,
+    // and `clearFault` hands the LAST fault to it, so a guarded Clear fell into an unguarded write.
+    // Faults before the machine: a failure then can never leave a machine resolved over an open fault,
+    // and a retry is safe — the fault update only touches faults still open.
+    // docs/ticket-clear-issue-silent-failure.md
+    const { error: faultsError } = await writeWithRefresh(() =>
+      supabase.from('issue_faults').update({ cleared_at: clearedAt, cleared_by: user!.id, clear_note: notes ?? null })
+        .eq('issue_id', issueId).is('cleared_at', null)
+    );
+    if (faultsError) throw new Error('machine clear not saved (faults)');
+    const { error } = await writeWithRefresh(() =>
       supabase.from('facility_issues').update({
         cleared_by: user!.id,
         cleared_at: clearedAt,
@@ -101,11 +112,9 @@ export function useIssues(
         status:     'resolved',
       }).eq('id', issueId)
     );
-    // The machine is fixed → every fault still open on it is fixed with it.
-    await writeWithRefresh(() =>
-      supabase.from('issue_faults').update({ cleared_at: clearedAt, cleared_by: user!.id, clear_note: notes ?? null })
-        .eq('issue_id', issueId).is('cleared_at', null)
-    );
+    if (error) throw new Error('machine clear not saved');
+    // History only, and unchecked exactly as reopenIssue's is: the machine HAS cleared by this point,
+    // so throwing here would tell him "didn't save" about a clear that did.
     await writeWithRefresh(() =>
       supabase.from('issue_events').insert({
         issue_id:   issueId,

@@ -80,9 +80,12 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
     };
   };
 
+  // A machine clear that didn't save keeps the form and his note, and says so — the reopen below has
+  // done this since Reflection 81; the clear was its unguarded sibling (docs/ticket-clear-issue-silent-failure.md).
+  const { writeError: clearError, guard: guardClear } = useWriteGuard();
   const handleConfirmClear = async () => {
     hapticMedium();
-    await onClear(issue.id, clearNote.trim() || undefined);
+    if (!await guardClear(() => onClear(issue.id, clearNote.trim() || undefined), "The clear didn't save — tap it again.")) return;
     setIsClearing(false);
     setClearNote('');
     setEvents(null);
@@ -221,6 +224,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
               Cancel
             </button>
           </div>
+          {clearError && <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{clearError}</p>}
         </div>
       )}
 

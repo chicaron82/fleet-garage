@@ -73,7 +73,7 @@ not a security boundary** — see the RLS note below.
 
 - **Frontend:** React 19 + TypeScript (Strict Mode)
 - **Styling:** Tailwind CSS v4 (with full Dark Mode support)
-- **State:** React Context API — domain-split providers (`VehicleHoldContext`, `WashbayContext`, `IssueContext`, `LostFoundContext`, `FleetBalanceContext`) plus `AuthContext`, `ProfilesContext`, `PreferencesContext`, `ScheduleContext`, `RosterStaffContext`, `ActiveSessionsContext`, `PendingWritesContext`, `ScanRouterContext`, `EffieContext`
+- **State:** React Context API — domain-split providers (`VehicleHoldContext`, `WashbayContext`, `IssueContext`, `LostFoundContext`, `FleetBalanceContext`) plus `AuthContext`, `ProfilesContext`, `PreferencesContext`, `ScheduleContext`, `ActiveSessionsContext`, `PendingWritesContext`, `ScanRouterContext`, `EffieContext`
 - **Backend (BaaS):** Supabase (PostgreSQL + Row Level Security + Storage)
 - **Deployment:** Vercel
 

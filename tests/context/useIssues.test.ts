@@ -196,4 +196,46 @@ describe('a write that did not land is not reported as landed', () => {
     await expect(act(() => result.current.clearFault(f2))).rejects.toThrow();
     expect(result.current.facilityIssues[0].faults).toHaveLength(2);
   });
+
+  // ⭐ The SIXTH instance (ZeeRah's 2026-09-26 line-check): the whole-machine clear checked none of its
+  // writes and marked the machine fixed regardless — and clearing the LAST fault hands off to it, so
+  // the guarded fault Clear fell into the unguarded write at the moment the machine is marked fixed.
+  // docs/ticket-clear-issue-silent-failure.md
+  const downMachine = (faults: unknown[]) => ({ id: 'i-1', branchId: 'YWG', title: 'Auto wash', severity: 'high', reportedById: 'u-1', reportedAt: '2026-08-01', status: 'open', reopenCount: 0, faults });
+  const offline = () => writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { data: null, error: { message: 'offline' } }; });
+
+  it('⭐ a machine clear that fails throws, and the machine stays down with its faults', async () => {
+    const f1 = { id: 'f1', issueId: 'i-1', note: 'Brush', openedAt: '2026-08-24', openedBy: 'u-1' };
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => { result.current.setFacilityIssues([downMachine([f1]) as never]); });
+    offline();
+    await expect(act(() => result.current.clearIssue('i-1', 'Brush motor replaced'))).rejects.toThrow();
+    expect(result.current.facilityIssues[0].status).toBe('open');
+    expect(result.current.facilityIssues[0].faults).toHaveLength(1);
+  });
+
+  it('⭐ clearing the LAST fault surfaces a failed machine clear too', async () => {
+    const f1 = { id: 'f1', issueId: 'i-1', note: 'Brush', openedAt: '2026-08-24', openedBy: 'u-1' };
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => { result.current.setFacilityIssues([downMachine([f1]) as never]); });
+    offline();
+    await expect(act(() => result.current.clearFault(f1))).rejects.toThrow();
+    expect(result.current.facilityIssues[0].status).toBe('open');
+  });
+
+  it('a machine clear whose FAULTS did not clear throws before resolving the machine', async () => {
+    const f1 = { id: 'f1', issueId: 'i-1', note: 'Brush', openedAt: '2026-08-24', openedBy: 'u-1' };
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => { result.current.setFacilityIssues([downMachine([f1]) as never]); });
+    // Only the fault-clear fails — the machine must not be resolved over an open fault.
+    writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => {
+      fn();
+      const updates = (chain.update.mock.calls as unknown as [Record<string, unknown>][]).map(c => c[0]);
+      const faultClear = updates.some(u => 'clear_note' in u) && !updates.some(u => 'status' in u);
+      return faultClear ? { data: null, error: { message: 'offline' } } : { data: null, error: null };
+    });
+    await expect(act(() => result.current.clearIssue('i-1'))).rejects.toThrow();
+    expect(chain.update).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'resolved' }));
+    expect(result.current.facilityIssues[0].status).toBe('open');
+  });
 });
