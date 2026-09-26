@@ -6,6 +6,7 @@ import { daysOpen } from './issueDate';
 import { ShareAction } from '../shared';
 import type { FacilityIssue, IssueSeverity } from '../../types';
 import { IssueFaultList } from './IssueFaultList';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
 
 interface IssueEvent {
   id: string;
@@ -87,9 +88,11 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
     setEvents(null);
   };
 
+  // A reopen that didn't save keeps the form and his words, and says so (Reflection 81).
+  const { writeError: reopenError, guard } = useWriteGuard();
   const handleConfirmReopen = async () => {
     hapticMedium();
-    await onReopen(issue.id, reopenNote.trim() || undefined);
+    if (!await guard(() => onReopen(issue.id, reopenNote.trim() || undefined), "The reopen didn't save — tap it again.")) return;
     setIsReopening(false);
     setReopenNote('');
     setEvents(null);
@@ -252,6 +255,7 @@ export function IssueCard({ issue, cleared = false, onClear, onReopen, getUserNa
               Cancel
             </button>
           </div>
+          {reopenError && <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{reopenError}</p>}
         </div>
       )}
 

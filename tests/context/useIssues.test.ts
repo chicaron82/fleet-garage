@@ -49,7 +49,8 @@ function makeSlice() {
 beforeEach(() => {
   vi.clearAllMocks();
   fromCalls.length = 0;
-  writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { error: null }; });
+  // A saved insert().select('id').single() answers with the new row's id — the fault writer requires it.
+  writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { data: { id: 'f-new' }, error: null }; });
   uploadIssuePhotoMock.mockResolvedValue('https://cdn.test/issue.jpg');
   uploadFaultPhotoMock.mockResolvedValue('https://cdn.test/fault.jpg');
   trailRows = [];
@@ -171,5 +172,28 @@ describe('the double-tap lock on a new fault', () => {
     ]).then(() => undefined));
     const faultInserts = (chain.insert.mock.calls as unknown as [Record<string, unknown>][]).filter(c => 'opened_by' in c[0]);
     expect(faultInserts).toHaveLength(1);
+  });
+});
+
+// ⭐ Reflection 81 (2026-09-25): the fault writes were the "writes that vanish" defect again. A failed
+// insert put a fault on the card under a made-up id; a failed clear or reopen said nothing. They throw
+// now, and the tap sites say "didn't save" (useWriteGuard).
+describe('a write that did not land is not reported as landed', () => {
+  it('⭐ a fault that fails to save throws, and is not added to the machine', async () => {
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    act(() => { result.current.setFacilityIssues([{ id: 'i-1', branchId: 'YWG', title: 'Auto wash', severity: 'high', reportedById: 'u-1', reportedAt: '2026-09-01', status: 'open', reopenCount: 0, faults: [] } as never]); });
+    writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { data: null, error: { message: 'offline' } }; });
+    await expect(act(() => result.current.addFault('i-1', 'Leaking at the joints'))).rejects.toThrow();
+    expect(result.current.facilityIssues[0].faults).toEqual([]);
+  });
+
+  it('a clear that fails throws, and the fault stays on the card', async () => {
+    const { result } = renderHook(() => useIssues(USER, 'YWG'));
+    const f1 = { id: 'f1', issueId: 'i-1', note: 'Brush', openedAt: '2026-08-24', openedBy: 'u-1' };
+    const f2 = { id: 'f2', issueId: 'i-1', note: 'Pipe', openedAt: '2026-09-24', openedBy: 'u-1' };
+    act(() => { result.current.setFacilityIssues([{ id: 'i-1', branchId: 'YWG', title: 'Auto wash', severity: 'high', reportedById: 'u-1', reportedAt: '2026-08-01', status: 'open', reopenCount: 0, faults: [f1, f2] } as never]); });
+    writeWithRefreshMock.mockImplementation(async (fn: () => unknown) => { fn(); return { data: null, error: { message: 'offline' } }; });
+    await expect(act(() => result.current.clearFault(f2))).rejects.toThrow();
+    expect(result.current.facilityIssues[0].faults).toHaveLength(2);
   });
 });

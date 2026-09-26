@@ -34,13 +34,17 @@ export function useIssues(
   /** Write one fault row and put it on the card. Every way a fault comes to exist goes through here. */
   const insertFault = async (issueId: string, note: string, photoUrl: string | null): Promise<void> => {
     const openedAt = new Date().toISOString();
-    const { data } = await writeWithRefresh(() =>
+    const { data, error } = await writeWithRefresh(() =>
       supabase.from('issue_faults').insert({
         issue_id: issueId, note, photo_url: photoUrl, opened_at: openedAt, opened_by: user!.id,
       }).select('id').single()
     );
+    // ⚠️ A fault that didn't save must not appear on the card. It used to, under a made-up id, so
+    // a Clear on it later updated nothing. Throw → the tap site says "didn't save" (useWriteGuard).
+    const id = (data as { id?: string } | null)?.id;
+    if (error || !id) throw new Error('fault not saved');
     const fault: IssueFault = {
-      id: (data as { id?: string } | null)?.id ?? crypto.randomUUID(),
+      id,
       issueId, note, openedAt, openedBy: user!.id, ...(photoUrl ? { photoUrl } : {}),
     };
     setFacilityIssues(prev => prev.map(i => i.id === issueId ? { ...i, faults: [...(i.faults ?? []), fault] } : i));
@@ -66,7 +70,8 @@ export function useIssues(
           photo_url:   photoUrl ?? null,
         })
       );
-      if (!error) {
+      if (error) throw new Error('issue not saved');
+      {
         setFacilityIssues(prev => prev.some(i => i.id === issueId) ? prev : [
           { id: issueId, branchId, title, description, severity, reportedById: user!.id, reportedAt, photoUrl: photoUrl ?? undefined, status: 'open', reopenCount: 0, faults: [] },
           ...prev,
@@ -125,7 +130,7 @@ export function useIssues(
       // A photo of THIS fault rides on its own row; a failed upload still reopens.
       const photoUrl = photo ? await uploadIssueFaultPhoto(photo, issueId) : null;
       const newCount = currentCount + 1;
-      await writeWithRefresh(() =>
+      const { error } = await writeWithRefresh(() =>
         supabase.from('facility_issues').update({
           cleared_by:   null,
           cleared_at:   null,
@@ -133,6 +138,7 @@ export function useIssues(
           reopen_count: newCount,
         }).eq('id', issueId)
       );
+      if (error) throw new Error('reopen not saved');
       await writeWithRefresh(() =>
         supabase.from('issue_events').insert({
           issue_id:   issueId,
@@ -166,17 +172,19 @@ export function useIssues(
     const remaining = (facilityIssues.find(i => i.id === fault.issueId)?.faults ?? []).filter(f => f.id !== fault.id);
     // ⭐ The LAST open fault takes the machine with it — the machine is open while any fault is.
     if (remaining.length === 0) return clearIssue(fault.issueId, note);
-    await writeWithRefresh(() =>
+    const { error } = await writeWithRefresh(() =>
       supabase.from('issue_faults').update({ cleared_at: new Date().toISOString(), cleared_by: user!.id, clear_note: note ?? null })
         .eq('id', fault.id)
     );
+    if (error) throw new Error('fault clear not saved');
     setFacilityIssues(prev => prev.map(i => i.id === fault.issueId ? { ...i, faults: remaining } : i));
   };
 
   const attachFaultPhoto = async (fault: IssueFault, photo: string) => {
     const url = await uploadIssueFaultPhoto(photo, fault.issueId);
-    if (!url) return;
-    await writeWithRefresh(() => supabase.from('issue_faults').update({ photo_url: url }).eq('id', fault.id));
+    if (!url) throw new Error('fault photo not uploaded');
+    const { error } = await writeWithRefresh(() => supabase.from('issue_faults').update({ photo_url: url }).eq('id', fault.id));
+    if (error) throw new Error('fault photo not saved');
     setFacilityIssues(prev => prev.map(i => i.id === fault.issueId
       ? { ...i, faults: (i.faults ?? []).map(f => f.id === fault.id ? { ...f, photoUrl: url } : f) }
       : i));

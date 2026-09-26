@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useIssueContext } from '../../context/IssueContext';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
 import { PhotoError } from '../shared/PhotoError';
 import { daysOpen } from './issueDate';
 import type { FacilityIssue } from '../../types';
@@ -22,6 +23,7 @@ const linkCls = 'text-xs text-gray-400 dark:text-gray-500 hover:text-yellow-600 
 
 export function IssueFaultList({ issue, getUserName }: { issue: FacilityIssue; getUserName: (id: string) => string }) {
   const { addFault } = useIssueContext();
+  const { writeError, guard } = useWriteGuard();
   const faults = issue.faults ?? [];
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState('');
@@ -38,7 +40,7 @@ export function IssueFaultList({ issue, getUserName }: { issue: FacilityIssue; g
             onChange={e => setNote(e.target.value)} className={inputCls} autoFocus />
           <div className="flex gap-2">
             <button type="button" disabled={!note.trim()}
-              onClick={async () => { hapticMedium(); await addFault(issue.id, note.trim()); setNote(''); setAdding(false); }}
+              onClick={async () => { hapticMedium(); if (await guard(() => addFault(issue.id, note.trim()), "That didn't save — tap it again.")) { setNote(''); setAdding(false); } }}
               className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-white text-xs font-semibold transition cursor-pointer disabled:cursor-not-allowed">
               + Add fault
             </button>
@@ -47,6 +49,7 @@ export function IssueFaultList({ issue, getUserName }: { issue: FacilityIssue; g
               Cancel
             </button>
           </div>
+          {writeError && <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{writeError}</p>}
         </div>
       ) : (
         <button type="button" onClick={() => { hapticLight(); setAdding(true); }} className={linkCls}>
@@ -62,6 +65,7 @@ export function IssueFaultList({ issue, getUserName }: { issue: FacilityIssue; g
 function FaultRow({ fault, alone, getUserName }: { fault: IssueFault; alone: boolean; getUserName: (id: string) => string }) {
   const { clearFault, attachFaultPhoto } = useIssueContext();
   const { photoError, takeOne } = usePhotoIntake();
+  const { writeError, guard } = useWriteGuard();
   const [clearing, setClearing] = useState(false);
   const [clearNote, setClearNote] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -71,7 +75,7 @@ function FaultRow({ fault, alone, getUserName }: { fault: IssueFault; alone: boo
     if (!file) return;
     setUploading(true);
     const compressed = await takeOne(file);
-    if (compressed) await attachFaultPhoto(fault, compressed);
+    if (compressed) await guard(() => attachFaultPhoto(fault, compressed), "The photo didn't save — try it again.");
     setUploading(false);
     e.target.value = '';
   };
@@ -112,6 +116,7 @@ function FaultRow({ fault, alone, getUserName }: { fault: IssueFault; alone: boo
           <PhotoError message={photoError} />
         </div>
       )}
+      {writeError && <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{writeError}</p>}
 
       {clearing && (
         <div className="space-y-2">
@@ -119,7 +124,7 @@ function FaultRow({ fault, alone, getUserName }: { fault: IssueFault; alone: boo
             onChange={e => setClearNote(e.target.value)} className={inputCls} autoFocus />
           <div className="flex gap-2">
             <button type="button"
-              onClick={async () => { hapticMedium(); await clearFault(fault, clearNote.trim() || undefined); setClearing(false); }}
+              onClick={async () => { hapticMedium(); if (await guard(() => clearFault(fault, clearNote.trim() || undefined), "That didn't save — tap it again.")) setClearing(false); }}
               className="flex-1 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition cursor-pointer">
               ✓ Clear this fault
             </button>
