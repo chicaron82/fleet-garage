@@ -177,7 +177,10 @@ const CODEX: Record<string, VehicleClass> = {
   CTAC: { make: 'Toyota', model: 'Tacoma' },     // 2 cars, class O6
   CCMR: { make: 'Toyota', model: 'Camry' },      // 1 car,  class E6
   // Chevrolet
-  CTAA: { make: 'Chevrolet', model: 'Trax' },    // 2 cars, class B5
+  // ⚠️ Was 'Trax' — wrong. Every CTAA car in FG is a Trailblazer in B5 (Trax is B4), and his own
+  // August teaching said Trailblazer too. Aaron, 2026-09-25: *"whichever is a confirmed trailblazer in FG
+  // zero disagreements use that for now … whoever is entering the code isn't being accurate."*
+  CTAA: { make: 'Chevrolet', model: 'Trailblazer' }, // 4 cars, all B5, zero disagreements
   CBRS: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
   CTBA: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
   // Buick

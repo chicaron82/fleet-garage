@@ -40,6 +40,8 @@ describe('CTAV names two cars, so FG never guesses it', () => {
   it('leaves the other Chevy codes alone', () => {
     expect(lookupVehicleClass('CTXF')).toEqual({ make: 'Chevrolet', model: 'Trax' });
     expect(lookupVehicleClass('CTBA')).toEqual({ make: 'Chevrolet', model: 'Trailblazer' });
+    // Corrected 2026-09-25: CTAA was mapped to Trax; all 4 CTAA cars are B5 Trailblazers.
+    expect(lookupVehicleClass('CTAA')).toEqual({ make: 'Chevrolet', model: 'Trailblazer' });
   });
 });
 
