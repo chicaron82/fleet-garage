@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { summarizeLookup, type HoldFact, type VehicleLookupResult } from '../vehicleSummary.js';
 import { plateCandidates } from '../platePrefix.js';
 import { normalizePlate, resolveVehicleRow, toVehicleFact, SCHED_TZ, scheduleDateLabel } from '../effieHelpers.js';
-import { lookupVehicleClass } from '../vehicleClassCodex.js';
+import { lookupVehicleClass, isAmbiguousClassCode } from '../vehicleClassCodex.js';
 
 /** Is this plate on the Geotab install watchlist and still pending? Keyed by the
  *  MB-corrected plate, matching how the sheet plates are stored (see migration 095). */
@@ -114,6 +114,14 @@ export async function executeLookupVehicleLocation(supabase: SupabaseClient, raw
 
 /** Read-only: resolve a key-tag class code to make/model (pure codex lookup, no I/O). */
 export function executeLookupVehicleClass(input: { code?: string }): string {
+  // A code that names two cars (CTAV, 2026-09-25) is not unknown: say so, so she asks which one.
+  if (isAmbiguousClassCode(input.code)) {
+    return JSON.stringify({
+      ok: false,
+      code: input.code ?? '',
+      reason: 'This code is used for more than one model (e.g. Trax and Trailblazer). Ask the user which car it is.',
+    });
+  }
   const vc = lookupVehicleClass(input.code);
   if (!vc) {
     return JSON.stringify({

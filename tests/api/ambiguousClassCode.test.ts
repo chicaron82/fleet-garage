@@ -42,3 +42,13 @@ describe('CTAV names two cars, so FG never guesses it', () => {
     expect(lookupVehicleClass('CTBA')).toEqual({ make: 'Chevrolet', model: 'Trailblazer' });
   });
 });
+
+// Pass two: Effie's code lookup is the other door. She must hear "two cars — ask", not "unknown".
+import { executeLookupVehicleClass } from '../../api/_lib/effie/vehicleExecutors';
+describe("Effie's code lookup", () => {
+  it('⭐ tells her CTAV is more than one model', () => {
+    const r = JSON.parse(executeLookupVehicleClass({ code: 'CTAV' }));
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/more than one model/);
+  });
+});
