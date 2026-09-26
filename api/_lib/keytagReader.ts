@@ -21,7 +21,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './keytagEscalation.js';
 import { normalizeOwning } from './owningArea.js';
 import { normalizeVinLast9 } from './vinLast9.js';
-import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, isAmbiguousClassCode, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
 import { resolveRentalClass } from './classPin.js';
 import type { KeytagRead } from './keytagRead.js';
 import { priceUsage } from './apiSpend.js';
@@ -291,7 +291,7 @@ export async function readKeytagPhoto(
   // The curated codex is tried first (in toKeytagRead). Only when it MISSES do we consult the
   // codes Aaron has taught — so a taught row fills a gap and can never silently override a
   // vetted mapping.
-  if (!read.make && read.classCode) {
+  if (!read.make && read.classCode && !isAmbiguousClassCode(read.classCode)) {
     const key = normalizeClassCode(read.classCode);
     const { data: taught } = await supabase
       .from('vehicle_class_codex').select('make, model').eq('code', key).maybeSingle();
@@ -300,7 +300,8 @@ export async function readKeytagPhoto(
   // Rental-class LEARN + INFER. ⭐⭐ A HUMAN PIN OUTRANKS THE TAG (migration 127) — the rule is a
   // pure function in classPin.ts, because a rule that only exists inline in a handler is a rule
   // nothing can test. Best-effort: learning must never break the read.
-  if (read.classCode) {
+  // An ambiguous code (CTAV) names two cars, so it neither infers a class nor learns one. The tag's printed class stands.
+  if (read.classCode && !isAmbiguousClassCode(read.classCode)) {
     const codeKey = normalizeClassCode(read.classCode);
     try {
       const { data: known } = codeKey

@@ -11,7 +11,7 @@
 // fleet, the incomplete read is the NORMAL case, not the edge case. Nothing here guesses a make
 // or model (the codex's no-guessing rule stands); it just refuses to discard what was read.
 import type { KeytagRead } from '../../api/_lib/keytagRead';
-import { normalizeClassCode } from '../../api/_lib/vehicleClassCodex';
+import { normalizeClassCode, isAmbiguousClassCode } from '../../api/_lib/vehicleClassCodex';
 import { normalizeOwning } from '../../api/_lib/owningArea';
 import type { ScannedIdentity } from '../types';
 
@@ -61,5 +61,6 @@ export function canRegisterPartially(read: KeytagRead, plate: string): boolean {
 /** The tag printed a class code and the codex couldn't resolve it — the signal worth surfacing
  *  to the operator ("here's WHY it won't register") and logging so codes self-report. */
 export function isUnknownClassCode(read: KeytagRead): boolean {
-  return !!read.classCode?.trim() && !read.make;
+  // An AMBIGUOUS code (CTAV) is known, not unknown: it names two cars, so it is never taught or logged.
+  return !!read.classCode?.trim() && !read.make && !isAmbiguousClassCode(read.classCode);
 }

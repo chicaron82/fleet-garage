@@ -1,4 +1,4 @@
-import { lookupVehicleClass, normalizeClassCode } from '../../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, normalizeClassCode, isAmbiguousClassCode } from '../../../api/_lib/vehicleClassCodex';
 
 // The four characters off the tag's corner, shown so he can check them BEFORE they are stored.
 //
@@ -54,6 +54,8 @@ export function RegisterClassCode({ code, onChange, teaching }: {
             stacked on the first, and he may have corrected them deliberately. */}
         {!code.trim()
           ? 'Left blank, FG learns nothing from this tag — safer than learning it wrong.'
+          : isAmbiguousClassCode(code)
+            ? `${normalizeClassCode(code)} is used for more than one model — FG won't guess. Set the model from the car.`
           : teaching
             ? `New to FG — registering teaches ${normalizeClassCode(code)} = this make and model. Check it against the tag.`
             : known

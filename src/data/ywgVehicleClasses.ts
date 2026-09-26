@@ -43,7 +43,7 @@ export const YWG_VEHICLE_CLASSES: YWGVehicleEntry[] = [
   { unit: '2148476', plate: '261PDU',  make: 'Toyota',     model: 'Corolla',     year: 2026, color: 'White',  rentalClass: 'E6', owningBranch: 'SASK 08190'       },
   { unit: '5420229', plate: 'LFJ331',  make: 'Nissan',     model: 'Sentra',             year: 2025, color: 'Black',  rentalClass: 'C',  owningBranch: 'WINNIPEG 08199'   },
   { unit: '5422928', plate: 'LUR278',  make: 'Volkswagen', model: 'Jetta',              year: 2025, color: 'Gray',   rentalClass: 'C',  owningBranch: 'WINNIPEG 08199'   },
-  { unit: '5429964', plate: 'LUR444',  make: 'Unknown',    model: 'CTAV',               year: 2026, color: 'Gray',   rentalClass: 'B4', owningBranch: 'WINNIPEG 08199'   },
+  { unit: '5429964', plate: 'LUR444',  make: 'Chevrolet',  model: 'Trax',               year: 2026, color: 'Gray',   rentalClass: 'B4', owningBranch: 'WINNIPEG 08199'   },
   { unit: '5429766', plate: 'LUR474',  make: 'Hyundai',    model: 'Venue',              year: 2026, color: 'White',  rentalClass: 'B4', owningBranch: 'WINNIPEG 08199'   },
   { unit: '5426879', plate: 'LUR395',  make: 'Kia',        model: 'Seltos',             year: 2026, color: 'Black',  rentalClass: 'B5', owningBranch: 'WINNIPEG 08199'   },
   { unit: '5420757', plate: 'LFJ346',  make: 'Hyundai',    model: 'Venue',              year: 2025, color: 'Gray',   rentalClass: 'B4', owningBranch: 'WINNIPEG 08199'   },

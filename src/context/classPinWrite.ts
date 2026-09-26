@@ -1,5 +1,5 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
-import { classPinContradiction, type ClassPinContradiction } from '../../api/_lib/vehicleClassCodex';
+import { classPinContradiction, isAmbiguousClassCode, type ClassPinContradiction } from '../../api/_lib/vehicleClassCodex';
 
 // PIN a class code → rental class mapping, because a person just decided it.
 //
@@ -38,6 +38,8 @@ export async function pinClassMapping(
   // BOTH or nothing. A code with no class teaches nothing, and a class with no code has no key —
   // writing either would put a half-row in a table the scanner reads as authority.
   if (!code || !cls) return { pinned: false };
+  // A code that names two cars (CTAV) cannot carry one class: pinning it stamped B5 on every Trax.
+  if (isAmbiguousClassCode(code)) return { pinned: false };
 
   // ⭐⭐ REFUSE A PIN THE CODEX CONTRADICTS. On 2026-08-28 this exact path pinned `CSPT → E6` from a
   // Sportage hybrid wearing a mis-printed ICE tag — true of that car, false of the eleven petrol

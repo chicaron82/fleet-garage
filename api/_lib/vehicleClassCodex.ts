@@ -91,7 +91,6 @@ const CODEX: Record<string, VehicleClass> = {
   CQRS: { make: 'Chevrolet', model: 'Equinox' },
   CMBU: { make: 'Chevrolet', model: 'Malibu' },
   CMLT: { make: 'Chevrolet', model: 'Malibu LT' },
-  CTAV: { make: 'Chevrolet', model: 'Trailblazer' },
   CTLT: { make: 'Chevrolet', model: 'Traverse' }, // surfaced live 2026-07-17 (Aaron) — L2 class
   CSBZ: { make: 'Chevrolet', model: 'Suburban' }, // surfaced live 2026-07-20 (Aaron, unit 5426945 / LUR375, rental class T6) — full-size SUV, T6 shares with Expedition
   // Tesla
@@ -438,7 +437,25 @@ export function classPinContradiction(
 }
 
 export function isTeachableClassCode(code: string | undefined | null): boolean {
-  return normalizeClassCode(code).length === 4;
+  return normalizeClassCode(code).length === 4 && !isAmbiguousClassCode(code);
+}
+
+/**
+ * ⚠️⚠️ CODES THAT NAME MORE THAN ONE CAR. FG never guesses these, never learns them, never pins a
+ * class to them, and never lists them as "unknown, please teach me": each of those would turn the
+ * code back into a guess.
+ *
+ * ⭐ CTAV (Aaron, 2026-09-25): 16 of 17 CTAV cars in FG were Trax (B4), yet the codex said Trailblazer
+ * and a taught row said Trax. *"our fleet manager flip flips between them (honestly i think she just
+ * picks one without actually checking if its accurate)"*. And registering one Trailblazer that night
+ * PINNED CTAV → B5, which would have stamped B5 on every Trax scanned after it. For these codes the
+ * car in front of him is the authority, and the tag's own printed class still reads.
+ * docs/September/ticket-ctav-is-two-cars.md
+ */
+export const AMBIGUOUS_CLASS_CODES: ReadonlySet<string> = new Set(['CTAV']);
+
+export function isAmbiguousClassCode(code: string | undefined | null): boolean {
+  return AMBIGUOUS_CLASS_CODES.has(normalizeClassCode(code));
 }
 
 export function lookupVehicleClass(code: string | undefined | null): VehicleClass | null {
