@@ -57,13 +57,15 @@ export function holdEmoji(holdTypes: readonly HoldType[], mechanicalSubType?: Me
 }
 
 /**
- * ⭐ `disposition` distinguishes the three kinds of sale car on the badge (Aaron, 2026-09-15):
+ * ⭐ `disposition` distinguishes the kinds of sale car on the badge (Aaron, 2026-09-15):
  * *"How bout having turn backs and buy backs be a little distinguishable. LUR333 is a turn back,
  * maybe show TB with the sale flag?"* The sub-type has existed since migration 136 and `a5e9fc7`;
- * only the badge never read it, so all three rendered identically as `🏷️ Sale Car`.
+ * only the badge never read it, so they all rendered identically as `🏷️ Sale Car`. Salvage became
+ * the fourth on 2026-09-25 (`26c7326`) and needed no change here — see below.
  *
  * ⚠️ A PLAIN SALE IS UNCHANGED — his call: *"Keep the sale unchanged. Only change TB/BB."* So `sale`,
- * null, and anything unrecognised all stay `🏷️ Sale Car`; only turnback and buyback move. The word
+ * null, and anything unrecognised all stay `🏷️ Sale Car`; every OTHER disposition moves — TB, BB,
+ * and Salvage — because the branch reads `DISPOSITION_LABELS` rather than naming them. The word
  * still comes from a label list rather than being typed here (`DISPOSITION_LABELS`), so the badge
  * owns neither its glyph nor its word — the rule that stopped "Missing Assets" drifting.
  *

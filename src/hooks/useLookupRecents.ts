@@ -51,7 +51,12 @@ export function useLookupRecents(enabled: boolean) {
     return () => { cancelled = true; };
   }, [enabled, reloads]);
 
-  /** Remember a car he found. An upsert on (user, car): looking it up again moves it to the top. */
+  /** Remember a car he found. An upsert on (user, car): looking it up again moves it to the top.
+   *
+   * ⚠️ FAILS SILENTLY ON PURPOSE — the one deliberate exception to CLAUDE.md's "a write that fails must
+   * say so". A recent is a convenience COPY of a look-up he already completed: nothing he typed or
+   * decided is lost if it doesn't save, only a shortcut. A toast here would interrupt the look-up
+   * that DID work to report a miss he has no reason to act on. */
   const record = useCallback(async (vehicleId: string) => {
     if (!enabled) return;
     const uid = await currentUserId();
