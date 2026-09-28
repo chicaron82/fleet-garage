@@ -115,10 +115,11 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   // the same claim as reading the tag: same person, same car, same moment. `recordSighting` has no
   // source field for precisely that reason, so this is honest rather than a shortcut.
   //
-  // A bare plate is a legitimate KeytagRead with one field. Everything downstream already degrades
-  // correctly: `resolveKeytagScan` matches it, `newVehicleFromRead` returns null (too partial to
-  // mint a car), and `canRegisterPartially` offers "Register — add make/model". Degrade, never
-  // dead-end.
+  // A bare plate is a legitimate KeytagRead with one field. `resolveKeytagScan` matches it,
+  // `newVehicleFromRead` returns null (too partial to mint a car), and — ⚠️ CORRECTED 2026-09-28 —
+  // `canRegisterPartially` does NOT fire (it needs a unit number too). This comment claimed it did,
+  // while a typed unknown plate dead-ended at Lost & Found. `scanRouterActions` now offers
+  // "Register — fill in the rest" for a plate alone. Degrade, never dead-end.
   const onManualPlate = useCallback(async (typed: string) => {
     // ⚠️ NOT `correctManitobaPlate`. That corrector is a safety net UNDER A VISION READ — its own
     // header says so. These characters were typed by Aaron with his thumbs; they are not a misread,

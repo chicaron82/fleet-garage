@@ -62,7 +62,7 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
     ];
   }
 
-  // New to the fleet → register (only if the tag read enough), else just Lost & Found.
+  // New to the fleet → register: pre-filled with everything read, or with just the plate when that's all there is.
   const actions: ScanAction[] = [];
   // The tag was read completely enough to register — so carry EVERY field through, not just the
   // plate. Passing `prefill` alone made the operator retype make/model/unit/year that FG had
@@ -83,6 +83,16 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
     const scanned = scannedFromRead(read, plate);
     actions.push({ kind: 'register', label: 'Register — add make/model', icon: '➕', screen: { name: 'register-vehicle', prefill: plate, scanned } });
     actions.push({ kind: 'register-and-flag', label: 'Register & flag — add make/model', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate, scanned } });
+  } else {
+    // ⭐⭐ A PLATE ALONE STILL GETS A WAY IN (Aaron, 2026-09-28): he typed 458PEW, a car FG has never
+    // seen, and got only Lost & Found — *"Doesn't give me the option to register it manually. I no
+    // longer have the keytag for it."* The July guard here said a bare plate must never route to
+    // register "so nothing writes an empty record". But the form itself refuses to save without unit,
+    // plate, make, model, year and colour (RegisterVehicleForm `canSubmit`), so an empty record was
+    // never possible. The guard only removed the one door he needed when the tag is gone.
+    // The plate is pre-filled; everything else is his to type, and the label says so.
+    actions.push({ kind: 'register', label: 'Register — fill in the rest', icon: '➕', screen: { name: 'register-vehicle', prefill: plate } });
+    actions.push({ kind: 'register-and-flag', label: 'Register & flag — fill in the rest', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: plate } });
   }
   actions.push(logLostFound);
   return actions;

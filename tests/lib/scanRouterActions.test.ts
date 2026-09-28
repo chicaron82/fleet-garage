@@ -95,9 +95,16 @@ describe('scanRouterActions', () => {
     expect(s.model).toBe('');
   });
 
-  it('genuinely too partial (no unit#) → Lost & Found only (never a broken register route)', () => {
-    const read: KeytagRead = { plate: 'LUR777' }; // plate alone is not a car record
-    expect(kinds(read)).toEqual(['lnf']);
+  // ⭐⭐ REVERSED 2026-09-28. This used to pin "a plate alone → Lost & Found only", to keep a register
+  // route from writing an empty record. The form already refuses to save without unit, plate, make,
+  // model, year and colour, so that was never possible, and the guard dead-ended Aaron on 458PEW, a
+  // car whose tag he no longer had: *"Doesn't give me the option to register it manually."*
+  it('⭐⭐ a plate alone still offers register — plate pre-filled, the rest his to type', () => {
+    const read: KeytagRead = { plate: '458PEW' };
+    expect(kinds(read)).toEqual(['register', 'register-and-flag', 'lnf']);
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1).find(a => a.kind === 'register')!;
+    expect(reg.label).toMatch(/fill in the rest/i);                  // it says what's left to do
+    expect(reg.screen).toEqual({ name: 'register-vehicle', prefill: '458PEW' });
   });
 
   it('never offers a vehicle action (view/flag/trip) for a car FG does not know', () => {
