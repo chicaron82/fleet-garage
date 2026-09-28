@@ -92,9 +92,14 @@ export function makeAddHold({ allVehicles, activeBranch, userName, userEmployeeI
       // is added locally unconditionally below. The vehicle status flip is a derived
       // follow-up: gate its optimistic update on the write so a failed `vehicles`
       // update (no realtime channel — won't self-heal) can't diverge from the DB.
-      const { error: vehErr } = await writeWithRefresh(() =>
+      // ⚠️ One retry. If this second write is lost, the hold exists but the car still reads CLEAR —
+      // and the Holds list lists cars by status, so the hold is INVISIBLE there (LUR479 / LUR538,
+      // 2026-09-28, 15 days). HiddenHoldsAlert names any car left that way, so it can't stay silent.
+      const setHeld = () => writeWithRefresh(() =>
         supabase.from('vehicles').update({ status: 'HELD' }).eq('id', vehicleId)
       );
+      let { error: vehErr } = await setHeld();
+      if (vehErr) ({ error: vehErr } = await setHeld());
 
       const newHold: Hold = {
         id: holdId, vehicleId, holdTypes, holdType: holdTypes[0], resolvedTypes: [], detailReason, mechanicalSubType, disposition, linkedHoldId,

@@ -18,6 +18,7 @@ import { PrimaryAction } from '../shared/PrimaryAction';
 import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
 import { StaleHoldsAlert } from './StaleHoldsAlert';
+import { HiddenHoldsAlert } from './HiddenHoldsAlert';
 import { BarcodeToast } from '../shared/BarcodeToast';
 import { PendingVehicleSheet } from '../shared/PendingVehicleSheet';
 import { HoldsVehicleRow } from './HoldsVehicleRow';
@@ -163,6 +164,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
         {activeTab === 'ev-assets' ? <EVAssetsTab /> : (
           <>
         {/* Stale Holds Alert — management only */}
+        <HiddenHoldsAlert onSelectVehicle={onSelectVehicle} />
         <StaleHoldsAlert role={user!.role} staleHolds={staleHolds} vehicles={vehicles} onSelectVehicle={onSelectVehicle} />
 
         {/* Summary Cards — role-aware, tap to filter (Management) */}

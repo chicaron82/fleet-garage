@@ -121,7 +121,7 @@ export interface VehicleHoldContextValue {
    *  untouched. `false` clears it and puts the hold back in the queue. See migrations/125. */
   markZonesReviewed: (holdId: string, reviewed?: boolean) => Promise<void>;
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
-  syncVehicleStatus: (vehicleId: string) => Promise<void>;
+  syncVehicleStatus: (vehicleId: string) => Promise<boolean>;
   archiveVehicle: (vehicleId: string) => Promise<void>;
   restoreVehicle: (vehicleId: string) => Promise<void>;
   archivedVehicles: Vehicle[];

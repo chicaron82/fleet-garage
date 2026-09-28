@@ -223,18 +223,36 @@ describe('addHold', () => {
 
   it('hold added locally even when vehicle-write fails (gating contract)', async () => {
     // The hold insert is the source of truth. A failed vehicle-status write must
-    // not prevent the hold from appearing locally — the fleet view re-derives
-    // status from holds on read — but setAllVehicles must NOT fire to avoid
-    // stamping a divergent status that won't self-heal (no vehicles realtime).
+    // not prevent the hold from appearing locally, but setAllVehicles must NOT fire
+    // to avoid stamping a divergent status that won't self-heal (no vehicles realtime).
+    // ⚠️⚠️ This comment used to add "the fleet view re-derives status from holds on read".
+    // It does NOT: the Holds list lists CARS by stored status and drops CLEAR ones, which is
+    // exactly how LUR479 / LUR538 hid for 15 days (2026-09-28). HiddenHoldsAlert is what
+    // catches this shape now.
     const v = makeVehicle();
     const { ops, setAllHolds, setAllVehicles } = makeOps([], [v]);
     succeed(); // holds insert ✓
     writeWithRefreshMock.mockResolvedValueOnce({ error: { message: 'vehicles write failed' } });
+    writeWithRefreshMock.mockResolvedValueOnce({ error: { message: 'vehicles write failed again' } });
 
     await ops.addHold(v.id, 'scrape', '', 'u-1');
 
     expect(setAllHolds).toHaveBeenCalledTimes(1);
     expect(setAllVehicles).not.toHaveBeenCalled();
+  });
+
+  it('⭐ a vehicle-status write that fails ONCE is retried, and the car goes HELD', async () => {
+    const v = makeVehicle();
+    const { ops, setAllVehicles } = makeOps([], [v]);
+    succeed(); // holds insert ✓
+    writeWithRefreshMock.mockResolvedValueOnce({ error: { message: 'blip' } });   // first HELD write lost
+    // …the retry falls through to the default, which lands
+
+    await ops.addHold(v.id, 'scrape', '', 'u-1');
+
+    const heldWrites = chain.update.mock.calls.filter(c => c[0]?.status === 'HELD');
+    expect(heldWrites.length).toBeGreaterThanOrEqual(1);
+    expect(setAllVehicles).toHaveBeenCalledTimes(1);
   });
 
   it('double-submit in the same frame inserts exactly one hold (shared lock)', async () => {
@@ -353,9 +371,29 @@ describe('syncVehicleStatus', () => {
     const v = makeVehicle(); // CLEAR, no holds
     const { ops } = makeOps([], [v]);
 
-    await ops.syncVehicleStatus('v-1');
-
+    expect(await ops.syncVehicleStatus('v-1')).toBe(true);
     expect(fromCalls).toEqual([]);
+  });
+
+  // ⭐ The Fix button on HiddenHoldsAlert reads this. It used to set local state whether or not the
+  // write landed — a fix that only happened on screen.
+  it('⚠️ a failed write resolves false and leaves the screen alone', async () => {
+    const active = makeHold('h-1', 'v-1', { status: 'ACTIVE' });
+    const v = makeVehicle(); // CLEAR, but carrying an active hold
+    const { ops, setAllVehicles } = makeOps([active], [v]);
+    writeWithRefreshMock.mockResolvedValueOnce({ error: { message: 'offline' } });
+
+    expect(await ops.syncVehicleStatus('v-1')).toBe(false);
+    expect(setAllVehicles).not.toHaveBeenCalled();
+  });
+
+  it('⭐ a CLEAR car with an active hold is healed to HELD', async () => {
+    const active = makeHold('h-1', 'v-1', { status: 'ACTIVE' });
+    const { ops, setAllVehicles } = makeOps([active], [makeVehicle()]);
+
+    expect(await ops.syncVehicleStatus('v-1')).toBe(true);
+    expect(chain.update.mock.calls.find(c => c[0]?.status)?.[0].status).toBe('HELD');
+    expect(setAllVehicles).toHaveBeenCalledTimes(1);
   });
 });
 

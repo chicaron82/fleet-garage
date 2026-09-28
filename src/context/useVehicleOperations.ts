@@ -303,16 +303,18 @@ export function useVehicleOperations({
     );
   };
 
-  const syncVehicleStatus = async (vehicleId: string) => {
+  /** Re-derive a car's status from its holds. Resolves false when the write didn't land (and the
+   *  local state is left alone, so the screen never shows a fix the database doesn't have). */
+  const syncVehicleStatus = async (vehicleId: string): Promise<boolean> => {
     const vehicle = allVehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return;
+    if (!vehicle) return false;
     const vehicleHolds = holds.filter(h => h.vehicleId === vehicleId && h.status !== 'REPAIRED');
     const correctStatus = toVehicleStatus(deriveHoldStatus(vehicleHolds.map(factsFromHold)));
-    if (vehicle.status === correctStatus) return;
-    await writeWithRefresh(() =>
-      supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId)
-    );
+    if (vehicle.status === correctStatus) return true;
+    const { error } = await writeWithRefresh(() => supabase.from('vehicles').update({ status: correctStatus }).eq('id', vehicleId));
+    if (error) return false;
     setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: correctStatus }));
+    return true;
   };
 
   const setCoverPhoto = async (vehicleId: string, url: string | null) => {
