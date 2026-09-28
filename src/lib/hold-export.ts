@@ -27,9 +27,20 @@ function fmtTs(iso: string): string {
   });
 }
 
+/**
+ * ⚠️ The report is now also rendered INSIDE FG's own document (to rasterize it for sharing), not only
+ * into a throwaway tab — so anything typed into a hold (a description, a note, a name) is escaped
+ * rather than trusted as markup. A note reading `<b>` must print as `<b>`.
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function holdTypePills(holdTypes: string[]): string {
   return holdTypes.map(t => {
-    const label = holdTypeLabel(t);
+    const label = escapeHtml(holdTypeLabel(t));
     return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.05em;margin-right:4px;">${label}</span>`;
   }).join('');
 }
@@ -49,7 +60,7 @@ function renderHoldCard(
   const photosHtml = (hold.photos ?? []).length > 0
     ? `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;">
         ${(hold.photos ?? []).map(src =>
-          `<img src="${src}" alt="Damage photo" style="width:260px;height:180px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;display:block;" />`
+          `<img src="${escapeHtml(src)}" alt="Damage photo" style="width:260px;height:180px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;display:block;" />`
         ).join('')}
        </div>`
     : '';
@@ -60,33 +71,50 @@ function renderHoldCard(
     <div style="border:1.5px solid ${borderColor};border-radius:10px;padding:18px;margin-bottom:16px;background:#fff;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;">
         <div>
-          <span style="font-size:16px;font-weight:700;color:#111827;">${hold.damageDescription}</span>
+          <span style="font-size:16px;font-weight:700;color:#111827;">${escapeHtml(hold.damageDescription)}</span>
           <div style="margin-top:6px;">${holdTypePills(hold.holdTypes)}</div>
         </div>
         ${holdStatusBadge(hold.status)}
       </div>
       <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">
-        Flagged by <strong style="color:#374151;">${getName(hold.flaggedById, hold.flaggedByName)}</strong>
-        · ${getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)}
+        Flagged by <strong style="color:#374151;">${escapeHtml(getName(hold.flaggedById, hold.flaggedByName))}</strong>
+        · ${escapeHtml(getEmpId(hold.flaggedById, hold.flaggedByEmployeeId))}
         · ${fmtTs(hold.flaggedAt)}${hold.flaggedSource === 'effie' ? ' · via Effie' : ''}
       </div>
-      ${hold.notes ? `<div style="font-size:13px;color:#6b7280;font-style:italic;margin-top:6px;">"${hold.notes}"</div>` : ''}
+      ${hold.notes ? `<div style="font-size:13px;color:#6b7280;font-style:italic;margin-top:6px;">"${escapeHtml(hold.notes)}"</div>` : ''}
       ${photosHtml}
     </div>`;
 }
 
-export function exportHoldToHtml(params: {
+export interface HoldReportParams {
   vehicle: Pick<Vehicle, 'unitNumber' | 'licensePlate' | 'make' | 'model' | 'year' | 'color' | 'status'>;
   holds: Hold[];
   getName: (id: string, snapshot?: string) => string;
   getEmpId: (id: string, snapshot?: string) => string;
-}): void {
-  const { vehicle, holds, getName, getEmpId } = params;
+}
 
+export interface HoldReport {
+  /** "Hold Report — Unit 5422852" — the tab title, and the share sheet's title. */
+  title: string;
+  /** The report card alone (no <html>/<body>), for rendering inside FG to make an image of it. */
+  card: string;
+  /** The whole standalone page, for the printable tab. */
+  html: string;
+  /** `hold-report-LUR300.png` — what the shared image is called on the other end. */
+  fileName: string;
+}
+
+/**
+ * The report, built once. ⭐ Two consumers share this exact markup so they can never drift: the
+ * image that "↗ Share" now sends (Aaron, 2026-09-28: the old share mailed an empty about:blank
+ * page — *"Is it supposed to be blank?"*), and the printable tab it falls back to.
+ */
+export function buildHoldReport({ vehicle, holds, getName, getEmpId }: HoldReportParams): HoldReport {
   const activeHolds  = holds.filter(h => h.status === 'ACTIVE');
   const historicHolds = holds.filter(h => h.status !== 'ACTIVE');
   const vs = VEHICLE_STATUS_STYLES[vehicle.status] ?? { bg: '#f3f4f6', color: '#6b7280', label: vehicle.status };
   const generatedAt = fmtTs(new Date().toISOString());
+  const title = `Hold Report — Unit ${vehicle.unitNumber ?? 'Unknown'}`;
 
   const activeSection = activeHolds.length > 0 ? `
     <div style="margin-bottom:28px;">
@@ -104,20 +132,7 @@ export function exportHoldToHtml(params: {
       ${historicHolds.map(h => renderHoldCard(h, false, getName, getEmpId)).join('')}
     </div>` : '';
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hold Report — Unit ${vehicle.unitNumber ?? 'Unknown'}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; background: #f3f4f6; padding: 32px; max-width: 820px; margin: 0 auto; }
-    @media print { body { background: #fff; padding: 0; } }
-  </style>
-</head>
-<body>
-  <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+  const card = `  <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
 
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:16px;padding-bottom:20px;border-bottom:2px solid #111827;margin-bottom:24px;">
@@ -132,14 +147,14 @@ export function exportHoldToHtml(params: {
     <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
       <div>
         <div style="font-size:24px;font-weight:800;color:#111827;margin-bottom:4px;">
-          Unit ${vehicle.unitNumber ?? '—'}
+          Unit ${escapeHtml(vehicle.unitNumber ?? '—')}
         </div>
         <div style="font-size:14px;color:#6b7280;margin-bottom:2px;">
-          ${vehicleLabel(vehicle)} · ${vehicle.color}
+          ${escapeHtml(vehicleLabel(vehicle))} · ${escapeHtml(vehicle.color)}
         </div>
-        <div style="font-size:14px;color:#9ca3af;">Plate: ${vehicle.licensePlate}</div>
+        <div style="font-size:14px;color:#9ca3af;">Plate: ${escapeHtml(vehicle.licensePlate)}</div>
       </div>
-      <span style="display:inline-block;padding:6px 14px;border-radius:6px;background:${vs.bg};color:${vs.color};font-weight:700;font-size:13px;white-space:nowrap;">● ${vs.label}</span>
+      <span style="display:inline-block;padding:6px 14px;border-radius:6px;background:${vs.bg};color:${vs.color};font-weight:700;font-size:13px;white-space:nowrap;">● ${escapeHtml(vs.label)}</span>
     </div>
 
     <!-- Holds -->
@@ -155,10 +170,32 @@ export function exportHoldToHtml(params: {
       <span style="font-size:12px;color:#9ca3af;">${generatedAt}</span>
     </div>
 
-  </div>
+  </div>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; background: #f3f4f6; padding: 32px; max-width: 820px; margin: 0 auto; }
+    @media print { body { background: #fff; padding: 0; } }
+  </style>
+</head>
+<body>
+${card}
 </body>
 </html>`;
 
+  const plate = (vehicle.licensePlate || vehicle.unitNumber || 'vehicle').replace(/[^A-Za-z0-9-]/g, '');
+  return { title, card, html, fileName: `hold-report-${plate}.png` };
+}
+
+/** Open the report as a printable page in a new tab — the fallback when an image can't be made. */
+export function exportHoldToHtml(params: HoldReportParams): void {
+  const { html } = buildHoldReport(params);
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);
