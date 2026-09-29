@@ -252,3 +252,60 @@ describe('handleReset', () => {
     }
   });
 });
+
+// ── The EV asset log on a Tesla run ───────────────────────────────────────────
+// ⚠️ It used to be `void updateVehicleEVAssets(...)`. That writer never throws — it returns false —
+// so a lost EV check on the one surface where the car is LEAVING said nothing at all (line-check
+// 2026-09-28). It reports now, and still never blocks: the trip has already started.
+
+/** A Tesla run with both assets answered, ready to start. */
+function makeTeslaReady(result: { current: ReturnType<typeof useDriverLiveTrip> }) {
+  makeReady(result);
+  act(() => {
+    if (result.current.phase === 'form') {
+      result.current.setFormField('isTeslaRun')(true);
+      result.current.setFormField('evVehicleId')('v-tesla');
+      result.current.setFormField('evCableStatus')('present');
+      result.current.setFormField('evAdapterStatus')('missing');
+    }
+  });
+}
+
+describe('the EV asset log reports, and never blocks the trip', () => {
+  it('⭐ a write that answers FALSE raises evLogFailed — the trip still starts', async () => {
+    const { result } = setup();
+    makeTeslaReady(result);
+    updateEVAssetsSpy.mockResolvedValue(false);
+    await act(async () => {
+      if (result.current.phase === 'form') await result.current.handleStart();
+    });
+
+    expect(updateEVAssetsSpy).toHaveBeenCalledWith('v-tesla', true, false, 'driver_trip');
+    expect(result.current.phase).toBe('in_transit');
+    if (result.current.phase === 'in_transit') {
+      expect(result.current.evLogFailed).toBe(true);
+      expect(result.current.saveError).toBe(false); // the TRIP saved; only its log didn't
+    }
+  });
+
+  it('a write that lands leaves it quiet', async () => {
+    const { result } = setup();
+    makeTeslaReady(result);
+    updateEVAssetsSpy.mockResolvedValue(true);
+    await act(async () => {
+      if (result.current.phase === 'form') await result.current.handleStart();
+    });
+    if (result.current.phase === 'in_transit') expect(result.current.evLogFailed).toBe(false);
+  });
+
+  it('⚠️ a THROW is caught too — a collaborator that changes its mind cannot take the trip down', async () => {
+    const { result } = setup();
+    makeTeslaReady(result);
+    updateEVAssetsSpy.mockRejectedValue(new Error('network'));
+    await act(async () => {
+      if (result.current.phase === 'form') await result.current.handleStart();
+    });
+    expect(result.current.phase).toBe('in_transit');
+    if (result.current.phase === 'in_transit') expect(result.current.evLogFailed).toBe(true);
+  });
+});

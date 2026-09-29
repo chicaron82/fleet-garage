@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { enqueueOfflineAction } from '../lib/offlineQueue';
@@ -26,6 +26,9 @@ interface UseDriverLiveTripProps {
 
 export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripProps) {
   const [state, dispatch] = useReducer(driverTripReducer, INITIAL_DRIVER_TRIP_STATE);
+  // Hook-local, deliberately NOT a reducer field: the trip machine's phases are about the TRIP, and a
+  // lost EV log changes none of them. It only needs to reach the in-transit view.
+  const [evLogFailed, setEvLogFailed] = useState(false);
   const { updateVehicleEVAssets } = useVehicleHoldContext();
 
   // ── Recovery: restore any in_progress trip for this driver on mount ────────
@@ -162,6 +165,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   };
 
   const handleStart = async () => {
+    setEvLogFailed(false);
     hapticMedium();
     if (!user || state.phase !== 'form') return;
     const { draft } = state;
@@ -198,8 +202,19 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     dispatch({ type: 'setSaveError', value: false });
     dispatchStartTrip(tripId, now);
 
+    // ⚠️ REPORTED, NEVER BLOCKING. The trip has already started and must not be undone by a failed
+    // asset log — but `void` meant a lost EV check said nothing at all, on the one surface where the
+    // car is leaving the lot (line-check 2026-09-28). Kept off the trip's own `saveError`, which
+    // claims the TRIP didn't save; this is its own, quieter line.
     if (draft.isTeslaRun && draft.evVehicleId && draft.evCableStatus != null && draft.evAdapterStatus != null) {
-      void updateVehicleEVAssets(draft.evVehicleId, draft.evCableStatus === 'present', draft.evAdapterStatus === 'present', 'driver_trip');
+      const id = draft.evVehicleId;
+      const cable = draft.evCableStatus === 'present';
+      const adapter = draft.evAdapterStatus === 'present';
+      void (async () => {
+        let landed = false;
+        try { landed = await updateVehicleEVAssets(id, cable, adapter, 'driver_trip'); } catch { landed = false; }
+        setEvLogFailed(!landed);
+      })();
     }
   };
 
@@ -316,7 +331,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     return {
       phase: 'in_transit' as const,
       ...trip,
-      elapsed, submitting, saveError,
+      elapsed, submitting, saveError, evLogFailed,
       setNotes,
       handleArrived, handleCancelTrip, handleReset,
     };

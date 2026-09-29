@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import { VehicleName } from '../shared/VehicleName';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
@@ -42,6 +44,7 @@ export function EVAssetsTab() {
   const [adapterLentUnit, setAdapterLentUnit] = useState('');
   const [notes, setNotes]           = useState('');
   const [confirming, setConfirming] = useState(false);
+  const { writeError, guard } = useWriteGuard();
   const [saving, setSaving]         = useState(false);
 
   // Derive from context (not a snapshot) so the roster + footer reflect the latest write.
@@ -80,7 +83,16 @@ export function EVAssetsTab() {
   const doUpdate = async () => {
     if (!selected || !user) return;
     setSaving(true);
-    await updateVehicleEVAssets(selected.id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined);
+    // ⚠️ `updateVehicleEVAssets` never throws — it swallows the Supabase error and returns false.
+    // This awaited it and dropped the answer, then closed the sheet: a lost assessment looked exactly
+    // like a saved one (line-check 2026-09-28). On failure the sheet STAYS, with what he read still in
+    // it, and the follow-ups are skipped — a loan row or a hold hung off a status that never landed is
+    // worse than neither.
+    const ok = await guard(
+      () => updateVehicleEVAssets(selected.id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined),
+      "That didn't save — tap Update again.",
+    );
+    if (!ok) { setSaving(false); return; }
     // Marking an asset missing-because-lent records a structured loan, not a note.
     if (cable === 'missing' && cableLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'cable')) {
       await createEvAssetLoan(selected.id, 'cable', cableLentUnit, notes.trim() || null);
@@ -178,10 +190,11 @@ export function EVAssetsTab() {
             </div>
           </div>
         ) : (
+          <><SaveNote message={writeError} />
           <button type="button" onClick={handleSubmit} disabled={saving || cable == null || adapter == null}
             className="w-full py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer">
             {saving ? 'Saving…' : 'Update Assets'}
-          </button>
+          </button></>
         )}
 
         <EVAssetHistoryPanel vehicleId={selected.id} />

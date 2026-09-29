@@ -13,6 +13,9 @@ interface DriverLiveTransitViewProps {
   notes: string;
   setNotes: (notes: string) => void;
   saveError: boolean;
+  /** The trip started; only its EV asset log was lost. A quieter line than saveError, which claims
+   *  the TRIP didn't save. */
+  evLogFailed?: boolean;
   submitting: boolean;
   handleArrived: () => void;
   handleCancelTrip: () => void;
@@ -28,6 +31,7 @@ export function DriverLiveTransitView({
   notes,
   setNotes,
   saveError,
+  evLogFailed,
   submitting,
   handleArrived,
   handleCancelTrip,
@@ -79,6 +83,11 @@ export function DriverLiveTransitView({
             Couldn't save — check connection and try again.
           </p>
         </div>
+      )}
+      {evLogFailed && !saveError && (
+        <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
+          ⚠️ Trip started — the EV asset check didn't save. Log it in the EV Assets tab.
+        </p>
       )}
       {confirmShort ? (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-800/50 rounded-lg px-4 py-3 space-y-3">

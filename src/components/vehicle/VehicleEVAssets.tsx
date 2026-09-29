@@ -1,4 +1,6 @@
 import { canManageVehicles } from '../../types';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import type { Vehicle, UserRole, EvSource } from '../../types';
 import { EVAssetHistoryPanel } from './EVAssetHistoryPanel';
 import { EvLoanSection } from './EvLoanSection';
@@ -20,6 +22,10 @@ export function VehicleEVAssets({
   userRole,
   updateVehicleEVAssets,
 }: VehicleEVAssetsProps) {
+  // ⚠️ THE QUIETEST OF THE THREE. There is no save step here — the checkbox IS the write — so a
+  // dropped `false` showed as the box snapping back to where it was, which reads as a mis-tap rather
+  // than a lost write. The note sits beside the control, where the tap happened.
+  const { writeError, guard } = useWriteGuard();
   if (!vehicle.isTesla && vehicle.make.toLowerCase() !== 'tesla') {
     return null;
   }
@@ -65,7 +71,7 @@ export function VehicleEVAssets({
                 checked={current}
                 onChange={async (e) => {
                   const next = e.target.checked;
-                  await updateVehicleEVAssets(
+                  await guard(() => updateVehicleEVAssets(
                     vehicle.id,
                     isAdapter ? (vehicle.hasMobileCable ?? true) : next,
                     isAdapter ? next : (vehicle.hasJ1772Adapter ?? true),
@@ -82,7 +88,7 @@ export function VehicleEVAssets({
                     // him, at a car, in the washbay — so it reports the same source. (Aaron's call,
                     // 2026-08-21: "your lean is correct".)
                     'vsa_washbay'
-                  );
+                  ), "That didn't save — tap it again.");
                 }}
                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
@@ -93,6 +99,7 @@ export function VehicleEVAssets({
           ))}
         </div>
       )}
+      <SaveNote message={writeError} />
 
       {/* Lent-out / borrowed EV assets */}
       <EvLoanSection vehicle={vehicle} />

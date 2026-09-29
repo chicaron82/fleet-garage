@@ -220,6 +220,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         notes={trip.notes}
         setNotes={trip.setNotes}
         saveError={trip.saveError}
+        evLogFailed={trip.evLogFailed}
         submitting={trip.submitting}
         handleArrived={trip.handleArrived}
         handleCancelTrip={trip.handleCancelTrip}
