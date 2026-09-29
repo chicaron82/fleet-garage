@@ -2,7 +2,7 @@
  * ⚠️ Typing LUR486 offered a MOCK car above the real one (Aaron, 2026-09-17): a 2023 Malibu on unit
  * HRZ-3307, archived since 09-03, beside the live 2026 Trax on unit 5429592.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { rankVehicleMatches, type VehicleSearchResult } from '../../src/lib/ev-detection';
 
 const car = (over: Partial<VehicleSearchResult>): VehicleSearchResult => ({
@@ -77,5 +77,21 @@ describe('prefix hits rank above contains hits', () => {
   it('archived still sinks, within the same prefix tier', () => {
     const out = rankVehicleMatches([car('LFJ334', null, { archived_at: '2026-01-01' }), car('LFJ335')], 5, 'LFJ');
     expect(out[0].license_plate).toBe('LFJ335');
+  });
+});
+
+// ⚠️ Aaron's 2026-09-29 console, every request ERR_NAME_NOT_RESOLVED, also caught a THROWN
+// "TypeError: Failed to fetch". A rejection must report failure, never resolve to silence.
+describe('searchVehicles survives a throw', () => {
+  it('⭐ a rejected request reports failed, not an empty result', async () => {
+    vi.resetModules();
+    vi.doMock('../../src/lib/supabase', () => ({
+      supabase: { from: () => { throw new TypeError('Failed to fetch'); } },
+      writeWithRefresh: (op: () => unknown) => op(),
+    }));
+    const { searchVehicles } = await import('../../src/lib/ev-detection');
+    await expect(searchVehicles('LFJ334')).resolves.toEqual({ matches: [], failed: true });
+    vi.doUnmock('../../src/lib/supabase');
+    vi.resetModules();
   });
 });

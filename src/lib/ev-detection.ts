@@ -238,7 +238,17 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
 
   // Same refresh-then-retry every WRITE in FG already gets (`writeWithRefresh`). A read that silently
   // returns nothing on an expired token is the more dangerous of the two, because nothing looks normal.
-  const { data, error } = await writeWithRefresh(run);
-  if (error) return { matches: [], failed: true };
-  return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
+  // ⚠️⚠️ AND A THROW LANDS IN THE SAME STATE AS A RETURNED ERROR. postgrest CATCHES a dead fetch and
+  // hands back `{ data: null, error }` — but Aaron's 2026-09-29 console (every request
+  // `ERR_NAME_NOT_RESOLVED`) also shows FG catching a THROWN `TypeError: Failed to fetch` elsewhere,
+  // so throws do happen here. A rejection would skip the line below entirely and the field would go
+  // quiet again — the exact bug, re-entering through the one door the fix left open. The guarantee is
+  // "never render silence", and it must not depend on which layer of the client caught what.
+  try {
+    const { data, error } = await writeWithRefresh(run);
+    if (error) return { matches: [], failed: true };
+    return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
+  } catch {
+    return { matches: [], failed: true };
+  }
 }
