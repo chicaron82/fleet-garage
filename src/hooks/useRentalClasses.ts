@@ -36,7 +36,12 @@ export function useRentalClasses() {
 
   useEffect(() => { void load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
-  /** Add a class ("Other"). Codes are upper-cased + trimmed; the PK makes a re-add a harmless no-op. */
+  /** Add a class ("Other"). Codes are upper-cased + trimmed; the PK makes a re-add a harmless no-op.
+ *
+ * ⭐ ANSWERS WHETHER IT LANDED (2026-09-28). It set `error` and returned void, and its only consumer
+ * dropped both — so a failed add was silent, and the picker then SELECTED a code the list never
+ * gained. Same class as the writes that vanish into a void; see CLAUDE.md "a write that fails must
+ * SAY so". */
   const addClass = useCallback(
     async (rawCode: string, label?: string) => {
       const code = rawCode.trim().toUpperCase();
@@ -49,9 +54,10 @@ export function useRentalClasses() {
       // A duplicate (already in the list) is fine — the code is already an option.
       if (error && !/duplicate key/i.test(error.message)) {
         setError(error.message);
-        return;
+        return false;
       }
       await load();
+      return true;
     },
     [classes, load],
   );
@@ -62,9 +68,10 @@ export function useRentalClasses() {
       const { error } = await writeWithRefresh(() => supabase.from('rental_classes').delete().eq('code', code));
       if (error) {
         setError(error.message);
-        return;
+        return false;
       }
       await load();
+      return true;
     },
     [load],
   );

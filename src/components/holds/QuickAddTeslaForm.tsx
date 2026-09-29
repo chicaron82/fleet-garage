@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { EVAssetCheck } from '../movement/EVAssetCheck';
 import { hapticMedium } from '../../lib/haptics';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import type { EvAssetStatus } from '../../types';
 
 // Mirrors EVAssetsTab — a Tesla with neither accessory is held from dispatch.
@@ -34,6 +36,16 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState('');
+  // ⚠️⚠️ `updateVehicleEVAssets` DOES NOT THROW — it swallows the Supabase error and returns false.
+  // So the try/catch below could never report a lost EV assessment, and this form fired
+  // `hapticMedium(); onDone()` on top of it: a clean-looking registration with the asset check gone.
+  // `registerFollowUps.ts` documents exactly this trap and checks the RETURN; this is the twin it
+  // missed (line-check 2026-09-28). The guard handles BOTH shapes, so a future throw is covered too.
+  const { writeError, guard } = useWriteGuard();
+  // The car IS registered when only the EV log fails, so this closes anyway — after he has read it,
+  // the same warn-then-proceed shape RegisterVehicleForm uses for the identical outcome.
+  const doneTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (doneTimer.current !== null) clearTimeout(doneTimer.current); }, []);
 
   const bothMissing = cable === 'missing' && adapter === 'missing';
   // ⚠️ Deliberately does NOT test `cable != null && adapter != null`. It used to, as a "did you
@@ -64,11 +76,15 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
       // Dropped re-entrant submit (same plate in flight) — the first call owns the follow-ups.
       if (!id) { setSaving(false); return; }
       // Attribution + the unified EV timeline row (source: vsa_washbay).
-      await updateVehicleEVAssets(id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined);
+      const evOk = await guard(
+        () => updateVehicleEVAssets(id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined),
+        `${unitNumber.trim()} registered — the EV asset check didn't save. Log it in the EV Assets tab.`,
+      );
       if (bothMissing) {
         await addHold(id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
       }
       hapticMedium();
+      if (!evOk) { doneTimer.current = window.setTimeout(onDone, 4000); return; }
       onDone();
     } catch {
       setError('Could not register the Tesla — please try again.');
@@ -117,6 +133,7 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
       </div>
 
       {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
+      <SaveNote message={writeError} />
 
       {confirming ? (
         <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 px-4 py-3">

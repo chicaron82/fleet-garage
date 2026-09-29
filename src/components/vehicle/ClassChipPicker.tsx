@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useRentalClasses } from '../../hooks/useRentalClasses';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { SaveNote } from '../shared/SaveNote';
 
 // The rental-class picker: recognize-and-tap instead of recall-and-type (Aaron, 2026-07-24). Chips
 // come from the operator-curated `rental_classes` list (useRentalClasses); tap to select, "Other" to
@@ -18,7 +19,10 @@ const CHIP_ON =
   'bg-gray-900 dark:bg-gray-100 border-gray-900 dark:border-gray-100 text-white dark:text-gray-900';
 
 export function ClassChipPicker({ value, onChange }: { value: string; onChange: (code: string) => void }) {
-  const { classes, loading, addClass, removeClass } = useRentalClasses();
+  // ⚠️ `error` used to be dropped here — the hook set it, nothing read it, and this is its only
+  // consumer. A failed add just never produced a chip, which reads as a missed tap (line-check
+  // 2026-09-28). The raw Supabase message stays out of his way; the line is FG's standard one.
+  const { classes, loading, error, addClass, removeClass } = useRentalClasses();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newCode, setNewCode] = useState('');
@@ -64,8 +68,9 @@ export function ClassChipPicker({ value, onChange }: { value: string; onChange: 
     setNewCode('');
     setAdding(false);
     if (!code) return;
-    await addClass(code);
-    onChange(code); // select the freshly added class
+    // ⚠️ Only select what actually landed. Selecting unconditionally put the car on a class the list
+    // never gained — a wrong value written from a write that failed.
+    if (await addClass(code)) onChange(code);
   };
 
   const cancelAdd = () => {
@@ -82,6 +87,7 @@ export function ClassChipPicker({ value, onChange }: { value: string; onChange: 
   const valueOffList = value.trim() !== '' && !classes.some((c) => c.code === value);
 
   return (
+    <>
     <div className="flex flex-wrap gap-2">
       {valueOffList && (
         <span className={`${CHIP_BASE} ${CHIP_ON} ring-1 ring-amber-400`} title="Not in your list — tap another to change it">
@@ -154,5 +160,7 @@ export function ClassChipPicker({ value, onChange }: { value: string; onChange: 
         </button>
       )}
     </div>
+    <SaveNote message={error ? "That didn't save — tap it again." : ''} />
+    </>
   );
 }
