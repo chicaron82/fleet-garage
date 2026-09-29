@@ -43,6 +43,25 @@ describe('QuickAddTeslaForm — a failed EV check does not read as a clean regis
     expect(onDone).not.toHaveBeenCalled();
   });
 
+  it('⭐ and it DOES close afterwards — the car is registered, so he is not stranded on the form', async () => {
+    // Pass two (ticket hook): the auto-close was read, not tested. A dropped timer would leave him on
+    // a form for a car that already exists — and re-tapping Register is how a duplicate gets minted.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const onDone = vi.fn();
+      render(<QuickAddTeslaForm onDone={onDone} />);
+      fill();
+      updateVehicleEVAssets.mockResolvedValue(false);
+      fireEvent.click(screen.getByRole('button', { name: /register tesla/i }));
+      await waitFor(() => expect(updateVehicleEVAssets).toHaveBeenCalled());
+      expect(onDone).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(onDone).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a landed write closes straight away and says nothing', async () => {
     const onDone = vi.fn();
     render(<QuickAddTeslaForm onDone={onDone} />);

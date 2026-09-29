@@ -84,6 +84,8 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
         await addHold(id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
       }
       hapticMedium();
+      // ⚠️ `saving` deliberately stays true on this path: the car EXISTS now, so the button must not
+      // invite a second tap while the warning is up.
       if (!evOk) { doneTimer.current = window.setTimeout(onDone, 4000); return; }
       onDone();
     } catch {
