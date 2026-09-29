@@ -17,7 +17,9 @@ const CAR = {
   year: 2026, color: 'Grey', is_hybrid: false, is_tesla: false,
 };
 
-beforeEach(() => { vi.clearAllMocks(); searchVehicles.mockResolvedValue([CAR]); });
+// searchVehicles answers { matches, failed } since 2026-09-29 — an empty list can no longer mean
+// both "no such car" and "the search died".
+beforeEach(() => { vi.clearAllMocks(); searchVehicles.mockResolvedValue({ matches: [CAR], failed: false }); });
 
 const type = (value: string) =>
   fireEvent.change(screen.getByLabelText(/Look up a vehicle/), { target: { value } });
@@ -136,5 +138,38 @@ describe('VehicleLookup', () => {
     type('LUR');
     await waitFor(() => screen.getByText('LUR512'));
     expect(screen.getByRole('list')).not.toHaveClass('absolute');
+  });
+});
+
+// ⭐⭐ Aaron, 2026-09-29, typing LFJ334 in full and getting silence: *"other times i'll start typing and
+// nothing appears until i 'look up' then it will show me the vehicle i searched for."* The search had
+// FAILED and rendered exactly like a car that does not exist. An empty list cannot mean two things.
+describe('a search that could not run says so', () => {
+  it('⭐ shows the failure and names the door that still works', async () => {
+    searchVehicles.mockResolvedValue({ matches: [], failed: true });
+    render(<VehicleLookup onPick={() => {}} />);
+    type('LFJ334');
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/Couldn't search/i);
+    expect(alert.textContent).toMatch(/Look up/);
+  });
+
+  it('⚠️ an honest MISS stays silent — the two must not look alike', async () => {
+    searchVehicles.mockResolvedValue({ matches: [], failed: false });
+    render(<VehicleLookup onPick={() => {}} />);
+    type('ZZZ999');
+    await new Promise(r => setTimeout(r, 400));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('a recovered search drops the message and shows the car', async () => {
+    searchVehicles.mockResolvedValue({ matches: [], failed: true });
+    render(<VehicleLookup onPick={() => {}} />);
+    type('LFJ33');
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    searchVehicles.mockResolvedValue({ matches: [CAR], failed: false });
+    type('LFJ334');
+    expect(await screen.findByText(CAR.license_plate)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

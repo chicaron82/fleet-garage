@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../../src/lib/ev-detection', async (orig) => ({
   ...(await orig<typeof import('../../../src/lib/ev-detection')>()),
-  searchVehicles: vi.fn(async () => []),
+  searchVehicles: vi.fn(async () => ({ matches: [], failed: false })),
 }));
 
 import { VehicleLookup } from '../../../src/components/shared/VehicleLookup';

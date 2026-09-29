@@ -90,9 +90,9 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
         return;
       }
       if (plateSuggestions.some(p => p.license_plate === plate.trim().toUpperCase()) && !showSuggestions) return;
-      const results = await searchVehicles(plate);
-      dispatch({ type: 'setFormField', key: 'plateSuggestions', value: results });
-      dispatch({ type: 'setFormField', key: 'showSuggestions',  value: results.length > 0 });
+      const { matches } = await searchVehicles(plate);
+      dispatch({ type: 'setFormField', key: 'plateSuggestions', value: matches });
+      dispatch({ type: 'setFormField', key: 'showSuggestions',  value: matches.length > 0 });
     }, 300);
     return () => clearTimeout(timer);
   }, [plate]); // eslint-disable-line react-hooks/exhaustive-deps

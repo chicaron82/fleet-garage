@@ -46,6 +46,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VehicleSearchResult[]>([]);
+  // ⭐ A search that could not RUN is not a search that found nothing (2026-09-29). Kept apart so the
+  // list can say which, instead of rendering the same silence for both.
+  const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   // Focused and not yet committed to anything — the only moment the recents belong on screen. A pick
   // disarms it, so the list does not spring back over the car card he just opened.
@@ -64,7 +67,10 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
     if (q.length < 2) return;
     let live = true;
     const t = setTimeout(() => {
-      void searchVehicles(q).then(r => { if (live && mine === seq.current) { setResults(r); setOpen(true); } });
+      void searchVehicles(q).then(r => {
+        if (!live || mine !== seq.current) return;
+        setResults(r.matches); setFailed(r.failed); setOpen(true);
+      });
     }, 180);
     return () => { live = false; clearTimeout(t); };
   }, [query]);
@@ -72,6 +78,8 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   /** What the list actually shows — derived, so a query he has deleted back down cannot leave a
    *  stale dropdown hanging over the field. */
   const visible = query.trim().length >= 2 ? results : [];
+  /** Only while the query that failed is still on screen — a deleted query owns no error. */
+  const showFailed = failed && query.trim().length >= 2 && open;
 
   const commitTyped = () => {
     const raw = query.trim().toUpperCase().replace(/\s+/g, '');
@@ -79,11 +87,11 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
     // ⚠️ TYPED, THEREFORE NEVER CORRECTED — the misread corrector belongs under a camera, not under
     // his thumbs. Same rule the airport flip states.
     onPick({ typed: raw });
-    setQuery(''); setResults([]); setOpen(false); setArmed(false);
+    setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false);
   };
 
   const pickVehicle = (v: VehicleSearchResult) => {
-    onPick({ vehicle: v }); setQuery(''); setResults([]); setOpen(false); setArmed(false);
+    onPick({ vehicle: v }); setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false);
   };
 
   const showRecents = armed && !query.trim() && (recents?.length ?? 0) > 0;
@@ -142,7 +150,18 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         </div>
       )}
 
-      {open && visible.length > 0 && (
+      {/* ⚠️ NEVER SILENCE ON A FAILURE. Aaron, 2026-09-29: *"i'll start typing and nothing appears until
+          i 'look up'."* The search had died and looked exactly like a car that does not exist. It names the
+          working door, because "Look up" resolves in memory and keeps working when the network does not. */}
+      {showFailed && (
+        <div className={listClass}>
+          <p role="alert" className="px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+            Couldn&apos;t search just now — tap <span className="font-semibold">Look up</span>.
+          </p>
+        </div>
+      )}
+
+      {open && !failed && visible.length > 0 && (
         <ul className={listClass}>
           {visible.map(v => (
             // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car

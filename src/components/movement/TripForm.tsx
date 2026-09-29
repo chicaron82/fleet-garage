@@ -63,9 +63,9 @@ export function TripForm({
         return;
       }
       if (plateSuggestions.some(p => p.license_plate === vehiclePlate.trim().toUpperCase()) && !showSuggestions) return;
-      const results = await searchVehicles(vehiclePlate);
-      setPlateSuggestions(results);
-      setShowSuggestions(results.length > 0);
+      const { matches } = await searchVehicles(vehiclePlate);
+      setPlateSuggestions(matches);
+      setShowSuggestions(matches.length > 0);
     }, 300);
     return () => clearTimeout(timer);
   }, [vehiclePlate]); // eslint-disable-line react-hooks/exhaustive-deps

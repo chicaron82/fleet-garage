@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, writeWithRefresh } from './supabase';
 import type { EvAssetStatus } from '../types';
 
 export interface TeslaDetectionResult {
@@ -159,11 +159,22 @@ const MOCK_UNIT_PREFIX = 'HRZ-';
  * them — not that the archived one appeared at all. Array#sort is stable, so equal rows keep the
  * order the query gave them.
  */
-export function rankVehicleMatches(rows: readonly VehicleSearchResult[], limit = 5): VehicleSearchResult[] {
+export function rankVehicleMatches(
+  rows: readonly VehicleSearchResult[],
+  limit = 5,
+  /** What he typed. Rows whose plate or unit STARTS with it rank above ones that merely contain it,
+   *  so widening the filter to a contains-match (2026-09-29) cannot demote the obvious answer. */
+  query = '',
+): VehicleSearchResult[] {
+  const q = query.trim().toUpperCase();
+  const startsWith = (v: VehicleSearchResult) =>
+    !!q && (v.license_plate.toUpperCase().startsWith(q) || (v.unit_number ?? '').toUpperCase().startsWith(q));
   return rows
     .filter(v => !(v.unit_number ?? '').startsWith(MOCK_UNIT_PREFIX))
     .slice()
-    .sort((a, b) => Number(!!a.archived_at) - Number(!!b.archived_at))
+    // Prefix before contains, then live before archived. Array#sort is stable, so equal rows keep
+    // the order the query gave them.
+    .sort((a, b) => (Number(startsWith(b)) - Number(startsWith(a))) || (Number(!!a.archived_at) - Number(!!b.archived_at)))
     .slice(0, limit);
 }
 
@@ -187,19 +198,47 @@ export function rankVehicleMatches(rows: readonly VehicleSearchResult[], limit =
  * or a parenthesis in the raw text would not be an injection into SQL but it would silently change
  * the shape of the filter, which is its own kind of wrong answer.
  */
-export async function searchVehicles(query: string): Promise<VehicleSearchResult[]> {
+/**
+ * ⭐⭐⭐ WHAT A SEARCH ANSWERED — matches, AND whether it got to ask at all.
+ *
+ * Aaron, 2026-09-29: *"sometimes i'll start typing and nothing appears until i 'look up'."* He typed
+ * `LFJ334` in full and got silence; the row was there the whole time. This function used to do
+ * `const { data } = await …` and **throw the error away**, so a dead request returned `[]` — which is
+ * the same value as "no such car". ⚠️ **An empty list cannot mean two things.** The caller could not
+ * tell a broken search from an honest miss, and neither could he.
+ *
+ * ⭐ It also explains why "Look up" kept working: that path never touches the network — it resolves
+ * against the fleet already in memory — so an expired session silences the typeahead alone.
+ * docs/September/ticket-lookup-goes-quiet.md
+ */
+export interface VehicleSearch {
+  matches: VehicleSearchResult[];
+  /** The request failed (after one refresh+retry). The caller must SAY so, never render silence. */
+  failed: boolean;
+}
+
+export async function searchVehicles(query: string): Promise<VehicleSearch> {
   // Letters, digits and dashes are the whole alphabet of a plate and a unit number; anything else
   // is either a typo or a character that would re-punctuate the filter below.
   const trimmed = query.trim().replace(/[^A-Za-z0-9-]/g, '');
-  if (trimmed.length < 2) return [];
+  if (trimmed.length < 2) return { matches: [], failed: false };
 
-  // Fetch wider than we show: mock rows are removed AFTER the query (see rankVehicleMatches), so a
-  // limit of 5 here could spend slots on rows nobody may pick.
-  const { data } = await supabase
+  // ⭐ CONTAINS, not starts-with. The old filter was `X%`, so typing the TAIL of a key found nothing:
+  // measured live 2026-09-29, `LUR4` → 74 hits while `494` (tail of LUR494) and `9550` (tail of unit
+  // 5429550) → 0 each. Reading the last digits off a tag or a gas sheet is the natural move precisely
+  // when the front is the unreadable part, and it was the one shape that could not work.
+  // `rankVehicleMatches` puts prefix hits first, so the common case is unchanged.
+  // ⚠️ Fetch wider than we show: mock rows are removed AFTER the query, so a limit of 5 here could
+  // spend slots on rows nobody may pick.
+  const run = () => supabase
     .from('vehicles')
     .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at')
-    .or(`license_plate.ilike.${trimmed}%,unit_number.ilike.${trimmed}%`)
-    .limit(15);
+    .or(`license_plate.ilike.%${trimmed}%,unit_number.ilike.%${trimmed}%`)
+    .limit(30);
 
-  return rankVehicleMatches((data as VehicleSearchResult[]) || []);
+  // Same refresh-then-retry every WRITE in FG already gets (`writeWithRefresh`). A read that silently
+  // returns nothing on an expired token is the more dangerous of the two, because nothing looks normal.
+  const { data, error } = await writeWithRefresh(run);
+  if (error) return { matches: [], failed: true };
+  return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
 }

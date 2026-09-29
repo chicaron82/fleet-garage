@@ -49,3 +49,33 @@ describe('rankVehicleMatches', () => {
     expect(rankVehicleMatches(rows).map(v => v.unit_number)).toEqual(['1', '2', '3', '4', '5']);
   });
 });
+
+// ⭐ Aaron, 2026-09-29: typing the TAIL of a key found nothing (`494` for LUR494, `9550` for unit
+// 5429550) because the filter was starts-with. Widening it to a contains-match must not demote the
+// obvious answer, so a prefix hit outranks a merely-contained one.
+describe('prefix hits rank above contains hits', () => {
+  const car = (plate: string, unit: string | null = null, over: Record<string, unknown> = {}) =>
+    ({ license_plate: plate, unit_number: unit, make: 'Nissan', model: 'Sentra', year: 2026, color: 'White',
+       is_hybrid: false, is_tesla: false, archived_at: null, ...over }) as never;
+
+  it('⭐ puts the car whose PLATE starts with the query first', () => {
+    const out = rankVehicleMatches([car('LUR494'), car('LFJ334')], 5, 'LFJ');
+    expect(out[0].license_plate).toBe('LFJ334');
+  });
+
+  it('⭐ a UNIT that starts with the query also counts as a prefix hit', () => {
+    const out = rankVehicleMatches([car('AAA111', '9429550'), car('BBB222', '5429550')], 5, '5429');
+    expect(out[0].unit_number).toBe('5429550');
+  });
+
+  it('still finds the tail-matched car — it is just ranked lower, never dropped', () => {
+    const out = rankVehicleMatches([car('LUR494'), car('494ABC')], 5, '494');
+    expect(out.map(v => v.license_plate)).toContain('LUR494');
+    expect(out[0].license_plate).toBe('494ABC');
+  });
+
+  it('archived still sinks, within the same prefix tier', () => {
+    const out = rankVehicleMatches([car('LFJ334', null, { archived_at: '2026-01-01' }), car('LFJ335')], 5, 'LFJ');
+    expect(out[0].license_plate).toBe('LFJ335');
+  });
+});
