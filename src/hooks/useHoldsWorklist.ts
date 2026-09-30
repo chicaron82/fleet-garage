@@ -1,4 +1,5 @@
 import { displayHoldFor, holdLatestActivity } from '../lib/displayHold';
+import { kindPills, vehicleHasKind, type HoldKind, type KindPill } from '../lib/holdKinds';
 import type { Hold, Vehicle, VehicleStatus } from '../types';
 
 // The Holds worklist — which cars the board shows, in what order, on which page.
@@ -27,6 +28,8 @@ export interface HoldsWorklist {
   archivedMatchCount: number;
   /** SALE_CAR vehicles in the fleet — the checkbox names how many it is hiding or showing. */
   saleCarCount: number;
+  /** What is wrong with the cars in view, biggest pile first — counted BEFORE the pill narrows the list. */
+  kindPills: KindPill[];
   getDisplayHold: (vehicleId: string, status: VehicleStatus) => Hold | undefined;
 }
 
@@ -39,8 +42,10 @@ export function useHoldsWorklist(input: {
   currentPage: number;
   /** Include SALE_CAR vehicles in the default list (the Holds checkbox). A search finds them either way. */
   showSaleCars?: boolean;
+  /** The selected filter pill, if any — narrows WITHIN the status filter, search and sale toggle. */
+  activeKind?: HoldKind | null;
 }): HoldsWorklist {
-  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars = false } = input;
+  const { vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars = false, activeKind = null } = input;
 
   const counts = {
     held:        vehicles.filter(v => v.status === 'HELD').length,
@@ -56,7 +61,7 @@ export function useHoldsWorklist(input: {
     return Math.max(...vh.map(holdLatestActivity));
   };
 
-  const filtered = vehicles
+  const inView = vehicles
     .filter(v => {
       const matchesSearch = search === '' ||
         (v.unitNumber?.toUpperCase() ?? '').includes(search) ||
@@ -76,10 +81,16 @@ export function useHoldsWorklist(input: {
     })
     .sort((a, b) => vehicleLatestActivity(b.id) - vehicleLatestActivity(a.id));
 
+  // ⚠️ Counted from the list BEFORE the pill narrows it — counted after, the selected pill would only ever
+  // count itself and every other pill would read 0. docs/ticket-holds-filter-pills.md
+  const pills = kindPills(inView, holds, activeKind);
+  const filtered = activeKind ? inView.filter(v => vehicleHasKind(v.id, holds, activeKind)) : inView;
+
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const noMatch = filtered.length === 0 && search.trim().length >= 2;
+  // ⚠️ `inView`, not `filtered`: a pill hiding a car the search DID find must never offer to register it again.
+  const noMatch = inView.length === 0 && search.trim().length >= 2;
 
   // Counted only once the search is real (≥2 chars) — the same threshold `noMatch` uses, so the
   // "it's archived ↓" note and the button flip can never disagree about whether a search happened.
@@ -98,5 +109,5 @@ export function useHoldsWorklist(input: {
 
   const saleCarCount = vehicles.filter(v => v.status === 'SALE_CAR').length;
 
-  return { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, getDisplayHold };
+  return { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, kindPills: pills, getDisplayHold };
 }

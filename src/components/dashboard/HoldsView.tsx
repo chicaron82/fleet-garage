@@ -19,6 +19,8 @@ import { DashboardSummaryCards } from './DashboardSummaryCards';
 import { PendingApprovalsSection } from '../my-shift/PendingApprovalsSection';
 import { StaleHoldsAlert } from './StaleHoldsAlert';
 import { HiddenHoldsAlert } from './HiddenHoldsAlert';
+import { HoldKindPills } from './HoldKindPills';
+import type { HoldKind } from '../../lib/holdKinds';
 import { BarcodeToast } from '../shared/BarcodeToast';
 import { PendingVehicleSheet } from '../shared/PendingVehicleSheet';
 import { HoldsVehicleRow } from './HoldsVehicleRow';
@@ -52,6 +54,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     const saved = sessionStorage.getItem('dashboard_status_filter');
     return saved ? saved as VehicleStatus : null;
   });
+  // Same survival as the status filter: opening a car and coming back must not drop the pill he was working.
+  const [activeKind, setActiveKind] = useState<HoldKind | null>(() => sessionStorage.getItem('dashboard_kind_filter') as HoldKind | null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingVehicle, setPendingVehicle] = useState<Vehicle | null>(null);
@@ -64,6 +68,11 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     if (activeStatusFilter) sessionStorage.setItem('dashboard_status_filter', activeStatusFilter);
     else sessionStorage.removeItem('dashboard_status_filter');
   }, [activeStatusFilter]);
+
+  useEffect(() => {
+    if (activeKind) sessionStorage.setItem('dashboard_kind_filter', activeKind);
+    else sessionStorage.removeItem('dashboard_kind_filter');
+  }, [activeKind]);
 
   const handleFilterChange = useCallback((status: VehicleStatus | null) => {
     setActiveStatusFilter(prev => (prev === status ? null : status));
@@ -115,8 +124,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   });
 
   // Which cars the board shows, in what order, on which page — all derived, never captured.
-  const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, getDisplayHold } =
-    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars: prefs.showSaleCars });
+  const { counts, filtered, paginatedVehicles, totalPages, noMatch, archivedMatchCount, saleCarCount, kindPills, getDisplayHold } =
+    useHoldsWorklist({ vehicles, holds, archivedVehicles, search, activeStatusFilter, currentPage, showSaleCars: prefs.showSaleCars, activeKind });
 
   const { getName } = useUserResolver();
 
@@ -245,6 +254,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
           </label>
         )}
 
+        <HoldKindPills pills={kindPills} active={activeKind} onSelect={k => { setActiveKind(k); setCurrentPage(1); }} />
+
         {/* Exception returns — collapsible; auto-expands when search matches an exception vehicle */}
         <ExceptionReturnSection search={search} onOpenVehicle={onSelectVehicle} />
 
@@ -295,7 +306,18 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
               </button>
             </div>
           )}
-          
+          {filtered.length === 0 && search.trim() === '' && activeStatusFilter === null && activeKind !== null && (
+            <div className="text-center py-8 space-y-2">
+              <p className="text-gray-400 dark:text-gray-500 text-sm">Nothing on hold for that anymore.</p>
+              <button
+                onClick={() => { setActiveKind(null); setCurrentPage(1); }}
+                className="text-sm font-semibold text-yellow-600 hover:text-yellow-700 transition cursor-pointer"
+              >
+                Show all holds
+              </button>
+            </div>
+          )}
+
           {totalPages > 1 && (
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 transition-colors">
               <HoldsPagination currentPage={currentPage} totalPages={totalPages} onChange={goToPage} />
