@@ -80,19 +80,23 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
   const plate = state.phase === 'form' ? state.draft.plate : '';
   const plateSuggestions = state.phase === 'form' ? state.draft.plateSuggestions : [];
   const showSuggestions  = state.phase === 'form' ? state.draft.showSuggestions  : false;
+  const searchFailed     = state.phase === 'form' ? state.draft.searchFailed     : false;
 
   useEffect(() => {
     if (state.phase !== 'form') return;
     const timer = setTimeout(async () => {
       if (plate.trim().length < 2) {
         dispatch({ type: 'setFormField', key: 'plateSuggestions', value: [] });
+        dispatch({ type: 'setFormField', key: 'searchFailed',     value: false });
         dispatch({ type: 'setFormField', key: 'showSuggestions',  value: false });
         return;
       }
       if (plateSuggestions.some(p => p.license_plate === plate.trim().toUpperCase()) && !showSuggestions) return;
-      const { matches } = await searchVehicles(plate);
+      const { matches, failed } = await searchVehicles(plate);
       dispatch({ type: 'setFormField', key: 'plateSuggestions', value: matches });
-      dispatch({ type: 'setFormField', key: 'showSuggestions',  value: matches.length > 0 });
+      dispatch({ type: 'setFormField', key: 'searchFailed',     value: failed });
+      // Opens for a FAILURE too — an empty dropdown said nothing. See PlateSuggestions.
+      dispatch({ type: 'setFormField', key: 'showSuggestions',  value: matches.length > 0 || failed });
     }, 300);
     return () => clearTimeout(timer);
   }, [plate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -318,7 +322,7 @@ export function useDriverLiveTrip({ user, onTripComplete }: UseDriverLiveTripPro
     return {
       phase: 'form' as const,
       ...draft,
-      fromLabel, toLabel, canStart, submitting, saveError,
+      fromLabel, toLabel, canStart, submitting, saveError, searchFailed,
       setFormField,
       handleStart, handleLocationTap, handleRouteReset,
       handlePlateBlur, handleSuggestionSelect, handleReset,

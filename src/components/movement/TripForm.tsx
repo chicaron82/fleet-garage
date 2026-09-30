@@ -6,6 +6,7 @@ import type { EvAssetStatus } from '../../types';
 import { REASON_LABELS } from '../../lib/vsa-trip';
 import type { Reason } from '../../lib/vsa-trip';
 import { searchVehicles, detectTeslaByPlate } from '../../lib/ev-detection';
+import { PlateSuggestions } from './PlateSuggestions';
 import type { VehicleSearchResult } from '../../lib/ev-detection';
 import type { EvDispatchWarning } from '../../lib/evDispatch';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
@@ -13,7 +14,6 @@ import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 import { PlateInput } from '../shared/VehicleFields';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
-import { VehicleName } from '../shared/VehicleName';
 
 const MISSING_LABEL: Record<'cable' | 'adapter', string> = { cable: 'charge cable', adapter: 'J1772 adapter' };
 const fmtMissing = (m: ('cable' | 'adapter')[]) => m.map(x => MISSING_LABEL[x]).join(' & ');
@@ -54,18 +54,23 @@ export function TripForm({
 
   const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // ⚠️ The search itself failing is not the same as no car matching — see PlateSuggestions.
+  const [searchFailed, setSearchFailed] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (vehiclePlate.trim().length < 2) {
         setPlateSuggestions([]);
+        setSearchFailed(false);
         setShowSuggestions(false);
         return;
       }
       if (plateSuggestions.some(p => p.license_plate === vehiclePlate.trim().toUpperCase()) && !showSuggestions) return;
-      const { matches } = await searchVehicles(vehiclePlate);
+      const { matches, failed } = await searchVehicles(vehiclePlate);
       setPlateSuggestions(matches);
-      setShowSuggestions(matches.length > 0);
+      setSearchFailed(failed);
+      // Opens for a FAILURE too — that is the whole point; an empty dropdown said nothing.
+      setShowSuggestions(matches.length > 0 || failed);
     }, 300);
     return () => clearTimeout(timer);
   }, [vehiclePlate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,26 +161,14 @@ export function TripForm({
             onPlateBlur?.();
           }}
           onFocus={() => {
-            if (plateSuggestions.length > 0) setShowSuggestions(true);
+            if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true);
           }}
           className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
         />
-        {showSuggestions && plateSuggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-[66px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
-            {plateSuggestions.map(v => (
-              <button
-                key={v.license_plate}
-                type="button"
-                onClick={() => handleSuggestionSelect(v)}
-                className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
-              >
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.license_plate}</span>
-                <VehicleName vehicle={{ year: v.year, make: v.make, model: v.model, isHybrid: v.is_hybrid, isTesla: v.is_tesla }}
-                              className="text-xs text-gray-500 dark:text-gray-400" />
-              </button>
-            ))}
-          </div>
-        )}
+        <PlateSuggestions
+          suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
+          onPick={handleSuggestionSelect} topClass="top-[66px]"
+        />
       </div>
 
       {/* EV dispatch guard — known-missing assets / not-dispatchable hold on this Tesla */}

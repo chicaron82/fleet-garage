@@ -3,7 +3,7 @@
 // refactor. Locks the load-bearing transitions: route build → canStart, write-first
 // start, arrive → complete, and the reset/abandon orphan-delete guard.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { User } from '../../src/types';
 
@@ -15,10 +15,11 @@ const TEST_USER: User = {
   branchId:   'YWG',
 };
 
-const { writeOrEnqueueSpy, updateEVAssetsSpy, pushNotificationSpy, NON_TESLA } = vi.hoisted(() => ({
+const { writeOrEnqueueSpy, updateEVAssetsSpy, pushNotificationSpy, searchVehiclesSpy, NON_TESLA } = vi.hoisted(() => ({
   writeOrEnqueueSpy:   vi.fn(),
   updateEVAssetsSpy:   vi.fn(),
   pushNotificationSpy: vi.fn(),
+  searchVehiclesSpy:   vi.fn(),
   NON_TESLA: { isTesla: false, vehicle: null, lastCable: null, lastAdapter: null },
 }));
 
@@ -33,7 +34,10 @@ vi.mock('../../src/lib/vsaTripWrite', () => ({
 
 vi.mock('../../src/lib/ev-detection', () => ({
   detectTeslaByPlate: vi.fn().mockResolvedValue(NON_TESLA),
-  searchVehicles:     vi.fn().mockResolvedValue([]),
+  // ⚠️ Shape matters: `searchVehicles` resolves `{ matches, failed }`, never a bare array. This mock
+  // said `[]` for months and got away with it only because no test typed 2+ characters into the
+  // plate field, so the typeahead effect never ran. Corrected 2026-09-29 with the failure wiring.
+  searchVehicles:     (...args: unknown[]) => searchVehiclesSpy(...args),
 }));
 
 vi.mock('../../src/lib/garage-uploads', () => ({
@@ -82,6 +86,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   writeOrEnqueueSpy.mockResolvedValue({ ok: true });
   updateEVAssetsSpy.mockResolvedValue(undefined);
+  searchVehiclesSpy.mockResolvedValue({ matches: [], failed: false });
   pushNotificationSpy.mockResolvedValue(undefined);
 });
 
@@ -307,5 +312,46 @@ describe('the EV asset log reports, and never blocks the trip', () => {
     });
     expect(result.current.phase).toBe('in_transit');
     if (result.current.phase === 'in_transit') expect(result.current.evLogFailed).toBe(true);
+  });
+
+  // ⚠️⚠️ PASS TWO ON `be4ab46` (2026-09-29). `searchVehicles` returns `failed` and its type says the
+  // caller must SAY so — this hook destructured `matches` alone, so a dead network set the
+  // suggestions to [] and closed the dropdown: identical to "no such plate".
+  // docs/September/ticket-lookup-goes-quiet.md
+  describe('the plate typeahead reports a failed search', () => {
+    /** Type into the plate field and let the 300ms debounce fire. */
+    async function typePlate(result: ReturnType<typeof setup>['result'], plate: string) {
+      act(() => { if (result.current.phase === 'form') result.current.setFormField('plate')(plate); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(350); });
+    }
+
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('⭐ a failed search sets searchFailed AND opens the dropdown to show it', async () => {
+      searchVehiclesSpy.mockResolvedValue({ matches: [], failed: true });
+      const { result } = setup();
+      await typePlate(result, 'LUR');
+      if (result.current.phase !== 'form') throw new Error('expected form phase');
+      expect(result.current.searchFailed).toBe(true);
+      expect(result.current.showSuggestions).toBe(true);     // ⚠️ open, so the alert can render
+    });
+
+    it('a successful empty search is NOT a failure — the dropdown stays shut', async () => {
+      const { result } = setup();
+      await typePlate(result, 'ZZZ');
+      if (result.current.phase !== 'form') throw new Error('expected form phase');
+      expect(result.current.searchFailed).toBe(false);
+      expect(result.current.showSuggestions).toBe(false);
+    });
+
+    it('clearing the field back under 2 characters clears the failure too', async () => {
+      searchVehiclesSpy.mockResolvedValue({ matches: [], failed: true });
+      const { result } = setup();
+      await typePlate(result, 'LUR');
+      await typePlate(result, 'L');
+      if (result.current.phase !== 'form') throw new Error('expected form phase');
+      expect(result.current.searchFailed).toBe(false);
+    });
   });
 });

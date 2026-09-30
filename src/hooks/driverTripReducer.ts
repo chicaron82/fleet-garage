@@ -34,6 +34,8 @@ export interface FormDraft {
   evVehicleId:      string | null;
   plateSuggestions: VehicleSearchResult[];
   showSuggestions:  boolean;
+  /** The plate SEARCH failed (not "no match") — the dropdown says so instead of staying empty. */
+  searchFailed:     boolean;
 }
 
 // Carries the display + write data that must survive into transit and complete.
@@ -72,6 +74,7 @@ export const INITIAL_FORM_DRAFT: FormDraft = {
   vehicleDetails: null, evVehicleId: null,
   plateSuggestions: [],
   showSuggestions: false,
+  searchFailed: false,
 };
 
 export const INITIAL_DRIVER_TRIP_STATE: DriverTripState = {

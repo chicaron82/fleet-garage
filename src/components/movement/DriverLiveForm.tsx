@@ -10,7 +10,7 @@ import { DriverLiveTransitView } from './DriverLiveTransitView';
 import { DriverLiveCompleteView } from './DriverLiveCompleteView';
 import { useDriverLiveTrip, LOCATIONS } from '../../hooks/useDriverLiveTrip';
 import { PlateInput } from '../shared/VehicleFields';
-import { VehicleName } from '../shared/VehicleName';
+import { PlateSuggestions } from './PlateSuggestions';
 
 interface Props {
   flaggedClasses: RentalClass[];
@@ -28,7 +28,7 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
       routeStep, from, to, customFrom, customTo,
       plate, isShuttle, notes, isTeslaRun,
       evCableStatus, evAdapterStatus,
-      plateSuggestions, showSuggestions,
+      plateSuggestions, showSuggestions, searchFailed,
       fromLabel, toLabel, canStart, submitting, saveError,
       setFormField,
       handleStart, handleLocationTap, handleRouteReset,
@@ -127,24 +127,13 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
               setTimeout(() => setShowSuggestions(false), 200);
               handlePlateBlur();
             }}
-            onFocus={() => { if (plateSuggestions.length > 0) setShowSuggestions(true); }}
+            onFocus={() => { if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true); }}
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
           />
-          {showSuggestions && plateSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-[68px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50">
-              {plateSuggestions.map(v => (
-                <button
-                  key={v.license_plate} type="button"
-                  onClick={() => handleSuggestionSelect(v)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex justify-between items-center cursor-pointer"
-                >
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.license_plate}</span>
-                  <VehicleName vehicle={{ year: v.year, make: v.make, model: v.model, isHybrid: v.is_hybrid, isTesla: v.is_tesla }}
-                              className="text-xs text-gray-500 dark:text-gray-400" />
-                </button>
-              ))}
-            </div>
-          )}
+          <PlateSuggestions
+            suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
+            onPick={handleSuggestionSelect} topClass="top-[68px]"
+          />
           <div className="flex items-center gap-4 mt-3">
             <label className="flex items-center gap-2 cursor-pointer group">
               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-fg-yellow border-fg-yellow text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
