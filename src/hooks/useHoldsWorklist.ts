@@ -1,5 +1,5 @@
 import { displayHoldFor, holdLatestActivity } from '../lib/displayHold';
-import { kindPills, vehicleHasKind, type HoldKind, type KindPill } from '../lib/holdKinds';
+import { kindPills, kindsOfHold, vehicleHasKind, type HoldKind, type KindPill } from '../lib/holdKinds';
 import type { Hold, Vehicle, VehicleStatus } from '../types';
 
 // The Holds worklist — which cars the board shows, in what order, on which page.
@@ -104,8 +104,12 @@ export function useHoldsWorklist(input: {
       }).length
     : 0;
 
+  // ⭐ With a pill on, the card shows the hold the pill MATCHED. LUR306 carries a bumper hold and a newer hail
+  // hold; under Damage its card said "Hail damage", so the Damage list looked like it had hail leaking into it.
+  // The car belonged there — the card was just telling the other half of its story.
   const getDisplayHold = (vehicleId: string, status: VehicleStatus) =>
-    displayHoldFor(holds, vehicleId, status, holdLatestActivity);
+    (activeKind ? holds.find(h => h.vehicleId === vehicleId && kindsOfHold(h).includes(activeKind)) : undefined)
+    ?? displayHoldFor(holds, vehicleId, status, holdLatestActivity);
 
   const saleCarCount = vehicles.filter(v => v.status === 'SALE_CAR').length;
 

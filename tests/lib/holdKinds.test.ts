@@ -17,7 +17,17 @@ describe('kindsOfHold', () => {
     expect(kindsOfHold(hold('A', { holdTypes: ['mechanical'], mechanicalSubType: 'safety-recall' }))).toEqual(['recall']);
     expect(kindsOfHold(hold('A', { holdTypes: ['mechanical'], mechanicalSubType: 'pm-due' }))).toEqual(['pm']);
     expect(kindsOfHold(hold('A', { holdTypes: ['mechanical'], mechanicalSubType: 'tire-replacement' }))).toEqual(['tires']);
-    expect(kindsOfHold(hold('A', { damageZones: ['windshield'] }))).toEqual(['damage', 'windshield']);
+    expect(kindsOfHold(hold('A', { damageZones: ['windshield'] }))).toEqual(['windshield']);
+  });
+
+  // Aaron, 2026-09-30: "does it carry several of the other ones?" — 8 of 20 under Damage were windshields.
+  it('⭐ a windshield-only damage hold is NOT under Damage — one pile, one pill', () => {
+    expect(kindsOfHold(hold('A', { damageZones: ['windshield'], damageDescription: 'Cracked windshield' }))).not.toContain('damage');
+    expect(kindsOfHold(hold('A', { damageDescription: 'Windshield chip' }))).not.toContain('damage');
+  });
+
+  it('a hold naming the windshield AND a body panel is honestly both', () => {
+    expect(kindsOfHold(hold('A', { damageZones: ['windshield', 'hood'] }))).toEqual(['damage', 'windshield']);
   });
 
   it('⭐ windshield cuts across hail too — it is a LOCATION, not a type', () => {

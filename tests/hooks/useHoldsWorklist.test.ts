@@ -61,3 +61,28 @@ describe('useHoldsWorklist — kind pills', () => {
     expect(w.noMatch).toBe(false);
   });
 });
+
+// LUR306, 2026-09-30: a bumper hold + a newer hail hold. Under Damage its card said "Hail damage".
+describe('useHoldsWorklist — the card matches the pill', () => {
+  const fleet306 = [car('LUR306', 'HELD')];
+  const mk = (id: string, over: Record<string, unknown>) => ({
+    id, vehicleId: 'LUR306', status: 'ACTIVE', resolvedTypes: [], damageZones: [],
+    flaggedAt: '2026-09-29T16:00:00Z', ...over,
+  }) as unknown as import('../../src/types').Hold;
+  const holds = [
+    mk('hail', { holdTypes: ['hail'], damageDescription: 'Hail damage', damageZones: ['hood', 'roof'] }),
+    mk('bumper', { holdTypes: ['damage'], damageDescription: 'Bumper damage — cosmetic', damageZones: ['front-bumper'] }),
+  ];
+
+  it('⭐ under Damage the card shows the damage hold', () => {
+    expect(run({ vehicles: fleet306, holds, activeKind: 'damage' }).getDisplayHold('LUR306', 'HELD')?.id).toBe('bumper');
+  });
+
+  it('under Hail the same car shows the hail hold', () => {
+    expect(run({ vehicles: fleet306, holds, activeKind: 'hail' }).getDisplayHold('LUR306', 'HELD')?.id).toBe('hail');
+  });
+
+  it('with no pill, the card is chosen exactly as before', () => {
+    expect(run({ vehicles: fleet306, holds }).getDisplayHold('LUR306', 'HELD')?.id).toBe('hail');
+  });
+});

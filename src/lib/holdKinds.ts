@@ -39,12 +39,17 @@ const openType = (h: Hold, t: HoldType) => h.holdTypes.includes(t) && !(h.resolv
 export function kindsOfHold(h: Hold): HoldKind[] {
   if (h.status !== 'ACTIVE') return [];
   const kinds: HoldKind[] = [];
+  const zones = h.damageZones ?? [];
+  const windshield = (openType(h, 'damage') || openType(h, 'hail')) &&
+    (zones.includes('windshield') || WINDSHIELD_WORDS.test(h.damageDescription ?? ''));
+  // ⭐ DAMAGE MEANS BODY DAMAGE (Aaron, 2026-09-30: *"when i have the damage pill selected. does it carry several
+  // of the other ones?"*). 8 of the 20 cars under Damage were windshields, already counted under their own pill,
+  // so the two pills read as one pile twice. A hold whose ONLY panel is the windshield is a Windshield hold and
+  // nothing else; a hold that ALSO names a body panel (windshield + hood) is honestly both.
+  const windshieldOnly = windshield && zones.every(z => z === 'windshield');
   if (openType(h, 'hail')) kinds.push('hail');
-  if (openType(h, 'damage')) kinds.push('damage');
-  if ((openType(h, 'damage') || openType(h, 'hail')) &&
-      ((h.damageZones ?? []).includes('windshield') || WINDSHIELD_WORDS.test(h.damageDescription ?? ''))) {
-    kinds.push('windshield');
-  }
+  if (openType(h, 'damage') && !windshieldOnly) kinds.push('damage');
+  if (windshield) kinds.push('windshield');
   if (openType(h, 'mechanical')) {
     if (h.mechanicalSubType === 'safety-recall') kinds.push('recall');
     if (h.mechanicalSubType === 'pm-due') kinds.push('pm');
