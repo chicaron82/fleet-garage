@@ -15,6 +15,33 @@
 // This lives as a pure function rather than inline in the handler for exactly that reason: a rule
 // that only exists in prose is a rule nothing can check.
 
+/**
+ * ⚠️⚠️ A MODEL CODE IS NOT A RENTAL CLASS — a rule of SHAPE, not of what the fleet happens to store.
+ *
+ * Aaron, 2026-10-01, on the audit card for 0EZ443 (a Calgary tag: `08193  C` · `CK4L 25`): *"Do we still
+ * have CK4L as a rental class somewhere?"* It did, twice. On 2026-09-29 a scan filed the tag's model
+ * code in the class slot; the learner taught `CK4L → CK4L` over the correct `CK4L → C`, and the car
+ * stored rental class `CK4L`. ⭐ Then the audit's wrong-box guard, which builds "known rental classes"
+ * from what the fleet stores, BELIEVED it: it accused the correct Model code box and waved the wrong
+ * Rental class box through. One bad row had taught the check that the bad value was legitimate.
+ *
+ * A vocabulary learned from the data cannot catch an error that is already in the data. A shape can:
+ * every rental class on the fleet is one or two characters (C, T, B5, Q4, E8 — 846 cars, 25 kinds) and
+ * every model code is four. So a value of four or more characters, or one equal to the car's own model
+ * code, is a code sitting in the wrong slot — whatever any table says.
+ * docs/September/ticket-model-code-is-not-a-rental-class.md
+ */
+export function isCodeShapedClass(
+  value: string | null | undefined,
+  /** The car's model code, when the caller has it — an exact echo of it is never a class. */
+  classCode?: string | null,
+): boolean {
+  const v = (value ?? '').trim().toUpperCase();
+  if (!v) return false;
+  const code = (classCode ?? '').trim().toUpperCase();
+  return v.length >= 4 || (!!code && v === code);
+}
+
 export interface ClassPinDecision {
   /** The class the scan should report, or undefined when nothing can say. */
   rentalClass?: string;
@@ -36,8 +63,15 @@ export function resolveRentalClass(
   known: { rental_class?: string | null; pinned_at?: string | null } | null | undefined,
   tagClass: string | null | undefined,
 ): ClassPinDecision {
-  const tag = (tagClass ?? '').trim().toUpperCase() || undefined;
-  const stored = (known?.rental_class ?? '').trim().toUpperCase() || undefined;
+  // ⚠️ A code-shaped value is treated as NOT READ, on both sides. As the tag's class it would be taught
+  // (`CK4L → CK4L`, 2026-09-29); as the stored mapping it is that same poison coming back out as an
+  // "inferred" class on the next scan. Neither may be reported, and neither may teach.
+  const usable = (v: string | null | undefined) => {
+    const s = (v ?? '').trim().toUpperCase();
+    return s && !isCodeShapedClass(s) ? s : undefined;
+  };
+  const tag = usable(tagClass);
+  const stored = usable(known?.rental_class);
 
   // A PIN OUTRANKS THE TAG — the whole point.
   if (known?.pinned_at && stored) {

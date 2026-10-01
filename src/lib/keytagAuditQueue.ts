@@ -9,6 +9,7 @@
 // Pure: no DB, no React, no fetch. The caller hands in the fleet it already holds.
 import type { KeytagAuditResult, VinSource } from '../types';
 import { cityTailInRentalClass } from '../../api/_lib/owningArea';
+import { isCodeShapedClass } from '../../api/_lib/classPin';
 export type { KeytagAuditResult };
 
 /** The fields actually PRINTED on a Hertz key tag, and therefore the only ones a person can
@@ -178,6 +179,27 @@ export function nearMissCode(code: string, vocabulary: ReadonlySet<string>): str
   return hits.size === 1 ? [...hits][0] : null;
 }
 
+/**
+ * The fleet's rental classes — MINUS anything shaped like a model code.
+ *
+ * ⚠️⚠️ A vocabulary read off the data believes whatever the data says. On 2026-10-01 one car (0EZ443)
+ * stored rental class `CK4L`, so `CK4L` became a "known rental class", was subtracted from the known
+ * model codes, and the guard below turned around: it accused the CORRECT model-code box and passed the
+ * wrong rental-class box in silence. Aaron: *"Do we still have CK4L as a rental class somewhere?"*
+ * The subtraction in `useKeytagAudit` heals a misfiled class in the CODE column; nothing healed a
+ * misfiled code in the CLASS column. A shape does: see `isCodeShapedClass`.
+ */
+export function rentalClassVocabulary(
+  vehicles: readonly { rentalClass?: string | null; classCode?: string | null }[],
+): Set<string> {
+  const set = new Set<string>();
+  for (const v of vehicles) {
+    const cls = v.rentalClass?.trim().toUpperCase();
+    if (cls && !isCodeShapedClass(cls, v.classCode)) set.add(cls);
+  }
+  return set;
+}
+
 export function auditWarnings(
   edits: Partial<Record<AuditField, string>>,
   /** Every rental class in use on the fleet. */
@@ -190,7 +212,9 @@ export function auditWarnings(
   const model  = (edits.classCode   ?? '').trim().toUpperCase();
   const rental = (edits.rentalClass ?? '').trim().toUpperCase();
 
-  if (model && knownRentalClasses.has(model) && !knownModelCodes.has(model)) {
+  // A four-character value is never a rental class, so it is never accused of being one — whatever a
+  // poisoned vocabulary claims (2026-10-01: "CK4L is a rental class" shown on the correct box).
+  if (model && !isCodeShapedClass(model) && knownRentalClasses.has(model) && !knownModelCodes.has(model)) {
     out.push({
       field: 'classCode',
       message: `“${model}” is a rental class — did it belong in the field above?`,
@@ -210,7 +234,10 @@ export function auditWarnings(
       field: 'rentalClass',
       message: `“${rental}” is the end of “${debris}” — the keyring hole cuts the top line, so this is probably the city, not the class.`,
     });
-  } else if (rental && knownModelCodes.has(rental) && !knownRentalClasses.has(rental)) {
+  // ⭐ BY SHAPE FIRST, then by vocabulary. A value of four or more characters is a code in the wrong
+  // slot even if no other car carries that code, and even if this very car's stored class has taught
+  // the vocabulary otherwise.
+  } else if (rental && (isCodeShapedClass(rental) || (knownModelCodes.has(rental) && !knownRentalClasses.has(rental)))) {
     out.push({
       field: 'rentalClass',
       message: `“${rental}” is a model code — the rental class is the short group (Q4, E9).`,

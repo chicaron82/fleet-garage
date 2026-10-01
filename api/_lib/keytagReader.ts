@@ -22,7 +22,7 @@ import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } fr
 import { normalizeOwning } from './owningArea.js';
 import { normalizeVinLast9 } from './vinLast9.js';
 import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, isAmbiguousClassCode, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
-import { resolveRentalClass } from './classPin.js';
+import { resolveRentalClass, isCodeShapedClass } from './classPin.js';
 import type { KeytagRead } from './keytagRead.js';
 import { priceUsage } from './apiSpend.js';
 import { recordSpend } from './recordSpend.js';
@@ -154,8 +154,14 @@ export function toKeytagRead(input: unknown): KeytagRead {
   const s = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
   let year: number | undefined;
   if (typeof r.year === 'number' && r.year > 0) year = r.year < 100 ? 2000 + r.year : r.year;
-  // A known code the reader filed under MODEL is still the code (0AN391's "CM3L", 2026-09-25).
-  const classCode = classCodeFromRead(s(r.classCode), s(r.model));
+  const rawClass = s(r.rentalClass)?.toUpperCase();
+  // A known code the reader filed under MODEL is still the code (0AN391's "CM3L", 2026-09-25) — and
+  // so is one it filed under the RENTAL CLASS (0EZ443's "CK4L", scanned 2026-09-29, found 10-01).
+  const classCode = classCodeFromRead(s(r.classCode), s(r.model)) ?? classCodeFromRead(undefined, rawClass);
+  // ⚠️ A model code in the class slot is NOT a class: it is dropped here so it can never be stored on
+  // the car or taught to `class_code_rental_class` (it was: `CK4L → CK4L`). Nothing is lost — the
+  // value is the model code, and it is kept as one on the line above. See classPin.isCodeShapedClass.
+  const rentalClass = isCodeShapedClass(rawClass, classCode) ? undefined : rawClass;
   // Resolve the class code → make/model here (the codex is server-side). An unknown code
   // leaves make/model empty — the caller then asks, exactly as Effie does in chat.
   const vc = lookupVehicleClass(classCode);
@@ -170,7 +176,7 @@ export function toKeytagRead(input: unknown): KeytagRead {
       return v && PROMPT_EXAMPLE_VINS.has(v) ? undefined : v;
     })(),
     classCode,
-    rentalClass: s(r.rentalClass)?.toUpperCase(),
+    rentalClass,
     // Normalized here (leading zero stripped) so the stored value is one shape regardless of
     // whether the tag printed "08199" or "8199".
     owningArea: normalizeOwning(r.owningArea) || undefined,
@@ -188,7 +194,7 @@ export function toKeytagRead(input: unknown): KeytagRead {
     // about the car; a code is a fact about a printed label, and labels are wrong often enough that
     // Aaron corrects them by hand rather than chase a reprint. All three are one-way — none can
     // ever un-check the box.
-    isHybrid: hybridFromModel(vc?.model ?? s(r.model)) ?? vc?.isHybrid ?? hybridFromRentalClass(s(r.rentalClass)),
+    isHybrid: hybridFromModel(vc?.model ?? s(r.model)) ?? vc?.isHybrid ?? hybridFromRentalClass(rentalClass),
     year,
     // ⚠️ The schema asks the model to map the code to a word; 31 live cars proved it does not always
     // comply, so the expansion is enforced HERE rather than hoped for. See `tagColour`.

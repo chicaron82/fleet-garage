@@ -5,6 +5,7 @@ import {
   auditQueueStats,
   retakeWatchlist,
   checkVehicleWatchlist,
+  rentalClassVocabulary,
   type AuditCandidate,
   type AuditQueueStats,
 } from '../lib/keytagAuditQueue';
@@ -101,11 +102,9 @@ export function useKeytagAudit(): KeytagAuditState {
   const retakes = useMemo(() => retakeWatchlist(allVehicles), [allVehicles]);
   const checkVehicle = useMemo(() => checkVehicleWatchlist(allVehicles), [allVehicles]);
   const pending = useMemo(() => queue.filter(c => !skipped.has(c.vehicle.id)), [queue, skipped]);
-  const knownRentalClasses = useMemo(() => {
-    const set = new Set<string>();
-    for (const v of allVehicles) if (v.rentalClass) set.add(v.rentalClass.trim().toUpperCase());
-    return set;
-  }, [allVehicles]);
+  // ⚠️ Built by `rentalClassVocabulary`, which leaves out anything shaped like a model code — one car
+  // storing `CK4L` as its class once taught this set that CK4L was a class (2026-10-01).
+  const knownRentalClasses = useMemo(() => rentalClassVocabulary(allVehicles), [allVehicles]);
 
   // ⚠️ RENTAL CLASSES ARE SUBTRACTED, and that is load-bearing rather than tidy. A misfiled value
   // lands in `class_code` and immediately makes itself a "known model code" — so E9, sitting in the
