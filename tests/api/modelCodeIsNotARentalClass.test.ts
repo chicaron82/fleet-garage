@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // taught `CK4L → CK4L` over the correct `CK4L → C`; the car stored rental class `CK4L`; and the audit's
 // wrong-box guard, which learns its vocabulary from the fleet, then accused the CORRECT box and passed
 // the wrong one. Every door that value went through is pinned here.
-// docs/September/ticket-model-code-is-not-a-rental-class.md
+// docs/October/ticket-model-code-is-not-a-rental-class.md
 
 const upserts: Record<string, unknown>[] = [];
 vi.mock('../../src/lib/supabase', () => ({

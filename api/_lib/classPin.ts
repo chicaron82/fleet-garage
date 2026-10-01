@@ -29,7 +29,7 @@
  * every rental class on the fleet is one or two characters (C, T, B5, Q4, E8 — 846 cars, 25 kinds) and
  * every model code is four. So a value of four or more characters, or one equal to the car's own model
  * code, is a code sitting in the wrong slot — whatever any table says.
- * docs/September/ticket-model-code-is-not-a-rental-class.md
+ * docs/October/ticket-model-code-is-not-a-rental-class.md
  */
 export function isCodeShapedClass(
   value: string | null | undefined,
