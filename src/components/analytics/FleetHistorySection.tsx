@@ -9,6 +9,7 @@ import {
 import { TopSeenCard } from './TopSeenCard';
 import { FleetOriginCard } from './FleetOriginCard';
 import { FleetMakeupCard } from './FleetMakeupCard';
+import { FleetModelCodesCard } from './FleetModelCodesCard';
 
 // What FG has RECORDED — the half of Analytics built on real rows rather than demo scaffolding.
 //
@@ -299,6 +300,11 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
       {/* ⚠️ `liveFleet(vehicles)`, the same rows the class bars count, so a make's total and a
           class's fleet size can never tell him two different stories about one car. */}
       <FleetMakeupCard vehicles={liveFleet(vehicles)} />
+
+      {/* ── 7 · the model codes FG has learned, to audit (2026-10-01) ───────── */}
+      {/* ⚠️ Raw lists on purpose: the card filters live vs archived itself, because an archived car
+          still vouches for a class and a live count must not include it. */}
+      <FleetModelCodesCard vehicles={vehicles} archivedVehicles={archivedVehicles} />
       </>)}
     </section>
   );
