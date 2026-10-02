@@ -1,6 +1,6 @@
 import { lookupVehicleClass, isAmbiguousClassCode, normalizeClassCode, sameModelFamily } from '../../api/_lib/vehicleClassCodex';
 import { isCodeShapedClass } from '../../api/_lib/classPin';
-import { modelCodeRuling } from '../../api/_lib/modelCodeRulings';
+import { modelCodeRuling, misreadOf } from '../../api/_lib/modelCodeRulings';
 
 // What FG has LEARNED about model codes, laid out so a person can audit it.
 //
@@ -165,6 +165,15 @@ export function auditModelCodes(
 
     const problems: string[] = [];
     const notes: string[] = [];
+
+    // ⭐ A code he has RULED a misread stays in front of him until it is gone: nothing carrying it,
+    // nothing learned for it. FG does not correct the car or forget the lesson on its own.
+    const truth = misreadOf(code);
+    if (truth) {
+      problems.push(cars.length > 0
+        ? `A misread of ${truth}. ${cars.length === 1 ? 'One car still carries' : `${cars.length} cars still carry`} it.`
+        : `A misread of ${truth}. Nothing carries it now, so what FG learned for it can be forgotten.`);
+    }
 
     if (code.length !== 4) problems.push(`“${code}” isn't shaped like a model code. They are four characters.`);
 

@@ -266,3 +266,35 @@ describe('the order he reads it in', () => {
     expect(a.unbacked).toBe(1);
   });
 });
+
+// Aaron, 2026-10-01: *"CCMR a misread for CCMH"*. The tag on the one car carrying it prints CCMH.
+describe('a code he has ruled a misread', () => {
+  const camry = car('CCMR', 'Toyota', 'Camry', 'E6');
+
+  it('⭐⭐ stays in To check while a car still carries it, and says what it is a misread of', () => {
+    const a = audit([camry], [learned('CCMR', 'E6')], [taught('CCMR', 'Toyota', 'Camry')]);
+    const r = row(a, 'CCMR');
+    expect(r.problems).toEqual(['A misread of CCMH. One car still carries it.']);
+    expect(r.ruling).toMatch(/misread of CCMH/);
+    expect(a.toCheck).toBe(1);
+    // FG's built-in list no longer vouches for it — what it fills in is only what was taught.
+    expect(r.model).toEqual({ name: 'Toyota Camry', source: 'taught', hybrid: false });
+  });
+
+  it('⭐ once nothing carries it, it says the lesson can go — and offers to forget both halves', () => {
+    const a = audit([car('CCMH', 'Toyota', 'Camry SE', 'E6')], [learned('CCMR', 'E6')], [taught('CCMR', 'Toyota', 'Camry')]);
+    const r = row(a, 'CCMR');
+    expect(r.problems[0]).toBe('A misread of CCMH. Nothing carries it now, so what FG learned for it can be forgotten.');
+    expect(r.canForgetClass).toBe(true);
+    expect(r.canForgetModel).toBe(true);
+  });
+
+  it('and with nothing learned and no car, it is simply gone from the list', () => {
+    expect(audit([car('CCMH', 'Toyota', 'Camry SE', 'E6')]).rows.map(r => r.code)).toEqual(['CCMH']);
+  });
+
+  it('counts several cars', () => {
+    expect(row(audit(times(2, camry)), 'CCMR').problems[0]).toBe('A misread of CCMH. 2 cars still carry it.');
+  });
+});
+

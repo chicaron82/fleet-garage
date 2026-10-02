@@ -77,6 +77,8 @@ shipped asking him again, in amber.
   built-in entry, and do not raise the taught `Blazer` row as a conflict.
 - `CCAM` base Camry · `CCSE` Camry SE · `CCMH` Camry SE **Hybrid** · `CRVB` base RAV4 · `CRHX` RAV4 Hybrid
   · `CBZL` the real Blazer code (cars archived) · `CCVC` the GAS Civic · `CTAV` ambiguous, never guessed.
+- **`CCMR` is a MISREAD of `CCMH`** (*"CCMR a misread for CCMH"*; the tag on DEYT759 prints `CCMH 25`). It is
+  deliberately NOT in the built-in list — an entry there clears a code in the audit. `misreadOf()` holds it.
 - **A code whose cars were archived is a real code, not a misread.** A trim or "Hybrid" in a model name is
   not a different car (`sameModelFamily`).
 

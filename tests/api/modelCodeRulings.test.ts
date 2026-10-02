@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lookupVehicleClass, sameModelFamily, modelCodeMismatch } from '../../api/_lib/vehicleClassCodex';
-import { modelCodeRuling } from '../../api/_lib/modelCodeRulings';
+import { modelCodeRuling, misreadOf } from '../../api/_lib/modelCodeRulings';
 
 // Aaron, 2026-10-01, reading the Model codes audit: *"CBRS, we keep discussing this, but past you
 // doesn't write it down."* These pin what he said that evening, so the next change to the list has to
@@ -31,6 +31,19 @@ describe('what he said each code is', () => {
     expect(lookupVehicleClass('CBRS')).toEqual({ make: 'Chevrolet', model: 'Trailblazer' });
     expect(modelCodeRuling('CBRS')).toMatch(/Blazer RS.*Trailblazer/);
     expect(modelCodeRuling(' cbrs ')).toBe(modelCodeRuling('CBRS'));
+  });
+
+  // *"CCMR a misread for CCMH"* — and DEYT759's tag prints `CCMH 25`. The built-in list had an entry
+  // for it ("1 car, class E6"), which CLEARS a code in the audit. A misread must never be built in.
+  it('⭐⭐ CCMR is a ruled misread of CCMH, and the built-in list does not vouch for it', () => {
+    expect(lookupVehicleClass('CCMR')).toBeNull();
+    expect(misreadOf('CCMR')).toBe('CCMH');
+    expect(misreadOf(' ccmr ')).toBe('CCMH');
+    expect(modelCodeRuling('CCMR')).toMatch(/misread of CCMH/);
+    // …and the code it is a misread of is real.
+    expect(lookupVehicleClass(misreadOf('CCMR'))).toEqual({ make: 'Toyota', model: 'Camry SE', isHybrid: true });
+    expect(misreadOf('CCMH')).toBeNull();
+    expect(misreadOf(null)).toBeNull();
   });
 
   it('has no ruling for a code he has not ruled on', () => {

@@ -177,7 +177,9 @@ const CODEX: Record<string, VehicleClass> = {
   CX6M: { make: 'Volvo', model: 'XC60' },        // 1 car,  class H4
   // Toyota
   CTAC: { make: 'Toyota', model: 'Tacoma' },     // 2 cars, class O6
-  CCMR: { make: 'Toyota', model: 'Camry' },      // 1 car,  class E6
+  // ⚠️ `CCMR` WAS HERE ("1 car, class E6") AND IS GONE ON PURPOSE. Aaron, 2026-10-01: *"CCMR a misread for
+  // CCMH"* — and the tag on that one car (DEYT759) prints `CCMH 25`, the H faded. An entry in this list
+  // clears a code of suspicion in the model-code audit, so a misread must never live here.
   // Chevrolet
   // ⚠️ Was 'Trax' — wrong. Every CTAA car in FG is a Trailblazer in B5 (Trax is B4), and his own
   // August teaching said Trailblazer too. Aaron, 2026-09-25: *"whichever is a confirmed trailblazer in FG

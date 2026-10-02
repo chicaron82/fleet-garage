@@ -20,7 +20,25 @@ const RULINGS: Record<string, string> = {
   // trailblazer". 2026-10-01: "C, BRS - Canadian Blazer RS. just going with whatever the majority is
   // because its a mess."
   CBRS: 'Reads as Blazer RS, but it was keyed onto a Trailblazer. FG follows the cars that carry it.',
+  // 2026-10-01: "CCMR a misread for CCMH". The tag on the one car carrying it prints `CCMH 25`.
+  CCMR: 'A misread of CCMH, the Camry SE Hybrid.',
 };
+
+/**
+ * Codes he has ruled are a MISREAD of another code, and which one.
+ *
+ * ⚠️ Not a correction table: nothing rewrites `CCMR` into `CCMH` on its own. The audit uses it to keep
+ * the code in front of him until no car carries it and nothing is learned for it; fixing the car and
+ * forgetting the lesson stay his decisions.
+ */
+const MISREAD_OF: Record<string, string> = {
+  CCMR: 'CCMH',
+};
+
+/** The code this one is a ruled misread of, or null. */
+export function misreadOf(code: string | undefined | null): string | null {
+  return MISREAD_OF[normalizeClassCode(code)] ?? null;
+}
 
 /** His ruling on a code, or null when he has not made one. */
 export function modelCodeRuling(code: string | undefined | null): string | null {
