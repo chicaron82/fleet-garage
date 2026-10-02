@@ -66,6 +66,25 @@ Both were "correct"; they answer different questions.
 ⭐ **Say which you mean, every time.** *"764 cars FG has met"* (has a unit) vs *"780 cars FG knows of"*
 (includes plate-only geotab rows). A fleet count with no stated filter is not a number, it is two.
 
+### 6. `CBRS` on a Trailblazer, and every other model code he has ruled on. Resolved.
+
+*"CBRS, we keep discussing this, but past you doesn't write it down."* (Aaron, 2026-10-01.) It was
+written down on 2026-09-20 — in a memory note, not here and not in the code — so the model-code audit
+shipped asking him again, in amber.
+
+- **`CBRS` READS "Blazer RS" and FG fills in Trailblazer ON PURPOSE.** Whoever keys the tags reached for
+  Blazer on a Trailblazer; he follows the cars and corrects them as he sees them. Do not "fix" the
+  built-in entry, and do not raise the taught `Blazer` row as a conflict.
+- `CCAM` base Camry · `CCSE` Camry SE · `CCMH` Camry SE **Hybrid** · `CRVB` base RAV4 · `CRHX` RAV4 Hybrid
+  · `CBZL` the real Blazer code (cars archived) · `CCVC` the GAS Civic · `CTAV` ambiguous, never guessed.
+- **A code whose cars were archived is a real code, not a misread.** A trim or "Hybrid" in a model name is
+  not a different car (`sameModelFamily`).
+
+⭐ **Where a ruling goes, the same turn he gives it:** the entry + comment in
+`api/_lib/vehicleClassCodex.ts`, and one sentence in **`api/_lib/modelCodeRulings.ts`** — the audit card
+prints it as "Settled:" and stops raising that conflict. A ruling that is only in a conversation, or only
+in a memory note, will be asked again. `tests/api/modelCodeRulings.test.ts` pins them.
+
 ### ⚠️ Keep this list growing — a recurrence that lives only in a conversation will recur
 
 **When he re-explains a resolved finding, add it here in the same turn.** The cost of a repeat lands
