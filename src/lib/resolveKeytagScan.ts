@@ -5,7 +5,7 @@
 // See docs/ticket-misc-effie-keytag-scan.md.
 import { plateCandidates } from '../../api/_lib/platePrefix';
 import { matchByUnitNumber } from './matchByUnitNumber';
-import { isClippedRead, matchByLeadingTruncation } from './clippedRead';
+import { isClippedRead, matchClippedRead } from './clippedRead';
 import { resolveKeytag, type KeytagResolution, type KeytagFill, type KeytagChange, type KeytagConflict, type KeytagField, type KeytagExistingVehicle } from './resolveKeytag';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
@@ -252,18 +252,21 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   // safe, and it is earned from the read itself (two fixed-length fields, each exactly one short).
   // A scan that simply failed to read a digit gets nothing from this and must not.
   //
-  // ⚠️ UNIT FIRST, THEN PLATE — the same precedence the exact passes use, for the same reason: the
-  // unit is the stronger key (~97.5% vs ~87.5%), and a clipped read is already the weaker evidence.
+  // ⭐ ALL THREE KEYS, AND THEY MUST NOT DISAGREE (2026-10-01, FWC4510). It used to try the unit and
+  // fall back to the plate. Then the reader returned `6601463` for a tag printing `⌐60 1463` — it
+  // INVENTED the clipped digit — so neither restoring a character nor an exact lookup could find the
+  // car. On a proven-clipped tag a first character is never evidence, whoever supplied it; the unit,
+  // the last-9 and the plate are each compared without it, and a car is named only when every key
+  // that singles one out names the same one (`matchClippedRead`).
   // ⚠️ And it stays STRICTLY LAST. An exact hit on either key always wins, so a tag that resolves
   // today keeps resolving to the same car.
   const clipped = !byPlate && unitMatch.kind === 'none' && isClippedRead(read);
   const clippedMatch = clipped
-    ? (() => {
-        const byUnit = matchByLeadingTruncation(read.unitNumber, vehicles, v => v.unitNumber);
-        return byUnit.kind === 'none'
-          ? matchByLeadingTruncation(corrected, vehicles, v => v.licensePlate)
-          : byUnit;
-      })()
+    ? matchClippedRead(
+        { unit: read.unitNumber, vin: read.vinLast9, plates: [raw, ...candidates] },
+        vehicles,
+        v => ({ unit: v.unitNumber, vin: v.vinLast9, plate: v.licensePlate }),
+      )
     : { kind: 'none' as const };
 
   const vehicle = byPlate
@@ -286,9 +289,26 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
   // it: `KGE511` is shape AAA999 against the record's 9AA999, and a shape change is the strongest
   // re-plate signal `classifyPlateDifference` knows. **The corrector manufactured the evidence the
   // classifier then trusted.** A raw read can be wrong; it can never be invented.
-  const plate = hitPlate ?? (vehicle ? raw : corrected);
+  //
+  // ⚠️ ONE EXCEPTION, AND IT IS THE SAME PRINCIPLE. On a clipped tag the reader may SUPPLY the missing
+  // first character (`TWC4510` for a tag printing `⌐WC4510`, 2026-09-08). That character is not on
+  // the tag, so it is not something the tag says: it is dropped, leaving the truncation every
+  // consumer already knows is a misread and never a re-plate.
+  const recordPlate = (vehicle?.licensePlate ?? '').trim().toUpperCase();
+  const guessedFirst = matchedByClippedTag && raw.length === recordPlate.length
+    && raw !== recordPlate && raw.slice(1) === recordPlate.slice(1);
+  const plate = hitPlate ?? (vehicle ? (guessedFirst ? raw.slice(1) : raw) : corrected);
 
   const existing = vehicle ? keytagExistingFrom(vehicle) : null;
+  // ⭐ "DON'T TRUST THE REST OF THE TAG" WAS ONLY A SENTENCE ON THE CARD. The label has said so since
+  // 2026-09-13 while the resolution below still read every field off the clipped tag — a 3-character
+  // code, an 8-character last-9 that would FILL a blank one, a unit with an invented digit — and
+  // applied whatever was not locked. A clipped tag identifies the car and nothing else: the fields
+  // that start a printed line are withheld, and only what sits mid-line (class, year) is compared.
+  const trusted: KeytagRead = matchedByClippedTag
+    ? { ...read, unitNumber: undefined, vinLast9: undefined, classCode: undefined, make: undefined,
+        model: undefined, color: undefined, owningArea: undefined }
+    : read;
   return {
     rawPlate: read.plate,
     plate,
@@ -298,6 +318,6 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     matchedByUnit,
     matchedByClippedTag,
     unitCandidates,
-    resolution: resolveKeytag(read, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
+    resolution: resolveKeytag(trusted, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
   };
 }

@@ -21,7 +21,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { shouldEscalate, corroborates, hasIdentityKey, plateKey, unitDigits } from './keytagEscalation.js';
 import { normalizeOwning } from './owningArea.js';
 import { normalizeVinLast9 } from './vinLast9.js';
-import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, isAmbiguousClassCode, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
+import { lookupVehicleClass, normalizeClassCode, classCodeFromRead, isAmbiguousClassCode, isTeachableClassCode, hybridFromRentalClass, hybridFromModel } from './vehicleClassCodex.js';
 import { resolveRentalClass, isCodeShapedClass } from './classPin.js';
 import type { KeytagRead } from './keytagRead.js';
 import { priceUsage } from './apiSpend.js';
@@ -307,7 +307,10 @@ export async function readKeytagPhoto(
   // pure function in classPin.ts, because a rule that only exists inline in a handler is a rule
   // nothing can test. Best-effort: learning must never break the read.
   // An ambiguous code (CTAV) names two cars, so it neither infers a class nor learns one. The tag's printed class stands.
-  if (read.classCode && !isAmbiguousClassCode(read.classCode)) {
+  // ⚠️ AND ONLY A FOUR-CHARACTER CODE. A tag clipped by the perforation prints `⌐TXF` for `CTXF`, and
+  // on 2026-09-08 that taught `TXF → B4` (FWC4510). Worse, it would re-teach it on every scan of that
+  // tag, so the audit card's Forget could never stick. A code that is not code-shaped teaches nothing.
+  if (read.classCode && isTeachableClassCode(read.classCode)) {
     const codeKey = normalizeClassCode(read.classCode);
     try {
       const { data: known } = codeKey

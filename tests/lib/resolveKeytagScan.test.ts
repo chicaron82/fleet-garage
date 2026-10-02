@@ -396,3 +396,64 @@ describe('resolveKeytagScan — a read with no identifying key', () => {
     expect(r.vehicle?.id).toBe('v-1');
   });
 });
+
+// ⭐⭐ FWC4510 / unit 5601463 — Aaron, 2026-10-01: *"Is there a way for it to point to this record the
+// next time it happens to get scanned? The left edge is cut off on the perforation line."*
+// READ below is what the real reader returned for the photo stored on the car that night.
+describe('the clipped tag the reader guesses at (FWC4510)', () => {
+  const TRAX = vehicle({
+    id: 'trax', licensePlate: 'FWC4510', unitNumber: '5601463', vinLast9: '6TC128877',
+    make: 'Chevrolet', model: 'Trax', year: 2026, color: 'Gray', classCode: 'CTXF', rentalClass: 'B4', owningArea: '8194',
+  });
+  const FLEET_T = [TRAX, vehicle({ id: 'other', licensePlate: 'LZM500', unitNumber: '5421615', vinLast9: '2SE150006' })];
+  const READ: KeytagRead = {
+    plate: 'WC4510', unitNumber: '6601463', vinLast9: 'TC128877', classCode: 'TXF',
+    rentalClass: 'B4', year: 2026, owningArea: '8194',
+  };
+
+  it('⭐⭐ points at the record instead of offering to register it — the invented digit is ignored', () => {
+    const r = resolveKeytagScan(READ, FLEET_T);
+    expect(r.vehicle?.id).toBe('trax');
+    expect(r.matchedByClippedTag).toBe(true);
+    expect(r.resolution.kind).not.toBe('new');
+    expect(newVehicleToRegisterOnScan(READ, FLEET_T)).toBeNull();
+  });
+
+  it('⭐ and the 2026-09-08 shape, where it invented the PLATE letter instead (TWC4510)', () => {
+    const r = resolveKeytagScan({ ...READ, plate: 'TWC4510', unitNumber: '60 1463' }, FLEET_T);
+    expect(r.vehicle?.id).toBe('trax');
+    // The invented letter is not something the tag says, so it is not reported — and what is left is
+    // the truncation every surface already treats as a misread, never a re-plate.
+    expect(r.plate).toBe('WC4510');
+    expect(classifyPlateDifference(r.plate, TRAX.licensePlate)).toBe('misread');
+  });
+
+  // ⚠️⚠️ The card has said "don't trust the rest of the tag" since 2026-09-13. This is that sentence
+  // made true: nothing printed at the start of a line reaches the record.
+  it('⚠️⚠️ withholds every first-column field — no conflict, no change, no fill from a clipped tag', () => {
+    const blankVin = { ...TRAX, vinLast9: null };
+    const r = resolveKeytagScan(READ, [blankVin, FLEET_T[1]]);
+    expect(r.vehicle?.id).toBe('trax');
+    expect(r.resolution).toEqual({ kind: 'complete' });   // class and year agree; the rest was withheld
+    expect(backfillFieldsOnScan(READ, [blankVin, FLEET_T[1]])).toBeNull();
+    expect(keytagConflictsOnScan(READ, [blankVin, FLEET_T[1]])).toBeNull();
+  });
+
+  it('still compares what sits mid-line: a different class on the tag is still surfaced', () => {
+    const r = resolveKeytagScan({ ...READ, rentalClass: 'B5' }, FLEET_T);
+    expect(r.resolution.kind).toBe('partial');
+  });
+
+  it('⚠️ a whole tag with one bad field gets none of this', () => {
+    const r = resolveKeytagScan({ ...READ, vinLast9: '6TC128877', classCode: 'CTXF' }, FLEET_T);
+    expect(r.vehicle).toBeNull();
+    expect(r.matchedByClippedTag).toBe(false);
+  });
+
+  it('⚠️⚠️ keys that name two different cars are handed back to him', () => {
+    const r = resolveKeytagScan({ ...READ, plate: 'ZM500' }, [{ ...TRAX, vinLast9: null }, FLEET_T[1]]);
+    expect(r.vehicle).toBeNull();
+    expect(r.unitCandidates.map(v => v.id)).toEqual(['trax', 'other']);
+  });
+});
+

@@ -38,6 +38,8 @@ import type { KeytagRead } from '../../api/_lib/keytagRead';
 const UNIT_LEN = 7;
 /** A stored last-9 is nine characters, always — it is literally VIN positions 9–17. */
 const VIN_LEN = 9;
+/** A model code is four characters, always ("CTXF"). The third fixed-length field on the tag. */
+const CODE_LEN = 4;
 
 /** Digits only; the tag prints the unit spaced and FG stores it unspaced. */
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '');
@@ -46,14 +48,28 @@ const alnum  = (s: string | null | undefined) => (s ?? '').toUpperCase().replace
 /**
  * Is this read missing the first character of every line?
  *
- * ⚠️ Deliberately requires BOTH fixed-length fields to be present and short. A read that is missing
+ * ⚠️ Deliberately requires TWO fixed-length fields to be present and short. A read that is missing
  * one of them entirely tells us nothing — absence is not shortness, and inferring a clip from a
  * field that was never read would fire on every half-legible tag in the bay.
+ *
+ * ⭐⭐ ANY TWO OF THREE, since 2026-10-01 (FWC4510 / unit 5601463, a Montreal Trax). It used to be
+ * exactly unit AND last-9. Then the reader met `⌐60 1463` and returned **`6601463`**: it invented
+ * the digit the perforation removed, from the sliver left behind. Seven digits is not short, so the
+ * gate stayed shut and FG offered to register a car it had held for three weeks. The last-9 came
+ * back `TC128877` (8) and the code `TXF` (3) — two fixed-length fields, each exactly one short, which
+ * is the same proof this function has always asked for. It was only looking in one pair of places.
+ *
+ * ⚠️ So a full-length field is NOT evidence against a clip. The reader fills a missing first
+ * character with a guess (`6601463` here; `TWC4510` for the plate on 2026-09-08). Only short fields
+ * are counted, and a guessed one simply contributes nothing.
  */
-export function isClippedRead(read: Pick<KeytagRead, 'unitNumber' | 'vinLast9'>): boolean {
-  const unit = digits(read.unitNumber);
-  const vin = alnum(read.vinLast9);
-  return unit.length === UNIT_LEN - 1 && vin.length === VIN_LEN - 1;
+export function isClippedRead(read: Pick<KeytagRead, 'unitNumber' | 'vinLast9' | 'classCode'>): boolean {
+  const short = [
+    digits(read.unitNumber).length === UNIT_LEN - 1,
+    alnum(read.vinLast9).length === VIN_LEN - 1,
+    alnum(read.classCode).length === CODE_LEN - 1,
+  ].filter(Boolean).length;
+  return short >= 2;
 }
 
 /**
@@ -97,4 +113,57 @@ export function matchByLeadingTruncation<V>(
   if (hits.length === 0) return { kind: 'none' };
   if (hits.length === 1) return { kind: 'one', vehicle: hits[0] };
   return { kind: 'ambiguous', vehicles: hits };
+}
+
+/**
+ * Does `read` name `full` once the first character is discounted?
+ *
+ * One short → the character is missing, restore it (`isLeadingTruncation`). Same length → the reader
+ * supplied a first character the tag does not show, so everything AFTER it must match and the first
+ * is ignored. ⚠️ Only ever called on a read `isClippedRead` has already proved is clipped: on a whole
+ * tag, ignoring the first character would be exactly the speculative suffix match this file refuses.
+ */
+export function isClippedForm(read: string | null | undefined, full: string | null | undefined): boolean {
+  const r = alnum(read), f = alnum(full);
+  if (r.length < 2 || !f) return false;
+  if (f.length === r.length + 1) return f.slice(1) === r;
+  return f.length === r.length && f.slice(1) === r.slice(1);
+}
+
+/** The three identity keys a tag prints, as read. `plates` is every form of the plate worth trying. */
+export interface ClippedKeys {
+  unit?: string | null;
+  vin?: string | null;
+  plates?: readonly (string | null | undefined)[];
+}
+
+/**
+ * Find the car a proven-clipped read belongs to, consulting ALL THREE keys.
+ *
+ * ⭐ The keys are independent — a fleet-assignment number, a VIN tail and a plate — so they are
+ * allowed to rescue each other and are NOT allowed to disagree:
+ *   • every key that singles out a car names the SAME car → that car;
+ *   • two keys single out DIFFERENT cars → both are handed back. Never the "stronger" one: a clipped
+ *     read is already the weakest evidence FG acts on, and a conflict inside it is a reason to ask;
+ *   • no key singles one out, but one is ambiguous (`LUR271`/`KUR271` both end `UR271`) → its
+ *     candidates are handed back.
+ *
+ * Measured 2026-10-01 on 812 live cars: 812 distinct six-digit unit tails, 780 carry a last-9.
+ */
+export function matchClippedRead<V>(
+  read: ClippedKeys,
+  vehicles: readonly V[],
+  keysOf: (v: V) => { unit?: string | null; vin?: string | null; plate?: string | null },
+): ClippedMatch<V> {
+  const plates = (read.plates ?? []).filter(p => alnum(p).length > 0);
+  const hitsPerKey: V[][] = [
+    vehicles.filter(v => isClippedForm(read.unit, keysOf(v).unit)),
+    vehicles.filter(v => isClippedForm(read.vin, keysOf(v).vin)),
+    vehicles.filter(v => plates.some(p => isClippedForm(p, keysOf(v).plate))),
+  ];
+  const singled = [...new Set(hitsPerKey.filter(h => h.length === 1).map(h => h[0]))];
+  if (singled.length === 1) return { kind: 'one', vehicle: singled[0] };
+  if (singled.length > 1) return { kind: 'ambiguous', vehicles: singled };
+  const several = hitsPerKey.find(h => h.length > 1);
+  return several ? { kind: 'ambiguous', vehicles: several } : { kind: 'none' };
 }
