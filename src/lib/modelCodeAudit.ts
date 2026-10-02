@@ -1,5 +1,6 @@
-import { lookupVehicleClass, isAmbiguousClassCode, normalizeClassCode } from '../../api/_lib/vehicleClassCodex';
+import { lookupVehicleClass, isAmbiguousClassCode, normalizeClassCode, sameModelFamily } from '../../api/_lib/vehicleClassCodex';
 import { isCodeShapedClass } from '../../api/_lib/classPin';
+import { modelCodeRuling } from '../../api/_lib/modelCodeRulings';
 
 // What FG has LEARNED about model codes, laid out so a person can audit it.
 //
@@ -17,7 +18,14 @@ import { isCodeShapedClass } from '../../api/_lib/classPin';
 // agreeing is a majority, and a majority is not evidence when one upstream hand typed all sixteen
 // (CTAV, 2026-09-25). The person reads the row and decides; the only action offered is to forget.
 //
-// Pure: no DB, no React. docs/October/ticket-model-codes-he-can-audit.md
+// ⚠️⚠️ AND IT MUST NOT ASK WHAT HE HAS ALREADY ANSWERED. An hour after this shipped he read the list
+// and four of its flags were things he had settled: *"CBRS, we keep discussing this, but past you
+// doesn't write it down."* So it now (1) agrees across a trim or a hybrid suffix, the way
+// `modelCodeMismatch` always has; (2) carries his ruling on a code and stops raising that conflict;
+// (3) says when ARCHIVED cars carried a code, which makes it a real code whose cars left, not a misread.
+//
+// Pure: no DB, no React. docs/October/ticket-model-codes-he-can-audit.md,
+// docs/October/ticket-the-audit-asks-what-he-already-answered.md
 
 export interface LearnedClassRow { code: string; rentalClass: string; pinned: boolean }
 export interface TaughtModelRow { code: string; make: string; model: string }
@@ -31,11 +39,15 @@ export interface AuditCar {
 export interface ModelCodeRow {
   code: string;
   /** What FG fills in for this code today, and where that came from. Null = FG asks. */
-  model: { name: string; source: 'built-in' | 'taught' } | null;
+  model: { name: string; source: 'built-in' | 'taught'; hybrid: boolean } | null;
+  /** What he has ruled about this code (modelCodeRulings). Shown, and it quiets the settled conflict. */
+  ruling: string | null;
   /** A taught model the built-in list overrides, so it never applies. Shown so it can be forgotten. */
   shadowedTaught: string | null;
   rentalClass: { value: string; source: 'pinned' | 'learned' } | null;
   liveCars: number;
+  /** Cars that carried this code and have since left the fleet. Proof the code is real. */
+  archivedCars: number;
   /** Distinct "Make Model" on the live cars carrying this code, most common first, with counts. */
   carModels: { name: string; cars: number }[];
   carClasses: { name: string; cars: number }[];
@@ -57,7 +69,6 @@ export interface ModelCodeAudit {
 
 const name = (make: string | null | undefined, model: string | null | undefined) =>
   `${(make ?? '').trim()} ${(model ?? '').trim()}`.trim();
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 function tally(values: string[]): { name: string; cars: number }[] {
   const counts = new Map<string, number>();
@@ -66,6 +77,19 @@ function tally(values: string[]): { name: string; cars: number }[] {
     .map(([n, cars]) => ({ name: n, cars }))
     .sort((a, b) => b.cars - a.cars || a.name.localeCompare(b.name));
 }
+
+function bucketByCode(cars: readonly AuditCar[]): Map<string, AuditCar[]> {
+  const by = new Map<string, AuditCar[]>();
+  for (const car of cars) {
+    const code = normalizeClassCode(car.classCode);
+    if (!code) continue;
+    const bucket = by.get(code);
+    if (bucket) bucket.push(car); else by.set(code, [car]);
+  }
+  return by;
+}
+
+const carsWord = (n: number) => `${n} ${n === 1 ? 'car' : 'cars'}`;
 
 const list = (items: { name: string; cars: number }[]) =>
   items.map(i => (i.cars > 1 ? `${i.name} ×${i.cars}` : i.name)).join(', ');
@@ -103,13 +127,10 @@ export function auditModelCodes(
 ): ModelCodeAudit {
   const learnedBy = new Map(learned.map(r => [normalizeClassCode(r.code), r]));
   const taughtBy = new Map(taught.map(r => [normalizeClassCode(r.code), r]));
-  const carsBy = new Map<string, AuditCar[]>();
-  for (const car of liveCars) {
-    const code = normalizeClassCode(car.classCode);
-    if (!code) continue;
-    const bucket = carsBy.get(code);
-    if (bucket) bucket.push(car); else carsBy.set(code, [car]);
-  }
+  const carsBy = bucketByCode(liveCars);
+  // `allCars` is the live fleet plus the archived one, so whatever is not live has left.
+  const live = new Set(liveCars);
+  const archivedBy = bucketByCode(allCars.filter(c => !live.has(c)));
   // Classes any car has ever carried. Code-shaped values are left out — one car storing `CK4L` as its
   // class is exactly what must not be allowed to vouch for `CK4L` here (see isCodeShapedClass).
   const fleetClasses = new Set<string>();
@@ -132,10 +153,10 @@ export function auditModelCodes(
     const taughtName = taughtRow ? name(taughtRow.make, taughtRow.model) : null;
     // ⚠️ Mirrors the reader exactly: the built-in list is tried first and a taught row only fills a gap
     // (keytagReader). An ambiguous code resolves to nothing, whatever was taught.
-    const model: ModelCodeRow['model'] = ambiguous ? null
-      : builtInName ? { name: builtInName, source: 'built-in' }
-      : taughtName ? { name: taughtName, source: 'taught' }
-      : null;
+    const fills = ambiguous ? null : builtIn ?? taughtRow;
+    const model: ModelCodeRow['model'] = !fills ? null
+      : { name: name(fills.make, fills.model), source: builtIn ? 'built-in' : 'taught', hybrid: !!builtIn?.isHybrid };
+    const ruling = modelCodeRuling(code);
     const shadowedTaught = taughtName && (ambiguous || builtInName) ? taughtName : null;
 
     const carModels = tally(cars.map(c => name(c.make, c.model)).filter(Boolean));
@@ -157,42 +178,54 @@ export function auditModelCodes(
       }
     }
 
-    if (model && carModels.length > 0) {
-      const matching = carModels.filter(c => same(c.name, model.name));
-      if (matching.length === 0) {
-        problems.push(`FG fills in ${model.name}, but the cars carrying it are ${list(carModels)}.`);
-      } else if (carModels.length > 1) {
-        problems.push(`The cars carrying it don't agree: ${list(carModels)}.`);
+    if (fills && cars.length > 0) {
+      // ⚠️ Trim-tolerant, the same rule `modelCodeMismatch` uses: "Camry SE" on a car is not a
+      // disagreement with "Camry" on the code. A warning that cries at a trim is one he learns to dismiss.
+      const differ = cars.filter(c => name(c.make, c.model) && !sameModelFamily(c.make, c.model, fills.make, fills.model));
+      const what = list(tally(differ.map(c => name(c.make, c.model))));
+      if (differ.length === cars.length) {
+        problems.push(`FG fills in ${model!.name}, but the cars carrying it are ${what}.`);
+      } else if (differ.length > 0) {
+        problems.push(`FG fills in ${model!.name}, but ${differ.length} of the ${cars.length} cars carrying it ${differ.length === 1 ? 'is' : 'are'} ${what}.`);
       }
     }
-    if (shadowedTaught && builtInName && !same(shadowedTaught, builtInName)) {
-      problems.push(`You taught ${shadowedTaught}, but FG's built-in list says ${builtInName} and wins.`);
+    // A ruling settles exactly this conflict, so it is not raised again (CBRS). And "RAV4 Hybrid"
+    // taught before hybrid became a flag is the same car as the built-in RAV4, not a rival.
+    if (taughtRow && builtIn && !ruling && !sameModelFamily(taughtRow.make, taughtRow.model, builtIn.make, builtIn.model)) {
+      problems.push(`You taught ${taughtName}, but FG's built-in list says ${builtInName} and wins.`);
     }
 
     if (ambiguous) notes.push('Used for more than one model, so FG asks and never guesses.');
     if (!model && !ambiguous && cars.length > 0) {
       notes.push(`FG has no model for this code. ${cars.length === 1 ? 'One car carries' : `${cars.length} cars carry`} it.`);
     }
-    if (cars.length === 0) {
+    const archived = archivedBy.get(code) ?? [];
+    if (cars.length === 0 && archived.length > 0) {
+      // ⭐ *"CBZL exists, but archived because we no longer have it"* (Aaron, 2026-10-01). A code a car
+      // left the fleet wearing is a REAL code whose cars are gone — never a misread suspect, however
+      // close it sits to a living one.
+      const were = list(tally(archived.map(c => name(c.make, c.model)).filter(Boolean)));
+      notes.push(`No live car carries it. ${archived.length === 1 ? 'One archived car' : `${archived.length} archived cars`} did${were ? ` (${were})` : ''}.`);
+    } else if (cars.length === 0) {
       // ⚠️⚠️ ONE EDIT APART IS NOT ENOUGH ON ITS OWN, and the first dry run proved it: every code starts
       // with C and the space is dense, so "one character from a living code" matched nearly ALL 22
       // unbacked rows — including `CCSE`, a real built-in Camry SE. A rule that flags everything flags
-      // nothing. The signal is the twin that ALSO carries this row's learned class, on a code FG has no
-      // model for: `CX4L → C` beside `CK4L`, whose 23 cars are all class C. That is a problem; any other
-      // neighbour is only a note, and neither one says "misread" — a real code whose cars all left can
-      // sit one character from a living one.
+      // nothing. The signal is a twin that ALSO shares what FG learned for this row: the same class
+      // (`CX4L → C` beside `CK4L`, whose cars are all class C) or the same model (`CORS`, taught
+      // Equinox, beside `CQRS`, whose cars are Equinoxes). Any other neighbour is only a note.
       const twins = code.length === 4
         ? [...carsBy.entries()].filter(([c]) => oneEditApart(code, c)).sort((x, y) => y[1].length - x[1].length)
         : [];
-      const sameClass = cls
-        ? twins.filter(([, cs]) => cs.some(c => (c.rentalClass ?? '').trim().toUpperCase() === cls))
-        : [];
-      const carsWord = (n: number) => `${n} ${n === 1 ? 'car' : 'cars'}`;
+      const shared = (twinCars: AuditCar[]): string[] => [
+        cls && twinCars.some(c => (c.rentalClass ?? '').trim().toUpperCase() === cls) ? `class ${cls}` : '',
+        fills && twinCars.some(c => sameModelFamily(c.make, c.model, fills.make, fills.model)) ? `a ${model!.name}` : '',
+      ].filter(Boolean);
+      const suspect = twins.find(([, cs]) => shared(cs).length > 0);
       // A TAUGHT model does not vouch for the code: `CSM3 → Tesla Model 3` was taught from a misread of
       // `CTM3` at a registration. Only the built-in list, curated in a file, clears a code of suspicion.
-      if (sameClass.length > 0 && model?.source !== 'built-in') {
-        const [c, cs] = sameClass[0];
-        problems.push(`No live car carries it. It is one character from ${c} (${carsWord(cs.length)}), which is also class ${cls}.`);
+      if (suspect && model?.source !== 'built-in') {
+        const [c, cs] = suspect;
+        problems.push(`No live car carries it. It is one character from ${c} (${carsWord(cs.length)}), which is also ${shared(cs).join(' and ')}.`);
       } else if (twins.length > 0) {
         const [c, cs] = twins[0];
         notes.push(`No live car carries this code. Nearest living code: ${c} (${carsWord(cs.length)}).`);
@@ -204,9 +237,11 @@ export function auditModelCodes(
     return {
       code,
       model,
+      ruling,
       shadowedTaught,
       rentalClass: learnedRow ? { value: cls, source: learnedRow.pinned ? 'pinned' : 'learned' } : null,
       liveCars: cars.length,
+      archivedCars: archived.length,
       carModels,
       carClasses,
       problems,

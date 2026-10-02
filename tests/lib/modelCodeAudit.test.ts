@@ -22,7 +22,7 @@ describe('a healthy code', () => {
   it('⭐ shows what FG fills in, where it came from, and raises nothing', () => {
     const a = audit(TRAX, [learned('CTXF', 'B4')]);
     const r = row(a, 'CTXF');
-    expect(r.model).toEqual({ name: 'Chevrolet Trax', source: 'built-in' });
+    expect(r.model).toEqual({ name: 'Chevrolet Trax', source: 'built-in', hybrid: false });
     expect(r.rentalClass).toEqual({ value: 'B4', source: 'learned' });
     expect(r.liveCars).toBe(3);
     expect(r.problems).toEqual([]);
@@ -88,14 +88,45 @@ describe('a learned class worth his eyes', () => {
 });
 
 describe('a model worth his eyes', () => {
-  it('⭐ flags a model the cars carrying the code contradict (CCMH: Camry vs Camry SE)', () => {
-    const a = audit(times(5, car('CTXF', 'Chevrolet', 'Trax LS', 'B4')));
-    expect(row(a, 'CTXF').problems).toEqual(['FG fills in Chevrolet Trax, but the cars carrying it are Chevrolet Trax LS ×5.']);
+  it('⭐ flags a model the cars carrying the code contradict', () => {
+    const a = audit(times(5, car('CTXF', 'Chevrolet', 'Trailblazer', 'B5')));
+    expect(row(a, 'CTXF').problems).toEqual(['FG fills in Chevrolet Trax, but the cars carrying it are Chevrolet Trailblazer ×5.']);
   });
 
-  it('flags cars that do not agree among themselves, without picking a side', () => {
+  it('flags the cars that differ when only some do, without picking a side', () => {
     const cars = [...TRAX, car('CTXF', 'Chevrolet', 'Trailblazer', 'B5')];
-    expect(row(audit(cars), 'CTXF').problems).toEqual(["The cars carrying it don't agree: Chevrolet Trax ×3, Chevrolet Trailblazer."]);
+    expect(row(audit(cars), 'CTXF').problems).toEqual(['FG fills in Chevrolet Trax, but 1 of the 4 cars carrying it is Chevrolet Trailblazer.']);
+  });
+
+  // ⚠️ The first version cried at exactly this. *"CCMH, Camry SE Hybrid · CCSE, Camry SE · CCAM, Camry
+  // (base model)"* — a trim on the car is not a disagreement with the code, in either direction.
+  it('⭐ a trim is not a disagreement (the CCMH lesson)', () => {
+    expect(row(audit(times(5, car('CTXF', 'Chevrolet', 'Trax LS', 'B4'))), 'CTXF').problems).toEqual([]);
+    const camry = [...times(5, car('CCMH', 'Toyota', 'Camry SE', 'E6')), car('CCMH', 'Toyota', 'Camry', 'E6')];
+    const r = row(audit(camry), 'CCMH');
+    expect(r.problems).toEqual([]);
+    expect(r.model).toEqual({ name: 'Toyota Camry SE', source: 'built-in', hybrid: true });
+  });
+
+  // Hybrid became a flag in migration 109. A row taught "RAV4 Hybrid" before that is the same car.
+  it('⭐ "RAV4 Hybrid" taught before the flag existed is not a rival to the built-in RAV4', () => {
+    const cars = times(5, car('CRHX', 'Toyota', 'RAV4', 'E6'));
+    const r = row(audit(cars, [], [taught('CRHX', 'Toyota', 'RAV4 Hybrid')]), 'CRHX');
+    expect(r.problems).toEqual([]);
+    expect(r.model).toEqual({ name: 'Toyota RAV4', source: 'built-in', hybrid: true });
+    expect(r.canForgetModel).toBe(true); // redundant, so still his to clear
+  });
+
+  // *"CBRS, we keep discussing this, but past you doesn't write it down."* The code reads Blazer RS; the
+  // car wearing it is a Trailblazer; FG follows the car. He ruled on it twice. It must not ask a third time.
+  it('⭐⭐ a code he has ruled on shows the ruling and does not re-raise the conflict (CBRS)', () => {
+    const cars = [car('CBRS', 'Chevrolet', 'Trailblazer', 'B5')];
+    const r = row(audit(cars, [learned('CBRS', 'B5')], [taught('CBRS', 'Chevrolet', 'Blazer')]), 'CBRS');
+    expect(r.ruling).toMatch(/Blazer RS/);
+    expect(r.problems).toEqual([]);
+    expect(r.model).toEqual({ name: 'Chevrolet Trailblazer', source: 'built-in', hybrid: false });
+    // …and a code with no ruling keeps its flag — the next test.
+    expect(row(audit(TRAX), 'CTXF').ruling).toBeNull();
   });
 
   it('matches a model without caring about case', () => {
@@ -104,7 +135,7 @@ describe('a model worth his eyes', () => {
 
   it('⭐ flags a taught model the built-in list overrides (CBRS: Blazer vs Trailblazer)', () => {
     const r = row(audit(TRAX, [], [taught('CTXF', 'Chevrolet', 'Blazer')]), 'CTXF');
-    expect(r.model).toEqual({ name: 'Chevrolet Trax', source: 'built-in' });
+    expect(r.model).toEqual({ name: 'Chevrolet Trax', source: 'built-in', hybrid: false });
     expect(r.shadowedTaught).toBe('Chevrolet Blazer');
     expect(r.problems).toEqual(["You taught Chevrolet Blazer, but FG's built-in list says Chevrolet Trax and wins."]);
     expect(r.canForgetModel).toBe(true);
@@ -119,7 +150,7 @@ describe('a model worth his eyes', () => {
 
   it('a taught model fills a gap the built-in list leaves, and can be forgotten', () => {
     const r = row(audit([car('CQZZ', 'Kia', 'Seltos', 'B5')], [], [taught('CQZZ', 'Kia', 'Seltos')]), 'CQZZ');
-    expect(r.model).toEqual({ name: 'Kia Seltos', source: 'taught' });
+    expect(r.model).toEqual({ name: 'Kia Seltos', source: 'taught', hybrid: false });
     expect(r.shadowedTaught).toBeNull();
     expect(r.canForgetModel).toBe(true);
   });
@@ -175,6 +206,32 @@ describe('a code no live car carries', () => {
     const r = row(audit(SELTOS, [learned('CQZX', 'B5')], [taught('CQZX', 'Kia', 'Seltos')]), 'CQZX');
     expect(r.problems).toHaveLength(1);
     expect(r.problems[0]).toMatch(/one character from CQZZ/);
+  });
+
+  // CORS was taught "Equinox" with class L2; CQRS is the Equinox code. Class alone missed it.
+  it('⭐ is a problem when the twin is the same MODEL, even with a different class', () => {
+    const cars = [...SELTOS, car('CXXX', 'Chevrolet', 'Blazer', 'L2')];
+    const r = row(audit(cars, [learned('CQZX', 'L2')], [taught('CQZX', 'Kia', 'Seltos')]), 'CQZX');
+    expect(r.problems).toEqual(['No live car carries it. It is one character from CQZZ (2 cars), which is also a Kia Seltos.']);
+  });
+
+  // *"CBZL exists, but archived because we no longer have it."* A code a car left the fleet wearing is
+  // real. It is never a misread suspect, however close it sits to a living one.
+  it('⭐⭐ a code ARCHIVED cars carried says so, and is cleared of suspicion', () => {
+    const gone = car('CQZX', 'Kia', 'Seltos', 'B5');
+    const a = audit(SELTOS, [learned('CQZX', 'B5')], [], [...SELTOS, gone]);
+    const r = row(a, 'CQZX');
+    expect(r.problems).toEqual([]);
+    expect(r.notes).toEqual(['No live car carries it. One archived car did (Kia Seltos).']);
+    expect(r.archivedCars).toBe(1);
+    expect(a.unbacked).toBe(1);
+  });
+
+  it('counts several archived cars, and never counts a live one as archived', () => {
+    const gone = times(2, car('CQZX', 'Kia', 'Seltos', 'B5'));
+    const a = audit(SELTOS, [learned('CQZX', 'B5')], [], [...SELTOS, ...gone]);
+    expect(row(a, 'CQZX').notes).toEqual(['No live car carries it. 2 archived cars did (Kia Seltos ×2).']);
+    expect(row(a, 'CQZZ').archivedCars).toBe(0);
   });
 
   it('names the busiest twin when there are several', () => {

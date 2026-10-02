@@ -68,7 +68,7 @@ export function FleetModelCodesCard({ vehicles, archivedVehicles }: {
       </button>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
         What FG fills in when it reads a model code off a tag, checked against the cars that carry it.
-        FG only points at what differs. You decide.
+        FG only points at what differs. You decide. Tap a code that agrees to see what can be forgotten.
       </p>
 
       {open && loading && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-3">Reading what FG learned…</p>}
@@ -104,7 +104,7 @@ export function FleetModelCodesCard({ vehicles, archivedVehicles }: {
                 </button>
                 {shown[g.id] && (
                   <ul className="mt-1 divide-y divide-gray-100 dark:divide-gray-800">
-                    {rows.map(r => <CodeRow key={r.code} row={r} armed={armed} onArm={setArmed} onForget={forget} forgetClass={forgetClass} forgetModel={forgetModel} />)}
+                    {rows.map(r => <CodeRow key={r.code} row={r} quiet={g.id === 'fine'} armed={armed} onArm={setArmed} onForget={forget} forgetClass={forgetClass} forgetModel={forgetModel} />)}
                   </ul>
                 )}
               </div>
@@ -116,8 +116,11 @@ export function FleetModelCodesCard({ vehicles, archivedVehicles }: {
   );
 }
 
-function CodeRow({ row: r, armed, onArm, onForget, forgetClass, forgetModel }: {
+function CodeRow({ row: r, quiet, armed, onArm, onForget, forgetClass, forgetModel }: {
   row: ModelCodeRow;
+  /** A code that agrees with its cars keeps Forget one tap away: 85 rows of links is noise, and a
+   *  stray thumb should not be one tap from un-learning something correct. */
+  quiet: boolean;
   armed: string | null;
   onArm: (key: string | null) => void;
   onForget: (what: string, run: () => Promise<void>) => Promise<void>;
@@ -132,14 +135,20 @@ function CodeRow({ row: r, armed, onArm, onForget, forgetClass, forgetModel }: {
     r.canForgetModel && taughtName
       ? { key: `${r.code}:model`, what: `taught ${taughtName}`, run: () => forgetModel(r.code) } : null,
   ].filter((a): a is { key: string; what: string; run: () => Promise<void> } => a !== null);
+  const [opened, setOpened] = useState(false);
+  const tappable = quiet && actions.length > 0;
+  const Line = tappable ? 'button' : 'div';
 
   return (
     <li className="py-1.5">
-      <div className="flex items-baseline gap-2 text-[11px]">
+      <Line
+        {...(tappable ? { type: 'button' as const, 'aria-expanded': opened, 'aria-label': `${r.code} options`, onClick: () => { hapticLight(); setOpened(o => !o); } } : {})}
+        className={`w-full flex items-baseline gap-2 text-[11px] text-left ${tappable ? 'cursor-pointer' : ''}`}
+      >
         <span className="font-mono font-semibold text-gray-900 dark:text-gray-100 w-14 shrink-0">{r.code}</span>
         <span className="flex-1 min-w-0 truncate text-gray-600 dark:text-gray-300">
           {r.model ? r.model.name : <span className="text-gray-400 dark:text-gray-500">no model</span>}
-          {r.model && <span className="text-gray-400 dark:text-gray-500"> · {r.model.source}</span>}
+          {r.model && <span className="text-gray-400 dark:text-gray-500">{r.model.hybrid ? ' · hybrid' : ''} · {r.model.source}</span>}
         </span>
         {r.rentalClass && (
           <span className={CHIP} title={r.rentalClass.source}>
@@ -149,10 +158,12 @@ function CodeRow({ row: r, armed, onArm, onForget, forgetClass, forgetModel }: {
         <span className="tabular-nums w-12 text-right text-gray-500 dark:text-gray-400">
           {r.liveCars} {r.liveCars === 1 ? 'car' : 'cars'}
         </span>
-      </div>
+      </Line>
+      {/* ⭐ His ruling on the code, shown so the screen carries the answer instead of the question. */}
+      {r.ruling && <p className="ml-16 text-[11px] text-gray-700 dark:text-gray-200"><b>Settled:</b> {r.ruling}</p>}
       {r.problems.map(p => <p key={p} className="ml-16 text-[11px] text-amber-700 dark:text-amber-400">{p}</p>)}
       {r.notes.map(n => <p key={n} className="ml-16 text-[11px] text-gray-400 dark:text-gray-500">{n}</p>)}
-      {actions.length > 0 && (
+      {actions.length > 0 && (!quiet || opened) && (
         <div className="ml-16 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
           {actions.map(a => armed === a.key ? (
             <span key={a.key} className="flex gap-3">

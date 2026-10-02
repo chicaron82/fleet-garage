@@ -32,7 +32,9 @@ const CODEX: Record<string, VehicleClass> = {
   // Toyota
   CCAM: { make: 'Toyota', model: 'Camry' },
   CCSE: { make: 'Toyota', model: 'Camry SE' },
-  CCMH: { make: 'Toyota', model: 'Camry', isHybrid: true },
+  // ⚠️ Was 'Camry'. Aaron, 2026-10-01: *"CCMH, Camry SE Hybrid · CCSE, Camry SE · CCAM, Camry (base model)"*.
+  // All five live CCMH cars were already recorded as Camry SE; the entry was the odd one out.
+  CCMH: { make: 'Toyota', model: 'Camry SE', isHybrid: true },
   CCRL: { make: 'Toyota', model: 'Corolla' },
   CCRC: { make: 'Toyota', model: 'Corolla Cross' },
   CCRH: { make: 'Toyota', model: 'Corolla Hatchback' },
@@ -181,7 +183,14 @@ const CODEX: Record<string, VehicleClass> = {
   // August teaching said Trailblazer too. Aaron, 2026-09-25: *"whichever is a confirmed trailblazer in FG
   // zero disagreements use that for now … whoever is entering the code isn't being accurate."*
   CTAA: { make: 'Chevrolet', model: 'Trailblazer' }, // 4 cars, all B5, zero disagreements
+  // ⚠️⚠️ CBRS READS "Blazer RS" (C · BRS) AND THIS ENTRY SAYS TRAILBLAZER ON PURPOSE. The one car
+  // wearing it (LUR536) is a Trailblazer, class B5: whoever keyed the tag reached for Blazer because
+  // both names contain it. Aaron, 2026-10-01: *"just going with whatever the majority is because its a
+  // mess"*, and he corrects the car when he sees it. So FG follows the cars. His ruling is recorded in
+  // modelCodeRulings.ts, which is what stops the audit from asking him again. DO NOT "fix" this to Blazer.
   CBRS: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
+  // The real Blazer code. *"CBZL exists, but archived because we no longer have it"* (2026-10-01).
+  CBZL: { make: 'Chevrolet', model: 'Blazer' },
   CTBA: { make: 'Chevrolet', model: 'Trailblazer' }, // 1 car, class B5
   // Buick
   CEEA: { make: 'Buick', model: 'Envision' },    // 2 cars, class L2
@@ -195,6 +204,10 @@ const CODEX: Record<string, VehicleClass> = {
   CKEA: { make: 'Hyundai', model: 'Kona' },      // 1 car,  class B5
   // Honda
   CHCS: { make: 'Honda', model: 'Civic' },       // 1 car,  class E6
+  // The GAS Civic code — *"CCVC, gas honda Civic"* (2026-10-01). The one Civic in the fleet is a hybrid
+  // on CHCS; no live car wears CCVC. Deliberately NOT isHybrid (see hybridGaps: the flag records what
+  // is true, the code what is printed).
+  CCVC: { make: 'Honda', model: 'Civic' },
   // Kia
   CK45: { make: 'Kia', model: 'K4' },            // 1 car,  class C
   // Chrysler
@@ -389,13 +402,30 @@ export function modelCodeMismatch(
 ): ModelCodeMismatch | null {
   const vc = lookupVehicleClass(classCode);
   if (!vc || !model?.trim()) return null;
-  const norm = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  const recModel = norm(model), codexModel = norm(vc.model);
-  // A record may carry a trim the codex does not name ("Camry SE" vs "Camry"), and a codex model may
-  // be the longer form. Either containing the other is agreement.
-  const modelOk = recModel.startsWith(codexModel) || codexModel.startsWith(recModel);
-  const makeOk = !make?.trim() || norm(make) === norm(vc.make);
-  return modelOk && makeOk ? null : { code: normalizeClassCode(classCode), codexMake: vc.make, codexModel: vc.model };
+  return sameModelFamily(make, model, vc.make, vc.model)
+    ? null : { code: normalizeClassCode(classCode), codexMake: vc.make, codexModel: vc.model };
+}
+
+/**
+ * Do two make + model pairs name the same car, give or take a trim?
+ *
+ * A record may carry a trim the codex does not name ("Camry SE" vs "Camry"), a codex model may be the
+ * longer form, and a row taught before migration 109 may say "RAV4 Hybrid" for what is now RAV4 plus
+ * a flag. Either model starting with the other is agreement. A blank make on either side is not a
+ * disagreement.
+ *
+ * ⭐ Extracted 2026-10-01 so the model-code audit uses the SAME rule. It shipped with a strict
+ * comparison and cried at CCMH's "Camry SE" — the exact warning this tolerance was written to prevent.
+ */
+export function sameModelFamily(
+  makeA: string | undefined | null, modelA: string | undefined | null,
+  makeB: string | undefined | null, modelB: string | undefined | null,
+): boolean {
+  const norm = (v: string | undefined | null) => (v ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const a = norm(modelA), b = norm(modelB);
+  if (!a || !b) return false;
+  const makeOk = !norm(makeA) || !norm(makeB) || norm(makeA) === norm(makeB);
+  return makeOk && (a.startsWith(b) || b.startsWith(a));
 }
 
 /** A code→class pin that contradicts the codex, with the code that would not. */

@@ -94,6 +94,9 @@ describe('FleetModelCodesCard', () => {
   it('⭐ offers Forget on a learned class and a taught model, never on a pin or the built-in list', async () => {
     const user = await openCard();
     await user.click(await screen.findByRole('button', { name: /Agrees with the cars/ }));
+    // ⚠️ A code that agrees keeps Forget one tap away — a stray thumb must not un-learn something right.
+    expect(screen.queryByRole('button', { name: 'Forget class B5 for CQZZ' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'CQZZ options' }));
     expect(screen.getByRole('button', { name: 'Forget class B5 for CQZZ' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Forget taught Kia Seltos for CQZZ' })).toBeInTheDocument();
     expect(within(rowOf('CTXF')).queryByRole('button')).not.toBeInTheDocument();
@@ -121,11 +124,29 @@ describe('FleetModelCodesCard', () => {
   it('forgetting a taught model leaves the learned class alone', async () => {
     const user = await openCard();
     await user.click(await screen.findByRole('button', { name: /Agrees with the cars/ }));
+    await user.click(screen.getByRole('button', { name: 'CQZZ options' }));
     await user.click(screen.getByRole('button', { name: 'Forget taught Kia Seltos for CQZZ' }));
     await user.click(screen.getByRole('button', { name: 'Yes, forget taught Kia Seltos for CQZZ' }));
     expect(await within(rowOf('CQZZ')).findByText('no model')).toBeInTheDocument();
     expect(db.vehicle_class_codex).toEqual([]);
     expect(db.class_code_rental_class).toHaveLength(3);
+  });
+
+  // *"CBRS, we keep discussing this, but past you doesn't write it down."* The screen carries the answer.
+  it('⭐ shows his ruling on a code instead of asking again, and marks a hybrid code', async () => {
+    db.class_code_rental_class = [];
+    db.vehicle_class_codex = [{ code: 'CBRS', make: 'Chevrolet', model: 'Blazer' }];
+    const user = userEvent.setup();
+    render(<FleetModelCodesCard
+      vehicles={[car('CBRS', 'Chevrolet', 'Trailblazer', 'B5'), car('CRHX', 'Toyota', 'RAV4', 'E6')]}
+      archivedVehicles={[]}
+    />);
+    await user.click(screen.getByRole('button', { name: /Model codes FG has learned/ }));
+    expect(await screen.findByText(/2 codes/)).toHaveTextContent('0 to check');
+    await user.click(screen.getByRole('button', { name: /Agrees with the cars/ }));
+    expect(within(rowOf('CBRS')).getByText(/Reads as Blazer RS/)).toBeInTheDocument();
+    expect(within(rowOf('CBRS')).queryByText(/and wins/)).not.toBeInTheDocument();
+    expect(rowOf('CRHX')).toHaveTextContent('Toyota RAV4 · hybrid · built-in');
   });
 
   // ⚠️ A delete the database quietly refuses answers zero rows and no error.
