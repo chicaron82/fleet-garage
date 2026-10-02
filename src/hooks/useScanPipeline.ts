@@ -89,8 +89,13 @@ export function useScanPipeline(deps: {
     // The owning branch — read off the tag's class line, discarded by this app until 2026-08-18.
     // If-missing and fire-and-forget: it accumulates as he scans, and a car's owning survives a
     // re-plate, so the first good read is the one that counts. See context/owningAreaWrite.
-    if (read.owningArea && seen.vehicle && !seen.vehicle.owningArea) {
-      void recordOwningArea(seen.vehicle.id, read.owningArea);
+    // ⚠️⚠️ `tag`, NOT `read`, FOR EVERYTHING WRITTEN BELOW. A tag clipped by the perforation reads
+    // `TXF` for CTXF and an 8-character last-9, and these three writes are if-missing and permanent
+    // ("the first good read is the only one that will ever be taken"). `trustedRead` has those fields
+    // removed on a clipped match, so a truncated value can never be the first one.
+    const tag = seen.trustedRead;
+    if (tag.owningArea && seen.vehicle && !seen.vehicle.owningArea) {
+      void recordOwningArea(seen.vehicle.id, tag.owningArea);
     }
     // The class code itself — same if-missing, fire-and-forget shape. FG resolved this code into a
     // make and model on every scan and then threw the code away, so a record's identity could never
@@ -98,17 +103,17 @@ export function useScanPipeline(deps: {
     // and a later misread can't rewrite it. See context/classCodeWrite.
     // Fires when there's no code OR when the stored one was only DERIVED (migration 121's backfill).
     // Skipping on any stored value would mean a deduction outranks a reading — see classCodeWrite.
-    if (read.classCode && seen.vehicle
+    if (tag.classCode && seen.vehicle
         && (!seen.vehicle.classCode || seen.vehicle.fieldSources?.classCode === 'derived')) {
-      void recordClassCode(seen.vehicle.id, read.classCode);
+      void recordClassCode(seen.vehicle.id, tag.classCode);
     }
     // The last 9 of the VIN — printed on every printed tag, and read straight past for the whole
     // life of the scanner. Same if-missing, fire-and-forget shape, and the strictest version of the
     // rule: a VIN is immutable, so the first good read is the only one that will ever be taken.
     // It is the one key that survives Aaron's out-of-province → MB conversions, where the plate
     // (what FG searches by) changes and everything else stays. See context/vinWrite.
-    if (read.vinLast9 && seen.vehicle && !seen.vehicle.vinLast9) {
-      void recordVinLast9(seen.vehicle.id, read.vinLast9!);
+    if (tag.vinLast9 && seen.vehicle && !seen.vehicle.vinLast9) {
+      void recordVinLast9(seen.vehicle.id, tag.vinLast9);
     }
     // ── The codex's missing drain ── A class code the codex can't resolve is why registration
     // degrades. Two outcomes, and only one of them used to exist:
@@ -119,13 +124,13 @@ export function useScanPipeline(deps: {
     //   • Genuinely unknown → log it, so codes self-report instead of waiting for someone to get
     //     stuck at a car and ask.
     // Fire-and-forget both ways: neither a lesson nor a log may cost him the scan.
-    if (isUnknownClassCode(read)) {
-      const lesson = classCodeLessonFromScan(read, seen.vehicle);
+    if (isUnknownClassCode(tag)) {
+      const lesson = classCodeLessonFromScan(tag, seen.vehicle);
       if (lesson) {
         void teachClassCode(lesson.code, lesson.make, lesson.model, user?.id);
         setCodexToast(classCodeLearnedLabel(lesson));
       } else {
-        void logUnknownClassCode(read.classCode ?? '', read.plate ?? '');
+        void logUnknownClassCode(tag.classCode ?? '', read.plate ?? '');
       }
     }
     // The setters and the ref are referentially stable (useState setters / useRef), so listing them

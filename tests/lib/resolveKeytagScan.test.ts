@@ -439,6 +439,25 @@ describe('the clipped tag the reader guesses at (FWC4510)', () => {
     expect(keytagConflictsOnScan(READ, [blankVin, FLEET_T[1]])).toBeNull();
   });
 
+  // ⭐⭐ Found in /reflect an hour after the fix shipped: the resolution withheld these fields while
+  // `useScanPipeline` wrote three of them straight from the raw read, if-missing and for good. One
+  // object now carries what a clipped tag may say, and every writer takes its values from it.
+  it('⭐⭐ trustedRead carries nothing from the first column of a clipped tag', () => {
+    const t = resolveKeytagScan(READ, FLEET_T).trustedRead;
+    expect(t.vinLast9).toBeUndefined();
+    expect(t.classCode).toBeUndefined();
+    expect(t.unitNumber).toBeUndefined();
+    expect(t.owningArea).toBeUndefined();
+    expect(t.color).toBeUndefined();
+    expect(t).toMatchObject({ rentalClass: 'B4', year: 2026 });   // mid-line fields survive
+  });
+
+  it('trustedRead is the read itself on an ordinary scan', () => {
+    const whole: KeytagRead = { plate: 'FWC4510', unitNumber: '5601463', vinLast9: '6TC128877', classCode: 'CTXF' };
+    expect(resolveKeytagScan(whole, FLEET_T).trustedRead).toBe(whole);
+    expect(resolveKeytagScan({ plate: 'ZZZ999' }, FLEET_T).trustedRead).toEqual({ plate: 'ZZZ999' });
+  });
+
   it('still compares what sits mid-line: a different class on the tag is still surfaced', () => {
     const r = resolveKeytagScan({ ...READ, rentalClass: 'B5' }, FLEET_T);
     expect(r.resolution.kind).toBe('partial');

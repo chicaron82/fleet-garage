@@ -92,6 +92,12 @@ export interface KeytagScanResult {
    *  column) and the car was identified by restoring it. Surfaced on the card: the read is short,
    *  so nothing on that tag should be treated as authoritative. See lib/clippedRead. */
   matchedByClippedTag: boolean;
+  /** The read as far as it may be BELIEVED. On a clipped-tag match the fields that begin a printed
+   *  line are removed (unit, last-9, code, make/model, colour, owning area); otherwise it is the
+   *  read itself. ⚠️ Anything that WRITES from a scan takes its values from here, never from the raw
+   *  read — the resolution below was withholding them (`932e44d`) while `useScanPipeline` still
+   *  wrote three of them directly, an hour-old rule already walked around. */
+  trustedRead: KeytagRead;
   /** Two or more live vehicles carry the scanned unit, so nothing was matched. Not an error: the
    *  operator picks. Empty on every normal scan. */
   unitCandidates: Vehicle[];
@@ -317,6 +323,7 @@ export function resolveKeytagScan(read: KeytagRead, vehicles: Vehicle[]): Keytag
     vehicle,
     matchedByUnit,
     matchedByClippedTag,
+    trustedRead: trusted,
     unitCandidates,
     resolution: resolveKeytag(trusted, existing, vehicle ? lockedFromSources(vehicle.fieldSources) : {}),
   };
