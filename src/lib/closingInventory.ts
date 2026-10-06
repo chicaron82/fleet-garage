@@ -354,5 +354,5 @@ export function entryFromTag(
 // `closingInventoryLot` above. These splits are about the 330-line cap, not new seams to learn.
 export { visibleEntries, mergeEntries, sameEntries, linkUnlinked } from './closingInventoryMerge';
 export type { LinkableCar } from './closingInventoryMerge';
-export { GROUP_ORDER, groupEntries, seedClosingCounts,
+export { GROUP_ORDER, groupEntries, seedClosingCounts, closeDrift,
          type GroupedRow, type EntryGroup } from './closingInventoryViews';

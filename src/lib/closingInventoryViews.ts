@@ -67,3 +67,26 @@ export function seedClosingCounts(entries: readonly InventoryEntry[]): {
   const by = summarise(entries).byStatus;
   return { queueAtClose: String(by.D), cleanNotSent: String(by.A) };
 }
+
+/**
+ * The saved close disagrees with tonight's inventory — `null` when it doesn't, or when there is no inventory.
+ *
+ * ⭐ Why (Aaron, 2026-10-05, his first close in a while): the close form SEEDS its two counts from the inventory
+ * while it is open, and nothing ever re-reads them after Submit. He saved the close at 22:23 (0 cleans — true
+ * then), wrote MCM571 up as a clean at 22:55, and the saved close kept saying 0. *"doesn't it read the
+ * inventory? because i logged one clean there"* It had read it — once, half an hour too early. The morning
+ * card and the forecast game both read the SAVED close, so the clean he left them was invisible to both.
+ *
+ * ⚠️ An EMPTY sheet is never a disagreement: no write-up means "I didn't count", not "the lot was empty"
+ * (same rule as `seedClosingCounts`, which returns '' for exactly this reason).
+ */
+export function closeDrift(
+  saved: { carsRemaining: number; cleanNotPickedUp: number },
+  seeded: { queueAtClose: string; cleanNotSent: string },
+): { dirties: number; cleans: number } | null {
+  if (seeded.queueAtClose === '' && seeded.cleanNotSent === '') return null;
+  const dirties = Number(seeded.queueAtClose) || 0;
+  const cleans = Number(seeded.cleanNotSent) || 0;
+  if (dirties === saved.carsRemaining && cleans === saved.cleanNotPickedUp) return null;
+  return { dirties, cleans };
+}

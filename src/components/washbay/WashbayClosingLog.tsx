@@ -9,13 +9,14 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { priorFlippingAttested } from '../../lib/airportFlipping';
 import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
-import { seedClosingCounts } from '../../lib/closingInventory';
+import { seedClosingCounts, closeDrift } from '../../lib/closingInventory';
 import { loadSession } from '../../lib/closingInventoryStore';
 import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
 import { GasSheetPageCounter } from './GasSheetPageCounter';
 import { lotStatusFromQueue } from '../../lib/closingQueue';
 import { ShiftLogPhotoField } from './ShiftLogPhotoField';
+import { CloseDriftNotice } from './CloseDriftNotice';
 
 const COMPANY_STANDARD = 3.0;
 const SHIFT_HOURS = 8;
@@ -137,7 +138,18 @@ export function WashbayClosingLog() {
   // ── Summary view (after submit) ──────────────────────────────────────────
 
   if (showSummary && todayLog) {
+    // The inventory can move on after Submit (a clean written up at 22:55 on a close saved at 22:23).
+    const drift = closeDrift(todayLog, seeded);
     return (
+      <div className="space-y-3">
+      {drift && (
+        <CloseDriftNotice saved={todayLog} inventory={drift} onUpdate={() => {
+          // Open the close pre-filled from the inventory; these two sets land after enterEditMode's.
+          enterEditMode();
+          setUserCarsRemaining(String(drift.dirties));
+          setUserCleanNotPickedUp(String(drift.cleans));
+        }} />
+      )}
       <ClosingLogSummary
         log={todayLog}
         baseHours={baseHours}
@@ -146,6 +158,7 @@ export function WashbayClosingLog() {
         airportFlipping={airportFlipping || (todayLog?.airportFlipping ?? false)}
         onEdit={enterEditMode}
       />
+      </div>
     );
   }
 
