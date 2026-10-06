@@ -9,7 +9,7 @@ import { localDateStr } from '../../hooks/useFleetBalance';
 import { useTodayAirportFlip } from '../../hooks/useTodayAirportFlip';
 import { priorFlippingAttested } from '../../lib/airportFlipping';
 import { businessDateOf, shiftDateStr } from '../../lib/shiftDay';
-import { seedClosingCounts, closeDrift } from '../../lib/closingInventory';
+import { seedClosingCounts, closeDrift, visibleEntries } from '../../lib/closingInventory';
 import { loadSession } from '../../lib/closingInventoryStore';
 import { rosteredVsaCount, presentVsaCount } from '../../lib/rosterCount';
 import { ClosingLogSummary } from './ClosingLogSummary';
@@ -57,7 +57,12 @@ export function WashbayClosingLog() {
    * Same `null = untouched` shape as the pages and team size above, for the same reason: the sheet
    * can finish loading after this mounts, and a copied-once value would freeze whatever was there.
    */
-  const sheetEntries = loadSession(businessDateOf(new Date())).entries;
+  // ⚠️⚠️ The stored sheet keeps DELETED rows as tombstones (so a delete can sync), and `loadSession` hands them back.
+  // Counting the raw list put a car he had REMOVED into the close's cleans/dirties and the "written up" count
+  // (found in pass two, 2026-10-06). Counts read the visible rows; "when did the sheet last change" reads them ALL,
+  // because a delete after the close IS a change.
+  const storedEntries = loadSession(businessDateOf(new Date())).entries;
+  const sheetEntries = visibleEntries(storedEntries);
   const seeded = seedClosingCounts(sheetEntries);
   const [userCarsRemaining,    setUserCarsRemaining]    = useState<string | null>(null);
   const [userCleanNotPickedUp, setUserCleanNotPickedUp] = useState<string | null>(null);
@@ -139,7 +144,7 @@ export function WashbayClosingLog() {
 
   if (showSummary && todayLog) {
     // The inventory can move on after Submit (a clean written up at 22:55 on a close saved at 22:23).
-    const drift = closeDrift(todayLog, seeded, Math.max(0, ...sheetEntries.map(e => e.at)));
+    const drift = closeDrift(todayLog, seeded, Math.max(0, ...storedEntries.map(e => e.at)));
     return (
       <div className="space-y-3">
       {drift && (
