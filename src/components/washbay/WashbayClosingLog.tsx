@@ -139,7 +139,7 @@ export function WashbayClosingLog() {
 
   if (showSummary && todayLog) {
     // The inventory can move on after Submit (a clean written up at 22:55 on a close saved at 22:23).
-    const drift = closeDrift(todayLog, seeded);
+    const drift = closeDrift(todayLog, seeded, Math.max(0, ...sheetEntries.map(e => e.at)));
     return (
       <div className="space-y-3">
       {drift && (

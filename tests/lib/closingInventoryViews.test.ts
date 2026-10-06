@@ -99,26 +99,36 @@ describe('seedClosingCounts — the sheet feeds the washbay log', () => {
 // Aaron, 2026-10-05: saved the close at 22:23 (0 cleans), wrote MCM571 up as a clean at 22:55, and the saved
 // close kept saying 0. *"doesn't it read the inventory? because i logged one clean there"*
 describe('closeDrift — the saved close has fallen behind the inventory', () => {
-  const saved = (carsRemaining: number, cleanNotPickedUp: number) => ({ carsRemaining, cleanNotPickedUp });
+  // Saved at 22:23; an inventory change at 22:55 is AFTER it.
+  const SAVED_AT = '2026-10-06T03:23:00Z';
+  const AFTER = Date.parse('2026-10-06T03:55:00Z');
+  const BEFORE = Date.parse('2026-10-06T03:10:00Z');
+  const saved = (carsRemaining: number, cleanNotPickedUp: number) => ({ carsRemaining, cleanNotPickedUp, loggedAt: SAVED_AT });
 
   it('⭐ reproduces his night: close says 0 cleans, the inventory now holds 1', () => {
-    expect(closeDrift(saved(0, 0), { queueAtClose: '0', cleanNotSent: '1' })).toEqual({ dirties: 0, cleans: 1 });
+    expect(closeDrift(saved(0, 0), { queueAtClose: '0', cleanNotSent: '1' }, AFTER)).toEqual({ dirties: 0, cleans: 1 });
   });
 
   it('catches the dirties too', () => {
-    expect(closeDrift(saved(0, 1), { queueAtClose: '2', cleanNotSent: '1' })).toEqual({ dirties: 2, cleans: 1 });
+    expect(closeDrift(saved(0, 1), { queueAtClose: '2', cleanNotSent: '1' }, AFTER)).toEqual({ dirties: 2, cleans: 1 });
   });
 
   it('says nothing when they agree', () => {
-    expect(closeDrift(saved(0, 1), { queueAtClose: '0', cleanNotSent: '1' })).toBeNull();
+    expect(closeDrift(saved(0, 1), { queueAtClose: '0', cleanNotSent: '1' }, AFTER)).toBeNull();
   });
 
   // ⚠️ "I didn't write up a lot" is not "the lot was empty" — an empty sheet must never contradict a close.
   it('⚠️ an EMPTY inventory is never a disagreement', () => {
-    expect(closeDrift(saved(4, 7), { queueAtClose: '', cleanNotSent: '' })).toBeNull();
+    expect(closeDrift(saved(4, 7), { queueAtClose: '', cleanNotSent: '' }, AFTER)).toBeNull();
+  });
+
+  // Pass two: he can type over the seeded counts ON PURPOSE. If every sheet change predates the save, the inventory
+  // did not "change after the close" — he overrode it, and the notice must not nag him to undo that.
+  it('⭐ a deliberate override at save time is NOT drift — nothing on the sheet is newer than the close', () => {
+    expect(closeDrift(saved(0, 5), { queueAtClose: '0', cleanNotSent: '1' }, BEFORE)).toBeNull();
   });
 
   it('a written-up empty lot IS a real claim, and can disagree', () => {
-    expect(closeDrift(saved(3, 0), { queueAtClose: '0', cleanNotSent: '0' })).toEqual({ dirties: 0, cleans: 0 });
+    expect(closeDrift(saved(3, 0), { queueAtClose: '0', cleanNotSent: '0' }, AFTER)).toEqual({ dirties: 0, cleans: 0 });
   });
 });

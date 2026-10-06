@@ -81,10 +81,17 @@ export function seedClosingCounts(entries: readonly InventoryEntry[]): {
  * (same rule as `seedClosingCounts`, which returns '' for exactly this reason).
  */
 export function closeDrift(
-  saved: { carsRemaining: number; cleanNotPickedUp: number },
+  saved: { carsRemaining: number; cleanNotPickedUp: number; loggedAt: string },
   seeded: { queueAtClose: string; cleanNotSent: string },
+  lastInventoryChange: number,
 ): { dirties: number; cleans: number } | null {
   if (seeded.queueAtClose === '' && seeded.cleanNotSent === '') return null;
+  // ⚠️⚠️ ONLY A CHANGE MADE AFTER THE SAVE (pass two, same night). The form lets him type over the seeded counts on
+  // purpose — a half-finished sweep, the "· edited" marker — and comparing values alone could not tell that apart
+  // from the inventory moving on. It would claim "the inventory changed" when it hadn't, and nag him to undo his
+  // own correction. An entry's `at` moves on every add, edit and delete (deletes are timestamped tombstones), and a
+  // re-save refreshes `logged_at`, so "newest sheet change is later than the save" is exactly the claim the notice makes.
+  if (!(lastInventoryChange > Date.parse(saved.loggedAt))) return null;
   const dirties = Number(seeded.queueAtClose) || 0;
   const cleans = Number(seeded.cleanNotSent) || 0;
   if (dirties === saved.carsRemaining && cleans === saved.cleanNotPickedUp) return null;
