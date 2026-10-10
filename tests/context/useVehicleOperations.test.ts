@@ -287,6 +287,46 @@ describe('addRelease', () => {
     expect(updater([v])[0].status).toBe('OUT_ON_EXCEPTION');
   });
 
+  // docs/October/ticket-a-reheld-hold-shows-once.md — the exit the repair path covered and this one did not.
+  describe('a re-hold linked to an earlier open exception', () => {
+    const earlier = makeHold('h-aug', 'v-1', {
+      status: 'RELEASED', flaggedAt: '2026-08-28T15:16:49.000Z',
+      release: { ...EXCEPTION_RELEASE, id: 'rel-aug', holdId: 'h-aug' },
+    });
+    const reHold = makeHold('h-sep', 'v-1', { flaggedAt: '2026-09-30T14:58:58.000Z', linkedHoldId: 'h-aug' });
+    const PRE: Omit<Release, 'id'> = { ...EXCEPTION_RELEASE, holdId: 'h-sep', releaseType: 'PRE_EXISTING' };
+
+    it('accepted as PRE-EXISTING → the earlier exception closes and the car reads PRE_EXISTING', async () => {
+      const v = makeVehicle();
+      const { ops, setAllHolds, setAllVehicles } = makeOps([earlier, reHold], [v]);
+      await ops.addRelease('h-sep', PRE);
+
+      expect(chain.update).toHaveBeenCalledWith({ actual_return: PRE.approvedAt });
+      expect(chain.update).toHaveBeenCalledWith({ status: 'RETURNED' });
+      const status = (setAllVehicles.mock.calls[0][0] as (p: Vehicle[]) => Vehicle[])([v])[0].status;
+      expect(status).toBe('PRE_EXISTING');   // NOT OUT_ON_EXCEPTION, which is what the open exception forced
+      const next = (setAllHolds.mock.calls[0][0] as (p: Hold[]) => Hold[])([earlier, reHold]);
+      expect(next.map(h => h.status)).toEqual(['RETURNED', 'RELEASED']);
+    });
+
+    it('released on a fresh EXCEPTION → the earlier one is left alone (the car really is out again)', async () => {
+      const v = makeVehicle();
+      const { ops, setAllHolds } = makeOps([earlier, reHold], [v]);
+      await ops.addRelease('h-sep', { ...EXCEPTION_RELEASE, holdId: 'h-sep' });
+      expect(chain.update).not.toHaveBeenCalledWith({ status: 'RETURNED' });
+      const next = (setAllHolds.mock.calls[0][0] as (p: Hold[]) => Hold[])([earlier, reHold]);
+      expect(next[0].status).toBe('RELEASED');
+    });
+
+    it('an UNLINKED hold accepted as pre-existing closes nothing', async () => {
+      const v = makeVehicle();
+      const unlinked = { ...reHold, linkedHoldId: undefined };
+      const { ops } = makeOps([earlier, unlinked], [v]);
+      await ops.addRelease('h-sep', PRE);
+      expect(chain.update).not.toHaveBeenCalledWith({ status: 'RETURNED' });
+    });
+  });
+
   it('throws on primary-write-failure — no state flip', async () => {
     const hold = makeHold();
     const { ops, setAllHolds, setAllVehicles } = makeOps([hold]);

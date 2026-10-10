@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { READ_TIMEOUT_MS } from '../lib/networkBlip';
 import { projectFleetBalance } from '../lib/fleetProjection';
 import { supabase } from '../lib/supabase';
 import { shiftDateStr } from '../lib/shiftDay';
@@ -83,7 +84,12 @@ export function useFleetBalance() {
             projected_basis: shown?.basis  ?? null,
           },
           { onConflict: 'date' }
-        );
+        )
+        // ⚠️ A connection that accepts the request and never answers rejects nothing, so without this
+        // the form sat on "Saving..." forever and the new "Didn't save" line could never appear —
+        // which may be exactly what the airport did to him on 2026-10-09. The upsert is keyed on the
+        // date, so tapping again after a timeout is safe even if the first one did land.
+        .abortSignal(AbortSignal.timeout(READ_TIMEOUT_MS));
 
       if (error) throw error;
 

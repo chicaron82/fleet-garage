@@ -7,6 +7,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { uploadPhotos, pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
 import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
+import { linkedOpenExceptionChain } from '../lib/repairChains';
 import { withSubmitLock } from '../lib/submitLock';
 import { commitSightingFor } from '../hooks/useVehicleSightings';
 import type {
@@ -127,11 +128,23 @@ export function makeAddRelease({ holds, allVehicles, setAllVehicles, setAllHolds
 
       const releaseId = crypto.randomUUID();
       const newRelease: Release = { ...release, id: releaseId };
+      // ⭐ A RE-HOLD ACCEPTED AS PRE-EXISTING closes the earlier exception it stood for (2026-10-09).
+      // His ask covered both exits: *"when marking it as pre-existing or done, would only need to tap
+      // one."* The repair path did this; this one did not, and on-exception OUTRANKS pre-existing in
+      // the cascade — so the car would have read OUT_ON_EXCEPTION behind an exception for damage he
+      // had just accepted as-is. Found by /reflect 84: the ticket listed it "to trace" and was stamped
+      // shipped untraced. Pre-existing only: a re-hold released on a fresh EXCEPTION really is out again.
+      const chain = release.releaseType === 'PRE_EXISTING' ? linkedOpenExceptionChain(hold, holds) : [];
+      const closed = new Set(chain.map(h => h.id));
+      const asReturned = (h: Hold): Hold => ({
+        ...h, status: 'RETURNED', release: h.release ? { ...h.release, actualReturn: release.approvedAt } : undefined,
+      });
       // Project the post-release hold set and derive the vehicle status from the
       // shared cascade (lib/vehicle-status) so the read and write paths agree.
       const projectedHolds = holds
         .filter(h => h.vehicleId === hold.vehicleId)
-        .map(h => h.id === holdId ? { ...h, status: 'RELEASED' as const, release: newRelease } : h);
+        .map(h => h.id === holdId ? { ...h, status: 'RELEASED' as const, release: newRelease }
+          : closed.has(h.id) ? asReturned(h) : h);
       const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
 
       const { error } = await writeWithRefresh(() =>
@@ -152,6 +165,14 @@ export function makeAddRelease({ holds, allVehicles, setAllVehicles, setAllHolds
       await writeWithRefresh(() =>
         supabase.from('holds').update({ status: 'RELEASED' }).eq('id', holdId)
       );
+      for (const earlier of chain) {
+        await writeWithRefresh(() =>
+          supabase.from('releases').update({ actual_return: release.approvedAt }).eq('id', earlier.release!.id)
+        );
+        await writeWithRefresh(() =>
+          supabase.from('holds').update({ status: 'RETURNED' }).eq('id', earlier.id)
+        );
+      }
 
       const unitForRelease = allVehicles.find(v => v.id === hold.vehicleId)?.unitNumber ?? hold.vehicleId;
       await pushNotification(hold.branchId, ['VSA', 'Lead VSA', 'CSR', 'Lead CSR', 'HIR'], '✅',
@@ -161,7 +182,8 @@ export function makeAddRelease({ holds, allVehicles, setAllVehicles, setAllHolds
         supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', hold.vehicleId)
       );
 
-      setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, status: 'RELEASED', release: newRelease }));
+      setAllHolds(prev => prev.map(h => h.id === holdId ? { ...h, status: 'RELEASED', release: newRelease }
+        : closed.has(h.id) ? asReturned(h) : h));
       // Gate the derived vehicle-status flip on its write (vehicles has no realtime
       // self-heal). The fleet view derives status from holds regardless; this keeps
       // the stored status from diverging when the follow-up update fails.
