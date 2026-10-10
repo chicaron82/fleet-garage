@@ -65,3 +65,52 @@ describe('EVAssetsTab — a lost EV write keeps the sheet and says so', () => {
     expect(screen.queryByText(/didn't save/i)).toBeNull();
   });
 });
+
+// ⚠️ The follow-ups can fail too. The loan ops returned silently on error, and `addHold` THROWS, which
+// unguarded left the sheet stuck on "Flagging…" (line-check 2026-10-10).
+// docs/October/ticket-ev-loan-writes-say-when-they-fail.md
+describe('EVAssetsTab — a follow-up that did not land says which half', () => {
+  const openSheet = () => fireEvent.click(screen.getByRole('button', { name: /5429999/ }));
+  const [CABLE, ADAPTER] = [0, 1];
+  const untick = async (i: number) => fireEvent.click((await screen.findAllByRole('checkbox'))[i]);
+
+  beforeEach(() => {
+    createEvAssetLoan.mockResolvedValue(undefined);
+    addHold.mockResolvedValue('hold-id');
+  });
+
+  it('⭐ a loan that did not record: says so, and the sheet stays to tap again', async () => {
+    createEvAssetLoan.mockRejectedValue(new Error('ev asset loan not created'));
+    render(<EVAssetsTab />);
+    openSheet();
+    await untick(CABLE);
+    fireEvent.change(screen.getByPlaceholderText('unit #'), { target: { value: '5429001' } });
+    fireEvent.click(screen.getByRole('button', { name: /Update Assets/i }));
+    expect(await screen.findByText(/assets saved, but the loan didn't/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Update Assets/i })).toBeEnabled();
+  });
+
+  it('⭐ a both-missing hold that threw: says so, and is NOT stuck on "Flagging…"', async () => {
+    addHold.mockRejectedValue(new Error('hold not created'));
+    render(<EVAssetsTab />);
+    openSheet();
+    await untick(CABLE);
+    await untick(ADAPTER);
+    fireEvent.click(screen.getByRole('button', { name: /Update Assets/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Update & flag/i }));
+    expect(await screen.findByText(/assets saved, but the hold didn't/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Update & flag/i })).toBeEnabled();
+  });
+
+  it('⭐ on the both-missing path a failed EV write is SAID too — the note is on both branches', async () => {
+    updateVehicleEVAssets.mockResolvedValue(false);
+    render(<EVAssetsTab />);
+    openSheet();
+    await untick(CABLE);
+    await untick(ADAPTER);
+    fireEvent.click(screen.getByRole('button', { name: /Update Assets/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Update & flag/i }));
+    expect(await screen.findByText(/didn't save/i)).toBeInTheDocument();
+    expect(addHold).not.toHaveBeenCalled();
+  });
+});

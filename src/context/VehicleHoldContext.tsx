@@ -10,7 +10,7 @@ import { useVehicleOperations } from './useVehicleOperations';
 import { isStaleHold } from '../lib/holdFilters';
 import { useFleetSync } from '../hooks/useFleetSync';
 import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
-import { makeEvAssetLoanOps, loadOpenLoans } from './evAssetLoanWrite';
+import { makeEvAssetLoanOps, loadOpenLoans, type EvLoanReturnOutcome } from './evAssetLoanWrite';
 import type { KeytagFill } from '../lib/resolveKeytag';
 import type { OnLotObservation } from '../lib/onLotObservation';
 
@@ -32,7 +32,7 @@ export interface VehicleHoldContextValue {
   releaseStreak: (vehicleId: string) => number;
   evAssetLoans: EvAssetLoan[];
   createEvAssetLoan: (lenderVehicleId: string, assetType: EvLoanAsset, borrowerUnit: string, notes: string | null) => Promise<void>;
-  returnEvAssetLoan: (loan: EvAssetLoan) => Promise<void>;
+  returnEvAssetLoan: (loan: EvAssetLoan) => Promise<EvLoanReturnOutcome>;
   /** Resolves the new vehicle id — or `undefined` when a same-plate call was in flight (dropped re-entrant, see submit lock). */
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'status' | 'branchId'> & { branchId?: string; status?: VehicleStatus }) => Promise<string | undefined>;
   /** Resolves false when the canonical status write failed — callers that report success must check it. */

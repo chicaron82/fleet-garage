@@ -93,23 +93,34 @@ export function EVAssetsTab() {
       "That didn't save — tap Update again.",
     );
     if (!ok) { setSaving(false); return; }
-    // Marking an asset missing-because-lent records a structured loan, not a note.
-    if (cable === 'missing' && cableLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'cable')) {
-      await createEvAssetLoan(selected.id, 'cable', cableLentUnit, notes.trim() || null);
-    }
-    if (adapter === 'missing' && adapterLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'adapter')) {
-      await createEvAssetLoan(selected.id, 'adapter', adapterLentUnit, notes.trim() || null);
-    }
-    // Marking a lent asset present here means it came back — close its loan so the
-    // card can't read "✓ Present" and "out → unit X" at the same time.
-    for (const [asset, status] of [['cable', cable], ['adapter', adapter]] as const) {
-      if (status !== 'present') continue;
-      const open = lentOutBy(evAssetLoans, selected.id).find(l => l.assetType === asset);
-      if (open) await returnEvAssetLoan(open);
-    }
-    if (bothMissing) {
-      await addHold(selected.id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
-    }
+    // ⚠️ The follow-ups can fail too, and each one THROWS when it does (the loan ops since 2026-10-10,
+    // `addHold` always). Unguarded, a failed hold was an unhandled rejection that left this sheet stuck
+    // on "Flagging…". One guard for the lot: the status above has landed, so the sentence says which
+    // half did not. Tapping again is safe — a loan that landed is skipped (`isAssetLentOut`), a loan
+    // that closed is no longer open, and the hold is last so nothing after it can be orphaned.
+    const followedUp = await guard(async () => {
+      // Marking an asset missing-because-lent records a structured loan, not a note.
+      if (cable === 'missing' && cableLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'cable')) {
+        await createEvAssetLoan(selected.id, 'cable', cableLentUnit, notes.trim() || null);
+      }
+      if (adapter === 'missing' && adapterLentUnit.trim() && !isAssetLentOut(evAssetLoans, selected.id, 'adapter')) {
+        await createEvAssetLoan(selected.id, 'adapter', adapterLentUnit, notes.trim() || null);
+      }
+      // Marking a lent asset present here means it came back — close its loan so the
+      // card can't read "✓ Present" and "out → unit X" at the same time. An 'incomplete' return is
+      // fine HERE: the restore it missed is the status this sheet just wrote itself.
+      for (const [asset, status] of [['cable', cable], ['adapter', adapter]] as const) {
+        if (status !== 'present') continue;
+        const open = lentOutBy(evAssetLoans, selected.id).find(l => l.assetType === asset);
+        if (open) await returnEvAssetLoan(open);
+      }
+      if (bothMissing) {
+        await addHold(selected.id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);
+      }
+    }, bothMissing
+      ? "The assets saved, but the hold didn't — tap Update & flag again."
+      : "The assets saved, but the loan didn't — tap Update again.");
+    if (!followedUp) { setSaving(false); return; }
     hapticMedium();
     setSaving(false);
     setSelectedId(null); // back to the roster, now showing the fresh status
@@ -176,6 +187,9 @@ export function EVAssetsTab() {
             className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition" />
         </div>
 
+        {/* On BOTH branches. It sat inside the non-confirming one only, so the both-missing path (the
+            one that creates a hold) could fail with nothing said. */}
+        <SaveNote message={writeError} />
         {confirming ? (
           <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 px-4 py-3">
             <p className="text-sm font-semibold text-red-800 dark:text-red-300">Both assets missing — flag as not dispatchable?</p>
@@ -190,7 +204,7 @@ export function EVAssetsTab() {
             </div>
           </div>
         ) : (
-          <><SaveNote message={writeError} />
+          <>
           <button type="button" onClick={handleSubmit} disabled={saving || cable == null || adapter == null}
             className="w-full py-3 bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition cursor-pointer">
             {saving ? 'Saving…' : 'Update Assets'}

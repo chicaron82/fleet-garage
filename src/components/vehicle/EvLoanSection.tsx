@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { lentOutBy, borrowedByUnit, ASSET_LABEL, ASSET_ICON } from '../../lib/evAssetLoans';
 import { hapticLight } from '../../lib/haptics';
+import { useWriteGuard } from '../../hooks/useWriteGuard';
+import { SaveNote } from '../shared/SaveNote';
 import type { Vehicle } from '../../types';
 
 /**
@@ -13,22 +15,35 @@ import type { Vehicle } from '../../types';
 export function EvLoanSection({ vehicle }: { vehicle: Vehicle }) {
   const { evAssetLoans, returnEvAssetLoan, getVehicleByUnit, getVehicle } = useVehicleHoldContext();
   const [returning, setReturning] = useState<string | null>(null);
+  const { writeError, guard } = useWriteGuard();
+  // The loan closed but the asset did not mark back as present — its own sentence, because "tap it
+  // again" would be wrong: the row he would tap has (correctly) gone.
+  const [incomplete, setIncomplete] = useState('');
 
   const lentOut = lentOutBy(evAssetLoans, vehicle.id);
   const holding = borrowedByUnit(evAssetLoans, vehicle.unitNumber);
-  if (lentOut.length === 0 && holding.length === 0) return null;
+  const note = writeError || incomplete;
+  // ⚠️ The note outlives the rows: a return that closes the LAST loan empties both lists, and an
+  // early null here would swallow the one thing left to say.
+  if (lentOut.length === 0 && holding.length === 0 && !note) return null;
 
   const onReturn = async (loanId: string) => {
     const loan = lentOut.find(l => l.id === loanId);
     if (!loan) return;
     hapticLight();
     setReturning(loanId);
-    await returnEvAssetLoan(loan);
+    setIncomplete('');
+    let outcome: Awaited<ReturnType<typeof returnEvAssetLoan>> | undefined;
+    await guard(async () => { outcome = await returnEvAssetLoan(loan); }, "The return didn't save — tap Returned again.");
+    if (outcome === 'incomplete') {
+      setIncomplete(`Loan closed, but the ${ASSET_LABEL[loan.assetType].toLowerCase()} didn't mark as present — set it above.`);
+    }
     setReturning(null);
   };
 
   return (
     <div className="space-y-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+      <SaveNote message={note} />
       {lentOut.map(loan => {
         const borrower = getVehicleByUnit(loan.borrowerUnit);
         return (
