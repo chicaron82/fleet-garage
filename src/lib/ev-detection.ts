@@ -1,4 +1,5 @@
 import { supabase, writeWithRefresh } from './supabase';
+import { isNetworkBlip, BLIP_RETRY_MS, READ_TIMEOUT_MS } from './networkBlip';
 import type { EvAssetStatus } from '../types';
 
 export interface TeslaDetectionResult {
@@ -213,7 +214,7 @@ export function rankVehicleMatches(
  */
 export interface VehicleSearch {
   matches: VehicleSearchResult[];
-  /** The request failed (after one refresh+retry). The caller must SAY so, never render silence. */
+  /** The request failed (after an auth refresh and ONE network retry). The caller must SAY so, never render silence. */
   failed: boolean;
 }
 
@@ -234,7 +235,12 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
     .from('vehicles')
     .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at')
     .or(`license_plate.ilike.%${trimmed}%,unit_number.ilike.%${trimmed}%`)
-    .limit(30);
+    .limit(30)
+    // ⭐ postgrest-js's own retry is OFF here: it is three attempts with 1s/2s/4s backoff, which made
+    // a dead network cost 7 seconds of silence (measured 2026-09-29). FG does ONE retry itself, below.
+    .retry(false)
+    // …and a connection that accepts the request and never answers gives up instead of hanging.
+    .abortSignal(AbortSignal.timeout(READ_TIMEOUT_MS));
 
   // Same refresh-then-retry every WRITE in FG already gets (`writeWithRefresh`). A read that silently
   // returns nothing on an expired token is the more dangerous of the two, because nothing looks normal.
@@ -244,11 +250,15 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
   // so throws do happen here. A rejection would skip the line below entirely and the field would go
   // quiet again — the exact bug, re-entering through the one door the fix left open. The guarantee is
   // "never render silence", and it must not depend on which layer of the client caught what.
-  try {
-    const { data, error } = await writeWithRefresh(run);
-    if (error) return { matches: [], failed: true };
-    return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
-  } catch {
-    return { matches: [], failed: true };
+  const attempt = async () => {
+    try { return await writeWithRefresh(run); } catch (thrown) { return { data: null, error: thrown }; }
+  };
+  let { data, error } = await attempt();
+  // One retry, for a dropped request only (a cell handoff on the lot), then tell the truth.
+  if (isNetworkBlip(error)) {
+    await new Promise(resolve => setTimeout(resolve, BLIP_RETRY_MS));
+    ({ data, error } = await attempt());
   }
+  if (error) return { matches: [], failed: true };
+  return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
 }
