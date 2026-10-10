@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { OdometerCapture } from '../../src/components/shared/OdometerCapture';
+import { OdometerCapture, CLEAR_ARM_MS } from '../../src/components/shared/OdometerCapture';
 
 // Aaron, 2026-08-26, mid-shift: "I attached an odo reading to the wrong vehicle. how do I clear the
 // one I added to LUR195" — and the honest answer was that he couldn't. Save is disabled at or below
@@ -14,8 +14,11 @@ import { OdometerCapture } from '../../src/components/shared/OdometerCapture';
 const onSave = vi.fn().mockResolvedValue(undefined);
 const onClear = vi.fn().mockResolvedValue(true);
 beforeEach(() => { onSave.mockClear(); onClear.mockClear(); onClear.mockResolvedValue(true); });
+afterEach(() => { vi.useRealTimers(); });
 
 const clearBtn = () => screen.getByRole('button', { name: /clear/i });
+/** Arm, then confirm — the two taps a real clear takes since 2026-10-10. */
+const clearTwice = () => { fireEvent.click(clearBtn()); fireEvent.click(clearBtn()); };
 const show = (currentKm: number | null, withClear = true) =>
   render(<OdometerCapture vehicleId="v1" resetKey="v1" currentKm={currentKm} currentAt={null}
     onSave={onSave} onClear={withClear ? onClear : undefined} />);
@@ -28,7 +31,7 @@ describe('clearing a mis-typed odometer', () => {
 
   it('clears the car it was given', async () => {
     show(8810);
-    fireEvent.click(clearBtn());
+    clearTwice();
     await waitFor(() => expect(onClear).toHaveBeenCalledWith('v1'));
   });
 
@@ -49,7 +52,7 @@ describe('clearing a mis-typed odometer', () => {
     let release!: (v: boolean) => void;
     onClear.mockReturnValue(new Promise<boolean>(res => { release = res; }));
     show(8810);
-    fireEvent.click(clearBtn());
+    clearTwice();
     await waitFor(() => expect(clearBtn()).toBeDisabled());
     release(true);
   });
@@ -67,12 +70,45 @@ describe('clearing a mis-typed odometer', () => {
     expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled();
   });
 
-  // ⚠️ No confirm dialog, following the key-count row's own precedent: "make the mistake cheap
-  // instead of making the action expensive". One tap clears; the next scan re-reads it.
-  it('takes one tap — no confirmation step', async () => {
+  // ⭐⭐ ONE TAP DOES NOT CLEAR (2026-10-10, docs/October/ticket-scan-card-header-chips.md). This
+  // case used to assert the opposite — "takes one tap — no confirmation step". On the scan sheet the
+  // button sits on the path of his thumb, and a scroll-tap must not be able to wipe a reading.
+  it('⚠️ a single tap arms it and writes nothing', () => {
     show(8810);
     fireEvent.click(clearBtn());
-    await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
+    expect(onClear).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /tap again to clear/i })).toHaveTextContent('Tap again');
+  });
+
+  it('the second tap clears, exactly once', async () => {
+    show(8810);
+    clearTwice();
+    await waitFor(() => expect(onClear).toHaveBeenCalledExactlyOnceWith('v1'));
+  });
+
+  // An arm nobody confirms must not sit loaded under his thumb waiting for the next stray tap.
+  it('an unconfirmed arm stands down on its own', () => {
+    vi.useFakeTimers();
+    show(8810);
+    fireEvent.click(clearBtn());
+    expect(clearBtn()).toHaveTextContent('Tap again');          // control: it WAS armed
+    act(() => { vi.advanceTimersByTime(CLEAR_ARM_MS + 1); });
+    expect(clearBtn()).toHaveTextContent('Clear');
+    fireEvent.click(clearBtn());                                 // so this tap only re-arms
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  // The scan sheet re-uses this control for the NEXT car: an arm must not carry over to it.
+  it('a new scan disarms it', () => {
+    const { rerender } = render(<OdometerCapture vehicleId="v1" resetKey={1} currentKm={8810} currentAt={null}
+      onSave={onSave} onClear={onClear} />);
+    fireEvent.click(clearBtn());
+    expect(clearBtn()).toHaveTextContent('Tap again');
+    rerender(<OdometerCapture vehicleId="v2" resetKey={2} currentKm={500} currentAt={null}
+      onSave={onSave} onClear={onClear} />);
+    expect(clearBtn()).toHaveTextContent('Clear');
+    fireEvent.click(clearBtn());
+    expect(onClear).not.toHaveBeenCalled();
   });
 
   // ⭐⭐ FOUND BY THIS FILE, and worth its own case. The write's rule is `incoming > stored`, so an

@@ -17,9 +17,10 @@ import { ScanDamageZones } from './ScanDamageZones';
 import { ScanNotices } from './ScanNotices';
 import { ScanVehicleCapture } from './ScanVehicleCapture';
 import { VehicleName } from '../shared/VehicleName';
-import { vehicleCodesLine } from '../../lib/vehicleName';
+import { ScanIdentityHeader } from './ScanIdentityHeader';
+import { ScanFactChips } from './ScanFactChips';
 import { Sparkles } from '../shared/Sparkles';
-import { scanStatusLine, TONE_TEXT, TONE_BLOCK } from '../../lib/scanStatusLine';
+import { scanStatusLine, TONE_BLOCK } from '../../lib/scanStatusLine';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { flaggedOnLabel } from '../../lib/scanHoldSummary';
 import { cycleLabel, type ConsolidatedDamage } from '../../lib/consolidateDamage';
@@ -37,6 +38,8 @@ interface Props {
   canRegister: boolean;
   /** Two live cars share the scanned unit and the plate was unreadable: open the one he picks. */
   onPickCandidate: (vehicleId: string) => void;
+  /** Tapping the identity block opens the record — the same screen as the menu's "View unit". */
+  onOpenVehicle?: () => void;
   geotabPending: boolean;
   /** The tag photo this scan read — null on the typed-plate door. The card derives "photographed"
    *  from it, and hands it to the re-plate offer so an adopted re-plate keeps THIS photo. */
@@ -47,7 +50,7 @@ interface Props {
 }
 
 export function ScanIdentityCard({
-  scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate,
+  scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate, onOpenVehicle,
   geotabPending, scanPhoto, backfillToast, conflictToast, codexToast,
 }: Props) {
   const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
@@ -72,7 +75,6 @@ export function ScanIdentityCard({
           Read <span className="font-mono">{result.rawPlate}</span> → corrected to <span className="font-mono font-semibold">{result.plate}</span>
         </p>
       )}
-      <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
         {/* ⭐ Once a vehicle RESOLVED, its record is authoritative for the plate — not the
             tag read. Two reasons, and the second one is new:
               • On a unit-number match the tag had no readable plate at all, and handing
@@ -83,32 +85,16 @@ export function ScanIdentityCard({
                 Showing the read's plate there would print a plate the car doesn't have,
                 on a card he uses to identify the car in his hand.
             An UNresolved read still shows what was read, because that's all there is. */}
-        {vehicle?.licensePlate || result.plate || ''}{vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}
-      </p>
+      <ScanIdentityHeader
+        plateLine={`${vehicle?.licensePlate || result.plate || ''}${vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}`}
+        vehicle={vehicle}
+        liveHolds={liveHolds}
+        onOpen={onOpenVehicle}
+      />
       {vehicle ? (
         <>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {/* ⚠️ Same miss as the record header, and worse here: this is the sheet he is
-                reading STANDING AT THE CAR, deciding what it is. `VehicleName`'s own
-                header calls that out by name — "above all the scan sheet" — and the scan
-                sheet was still joining the fields by hand. */}
-            <VehicleName vehicle={vehicle} />{vehicle.color ? ` · ${vehicle.color}` : ''}
-          </p>
-          {/* ⭐ THE TRANSCRIPTION LINE (2026-09-17, `ticket-scan-card-class-and-code.md`). Aaron
-              reads this card as inspection-slip prep while the driver is still writing the tag info
-              onto the gas sheet — *"so i don't have to wait for the driver to hand me the keytag"* —
-              and the model code and class were the only two fields it did not give him. FG held both
-              the whole time. MONO for the same reason the plate line above is mono: these get copied
-              onto paper character-for-character, not read for comprehension. */}
-          <p className="font-mono text-xs text-gray-700 dark:text-gray-300 mt-0.5">
-            {vehicleCodesLine(vehicle)}
-          </p>
-          {/* Derived from the vehicle's STATUS, never from the hold count — see
-              scanStatusLine.ts. The count only adds a suffix. */}
-          {(() => {
-            const line = scanStatusLine(vehicle.status, liveHolds);
-            return <p className={`text-xs font-semibold mt-0.5 ${TONE_TEXT[line.tone]}`}>{line.text}</p>;
-          })()}
+          {/* Keys and tires, read at a glance and ABOVE the map — see ScanFactChips. */}
+          <ScanFactChips vehicle={vehicle} scanNonce={scanNonce} recordKeyCount={recordKeyCount} />
           {/* ⭐ THE NOTICES GO HERE, right under the status — not at the end of the card. They are the
               lines that ask him to do something while the tag is in his hand, and at the bottom they
               sat below holds, damage map, keys and odometer. Aaron, 2026-09-24, on LUR345: *"I didn't
@@ -153,13 +139,11 @@ export function ScanIdentityCard({
               Silent on a car with no panels recorded (most scans). See ScanDamageZones. */}
           <ScanDamageZones holds={holds} vehicleId={vehicle.id} />
 
-          {/* Keys, EV kit and odometer — one beat, extracted together because they
-              are one beat: tag in hand, trunk open, dash lit. See ScanVehicleCapture. */}
+          {/* EV kit, odometer and the flip — one beat: trunk open, dash lit. See ScanVehicleCapture. */}
           <ScanVehicleCapture
             vehicle={vehicle}
             scanNonce={scanNonce}
             rentalClass={(scanRead?.rentalClass ?? vehicle.rentalClass ?? '').trim()}
-            recordKeyCount={recordKeyCount}
             recordOdometer={recordOdometer}
             clearOdometer={clearOdometer}
             correctOdometer={correctOdometer}

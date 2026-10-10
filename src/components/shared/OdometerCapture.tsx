@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { parseOdometer, describeOdometer, odometerUnitFor, checkOdometerJump, classifyOdometerEntry } from '../../lib/odometer';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
@@ -19,6 +19,9 @@ import { useRoutedProp } from '../../hooks/useRoutedProp';
 // "47,200 km" ages into a lie; a figure from April describes a car that has since done a summer of
 // rentals. And a lower reading than the one on file is a misread or the wrong car — `recordOdometer`
 // refuses it server-side rather than rewriting a good record, so this says so BEFORE he taps.
+/** How long a first tap on Clear stays armed before it stands down on its own. */
+export const CLEAR_ARM_MS = 4000;
+
 export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, autoFocus, onSave, onClear, onCorrect }: {
   vehicleId: string;
   /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
@@ -63,10 +66,19 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [clearArmed, setClearArmed] = useState(false);
   const [correcting, setCorrecting] = useState(false);
   const unit = odometerUnitFor(isUs);
 
-  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); });
+  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); setClearArmed(false); });
+
+  // An armed Clear that is not confirmed stands down by itself — a stray tap must not leave a
+  // loaded button waiting under his thumb for the next one.
+  useEffect(() => {
+    if (!clearArmed) return;
+    const t = setTimeout(() => setClearArmed(false), CLEAR_ARM_MS);
+    return () => clearTimeout(t);
+  }, [clearArmed]);
 
   const km = parseOdometer(draft);
   // ⚠️ `<=`, MATCHING THE WRITE — it was `<`, which quietly disagreed with it. The write's rule is
@@ -155,9 +167,13 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
               database write. A CLEAR rather than an override, his call: letting him type any number
               would weaken the guard for genuine readings, which is what it is actually good at.
 
-              ⚠️ No confirm dialog, following the key-count row's own precedent — "make the mistake
-              cheap instead of making the action expensive". Clearing IS cheap (the next scan
-              re-reads it) and every touch lands in vehicle_changes either way.
+              ⚠️ TWO TAPS, SINCE 2026-10-10 — and this overturns the line that stood here. It read
+              "no confirm dialog… clearing IS cheap (the next scan re-reads it)". That was wrong about
+              the scan sheet: this button sits on the path of his thumb (the key-count row beside it
+              was being changed by scroll-taps), one touch would wipe a reading, and nothing re-reads
+              an odometer until someone is at that dash again. Aaron, asked whether it should be guarded: *"Yes for the guard."* The first
+              tap ARMS the button and says so; the second clears; an unconfirmed arm lapses on its own.
+              Still no dialog — the confirm is the same button, under the same finger.
 
               Only offered when there is something to clear, so it never appears as a control that
               does nothing. */}
@@ -165,15 +181,21 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             <button
               type="button"
               onClick={async () => {
+                if (!clearArmed) { hapticLight(); setClearArmed(true); return; }
+                setClearArmed(false);
                 setClearing(true);
                 const ok = await onClear(vehicleId);
                 setClearing(false);
                 if (ok) setDraft('');
               }}
               disabled={clearing}
-              className="h-11 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 hover:border-red-400 hover:text-red-700 dark:hover:text-red-400 disabled:opacity-40 cursor-pointer transition"
+              aria-label={clearArmed ? 'Tap again to clear the reading' : undefined}
+              className={`h-11 px-3 rounded-lg border text-xs disabled:opacity-40 cursor-pointer transition ${
+                clearArmed
+                  ? 'border-red-500 bg-red-50 dark:bg-red-950/40 font-semibold text-red-700 dark:text-red-300'
+                  : 'border-gray-300 dark:border-gray-700 font-medium text-gray-600 dark:text-gray-400 hover:border-red-400 hover:text-red-700 dark:hover:text-red-400'}`}
             >
-              {clearing ? 'Clearing…' : 'Clear'}
+              {clearing ? 'Clearing…' : clearArmed ? 'Tap again' : 'Clear'}
             </button>
           )}
         </div>

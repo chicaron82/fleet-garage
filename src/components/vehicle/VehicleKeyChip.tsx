@@ -9,9 +9,16 @@ import { hapticLight } from '../../lib/haptics';
 // the strip's business, and `onPick` resolving TRUE-on-saved is exactly the seam that fixes the
 // bug — the editor closes on a write that landed, not on a tap that happened.
 // See docs/September/ticket-writes-that-vanish-into-void.md.
-export function VehicleKeyChip({ isTesla, keyCount, onPick }: {
+//
+// ⭐ `touch` (2026-10-10) — the same chip on the scan sheet, whose own standard is 44px targets
+// (tapped with nitrile gloves on). One picker, two sizes, rather than a second copy of the
+// open/closed/close-on-write logic.
+// See docs/October/ticket-scan-card-header-chips.md.
+export function VehicleKeyChip({ isTesla, keyCount, onPick, touch }: {
   isTesla?: boolean | null;
   keyCount?: number | null;
+  /** 44px targets — the scan sheet. Omitted → the record strip's compact size. */
+  touch?: boolean;
   /** Writes the count; resolves whether it actually landed. A false keeps the picker OPEN. */
   onPick: (n: number) => Promise<boolean>;
 }) {
@@ -25,25 +32,28 @@ export function VehicleKeyChip({ isTesla, keyCount, onPick }: {
   return (
     <>
     {editing ? (
-      <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5">
+      /* touch: no frame — the open row is exactly as tall as the closed chip (44px), so opening it
+         never pushes the damage map down under his thumb. */
+      <div className={`flex items-center ${touch ? 'gap-2' : 'gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5'}`}>
         <span className="text-xs text-gray-500 dark:text-gray-400">{isTesla ? '⚡' : '🔑'}</span>
         {keyOptionsFor(isTesla === true).map(n => (
           <button
             key={n}
             type="button"
             onClick={() => void pick(n)}
-            className={`w-7 h-7 rounded-lg text-xs font-semibold border transition cursor-pointer ${keyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
+            className={`${touch ? 'w-11 h-11 text-sm' : 'w-7 h-7 text-xs'} rounded-lg font-semibold border transition cursor-pointer ${keyCount === n ? 'bg-fg-yellow border-fg-yellow text-black' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
           >
             {n}
           </button>
         ))}
-        <button type="button" onClick={() => setEditing(false)} className="ml-0.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
+        <button type="button" onClick={() => setEditing(false)} className={`text-gray-400 hover:text-gray-600 cursor-pointer ${touch ? 'w-11 h-11 text-sm' : 'ml-0.5 text-xs'}`}>✕</button>
       </div>
     ) : (
       <button
         type="button"
         onClick={() => { hapticLight(); setEditing(true); }}
-        className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+        className={`rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer ${
+          touch ? 'h-11 px-3.5 text-sm font-semibold' : 'px-2.5 py-1.5 text-xs'}`}
       >
         {/* ⭐ Emoji + value, nothing else (Aaron, 2026-09-12): *"how bout having the key emoji
             plus key count"*. The noun was doing no work — the emoji already says "keys" — and the

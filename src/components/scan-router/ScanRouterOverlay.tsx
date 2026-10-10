@@ -236,6 +236,10 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   // Computed AFTER holdLines: a held car gets a "Mark repaired" route at the top of the menu.
   const actions = scanRead && result ? scanRouterActions(scanRead, result, scanNonce, holdLines.length > 0) : [];
 
+  // The card's header opens the record through the SAME action as the menu's "View unit", so the
+  // two can never route differently.
+  const viewAction = actions.find(a => a.kind === 'view');
+
   // Set only by the typed-plate path, and consumed at most once — by an action that implies he was
   // actually at the car. Closing the overlay without acting simply drops it, which is the point.
   const go = (screen: Screen, kind?: string) => {
@@ -343,6 +347,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
                 scanNonce={scanNonce}
                 canRegister={actions.some(a => a.kind === 'register')}
                 onPickCandidate={id => go({ name: 'vehicle', vehicleId: id })}
+                onOpenVehicle={viewAction ? () => go(viewAction.screen, viewAction.kind) : undefined}
                 geotabPending={geotabPending}
                 backfillToast={backfillToast}
                 conflictToast={conflictToast}
