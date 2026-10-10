@@ -23,6 +23,11 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
   const [outCount, setOutCount] = useState(todayEntry?.outCount.toString() ?? '');
   const [inCount, setInCount] = useState(todayEntry?.inCount.toString() ?? '');
   const [submitting, setSubmitting] = useState(false);
+  // A save that didn't land is SAID. `onSubmit` resolves false on any failure and this form used to
+  // do nothing with it: the button went from "Saving..." back to "Log Numbers" and a dropped
+  // connection looked exactly like a tap that had not registered (2026-10-09 — he entered the day's
+  // balance at the airport, the signal dropped, and he learned hours later that no row existed).
+  const [saveFailed, setSaveFailed] = useState(false);
 
   if (!user) return null;
 
@@ -36,6 +41,7 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
     const success = await onSubmit(out, in_);
     setSubmitting(false);
 
+    setSaveFailed(!success);
     if (success) {
       setEditing(false);
     }
@@ -135,6 +141,11 @@ export function FleetBalanceEntryForm({ onSubmit, todayEntry, projection }: Prop
           />
         </div>
       </div>
+      {saveFailed && (
+        <p role="alert" className="mb-3 text-xs font-medium text-red-600 dark:text-red-400">
+          Didn't save — check the signal and tap Log Numbers again. Your numbers are still here.
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-400 dark:text-gray-500">
           Entering as: {user.name} · {user.role}
