@@ -3,9 +3,12 @@ import { RepairConfirmSection } from './RepairConfirmSection';
 import { HOLD_TYPE_LABELS } from '../../lib/holdTypeLabels';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import type { Hold, HoldType, Repair, RepairOutcome } from '../../types';
+import type { RepairLanding } from '../../lib/repairChains';
 
 interface IssueResolutionSectionProps {
   hold: Hold;
+  /** Where resolving the LAST issue leaves the car — forwarded to the confirm. */
+  landing?: RepairLanding;
   userId: string;
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;
   onDone: () => void;
@@ -15,7 +18,7 @@ interface IssueResolutionSectionProps {
  *  Intermediate issues resolve instantly (the hold stays held); the LAST remaining
  *  issue collects notes/outcome via the existing confirm form, then the whole hold
  *  flips to REPAIRED and the vehicle clears. */
-export function IssueResolutionSection({ hold, userId, markIssueRepaired, onDone }: IssueResolutionSectionProps) {
+export function IssueResolutionSection({ hold, landing, userId, markIssueRepaired, onDone }: IssueResolutionSectionProps) {
   const [pendingFinal, setPendingFinal] = useState<HoldType | null>(null);
   const [notes, setNotes] = useState('');
   const [outcome, setOutcome] = useState<RepairOutcome>('clean');
@@ -65,6 +68,7 @@ export function IssueResolutionSection({ hold, userId, markIssueRepaired, onDone
     return (
       <RepairConfirmSection
         holds={[hold]}
+        landing={landing}
         repairNotes={notes}
         setRepairNotes={setNotes}
         repairOutcome={outcome}

@@ -44,6 +44,7 @@ export function HoldActionPanels({ h, vehicleId, streak }: Props) {
         <RevealPanel>
           <RepairResolution
             confirmHolds={h.holds.filter(hold => h.showRepairConfirm!.includes(hold.id))}
+            vehicleHolds={h.holds}
             userId={h.user.id}
             markIssueRepaired={h.markIssueRepaired}
             confirm={{

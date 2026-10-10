@@ -1,9 +1,13 @@
 import { hapticLight } from '../../lib/haptics';
 import { REPAIR_OUTCOME_LABELS } from '../../types';
 import type { Hold, RepairOutcome } from '../../types';
+import type { RepairLanding } from '../../lib/repairChains';
+import type { HoldDerivedStatus } from '../../lib/vehicle-status';
 
 export interface RepairConfirmSectionProps {
   holds: Hold[];
+  /** What this repair will do to the car. Absent only where the caller cannot see the car's other holds. */
+  landing?: RepairLanding;
   repairNotes: string;
   setRepairNotes: (notes: string) => void;
   repairOutcome: RepairOutcome;
@@ -21,6 +25,32 @@ function holdActionLabel(holdTypes: string[]): string {
   return 'Mark as Repaired';
 }
 
+// What the car reads as AFTER the repair, when something else still holds it there.
+const STAYS: Record<Exclude<HoldDerivedStatus, 'clear'>, string> = {
+  'held': 'Held — another hold on this car is still open',
+  'sale-car': 'Sale car',
+  'auction-short-term': 'Auction · short term',
+  'pre-existing': 'Pre-existing — damage released as pre-existing stays on the record',
+  'on-exception': 'Out on exception — another release is still open',
+};
+
+const fmtDay = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+
+function LandingLine({ landing }: { landing?: RepairLanding }) {
+  if (!landing) return <>Its status updates to the result once this is marked done.</>;
+  return (
+    <>
+      {landing.status === 'clear'
+        ? <>The vehicle will be set to <strong>Clear</strong> and returned to service.</>
+        : <>The vehicle will read <strong>{STAYS[landing.status]}</strong>.</>}
+      {landing.closes.length > 0 && (
+        <> Also closes the release from {landing.closes.map(h => fmtDay(h.flaggedAt)).join(' and ')} for the same damage.</>
+      )}
+    </>
+  );
+}
+
 function holdConfirmBody(holdTypes: string[]): string {
   if (holdTypes.includes('detail')) return 'This marks the detail work as complete.';
   if (holdTypes.includes('mechanical')) return 'This marks the service as complete.';
@@ -29,6 +59,7 @@ function holdConfirmBody(holdTypes: string[]): string {
 
 export function RepairConfirmSection({
   holds,
+  landing,
   repairNotes,
   setRepairNotes,
   repairOutcome,
@@ -49,9 +80,9 @@ export function RepairConfirmSection({
       </h2>
       <p className="text-sm text-green-900 dark:text-green-200">
         {count > 1 ? (
-          <>Resolves <strong>{count} holds</strong> on this vehicle (same notes &amp; outcome for all). Its status updates to the result once they're marked done.</>
+          <>Resolves <strong>{count} holds</strong> on this vehicle (same notes &amp; outcome for all). <LandingLine landing={landing} /></>
         ) : (
-          <>{holdConfirmBody(holds[0].holdTypes)} The vehicle will be set to <strong>Clear</strong> and returned to service.</>
+          <>{holdConfirmBody(holds[0].holdTypes)} <LandingLine landing={landing} /></>
         )}
       </p>
       <div>

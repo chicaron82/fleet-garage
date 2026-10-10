@@ -18,6 +18,9 @@
 // hold that is itself linked (held, released, re-held, released, re-held). So this walks the whole
 // chain; closing only the first link would leave the oldest exception open behind a repaired car.
 
+import { deriveHoldStatus, factsFromHold, type HoldDerivedStatus } from './vehicle-status';
+import type { Hold } from '../types';
+
 interface LinkHold {
   id: string;
   status: string;
@@ -80,4 +83,34 @@ export function collapseRepairable<T extends LinkHold & { flaggedAt: string }>(
   return repairable
     .filter(h => !folded.has(h.id))
     .map(h => ({ hold: h, earlier: earlierOf.get(h.id) ?? [] }));
+}
+
+export interface RepairLanding {
+  /** Where the car's status lands once the picked holds are repaired. */
+  status: HoldDerivedStatus;
+  /** Earlier open exceptions that close with the repair. */
+  closes: Hold[];
+}
+
+/**
+ * What a repair will DO, before it is confirmed — the same projection the write runs.
+ *
+ * ⚠️ The confirm used to print "The vehicle will be set to Clear" for every single-hold repair. It
+ * was fixed text. Ticking one row of several, or a car carrying another hold or a pre-existing
+ * release, still read Clear, and the car did not become it (found 2026-10-09 on the second pass over
+ * the picker change, reading the confirm rendered for LUR307).
+ */
+export function projectRepair(holdIds: readonly string[], vehicleHolds: readonly Hold[]): RepairLanding {
+  const closes = vehicleHolds
+    .filter(h => holdIds.includes(h.id))
+    .flatMap(t => linkedOpenExceptionChain(t, vehicleHolds))
+    .filter((h, i, all) => !holdIds.includes(h.id) && all.findIndex(o => o.id === h.id) === i);
+  const closed = new Set(closes.map(h => h.id));
+  const projected = vehicleHolds.map(h => {
+    if (holdIds.includes(h.id)) return { ...h, status: 'REPAIRED' as const };
+    if (closed.has(h.id)) return { ...h, status: 'RETURNED' as const,
+      release: h.release ? { ...h.release, actualReturn: 'projected' } : undefined };
+    return h;
+  });
+  return { status: deriveHoldStatus(projected.map(factsFromHold)), closes };
 }
