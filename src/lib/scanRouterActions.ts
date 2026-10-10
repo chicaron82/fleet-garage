@@ -34,7 +34,20 @@ export interface ScanAction {
  */
 export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, scanNonce: number, hasActiveHold = false): ScanAction[] {
   const { plate, vehicle } = result;
-  if (!plate) return [];
+  if (!plate) {
+    // ⭐ A UNIT ALONE STILL GETS A WAY IN (Aaron, 2026-10-09). He typed 5428263 off a Ram's door
+    // sticker and got "couldn't read enough to register it" — the plate-alone door below was opened
+    // on 09-28, and the unit-alone one was left shut. Same person, same car, same moment, other key.
+    // The form seeds the unit from `prefill` (`classifyPrefill`) and asks for the plate; if that
+    // plate is already on file with no unit, it offers to add the unit there (lib/attachUnit).
+    // No Lost & Found route: that row is keyed on a plate, and there is none.
+    const unit = read.unitNumber?.trim();
+    if (!unit || vehicle) return [];
+    return [
+      { kind: 'register', label: 'Register — fill in the rest', icon: '➕', screen: { name: 'register-vehicle', prefill: unit } },
+      { kind: 'register-and-flag', label: 'Register & flag — fill in the rest', icon: '🔧', screen: { name: 'register-vehicle', fromHold: true, prefill: unit } },
+    ];
+  }
 
   // scanNonce stamps the plate-prefill routes so a repeat scan of the SAME tag is a distinct
   // routing event — without it the value-keyed re-seed at the destination fires once and a

@@ -120,6 +120,20 @@ describe('scanRouterActions', () => {
     expect(scanRouterActions(read, resolveKeytagScan(read, FLEET), 1)).toEqual([]);
   });
 
+  // docs/October/ticket-a-typed-unit-dead-ends.md — 2026-10-09, unit 5428263 off a Ram's door sticker.
+  it('⭐ a UNIT alone still offers register — unit pre-filled, no Lost & Found (it is keyed on a plate)', () => {
+    const read: KeytagRead = { unitNumber: '5428263' };
+    expect(kinds(read)).toEqual(['register', 'register-and-flag']);
+    const reg = scanRouterActions(read, resolveKeytagScan(read, FLEET), 1).find(a => a.kind === 'register')!;
+    expect(reg.label).toMatch(/fill in the rest/i);
+    expect(reg.screen).toEqual({ name: 'register-vehicle', prefill: '5428263' });
+  });
+
+  it('a unit FG already knows is found, never offered for registration', () => {
+    const read: KeytagRead = { unitNumber: '5423827' };
+    expect(kinds(read)).not.toContain('register');
+  });
+
   it('lost & found is always offered (found an item in any car)', () => {
     const onRecord: KeytagRead = { plate: 'LUR554', unitNumber: '5423827', make: 'Buick', model: 'Envista', year: 2026, color: 'Gray' };
     const brandNew: KeytagRead = { plate: 'LUR315', unitNumber: '5424315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' };

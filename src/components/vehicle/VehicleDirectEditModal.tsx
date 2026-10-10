@@ -28,7 +28,7 @@ interface VehicleDirectEditModalProps {
     unitNumber: string | null,
     licensePlate: string,
     identity?: { make: string; model: string; year: number; color: string; rentalClass: string | null; classCode?: string | null; isHybrid?: boolean },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /** Release a manual lock on one field, WITHOUT touching its value — a future scan can update it
    *  again. A separate action from Save on purpose: unlocking and editing are different decisions. */
   onUnlockField: (field: string) => Promise<void>;
@@ -85,6 +85,7 @@ export function VehicleDirectEditModal({
   // registered before then, and it fills in as tags get scanned.
   const [editClassCode, setEditClassCode] = useState(initialClassCode ?? '');
   const [editSaving, setEditSaving] = useState(false);
+  const [editFailed, setEditFailed] = useState(false);
   // Which field's unlock is in flight — disables just that badge, not the whole modal.
   const [unlockingField, setUnlockingField] = useState<string | null>(null);
 
@@ -238,6 +239,11 @@ export function VehicleDirectEditModal({
             })()}
           </div>
         </div>
+        {editFailed && (
+          <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+            Didn't save — check the signal and tap Save again. Your edits are still here.
+          </p>
+        )}
         <div className="flex gap-3 pt-1">
           <button
             type="button"
@@ -251,14 +257,16 @@ export function VehicleDirectEditModal({
             disabled={!canSave}
             onClick={async () => {
               setEditSaving(true);
-              await directEditVehicleIdentity(
+              const ok = await directEditVehicleIdentity(
                 vehicleId,
                 editUnit.trim() || null,
                 editPlate.trim().toUpperCase(),
                 { make: editMake, model: editModel, year: editYear, color: editColor, rentalClass: editClass.trim() || null, classCode: editClassCode.trim().toUpperCase() || null, isHybrid: editHybrid },
               );
               setEditSaving(false);
-              onClose();
+              // A save that didn't land keeps the modal open and says so — closing looked like success.
+              setEditFailed(!ok);
+              if (ok) onClose();
             }}
             className="flex-1 py-2.5 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-black text-sm font-semibold transition cursor-pointer"
           >

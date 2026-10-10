@@ -458,7 +458,8 @@ describe('directEditVehicleIdentity', () => {
     const v = { ...makeVehicle(), editStatus: 'pending' as const };
     const { ops, setAllVehicles } = makeOps([], [v]);
 
-    await ops.directEditVehicleIdentity(v.id, '9999', 'ZZZ 999');
+    // It reports that the write landed — callers used to get `void` and treat any outcome as a save.
+    expect(await ops.directEditVehicleIdentity(v.id, '9999', 'ZZZ 999')).toBe(true);
 
     expect(fromCalls).toContain('vehicles');
     const updater = setAllVehicles.mock.calls[0][0] as (prev: Vehicle[]) => Vehicle[];

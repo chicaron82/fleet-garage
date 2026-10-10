@@ -341,7 +341,9 @@ export function useVehicleOperations({
     unit: string | null,
     plate: string,
     identity?: VehicleIdentityEdit,
-  ) => { await writeVehicleIdentity(vehicleId, unit, plate, identity, setAllVehicles); };
+  // Returns whether the write LANDED. It used to discard `ok`, so every caller treated a dropped
+  // connection as a save (2026-10-09).
+  ): Promise<boolean> => (await writeVehicleIdentity(vehicleId, unit, plate, identity, setAllVehicles)).ok;
 
   const applyVehicleIdentity = async (vehicleId: string, unit: string | null, plate: string) => {
     const now = new Date().toISOString();

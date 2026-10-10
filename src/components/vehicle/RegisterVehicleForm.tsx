@@ -1,4 +1,6 @@
 import { RegisterVehicleFlags } from './RegisterVehicleFlags';
+import { AttachUnitNotice } from './AttachUnitNotice';
+import { plateOnlyRecord } from '../../lib/attachUnit';
 import { useState, useRef } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useAuth } from '../../context/AuthContext';
@@ -42,7 +44,7 @@ function classifyPrefill(value?: string): { unit: string; plate: string } {
 }
 
 export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onSuccess, returnTo = 'hold' }: Props) {
-  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhotoIfMissing, restoreVehicle, updateVehicleEVAssets } = useVehicleHoldContext();
+  const { addVehicle, allVehicles, releaseUnitNumber, attachKeytagPhotoIfMissing, restoreVehicle, updateVehicleEVAssets, directEditVehicleIdentity } = useVehicleHoldContext();
   const { user } = useAuth();
   const { remember } = useVehicleByPlate();
   const seed = classifyPrefill(prefill);
@@ -132,6 +134,8 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
   // A different active vehicle already carrying this unit# — the conflict the
   // user can resolve by moving the number onto the record being registered.
   const { conflict: unitConflict, armed, arm, disarm } = useUnitConflict(unit, allVehicles);
+  // The plate is already on file with NO unit (a plate-only record): this unit belongs on it.
+  const attachTarget = plateMatch?.source === 'vehicle' ? plateOnlyRecord(plateMatch.vehicleId, allVehicles) : null;
 
   // A Tesla ships with exactly ONE key card — no ring, no variants, so the count is a property of
   // the make rather than an observation to make at the car. DERIVED, not a setState on make-change:
@@ -344,6 +348,9 @@ export function RegisterVehicleForm({ prefill, scanned, keytagPhoto, onBack, onS
                       {restoring ? 'Restoring…' : '↩ Restore to fleet'}
                     </button>
                   </div>
+                ) : attachTarget && unit.trim() && !unitConflict ? (
+                  <AttachUnitNotice existing={attachTarget} directEditVehicleIdentity={directEditVehicleIdentity} onDone={onSuccess}
+                    form={{ unit, make, model, year, color, rentalClass, classCode, isHybrid }} />
                 ) : (
                   <div className="rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
