@@ -16,7 +16,7 @@ import { FleetArchivedSection } from './FleetArchivedSection';
 import { FleetAuditPanel } from './FleetAuditPanel';
 import { useFleetAudit } from '../../hooks/useFleetAudit';
 import { useFleetTrend } from '../../hooks/useFleetTrend';
-import { cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
+import { anyDelta, cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
 import type { Screen } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
 
@@ -150,7 +150,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   });
   const todayISO = toLocalDate(new Date());
   const deltas = cohortDeltas(cohortCounts, baseline);
-  const sinceLabel = describeBaseline(baseline?.snapshotDate, todayISO);
+  // Only when a chip is actually wearing a badge — the caption is that badge's legend, nothing else.
+  const sinceLabel = anyDelta(deltas) ? describeBaseline(baseline?.snapshotDate, todayISO) : '';
   const createdStamps = vehicles.map(v => v.createdAt);
   const addedToday = registeredOn(createdStamps, todayISO);
 
@@ -173,7 +174,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const noMatch = !!term && filtered.length === 0;
 
   return (
-    <div className="space-y-4">
+    <div className="py-6 space-y-4">
       {/* Header */}
       <ModuleHeader
         title="Fleet"

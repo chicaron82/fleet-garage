@@ -107,10 +107,11 @@ npm run lint     # eslint
 
 ### ⚠️ RLS is posture, not a lockdown — read this before trusting it
 
-Every table has Row Level Security **enabled**, and **49 of the 61 policies in
-`migrations/schema.sql` are `USING (true)`** — allow-all. Of the remaining 12, none are
-meaningful access control either: four scope `profiles` rows, and eight simply bind a policy to
-a storage bucket. Combined with an anon key that ships in the client, RLS here provides **no
+Every table has Row Level Security **enabled**, and **52 of the 66 policies in
+`migrations/schema.sql` are `USING (true)`** — allow-all (counted 2026-10-10). Of the remaining
+14, none are meaningful access control either: four scope `profiles` rows, two are inserts written
+`WITH CHECK (true)` (allow-all by another spelling), and eight simply bind a policy to a storage
+bucket. Combined with an anon key that ships in the client, RLS here provides **no
 protection against a determined reader or writer.** It is deliberate: FG is a trusted-crew tool
 with one user, and the allow-all posture exists to match Supabase's expected shape and silence
 the `rls_disabled_in_public` advisory — not to secure data.

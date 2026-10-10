@@ -197,8 +197,9 @@ view already or reshaped to how i need it… lots of what isn't available to me 
 features that rely on data i do not have so i don't include them into my active account."*
 
 So **the nav allowlist is FG's SCOPE mechanism, not its permission mechanism.** It cannot be a
-security boundary — the anon key ships in the client and 49 of the 61 policies in
-`migrations/schema.sql` are `USING (true)` (the other 12 scope `profiles` rows or bind a storage
+security boundary — the anon key ships in the client and 52 of the 66 policies in
+`migrations/schema.sql` are `USING (true)` (counted 2026-10-10; the other 14 scope `profiles` rows,
+are `WITH CHECK (true)` inserts, or bind a storage
 bucket; none are real access control), so a UI gate protects nothing. What it actually does is
 keep him out of rooms built on **data FG structurally does not have**: fleet balance,
 turnaround, driver coverage, class dispatch all need the HIR/counter side he has never had
@@ -311,7 +312,22 @@ at intent. That is the actual defect; the two buttons were a symptom.
 commit; a black *chip* is "this one is chosen". Do not sweep one into the other — 12 of the 22
 `bg-gray-900` sites are selected-states and are correct as they are.
 
-⚠️ **Yellow needs `text-gray-900`.** It is a light background; white text on it is unreadable.
+⚠️ **Yellow needs DARK text.** It is a light background; white text on it is unreadable.
+
+⚠️ **What the code actually does, measured 2026-10-10 (line-check) — this table was ahead of it:**
+
+- **Dark text on yellow is spelled two ways.** `text-black` on 50 yellow surfaces (`PrimaryAction`
+  among them) and `text-gray-900` on 31. They are indistinguishable on screen, so neither is a defect —
+  but the row above names only one, and a reviewer holding it will "find" fifty violations. Do not
+  sweep one into the other for its own sake; pick whichever the file you are in already uses.
+- **A selected CHIP is yellow in more places than it is black.** `bg-fg-yellow border-fg-yellow` marks
+  the chosen one in 14 files — the Fleet class and health pills, `HoldKindPills`, the key count, the EV
+  boxes, Lost & Found, the zone map. The black selected-state row is true for `ClockPicker`,
+  `ScheduleFilterBar` and `ClassChipPicker`. **Both are established; match the siblings on the screen
+  you are on.** A filter pill on Holds or Fleet is yellow.
+- **Teal is a fourth button colour with three sites** (`AttachUnitNotice`'s attach, `DetailReEvalCard`'s
+  Confirm Return, one `ActiveSessionPill` tone). No rule for it is written anywhere, and I could not
+  derive one from the three — so it is recorded here as a fact, not a lane. Ask before adding a fourth.
 
 ### ⚠️ Yellow TEXT is a different role, and it is a PAIR — not the button token
 
@@ -574,7 +590,10 @@ landed, and it never invents an id for a row the DB refused. Every tap site runs
 `useWriteGuard` (`src/hooks/useWriteGuard.ts`) and keeps the form (and what he typed) open on failure.
 ⚠️ This defect has now shipped FIVE times (Reflections 61, 62, `381d708` ×2, and the 09-24 fault
 writes: a failed fault insert put a phantom fault on the card, and "Reopen instead" fired into a
-`void`; fixed `afee213`). A new writer is checked against this rule before it ships, not after.
+`void`; fixed `afee213`). **A seventh, 2026-10-10:** the EV loan ops answered a
+failed write with a bare `return`, and `EVAssetsTab` awaited a throwing `addHold` unguarded, which left
+the sheet stuck on "Flagging…". ⚠️ Note the age: it was raised by the 09-28 line-check and sat twelve days
+because it was reported and never filed. A new writer is checked against this rule before it ships, not after.
 
 ## Writing data — the submit lock
 

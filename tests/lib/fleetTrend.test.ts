@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   cohortDeltas, describeBaseline, deltaLabel, registeredOn, toLocalDate,
   type FleetSnapshot,
+  anyDelta,
 } from '../../src/lib/fleetTrend';
 import type { FleetCohortCounts } from '../../src/lib/fleetCohorts';
 
@@ -90,5 +91,22 @@ describe('registeredOn', () => {
 describe('toLocalDate', () => {
   it('formats local calendar date, zero-padded', () => {
     expect(toLocalDate(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+  });
+});
+
+describe('anyDelta — is any chip actually wearing a badge?', () => {
+  const none = { 'missing-keytag': null, 'missing-keycount': null, 'needs-backfill': null, 'gone-quiet': null };
+
+  it('false on day one, when every cohort is null', () => {
+    expect(anyDelta(none)).toBe(false);
+  });
+
+  it('⭐ false when a baseline exists but nothing moved — the caption would explain arrows that are not there', () => {
+    expect(anyDelta({ ...none, 'missing-keytag': 0, 'missing-keycount': 0, 'needs-backfill': 0 })).toBe(false);
+  });
+
+  it('true when one cohort moved, in either direction', () => {
+    expect(anyDelta({ ...none, 'missing-keytag': 0, 'needs-backfill': 3 })).toBe(true);
+    expect(anyDelta({ ...none, 'missing-keycount': -2 })).toBe(true);
   });
 });

@@ -75,6 +75,13 @@ export function describeBaseline(baselineDate: string | null | undefined, todayI
 
 /** `+3` / `-5` / '' — the compact badge text. Zero renders as nothing: "no change" is not news,
  *  and a row of grey 0s would bury the two chips that actually moved. */
+/** True when at least one cohort actually moved — i.e. some chip is carrying a `+3` / `-2` badge.
+ *  The "since yesterday" caption explains those badges, so with none on screen it explains nothing
+ *  (line-check 2026-10-10: the Fleet page read "arrows since yesterday" under chips with no arrows). */
+export function anyDelta(deltas: FleetCohortDeltas): boolean {
+  return Object.values(deltas).some(d => d != null && d !== 0);
+}
+
 export function deltaLabel(delta: number | null): string {
   if (delta == null || delta === 0) return '';
   return delta > 0 ? `+${delta}` : `${delta}`;
