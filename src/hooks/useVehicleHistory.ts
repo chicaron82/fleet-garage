@@ -4,6 +4,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { useUserResolver } from './useUserResolver';
 import { hapticMedium } from '../lib/haptics';
 import { isClearableSaleFlag } from '../lib/holdGrouping';
+import { collapseRepairable } from '../lib/repairChains';
 import type { Hold, RepairOutcome } from '../types';
 import { usePhotoIntake } from './usePhotoIntake';
 
@@ -62,10 +63,17 @@ export function useVehicleHistory(vehicleId: string) {
 
   // All holds currently eligible for the repair action:
   // ACTIVE holds always eligible; RELEASED holds eligible if not yet repaired.
-  const repairableHolds: Hold[] = holds.filter(
-    h => h.vehicleId === vehicle?.id &&
-      (h.status === 'ACTIVE' || (h.status === 'RELEASED' && !h.repair))
+  //
+  // ⭐ ONE ROW PER LINKED CHAIN. A re-hold and the earlier exception it stands for are one damage,
+  // so they are one choice: `repairableHolds` is the hold he resolves, and `repairRows` also carries
+  // the earlier releases that close with it. Everything downstream (the button's label, the
+  // straight-to-confirm when there is one, the picker) counts chains, not holds.
+  const repairRows = collapseRepairable(
+    holds.filter(h => h.vehicleId === vehicle?.id &&
+      (h.status === 'ACTIVE' || (h.status === 'RELEASED' && !h.repair))),
+    holds,
   );
+  const repairableHolds: Hold[] = repairRows.map(r => r.hold);
 
   const [showHoldPicker,    setShowHoldPicker]    = useState(false);
   const [showReleasePicker, setShowReleasePicker] = useState(false);
@@ -215,7 +223,7 @@ export function useVehicleHistory(vehicleId: string) {
   return {
     user: user!,
     photoError,
-    vehicle, holds, activeHold, activeHolds, repairableHolds, saleHold,
+    vehicle, holds, activeHold, activeHolds, repairableHolds, repairRows, saleHold,
     confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,

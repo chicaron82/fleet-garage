@@ -324,3 +324,59 @@ describe('makeConvertToPreExisting', () => {
     expect(fromCalls).toEqual([]);
   });
 });
+
+// ── A re-held hold closes its WHOLE chain, on both repair paths ──────────────
+// docs/October/ticket-a-reheld-hold-shows-once.md. The picker shows a re-hold and the earlier
+// exceptions it stands for as ONE row, so whichever path the tap takes must close all of them.
+describe('repairing a re-hold closes every earlier open exception in its chain', () => {
+  const openException = (id: string, flaggedAt: string, linkedHoldId?: string) => makeHold(id, 'v-1', {
+    status: 'RELEASED', flaggedAt, linkedHoldId,
+    release: { id: `rel-${id}`, holdId: id, approvedById: 'mgr', approvedAt: flaggedAt,
+      releaseType: 'EXCEPTION', releaseMethod: 'standard', reason: '', notes: '' },
+  });
+  const a = openException('a', '2026-04-01T00:00:00.000Z');
+  const b = openException('b', '2026-05-01T00:00:00.000Z', 'a');
+  const c = makeHold('c', 'v-1', { flaggedAt: '2026-06-01T00:00:00.000Z', linkedHoldId: 'b' });
+
+  it('single repair, chain of three: both earlier releases get a return and the car reads CLEAR', async () => {
+    const d = deps([a, b, c]);
+    await makeMarkRepaired(d)('c', REPAIR);
+
+    // ONE repair row, for the hold he resolved. The earlier two are returned, not repaired.
+    expect(fromCalls.filter(t => t === 'repairs')).toHaveLength(1);
+    expect(fromCalls.filter(t => t === 'releases')).toHaveLength(2);
+    expect(chain.update).toHaveBeenCalledWith({ actual_return: REPAIR.repairedAt });
+    expect(chain.update).toHaveBeenCalledWith({ status: 'CLEAR' });
+
+    const next = (d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[])([a, b, c]);
+    expect(next.map(h => h.status)).toEqual(['RETURNED', 'RETURNED', 'REPAIRED']);
+    expect(next[0].release?.actualReturn).toBe(REPAIR.repairedAt);
+    expect(next[1].release?.actualReturn).toBe(REPAIR.repairedAt);
+  });
+
+  it('batch: a re-hold picked beside an unrelated hold still closes its earlier exception', async () => {
+    const chip = makeHold('chip', 'v-1');
+    const reHold = makeHold('re', 'v-1', { flaggedAt: '2026-06-01T00:00:00.000Z', linkedHoldId: 'a' });
+    const holds = [a, reHold, chip];
+    const d = deps(holds);
+    await makeMarkRepairedBatch(d)(['re', 'chip'], REPAIR);
+
+    expect(fromCalls.filter(t => t === 'repairs')).toHaveLength(2);
+    expect(fromCalls.filter(t => t === 'releases')).toHaveLength(1);
+    // Control on the reason this matters: with `a` left open the car would derive OUT_ON_EXCEPTION.
+    expect(chain.update).toHaveBeenCalledWith({ status: 'CLEAR' });
+    expect(chain.update).not.toHaveBeenCalledWith({ status: 'OUT_ON_EXCEPTION' });
+
+    const next = (d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[])(holds);
+    expect(next.map(h => h.status)).toEqual(['RETURNED', 'REPAIRED', 'REPAIRED']);
+  });
+
+  it('batch: an earlier hold that is itself picked is repaired, not also returned', async () => {
+    const reHold = makeHold('re', 'v-1', { flaggedAt: '2026-06-01T00:00:00.000Z', linkedHoldId: 'a' });
+    const d = deps([a, reHold]);
+    await makeMarkRepairedBatch(d)(['re', 'a'], REPAIR);
+    expect(fromCalls).not.toContain('releases');
+    const next = (d.setAllHolds.mock.calls[0][0] as (prev: Hold[]) => Hold[])([a, reHold]);
+    expect(next.map(h => h.status)).toEqual(['REPAIRED', 'REPAIRED']);
+  });
+});

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  deriveHoldStatus, toVehicleStatus, isOnExceptionStatus, factsFromRow, factsFromHold, findLinkedOpenException,
+  deriveHoldStatus, toVehicleStatus, isOnExceptionStatus, factsFromRow, factsFromHold,
   openSaleCarHolds,
   type HoldFacts,
 } from '../../src/lib/vehicle-status';
+import { linkedOpenExceptionChain } from '../../src/lib/repairChains';
 
 const f = (over: Partial<HoldFacts> = {}): HoldFacts => ({
   isActive: false, isSaleCar: false, isOpenException: false, isOpenMechanical: false, isPreExisting: false, ...over,
@@ -289,47 +290,6 @@ const exceptionRelease = (over: Partial<TestHold['release'] & object> = {}) => (
   releaseType: 'EXCEPTION', actualReturn: null, ...over,
 });
 
-describe('findLinkedOpenException', () => {
-  const openSibling: TestHold = {
-    id: 'may5', vehicleId: 'rogue', status: 'RELEASED', holdTypes: ['mechanical'],
-    release: exceptionRelease(),
-  };
-
-  it('returns the linked hold when it holds an open exception', () => {
-    const repaired = { linkedHoldId: 'may5' };
-    expect(findLinkedOpenException(repaired, [openSibling])).toBe(openSibling);
-  });
-
-  it('no linkedHoldId → null (unlinked holds are never matched)', () => {
-    expect(findLinkedOpenException({ linkedHoldId: undefined }, [openSibling])).toBeNull();
-    expect(findLinkedOpenException({ linkedHoldId: null }, [openSibling])).toBeNull();
-  });
-
-  it('linkedHoldId points at a hold not present → null', () => {
-    expect(findLinkedOpenException({ linkedHoldId: 'ghost' }, [openSibling])).toBeNull();
-  });
-
-  it('linked exception already returned (actual_return set) → null', () => {
-    const returned: TestHold = { ...openSibling, release: exceptionRelease({ actualReturn: '2026-06-02T12:00:00Z' }) };
-    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [returned])).toBeNull();
-  });
-
-  it('linked release is PRE_EXISTING (not an exception) → null', () => {
-    const preExisting: TestHold = { ...openSibling, release: { releaseType: 'PRE_EXISTING', actualReturn: null } };
-    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [preExisting])).toBeNull();
-  });
-
-  it('linked release is a MECHANICAL_RELEASE (scoped to EXCEPTION) → null', () => {
-    const mech: TestHold = { ...openSibling, release: { releaseType: 'MECHANICAL_RELEASE', actualReturn: null } };
-    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [mech])).toBeNull();
-  });
-
-  it('linked hold is not RELEASED → null', () => {
-    const active: TestHold = { ...openSibling, status: 'ACTIVE', release: null };
-    expect(findLinkedOpenException({ linkedHoldId: 'may5' }, [active])).toBeNull();
-  });
-});
-
 // The acceptance scenario, end-to-end through the same projection markRepaired runs:
 // a May exception release + a linked June re-hold. Repairing the June hold must
 // close the May exception so the vehicle derives off-exception — and must NOT when
@@ -362,7 +322,7 @@ describe('repairing a linked re-hold resolves the stuck-on-exception vehicle', (
   it('linked repair closes the exception → clear', () => {
     const jun1: TestHold = { id: 'jun1', vehicleId: 'rogue', status: 'ACTIVE', holdTypes: ['mechanical'], linkedHoldId: 'may5' };
     const holds = [may5, jun1];
-    const linked = findLinkedOpenException(jun1, holds);
+    const linked = linkedOpenExceptionChain(jun1, holds)[0] ?? null;
     expect(linked).toBe(may5);
     const projected = project(holds, 'jun1', linked);
     expect(deriveHoldStatus(projected.map(factsFromHold))).toBe('clear');
@@ -371,7 +331,7 @@ describe('repairing a linked re-hold resolves the stuck-on-exception vehicle', (
   it('an UNLINKED open exception is left untouched → still on-exception', () => {
     const jun1: TestHold = { id: 'jun1', vehicleId: 'rogue', status: 'ACTIVE', holdTypes: ['mechanical'] }; // no link
     const holds = [may5, jun1];
-    const linked = findLinkedOpenException(jun1, holds);
+    const linked = linkedOpenExceptionChain(jun1, holds)[0] ?? null;
     expect(linked).toBeNull();
     const projected = project(holds, 'jun1', linked);
     expect(deriveHoldStatus(projected.map(factsFromHold))).toBe('on-exception');

@@ -33,7 +33,7 @@ const PROPS = {
     // the grouping suite below and lib/holdGrouping.
     status: 'HELD' as const,
   },
-  showHoldPicker: false, repairableHolds: [], closeHoldPicker: vi.fn(),
+  showHoldPicker: false, repairRows: [], closeHoldPicker: vi.fn(),
   toggleRepairPick: vi.fn(), pickedForRepair: [], confirmRepairSelection: vi.fn(),
   showReleasePicker: false, activeHolds: [], closeReleasePicker: vi.fn(),
   pickHoldForRelease: vi.fn(), uploadingFor: null, addPhotoClick: vi.fn(),
@@ -113,5 +113,24 @@ describe('HoldHistorySection — action vs no-action grouping', () => {
     expect(screen.getByText(/Clean history/)).toBeTruthy();
     expect(screen.queryByText(/Needs action/)).toBeNull();
     expect(screen.queryByText(/No action needed ·/)).toBeNull();
+  });
+});
+
+// docs/October/ticket-a-reheld-hold-shows-once.md — LZM532, 2026-10-08: one hail damage listed twice.
+describe('HoldHistorySection — the repair picker shows a re-held damage once', () => {
+  const reHold: Hold = { ...hold(['hail'], []), id: 'sep30', damageDescription: 'Hail damage',
+    flaggedAt: '2026-09-30T14:58:58.000Z', linkedHoldId: 'aug28' };
+  const earlier: Hold = { ...hold(['hail'], []), id: 'aug28', damageDescription: 'Hail damage',
+    flaggedAt: '2026-08-28T15:16:49.000Z', status: 'RELEASED' };
+  const chip: Hold = { ...hold(['damage'], []), id: 'chip', damageDescription: 'Windshield chip' };
+
+  it('one row for the chain, naming the earlier release it closes', () => {
+    render(<HoldHistorySection {...PROPS} holds={[]} showHoldPicker
+      repairRows={[{ hold: reHold, earlier: [earlier] }, { hold: chip, earlier: [] }]} />);
+    expect(screen.getAllByText('Hail damage')).toHaveLength(1);
+    expect(screen.getByText(/Same damage, released Aug 28, 2026 — closes with this/)).toBeTruthy();
+    // Control: a row with nothing earlier makes no such claim.
+    expect(screen.getAllByText(/closes with this/)).toHaveLength(1);
+    expect(screen.getByText('Windshield chip')).toBeTruthy();
   });
 });

@@ -342,7 +342,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
           vehicle={vehicle}
           holds={h.holds}
           showHoldPicker={h.showHoldPicker}
-          repairableHolds={h.repairableHolds}
+          repairRows={h.repairRows}
           closeHoldPicker={h.closeHoldPicker}
           toggleRepairPick={h.toggleRepairPick}
           pickedForRepair={h.pickedForRepair}

@@ -6,6 +6,7 @@ import type { RefObject, ChangeEvent } from 'react';
 import { HoldRecordCard } from './HoldRecordCard';
 import { groupHolds } from '../../lib/holdGrouping';
 import type { Hold, Vehicle } from '../../types';
+import type { RepairRow } from '../../lib/repairChains';
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -24,7 +25,7 @@ interface Props {
   vehicle: Pick<Vehicle, 'id' | 'unitNumber' | 'branchId' | 'coverPhotoUrl' | 'status' | 'licensePlate'>;
   holds: Hold[];
   showHoldPicker: boolean;
-  repairableHolds: Hold[];
+  repairRows: RepairRow<Hold>[];
   closeHoldPicker: () => void;
   toggleRepairPick: (holdId: string) => void;
   pickedForRepair: string[];
@@ -81,7 +82,7 @@ export function HoldPickerDetail({ hold }: { hold: Hold }) {
 }
 
 export function HoldHistorySection({
-  vehicle, holds, showHoldPicker, repairableHolds,
+  vehicle, holds, showHoldPicker, repairRows,
   closeHoldPicker, toggleRepairPick, pickedForRepair, confirmRepairSelection,
   showReleasePicker, activeHolds, closeReleasePicker, pickHoldForRelease,
   uploadingFor, addPhotoClick, handlePhotoSelected, openLightbox, setCoverPhoto,
@@ -138,7 +139,7 @@ export function HoldHistorySection({
                 </button>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[50vh] overflow-y-auto">
-                {repairableHolds.map(hold => {
+                {repairRows.map(({ hold, earlier }) => {
                   const checked = pickedForRepair.includes(hold.id);
                   return (
                     <button
@@ -168,6 +169,11 @@ export function HoldHistorySection({
                           </span>
                         </span>
                         <HoldPickerDetail hold={hold} />
+                        {earlier.length > 0 && (
+                          <span className="mt-1 block text-xs text-amber-700 dark:text-amber-400">
+                            Same damage, released {earlier.map(e => fmtDate(e.flaggedAt)).join(' and ')} — closes with this
+                          </span>
+                        )}
                       </span>
                     </button>
                   );

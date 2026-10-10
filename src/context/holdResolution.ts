@@ -1,6 +1,7 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { pushNotification, NOTIFY_MGMT } from '../lib/garage-uploads';
-import { deriveHoldStatus, factsFromHold, toVehicleStatus, findLinkedOpenException } from '../lib/vehicle-status';
+import { deriveHoldStatus, factsFromHold, toVehicleStatus } from '../lib/vehicle-status';
+import { linkedOpenExceptionChain } from '../lib/repairChains';
 import { withSubmitLock } from '../lib/submitLock';
 import { markGeotabInstalled } from '../hooks/useGeotabPending';
 import { GEOTAB_HOLD_DESC } from '../lib/hold-presets';
@@ -139,6 +140,25 @@ export function makeConvertToPreExisting({ holds, allVehicles, setAllHolds, setA
   };
 }
 
+// Close the earlier open exceptions a repair stands for: stamp each release's `actual_return` (as
+// of the repair) and resolve the hold like a normal return. The WHOLE chain, not just the nearest
+// link — 10 of the 70 linked holds on 2026-10-09 linked to a hold that was itself a re-hold, and
+// closing one link left the oldest exception open behind a repaired car.
+async function closeLinkedExceptions(chain: Hold[], at: string) {
+  for (const linked of chain) {
+    await writeWithRefresh(() =>
+      supabase.from('releases').update({ actual_return: at }).eq('id', linked.release!.id)
+    );
+    await writeWithRefresh(() =>
+      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', linked.id)
+    );
+  }
+}
+
+const asReturned = (h: Hold, at: string): Hold => ({
+  ...h, status: 'RETURNED', release: h.release ? { ...h.release, actualReturn: at } : undefined,
+});
+
 // Record a hold's issue as physically repaired and reconcile the vehicle status.
 // When the repaired hold is a re-hold linking back to a prior exception release
 // (`linkedHoldId`), that linked exception only existed to cover for this same
@@ -146,7 +166,7 @@ export function makeConvertToPreExisting({ holds, allVehicles, setAllHolds, setA
 // release's `actual_return` is stamped (as of the repair) and the linked hold is
 // resolved like a normal return, so the vehicle derives off-exception in one pass
 // instead of staying stuck behind a stale sibling. Only an explicitly linked open
-// EXCEPTION is closed — never a fuzzy text match (see `findLinkedOpenException`).
+// EXCEPTION is closed — never a fuzzy text match (see `lib/repairChains`).
 // The shared finalize: record the repair, flip the hold to REPAIRED (stamping the
 // resolved issue set), auto-close any linked open exception, and re-derive the
 // vehicle from the shared cascade. Used by the whole-hold `markRepaired` (all
@@ -178,15 +198,9 @@ async function finalizeRepairedHold(
   // If this repair resolves a linked prior exception, close it too: stamp the
   // release's actual_return (as of the repair) and resolve the linked hold like
   // a normal return, so its open-exception fact clears in the projection below.
-  const linked = findLinkedOpenException(hold, holds);
-  if (linked) {
-    await writeWithRefresh(() =>
-      supabase.from('releases').update({ actual_return: repair.repairedAt }).eq('id', linked.release!.id)
-    );
-    await writeWithRefresh(() =>
-      supabase.from('holds').update({ status: 'RETURNED' }).eq('id', linked.id)
-    );
-  }
+  const chain = linkedOpenExceptionChain(hold, holds);
+  const closed = new Set(chain.map(h => h.id));
+  await closeLinkedExceptions(chain, repair.repairedAt);
 
   // Project the post-repair hold set (repaired hold + any closed linked
   // exception) and derive the vehicle status from the shared cascade.
@@ -194,11 +208,7 @@ async function finalizeRepairedHold(
     .filter(h => h.vehicleId === hold.vehicleId)
     .map(h => {
       if (h.id === hold.id) return { ...h, status: 'REPAIRED' as const };
-      if (linked && h.id === linked.id) return {
-        ...h, status: 'RETURNED' as const,
-        release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
-      };
-      return h;
+      return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
     });
   const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
   const { error: vehErr } = await writeWithRefresh(() =>
@@ -207,11 +217,7 @@ async function finalizeRepairedHold(
   if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== hold.vehicleId ? v : { ...v, status: newVehicleStatus }));
   setAllHolds(prev => prev.map(h => {
     if (h.id === hold.id) return { ...h, status: 'REPAIRED', resolvedTypes, repair: newRepair };
-    if (linked && h.id === linked.id) return {
-      ...h, status: 'RETURNED',
-      release: h.release ? { ...h.release, actualReturn: repair.repairedAt } : undefined,
-    };
-    return h;
+    return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
   }));
 
   // Repairing the "Geotab not installed" hold MEANS the unit got installed — so drop the car off
@@ -321,8 +327,12 @@ export function makeCloseException({ holds, allVehicles, setAllHolds, setAllVehi
 // the last write would reflect only its own hold's change and clobber the rest.
 // Instead, this writes every repair, then projects ALL targets as REPAIRED and
 // derives the vehicle status ONCE from that full projection. Same shared notes /
-// outcome for the batch. (No linked auto-close here — the picker resolves exactly
-// what's checked; the single-hold path keeps the `findLinkedOpenException` close.)
+// outcome for the batch.
+//
+// ⚠️ The batch closes linked exceptions too (2026-10-09). It used to say "the picker resolves
+// exactly what's checked", which was true while the picker listed a re-hold and its earlier release
+// as two rows. They are ONE row now (`collapseRepairable`), so a re-hold picked alongside an
+// unrelated hold comes through here — and without the close its earlier exception stayed open.
 export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: ResolutionDeps) {
   return async (holdIds: string[], repair: Omit<Repair, 'id'>) => {
     const targets = holds.filter(h => holdIds.includes(h.id));
@@ -357,10 +367,17 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
         supabase.from('holds').update({ status: 'REPAIRED', resolved_types: t.holdTypes }).eq('id', t.id)
       );
     }
+    // A target's own chain, minus anything that is itself a target (that one is being repaired).
+    const chain = targets
+      .flatMap(t => linkedOpenExceptionChain(t, holds))
+      .filter((h, i, all) => !holdIds.includes(h.id) && all.findIndex(o => o.id === h.id) === i);
+    const closed = new Set(chain.map(h => h.id));
+    await closeLinkedExceptions(chain, repair.repairedAt);
     // Project EVERY target as REPAIRED at once, then derive the vehicle once.
     const projectedHolds = holds
       .filter(h => h.vehicleId === vehicleId)
-      .map(h => holdIds.includes(h.id) ? { ...h, status: 'REPAIRED' as const } : h);
+      .map(h => holdIds.includes(h.id) ? { ...h, status: 'REPAIRED' as const }
+        : closed.has(h.id) ? asReturned(h, repair.repairedAt) : h);
     const newVehicleStatus = toVehicleStatus(deriveHoldStatus(projectedHolds.map(factsFromHold)));
     const { error: vehErr } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ status: newVehicleStatus }).eq('id', vehicleId)
@@ -368,7 +385,8 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
     if (!vehErr) setAllVehicles(prev => prev.map(v => v.id !== vehicleId ? v : { ...v, status: newVehicleStatus }));
     setAllHolds(prev => prev.map(h => {
       const r = repairsById.get(h.id);
-      return r ? { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r } : h;
+      if (r) return { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r };
+      return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
     }));
     });
   };
