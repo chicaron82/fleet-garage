@@ -148,27 +148,30 @@ export function TripForm({
             void onPlateBlur?.(plate); // run Tesla detection on the freshly-scanned plate
           }} />
         </div>
-        <PlateInput
-          placeholder="e.g. LUR156"
-          value={vehiclePlate}
-          onValueChange={val => {
-            setVehiclePlate(val);
-            if (shuttlePlate) onShuttleToggle(val.trim() === shuttlePlate.toUpperCase().trim());
-            if (!val) setShowSuggestions(false);
-          }}
-          onBlur={() => {
-            setTimeout(() => setShowSuggestions(false), 200);
-            onPlateBlur?.();
-          }}
-          onFocus={() => {
-            if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true);
-          }}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
-        />
-        <PlateSuggestions
-          suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
-          onPick={handleSuggestionSelect} topClass="top-[66px]"
-        />
+        {/* The field and its dropdown share one box, so the dropdown hangs off the FIELD. */}
+        <div className="relative">
+          <PlateInput
+            placeholder="e.g. LUR156"
+            value={vehiclePlate}
+            onValueChange={val => {
+              setVehiclePlate(val);
+              if (shuttlePlate) onShuttleToggle(val.trim() === shuttlePlate.toUpperCase().trim());
+              if (!val) setShowSuggestions(false);
+            }}
+            onBlur={() => {
+              setTimeout(() => setShowSuggestions(false), 200);
+              onPlateBlur?.();
+            }}
+            onFocus={() => {
+              if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true);
+            }}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
+          />
+          <PlateSuggestions
+            suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
+            onPick={handleSuggestionSelect}
+          />
+        </div>
       </div>
 
       {/* EV dispatch guard — known-missing assets / not-dispatchable hold on this Tesla */}

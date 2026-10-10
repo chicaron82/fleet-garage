@@ -15,7 +15,7 @@ const car = (plate: string, unit: string | null = '1'): VehicleSearchResult => (
   color: 'White', is_hybrid: false, is_tesla: false, archived_at: null,
 } as unknown as VehicleSearchResult);
 
-const props = { open: true, failed: false, onPick: vi.fn(), topClass: 'top-[66px]' };
+const props = { open: true, failed: false, onPick: vi.fn() };
 
 describe('PlateSuggestions', () => {
   it('lists the matches', () => {

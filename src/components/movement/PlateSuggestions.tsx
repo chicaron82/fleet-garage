@@ -22,20 +22,23 @@ interface Props {
   /** The search request itself failed — network down, or an error from the DB. */
   failed: boolean;
   onPick: (v: VehicleSearchResult) => void;
-  /** Where the dropdown hangs below its own field: the two forms differ by 2px. */
-  topClass: string;
 }
 
-const PANEL = 'absolute left-0 right-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50';
+// ⭐ `top-full mt-1`: the panel hangs off the FIELD, so its parent must be a `relative` box holding
+// the input and nothing else. It used to hang off the whole container at a number each form guessed
+// (`top-[66px]`, `top-[68px]`) — the container also holds a label row and the Scan button, so the
+// guess had to know their height, and both guesses covered the bottom 18px of the field he was
+// typing in (measured at 412px, 2026-09-29). A correct value would not have needed two of them.
+const PANEL = 'absolute left-0 right-0 top-full mt-1 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50';
 
-export function PlateSuggestions({ suggestions, open, failed, onPick, topClass }: Props) {
+export function PlateSuggestions({ suggestions, open, failed, onPick }: Props) {
   if (!open) return null;
 
   // ⚠️ Failure OUTRANKS a stale list: the matches still in state are from an older query, and showing
   // them under a dead search would be the silence this component exists to end, wearing older data.
   if (failed) {
     return (
-      <div className={`${PANEL} ${topClass}`}>
+      <div className={PANEL}>
         <p role="alert" className="px-4 py-2.5 text-xs text-amber-700 dark:text-amber-400">
           Couldn&apos;t search just now — type the full plate to continue.
         </p>
@@ -46,7 +49,7 @@ export function PlateSuggestions({ suggestions, open, failed, onPick, topClass }
   if (suggestions.length === 0) return null;
 
   return (
-    <div className={`${PANEL} ${topClass}`}>
+    <div className={PANEL}>
       {suggestions.map(v => (
         <button
           key={`${v.license_plate}-${v.unit_number ?? ''}`}

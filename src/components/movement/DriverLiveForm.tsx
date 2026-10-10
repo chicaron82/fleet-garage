@@ -115,25 +115,28 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
         {/* License Plate */}
         <div className="relative z-10">
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">License Plate *</label>
-          <PlateInput
-            placeholder="e.g. JFT 881" value={plate}
-            name="license-plate" autoComplete="off" spellCheck={false}
-            onValueChange={val => {
-              setPlate(val);
-              if (shuttlePlate) setIsShuttle(val.trim() === shuttlePlate.toUpperCase().trim());
-              if (!val) setShowSuggestions(false);
-            }}
-            onBlur={() => {
-              setTimeout(() => setShowSuggestions(false), 200);
-              handlePlateBlur();
-            }}
-            onFocus={() => { if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true); }}
-            className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
-          />
-          <PlateSuggestions
-            suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
-            onPick={handleSuggestionSelect} topClass="top-[68px]"
-          />
+          {/* The field and its dropdown share one box, so the dropdown hangs off the FIELD. */}
+          <div className="relative">
+            <PlateInput
+              placeholder="e.g. JFT 881" value={plate}
+              name="license-plate" autoComplete="off" spellCheck={false}
+              onValueChange={val => {
+                setPlate(val);
+                if (shuttlePlate) setIsShuttle(val.trim() === shuttlePlate.toUpperCase().trim());
+                if (!val) setShowSuggestions(false);
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowSuggestions(false), 200);
+                handlePlateBlur();
+              }}
+              onFocus={() => { if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true); }}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
+            />
+            <PlateSuggestions
+              suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
+              onPick={handleSuggestionSelect}
+            />
+          </div>
           <div className="flex items-center gap-4 mt-3">
             <label className="flex items-center gap-2 cursor-pointer group">
               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isShuttle ? 'bg-fg-yellow border-fg-yellow text-black' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700'}`}>
