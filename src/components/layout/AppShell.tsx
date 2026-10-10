@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { OfflineSyncBanner } from './OfflineSyncBanner';
+import { GaveUpNotice } from './GaveUpNotice';
 import { BuildStamp } from './BuildStamp';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { usePreferences } from '../../context/PreferencesContext';
@@ -182,6 +183,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
         </div>
 
         <OfflineSyncBanner />
+        <GaveUpNotice />
 
         {/* ⭐⭐ THE PAGE FRAME LIVES HERE, so a screen cannot forget it.
             Aaron on PROD at 412px, 2026-09-06: *"My Day, Holds, Movement Log, pretty much all have

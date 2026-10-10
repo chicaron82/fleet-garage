@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
+import { withTimeout } from './requestTimeout';
+import { reportGaveUpOnCreate } from './gaveUpNotice';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -11,6 +13,15 @@ export const supabase = createClient<Database>(url, key, {
     persistSession:     true,
     autoRefreshToken:   true,
     detectSessionInUrl: false, // PWA — no OAuth redirects
+  },
+  // ⭐ Every request this client sends (rows, auth, storage) gives up instead of hanging forever.
+  // The limits and the reasons are in `requestTimeout`; a save that may have created something
+  // before FG stopped waiting is reported to the shell (`GaveUpNotice`), not left to each screen.
+  global: {
+    fetch: withTimeout(
+      (input, init) => fetch(input, init),
+      info => { if (info.makesSomethingNew) reportGaveUpOnCreate(); },
+    ),
   },
 });
 

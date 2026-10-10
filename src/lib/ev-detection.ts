@@ -240,6 +240,7 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
     // a dead network cost 7 seconds of silence (measured 2026-09-29). FG does ONE retry itself, below.
     .retry(false)
     // …and a connection that accepts the request and never answers gives up instead of hanging.
+    // (Tighter than the shared limit in `requestTimeout` on purpose: he is typing and watching.)
     .abortSignal(AbortSignal.timeout(READ_TIMEOUT_MS));
 
   // Same refresh-then-retry every WRITE in FG already gets (`writeWithRefresh`). A read that silently

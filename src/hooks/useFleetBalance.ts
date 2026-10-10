@@ -89,6 +89,8 @@ export function useFleetBalance() {
         // the form sat on "Saving..." forever and the new "Didn't save" line could never appear —
         // which may be exactly what the airport did to him on 2026-10-09. The upsert is keyed on the
         // date, so tapping again after a timeout is safe even if the first one did land.
+        // (Every request has a shared limit now, `lib/requestTimeout`; this one is kept on purpose as
+        // the tighter of the two, for the form he fills in at the airport.)
         .abortSignal(AbortSignal.timeout(READ_TIMEOUT_MS));
 
       if (error) throw error;
