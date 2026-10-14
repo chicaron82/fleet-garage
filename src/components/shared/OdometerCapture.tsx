@@ -115,6 +115,18 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   const isLower = classifyOdometerEntry(currentKm, km) === 'lower';
   const offerCorrection = isLower && !!onCorrect && km !== null;
 
+  // ⭐ CLEAR OF THE BAR UNDER IT. Aaron, 2026-10-14, on his Pixel 10: the keypad shrinks the sheet,
+  // the browser scrolls the box only JUST into view, and it lands flush against the sticky
+  // "Scan a tag" bar (8412c45 is the mis-tap that cost). So once the keypad has opened, the box
+  // moves to the middle of what is left. Two passes: the resize (`interactive-widget=resizes-content`)
+  // lands after the focus, and centring before it would centre in the old, taller sheet.
+  const centreAfterKeypad = (el: HTMLElement) => {
+    const centre = () => el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    centre();
+    window.visualViewport?.addEventListener('resize', centre, { once: true });
+    setTimeout(() => { window.visualViewport?.removeEventListener('resize', centre); centre(); }, 450);
+  };
+
   const save = async () => {
     if (km === null || notForward) return;
     hapticLight();
@@ -142,6 +154,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void save(); }}
+            onFocus={e => centreAfterKeypad(e.currentTarget)}
             inputMode="numeric"
             // ⚠️ Opt-in — see the `autoFocus` prop comment. Only where a tap of HIS revealed this
             // control; never on the scan sheet, where it would throw a keypad over the actions.
