@@ -374,17 +374,17 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
                 ))}
               </div>
 
-              {/* Scan another → open the camera in ONE tap, not two. Resetting scanRead alone
-                  would land back on the cold "Snap the tag" intro, forcing a second tap on the
-                  snap button. scan() fires the provider's always-mounted input from inside this
-                  user gesture, so the camera opens straight away. */}
+              {/* Scan another → open the camera in ONE tap: scan() fires the provider's always-mounted
+                  input inside this gesture. ⚠️ The card is NOT cleared here (Aaron, 2026-10-14: a fat
+                  finger aiming for "km on the dash" hit this and he had to redo the search). onFile
+                  resets the sheet when a photo actually arrives; a cancelled camera keeps the car. */}
               {/* STICKY BOTTOM — the other half of the sticky top: the next scan stays one tap away
                   however far down the card he has scrolled. -mx/-mb cancel the content padding so
                   the bar sits flush with the sheet's edges. */}
               <div className="sticky bottom-0 -mx-4 -mb-4 px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="button"
-                onClick={() => { setScanRead(null); setErrMsg(''); scan(); }}
+                onClick={() => { setErrMsg(''); scan(); }}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 {mode === 'search' ? '📷 Scan a tag' : 'Scan another'}

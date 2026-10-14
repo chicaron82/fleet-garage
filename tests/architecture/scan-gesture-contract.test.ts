@@ -81,4 +81,14 @@ describe('scan-router: the camera opens on the first tap', () => {
       expect(src).not.toContain('scanRouter.open');
     }
   });
+
+  // Aaron, 2026-10-14: aiming for "km on the dash", a fat finger hit "📷 Scan a tag" — the button
+  // cleared the looked-up car before the camera opened, so backing out meant redoing the search.
+  // onFile resets the sheet when a photo really arrives; the tap itself must leave the card alone.
+  it('keeps the looked-up car when the scan-again button is tapped', () => {
+    const src = read(OVERLAY);
+    const btn = src.slice(src.indexOf('STICKY BOTTOM'), src.indexOf("'Scan another'"));
+    expect(btn).toMatch(/onClick=\{\(\) => \{[^}]*scan\(\);/);
+    expect(btn).not.toContain('setScanRead(null)');
+  });
 });
