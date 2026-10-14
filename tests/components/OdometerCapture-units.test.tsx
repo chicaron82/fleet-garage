@@ -10,14 +10,14 @@ import { OdometerCapture } from '../../src/components/shared/OdometerCapture';
 describe('OdometerCapture units', () => {
   it('asks for km on a Canadian car', () => {
     render(<OdometerCapture vehicleId="v1" resetKey={1} currentKm={16232} onSave={vi.fn()} />);
-    expect(screen.getByPlaceholderText('km on the dash')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('km')).toBeInTheDocument();
     expect(screen.getByText(/16,232 km/)).toBeInTheDocument();
   });
 
   // ⭐ Aaron's Florida Jeep: 23,175 on the dash, and the dash is in miles.
   it('asks for miles on a US car, and says miles back', () => {
     render(<OdometerCapture vehicleId="v1" resetKey={1} currentKm={23175} isUs onSave={vi.fn()} />);
-    expect(screen.getByPlaceholderText('mi on the dash')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('mi')).toBeInTheDocument();
     expect(screen.getByText(/23,175 mi/)).toBeInTheDocument();
     expect(screen.queryByText(/km/)).not.toBeInTheDocument();
   });

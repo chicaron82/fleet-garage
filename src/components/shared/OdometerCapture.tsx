@@ -137,7 +137,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   return (
     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
       <span className="text-xs text-gray-500 dark:text-gray-400">
-        🧭 {currentKm != null ? describeOdometer(currentKm, currentAt, new Date(), unit) : 'Odometer not logged'} —
+        🧭 {currentKm != null ? describeOdometer(currentKm, currentAt, new Date(), unit) : 'Odometer not logged'}
       </span>
       {/* The implausible-jump notice, rendered where he is still holding the number he typed —
           after the write it is a correction, before it is a second glance. */}
@@ -149,7 +149,14 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
       {saved ? (
         <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} {unit} saved</span>
       ) : (
-        <div className="flex items-center gap-2">
+        // ⭐ ONE LINE AT HIS WIDTH. Aaron, 2026-10-14: on his Pixel 10 (~412 px) the box, Log and Clear
+        // wrapped under the reading, and only shrinking the whole phone's display size put them back
+        // beside it. *"i'd prefer not to change my settings."* Measured at 412: the card has 356 px and
+        // the row took 411, 128 of it a box sized to fit the words "km on the dash" when a reading is at
+        // most seven characters. So: an 80 px box hinted with just the unit, tighter padding on Log and
+        // Clear (still 44 px tall), and no trailing dash. ~335 px, so a six-digit reading and a
+        // "120d ago" still fit. ⚠️ The unit stays in the hint; see the `isUs` prop comment.
+        <div className="flex items-center gap-1.5">
           <input
             value={draft}
             onChange={e => setDraft(e.target.value)}
@@ -159,16 +166,16 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             // ⚠️ Opt-in — see the `autoFocus` prop comment. Only where a tap of HIS revealed this
             // control; never on the scan sheet, where it would throw a keypad over the actions.
             autoFocus={autoFocus}
-            placeholder={`${unit} on the dash`}
+            placeholder={unit}
             aria-label="Odometer reading"
-            className="w-32 h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
+            className="w-20 h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow"
           />
           <button
             type="button"
             onClick={() => void save()}
             disabled={km === null || notForward}
             /* 44px, gloves on — the same standard as the key-count row beside it. */
-            className="h-11 px-4 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-sm font-semibold text-black cursor-pointer transition"
+            className="h-11 px-3 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 disabled:cursor-not-allowed text-sm font-semibold text-black cursor-pointer transition"
           >
             Log
           </button>
@@ -203,7 +210,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
               }}
               disabled={clearing}
               aria-label={clearArmed ? 'Tap again to clear the reading' : undefined}
-              className={`h-11 px-3 rounded-lg border text-xs disabled:opacity-40 cursor-pointer transition ${
+              className={`h-11 px-2.5 rounded-lg border text-xs disabled:opacity-40 cursor-pointer transition ${
                 clearArmed
                   ? 'border-red-500 bg-red-50 dark:bg-red-950/40 font-semibold text-red-700 dark:text-red-300'
                   : 'border-gray-300 dark:border-gray-700 font-medium text-gray-600 dark:text-gray-400 hover:border-red-400 hover:text-red-700 dark:hover:text-red-400'}`}
