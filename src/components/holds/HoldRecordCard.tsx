@@ -11,6 +11,7 @@ import { StatusBadge } from './StatusBadge';
 import { HoldRecordFooter } from './HoldRecordFooter';
 import { HoldDamageZones } from './HoldDamageZones';
 import { HoldGeotabInstalled } from './HoldGeotabInstalled';
+import { EvExceptionNow } from './EvExceptionNow';
 import type { Hold, Vehicle } from '../../types';
 
 const MAX_PHOTOS = 4;
@@ -158,9 +159,12 @@ export function HoldRecordCard({
                 {errMsg && !pending && <p className="text-xs text-red-500 mt-1">{errMsg}</p>}
               </div>
             ) : (
-              <p className={`text-base font-medium ${
-                muted ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
-              }`}>{hold.damageDescription}</p>
+              <div>
+                <p className={`text-base font-medium ${
+                  muted ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+                }`}>{hold.damageDescription}</p>
+                <EvExceptionNow hold={hold} className="mt-1" />
+              </div>
             )}
             {!editing && (unresolvedTypes.length > 1 || unresolvedTypes[0] !== 'damage') && unresolvedTypes.map(type => (
               <span key={type} className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${holdTypePillClass(type)}`}>

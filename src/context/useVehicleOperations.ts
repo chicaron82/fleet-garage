@@ -10,7 +10,7 @@ import { decideMint } from '../lib/mintGuard';
 import { makeClearSaleHold, makeMarkReturned, makeMarkRepaired, makeCloseException, makeMarkRepairedBatch, makeMarkIssueRepaired, makeConvertToPreExisting } from './holdResolution';
 import { makeVoidHold, makeDeleteHold, makeDeleteHoldPhoto, makeEditHoldDescription, makeEditHoldDamageZones, makeMarkZonesReviewed } from './holdEditing';
 import { makeAddHold, makeAddRelease, makeAddPhotosToHold } from './holdWrite';
-import { makeUpdateVehicleEVAssets } from './evAssetWrite';
+import { makeUpdateEvAssetsAndClose } from './evAutoClose';
 import { makeUpdateVehicleFields } from './vehicleFieldsWrite';
 import { makeUnlockVehicleField } from './fieldUnlockWrite';
 import { makeRecordKeyCount } from './keyCountWrite';
@@ -143,9 +143,8 @@ export function useVehicleOperations({
     });
   };
 
-  // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite
-  // to keep this file under the line cap.
-  const updateVehicleEVAssets = makeUpdateVehicleEVAssets({ userId, setAllVehicles });
+  // The EV-asset write (profile + stamp + unified log) lives in ./evAssetWrite, wrapped by
+  // ./evAutoClose below (once markRepaired exists) so a both-present check closes the EV exception.
 
   // Keytag-backfill write (the partial→backfill half of keytag-scan): applies FILLS
   // only, never conflicts. See ./vehicleFieldsWrite.
@@ -220,6 +219,7 @@ export function useVehicleOperations({
   const addPhotosToHold = makeAddPhotosToHold(holdWriteDeps);
 
   const markRepaired  = makeMarkRepaired({ holds, allVehicles, setAllHolds, setAllVehicles });
+  const updateVehicleEVAssets = makeUpdateEvAssetsAndClose({ holds, userId, setAllVehicles, markRepaired });
   const markReturned   = makeMarkReturned({ holds, allVehicles, setAllHolds, setAllVehicles });
   const clearSaleHold  = makeClearSaleHold({ holds, allVehicles, setAllHolds, setAllVehicles });
   const convertToPreExisting = makeConvertToPreExisting({ holds, allVehicles, setAllHolds, setAllVehicles });

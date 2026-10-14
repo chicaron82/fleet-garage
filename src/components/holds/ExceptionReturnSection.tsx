@@ -11,6 +11,7 @@ import { geotabLens, type GeotabLensItem } from '../../lib/geotabLens';
 import { GEOTAB_HOLD_DESC } from '../../lib/hold-presets';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
+import { EvExceptionNow } from './EvExceptionNow';
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -242,6 +243,7 @@ function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold, 
             </p>
             <div className="mt-2 bg-gray-50 dark:bg-gray-950 rounded-lg px-3 py-2 space-y-1 transition-colors">
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors">{hold.damageDescription}</p>
+              <EvExceptionNow hold={hold} />
               <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
                 Flagged {fmtDate(hold.flaggedAt)} · {getName(hold.flaggedById)}
               </p>

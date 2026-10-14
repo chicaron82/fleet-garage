@@ -23,6 +23,7 @@ import { Sparkles } from '../shared/Sparkles';
 import { scanStatusLine, TONE_BLOCK } from '../../lib/scanStatusLine';
 import { evAssetScanStatus } from '../../lib/ev-detection';
 import { flaggedOnLabel } from '../../lib/scanHoldSummary';
+import { evExceptionNowClause, isEvAssetsHold } from '../../lib/evExceptionNow';
 import { cycleLabel, type ConsolidatedDamage } from '../../lib/consolidateDamage';
 import { matchedByUnitLabel, matchedByClippedTagLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
@@ -67,6 +68,10 @@ export function ScanIdentityCard({
   // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
   // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
   const evScan = vehicle ? evAssetScanStatus(vehicle) : null;
+  // An EV-assets exception's text is what was approved, often months ago; this clause says where the
+  // kit stands at the latest check (Aaron, 2026-10-13, LJF689 — see lib/evExceptionNow).
+  const evNow = vehicle ? evExceptionNowClause(vehicle) : '';
+  const isEvLine = (id: string) => holds.some(h => h.id === id && isEvAssetsHold(h));
 
   return (
     <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
@@ -130,6 +135,7 @@ export function ScanIdentityCard({
                     </span>
                   </p>
                   {l.detail && <p className="mt-0.5">{l.detail}</p>}
+                  {evNow && isEvLine(l.id) && <p className="mt-0.5 font-semibold">{evNow}</p>}
                 </div>
               ))}
             </div>
