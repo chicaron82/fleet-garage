@@ -157,9 +157,20 @@ const MOCK_UNIT_PREFIX = 'HRZ-';
  * filter in memory, then trim.
  *
  * ⭐ Live before archived, because the complaint was two identical plates with nothing to separate
- * them — not that the archived one appeared at all. Array#sort is stable, so equal rows keep the
- * order the query gave them.
+ * them — not that the archived one appeared at all.
+ *
+ * ⭐⭐ THEN ALPHABETICAL, by plate. Aaron, 2026-10-15, typing `LZM53` for LZM532: *"i'll get to the
+ * second last character and it's like never in the results to choose from ... was wondering if there
+ * was an order to how it comes up."* There was none: when every row is a prefix hit (eleven LZM53x
+ * records) nothing separated them, so the list was whatever order Postgres stored them in, and
+ * LZM532 came back 9th of 11 behind a limit of 5. Alphabetical makes the list predictable, and
+ * `SEARCH_SHOW_LIMIT` makes a whole last-digit run fit. The ranker sorts by plate ITSELF rather than
+ * trusting the query's ORDER BY, so the rule lives in one tested place.
+ * docs/ticket-lookup-second-last-character.md
  */
+/** How many matches a typed look-up shows: a full run of last digits (…0 to …9) plus a duplicate. */
+export const SEARCH_SHOW_LIMIT = 12;
+
 export function rankVehicleMatches(
   rows: readonly VehicleSearchResult[],
   limit = 5,
@@ -173,9 +184,11 @@ export function rankVehicleMatches(
   return rows
     .filter(v => !(v.unit_number ?? '').startsWith(MOCK_UNIT_PREFIX))
     .slice()
-    // Prefix before contains, then live before archived. Array#sort is stable, so equal rows keep
-    // the order the query gave them.
-    .sort((a, b) => (Number(startsWith(b)) - Number(startsWith(a))) || (Number(!!a.archived_at) - Number(!!b.archived_at)))
+    // Prefix before contains, then live before archived, then alphabetical by plate. Array#sort is
+    // stable, so rows equal on all three keep the order the query gave them.
+    .sort((a, b) => (Number(startsWith(b)) - Number(startsWith(a)))
+      || (Number(!!a.archived_at) - Number(!!b.archived_at))
+      || a.license_plate.toUpperCase().localeCompare(b.license_plate.toUpperCase()))
     .slice(0, limit);
 }
 
@@ -230,12 +243,15 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
   // when the front is the unreadable part, and it was the one shape that could not work.
   // `rankVehicleMatches` puts prefix hits first, so the common case is unchanged.
   // ⚠️ Fetch wider than we show: mock rows are removed AFTER the query, so a limit of 5 here could
-  // spend slots on rows nobody may pick.
+  // spend slots on rows nobody may pick. Ordered by plate so the window it cuts is a predictable one
+  // (2026-10-15: unordered, the 30 were storage order); 60 leaves a short contains-query room for
+  // the prefix hits the ranker floats to the top.
   const run = () => supabase
     .from('vehicles')
     .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at')
     .or(`license_plate.ilike.%${trimmed}%,unit_number.ilike.%${trimmed}%`)
-    .limit(30)
+    .order('license_plate')
+    .limit(60)
     // ⭐ postgrest-js's own retry is OFF here: it is three attempts with 1s/2s/4s backoff, which made
     // a dead network cost 7 seconds of silence (measured 2026-09-29). FG does ONE retry itself, below.
     .retry(false)
@@ -261,5 +277,5 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
     ({ data, error } = await attempt());
   }
   if (error) return { matches: [], failed: true };
-  return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], 5, trimmed), failed: false };
+  return { matches: rankVehicleMatches((data as VehicleSearchResult[]) || [], SEARCH_SHOW_LIMIT, trimmed), failed: false };
 }

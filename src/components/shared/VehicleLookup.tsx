@@ -95,7 +95,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   };
 
   const showRecents = armed && !query.trim() && (recents?.length ?? 0) > 0;
-  const listClass = `${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`;
+  // ⭐ max-h + scroll: a look-up shows up to SEARCH_SHOW_LIMIT (12) since 2026-10-15, and the
+  // half-row cut at the bottom is what tells him the list goes on.
+  const listClass = `${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`;
 
   return (
     <div className="relative">

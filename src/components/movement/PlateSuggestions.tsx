@@ -29,7 +29,8 @@ interface Props {
 // (`top-[66px]`, `top-[68px]`) — the container also holds a label row and the Scan button, so the
 // guess had to know their height, and both guesses covered the bottom 18px of the field he was
 // typing in (measured at 412px, 2026-09-29). A correct value would not have needed two of them.
-const PANEL = 'absolute left-0 right-0 top-full mt-1 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden z-50';
+const PANEL = 'absolute left-0 right-0 top-full mt-1 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-72 overflow-y-auto z-50';
+// (max-h + scroll since 2026-10-15: the search now returns up to 12, alphabetical — see SEARCH_SHOW_LIMIT.)
 
 export function PlateSuggestions({ suggestions, open, failed, onPick }: Props) {
   if (!open) return null;

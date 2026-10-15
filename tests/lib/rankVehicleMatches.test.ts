@@ -3,7 +3,7 @@
  * HRZ-3307, archived since 09-03, beside the live 2026 Trax on unit 5429592.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { rankVehicleMatches, type VehicleSearchResult } from '../../src/lib/ev-detection';
+import { rankVehicleMatches, SEARCH_SHOW_LIMIT, type VehicleSearchResult } from '../../src/lib/ev-detection';
 
 const car = (over: Partial<VehicleSearchResult>): VehicleSearchResult => ({
   license_plate: 'LUR486', unit_number: '5429592', make: 'Chevrolet', model: 'Trax',
@@ -77,6 +77,33 @@ describe('prefix hits rank above contains hits', () => {
   it('archived still sinks, within the same prefix tier', () => {
     const out = rankVehicleMatches([car('LFJ334', null, { archived_at: '2026-01-01' }), car('LFJ335')], 5, 'LFJ');
     expect(out[0].license_plate).toBe('LFJ335');
+  });
+});
+
+// ⭐ Aaron, 2026-10-15: *"i'll get to the second last character and it's like never in the results"*.
+// `LZM53` showed 538, 536, 535, 537, 531 — storage order, limit 5 — and never his LZM532.
+describe('alphabetical, and a whole last-digit run fits', () => {
+  const car = (plate: string, over: Record<string, unknown> = {}) =>
+    ({ license_plate: plate, unit_number: '5427000', make: 'Nissan', model: 'Rogue', year: 2026, color: 'White',
+       is_hybrid: false, is_tesla: false, archived_at: null, ...over }) as never as VehicleSearchResult;
+  // The order the database actually handed them back on 2026-10-15.
+  const stored = ['LZM538', 'LZM536', 'LZM535', 'LZM539', 'LZM537', 'LZM531', 'LZM530', 'LZM532', 'LZM534', 'LZM533'];
+
+  it('⭐ the reported case: LZM53 shows LZM532, and in plate order', () => {
+    const out = rankVehicleMatches(stored.map(p => car(p)), SEARCH_SHOW_LIMIT, 'LZM53').map(v => v.license_plate);
+    expect(out).toEqual([...stored].sort());
+    expect(out).toContain('LZM532');
+  });
+
+  it('room for all ten plus a duplicate', () => {
+    expect(SEARCH_SHOW_LIMIT).toBeGreaterThanOrEqual(11);
+  });
+
+  it('alphabetical never outranks a prefix hit, or a live car', () => {
+    const out = rankVehicleMatches([
+      car('XLZM53'), car('LZM531', { archived_at: '2026-09-16' }), car('LZM539'), car('LZM532'),
+    ], SEARCH_SHOW_LIMIT, 'LZM53').map(v => v.license_plate);
+    expect(out).toEqual(['LZM532', 'LZM539', 'LZM531', 'XLZM53']);
   });
 });
 

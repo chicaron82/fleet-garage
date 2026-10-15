@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const answers: Array<{ data: unknown; error: unknown } | Error> = [];
 const builder = {
-  select: vi.fn(() => builder), or: vi.fn(() => builder), limit: vi.fn(() => builder),
+  select: vi.fn(() => builder), or: vi.fn(() => builder), order: vi.fn(() => builder), limit: vi.fn(() => builder),
   retry: vi.fn(() => builder), abortSignal: vi.fn(() => builder),
   then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
     const next = answers.shift() ?? { data: [], error: null };
