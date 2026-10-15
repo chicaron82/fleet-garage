@@ -1,5 +1,6 @@
-// POST /api/lot — the ONE writer of the Lot Lookout board (lot_stalls, lot_aisle, lot_taps), and of Erin St's
-// count (lot_bay, lot_bay_taps — migration 153).
+// POST /api/lot — the ONE writer of the Lot Lookout board (lot_stalls, lot_aisle, lot_taps), of Erin St's
+// count (lot_bay, lot_bay_taps — migration 153), and of today's crew marks (lot_crew — migration 154).
+// GET /api/lot — today's crew: numbers for anyone (the read-only /lot/view), names only for a signed-in FG session.
 //
 // The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
 // the three tables read-only to the browser's keys, so this function checks the PIN and writes with the
@@ -8,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { bayChange } from './_lib/lotBay.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
+import { loadCrew, markCrew } from './_lib/lotCrewDb.js';
 
 interface LotHttpRequest {
   method?: string;
@@ -20,7 +22,7 @@ interface LotHttpResponse {
 }
 
 export default async function handler(req: LotHttpRequest, res: LotHttpResponse): Promise<void> {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
@@ -29,6 +31,18 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
   const pin = process.env.LOT_PIN;
   if (!url || !serviceKey || !pin) {
     res.status(500).json({ error: 'The lot board is not set up yet.' });
+    return;
+  }
+  if (req.method === 'GET') {
+    const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const token = bearerOf(req.headers?.authorization);
+    const signedIn = token != null && !(await db.auth.getUser(token)).error;
+    try {
+      res.status(200).json(await loadCrew(db, Date.now(), signedIn));
+    } catch (e) {
+      console.error('[api/lot GET]', e);
+      res.status(500).json({ error: 'The crew did not load.' });
+    }
     return;
   }
   const body = (typeof req.body === 'string' ? safeJson(req.body) : req.body) as Record<string, unknown> | null;
@@ -67,6 +81,20 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
         tapped_by: parsed.by, kind: parsed.action,
       });
       res.status(200).json({ ok: true, stall: parsed.stall, ...next });
+      return;
+    }
+    if (parsed.action === 'crew') {
+      // People, not cars: only a signed-in FG session may change the crew. The PIN never could.
+      if (!signedIn) {
+        res.status(403).json({ error: 'Sign in to FG to change the crew.' });
+        return;
+      }
+      const problem = await markCrew(db, parsed.users, parsed.state, parsed.by, now);
+      if (problem) {
+        res.status(409).json({ error: problem });
+        return;
+      }
+      res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
       return;
     }
     if (parsed.action === 'cleans' || parsed.action === 'dirties') {

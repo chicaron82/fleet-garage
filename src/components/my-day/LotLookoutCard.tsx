@@ -9,6 +9,7 @@
 // within FG?"*): his count and its "as of" on his home screen, one tap from the page where he taps it. And it takes
 // the taps right here (*"May I suggest adding the cleans steppers here and tap to update the dirties? Then keep the
 // ability to open the full detail view"*): signed in to FG, no PIN — api/lot.ts takes the session instead.
+// Today's crew sits under it (migration 154): numbers always, and "Who is where" opens the named list he taps.
 import { useMemo, useState } from 'react';
 import { initialsOf, lotTotals } from '../../lib/lotLookout';
 import { useLotBoard } from '../../hooks/useLotBoard';
@@ -16,6 +17,9 @@ import { useLotBay } from '../../hooks/useLotBay';
 import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
 import { useLotToast } from '../../hooks/useLotToast';
 import { useAuth } from '../../context/AuthContext';
+import { useLotCrew } from '../../hooks/useLotCrew';
+import { LotCrewLine } from '../lot/LotCrewLine';
+import { LotCrewPanel } from './LotCrewPanel';
 import { LotSummary } from '../lot/LotSummary';
 import { LotMap } from '../lot/LotMap';
 import { LotBayStrip } from '../lot/LotBayStrip';
@@ -32,7 +36,10 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
   const erin = useLotBay();
   const { user } = useAuth();
   const [note, toast] = useLotToast();
-  const bayTaps = useBayTapsSignedIn(erin, toast, initialsOf(user?.name ?? null));
+  const by = initialsOf(user?.name ?? null);
+  const bayTaps = useBayTapsSignedIn(erin, toast, by);
+  const { crew, mark } = useLotCrew({ signedIn: true });
+  const [crewOpen, setCrewOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
@@ -61,6 +68,22 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
           action={<a href="/lot/erin" className="text-xs font-semibold text-gray-700 dark:text-gray-200 underline underline-offset-2">Full count ›</a>} />
       )}
       {note && <p role="status" className="-mt-1 px-0.5 text-xs font-semibold text-gray-700 dark:text-gray-200">{note}</p>}
+
+      {crew && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Crew now</h2>
+            {crew.members && crew.members.length > 0 && (
+              <button type="button" onClick={() => setCrewOpen(o => !o)} aria-expanded={crewOpen}
+                className="text-xs font-semibold text-gray-700 dark:text-gray-200 underline underline-offset-2 cursor-pointer">
+                {crewOpen ? 'Done ▴' : 'Who is where ▾'}
+              </button>
+            )}
+          </div>
+          <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} heading={false} />
+          {crewOpen && crew.members && <LotCrewPanel members={crew.members} mark={(u, st) => mark(u, st, by || 'FG')} toast={toast} />}
+        </div>
+      )}
 
       <LotSummary totals={totals} aisleCars={board.aisle.cars} showLegend={open} />
 

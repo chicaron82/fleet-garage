@@ -7,6 +7,10 @@
 // The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
 import { timingSafeEqual } from 'node:crypto';
 import type { BayRequest } from './lotBay.js';
+import type { CrewState } from './lotCrew.js';
+
+const CREW_SET = ['cleaning', 'moving', 'airport', 'other', 'out', 'clear'] as const;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 'taken' (migration 152): a customer's or staff car in the stall; the page marks it by holding the stall.
 const STATES = ['open', 'clean', 'dirty', 'taken'] as const;
@@ -19,7 +23,8 @@ export type LotRequest =
   | { action: 'stall'; stall: string; state: State; by: string }
   | { action: 'undo'; stall: string; prev: { state: State | null; by: string | null; at: string | null }; by: string }
   | { action: 'aisle'; delta: 1 | -1; by: string }
-  | BayRequest;
+  | BayRequest
+  | { action: 'crew'; users: string[]; state: CrewState | 'clear'; by: string };
 
 /** A typed dirty count at Erin St. A cap, so a fat-fingered 2300 is refused rather than shown. */
 export const DIRTIES_MAX = 300;
@@ -86,6 +91,15 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       const n = typeof b.count === 'number' ? b.count : typeof b.count === 'string' && /^\d+$/.test(b.count.trim()) ? Number(b.count) : NaN;
       if (!Number.isInteger(n) || n < 0 || n > DIRTIES_MAX) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };
       return { action: 'dirties', count: n, by };
+    }
+    // Today's crew (migration 154). Signed-in FG only; api/lot.ts enforces that, not the PIN.
+    case 'crew': {
+      const users = Array.isArray(b.users) ? b.users : [];
+      if (users.length === 0 || users.length > 40 || !users.every(u => typeof u === 'string' && UUID.test(u))) {
+        return { error: 'Pick who this is for.' };
+      }
+      if (!(CREW_SET as readonly unknown[]).includes(b.state)) return { error: 'Not a crew state.' };
+      return { action: 'crew', users: [...new Set(users as string[])], state: b.state as CrewState | 'clear', by };
     }
     default:
       return { error: 'Unknown action.' };

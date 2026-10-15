@@ -16,6 +16,9 @@ let bay: unknown = {
   dirties: 23, dirtiesBy: 'AS', dirtiesAt: new Date(NOW - 12 * 60000).toISOString(), used: 2, usedOn: '2026-10-15',
 };
 vi.mock('../../src/hooks/useLotBay', () => ({ useLotBay: () => ({ bay, log: [], loaded: true, nowMs: NOW, setBay: () => {} }) }));
+vi.mock('../../src/hooks/useLotCrew', () => ({
+  useLotCrew: () => ({ crew: { summary: { vsa: { cleaning: 1, moving: 1, out: 0 }, driver: { airport: 1, other: 2, out: 0 } }, changedAt: null, members: [] }, mark: vi.fn() }),
+}));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const tapCleans = vi.fn();
 const setDirties = vi.fn(async () => true);
@@ -62,6 +65,12 @@ describe('LotLookoutCard', () => {
     const opens = screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'));
     expect(opens).toEqual(['/lot', '/lot/erin', '/lot/view']);
     expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(3);
+  });
+
+  it('shows the crew as numbers on the card', () => {
+    render(<LotLookoutCard cardClass="" />);
+    expect(screen.getByText('Cleaning 1 of 2 · 1 moving cars')).toBeTruthy();
+    expect(screen.getByText('To the airport 1 of 3 · 2 on another job')).toBeTruthy();
   });
 
   it('no Erin St row yet (or no table): the airport card still shows, with no strip', () => {

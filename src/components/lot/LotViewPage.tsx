@@ -5,16 +5,21 @@
 // and times, never initials — it is about the count, not about who is working. Reading was already open (migration
 // 151's read policies); the PIN guards the buttons, and there are none here. So no stall map either: the map shows
 // who tapped each stall.
+//
+// Today's crew (migration 154) shows as NUMBERS from GET /api/lot, which never sends this page a name.
 import { useMemo } from 'react';
 import { lotTotals } from '../../lib/lotLookout';
 import { useLotBoard } from '../../hooks/useLotBoard';
 import { useLotBay } from '../../hooks/useLotBay';
+import { useLotCrew } from '../../hooks/useLotCrew';
 import { LotSummary } from './LotSummary';
 import { LotBayStrip } from './LotBayStrip';
+import { LotCrewLine } from './LotCrewLine';
 
 export function LotViewPage() {
   const board = useLotBoard();
   const erin = useLotBay();
+  const { crew } = useLotCrew();
   const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
 
   return (
@@ -28,6 +33,7 @@ export function LotViewPage() {
           <>
             {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} />
               : <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p>}
+            {crew && <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />}
             <section aria-label="Airport" className="space-y-1">
               <h2 className="px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Airport</h2>
               {board.error ? <p className="text-sm text-red-700 dark:text-red-400">{board.error}</p>

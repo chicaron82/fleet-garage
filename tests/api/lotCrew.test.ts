@@ -1,0 +1,100 @@
+// Lot Lookout crew rules (api/_lib/lotCrew.ts, migration 154). Aaron, 2026-10-15: *"Example myself and Moaz are on and
+// I just send Moaz. The display would show just one active cleaner and the other running ... At one point I had 3,
+// and two were pulled to move cars to auction. So I only had 1 moving cars to the airport"*.
+import { describe, it, expect } from 'vitest';
+import { crewOf, crewRoleOf, crewSummary, stateFits, winnipegInstant, type CrewMark, type RosterRow } from '../../api/_lib/lotCrew';
+
+const DAY = '2026-10-15';
+const at = (hhmm: string, day = DAY) => winnipegInstant(day, hhmm);
+const row = (userId: string, name: string, profileRole: string, start: string | null, end: string | null, shiftType = 'opening', attendance: string | null = null): RosterRow =>
+  ({ userId, name, profileRole, shiftType, start, end, attendance });
+const mark = (userId: string, state: CrewMark['state'], when: string, day = DAY): CrewMark => ({ userId, state, day, at: new Date(at(when)).toISOString() });
+
+const roster: RosterRow[] = [
+  row('aaron', 'Aaron S.', 'VSA', '06:45:00', '15:15:00'),
+  row('moaz', 'Moaz', 'VSA', '06:45:00', '15:15:00'),
+  row('khaiat', 'Khaiat', 'VSA', '14:30:00', '23:00:00', 'closing'),
+  row('geoff', 'Geoff N.', 'Lead VSA', null, null, 'day-off'),
+  row('larryc', 'Larry C', 'Driver', '07:00:00', '15:30:00'),
+  row('rey', 'Rey', 'Driver', '09:00:00', '15:00:00', 'mid'),
+  row('larryj', 'Larry J', 'Driver', '10:00:00', '18:30:00', 'mid'),
+  row('rena', 'Rena', 'CSR', '06:30:00', '15:00:00'),
+];
+
+describe('winnipegInstant', () => {
+  it('reads a Winnipeg wall clock through both sides of daylight saving', () => {
+    expect(new Date(winnipegInstant('2026-10-15', '14:30:00')).toISOString()).toBe('2026-10-15T19:30:00.000Z'); // CDT
+    expect(new Date(winnipegInstant('2026-12-15', '14:30:00')).toISOString()).toBe('2026-12-15T20:30:00.000Z'); // CST
+  });
+});
+
+describe('crewRoleOf / stateFits', () => {
+  it('VSAs and the Lead VSA clean; drivers drive; nobody else is crew', () => {
+    expect(crewRoleOf('VSA')).toBe('vsa');
+    expect(crewRoleOf('Lead VSA')).toBe('vsa');
+    expect(crewRoleOf('Driver')).toBe('driver');
+    for (const r of ['CSR', 'HIR', 'GM', null]) expect(crewRoleOf(r)).toBeNull();
+  });
+  it('a VSA cannot be "to the airport", a driver cannot be "cleaning"', () => {
+    expect(stateFits('vsa', 'moving')).toBe(true);
+    expect(stateFits('vsa', 'airport')).toBe(false);
+    expect(stateFits('driver', 'cleaning')).toBe(false);
+  });
+});
+
+describe('crewOf + crewSummary', () => {
+  it('⭐ his example: he and Moaz on, he sends Moaz — one cleaning, one moving cars', () => {
+    const members = crewOf(roster, [mark('moaz', 'moving', '11:00')], DAY, at('11:05'));
+    expect(crewSummary(members).vsa).toEqual({ cleaning: 1, moving: 1, out: 0 });
+  });
+
+  it('⭐ his drivers today: three on, two pulled to the auction run — one to the airport', () => {
+    const members = crewOf(roster, [mark('larryc', 'other', '11:00'), mark('rey', 'other', '11:00')], DAY, at('11:05'));
+    expect(crewSummary(members).driver).toEqual({ airport: 1, other: 2, out: 0 });
+  });
+
+  it('counts only who is on right now: not in yet, or gone home, is not counted', () => {
+    const s = crewSummary(crewOf(roster, [], DAY, at('09:30')));
+    expect(s.vsa).toEqual({ cleaning: 2, moving: 0, out: 0 }); // Khaiat starts 14:30
+    expect(s.driver).toEqual({ airport: 2, other: 0, out: 0 }); // Larry J starts 10:00
+    const late = crewSummary(crewOf(roster, [], DAY, at('16:00')));
+    expect(late.vsa).toEqual({ cleaning: 1, moving: 0, out: 0 }); // only Khaiat
+  });
+
+  it('day-off is not today\'s crew; CSRs and HIRs are never crew', () => {
+    const names = crewOf(roster, [], DAY, at('10:00')).map(m => m.name);
+    expect(names).not.toContain('Geoff N.');
+    expect(names).not.toContain('Rena');
+  });
+
+  it('a sick shift, or absent, reads as plain out — never with a reason', () => {
+    const r = [...roster, row('ray', 'Ray T.', 'VSA', null, null, 'sick'), row('tom', 'Tomek', 'VSA', '06:45:00', '15:15:00', 'opening', 'absent')];
+    const members = crewOf(r, [], DAY, at('10:00'));
+    expect(members.find(m => m.name === 'Ray T.')!.state).toBe('out');
+    expect(crewSummary(members).vsa).toEqual({ cleaning: 2, moving: 0, out: 2 });
+  });
+
+  it('⭐ overtime: marked after the shift ended means he stayed, so he counts', () => {
+    const before = crewOf(roster, [], DAY, at('15:40')).find(m => m.userId === 'aaron')!;
+    expect(before).toMatchObject({ onNow: false, phase: 'done' });
+    const stayed = crewOf(roster, [mark('aaron', 'cleaning', '15:35')], DAY, at('15:40')).find(m => m.userId === 'aaron')!;
+    expect(stayed).toMatchObject({ onNow: true, phase: 'on', state: 'cleaning' });
+  });
+
+  it('a pull marked during the shift does not keep someone counted after they go home', () => {
+    const m = crewOf(roster, [mark('moaz', 'moving', '11:00')], DAY, at('16:00')).find(x => x.userId === 'moaz')!;
+    expect(m.onNow).toBe(false);
+  });
+
+  it('a closing shift past midnight still counts at 00:30', () => {
+    const r = [row('ray', 'Ray T.', 'VSA', '16:30:00', '01:00:00', 'closing')];
+    expect(crewOf(r, [], DAY, at('00:30', '2026-10-16'))[0].onNow).toBe(true);
+    expect(crewOf(r, [], DAY, at('01:30', '2026-10-16'))[0].onNow).toBe(false);
+  });
+
+  it('⚠️ yesterday\'s mark, or one that does not fit the role, is ignored', () => {
+    const members = crewOf(roster, [mark('moaz', 'moving', '11:00', '2026-10-14'), mark('aaron', 'airport', '11:00')], DAY, at('11:05'));
+    expect(members.find(m => m.userId === 'moaz')!.state).toBe('cleaning');
+    expect(members.find(m => m.userId === 'aaron')!.state).toBe('cleaning');
+  });
+});
