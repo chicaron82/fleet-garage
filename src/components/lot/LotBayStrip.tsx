@@ -16,12 +16,16 @@ function Stamp({ at, nowMs }: { at: string | null; nowMs: number }) {
   );
 }
 
-export function LotBayStrip({ bay, nowMs }: { bay: LotBay; nowMs: number }) {
+/** `action` sits on the heading's right: FG's My Day card puts a link to the bay page there. */
+export function LotBayStrip({ bay, nowMs, action }: { bay: LotBay; nowMs: number; action?: React.ReactNode }) {
   const cleansOld = isBayStale(bay.cleansAt, nowMs);
   const dirtiesOld = isBayStale(bay.dirtiesAt, nowMs);
   return (
     <section aria-label="Erin St" className="space-y-1">
-      <h2 className="px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Erin St</h2>
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Erin St</h2>
+        {action}
+      </div>
       <div className="grid grid-cols-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-x divide-gray-200 dark:divide-gray-700">
         <div className="px-3 py-2 min-w-0">
           <b className={`block text-2xl font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>

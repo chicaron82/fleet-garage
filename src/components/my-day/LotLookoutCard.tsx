@@ -4,11 +4,16 @@
 // low? — in one line, and opens to the map.
 //
 // Hidden until the board exists (migration 151) so a missing table never shows an error on his landing screen.
+//
+// Erin St's count sits on the card too, always open (Aaron, 2026-10-15: *"Is there a link to view my Erin St view
+// within FG?"*): his count and its "as of" on his home screen, one tap from the page where he taps it.
 import { useMemo, useState } from 'react';
 import { lotTotals } from '../../lib/lotLookout';
 import { useLotBoard } from '../../hooks/useLotBoard';
+import { useLotBay } from '../../hooks/useLotBay';
 import { LotSummary } from '../lot/LotSummary';
 import { LotMap } from '../lot/LotMap';
+import { LotBayStrip } from '../lot/LotBayStrip';
 
 // The three ways in. Erin St's count and the read-only view arrived 2026-10-15 (migration 153); the view needs no PIN.
 const LINKS = [
@@ -19,6 +24,7 @@ const LINKS = [
 
 export function LotLookoutCard({ cardClass }: { cardClass: string }) {
   const board = useLotBoard();
+  const erin = useLotBay();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
@@ -29,17 +35,22 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
   };
 
   return (
-    <section className={`${cardClass} px-4 py-3.5 space-y-3`} aria-label="Airport lot">
+    <section className={`${cardClass} px-4 py-3.5 space-y-3`} aria-label="Lot Lookout">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 text-left cursor-pointer">
         <span>
-          <span className="block text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Airport lot · live</span>
+          <span className="block text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Lot Lookout · live</span>
           <span className={`block text-sm font-semibold ${totals.low ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
-            {totals.low ? `Low on cleans: ${totals.cleansSeen} seen` : `Not low: ${totals.cleansSeen} cleans seen`}
+            {totals.low ? `Airport low on cleans: ${totals.cleansSeen} seen` : `Airport not low: ${totals.cleansSeen} cleans seen`}
           </span>
         </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">{open ? 'Hide map ▴' : 'See the lot ▾'}</span>
       </button>
+
+      {erin.bay && (
+        <LotBayStrip bay={erin.bay} nowMs={erin.nowMs}
+          action={<a href="/lot/erin" className="text-xs font-semibold text-gray-700 dark:text-gray-200 underline underline-offset-2">Tap the count ›</a>} />
+      )}
 
       <LotSummary totals={totals} aisleCars={board.aisle.cars} showLegend={open} />
 
@@ -51,9 +62,12 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
             return (
               <div key={path} className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <span className="min-w-0 break-all">{label}: <span className="font-mono text-gray-700 dark:text-gray-300">{link}</span></span>
-                <button type="button" onClick={() => copy(link)} className="shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
-                  {copied === link ? 'Copied' : 'Copy'}
-                </button>
+                <span className="shrink-0 flex gap-1.5">
+                  <a href={path} className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 font-semibold text-gray-700 dark:text-gray-200">Open</a>
+                  <button type="button" onClick={() => copy(link)} className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
+                    {copied === link ? 'Copied' : 'Copy'}
+                  </button>
+                </span>
               </div>
             );
           })}
