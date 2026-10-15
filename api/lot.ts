@@ -1,10 +1,13 @@
-// POST /api/lot — the ONE writer of the Lot Lookout board (lot_stalls, lot_aisle, lot_taps).
+// POST /api/lot — the ONE writer of the Lot Lookout board (lot_stalls, lot_aisle, lot_taps), and of Erin St's
+// count (lot_bay, lot_bay_taps — migration 153).
 //
 // The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
 // the three tables read-only to the browser's keys, so this function checks the PIN and writes with the
 // service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
 import { createClient } from '@supabase/supabase-js';
 import { parseLotRequest, pinMatches } from './_lib/lotRequest.js';
+import { bayChange } from './_lib/lotBay.js';
+import { shiftBusinessDate } from './_lib/shiftDay.js';
 
 interface LotHttpRequest {
   method?: string;
@@ -58,6 +61,20 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
         tapped_by: parsed.by, kind: parsed.action,
       });
       res.status(200).json({ ok: true, stall: parsed.stall, ...next });
+      return;
+    }
+    if (parsed.action === 'cleans' || parsed.action === 'dirties') {
+      const { data: row, error: readErr } = await db.from('lot_bay').select('cleans, dirties, used, used_on').eq('id', 1).single();
+      if (readErr) throw readErr;
+      const change = bayChange(row, parsed, now, shiftBusinessDate(new Date(now)));
+      if ('error' in change) {
+        res.status(409).json({ error: change.error });
+        return;
+      }
+      const { data: saved, error } = await db.from('lot_bay').update(change.patch).eq('id', 1).select().single();
+      if (error) throw error;
+      await db.from('lot_bay_taps').insert(change.tap);
+      res.status(200).json({ ok: true, bay: saved });
       return;
     }
     // aisle

@@ -19,6 +19,14 @@
 // ruling: a hold, so a finger that lands on a colour still works), drawn solid grey, and it never fades (*"No
 // fade"*): it stays taken until someone taps a colour. Not open, and not "not looked at".
 
+/** Which Lot Lookout page a path opens, or null for FG itself. /lot is the airport board, /lot/erin Erin St's count
+ *  (migration 153), /lot/view both, read only. A trailing slash is the same page. */
+export type LotPageKind = 'airport' | 'erin' | 'view';
+export function lotPageOf(pathname: string): LotPageKind | null {
+  const p = pathname.replace(/\/+$/, '').toLowerCase();
+  return p === '/lot' ? 'airport' : p === '/lot/erin' ? 'erin' : p === '/lot/view' ? 'view' : null;
+}
+
 /** The three colours a stall is TAPPED to. */
 export type LotColour = 'open' | 'clean' | 'dirty';
 /** Every state a stall can hold: the colours, plus taken (held). */

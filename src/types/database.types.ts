@@ -913,84 +913,6 @@ export type Database = {
           },
         ]
       }
-      lot_aisle: {
-        Row: {
-          cars: number
-          id: number
-          tapped_at: string | null
-          tapped_by: string | null
-        }
-        Insert: {
-          cars?: number
-          id?: number
-          tapped_at?: string | null
-          tapped_by?: string | null
-        }
-        Update: {
-          cars?: number
-          id?: number
-          tapped_at?: string | null
-          tapped_by?: string | null
-        }
-        Relationships: []
-      }
-      lot_stalls: {
-        Row: {
-          num: number
-          run: string
-          stall: string
-          state: string | null
-          tapped_at: string | null
-          tapped_by: string | null
-        }
-        Insert: {
-          num: number
-          run: string
-          stall: string
-          state?: string | null
-          tapped_at?: string | null
-          tapped_by?: string | null
-        }
-        Update: {
-          num?: number
-          run?: string
-          stall?: string
-          state?: string | null
-          tapped_at?: string | null
-          tapped_by?: string | null
-        }
-        Relationships: []
-      }
-      lot_taps: {
-        Row: {
-          id: number
-          kind: string
-          prev_state: string | null
-          stall: string | null
-          state: string | null
-          tapped_at: string
-          tapped_by: string | null
-        }
-        Insert: {
-          id?: never
-          kind: string
-          prev_state?: string | null
-          stall?: string | null
-          state?: string | null
-          tapped_at?: string
-          tapped_by?: string | null
-        }
-        Update: {
-          id?: never
-          kind?: string
-          prev_state?: string | null
-          stall?: string | null
-          state?: string | null
-          tapped_at?: string
-          tapped_by?: string | null
-        }
-        Relationships: []
-      }
       lookup_recents: {
         Row: {
           looked_up_at: string
@@ -1074,6 +996,147 @@ export type Database = {
           status?: string
           unit_number?: string | null
           vehicle_make?: string | null
+        }
+        Relationships: []
+      }
+      lot_aisle: {
+        Row: {
+          cars: number
+          id: number
+          tapped_at: string | null
+          tapped_by: string | null
+        }
+        Insert: {
+          cars?: number
+          id?: number
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Update: {
+          cars?: number
+          id?: number
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Relationships: []
+      }
+      lot_bay: {
+        Row: {
+          cleans: number
+          cleans_at: string | null
+          cleans_by: string | null
+          dirties: number | null
+          dirties_at: string | null
+          dirties_by: string | null
+          id: number
+          used: number
+          used_on: string | null
+        }
+        Insert: {
+          cleans?: number
+          cleans_at?: string | null
+          cleans_by?: string | null
+          dirties?: number | null
+          dirties_at?: string | null
+          dirties_by?: string | null
+          id?: number
+          used?: number
+          used_on?: string | null
+        }
+        Update: {
+          cleans?: number
+          cleans_at?: string | null
+          cleans_by?: string | null
+          dirties?: number | null
+          dirties_at?: string | null
+          dirties_by?: string | null
+          id?: number
+          used?: number
+          used_on?: string | null
+        }
+        Relationships: []
+      }
+      lot_bay_taps: {
+        Row: {
+          id: number
+          kind: string
+          prev: number | null
+          tapped_at: string
+          tapped_by: string | null
+          value: number
+        }
+        Insert: {
+          id?: never
+          kind: string
+          prev?: number | null
+          tapped_at?: string
+          tapped_by?: string | null
+          value: number
+        }
+        Update: {
+          id?: never
+          kind?: string
+          prev?: number | null
+          tapped_at?: string
+          tapped_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      lot_stalls: {
+        Row: {
+          num: number
+          run: string
+          stall: string
+          state: string | null
+          tapped_at: string | null
+          tapped_by: string | null
+        }
+        Insert: {
+          num: number
+          run: string
+          stall: string
+          state?: string | null
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Update: {
+          num?: number
+          run?: string
+          stall?: string
+          state?: string | null
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Relationships: []
+      }
+      lot_taps: {
+        Row: {
+          id: number
+          kind: string
+          prev_state: string | null
+          stall: string | null
+          state: string | null
+          tapped_at: string
+          tapped_by: string | null
+        }
+        Insert: {
+          id?: never
+          kind: string
+          prev_state?: string | null
+          stall?: string | null
+          state?: string | null
+          tapped_at?: string
+          tapped_by?: string | null
+        }
+        Update: {
+          id?: never
+          kind?: string
+          prev_state?: string | null
+          stall?: string | null
+          state?: string | null
+          tapped_at?: string
+          tapped_by?: string | null
         }
         Relationships: []
       }

@@ -5,6 +5,7 @@
 // read-only to every key the browser holds, and this function is the one writer. His ruling, 2026-10-14:
 // *"separate page with a pin works"*. If it leaks, the damage is a wrong stall map and he changes LOT_PIN.
 import { timingSafeEqual } from 'node:crypto';
+import type { BayRequest } from './lotBay.js';
 
 // 'taken' (migration 152): a customer's or staff car in the stall; the page marks it by holding the stall.
 const STATES = ['open', 'clean', 'dirty', 'taken'] as const;
@@ -16,7 +17,11 @@ export type LotRequest =
   | { action: 'check'; by: string }
   | { action: 'stall'; stall: string; state: State; by: string }
   | { action: 'undo'; stall: string; prev: { state: State | null; by: string | null; at: string | null }; by: string }
-  | { action: 'aisle'; delta: 1 | -1; by: string };
+  | { action: 'aisle'; delta: 1 | -1; by: string }
+  | BayRequest;
+
+/** A typed dirty count at Erin St. A cap, so a fat-fingered 2300 is refused rather than shown. */
+export const DIRTIES_MAX = 300;
 
 export function pinMatches(given: unknown, expected: string | undefined): boolean {
   if (!expected || typeof given !== 'string') return false;
@@ -65,6 +70,15 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
     case 'aisle':
       if (b.delta !== 1 && b.delta !== -1) return { error: 'The aisle moves one car at a time.' };
       return { action: 'aisle', delta: b.delta, by };
+    // Erin St's count (migration 153).
+    case 'cleans':
+      if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };
+      return { action: 'cleans', delta: b.delta, fix: b.delta === -1 && b.fix === true, by };
+    case 'dirties': {
+      const n = typeof b.count === 'number' ? b.count : typeof b.count === 'string' && /^\d+$/.test(b.count.trim()) ? Number(b.count) : NaN;
+      if (!Number.isInteger(n) || n < 0 || n > DIRTIES_MAX) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };
+      return { action: 'dirties', count: n, by };
+    }
     default:
       return { error: 'Unknown action.' };
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinMatches, isStallId, parseLotRequest, cleanBy } from '../../api/_lib/lotRequest';
+import { pinMatches, isStallId, parseLotRequest, cleanBy, DIRTIES_MAX } from '../../api/_lib/lotRequest';
 
 describe('pinMatches', () => {
   it('matches the set PIN, trimmed', () => {
@@ -61,5 +61,27 @@ describe('cleanBy', () => {
     expect(cleanBy('  Larry   J ')).toBe('Larry J');
     expect(cleanBy('')).toBe('Lot');
     expect(cleanBy('x'.repeat(40))).toHaveLength(12);
+  });
+});
+
+describe('parseLotRequest — Erin St count (migration 153)', () => {
+  it('+1 and −1 on cleans; fix only rides a −1', () => {
+    expect(parseLotRequest({ action: 'cleans', delta: 1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: 1, fix: false, by: 'AS' });
+    expect(parseLotRequest({ action: 'cleans', delta: -1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: true, by: 'AS' });
+    expect(parseLotRequest({ action: 'cleans', delta: -1, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: false, by: 'AS' });
+  });
+  it('cleans move one car at a time', () => {
+    for (const delta of [2, -2, 0, '1', null]) expect(parseLotRequest({ action: 'cleans', delta })).toHaveProperty('error');
+  });
+  it('a dirty count is a whole number from 0 to the cap, typed or numeric', () => {
+    expect(parseLotRequest({ action: 'dirties', count: 23, by: 'AS' })).toEqual({ action: 'dirties', count: 23, by: 'AS' });
+    expect(parseLotRequest({ action: 'dirties', count: ' 18 ' })).toMatchObject({ action: 'dirties', count: 18 });
+    expect(parseLotRequest({ action: 'dirties', count: 0 })).toMatchObject({ count: 0 });
+    expect(parseLotRequest({ action: 'dirties', count: DIRTIES_MAX })).toMatchObject({ count: DIRTIES_MAX });
+  });
+  it('⚠️ refuses a fat-fingered or nonsense dirty count rather than showing it', () => {
+    for (const count of [DIRTIES_MAX + 1, 2300, -1, 2.5, 'abc', '', null, '1e2']) {
+      expect(parseLotRequest({ action: 'dirties', count })).toHaveProperty('error');
+    }
   });
 });

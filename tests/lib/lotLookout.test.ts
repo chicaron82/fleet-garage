@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   allStallIds, isStale, isMisparked, lotTotals, stallFromRow, isUndoTap, resolveTap, initialsOf, agoLabel,
-  CLEANS_LOW, N_PULSE_AT, UNDO_MS, type LotStall,
+  CLEANS_LOW, N_PULSE_AT, UNDO_MS, lotPageOf, type LotStall,
 } from '../../src/lib/lotLookout';
 
 const NOW = Date.parse('2026-10-15T12:00:00Z');
@@ -142,5 +142,18 @@ describe('labels', () => {
     expect(agoLabel(null)).toBe('never');
     expect(agoLabel(0)).toBe('just now');
     expect(agoLabel(135)).toBe('2h 15m ago');
+  });
+});
+
+describe('lotPageOf', () => {
+  it('the three Lot Lookout pages, trailing slash or not', () => {
+    expect(lotPageOf('/lot')).toBe('airport');
+    expect(lotPageOf('/lot/')).toBe('airport');
+    expect(lotPageOf('/lot/erin')).toBe('erin');
+    expect(lotPageOf('/lot/Erin/')).toBe('erin');
+    expect(lotPageOf('/lot/view')).toBe('view');
+  });
+  it('⚠️ everything else is FG, behind its login', () => {
+    for (const p of ['/', '/lots', '/lot/other', '/my-day', '/lotview', '/x/lot']) expect(lotPageOf(p)).toBeNull();
   });
 });

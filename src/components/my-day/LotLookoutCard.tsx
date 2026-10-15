@@ -10,16 +10,22 @@ import { useLotBoard } from '../../hooks/useLotBoard';
 import { LotSummary } from '../lot/LotSummary';
 import { LotMap } from '../lot/LotMap';
 
+// The three ways in. Erin St's count and the read-only view arrived 2026-10-15 (migration 153); the view needs no PIN.
+const LINKS = [
+  { path: '/lot', label: 'Driver link' },
+  { path: '/lot/erin', label: 'Erin St count' },
+  { path: '/lot/view', label: 'Read only, no PIN' },
+] as const;
+
 export function LotLookoutCard({ cardClass }: { cardClass: string }) {
   const board = useLotBoard();
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
   if (!board.loaded || board.error || board.stalls.length === 0) return null;
 
-  const link = `${window.location.origin}/lot`;
-  const copy = () => {
-    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
+  const copy = (link: string) => {
+    navigator.clipboard?.writeText(link).then(() => { setCopied(link); setTimeout(() => setCopied(null), 1500); }).catch(() => {});
   };
 
   return (
@@ -40,12 +46,17 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
       {open && (
         <>
           <LotMap stalls={board.stalls} aisle={board.aisle} nowMs={board.nowMs} nPulse={totals.nPulse} />
-          <div className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <span className="min-w-0 break-all">Driver link: <span className="font-mono text-gray-700 dark:text-gray-300">{link}</span></span>
-            <button type="button" onClick={copy} className="shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
+          {LINKS.map(({ path, label }) => {
+            const link = `${window.location.origin}${path}`;
+            return (
+              <div key={path} className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span className="min-w-0 break-all">{label}: <span className="font-mono text-gray-700 dark:text-gray-300">{link}</span></span>
+                <button type="button" onClick={() => copy(link)} className="shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
+                  {copied === link ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            );
+          })}
         </>
       )}
     </section>
