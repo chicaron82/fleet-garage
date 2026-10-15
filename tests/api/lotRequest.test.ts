@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinMatches, isStallId, parseLotRequest, cleanBy, DIRTIES_MAX } from '../../api/_lib/lotRequest';
+import { pinMatches, isStallId, parseLotRequest, cleanBy, DIRTIES_MAX, bearerOf } from '../../api/_lib/lotRequest';
 
 describe('pinMatches', () => {
   it('matches the set PIN, trimmed', () => {
@@ -83,5 +83,15 @@ describe('parseLotRequest — Erin St count (migration 153)', () => {
     for (const count of [DIRTIES_MAX + 1, 2300, -1, 2.5, 'abc', '', null, '1e2']) {
       expect(parseLotRequest({ action: 'dirties', count })).toHaveProperty('error');
     }
+  });
+});
+
+describe('bearerOf — the second door (FG\'s My Day card, 2026-10-15)', () => {
+  it('takes the token from a Bearer header', () => {
+    expect(bearerOf('Bearer abc.def.ghi')).toBe('abc.def.ghi');
+    expect(bearerOf('  Bearer   tok ')).toBe('tok');
+  });
+  it('⚠️ anything else is no token, so the PIN is still required', () => {
+    for (const h of [undefined, '', 'Bearer', 'Bearer ', 'Basic abc', 'abc', 42, 'Bearer a b']) expect(bearerOf(h)).toBeNull();
   });
 });

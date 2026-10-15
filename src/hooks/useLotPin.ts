@@ -15,9 +15,12 @@ function writeLocal(key: string, value: string): void {
 
 export interface LotPost { ok: boolean; status: number; error?: string; json: Record<string, unknown> }
 
-export async function postLot(body: Record<string, unknown>): Promise<LotPost> {
+/** `token`: a signed-in FG session, which api/lot.ts accepts in place of the PIN (FG's own My Day card). */
+export async function postLot(body: Record<string, unknown>, token?: string): Promise<LotPost> {
   try {
-    const res = await fetch('/api/lot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch('/api/lot', { method: 'POST', headers, body: JSON.stringify(body) });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     return { ok: res.ok, status: res.status, error: typeof json.error === 'string' ? json.error : undefined, json };
   } catch {

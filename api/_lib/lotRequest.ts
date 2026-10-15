@@ -4,6 +4,7 @@
 // ⚠️ The PIN is the ONLY thing between the public /lot page and the board: migration 151 makes the lot tables
 // read-only to every key the browser holds, and this function is the one writer. His ruling, 2026-10-14:
 // *"separate page with a pin works"*. If it leaks, the damage is a wrong stall map and he changes LOT_PIN.
+// The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
 import { timingSafeEqual } from 'node:crypto';
 import type { BayRequest } from './lotBay.js';
 
@@ -28,6 +29,13 @@ export function pinMatches(given: unknown, expected: string | undefined): boolea
   const a = Buffer.from(given.trim());
   const b = Buffer.from(expected.trim());
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** The token from an `Authorization: Bearer …` header, or null. The caller checks it with auth.getUser. */
+export function bearerOf(header: unknown): string | null {
+  if (typeof header !== 'string') return null;
+  const m = /^Bearer\s+(\S+)$/.exec(header.trim());
+  return m ? m[1] : null;
 }
 
 export function isStallId(v: unknown): v is string {

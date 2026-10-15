@@ -5,13 +5,14 @@
 // the three tables read-only to the browser's keys, so this function checks the PIN and writes with the
 // service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
 import { createClient } from '@supabase/supabase-js';
-import { parseLotRequest, pinMatches } from './_lib/lotRequest.js';
+import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { bayChange } from './_lib/lotBay.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 
 interface LotHttpRequest {
   method?: string;
   body?: unknown;
+  headers?: { authorization?: string };
 }
 interface LotHttpResponse {
   status(code: number): LotHttpResponse;
@@ -31,16 +32,21 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
     return;
   }
   const body = (typeof req.body === 'string' ? safeJson(req.body) : req.body) as Record<string, unknown> | null;
-  if (!pinMatches(body?.pin, pin)) {
-    res.status(401).json({ error: 'That PIN is not right.' });
+  const parsed = parseLotRequest(body);
+  const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Two doors: the shared PIN (a driver with no FG login), or a signed-in FG session (FG's My Day card, 2026-10-15:
+  // *"May I suggest adding the cleans steppers here"*). FG is trusted-crew-only; the PIN is for everyone else.
+  const pinOk = pinMatches(body?.pin, pin);
+  const token = bearerOf(req.headers?.authorization);
+  const signedIn = !pinOk && token != null && !(await db.auth.getUser(token)).error;
+  if (!pinOk && !signedIn) {
+    res.status(401).json({ error: token ? 'Your FG sign-in has run out. Sign in again.' : 'That PIN is not right.' });
     return;
   }
-  const parsed = parseLotRequest(body);
   if ('error' in parsed) {
     res.status(400).json({ error: parsed.error });
     return;
   }
-  const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const now = new Date().toISOString();
 
   try {

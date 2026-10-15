@@ -6,11 +6,16 @@
 // Hidden until the board exists (migration 151) so a missing table never shows an error on his landing screen.
 //
 // Erin St's count sits on the card too, always open (Aaron, 2026-10-15: *"Is there a link to view my Erin St view
-// within FG?"*): his count and its "as of" on his home screen, one tap from the page where he taps it.
+// within FG?"*): his count and its "as of" on his home screen, one tap from the page where he taps it. And it takes
+// the taps right here (*"May I suggest adding the cleans steppers here and tap to update the dirties? Then keep the
+// ability to open the full detail view"*): signed in to FG, no PIN — api/lot.ts takes the session instead.
 import { useMemo, useState } from 'react';
-import { lotTotals } from '../../lib/lotLookout';
+import { initialsOf, lotTotals } from '../../lib/lotLookout';
 import { useLotBoard } from '../../hooks/useLotBoard';
 import { useLotBay } from '../../hooks/useLotBay';
+import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
+import { useLotToast } from '../../hooks/useLotToast';
+import { useAuth } from '../../context/AuthContext';
 import { LotSummary } from '../lot/LotSummary';
 import { LotMap } from '../lot/LotMap';
 import { LotBayStrip } from '../lot/LotBayStrip';
@@ -25,6 +30,9 @@ const LINKS = [
 export function LotLookoutCard({ cardClass }: { cardClass: string }) {
   const board = useLotBoard();
   const erin = useLotBay();
+  const { user } = useAuth();
+  const [note, toast] = useLotToast();
+  const bayTaps = useBayTapsSignedIn(erin, toast, initialsOf(user?.name ?? null));
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
@@ -49,8 +57,10 @@ export function LotLookoutCard({ cardClass }: { cardClass: string }) {
 
       {erin.bay && (
         <LotBayStrip bay={erin.bay} nowMs={erin.nowMs}
-          action={<a href="/lot/erin" className="text-xs font-semibold text-gray-700 dark:text-gray-200 underline underline-offset-2">Tap the count ›</a>} />
+          controls={{ onCleans: d => void bayTaps.tapCleans(d), onDirties: bayTaps.setDirties }}
+          action={<a href="/lot/erin" className="text-xs font-semibold text-gray-700 dark:text-gray-200 underline underline-offset-2">Full count ›</a>} />
       )}
+      {note && <p role="status" className="-mt-1 px-0.5 text-xs font-semibold text-gray-700 dark:text-gray-200">{note}</p>}
 
       <LotSummary totals={totals} aisleCars={board.aisle.cars} showLegend={open} />
 
