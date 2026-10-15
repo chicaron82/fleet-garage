@@ -109,3 +109,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .fg-sparkle { display: none; }
 }
+
+/* ── Lot Lookout pulse ───────────────────────────────────────────────────────
+   Aaron, 2026-10-14: pulse the cars in the aisle, the N run at 15+ dirties, and a return parked in a clean
+   stall — the three things on the lot that need someone. A red ring breathing outward, nothing else moves.
+   Reduced motion gets a still ring instead: the warning stays, the motion goes. */
+@keyframes lot-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.lot-pulse {
+  animation: lot-pulse 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lot-pulse { animation: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.55); }
+}

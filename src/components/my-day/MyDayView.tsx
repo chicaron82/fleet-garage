@@ -11,6 +11,7 @@ import { PlateWatchCard } from './PlateWatchCard';
 import { MyTrailCard } from './MyTrailCard';
 import { usePeekAtTheDay } from '../../hooks/usePeekAtTheDay';
 import { OverflowSendsCard } from './OverflowSendsCard';
+import { LotLookoutCard } from './LotLookoutCard';
 import { FuelPumpReadings } from '../my-shift/FuelPumpReadings';
 import type { Screen } from '../../types';
 
@@ -264,6 +265,9 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
           noise."* This slot now answers a question he acts on: what went to AV Flight / FastAir,
           and when. */}
       <OverflowSendsCard onOpen={() => onNavigate({ name: 'movement-log' })} />
+
+      {/* ── The airport lot, live (Lot Lookout) — drivers tap at /lot; this reads the same board. */}
+      <LotLookoutCard cardClass={CARD} />
 
     </div>
   );

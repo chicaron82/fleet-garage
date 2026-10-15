@@ -913,6 +913,84 @@ export type Database = {
           },
         ]
       }
+      lot_aisle: {
+        Row: {
+          cars: number
+          id: number
+          tapped_at: string | null
+          tapped_by: string | null
+        }
+        Insert: {
+          cars?: number
+          id?: number
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Update: {
+          cars?: number
+          id?: number
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Relationships: []
+      }
+      lot_stalls: {
+        Row: {
+          num: number
+          run: string
+          stall: string
+          state: string | null
+          tapped_at: string | null
+          tapped_by: string | null
+        }
+        Insert: {
+          num: number
+          run: string
+          stall: string
+          state?: string | null
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Update: {
+          num?: number
+          run?: string
+          stall?: string
+          state?: string | null
+          tapped_at?: string | null
+          tapped_by?: string | null
+        }
+        Relationships: []
+      }
+      lot_taps: {
+        Row: {
+          id: number
+          kind: string
+          prev_state: string | null
+          stall: string | null
+          state: string | null
+          tapped_at: string
+          tapped_by: string | null
+        }
+        Insert: {
+          id?: never
+          kind: string
+          prev_state?: string | null
+          stall?: string | null
+          state?: string | null
+          tapped_at?: string
+          tapped_by?: string | null
+        }
+        Update: {
+          id?: never
+          kind?: string
+          prev_state?: string | null
+          stall?: string | null
+          state?: string | null
+          tapped_at?: string
+          tapped_by?: string | null
+        }
+        Relationships: []
+      }
       lookup_recents: {
         Row: {
           looked_up_at: string
