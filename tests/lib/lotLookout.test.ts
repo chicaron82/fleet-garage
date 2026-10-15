@@ -33,6 +33,24 @@ describe('isStale', () => {
   });
 });
 
+describe('taken', () => {
+  it('⚠️ never fades: a stall held hours ago is still taken, not "not looked at" (his ruling: "No fade")', () => {
+    expect(isStale(st('P4', 'taken', 600), NOW)).toBe(false);
+    const t = lotTotals([st('P4', 'taken', 600), st('P5', 'open', 5)], noAisle, NOW);
+    expect(t.taken).toBe(1);
+    expect(t.notLooked).toBe(0);
+  });
+  it('is not open, not a clean, not a dirty', () => {
+    const t = lotTotals([st('P4', 'taken', 5)], noAisle, NOW);
+    expect(t).toMatchObject({ open: 0, cleansSeen: 0, dirties: 0, misparked: 0 });
+  });
+  it('reads back from the database, and a hold again inside the window undoes it', () => {
+    expect(stallFromRow({ stall: 'P4', run: 'P', num: 4, state: 'taken', tapped_by: 'AS', tapped_at: minsAgo(1) }).state).toBe('taken');
+    const last = { stall: 'P4', state: 'taken' as const, atMs: NOW, prev: { state: 'open' as const, tappedBy: null, tappedAt: null } };
+    expect(isUndoTap(last, 'P4', 'taken', NOW + 1000)).toBe(true);
+  });
+});
+
 describe('isMisparked', () => {
   it('a dirty on the clean side is a misparked return; on N it is where it belongs', () => {
     expect(isMisparked(st('O7', 'dirty', 5))).toBe(true);

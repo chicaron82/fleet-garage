@@ -13,8 +13,16 @@
 // Rulings from 2026-10-14, his words in the ticket: open stays uncoloured, clean green, dirty red; the N run pulses
 // at 15+ dirties; the aisle pulses whenever a car is in it; a dirty in a clean stall pulses; under 20 fresh cleans
 // is "low"; tapping the same colour again undoes your tap.
+//
+// TAKEN (2026-10-15, before the first driver trial): *"Tapping the stall itself would grey it out as unavailable.
+// Reason it's used up by a temporary customer or employee is parked there."* Marked by HOLDING the stall (his
+// ruling: a hold, so a finger that lands on a colour still works), drawn solid grey, and it never fades (*"No
+// fade"*): it stays taken until someone taps a colour. Not open, and not "not looked at".
 
-export type LotState = 'open' | 'clean' | 'dirty';
+/** The three colours a stall is TAPPED to. */
+export type LotColour = 'open' | 'clean' | 'dirty';
+/** Every state a stall can hold: the colours, plus taken (held). */
+export type LotState = LotColour | 'taken';
 export type LotRun = 'S' | 'P' | 'O' | 'N';
 
 export interface LotStall {
@@ -46,10 +54,14 @@ export const CLEANS_LOW = 20;
  *  "looked, still true" and refreshes the stall. */
 export const UNDO_MS = 5000;
 
-export const LOT_STATES: readonly LotState[] = ['open', 'clean', 'dirty'];
+/** Hold a stall this long to mark it taken. */
+export const HOLD_MS = 500;
+
+/** The three swatches on every stall, in order. Taken has no swatch: it is a hold. */
+export const LOT_STATES: readonly LotColour[] = ['open', 'clean', 'dirty'];
 
 export function isLotState(v: unknown): v is LotState {
-  return v === 'open' || v === 'clean' || v === 'dirty';
+  return v === 'open' || v === 'clean' || v === 'dirty' || v === 'taken';
 }
 
 /** Every usable stall id, in map order (S, P, O, N; low to high). */
@@ -67,8 +79,9 @@ export function minutesAgo(iso: string | null, nowMs: number): number | null {
   return Math.max(0, Math.floor((nowMs - t) / 60000));
 }
 
-/** Not tapped in `STALE_MIN` minutes, or never. */
-export function isStale(s: Pick<LotStall, 'tappedAt'>, nowMs: number): boolean {
+/** Not tapped in `STALE_MIN` minutes, or never. A taken stall is never stale (his ruling: "No fade"). */
+export function isStale(s: Pick<LotStall, 'tappedAt'> & Partial<Pick<LotStall, 'state'>>, nowMs: number): boolean {
+  if (s.state === 'taken') return false;
   const m = minutesAgo(s.tappedAt, nowMs);
   return m == null || m > STALE_MIN;
 }
@@ -103,6 +116,8 @@ export function initialsOf(name: string | null): string {
 
 export interface LotTotals {
   open: number;
+  /** Held by a customer's or a staff car: not open, not a rental. */
+  taken: number;
   cleansSeen: number;
   dirties: number;
   misparked: number;
@@ -124,6 +139,7 @@ export function lotTotals(stalls: readonly LotStall[], aisle: LotAisle, nowMs: n
     .filter((m): m is number => m != null);
   return {
     open: fresh.filter(s => s.state === 'open').length,
+    taken: stalls.filter(s => s.state === 'taken').length,
     cleansSeen,
     dirties: stalls.filter(s => s.state === 'dirty').length,
     misparked: stalls.filter(isMisparked).length,

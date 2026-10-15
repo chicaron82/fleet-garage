@@ -30,7 +30,13 @@ describe('parseLotRequest', () => {
     expect(parseLotRequest({ action: 'stall', stall: 'O7', state: 'dirty', by: 'AS' }))
       .toEqual({ action: 'stall', stall: 'O7', state: 'dirty', by: 'AS' });
   });
-  it('refuses a state that is not open, clean or dirty', () => {
+  it('a stall can be taken (a customer or staff car), and an undo can go back to taken', () => {
+    expect(parseLotRequest({ action: 'stall', stall: 'P3', state: 'taken', by: 'AS' }))
+      .toEqual({ action: 'stall', stall: 'P3', state: 'taken', by: 'AS' });
+    expect(parseLotRequest({ action: 'undo', stall: 'P3', prev: { state: 'taken', by: 'AS', at: null }, by: 'AS' }))
+      .toMatchObject({ action: 'undo', prev: { state: 'taken' } });
+  });
+  it('refuses a state that is not open, clean, dirty or taken', () => {
     expect(parseLotRequest({ action: 'stall', stall: 'O7', state: 'purple' })).toHaveProperty('error');
   });
   it('an undo back to "nobody has looked" is allowed', () => {

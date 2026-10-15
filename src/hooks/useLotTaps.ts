@@ -68,7 +68,8 @@ export function useLotTaps(board: LotBoard, toast: (msg: string) => void) {
     if (!r.ok) { board.patchStall(stall, prev); lastTap.current = null; fail(r); return; }
     const misparked = state === 'dirty' && s.run !== 'N';
     toast(prev.state === state ? `${stall} still ${state} · looked at now`
-      : misparked ? `${stall} dirty · return in a clean stall` : `${stall} marked ${state} · tap again to undo`);
+      : misparked ? `${stall} dirty · return in a clean stall`
+      : state === 'taken' ? `${stall} taken · hold again to undo` : `${stall} marked ${state} · tap again to undo`);
   }, [board, by, pin, fail, toast]);
 
   const tapAisle = useCallback(async (delta: 1 | -1) => {

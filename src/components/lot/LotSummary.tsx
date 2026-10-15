@@ -17,6 +17,9 @@ export function LotSummary({ totals, aisleCars, showLegend = true }: Props) {
         <div className={tile}>
           <b className="block text-2xl font-extrabold tabular-nums text-gray-900 dark:text-gray-100">{totals.open}</b>
           <span className="block text-[11px] text-gray-500 dark:text-gray-400">open stalls</span>
+          {totals.taken > 0 && (
+            <span className="block text-[10px] font-bold text-gray-600 dark:text-gray-300">{totals.taken} taken</span>
+          )}
         </div>
         <div className={tile}>
           <b className="block text-2xl font-extrabold tabular-nums text-green-700 dark:text-green-400">{totals.cleansSeen}</b>
@@ -54,6 +57,7 @@ export function LotSummary({ totals, aisleCars, showLegend = true }: Props) {
           <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm border-[1.5px] border-gray-400 bg-white" />Open</span>
           <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-green-700" />Clean</span>
           <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-red-700" />Dirty</span>
+          <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-gray-500" />Taken (hold the stall)</span>
           <span className="flex items-center gap-1">
             <i className="inline-block w-3 h-3 rounded-sm bg-green-200 dark:bg-green-900" />
             <i className="inline-block w-3 h-3 rounded-sm bg-red-200 dark:bg-red-900" />Faded: not looked at in 2h

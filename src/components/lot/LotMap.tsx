@@ -5,7 +5,13 @@
 // Aaron's rulings (2026-10-14, over the mockup): the colours live ON the stall — three swatches to tap, the stall
 // itself filled with the full colour so the lot reads at a glance; open stays uncoloured; a stall nobody has
 // looked at in 2 hours fades to its tint. With no `onTap` the map is read-only (FG's My Day view).
-import { initialsOf, isMisparked, isStale, LOT_STATES, minutesAgo, shortAgo, type LotAisle, type LotState, type LotStall } from '../../lib/lotLookout';
+//
+// TAKEN (2026-10-15): HOLD a stall to grey it out — a customer's or staff car is in it. His ruling: *"so even if
+// the finger lands on a colour as long as it's on the right stall it works"*. So the hold lives on the whole stall,
+// swatches included, and a hold that fires swallows the click that follows it: a long press on green never also
+// marks the stall clean. A finger that moves (a scroll) cancels the hold.
+import { useRef } from 'react';
+import { HOLD_MS, initialsOf, isMisparked, isStale, LOT_STATES, minutesAgo, shortAgo, type LotAisle, type LotColour, type LotState, type LotStall } from '../../lib/lotLookout';
 
 interface Props {
   stalls: LotStall[];
@@ -21,33 +27,65 @@ const FILL: Record<string, string> = {
   'dirty-fresh': 'bg-red-700 border-red-700 text-white',
   'clean-stale': 'bg-green-200 border-green-200 text-gray-900 dark:bg-green-900 dark:border-green-900 dark:text-gray-100',
   'dirty-stale': 'bg-red-200 border-red-200 text-gray-900 dark:bg-red-900 dark:border-red-900 dark:text-gray-100',
+  taken: 'bg-gray-500 border-gray-500 text-white dark:bg-gray-600 dark:border-gray-600',
   open: 'bg-white border-gray-400 text-gray-900 dark:bg-gray-900 dark:border-gray-500 dark:text-gray-100',
   none: 'bg-white border-gray-200 text-gray-400 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-500',
 };
-const SWATCH: Record<LotState, string> = {
+const SWATCH: Record<LotColour, string> = {
   open: 'bg-white border-gray-300',
   clean: 'bg-green-200 border-green-200 dark:bg-green-800 dark:border-green-800',
   dirty: 'bg-red-200 border-red-200 dark:bg-red-800 dark:border-red-800',
 };
 
+/** A finger that drifts further than this is scrolling, not holding. */
+const HOLD_SLOP_PX = 10;
+
+/** Hold the stall → `onHold`, once; the click that ends the hold is swallowed so no swatch fires with it. */
+function useHold(onHold: (() => void) | undefined) {
+  const timer = useRef<{ t: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const fired = useRef(false);
+  const cancel = () => { if (timer.current) { clearTimeout(timer.current.t); timer.current = null; } };
+  if (!onHold) return {};
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      fired.current = false;
+      cancel();
+      timer.current = {
+        x: e.clientX, y: e.clientY,
+        t: setTimeout(() => { timer.current = null; fired.current = true; navigator.vibrate?.(30); onHold(); }, HOLD_MS),
+      };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (timer.current && Math.hypot(e.clientX - timer.current.x, e.clientY - timer.current.y) > HOLD_SLOP_PX) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onClickCapture: (e: React.MouseEvent) => { if (fired.current) { fired.current = false; e.stopPropagation(); e.preventDefault(); } },
+    // A long press on a phone opens the browser's own menu or selects text; the hold is ours.
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+}
+
 function Cell({ s, nowMs, vertical, pulse, onTap }: { s: LotStall; nowMs: number; vertical: boolean; pulse: boolean; onTap?: Props['onTap'] }) {
+  const hold = useHold(onTap ? () => onTap(s.stall, 'taken') : undefined);
   const stale = isStale(s, nowMs);
   const fresh = !stale;
-  const key = s.state === 'clean' || s.state === 'dirty' ? `${s.state}-${fresh ? 'fresh' : 'stale'}` : s.state === 'open' ? 'open' : 'none';
-  const solid = fresh && (s.state === 'clean' || s.state === 'dirty');
+  const key = s.state === 'clean' || s.state === 'dirty' ? `${s.state}-${fresh ? 'fresh' : 'stale'}`
+    : s.state === 'taken' ? 'taken' : s.state === 'open' ? 'open' : 'none';
+  const solid = (fresh && (s.state === 'clean' || s.state === 'dirty')) || s.state === 'taken';
   const ago = minutesAgo(s.tappedAt, nowMs);
   const mis = isMisparked(s);
   const who = ago == null ? '' : `${initialsOf(s.tappedBy)} ${shortAgo(ago)}`;
   return (
-    <div className={`relative min-w-0 rounded-md border-[1.5px] p-[3px] grid gap-[3px] ${FILL[key]} ${pulse || mis ? 'lot-pulse' : ''}`}
-      style={{ gridTemplateRows: 'auto 1fr' }}>
+    <div className={`relative min-w-0 rounded-md border-[1.5px] p-[3px] grid gap-[3px] ${FILL[key]} ${pulse || mis ? 'lot-pulse' : ''} ${onTap ? 'select-none' : ''}`}
+      style={{ gridTemplateRows: 'auto 1fr', WebkitTouchCallout: 'none' }} data-stall={s.stall} {...hold}>
       <div className={`flex min-w-0 gap-0.5 ${vertical ? 'flex-col' : 'items-baseline justify-between pl-0.5'}`}>
         {/* Not mono: in a monospace face "O2" reads as "02". */}
         <span className="font-bold text-xs leading-tight">{s.stall}</span>
         <span className={`text-[9px] leading-tight whitespace-nowrap overflow-hidden ${solid ? 'text-white/85' : 'text-gray-500 dark:text-gray-400'}`}>{who}</span>
       </div>
       {onTap && (
-        <div className={`grid gap-[3px] ${vertical ? 'grid-cols-1 grid-rows-3' : 'grid-cols-3'}`} role="group" aria-label={`${s.stall}${who ? `, ${s.tappedBy} ${shortAgo(ago)} ago` : ', not looked at'}`}>
+        <div className={`grid gap-[3px] ${vertical ? 'grid-cols-1 grid-rows-3' : 'grid-cols-3'}`} role="group" aria-label={`${s.stall}${s.state === 'taken' ? ', taken' : ''}${who ? `, ${s.tappedBy} ${shortAgo(ago)} ago` : ', not looked at'}`}>
           {LOT_STATES.map(v => (
             <button key={v} type="button" onClick={() => onTap(s.stall, v)} aria-label={`${s.stall} ${v}`} aria-pressed={s.state === v}
               className={`rounded border-[1.5px] cursor-pointer ${vertical ? 'min-h-5' : 'min-h-[22px]'} ${SWATCH[v]} ${

@@ -6,7 +6,8 @@
 // *"separate page with a pin works"*. If it leaks, the damage is a wrong stall map and he changes LOT_PIN.
 import { timingSafeEqual } from 'node:crypto';
 
-const STATES = ['open', 'clean', 'dirty'] as const;
+// 'taken' (migration 152): a customer's or staff car in the stall; the page marks it by holding the stall.
+const STATES = ['open', 'clean', 'dirty', 'taken'] as const;
 type State = typeof STATES[number];
 // Mirrors LOT_RUNS in src/lib/lotLookout.ts and migration 151's seed: O1 is the cart return, N1–N2 the HIR booth.
 const RUNS: Record<string, [number, number]> = { S: [1, 6], P: [1, 20], O: [2, 20], N: [3, 20] };
@@ -50,7 +51,7 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       return { action: 'check', by };
     case 'stall':
       if (!isStallId(b.stall)) return { error: 'That is not a stall on the lot.' };
-      if (!isState(b.state)) return { error: 'A stall is open, clean or dirty.' };
+      if (!isState(b.state)) return { error: 'A stall is open, clean, dirty or taken.' };
       return { action: 'stall', stall: b.stall, state: b.state, by };
     case 'undo': {
       if (!isStallId(b.stall)) return { error: 'That is not a stall on the lot.' };
