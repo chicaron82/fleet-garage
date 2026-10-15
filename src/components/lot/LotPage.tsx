@@ -52,7 +52,8 @@ export function LotPage() {
       <div className="mx-auto max-w-[460px] px-4 pb-24">
         {!taps.pin ? <PinGate onUnlock={taps.unlock} /> : (
           <>
-            <header className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-950 pt-3 pb-2.5 space-y-2" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+            {/* Not sticky: pinned, the counts and legend took half a phone and left the map a slot. */}
+            <header className="pt-3 pb-2.5 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <h1 className="text-xl font-extrabold">Lot Lookout</h1>
                 <span className="text-xs text-gray-500 dark:text-gray-400">Airport · 1965 Wellington</span>

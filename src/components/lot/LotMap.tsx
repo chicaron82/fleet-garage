@@ -42,7 +42,8 @@ function Cell({ s, nowMs, vertical, pulse, onTap }: { s: LotStall; nowMs: number
     <div className={`relative min-w-0 rounded-md border-[1.5px] p-[3px] grid gap-[3px] ${FILL[key]} ${pulse || mis ? 'lot-pulse' : ''}`}
       style={{ gridTemplateRows: 'auto 1fr' }}>
       <div className={`flex min-w-0 gap-0.5 ${vertical ? 'flex-col' : 'items-baseline justify-between pl-0.5'}`}>
-        <span className="font-mono font-bold text-xs leading-tight">{s.stall}</span>
+        {/* Not mono: in a monospace face "O2" reads as "02". */}
+        <span className="font-bold text-xs leading-tight">{s.stall}</span>
         <span className={`text-[9px] leading-tight whitespace-nowrap overflow-hidden ${solid ? 'text-white/85' : 'text-gray-500 dark:text-gray-400'}`}>{who}</span>
       </div>
       {onTap && (
