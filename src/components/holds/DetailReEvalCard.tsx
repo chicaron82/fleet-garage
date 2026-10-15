@@ -3,6 +3,7 @@ import { useReEval } from '../../hooks/useReEval';
 import { DETAIL_REASON_LABELS } from '../../types';
 import type { ReEvalItem } from '../../hooks/useReEval';
 import { VehicleName } from '../shared/VehicleName';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 type DispatchStatus = 'idle' | 'dispatching' | 'dispatched';
 
@@ -42,7 +43,7 @@ export function DetailReEvalCard({ item, re }: { item: ReEvalItem; re: ReHook })
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">
-                {vehicle.unitNumber}
+                {formatUnitNumber(vehicle.unitNumber)}
               </span>
               <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
               <span className="text-gray-500 dark:text-gray-400 text-xs transition-colors">

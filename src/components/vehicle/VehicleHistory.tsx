@@ -22,6 +22,7 @@ import { VehicleEffieTrail } from './VehicleEffieTrail';
 import { HoldHistorySection } from '../holds/HoldHistorySection';
 import { HoldShareMenu } from '../holds/HoldShareMenu';
 import { PhotoError } from '../shared/PhotoError';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 
 interface Props {
@@ -86,7 +87,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
         </button>
         <span className="text-gray-300">|</span>
         <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-          {vehicle.unitNumber ?? <span className="text-gray-400 italic">Unit # pending</span>}
+          {vehicle.unitNumber ? formatUnitNumber(vehicle.unitNumber) : <span className="text-gray-400 italic">Unit # pending</span>}
         </span>
         <StatusBadge status={vehicle.status} disposition={h.saleHold?.disposition} />
 
@@ -101,7 +102,7 @@ export function VehicleHistory({ vehicleId, openRepair, openRepairNonce, onBack,
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  {vehicle.unitNumber ?? <span className="text-gray-400 dark:text-gray-500 italic font-normal text-lg">Unit # pending</span>}
+                  {vehicle.unitNumber ? formatUnitNumber(vehicle.unitNumber) : <span className="text-gray-400 dark:text-gray-500 italic font-normal text-lg">Unit # pending</span>}
                 </h1>
                 {vehicle.editStatus !== 'pending' && (
                   <button

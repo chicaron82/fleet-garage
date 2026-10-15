@@ -57,7 +57,7 @@ describe('HoldShareMenu', () => {
     await waitFor(() => expect(img.shareReportFile).toHaveBeenCalledTimes(1));
     const [file, title] = img.shareReportFile.mock.calls[0] as unknown as [File, string];
     expect(file.name).toBe('hold-report-OES646.png');
-    expect(title).toBe('Hold Report — Unit 5753165');
+    expect(title).toBe('Hold Report — Unit 575 3165');
     expect(drawnCard()).toContain('New dent');
     expect(screen.queryByRole('button', { name: /full history/i })).not.toBeInTheDocument();
     expect(exportSpy).not.toHaveBeenCalled();                  // no about:blank tab any more

@@ -29,7 +29,7 @@ describe('auditFleet', () => {
     const [f] = auditFleet([rogueGood, rogueBad]);
     expect(f.kind).toBe('duplicate-unit');
     expect(f.key).toBe('duplicate-unit:5421656');
-    expect(f.title).toContain('5421656');
+    expect(f.title).toContain('542 1656');
     expect(f.detail).toMatch(/one car entered twice/);
     expect(f.vehicles.map(x => x.id).sort()).toEqual(['r1', 'r2']);
   });

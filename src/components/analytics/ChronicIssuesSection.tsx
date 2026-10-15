@@ -1,5 +1,6 @@
 import { SectionHeader, EmptyState } from './AnalyticsComponents';
 import type { ChronicEntry, ChronicCategory } from '../../lib/chronicIssues';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 const CATEGORY_META: Record<ChronicCategory, { icon: string; label: string }> = {
   mechanical: { icon: '🔧', label: 'Mechanical' },
@@ -51,7 +52,7 @@ export function ChronicIssuesSection({ entries, threshold, onOpenVehicle }: {
               <>
                 <span className="text-xs text-gray-400 dark:text-gray-600 w-4 text-right tabular-nums shrink-0">{i + 1}</span>
                 <span className="min-w-0 flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{e.vehicle.unitNumber}</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{formatUnitNumber(e.vehicle.unitNumber)}</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{e.vehicle.licensePlate}</span>
                 </span>
                 <span className="ml-auto flex items-center gap-1.5">{pills}</span>

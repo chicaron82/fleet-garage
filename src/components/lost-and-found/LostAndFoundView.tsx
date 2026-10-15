@@ -10,6 +10,7 @@ import { LostFoundCard } from './LostFoundCard';
 import { LogLostFoundItemModal } from './LogLostFoundItemModal';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { PrimaryAction } from '../shared/PrimaryAction';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 // `prefillPlate` arrives from the scan-router (scan a tag → "Log lost & found"): open the log
 // sheet straight away with the plate already filled, so the scan hands off mid-flow.
@@ -166,7 +167,7 @@ export function LostAndFoundView({ prefillPlate, prefillNonce }: { prefillPlate?
                     {item.description ?? <span className="italic text-gray-400">No description</span>}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">
-                    {item.unitNumber ? `Unit ${item.unitNumber} · ` : ''}{fmtRelativeDate(item.foundAt)}
+                    {item.unitNumber ? `Unit ${formatUnitNumber(item.unitNumber)} · ` : ''}{fmtRelativeDate(item.foundAt)}
                   </p>
                   {item.status === 'disposed'
                     ? <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-0.5">🗑️ Thrown out</p>

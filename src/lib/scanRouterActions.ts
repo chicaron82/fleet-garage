@@ -9,6 +9,7 @@ import { scannedFromRead, canRegisterPartially } from './partialRegister';
 import type { KeytagScanResult } from './resolveKeytagScan';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { Screen } from '../types';
+import { formatUnitNumber } from './formatUnitNumber';
 
 export type ScanActionKind = 'register' | 'register-and-flag' | 'view' | 'flag' | 'lnf' | 'trip' | 'repair';
 
@@ -59,7 +60,7 @@ export function scanRouterActions(read: KeytagRead, result: KeytagScanResult, sc
 
   // On record → act on the known vehicle.
   if (vehicle) {
-    const who = vehicle.unitNumber ? `Unit ${vehicle.unitNumber}` : plate;
+    const who = vehicle.unitNumber ? `Unit ${formatUnitNumber(vehicle.unitNumber)}` : plate;
     return [
       // Repair first when the car is held — it's the reason he's most likely standing there with
       // the tag. `openRepairNonce` makes a repeat scan a distinct routing event, same as the

@@ -33,7 +33,7 @@ vi.mock('../../src/components/vehicle/EvLoanSection', () => ({ EvLoanSection: ()
 beforeEach(() => { vi.clearAllMocks(); updateVehicleEVAssets.mockResolvedValue(true); });
 
 const openSheetAndSave = async () => {
-  fireEvent.click(screen.getByRole('button', { name: /5429999/ }));
+  fireEvent.click(screen.getByRole('button', { name: /542 9999/ }));
   const save = await screen.findByRole('button', { name: /Update Assets/i });
   fireEvent.click(save);
 };
@@ -70,7 +70,7 @@ describe('EVAssetsTab — a lost EV write keeps the sheet and says so', () => {
 // unguarded left the sheet stuck on "Flagging…" (line-check 2026-10-10).
 // docs/October/ticket-ev-loan-writes-say-when-they-fail.md
 describe('EVAssetsTab — a follow-up that did not land says which half', () => {
-  const openSheet = () => fireEvent.click(screen.getByRole('button', { name: /5429999/ }));
+  const openSheet = () => fireEvent.click(screen.getByRole('button', { name: /542 9999/ }));
   const [CABLE, ADAPTER] = [0, 1];
   const untick = async (i: number) => fireEvent.click((await screen.findAllByRole('checkbox'))[i]);
 

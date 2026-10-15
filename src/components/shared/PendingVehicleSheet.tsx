@@ -2,6 +2,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { VehicleName } from './VehicleName';
 import type { Hold, Vehicle } from '../../types';
 import { StatusBadge } from '../holds/StatusBadge';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   vehicle: Vehicle;
@@ -24,7 +25,7 @@ export function PendingVehicleSheet({ vehicle, hold, onClose, onConfirm }: Props
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-900 dark:text-gray-100">{vehicle.unitNumber}</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{formatUnitNumber(vehicle.unitNumber)}</span>
                   <span className="text-gray-400 text-xs">·</span>
                   <span className="font-bold text-gray-900 dark:text-gray-100 tracking-wide">{vehicle.licensePlate}</span>
                 </div>

@@ -1,5 +1,6 @@
 import type { Vehicle, VehicleRegistryEntry } from '../types';
 import { vehicleLabel } from './vehicleName';
+import { formatUnitNumber } from './formatUnitNumber';
 
 /**
  * A vehicle identity resolved from a plate — either a real fleet `vehicles` row
@@ -83,5 +84,5 @@ export function pickKnownVehicle(
  */
 export function describeKnownPlate(m: KnownPlate): string {
   const veh = vehicleLabel(m);
-  return [m.unitNumber ? `Unit ${m.unitNumber}` : '', veh].filter(Boolean).join(' · ');
+  return [m.unitNumber ? `Unit ${formatUnitNumber(m.unitNumber)}` : '', veh].filter(Boolean).join(' · ');
 }

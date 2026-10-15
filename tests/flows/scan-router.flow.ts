@@ -112,7 +112,8 @@ test('a scan with NO code shows no code field at all', async ({ page }) => {
 test('scan → Flag/hold opens the flag form on the scanned vehicle', async ({ page }) => {
   await injectScreen(page, { name: 'new-hold', vehicleId: FIXTURE.vehicleId });
   await expect(page.getByText('Flag Issue').first()).toBeVisible();
-  await expect(page.getByText(FIXTURE.unit).first()).toBeVisible();
+  // Shown the way the key tag prints it (542 3124) since 2026-10-14.
+  await expect(page.getByText(FIXTURE.unit.replace(/^(\d{3})(\d{4})$/, '$1 $2')).first()).toBeVisible();
   await expect(page.getByText(`Plate: ${FIXTURE.plate}`)).toBeVisible();
 });
 

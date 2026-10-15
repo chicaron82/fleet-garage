@@ -7,6 +7,7 @@ import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
 import { useWriteGuard } from '../../hooks/useWriteGuard';
 import { SaveNote } from '../shared/SaveNote';
 import type { EvAssetStatus } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 // Mirrors EVAssetsTab — a Tesla with neither accessory is held from dispatch.
 const BOTH_MISSING_DESCRIPTION =
@@ -78,7 +79,7 @@ export function QuickAddTeslaForm({ prefill, onDone }: { prefill?: string; onDon
       // Attribution + the unified EV timeline row (source: vsa_washbay).
       const evOk = await guard(
         () => updateVehicleEVAssets(id, cable === 'present', adapter === 'present', 'vsa_washbay', notes.trim() || undefined),
-        `${unitNumber.trim()} registered — the EV asset check didn't save. Log it in the EV Assets tab.`,
+        `${formatUnitNumber(unitNumber)} registered — the EV asset check didn't save. Log it in the EV Assets tab.`,
       );
       if (bothMissing) {
         await addHold(id, BOTH_MISSING_DESCRIPTION, notes.trim(), user.id, [], ['missing_accessories']);

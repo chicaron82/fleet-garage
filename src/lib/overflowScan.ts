@@ -9,6 +9,7 @@ import type { KeytagRead } from '../../api/_lib/keytagRead';
 import type { NewVehicle } from '../../api/_lib/holdProposal';
 import type { KeytagFill } from './resolveKeytag';
 import type { Vehicle } from '../types';
+import { formatUnitNumber } from './formatUnitNumber';
 
 export interface OverflowScanResult {
   /** The vehicle to log the send against (buildOverflowTrip needs plate + unit). */
@@ -23,7 +24,7 @@ export interface OverflowScanResult {
 }
 
 const labelFor = (unit: string | null | undefined, plate: string): string =>
-  unit ? `Unit ${unit}` : plate;
+  unit ? `Unit ${formatUnitNumber(unit)}` : plate;
 
 /** Plan one overflow scan, or null if the tag was unreadable (no plate → nothing to log). */
 export function planOverflowScan(read: KeytagRead, vehicles: Vehicle[]): OverflowScanResult | null {

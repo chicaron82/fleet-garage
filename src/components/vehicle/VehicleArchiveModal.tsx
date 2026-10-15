@@ -1,4 +1,5 @@
 import { hapticMedium } from '../../lib/haptics';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface VehicleArchiveModalProps {
   vehicleId: string;
@@ -20,7 +21,7 @@ export function VehicleArchiveModal({
       <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl p-5 space-y-4">
         <div>
           <p className="text-base font-bold text-gray-900 dark:text-gray-100">
-            Archive Unit {unitNumber ?? <span className="text-gray-400 italic">pending</span>}?
+            Archive Unit {unitNumber ? formatUnitNumber(unitNumber) : <span className="text-gray-400 italic">pending</span>}?
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             This vehicle will be removed from active service. All hold history and

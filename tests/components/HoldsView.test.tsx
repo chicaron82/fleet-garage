@@ -120,7 +120,7 @@ describe('HoldsView — vehicle list', () => {
     const HoldsView = await importComponent();
     render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
-    expect(screen.getByText('1234567')).toBeInTheDocument();
+    expect(screen.getByText('123 4567')).toBeInTheDocument();
     expect(screen.getByText(/HLD111/)).toBeInTheDocument();
   });
 
@@ -128,7 +128,7 @@ describe('HoldsView — vehicle list', () => {
     const HoldsView = await importComponent();
     render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
-    expect(screen.queryByText('7654321')).not.toBeInTheDocument();
+    expect(screen.queryByText('765 4321')).not.toBeInTheDocument();
   });
 });
 
@@ -139,7 +139,7 @@ describe('HoldsView — search', () => {
     render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText(/search unit/i), '7654321');
-    expect(await screen.findByText('7654321')).toBeInTheDocument();
+    expect(await screen.findByText('765 4321')).toBeInTheDocument();
   });
 
   it('filters by plate fragment', async () => {

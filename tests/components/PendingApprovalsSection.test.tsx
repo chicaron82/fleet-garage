@@ -35,6 +35,6 @@ describe('PendingApprovalsSection', () => {
     // The list is expanded — a pending item's content is visible, not hidden behind a
     // frozen-collapsed gate.
     expect(screen.getByText(/Windshield chip/)).toBeInTheDocument();
-    expect(screen.getByText('5753165')).toBeInTheDocument();
+    expect(screen.getByText('575 3165')).toBeInTheDocument();
   });
 });

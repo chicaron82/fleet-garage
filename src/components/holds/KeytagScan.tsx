@@ -10,6 +10,7 @@ import { newVehicleFromRead, type KeytagScanResult } from '../../lib/resolveKeyt
 import { KeytagReplateOffer } from '../scan-router/KeytagReplateOffer';
 import { PlateShapeHint } from '../scan-router/PlateShapeHint';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 export function ScanBranch({ scan, staged, onRegister, onBackfill, scanNonce }: {
   scan: { read: KeytagRead; result: KeytagScanResult };
@@ -62,14 +63,14 @@ export function ScanBranch({ scan, staged, onRegister, onBackfill, scanNonce }: 
 
       {resolution.kind === 'complete' && vehicle && (
         <p className="text-gray-700 dark:text-gray-200">
-          <span className="font-mono font-semibold">{plate}</span> — Unit {vehicle.unitNumber}, <VehicleName vehicle={vehicle} />. Already in the fleet.
+          <span className="font-mono font-semibold">{plate}</span> — Unit {formatUnitNumber(vehicle.unitNumber)}, <VehicleName vehicle={vehicle} />. Already in the fleet.
         </p>
       )}
 
       {resolution.kind === 'partial' && vehicle && (
         <div className="space-y-1.5">
           <p className="text-gray-700 dark:text-gray-200">
-            <span className="font-mono font-semibold">{plate}</span> — Unit {vehicle.unitNumber}, in the fleet.
+            <span className="font-mono font-semibold">{plate}</span> — Unit {formatUnitNumber(vehicle.unitNumber)}, in the fleet.
           </p>
           {resolution.fills.length > 0 && (
             staged ? (

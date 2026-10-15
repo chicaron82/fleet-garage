@@ -22,7 +22,7 @@ const build = (holds: Hold[]) => buildHoldReport({ vehicle: VEHICLE, holds, getN
 describe('buildHoldReport', () => {
   it('⭐ the card carries the car, the hold and its photo', () => {
     const { card } = build([hold()]);
-    expect(card).toContain('Unit 5422852');
+    expect(card).toContain('Unit 542 2852');
     expect(card).toContain('Plate: LUR300');
     expect(card).toContain('Cracked windshield');
     expect(card).toContain('src="https://cdn/ws.jpg"');
@@ -39,7 +39,7 @@ describe('buildHoldReport', () => {
     const { card, html, title } = build([hold()]);
     expect(html).toContain('<body>\n' + card + '\n</body>');
     expect(html).toContain(`<title>${escapeHtml(title)}</title>`);
-    expect(title).toBe('Hold Report — Unit 5422852');
+    expect(title).toBe('Hold Report — Unit 542 2852');
   });
 
   it('names the image after the plate', () => {

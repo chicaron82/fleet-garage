@@ -5,6 +5,7 @@ import { hapticLight } from '../../lib/haptics';
 import { useWriteGuard } from '../../hooks/useWriteGuard';
 import { SaveNote } from '../shared/SaveNote';
 import type { Vehicle } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 /**
  * The two sides of EV asset loans for one vehicle: what it has **lent out** (with
@@ -69,7 +70,7 @@ export function EvLoanSection({ vehicle }: { vehicle: Vehicle }) {
         return (
           <div key={loan.id} className="rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50/60 dark:bg-blue-900/15 px-3 py-2">
             <span className="text-xs text-blue-800 dark:text-blue-300">
-              {ASSET_ICON[loan.assetType]} Holding <span className="font-semibold">unit {lender?.unitNumber ?? '?'}</span>’s {ASSET_LABEL[loan.assetType].toLowerCase()}
+              {ASSET_ICON[loan.assetType]} Holding <span className="font-semibold">unit {formatUnitNumber(lender?.unitNumber) || '?'}</span>’s {ASSET_LABEL[loan.assetType].toLowerCase()}
             </span>
           </div>
         );

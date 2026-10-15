@@ -26,6 +26,7 @@ import { TESLA_KEYCARD_COUNT } from './keyCount';
 import { vehicleLabel } from './vehicleName';
 import { LETTER_TO_DIGIT } from '../../api/_lib/platePrefix';
 import { expectedPlateShape, owningLabel } from '../../api/_lib/owningArea';
+import { formatUnitNumber } from './formatUnitNumber';
 
 export interface AuditVehicle {
   id: string;
@@ -151,7 +152,7 @@ export function auditFleet(
     findings.push({
       key: `duplicate-unit:${unit}`,
       kind: 'duplicate-unit',
-      title: `Unit ${unit} is on ${group.length} live records`,
+      title: `Unit ${formatUnitNumber(unit)} is on ${group.length} live records`,
       detail: group.every(v => sameSpec(v, group[0]))
         ? 'Same year, make and model on every record — almost certainly one car entered twice.'
         : 'The records describe different vehicles, so one of them may carry the wrong unit number.',

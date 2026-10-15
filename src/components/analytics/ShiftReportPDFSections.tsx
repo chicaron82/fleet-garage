@@ -4,6 +4,7 @@ import { View, Text, Image, Link } from '@react-pdf/renderer';
 import { fmtTime, fmtMinutes, type ReportData, type ReportThroughput } from '../../lib/buildShiftReport';
 import { LOGO_SRC, s, resolveQueueLabel } from './ShiftReportPDFUtils';
 import { holdTypeLabel } from '../../lib/holdTypeLabels';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -355,7 +356,7 @@ export function LostFoundSection({ lostFound }: { lostFound: ReportData['lostFou
           <View style={s.mainCol}>
             <Text style={s.mainText}>{item.description}</Text>
             <Text style={s.subText}>
-              {formatLocation(item.location)}{item.unitNumber ? `  ·  Unit ${item.unitNumber}` : ''}
+              {formatLocation(item.location)}{item.unitNumber ? `  ·  Unit ${formatUnitNumber(item.unitNumber)}` : ''}
             </Text>
           </View>
         </View>

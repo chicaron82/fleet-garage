@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Hold, Vehicle } from '../../types';
 import { hapticLight } from '../../lib/haptics';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface PendingApprovalsSectionProps {
   holds: Hold[];
@@ -74,7 +75,7 @@ export function PendingApprovalsSection({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                      {vehicle?.unitNumber ?? '—'}
+                      {formatUnitNumber(vehicle?.unitNumber) || '—'}
                     </span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
                     <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">

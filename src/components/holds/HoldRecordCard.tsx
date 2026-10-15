@@ -13,6 +13,7 @@ import { HoldDamageZones } from './HoldDamageZones';
 import { HoldGeotabInstalled } from './HoldGeotabInstalled';
 import { EvExceptionNow } from './EvExceptionNow';
 import type { Hold, Vehicle } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 const MAX_PHOTOS = 4;
 
@@ -210,7 +211,7 @@ export function HoldRecordCard({
             </button>
           </div>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{vehicle.unitNumber}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{formatUnitNumber(vehicle.unitNumber)}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Flagged by <span className="font-medium text-gray-700 dark:text-gray-300">{getName(hold.flaggedById, hold.flaggedByName)}</span>
           {' '}· {getEmpId(hold.flaggedById, hold.flaggedByEmployeeId)} · {fmt(hold.flaggedAt)}

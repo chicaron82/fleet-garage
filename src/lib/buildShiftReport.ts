@@ -4,6 +4,7 @@ import type { ThroughputBasis } from './throughputBasis';
 import { type FuelReport } from './fuelReadings';
 import { holdTypeLabel } from './holdTypeLabels';
 import { shiftTypeSentence } from './shiftTypeMeta';
+import { formatUnitNumber } from './formatUnitNumber';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -311,21 +312,21 @@ export function buildReport(d: ReportData): string {
     lines.push('', 'UNITS FLAGGED', SEP);
     for (const h of d.holds) {
       const desc = h.description ? `  — ${h.description}` : '';
-      lines.push(`${formatHoldTypes(h.holdTypes)} · Unit ${h.vehicleUnit}  ${h.vehiclePlate}${desc}  (${fmtTime(h.flaggedAt)})`);
+      lines.push(`${formatHoldTypes(h.holdTypes)} · Unit ${formatUnitNumber(h.vehicleUnit)}  ${h.vehiclePlate}${desc}  (${fmtTime(h.flaggedAt)})`);
     }
   }
 
   if (d.checkIns.length > 0) {
     lines.push('', 'VEHICLES CHECKED IN', SEP);
     for (const c of d.checkIns) {
-      lines.push(`Unit ${c.vehicleUnit}  ${c.vehiclePlate}  ${fmtTime(c.checkedInAt)}`);
+      lines.push(`Unit ${formatUnitNumber(c.vehicleUnit)}  ${c.vehiclePlate}  ${fmtTime(c.checkedInAt)}`);
     }
   }
 
   if (d.lostFound.length > 0) {
     lines.push('', 'LOST & FOUND', SEP);
     for (const item of d.lostFound) {
-      const unit = item.unitNumber ? `  Unit ${item.unitNumber}` : '';
+      const unit = item.unitNumber ? `  Unit ${formatUnitNumber(item.unitNumber)}` : '';
       lines.push(`${item.description} · ${formatLocation(item.location)}${unit}  (${fmtTime(item.foundAt)})`);
     }
   }
@@ -333,7 +334,7 @@ export function buildReport(d: ReportData): string {
   if (d.audits.length > 0) {
     lines.push('', 'AUDITS', SEP);
     for (const a of d.audits) {
-      lines.push(`Unit ${a.vehicleNumber} · ${a.status}  (${fmtTime(a.createdAt)})`);
+      lines.push(`Unit ${formatUnitNumber(a.vehicleNumber)} · ${a.status}  (${fmtTime(a.createdAt)})`);
     }
   }
 

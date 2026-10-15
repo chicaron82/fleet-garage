@@ -12,6 +12,7 @@ import { GEOTAB_HOLD_DESC } from '../../lib/hold-presets';
 import type { Hold, HoldType, User, Vehicle } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
 import { EvExceptionNow } from './EvExceptionNow';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -230,10 +231,10 @@ function DamageReturnCard({ vehicle, hold, isAuction, allHolds, user, onReHold, 
               {onOpenVehicle ? (
                 <button type="button" onClick={() => onOpenVehicle(vehicle.id)}
                         className="font-semibold text-gray-900 dark:text-gray-100 text-sm hover:underline cursor-pointer">
-                  {vehicle.unitNumber} →
+                  {formatUnitNumber(vehicle.unitNumber)} →
                 </button>
               ) : (
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{vehicle.unitNumber}</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{formatUnitNumber(vehicle.unitNumber)}</span>
               )}
               <span className="text-gray-400 dark:text-gray-600 text-xs">·</span>
               <span className="text-gray-500 dark:text-gray-400 text-xs">{vehicle.licensePlate}</span>
@@ -307,7 +308,7 @@ function GeotabReturnCard({ item: { plate, vehicle, hold }, onInstalled }: {
     <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 p-4 space-y-2 transition-colors">
       <div className="flex items-center justify-between gap-2">
         <p className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-          {vehicle?.unitNumber ?? '—'} · {plate}
+          {formatUnitNumber(vehicle?.unitNumber) || '—'} · {plate}
         </p>
         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">📡 Geotab</span>
       </div>

@@ -14,6 +14,7 @@ import { isTeslaMake, toEvStatus } from '../../lib/ev-detection';
 import { isAssetLentOut, lentOutBy } from '../../lib/evAssetLoans';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 const BOTH_MISSING_DESCRIPTION =
   'Both EV assets missing — Mobile Charge Cable and J1772 Adapter not present. ' +
@@ -141,7 +142,7 @@ export function EVAssetsTab() {
         </button>
 
         <div className="bg-gray-50 dark:bg-gray-950 rounded-lg px-4 py-3">
-          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{selected.unitNumber ?? selected.licensePlate} ⚡</p>
+          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{formatUnitNumber(selected.unitNumber) || selected.licensePlate} ⚡</p>
           <p className="text-xs text-gray-500 dark:text-gray-400"><VehicleName vehicle={selected} /> · {selected.licensePlate}</p>
         </div>
 
@@ -268,7 +269,7 @@ export function EVAssetsTab() {
                 : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}>
             <div className="flex items-start justify-between gap-2">
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{v.unitNumber ?? v.licensePlate} ⚡</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{formatUnitNumber(v.unitNumber) || v.licensePlate} ⚡</p>
               {missing && <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">needs assets</span>}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400"><VehicleName vehicle={v} /> · {v.licensePlate}</p>

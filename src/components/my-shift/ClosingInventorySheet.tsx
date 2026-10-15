@@ -4,6 +4,7 @@
 // Overnight` are blank on both of Aaron's PM sheets because they belong to the morning pass;
 // rendering them would be theatre.
 import { groupEntries, rowLabel, sheetNote, STATUS_LABELS, type InventoryEntry, type RowTally } from '../../lib/closingInventory';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo }: {
   entries: readonly InventoryEntry[];
@@ -91,7 +92,7 @@ export function ClosingInventorySheet({ entries, tally, onRemove, onEdit, onUndo
                 className={`border-b border-gray-100 dark:border-gray-800 last:border-0${
                   i === newest ? ' bg-gray-50 dark:bg-gray-800/40' : ''}`}>
                 <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{e.owningArea ?? '—'}</td>
-                <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{e.unitNumber ?? '—'}</td>
+                <td className="py-1 pr-2 text-gray-500 dark:text-gray-400">{formatUnitNumber(e.unitNumber) || '—'}</td>
                 <td className="py-1 pr-2 font-semibold text-gray-900 dark:text-gray-100">
                   {e.plate}{i === newest && <span className="sr-only"> — most recently scanned</span>}
                 </td>

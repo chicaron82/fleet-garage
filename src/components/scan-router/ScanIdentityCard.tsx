@@ -28,6 +28,7 @@ import { cycleLabel, type ConsolidatedDamage } from '../../lib/consolidateDamage
 import { matchedByUnitLabel, matchedByClippedTagLabel, isPlateMismatch } from '../../lib/matchByUnitNumber';
 import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   scanRead: KeytagRead | null;
@@ -91,7 +92,7 @@ export function ScanIdentityCard({
                 on a card he uses to identify the car in his hand.
             An UNresolved read still shows what was read, because that's all there is. */}
       <ScanIdentityHeader
-        plateLine={`${vehicle?.licensePlate || result.plate || ''}${vehicle?.unitNumber ? ` · Unit ${vehicle.unitNumber}` : ''}`}
+        plateLine={`${vehicle?.licensePlate || result.plate || ''}${vehicle?.unitNumber ? ` · Unit ${formatUnitNumber(vehicle.unitNumber)}` : ''}`}
         vehicle={vehicle}
         liveHolds={liveHolds}
         onOpen={onOpenVehicle}
@@ -163,7 +164,7 @@ export function ScanIdentityCard({
            worse than not resolving. (Three such pairs exist in the fleet today.) */
         <div className="text-xs text-amber-700 dark:text-amber-400 space-y-1">
           <p className="font-semibold">
-            ⚠️ {result.unitCandidates.length} cars carry unit #{result.unitCandidates[0].unitNumber} — and the plate wasn’t readable.
+            ⚠️ {result.unitCandidates.length} cars carry unit #{formatUnitNumber(result.unitCandidates[0].unitNumber)} — and the plate wasn’t readable.
           </p>
           {result.unitCandidates.map(v => (
             <button

@@ -21,7 +21,7 @@ describe('planOverflowScan', () => {
     expect(r?.register).toEqual({ unitNumber: '5424315', plate: 'LUR315', make: 'Toyota', model: 'Corolla', year: 2026, color: 'White' });
     expect(r?.backfill).toBeNull();
     expect(r?.unregistered).toBe(false);
-    expect(r?.send).toEqual({ plate: 'LUR315', unit: '5424315', label: 'Unit 5424315' });
+    expect(r?.send).toEqual({ plate: 'LUR315', unit: '5424315', label: 'Unit 542 4315' });
   });
 
   it('new but too partial to register → send as an ORPHAN (unregistered), still logged', () => {
@@ -29,7 +29,7 @@ describe('planOverflowScan', () => {
     const r = planOverflowScan(read, FLEET);
     expect(r?.register).toBeNull();
     expect(r?.unregistered).toBe(true);
-    expect(r?.send).toEqual({ plate: 'LUR777', unit: '5424777', label: 'Unit 5424777' });
+    expect(r?.send).toEqual({ plate: 'LUR777', unit: '5424777', label: 'Unit 542 4777' });
   });
 
   it('on-record + complete → just send, no fleet write', () => {
@@ -38,7 +38,7 @@ describe('planOverflowScan', () => {
     expect(r?.register).toBeNull();
     expect(r?.backfill).toBeNull();
     expect(r?.unregistered).toBe(false);
-    expect(r?.send).toEqual({ plate: 'LUR554', unit: '5423827', label: 'Unit 5423827' });
+    expect(r?.send).toEqual({ plate: 'LUR554', unit: '5423827', label: 'Unit 542 3827' });
   });
 
   it('on-record + partial (blank colour) → backfill, then send', () => {
@@ -47,7 +47,7 @@ describe('planOverflowScan', () => {
     const r = planOverflowScan(read, partialFleet);
     expect(r?.backfill).toEqual({ vehicleId: 'v-2', applies: [{ field: 'color', value: 'Silver' }] });
     expect(r?.register).toBeNull();
-    expect(r?.send).toEqual({ plate: 'LUR200', unit: '5424200', label: 'Unit 5424200' });
+    expect(r?.send).toEqual({ plate: 'LUR200', unit: '5424200', label: 'Unit 542 4200' });
   });
 
   it('unreadable tag (no plate) → null (nothing to log)', () => {
@@ -72,7 +72,7 @@ describe('planOverflowScan — the unit falls back to the tag', () => {
     const read: KeytagRead = { plate: 'LJF710', unitNumber: '5427800', make: 'Kia', model: 'Seltos', year: 2026 };
     const r = planOverflowScan(read, hollow);
     expect(r?.send.unit).toBe('5427800');
-    expect(r?.send.label).toBe('Unit 5427800');
+    expect(r?.send.label).toBe('Unit 542 7800');
   });
 
   it('⭐ the RECORD still wins when it has a unit — a disagreement is the backfill\'s to report', () => {

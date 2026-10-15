@@ -28,6 +28,7 @@ import { HoldsPagination } from './HoldsPagination';
 import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
 import { EVAssetsTab } from '../holds/EVAssetsTab';
 import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 interface Props {
   /** `cohort` is the list AS DISPLAYED — his filter, his sort — so the record can offer prev/next
    *  through the same worklist instead of sending him back here to find the next car. */
@@ -89,7 +90,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
     setCurrentPage(1);
     const vehicle = getVehicleByUnit(unit);
     if (vehicle) {
-      showToast(`✨ ${vehicle.unitNumber} — ${vehicleNameText(vehicle)}`, 'success');
+      showToast(`✨ ${formatUnitNumber(vehicle.unitNumber)} — ${vehicleNameText(vehicle)}`, 'success');
       onSelectVehicle(vehicle.id);
     } else {
       showToast(`Unit ${unit} not in system`, 'error');
@@ -110,7 +111,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
       // A thin record (a geotab placeholder: no unit#, year 0, blank make/model) must degrade to
       // the plate rather than render "✨ null — 0". The scan's backfill fills it a beat later.
       const identity = [vehicle.year || null, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-      showToast(`✨ ${vehicle.unitNumber ?? plate.toUpperCase()}${identity ? ` — ${identity}` : ''}`, 'success');
+      showToast(`✨ ${formatUnitNumber(vehicle.unitNumber) || plate.toUpperCase()}${identity ? ` — ${identity}` : ''}`, 'success');
       onSelectVehicle(vehicle.id);
     } else {
       showToast(`${plate} not in system`, 'error');

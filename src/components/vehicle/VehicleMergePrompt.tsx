@@ -1,4 +1,5 @@
 import type { VehicleRegistryEntry } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -14,10 +15,10 @@ interface Props {
 
 export function VehicleMergePrompt({ plate, unitNumber, existing, onMerge, onCreateNew }: Props) {
   const knownId     = existing.plate      ? `plate ${existing.plate}`
-                    : existing.unitNumber ? `unit ${existing.unitNumber}`
+                    : existing.unitNumber ? `unit ${formatUnitNumber(existing.unitNumber)}`
                     : 'an earlier record';
   const incomingId  = plate       ? `plate ${plate}`
-                    : unitNumber  ? `unit ${unitNumber}`
+                    : unitNumber  ? `unit ${formatUnitNumber(unitNumber)}`
                     : 'a new identifier';
   const arrivedText = existing.arrivedAt ? `Checked in at ${fmtTime(existing.arrivedAt)}` : 'Logged earlier today';
 

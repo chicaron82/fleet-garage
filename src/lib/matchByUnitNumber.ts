@@ -19,6 +19,7 @@
 // single match identifies; anything else must be handed back to the operator to choose.
 import { isLeadingTruncation } from './clippedRead';
 import type { Vehicle } from '../types';
+import { formatUnitNumber } from './formatUnitNumber';
 
 /** Digits only — the tag prints the unit spaced ("542 4940") and FG stores it unspaced. */
 export function normalizeUnit(raw: string | null | undefined): string {
@@ -105,7 +106,7 @@ export function matchedByClippedTagLabel(
   vehicle: { licensePlate?: string | null; unitNumber?: string | null } | null,
 ): string {
   if (!matchedByClippedTag || !vehicle) return '';
-  const id = [vehicle.licensePlate, vehicle.unitNumber && `#${vehicle.unitNumber}`].filter(Boolean).join(' · ');
+  const id = [vehicle.licensePlate, vehicle.unitNumber && `#${formatUnitNumber(vehicle.unitNumber)}`].filter(Boolean).join(' · ');
   return `Matched ${id} — this tag is missing the first character of every line, so FG restored it. Don't trust the rest of the tag; the record is the better source.`;
 }
 

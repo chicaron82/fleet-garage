@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Vehicle } from '../../types';
 import { hapticLight } from '../../lib/haptics';
 import { VehicleName } from '../shared/VehicleName';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   archivedVehicles: Vehicle[];
@@ -67,7 +68,7 @@ export function ArchivedVehiclesSection({ archivedVehicles, onRestore, onOpen, s
             >
               <div>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  {v.unitNumber}
+                  {formatUnitNumber(v.unitNumber)}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   <VehicleName vehicle={v} /> · {v.licensePlate}

@@ -1,6 +1,7 @@
 import type { Hold, Vehicle } from '../types';
 import { vehicleLabel } from './vehicleName';
 import { holdTypeLabel } from './holdTypeLabels';
+import { formatUnitNumber } from './formatUnitNumber';
 
 const HOLD_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   ACTIVE:   { bg: '#fee2e2', color: '#dc2626' },
@@ -114,7 +115,7 @@ export function buildHoldReport({ vehicle, holds, getName, getEmpId }: HoldRepor
   const historicHolds = holds.filter(h => h.status !== 'ACTIVE');
   const vs = VEHICLE_STATUS_STYLES[vehicle.status] ?? { bg: '#f3f4f6', color: '#6b7280', label: vehicle.status };
   const generatedAt = fmtTs(new Date().toISOString());
-  const title = `Hold Report — Unit ${vehicle.unitNumber ?? 'Unknown'}`;
+  const title = `Hold Report — Unit ${formatUnitNumber(vehicle.unitNumber) || 'Unknown'}`;
 
   const activeSection = activeHolds.length > 0 ? `
     <div style="margin-bottom:28px;">
@@ -147,7 +148,7 @@ export function buildHoldReport({ vehicle, holds, getName, getEmpId }: HoldRepor
     <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
       <div>
         <div style="font-size:24px;font-weight:800;color:#111827;margin-bottom:4px;">
-          Unit ${escapeHtml(vehicle.unitNumber ?? '—')}
+          Unit ${escapeHtml(formatUnitNumber(vehicle.unitNumber) || '—')}
         </div>
         <div style="font-size:14px;color:#6b7280;margin-bottom:2px;">
           ${escapeHtml(vehicleLabel(vehicle))} · ${escapeHtml(vehicle.color)}

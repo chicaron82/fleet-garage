@@ -19,6 +19,7 @@ import { useFleetTrend } from '../../hooks/useFleetTrend';
 import { anyDelta, cohortDeltas, describeBaseline, registeredOn, toLocalDate } from '../../lib/fleetTrend';
 import type { Screen } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   onNavigate: (screen: Screen) => void;
@@ -335,7 +336,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                           </span>
                           <span className="text-base font-semibold text-gray-900 dark:text-gray-100 shrink-0">{v.licensePlate}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">·</span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{v.unitNumber}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{formatUnitNumber(v.unitNumber)}</span>
                           {v.rentalClass && (
                             <span className="rounded bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 shrink-0">
                               {v.rentalClass}

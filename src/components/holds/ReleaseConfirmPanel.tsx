@@ -1,6 +1,7 @@
 import type { ReleaseType, Vehicle, Hold } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
 import { releaseTypeTheme } from './releaseTheme';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   releaseType: ReleaseType;
@@ -37,7 +38,7 @@ export function ReleaseConfirmPanel({
           <div>
             <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Vehicle</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {vehicle.unitNumber} · {vehicle.licensePlate}
+              {formatUnitNumber(vehicle.unitNumber)} · {vehicle.licensePlate}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               <VehicleName vehicle={vehicle} /> · {vehicle.color}

@@ -5,6 +5,7 @@ import type { LostFoundItem, LostFoundLocation } from '../../types';
 import { fmtRelativeDate, daysHeld, ageTier } from '../../lib/lostFoundDate';
 import { ShareAction } from '../shared';
 import { LostFoundEditSheet } from './LostFoundEditSheet';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface CardProps {
   item: LostFoundItem;
@@ -38,7 +39,7 @@ export function LostFoundCard({
   onEditSave,
 }: CardProps) {
   const vehicleLabel = item.unitNumber
-    ? `Unit ${item.unitNumber}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
+    ? `Unit ${formatUnitNumber(item.unitNumber)}${item.licensePlate ? ` · ${item.licensePlate}` : ''}`
     : item.licensePlate ?? null;
 
   const held = daysHeld(item.foundAt);

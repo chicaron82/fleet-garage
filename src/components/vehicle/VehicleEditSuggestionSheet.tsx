@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { Vehicle } from '../../types';
 import { UnitNumberInput, PlateInput } from '../shared/VehicleFields';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   vehicle: Vehicle;
@@ -97,7 +98,7 @@ export function VehicleEditSuggestionSheet({ vehicle, onClose }: Props) {
           <div className="rounded-xl bg-gray-50 dark:bg-gray-800 px-4 py-2.5 flex items-center justify-between">
             <span className="text-xs text-gray-400 dark:text-gray-500">Current</span>
             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {vehicle.unitNumber ?? <span className="text-gray-400 italic">Unit # pending</span>}
+              {vehicle.unitNumber ? formatUnitNumber(vehicle.unitNumber) : <span className="text-gray-400 italic">Unit # pending</span>}
             </span>
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer select-none">

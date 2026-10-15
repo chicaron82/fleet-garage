@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { BranchId } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface TeslaVehicle {
   id: string;
@@ -131,7 +132,7 @@ export function EVAssetStatusSection({ activeBranch }: Props) {
                 </span>
                 <span className="text-xs text-gray-400 dark:text-gray-600">·</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  {vehicle.unitNumber}
+                  {formatUnitNumber(vehicle.unitNumber)}
                 </span>
               </div>
 

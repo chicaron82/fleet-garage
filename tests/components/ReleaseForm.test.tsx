@@ -115,7 +115,7 @@ describe('ReleaseForm — exception path', () => {
     await selectReasonAndAdvance(user);
 
     expect(await screen.findByText(/Confirm Release/i)).toBeInTheDocument();
-    expect(screen.getByText('1234567 · HLD111')).toBeInTheDocument();
+    expect(screen.getByText('123 4567 · HLD111')).toBeInTheDocument();
     expect(screen.getByText(/Front bumper scratched/i)).toBeInTheDocument();
   });
 

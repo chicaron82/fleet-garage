@@ -15,6 +15,7 @@ import { zoneBackfillQueue, zonesSetAside, toggleZone, zoneLabel, orderZones, pr
 import { zonesFromNote } from '../../lib/zoneFromNote';
 import { DamageZoneMap } from './DamageZoneMap';
 import type { Hold } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 /** A hold plus the unit number the mock-row guard needs. */
 type QueueItem = Hold & { unitNumber: string | null };
@@ -150,7 +151,7 @@ export function DamageZoneBackfillView({ onBack }: { onBack: () => void }) {
       <section className={`${CARD} px-4 py-4 space-y-3`}>
         <div>
           <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {vehicle?.unitNumber ?? 'Unknown unit'}
+            {formatUnitNumber(vehicle?.unitNumber) || 'Unknown unit'}
             {vehicle && <span className="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">{vehicle.licensePlate}</span>}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-300">{hold.damageDescription}</p>

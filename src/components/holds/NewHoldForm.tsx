@@ -12,6 +12,7 @@ import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { canRelease } from '../../types';
 import { NewHoldDetailsSection } from './NewHoldDetailsSection';
 import { PhotoError } from '../shared/PhotoError';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 
 interface Props {
@@ -139,7 +140,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">{h.selectedVehicle.unitNumber}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{formatUnitNumber(h.selectedVehicle.unitNumber)}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                       <VehicleName vehicle={h.selectedVehicle} /> · {h.selectedVehicle.color}
                     </p>
@@ -209,7 +210,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                         onClick={() => selectVehicleAndLink(v.id)}
                         className="w-full text-left px-3.5 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-fg-yellow hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition text-sm cursor-pointer"
                       >
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{v.unitNumber}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{formatUnitNumber(v.unitNumber)}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>
                         <span className="text-gray-500 dark:text-gray-400">{v.licensePlate}</span>
                         <span className="text-gray-400 dark:text-gray-500 mx-2">·</span>

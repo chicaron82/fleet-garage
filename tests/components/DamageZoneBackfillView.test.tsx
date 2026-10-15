@@ -40,7 +40,7 @@ describe('DamageZoneBackfillView', () => {
   it('shows the car, the note and the position in the queue', () => {
     HOLDS = [hold({ id: 'h1', notes: 'Rear lift gate ' })];
     render(<DamageZoneBackfillView onBack={vi.fn()} />);
-    expect(screen.getByText('5421011')).toBeInTheDocument();
+    expect(screen.getByText('542 1011')).toBeInTheDocument();
     expect(screen.getByText('LFJ396')).toBeInTheDocument();
     expect(screen.getByText('"Rear lift gate"')).toBeInTheDocument();
     expect(screen.getByText('1 of 1 · 0 tagged')).toBeInTheDocument();

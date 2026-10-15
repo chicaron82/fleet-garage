@@ -117,11 +117,11 @@ describe('describeKnownPlate', () => {
 
   it('joins unit and vehicle when both are known', () => {
     expect(describeKnownPlate({ ...base, unitNumber: '1234567', year: 2023, make: 'Toyota', model: 'Camry' }))
-      .toBe('Unit 1234567 · 2023 Toyota Camry');
+      .toBe('Unit 123 4567 · 2023 Toyota Camry');
   });
 
   it('shows just the unit when the vehicle details are unknown', () => {
-    expect(describeKnownPlate({ ...base, unitNumber: '1234567' })).toBe('Unit 1234567');
+    expect(describeKnownPlate({ ...base, unitNumber: '1234567' })).toBe('Unit 123 4567');
   });
 
   it('shows just the vehicle when the unit is unknown', () => {

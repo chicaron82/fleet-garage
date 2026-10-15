@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { carsHiddenFromHolds } from '../../lib/hiddenHolds';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 /**
  * The tripwire for a hold the Holds list cannot show: a car with an active hold whose status still
@@ -32,7 +33,7 @@ export function HiddenHoldsAlert({ onSelectVehicle }: { onSelectVehicle: (vehicl
         {hidden.map(v => (
           <li key={v.id} className="flex items-center gap-2">
             <button onClick={() => onSelectVehicle(v.id)} className="underline font-mono cursor-pointer">
-              {v.licensePlate || v.unitNumber}
+              {v.licensePlate || formatUnitNumber(v.unitNumber)}
             </button>
             <button
               onClick={() => fix(v.id)}

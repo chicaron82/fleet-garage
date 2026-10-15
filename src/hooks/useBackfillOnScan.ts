@@ -19,6 +19,7 @@ import { resolveKeytagScan, backfillFieldsOnScan, keytagConflictsOnScan, conflic
 import { firstPhotoNote, isBlankField } from '../lib/keytagAuditQueue';
 import type { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import type { KeytagRead } from '../../api/_lib/keytagRead';
+import { formatUnitNumber } from '../lib/formatUnitNumber';
 
 export function useBackfillOnScan(deps: {
   vehicles: ReturnType<typeof useVehicleHoldContext>['vehicles'];
@@ -86,7 +87,7 @@ export function useBackfillOnScan(deps: {
       // were created by this write and surfaced days later on a board instead.
       if (res?.unitConflict) {
         const other = res.unitConflict;
-        setConflictToast(`⚠️ Unit ${bf.applies.find(f => f.field === 'unitNumber')?.value} is already on `
+        setConflictToast(`⚠️ Unit ${formatUnitNumber(String(bf.applies.find(f => f.field === 'unitNumber')?.value ?? ''))} is already on `
           + `${other.licensePlate} — not applied. Same car, or has the number moved?`);
       }
       // Show the work — never write silently. A fill is new info; a change OVERRODE a stale value

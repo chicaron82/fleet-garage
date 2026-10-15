@@ -5,6 +5,7 @@ import { useMyTrail } from '../../hooks/useMyTrail';
 import { startOfShiftDayISO } from '../../lib/shiftDay';
 import { buildTrail, trailHeadline, stopName } from '../../lib/myTrail';
 import { clockOf } from '../../lib/vehicleChanges';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 // Where he has been today — the one surface in FG that speaks about HIM.
 //
@@ -93,7 +94,7 @@ export function MyTrailCard() {
           <li key={stop.vehicleId} className="contents">
             {stop.plate || stop.unitNumber ? (<>
               <span className="font-medium tabular-nums text-gray-800 dark:text-gray-200">{stop.plate ?? '—'}</span>
-              <span className="tabular-nums text-gray-500 dark:text-gray-400">{stop.unitNumber ?? '—'}</span>
+              <span className="tabular-nums text-gray-500 dark:text-gray-400">{formatUnitNumber(stop.unitNumber) || '—'}</span>
             </>) : (
               /* Neither key on record — `stopName` says so in words, across both tracks. */
               <span className="col-span-2 text-gray-500 dark:text-gray-400">{stopName(stop)}</span>

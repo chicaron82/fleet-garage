@@ -47,7 +47,7 @@ describe('ArchivedVehiclesSection — looking is not restoring', () => {
   it('shows the car and when it was archived', () => {
     show(() => {});
     fireEvent.click(screen.getByText('Archived · 1'));
-    expect(screen.getByText('5768866')).toBeTruthy();
+    expect(screen.getByText('576 8866')).toBeTruthy();
     expect(screen.getByText(/0GY993/)).toBeTruthy();
     expect(screen.getByText(/Archived Sep 1[56], 2026/)).toBeTruthy();
   });

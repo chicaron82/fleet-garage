@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useKeytagAudit } from '../../hooks/useKeytagAudit';
 import { KeytagAuditCard } from '../vehicle/KeytagAuditCard';
 import { KeytagRereadRow } from './KeytagRereadRow';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 export function KeytagAuditSection({ onOpenVehicle }: {
   /** So the unit-conflict notice can OPEN the other car it names — see the notice below. */
@@ -86,11 +87,11 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                   {onOpenVehicle ? (
                     <button type="button" onClick={() => onOpenVehicle(v.id)}
                       className="font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 cursor-pointer">
-                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                      {[v.licensePlate, formatUnitNumber(v.unitNumber)].filter(Boolean).join(' · ')}
                     </button>
                   ) : (
                     <span className="font-semibold text-amber-800 dark:text-amber-300">
-                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                      {[v.licensePlate, formatUnitNumber(v.unitNumber)].filter(Boolean).join(' · ')}
                     </span>
                   )}
                   {/* ⭐ One errand, two expectations — say which he'll find at the car. */}
@@ -117,11 +118,11 @@ export function KeytagAuditSection({ onOpenVehicle }: {
                   {onOpenVehicle ? (
                     <button type="button" onClick={() => onOpenVehicle(v.id)}
                       className="font-semibold text-gray-700 dark:text-gray-300 underline underline-offset-2 cursor-pointer">
-                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                      {[v.licensePlate, formatUnitNumber(v.unitNumber)].filter(Boolean).join(' · ')}
                     </button>
                   ) : (
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      {[v.licensePlate, v.unitNumber].filter(Boolean).join(' · ')}
+                      {[v.licensePlate, formatUnitNumber(v.unitNumber)].filter(Boolean).join(' · ')}
                     </span>
                   )}
                   <span className="text-gray-500 dark:text-gray-400">

@@ -157,7 +157,7 @@ describe('NewHoldForm — vehicle selection', () => {
     render(<NewHoldForm {...BASE_PROPS} vehicleId="v-1" />);
 
     expect(screen.queryByPlaceholderText(/search by unit/i)).not.toBeInTheDocument();
-    expect(screen.getByText('5500001')).toBeInTheDocument();
+    expect(screen.getByText('550 0001')).toBeInTheDocument();
     expect(screen.getByText(/Plate: AAA111/i)).toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe('NewHoldForm — vehicle selection', () => {
     render(<NewHoldForm {...BASE_PROPS} />);
 
     await user.type(screen.getByPlaceholderText(/search by unit/i), '5500');
-    expect(await screen.findByText('5500001')).toBeInTheDocument();
+    expect(await screen.findByText('550 0001')).toBeInTheDocument();
   });
 
   it('shows "not in the system" and flag CTA for unmatched search ≥2 chars', async () => {

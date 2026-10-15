@@ -3,6 +3,7 @@ import { hapticLight } from '../../lib/haptics';
 import { StatusBadge } from '../holds/StatusBadge';
 import { holdContextEmojis, unresolvedHoldTypes } from '../../lib/holdBadge';
 import { VehicleName } from '../shared/VehicleName';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   vehicle: Vehicle;
@@ -45,7 +46,7 @@ export function HoldsVehicleRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-semibold text-gray-900 dark:text-gray-100 text-base group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{vehicle.unitNumber}</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100 text-base group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{formatUnitNumber(vehicle.unitNumber)}</span>
               <span className="text-gray-400 dark:text-gray-600 text-xs transition-colors">·</span>
               <span className="text-gray-700 dark:text-gray-300 text-xs font-semibold transition-colors">{vehicle.licensePlate}</span>
               {emojis.length > 0 && (

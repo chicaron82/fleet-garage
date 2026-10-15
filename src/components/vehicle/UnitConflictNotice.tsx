@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Vehicle } from '../../types';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 function describeVehicle(v: Vehicle): string {
   const yr = v.year ? `${v.year} ` : '';
@@ -23,7 +24,7 @@ interface Props {
  */
 export function UnitConflictNotice({ conflict, armed, onArm, onDisarm }: Props) {
   const [confirming, setConfirming] = useState(false);
-  const unit = conflict.unitNumber ?? '';
+  const unit = formatUnitNumber(conflict.unitNumber);
 
   if (armed) {
     return (

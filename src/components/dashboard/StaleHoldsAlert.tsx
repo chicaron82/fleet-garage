@@ -1,6 +1,7 @@
 import type { UserRole, Hold, Vehicle } from '../../types';
 import { canRelease } from '../../types';
 import { hapticLight } from '../../lib/haptics';
+import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface StaleHoldsAlertProps {
   role: UserRole;
@@ -52,7 +53,7 @@ export function StaleHoldsAlert({
             }}
             className="bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-md text-xs font-semibold hover:bg-amber-200 dark:hover:bg-amber-700/60 cursor-pointer transition-colors"
           >
-            {unitNumber}
+            {formatUnitNumber(unitNumber)}
           </button>
         ))}
       </div>

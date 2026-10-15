@@ -28,7 +28,7 @@ describe('StaleHoldsAlert', () => {
   it('⭐ renders ONE chip for a vehicle carrying two stale holds', () => {
     // The real case: LUR306 sat on a damage hold and a hail hold simultaneously.
     renderAlert([hold('h1', VEHICLE_ID, 'damage'), hold('h2', VEHICLE_ID, 'hail')]);
-    expect(screen.getAllByRole('button', { name: '5426952' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: '542 6952' })).toHaveLength(1);
   });
 
   it('still counts HOLDS in the heading, not vehicles — the count is the true number', () => {
@@ -43,7 +43,7 @@ describe('StaleHoldsAlert', () => {
 
   it('a chip still navigates to its vehicle', async () => {
     const { onSelectVehicle } = renderAlert([hold('h1', VEHICLE_ID, 'damage')]);
-    screen.getByRole('button', { name: '5426952' }).click();
+    screen.getByRole('button', { name: '542 6952' }).click();
     expect(onSelectVehicle).toHaveBeenCalledWith(VEHICLE_ID);
   });
 

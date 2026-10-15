@@ -70,7 +70,7 @@ describe('ScanIdentityCard — keys read above the damage map', () => {
   it('tapping the identity block calls the opener the overlay handed in', async () => {
     const user = userEvent.setup();
     const onOpen = renderCard();
-    await user.click(screen.getByRole('button', { name: /LZM532 · Unit 5423132/ }));
+    await user.click(screen.getByRole('button', { name: /LZM532 · Unit 542 3132/ }));
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });
