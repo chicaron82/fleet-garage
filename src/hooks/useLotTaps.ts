@@ -2,7 +2,7 @@
 // sent through api/lot.ts (the only writer — migration 151). Shows the tap at once, then puts it back and says
 // so if the save fails: a board that silently disagrees with the lot is worse than no board.
 import { useCallback, useRef, useState } from 'react';
-import { isUndoTap, type LastTap, type LotState } from '../lib/lotLookout';
+import { resolveTap, type LastTap, type LotState } from '../lib/lotLookout';
 import type { LotBoard } from './useLotBoard';
 
 const PIN_KEY = 'lot_pin';
@@ -47,20 +47,22 @@ export function useLotTaps(board: LotBoard, toast: (msg: string) => void) {
     toast(r.error ?? 'The tap did not save.');
   }, [forgetPin, toast]);
 
-  const tapStall = useCallback(async (stall: string, state: LotState) => {
+  const tapStall = useCallback(async (stall: string, tapped: LotState) => {
     const s = board.stalls.find(x => x.stall === stall);
     if (!s) return;
     const now = Date.now();
     const who = by || 'Lot';
-    if (isUndoTap(lastTap.current, stall, state, now)) {
+    const action = resolveTap(lastTap.current, stall, tapped, s.state, now);
+    if (action.kind === 'undo') {
       const { prev } = lastTap.current!;
       lastTap.current = null;
       board.patchStall(stall, prev);
       const r = await post({ pin, action: 'undo', stall, prev: { state: prev.state, by: prev.tappedBy, at: prev.tappedAt }, by: who });
-      if (!r.ok) { board.patchStall(stall, { state, tappedBy: who, tappedAt: new Date(now).toISOString() }); fail(r); return; }
+      if (!r.ok) { board.patchStall(stall, { state: tapped, tappedBy: who, tappedAt: new Date(now).toISOString() }); fail(r); return; }
       toast(`Undone · ${stall} back to ${prev.state ?? 'not looked at'}`);
       return;
     }
+    const { state } = action;
     const prev = { state: s.state, tappedBy: s.tappedBy, tappedAt: s.tappedAt };
     lastTap.current = { stall, state, atMs: now, prev };
     board.patchStall(stall, { state, tappedBy: who, tappedAt: new Date(now).toISOString() });
@@ -69,7 +71,8 @@ export function useLotTaps(board: LotBoard, toast: (msg: string) => void) {
     const misparked = state === 'dirty' && s.run !== 'N';
     toast(prev.state === state ? `${stall} still ${state} · looked at now`
       : misparked ? `${stall} dirty · return in a clean stall`
-      : state === 'taken' ? `${stall} taken · hold again to undo` : `${stall} marked ${state} · tap again to undo`);
+      : state === 'taken' ? `${stall} taken · hold again to free it`
+      : prev.state === 'taken' ? `${stall} open again` : `${stall} marked ${state} · tap again to undo`);
   }, [board, by, pin, fail, toast]);
 
   const tapAisle = useCallback(async (delta: 1 | -1) => {

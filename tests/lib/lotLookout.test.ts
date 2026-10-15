@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  allStallIds, isStale, isMisparked, lotTotals, stallFromRow, isUndoTap, initialsOf, agoLabel,
+  allStallIds, isStale, isMisparked, lotTotals, stallFromRow, isUndoTap, resolveTap, initialsOf, agoLabel,
   CLEANS_LOW, N_PULSE_AT, UNDO_MS, type LotStall,
 } from '../../src/lib/lotLookout';
 
@@ -48,6 +48,22 @@ describe('taken', () => {
     expect(stallFromRow({ stall: 'P4', run: 'P', num: 4, state: 'taken', tapped_by: 'AS', tapped_at: minsAgo(1) }).state).toBe('taken');
     const last = { stall: 'P4', state: 'taken' as const, atMs: NOW, prev: { state: 'open' as const, tappedBy: null, tappedAt: null } };
     expect(isUndoTap(last, 'P4', 'taken', NOW + 1000)).toBe(true);
+  });
+});
+
+describe('resolveTap', () => {
+  const held = { stall: 'P1', state: 'taken' as const, atMs: NOW, prev: { state: 'clean' as const, tappedBy: 'K', tappedAt: minsAgo(30) } };
+  it('⚠️ a hold on a taken stall FREES it, any time after the undo window (his catch on his phone, 10-15)', () => {
+    expect(resolveTap(held, 'P1', 'taken', 'taken', NOW + UNDO_MS)).toEqual({ kind: 'set', state: 'open' });
+    expect(resolveTap(null, 'P1', 'taken', 'taken', NOW)).toEqual({ kind: 'set', state: 'open' });
+  });
+  it('inside the window a second hold is still the undo — a mis-hold on a clean stall goes back to CLEAN, not open', () => {
+    expect(resolveTap(held, 'P1', 'taken', 'taken', NOW + 1000)).toEqual({ kind: 'undo' });
+  });
+  it('a hold on any other stall takes it; a colour is just the colour', () => {
+    expect(resolveTap(null, 'P2', 'taken', 'clean', NOW)).toEqual({ kind: 'set', state: 'taken' });
+    expect(resolveTap(null, 'P2', 'dirty', 'taken', NOW)).toEqual({ kind: 'set', state: 'dirty' });
+    expect(resolveTap(null, 'P2', 'clean', 'clean', NOW)).toEqual({ kind: 'set', state: 'clean' });
   });
 });
 

@@ -175,3 +175,15 @@ export interface LastTap {
 export function isUndoTap(last: LastTap | null, stall: string, state: LotState, nowMs: number): boolean {
   return !!last && last.stall === stall && last.state === state && nowMs - last.atMs < UNDO_MS;
 }
+
+export type TapAction = { kind: 'undo' } | { kind: 'set'; state: LotState };
+
+/** What a tap or hold does. Inside the undo window, the same tap undoes. Otherwise a HOLD on a stall that is
+ *  already taken FREES it to open: a hold toggles taken on and off. (Aaron, 2026-10-15, testing on his phone: he
+ *  held P1 to clear it and the board said "still taken"; *"I was tap and holding to undo it at first. Then tapped
+ *  'open'"*. Taken never fades, so a "still taken, looked at now" refresh meant nothing.) */
+export function resolveTap(last: LastTap | null, stall: string, state: LotState, current: LotState | null, nowMs: number): TapAction {
+  if (isUndoTap(last, stall, state, nowMs)) return { kind: 'undo' };
+  if (state === 'taken' && current === 'taken') return { kind: 'set', state: 'open' };
+  return { kind: 'set', state };
+}

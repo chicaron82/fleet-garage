@@ -67,8 +67,8 @@ export function LotPage() {
             )}
             <p className="mt-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
               Tap a colour on a stall: white open, green clean, red dirty. Tap the same colour again within 5 seconds to
-              undo. Hold a stall to grey it out as taken, when a customer's or a staff car is parked in it; hold again
-              within 5 seconds to undo, or tap a colour once it is free. Tapping the colour a stall already shows tells
+              undo. Hold a stall to grey it out as taken, when a customer's or a staff car is parked in it; hold it
+              again to free it. Tapping the colour a stall already shows tells
               everyone you looked and it is still true. Every tap shows on every phone.
             </p>
           </>
