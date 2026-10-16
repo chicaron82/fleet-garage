@@ -25,7 +25,7 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   useLotCrew: () => ({
     crew: { summary: { vsa: { cleaning: 2, moving: 0, out: 0 }, driver: { airport: 0, other: 0, out: 0 } }, changedAt: null,
       members: [member('u1', 'Tomek', 'vsa', 'cleaning'), member('u2', 'Khaiat', 'vsa', 'cleaning')] },
-    mark,
+    mark, leaveOff: vi.fn(async () => null),
   }),
 }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));

@@ -98,3 +98,32 @@ describe('crewOf + crewSummary', () => {
     expect(members.find(m => m.userId === 'aaron')!.state).toBe('cleaning');
   });
 });
+
+// ⭐ Aaron, 2026-10-15 21:17: *"i've logged my actual hours to extend my shift. so shouldn't i techinically be seen
+// until 17:15"*. He logged 06:45–17:15 at 15:41; the crew line only read the schedule and called him done at 15:15.
+describe('logged hours win (shifts.actual_*)', () => {
+  const now = at('16:30');
+  it('⭐ his overtime: scheduled to 15:15, logged to 17:15, still cleaning at 16:30 with no tap', () => {
+    const aaron = { ...row('aaron', 'Aaron S.', 'VSA', '06:45:00', '15:15:00'), actualStart: '06:45:00', actualEnd: '17:15:00' };
+    const [m] = crewOf([aaron], [], DAY, now);
+    expect(m).toMatchObject({ onNow: true, phase: 'on', state: 'cleaning', start: '06:45', end: '17:15' });
+  });
+  it('left early by the log: off the line at the logged end', () => {
+    const r = { ...row('moaz', 'Moaz', 'VSA', '06:45:00', '18:00:00'), actualEnd: '16:00:00' };
+    expect(crewOf([r], [], DAY, now)[0]).toMatchObject({ onNow: false, phase: 'done', end: '16:00' });
+  });
+  it('no log yet: the schedule stands', () => {
+    expect(crewOf([row('rey', 'Rey', 'Driver', '09:00:00', '15:00:00', 'mid')], [], DAY, now)[0]).toMatchObject({ phase: 'done', end: '15:00' });
+  });
+});
+
+// Aaron, 2026-10-15 21:03: *"removing Larry C from being displayed as a driver. even though he's on the driver
+// schedule, he's our in-house utility guy doing vehicle maintenence"* (migration 155).
+describe('left off the crew line', () => {
+  it('⭐ a left-off driver is not a member, so never counted to the airport', () => {
+    const now = at('09:30');
+    const kept = crewOf(roster, [], DAY, now, new Set(['larryc']));
+    expect(kept.map(m => m.userId)).not.toContain('larryc');
+    expect(crewSummary(kept).driver.airport).toBe(crewSummary(crewOf(roster, [], DAY, now)).driver.airport - 1);
+  });
+});

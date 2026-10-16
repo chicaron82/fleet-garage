@@ -37,6 +37,8 @@ export interface CrewPayload {
   summary: CrewSummary;
   changedAt: string | null;
   members?: CrewMember[];
+  /** Who is left off the crew line (migration 155): signed-in only. */
+  leftOff?: { userId: string; name: string }[];
 }
 
 /** "Cleaning 1 of 2 · 1 moving cars · 1 out". The "of" counts who is working, so an out never reads as idle. */
@@ -57,4 +59,12 @@ export function driverLine(s: CrewSummary['driver']): string {
   if (s.other) parts.push(`${s.other} on another job`);
   if (s.out) parts.push(`${s.out} out`);
   return parts.join(' · ');
+}
+
+/** The list his panel shows up top: on now, or not in yet. Finished shifts fold away (Aaron, 2026-10-15: *"i'm
+ *  thinking of removing those who's shift window has passed"*) — but never anyone still counted, so a stayed-late
+ *  mark or logged overtime keeps them in view. */
+export function splitFinished<T extends { onNow: boolean; phase: 'later' | 'on' | 'done' }>(list: readonly T[]): { current: T[]; finished: T[] } {
+  const finished = list.filter(m => m.phase === 'done' && !m.onNow);
+  return { current: list.filter(m => !finished.includes(m)), finished };
 }

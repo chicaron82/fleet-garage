@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { bayChange } from './_lib/lotBay.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
-import { loadCrew, markCrew } from './_lib/lotCrewDb.js';
+import { leaveOff, loadCrew, markCrew } from './_lib/lotCrewDb.js';
 
 interface LotHttpRequest {
   method?: string;
@@ -83,10 +83,15 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true, stall: parsed.stall, ...next });
       return;
     }
-    if (parsed.action === 'crew') {
+    if (parsed.action === 'crew' || parsed.action === 'leaveOff') {
       // People, not cars: only a signed-in FG session may change the crew. The PIN never could.
       if (!signedIn) {
         res.status(403).json({ error: 'Sign in to FG to change the crew.' });
+        return;
+      }
+      if (parsed.action === 'leaveOff') {
+        await leaveOff(db, parsed.user, parsed.off, parsed.by, now);
+        res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
         return;
       }
       const problem = await markCrew(db, parsed.users, parsed.state, parsed.by, now);

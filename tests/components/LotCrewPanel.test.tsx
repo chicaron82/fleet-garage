@@ -44,3 +44,33 @@ describe('LotCrewPanel', () => {
     expect(screen.getByText('Tomek').className).toContain('line-through');
   });
 });
+
+// Polish, 2026-10-15 21:03: *"i'm thinking of removing those who's shift window has passed. and removing Larry C from
+// being displayed as a driver"*.
+describe('LotCrewPanel — finished fold and leave off', () => {
+  const done = (userId: string, name: string): CrewMember =>
+    ({ userId, name, role: 'vsa', start: '06:45', end: '15:15', state: 'cleaning', onNow: false, phase: 'done', marked: false });
+
+  it('⭐ finished shifts fold into "N finished", and open again to tap someone back on', () => {
+    render(<LotCrewPanel members={[m('k', 'Khaiat', 'vsa', 'cleaning'), done('a', 'Aaron S.'), done('b', 'Moaz')]} mark={vi.fn(async () => null)} toast={vi.fn()} />);
+    expect(screen.queryByText('Aaron S.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '2 finished ▾' }));
+    expect(screen.getByText('Aaron S.')).toBeTruthy();
+  });
+
+  it('⭐ leave someone off, and bring someone back', async () => {
+    const leaveOff = vi.fn(async () => null);
+    render(<LotCrewPanel members={[m('d', 'Larry J', 'driver', 'airport')]} mark={vi.fn(async () => null)} toast={vi.fn()}
+      leftOff={[{ userId: 'c', name: 'Larry C' }]} leaveOff={leaveOff} />);
+    fireEvent.click(screen.getByRole('button', { name: /Leave someone off the crew line.*1 left off/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave off' }));
+    await waitFor(() => expect(leaveOff).toHaveBeenCalledWith('d', true));
+    fireEvent.click(screen.getByRole('button', { name: 'Bring back' }));
+    await waitFor(() => expect(leaveOff).toHaveBeenCalledWith('c', false));
+  });
+
+  it('no switch passed: no leave-off control', () => {
+    render(<LotCrewPanel members={[m('d', 'Larry J', 'driver', 'airport')]} mark={vi.fn(async () => null)} toast={vi.fn()} />);
+    expect(screen.queryByText(/Leave someone off/)).toBeNull();
+  });
+});

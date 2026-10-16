@@ -44,5 +44,15 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     return null;
   }, []);
 
-  return { crew, mark };
+  /** Leave someone off the crew line, or bring them back (migration 155). Remembered across days. */
+  const leaveOff = useCallback(async (user: string, off: boolean, by: string): Promise<string | null> => {
+    const token = await sessionToken();
+    if (!token) return 'Sign in to FG again.';
+    const r = await postLot({ action: 'leaveOff', user, off, by }, token);
+    if (!r.ok) return r.error ?? 'That did not save.';
+    setCrew(r.json.crew as CrewPayload);
+    return null;
+  }, []);
+
+  return { crew, mark, leaveOff };
 }

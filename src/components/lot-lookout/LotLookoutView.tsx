@@ -28,7 +28,7 @@ const SECTION_HEAD = 'text-xs font-bold uppercase tracking-wide text-gray-500 da
 export function LotLookoutView() {
   const board = useLotBoard();
   const erin = useLotBay();
-  const { crew, mark } = useLotCrew({ signedIn: true });
+  const { crew, mark, leaveOff } = useLotCrew({ signedIn: true });
   const { user } = useAuth();
   const by = initialsOf(user?.name ?? null);
   const [toastMsg, toast] = useLotToast();
@@ -53,7 +53,8 @@ export function LotLookoutView() {
         <section aria-label="Crew" className="space-y-2">
           <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />
           {crew.members && crew.members.length > 0 && (
-            <LotCrewPanel members={crew.members} mark={(u, st) => mark(u, st, by || 'FG')} toast={toast} />
+            <LotCrewPanel members={crew.members} mark={(u, st) => mark(u, st, by || 'FG')} toast={toast}
+              leftOff={crew.leftOff} leaveOff={(u, off) => leaveOff(u, off, by || 'FG')} />
           )}
         </section>
       )}

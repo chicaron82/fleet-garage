@@ -11,6 +11,10 @@
 //   • Someone counts while their shift window covers now. A mark made AFTER their window ended means they stayed
 //     (overtime, like his today), so they count until the shift-day turns over.
 //   • Day-off and PTO are not today's crew at all.
+//   • LOGGED HOURS WIN (2026-10-15 21:17, his overtime: *"i've logged my actual hours to extend my shift. so
+//     shouldn't i techinically be seen until 17:15"*). Actual start/end, where logged, replace the scheduled ones.
+//   • LEFT OFF (migration 155): someone on a crew schedule who isn't part of this line (Larry C, the in-house
+//     utility man on the driver schedule) is not a member at all, so never counted. No reason is kept.
 
 const TZ = 'America/Winnipeg';
 
@@ -59,6 +63,9 @@ export interface RosterRow {
   shiftType: string;
   start: string | null;
   end: string | null;
+  /** Logged actual hours (shifts.actual_start_time / actual_end_time). Each one, where present, wins. */
+  actualStart?: string | null;
+  actualEnd?: string | null;
   attendance: string | null;
 }
 
@@ -68,7 +75,7 @@ export interface CrewMember {
   userId: string;
   name: string;
   role: CrewRole;
-  /** "06:45"–"15:15", or null when the shift has no times. */
+  /** "06:45"–"15:15", or null when the shift has no times. Logged actual hours where there are any. */
   start: string | null;
   end: string | null;
   state: CrewState;
@@ -81,11 +88,16 @@ export interface CrewMember {
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
 
-export function crewOf(rows: readonly RosterRow[], marks: readonly CrewMark[], day: string, nowMs: number): CrewMember[] {
+export function crewOf(
+  rows: readonly RosterRow[], marks: readonly CrewMark[], day: string, nowMs: number,
+  leftOff: ReadonlySet<string> = new Set(),
+): CrewMember[] {
   const out: CrewMember[] = [];
   for (const r of rows) {
     const role = crewRoleOf(r.profileRole);
-    if (!role) continue;
+    if (!role || leftOff.has(r.userId)) continue;
+    const start = r.actualStart || r.start;
+    const end = r.actualEnd || r.end;
     const absent = r.shiftType === 'sick' || r.attendance === 'absent';
     if (!WORKING.has(r.shiftType) && !absent) continue;
     const mark = marks.find(m => m.userId === r.userId && m.day === day && stateFits(role, m.state));
@@ -93,9 +105,9 @@ export function crewOf(rows: readonly RosterRow[], marks: readonly CrewMark[], d
     let phase: CrewMember['phase'] = 'on';
     let within = false;
     let stayed = false;
-    if (r.start && r.end) {
-      const startMs = winnipegInstant(day, r.start);
-      let endMs = winnipegInstant(day, r.end);
+    if (start && end) {
+      const startMs = winnipegInstant(day, start);
+      let endMs = winnipegInstant(day, end);
       if (endMs <= startMs) endMs += 24 * 3600_000;
       within = nowMs >= startMs && nowMs < endMs;
       phase = nowMs < startMs ? 'later' : nowMs >= endMs ? 'done' : 'on';
@@ -107,7 +119,7 @@ export function crewOf(rows: readonly RosterRow[], marks: readonly CrewMark[], d
     }
     const onNow = state === 'out' ? within : within || stayed;
     if (onNow && phase === 'done') phase = 'on';
-    out.push({ userId: r.userId, name: r.name, role, start: hhmm(r.start), end: hhmm(r.end), state, onNow, phase, marked: mark != null });
+    out.push({ userId: r.userId, name: r.name, role, start: hhmm(start), end: hhmm(end), state, onNow, phase, marked: mark != null });
   }
   return out.sort((a, b) => (a.start ?? '99').localeCompare(b.start ?? '99') || a.name.localeCompare(b.name));
 }

@@ -24,7 +24,8 @@ export type LotRequest =
   | { action: 'undo'; stall: string; prev: { state: State | null; by: string | null; at: string | null }; by: string }
   | { action: 'aisle'; delta: 1 | -1; by: string }
   | BayRequest
-  | { action: 'crew'; users: string[]; state: CrewState | 'clear'; by: string };
+  | { action: 'crew'; users: string[]; state: CrewState | 'clear'; by: string }
+  | { action: 'leaveOff'; user: string; off: boolean; by: string };
 
 /** A typed dirty count at Erin St. A cap, so a fat-fingered 2300 is refused rather than shown. */
 export const DIRTIES_MAX = 300;
@@ -101,6 +102,11 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       if (!(CREW_SET as readonly unknown[]).includes(b.state)) return { error: 'Not a crew state.' };
       return { action: 'crew', users: [...new Set(users as string[])], state: b.state as CrewState | 'clear', by };
     }
+    // Left off the crew line (migration 155). Signed-in FG only, like 'crew'.
+    case 'leaveOff':
+      if (typeof b.user !== 'string' || !UUID.test(b.user)) return { error: 'Pick who this is for.' };
+      if (typeof b.off !== 'boolean') return { error: 'Leave off, or bring back?' };
+      return { action: 'leaveOff', user: b.user, off: b.off, by };
     default:
       return { error: 'Unknown action.' };
   }

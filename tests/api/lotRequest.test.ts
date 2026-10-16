@@ -110,3 +110,15 @@ describe('parseLotRequest — crew (migration 154)', () => {
     expect(parseLotRequest({ action: 'crew', users: [id(1)], state: 'sick' })).toHaveProperty('error');
   });
 });
+
+describe('parseLotRequest — leaveOff (migration 155)', () => {
+  const u = '3b2a8659-4546-4231-9085-6d92e28a1133';
+  it('a person and on/off', () => {
+    expect(parseLotRequest({ action: 'leaveOff', user: u, off: true, by: 'AS' })).toEqual({ action: 'leaveOff', user: u, off: true, by: 'AS' });
+    expect(parseLotRequest({ action: 'leaveOff', user: u, off: false })).toMatchObject({ off: false });
+  });
+  it('refuses a missing person or a missing choice', () => {
+    expect(parseLotRequest({ action: 'leaveOff', user: 'larry', off: true })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'leaveOff', user: u })).toHaveProperty('error');
+  });
+});

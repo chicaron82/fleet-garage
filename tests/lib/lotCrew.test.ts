@@ -1,6 +1,6 @@
 // The words today's crew is said in (src/lib/lotCrew.ts). Numbers only; "out" never with a reason.
 import { describe, it, expect } from 'vitest';
-import { driverLine, vsaLine } from '../../src/lib/lotCrew';
+import { driverLine, splitFinished, vsaLine } from '../../src/lib/lotCrew';
 
 describe('vsaLine', () => {
   it('his example: one cleaning, one moving cars', () => {
@@ -20,5 +20,15 @@ describe('driverLine', () => {
   });
   it('nobody on', () => {
     expect(driverLine({ airport: 0, other: 0, out: 0 })).toBe('No drivers on right now');
+  });
+});
+
+// Aaron, 2026-10-15: *"i'm thinking of removing those who's shift window has passed"* — folded, never lost.
+describe('splitFinished', () => {
+  const p = (id: string, phase: 'later' | 'on' | 'done', onNow: boolean) => ({ id, phase, onNow });
+  it('finished and not counted fold away; on, later, and anyone still counted stay', () => {
+    const { current, finished } = splitFinished([p('on', 'on', true), p('later', 'later', false), p('done', 'done', false), p('stayed', 'on', true)]);
+    expect(current.map(x => x.id)).toEqual(['on', 'later', 'stayed']);
+    expect(finished.map(x => x.id)).toEqual(['done']);
   });
 });
