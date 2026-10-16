@@ -158,8 +158,8 @@ describe('calcPayEstimate', () => {
   it('computes gross correctly from regular and OT hours', () => {
     const shift = makeShift({ date: '2026-06-06', actualStartTime: '10:30', actualEndTime: '20:00' });
     const est = calcPayEstimate([shift], today);
-    // 8h × 17.75 + 1h × 26.625 = 142 + 26.625 = 168.625
-    expect(est.gross).toBeCloseTo(168.625, 3);
+    // 8h × 18.25 + 1h × 27.375 = 146 + 27.375 = 173.375
+    expect(est.gross).toBeCloseTo(173.375, 3);
   });
 
   it('deductions sum to gross minus net', () => {
@@ -172,14 +172,15 @@ describe('calcPayEstimate', () => {
     // Very short shift — gross below exemption
     const shift = makeShift({ date: '2026-06-06', actualStartTime: '09:00', actualEndTime: '13:00', shiftType: 'day-off' });
     const est = calcPayEstimate([shift], today);
-    // 4h OT × 26.625 = 106.50 gross — still above exemption (134.62)? No, 106.50 < 134.62
+    // 4h OT × 27.375 = 109.50 gross — still above exemption (134.62)? No, 109.50 < 134.62
     // cpp should be 0
     expect(est.cpp).toBe(0);
   });
 
   it('uses PAY_CONFIG rates', () => {
-    expect(PAY_CONFIG.regularRate).toBe(17.75);
-    expect(PAY_CONFIG.otRate).toBe(26.625);
+    expect(PAY_CONFIG.regularRate).toBe(18.25);   // his raise, 2026-10-16
+    expect(PAY_CONFIG.otRate).toBe(27.375);
+    expect(PAY_CONFIG.otRate).toBe(PAY_CONFIG.regularRate * 1.5);
     expect(PAY_CONFIG.employeeId).toBe('331965');
   });
 
@@ -216,7 +217,7 @@ describe('calcPayEstimate', () => {
     expect(est.otHours).toBe(0);
     expect(est.regularHours).toBe(0);
     expect(est.daysLogged).toBe(1);
-    // gross = 8 × 17.75 (Holiday) + 8 × 26.625 (HolPrem) = 142 + 213 = 355
+    // gross = 8 × 18.25 (Holiday) + 8 × 27.375 (HolPrem) = 146 + 219 = 365
     expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate + 8 * PAY_CONFIG.otRate, 1);
   });
 

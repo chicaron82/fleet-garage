@@ -9,8 +9,8 @@ import { calcHours, calcOT, netActualHours, timeToDec } from './ot';
 
 export const PAY_CONFIG = {
   employeeId:            '331965',
-  regularRate:            17.75,
-  otRate:                 26.625,   // exactly 1.5×
+  regularRate:            18.25,    // raised from 17.75 — first paid on the 2026-10-15 cheque (period ending 10-08)
+  otRate:                 27.375,   // exactly 1.5×
   cppRate:                0.0595,   // 2026 statutory — update Jan 1
   cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods — update Jan 1
   eiRate:                 0.0163,   // 2026 statutory — update Jan 1
