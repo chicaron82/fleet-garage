@@ -40,6 +40,10 @@ export function FgAssistantFab({ module, onNavigate }: { module: string; onNavig
   // On Effie's own home tab the FAB is redundant clutter — the full module owns the
   // conversation there. Hide it; the shared thread lives on regardless (EffieContext).
   if (module === 'effie') return null;
+  // ⚠️ Nor over a board of tap targets. Lot Lookout is stalls edge to edge, so a button pinned to the bottom right
+  // sits on stalls and the return lane however far he scrolls: the Scan-a-tag mis-tap again (Aaron, 2026-10-15,
+  // "green for your recs"). On every reading screen it only covers text, which is why it stays there.
+  if (module === 'lot-lookout') return null;
 
   return (
     <>

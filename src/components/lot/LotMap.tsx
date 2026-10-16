@@ -142,15 +142,18 @@ export function LotMap({ stalls, aisle, nowMs, nPulse, onTap, onAisle }: Props) 
             {column('N')}
           </div>
         </div>
-        <div className="flex flex-col items-center justify-between gap-1.5 py-2 text-[10px] font-bold tracking-widest text-gray-500 text-center leading-tight">
-          <span>R<br />E<br />T<br />U<br />R<br />N</span>
+        {/* ⭐ The aisle stepper sits at the TOP of the lane, level with the N1–N2 booth. Aaron, 2026-10-15: "how bout
+            moving the aisle stepper up closer to the HIR booth, instead of have to scroll down further to reach it".
+            It was centred on the lane, about ten stalls down, so every aisle tap cost a scroll past the board. */}
+        <div className="flex flex-col items-center gap-1.5 pb-2 text-[10px] font-bold tracking-widest text-gray-500 text-center leading-tight">
           <div className={`grid justify-items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-0.5 py-1 ${aisle.cars > 0 ? 'lot-pulse' : ''}`} aria-label="Cars left in the aisle">
             <small className="text-[8px] font-semibold tracking-wide">AISLE</small>
             {onAisle && <button type="button" onClick={() => onAisle(1)} aria-label="One more in the aisle" className="w-[34px] h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-lg font-bold text-gray-900 dark:text-gray-100 cursor-pointer">+</button>}
             <output className={`text-lg font-extrabold tabular-nums ${aisle.cars > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{aisle.cars}</output>
             {onAisle && <button type="button" onClick={() => onAisle(-1)} aria-label="One fewer in the aisle" className="w-[34px] h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-lg font-bold text-gray-900 dark:text-gray-100 cursor-pointer">−</button>}
           </div>
-          <span>L<br />A<br />N<br />E</span>
+          <span>R<br />E<br />T<br />U<br />R<br />N</span>
+          <span className="mt-auto">L<br />A<br />N<br />E</span>
         </div>
         <div className="rounded-md border border-gray-200 dark:border-gray-700 grid place-items-center text-[10px] tracking-[0.25em] uppercase text-gray-400" style={{ writingMode: 'vertical-rl' }}>Alamo parking</div>
       </div>

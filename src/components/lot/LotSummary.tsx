@@ -40,11 +40,17 @@ export function LotSummary({ totals, aisleCars, showLegend = true }: Props) {
 
       <div
         role="status"
-        className={`flex flex-wrap justify-between gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 ${
-          totals.low ? 'bg-red-100 dark:bg-red-950/70' : 'bg-green-100 dark:bg-green-950/70'}`}
+        // FG's alert shape (the Holds "Exception Returns" box): a tint, a border, a strong line and a quiet one.
+        // Red stays red: on this board it means short of cleans (Aaron, 2026-10-15, "green for your recs").
+        className={`flex flex-wrap justify-between items-baseline gap-2 rounded-xl border px-4 py-3 ${
+          totals.low
+            ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50'
+            : 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700/50'}`}
       >
-        <span>{totals.low ? `Low on cleans: ${totals.cleansSeen} seen. Fill up if you can.` : `Not low: ${totals.cleansSeen} cleans seen`}</span>
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{totals.low ? `under ${CLEANS_LOW}` : `${CLEANS_LOW} or more`}</span>
+        <span className={`text-sm font-semibold ${totals.low ? 'text-red-800 dark:text-red-300' : 'text-green-800 dark:text-green-300'}`}>
+          {totals.low ? `Low on cleans: ${totals.cleansSeen} seen. Fill up if you can.` : `Not low: ${totals.cleansSeen} cleans seen`}
+        </span>
+        <span className={`text-xs ${totals.low ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{totals.low ? `under ${CLEANS_LOW}` : `${CLEANS_LOW} or more`}</span>
       </div>
 
       <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
