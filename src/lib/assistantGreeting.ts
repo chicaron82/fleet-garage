@@ -13,6 +13,7 @@ const PROMPTS: Record<string, string> = {
   analytics: "you're on Analytics — hold lookup or who's closing with you tonight?",
   manifest: "you're on the Manifest — looking up a unit?",
   'fleet-master': "you're on Fleet Master — looking up or registering a unit?",
+  'lot-lookout': "you're on Lot Lookout — how's the airport looking for cleans?",
 };
 
 const FALLBACK = 'what can I help with? Try "anything on LFJ438?" or "who\'s closing with me tonight?"';

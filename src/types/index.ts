@@ -1,7 +1,7 @@
 import type { IssueFault } from '../../api/_lib/issueFaults';
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
-export type Module = 'my-day' | 'holds' | 'movement-log' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master' | 'effie';
+export type Module = 'my-day' | 'holds' | 'movement-log' | 'my-shift' | 'lost-and-found' | 'audits' | 'analytics' | 'schedule' | 'issue-log' | 'manifest' | 'fleet-master' | 'lot-lookout' | 'effie';
 
 // Where the app lands after login: pin My Shift, or resume the last-visited module.
 export type LandingTab = 'my-shift' | 'last-visited';
@@ -562,6 +562,7 @@ export type Screen =
   | { name: 'issue-log' }
   | { name: 'manifest' }
   | { name: 'fleet-master' }
+  | { name: 'lot-lookout' }
   // The damage-zone backfill run — a TEMPORARY job with a temporary front door. Deliberately not a
   // nav module: its entry card on the Holds dashboard disappears once the queue is empty, and a
   // permanent menu slot for a finite task is clutter that outlives the task.

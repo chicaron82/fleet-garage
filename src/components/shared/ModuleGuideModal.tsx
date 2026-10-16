@@ -59,6 +59,11 @@ const MODULE_INFO: Record<Module, { what: string; roles: string[]; dataNote: str
     roles: ['Branch Manager', 'Operations Manager', 'City Manager', 'AGM', 'GM'],
     dataNote: 'Live data — status reflects active holds and today\'s inventory session entries for this branch.',
   },
+  'lot-lookout': {
+    what: 'The airport stall board, Erin St\'s count and today\'s crew on one screen. Tap stalls clean, dirty or open, step the cleans ready at Erin St, and mark who is cleaning, moving cars or out. Drivers tap the same board from the /lot link with a PIN; here your FG sign-in is enough.',
+    roles: ['VSA', 'Lead VSA'],
+    dataNote: 'Live — every tap from the bay, the drivers\' link or this screen shows on every phone within seconds. The crew list is today only and keeps no history.',
+  },
   'effie': {
     what: 'Effie — your lot concierge, full-screen. The same assistant as the corner button, given room to breathe: ask anything, snap a key tag to register or check a vehicle, log a found item, or draft a hold — she reads photos, talks back if you want, and stages her inferred writes for your approval. The conversation is shared with the corner button; the button hides while you\'re here.',
     roles: ['All roles'],

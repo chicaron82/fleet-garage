@@ -9,9 +9,8 @@
 import { useCallback, useRef } from 'react';
 import { bayFromRow, isCleansFix, usedToday, type BayRow } from '../lib/lotBay';
 import { businessDateOf } from '../lib/shiftDay';
-import { supabase } from '../lib/supabase';
 import type { LotBayState } from './useLotBay';
-import { postLot, useLotPin, type LotPost } from './useLotPin';
+import { postLot, postLotSignedIn, useLotPin, type LotPost } from './useLotPin';
 
 type Send = (body: Record<string, unknown>) => Promise<LotPost>;
 
@@ -63,12 +62,6 @@ export function useBayTaps(state: LotBayState, toast: (msg: string) => void) {
 
 /** FG's own My Day card: the signed-in session stands in for the PIN; `by` comes from the FG account. */
 export function useBayTapsSignedIn(state: LotBayState, toast: (msg: string) => void, by: string) {
-  const send = useCallback<Send>(async body => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) return { ok: false, status: 401, error: 'Sign in to FG again.', json: {} };
-    return postLot(body, token);
-  }, []);
   const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
-  return useBayWriter(state, toast, send, by || 'FG', fail);
+  return useBayWriter(state, toast, postLotSignedIn, by || 'FG', fail);
 }

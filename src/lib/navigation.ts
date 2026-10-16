@@ -22,6 +22,9 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { module: 'issue-log',      label: 'Issue Log',     icon: '⚠️', defaultScreen: { name: 'issue-log' } },
   { module: 'manifest',       label: 'Outbound Manifest', icon: '📋', defaultScreen: { name: 'manifest' } },
   { module: 'fleet-master',   label: 'Fleet',             icon: '🚘', defaultScreen: { name: 'fleet-master' } },
+  // Aaron, 2026-10-15: *"What do you think of having lot outlook as an FG module?"* The airport board, Erin St's
+  // count and today's crew on one screen. YWG only; VSA + Lead VSA, the bay's own roles (his to widen).
+  { module: 'lot-lookout',    label: 'Lot Lookout',       icon: '🅿️', defaultScreen: { name: 'lot-lookout' } },
 ];
 
 // Effie's home is NOT a role/branch module — she's the assistant, gated by the allowlist at
@@ -33,8 +36,8 @@ const EFFIE_NAV_ITEM: NavItem = { module: 'effie', label: 'Effie', icon: '✨', 
 
 const ROLE_MODULES: Record<UserRole, Module[]> = {
   'Driver':              ['movement-log', 'schedule', 'lost-and-found', 'manifest'],
-  'VSA':                 ['my-day', 'holds', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
-  'Lead VSA':            ['my-day', 'holds', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master'],
+  'VSA':                 ['my-day', 'holds', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master', 'lot-lookout'],
+  'Lead VSA':            ['my-day', 'holds', 'audits', 'movement-log', 'schedule', 'my-shift', 'lost-and-found', 'issue-log', 'manifest', 'fleet-master', 'lot-lookout'],
   'CSR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'Lead CSR':            ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],
   'HIR':                 ['holds', 'movement-log', 'schedule', 'lost-and-found', 'issue-log', 'manifest'],

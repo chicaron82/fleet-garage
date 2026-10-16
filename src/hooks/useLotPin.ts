@@ -2,6 +2,7 @@
 // writer — migration 151). Shared by the airport board's taps (useLotTaps) and Erin St's count (useBayTaps), so
 // one PIN and one set of initials cover both pages on a phone.
 import { useCallback, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const PIN_KEY = 'lot_pin';
 const BY_KEY = 'lot_by';
@@ -26,6 +27,14 @@ export async function postLot(body: Record<string, unknown>, token?: string): Pr
   } catch {
     return { ok: false, status: 0, error: 'No signal. The tap did not save.', json: {} };
   }
+}
+
+/** The FG door: the signed-in session stands in for the PIN (My Day's card and the Lot Lookout module). */
+export async function postLotSignedIn(body: Record<string, unknown>): Promise<LotPost> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return { ok: false, status: 401, error: 'Sign in to FG again.', json: {} };
+  return postLot(body, token);
 }
 
 export function useLotPin(toast: (msg: string) => void) {

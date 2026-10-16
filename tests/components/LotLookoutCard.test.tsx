@@ -1,6 +1,6 @@
-// My Day's Lot Lookout card. Aaron, 2026-10-15: *"Is there a link to view my Erin St view within FG?"* There was
-// one, as copy-only text inside the closed card. Now Erin St's count is on the card, always, one tap from the page
-// where he taps it, and every link opens as well as copies.
+// My Day's Lot Lookout card — a glance since Lot Lookout became its own module (2026-10-15). Erin St's count and its
+// steppers stay on the card (*"May I suggest adding the cleans steppers here"*); the map, the named crew list and the
+// links moved to the module, and the card's header opens it.
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { LotStall } from '../../src/lib/lotLookout';
@@ -30,15 +30,17 @@ vi.mock('../../src/hooks/useBayTaps', () => ({
 const { LotLookoutCard } = await import('../../src/components/my-day/LotLookoutCard');
 
 describe('LotLookoutCard', () => {
-  it('shows Erin St\'s count without opening the card, and still opens the full page', () => {
-    render(<LotLookoutCard cardClass="" />);
+  it('shows Erin St\'s count, and the header opens the Lot Lookout module', () => {
+    const onOpen = vi.fn();
+    render(<LotLookoutCard cardClass="" onOpen={onOpen} />);
     expect(screen.getByText('6')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Dirties waiting: 23/ })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Full count/ }).getAttribute('href')).toBe('/lot/erin');
+    fireEvent.click(screen.getByRole('button', { name: /Open Lot Lookout/ }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it('⭐ the steppers tap the count right on the card, signed in as him (no PIN)', () => {
-    render(<LotLookoutCard cardClass="" />);
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /Plus one clean/ }));
     fireEvent.click(screen.getByRole('button', { name: /Minus one clean/ }));
     expect(tapCleans.mock.calls).toEqual([[1], [-1]]);
@@ -46,7 +48,7 @@ describe('LotLookoutCard', () => {
   });
 
   it('tap the dirties to type a new count; a bad one is refused before it is sent', async () => {
-    render(<LotLookoutCard cardClass="" />);
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /Dirties waiting: 23/ }));
     const box = screen.getByLabelText('New dirty count');
     fireEvent.change(box, { target: { value: '2300' } });
@@ -59,23 +61,22 @@ describe('LotLookoutCard', () => {
     await waitFor(() => expect(screen.queryByLabelText('New dirty count')).toBeNull());
   });
 
-  it('opened, every link can be opened as well as copied', () => {
-    render(<LotLookoutCard cardClass="" />);
-    fireEvent.click(screen.getByRole('button', { name: /See the lot/ }));
-    const opens = screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'));
-    expect(opens).toEqual(['/lot', '/lot/erin', '/lot/view']);
-    expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(3);
+  it('a glance: no map, no named crew list, no links — those live in the module', () => {
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'P3 clean' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Who is where/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open' })).toBeNull();
   });
 
   it('shows the crew as numbers on the card', () => {
-    render(<LotLookoutCard cardClass="" />);
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     expect(screen.getByText('Cleaning 1 of 2 · 1 moving cars')).toBeTruthy();
     expect(screen.getByText('To the airport 1 of 3 · 2 on another job')).toBeTruthy();
   });
 
   it('no Erin St row yet (or no table): the airport card still shows, with no strip', () => {
     bay = null;
-    render(<LotLookoutCard cardClass="" />);
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     expect(screen.queryByText('Erin St')).toBeNull();
     expect(screen.getByText(/Airport low on cleans/)).toBeTruthy();
   });

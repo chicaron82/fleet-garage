@@ -38,6 +38,7 @@ const AnalyticsView      = lazy(() => import('./components/analytics/AnalyticsVi
 const IssueLogView       = lazy(() => import('./components/issue-log/IssueLogView').then(m => ({ default: m.IssueLogView })));
 const ManifestView       = lazy(() => import('./components/manifest/ManifestView').then(m => ({ default: m.ManifestView })));
 const FleetMasterView    = lazy(() => import('./components/vehicle/FleetMasterView').then(m => ({ default: m.FleetMasterView })));
+const LotLookoutView     = lazy(() => import('./components/lot-lookout/LotLookoutView').then(m => ({ default: m.LotLookoutView })));
 const EffieModule        = lazy(() => import('./components/assistant/EffieModule').then(m => ({ default: m.EffieModule })));
 
 export default function App() {
@@ -269,6 +270,8 @@ export default function App() {
         return <IssueLogView />;
       case 'manifest':
         return <ManifestView />;
+      case 'lot-lookout':
+        return <LotLookoutView />;
       case 'fleet-master':
         return (
           <FleetMasterView

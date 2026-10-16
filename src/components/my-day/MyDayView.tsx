@@ -267,7 +267,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
       <OverflowSendsCard onOpen={() => onNavigate({ name: 'movement-log' })} />
 
       {/* ── The airport lot, live (Lot Lookout) — drivers tap at /lot; this reads the same board. */}
-      <LotLookoutCard cardClass={CARD} />
+      <LotLookoutCard cardClass={CARD} onOpen={() => onNavigate({ name: 'lot-lookout' })} />
 
     </div>
   );

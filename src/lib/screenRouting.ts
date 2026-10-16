@@ -15,6 +15,8 @@ export function screenToPath(screen: Screen): string {
     case 'analytics':       return '/analytics';
     case 'issue-log':       return '/issue-log';
     case 'manifest':        return '/manifest';
+    // NOT '/lot' — that is the drivers' public page, served ahead of the login (lotPageOf).
+    case 'lot-lookout':     return '/lot-lookout';
     case 'effie':           return '/effie';
     // Wizard screens carry context that doesn't survive a fresh load — no stable URL.
     case 'new-hold':
@@ -45,6 +47,7 @@ export function pathToScreen(path: string): Screen | null {
     case '/analytics':      return { name: 'analytics' };
     case '/issue-log':      return { name: 'issue-log' };
     case '/manifest':       return { name: 'manifest' };
+    case '/lot-lookout':    return { name: 'lot-lookout' };
     case '/effie':          return { name: 'effie' };
     default:                return null;
   }
