@@ -112,7 +112,7 @@ export function ErinCountSheet({ erin, by, onClose }: { erin: LotBayState; by: s
   };
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Erin St count">
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Erin St count">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 w-full bg-black/45 cursor-default" />
       <div className="absolute inset-x-0 bottom-0 mx-auto max-w-xl rounded-t-2xl border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 pt-2.5 space-y-3"
         style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>

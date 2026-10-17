@@ -9,6 +9,7 @@
 // Hidden until Erin St's row exists (migration 153), so a missing table never puts an error in the top bar. A count
 // over 30 min old reads amber, his ruling for both counts (*"If nothing is being sent up for over 30min"*).
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { isBayStale } from '../../lib/lotBay';
 import { initialsOf } from '../../lib/lotLookout';
 import { hapticLight } from '../../lib/haptics';
@@ -36,7 +37,9 @@ export function ErinPill() {
           <span className={old(bay.dirtiesAt) ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'}>{dirties}</span>
         </span>
       </button>
-      {open && <ErinCountSheet erin={erin} by={initialsOf(user?.name ?? null)} onClose={() => setOpen(false)} />}
+      {/* Portalled to <body>: opened from inside the scan sheet (z-50, scrolling) it would otherwise sit in that
+          sheet's layer instead of over it. */}
+      {open && createPortal(<ErinCountSheet erin={erin} by={initialsOf(user?.name ?? null)} onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }

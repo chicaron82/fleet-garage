@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { VehicleLookup } from '../shared/VehicleLookup';
 import { useLookupRecents } from '../../hooks/useLookupRecents';
 import { ScanPlateWatch } from './ScanPlateWatch';
+import { ErinPill } from '../lot/ErinPill';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
@@ -263,7 +264,12 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{mode === 'search' ? '🔍 Find a car' : '📷 Scan a key tag'}</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none cursor-pointer">✕</button>
+          {/* The Erin pill again, IN here (2026-10-16): this sheet covers the top bar, and it's where he logs the odo
+              between cars. *"when i'm here. i can't tap the count pill."* */}
+          <div className="flex items-center gap-3">
+            <ErinPill />
+            <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none cursor-pointer">✕</button>
+          </div>
         </div>
           <div className="px-4 pb-3">
             {/* Always offered, not just after a failure — see VehicleLookup.
