@@ -19,6 +19,7 @@ export interface LotBayState {
 }
 
 const LOG_ROWS = 8;
+let channelSeq = 0;
 
 function fetchBay() {
   return supabase.from('lot_bay')
@@ -51,8 +52,11 @@ export function useLotBay({ withLog = false }: { withLog?: boolean } = {}): LotB
       readLog();
     };
     read();
+    // ⚠️ One channel name PER HOOK. supabase.channel() hands back the existing channel for a name it has seen, so
+    // since the Erin pill (2026-10-16) keeps a count in the top bar while My Day's card or the module keeps another,
+    // a shared name would have added listeners after subscribe and the first to unmount would have closed both.
     const channel = supabase
-      .channel('lot-bay-live')
+      .channel(`lot-bay-live-${channelSeq++}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lot_bay' }, payload => {
         setBay(bayFromRow(payload.new as BayRow));
         readLog();

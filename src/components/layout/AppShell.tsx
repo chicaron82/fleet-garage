@@ -6,6 +6,7 @@ import { BuildStamp } from './BuildStamp';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { usePreferences } from '../../context/PreferencesContext';
 import { ActiveSessionPill } from './ActiveSessionPill';
+import { ErinPill } from '../lot/ErinPill';
 import { useScanRouter } from '../../context/scanRouter';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
@@ -119,8 +120,10 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             building one method for mobile and another method for desktop the same flow should work
             for both."* Only ☰ is phone-only, because only the phone has a drawer to open. */}
         <div className="relative flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center relative">
+          {/* min-w-0 + truncate (2026-10-16): with the Erin pill and a trip pill both up, the title gives way with an
+              ellipsis instead of wrapping to two lines and squeezing the pills on the right (measured at 412). */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 shrink-0 rounded overflow-hidden flex items-center justify-center relative">
               <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
               <span
                 className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white transition-colors ${
@@ -129,7 +132,7 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
                 title={isOnline ? 'Online' : 'Offline'}
               />
             </div>
-            <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors">Fleet Garage</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors truncate">Fleet Garage</span>
             {guidesOn && (
               <button
                 onClick={() => { hapticLight(); setGuideModule(activeModule); }}
@@ -140,8 +143,10 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
             <ActiveSessionPill activeModule={activeModule} onNavigate={handleNavigate} />
+            {/* Erin St's count, "7/3", on every screen (2026-10-16): his updates had cost a trip to My Day after every car. */}
+            <ErinPill />
             {/* 🔍 The typing door into the SAME scan sheet (2026-09-10): plate or unit, keyboard up,
                 no camera. Same card, same menu, same sighting rule — looking never counts as seen,
                 only a change does. Its room came from moving the bell + avatar into the drawer. */}

@@ -56,6 +56,13 @@ describe('bayTapLine', () => {
     expect(bayTapLine({ kind: 'fix', value: 6 })).toBe('−1 fixed a slip · 6 now');
     expect(bayTapLine({ kind: 'dirties', value: 23 })).toBe('Dirties set to 23');
   });
+
+  it('says what each quick tap was (migration 156)', () => {
+    expect(bayTapLine({ kind: 'set', value: 6 })).toBe('Cleans set to 6');
+    expect(bayTapLine({ kind: 'drain', value: 6 })).toBe('Drained with the drivers · 6 now');
+    expect(bayTapLine({ kind: 'fill', value: 6 })).toBe('Filled from the drivers · 6 dirties');
+    expect(bayTapLine({ kind: 'undo', value: 9 })).toBe('Undone · back to 9');
+  });
 });
 
 describe('bayFromRow', () => {

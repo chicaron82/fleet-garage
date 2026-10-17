@@ -7,7 +7,8 @@
 // service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
 import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
-import { bayChange } from './_lib/lotBay.js';
+import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
+import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew, markCrew } from './_lib/lotCrewDb.js';
 
@@ -102,7 +103,7 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
       return;
     }
-    if (parsed.action === 'cleans' || parsed.action === 'dirties') {
+    if (isBayRequest(parsed)) {
       const { data: row, error: readErr } = await db.from('lot_bay').select('cleans, dirties, used, used_on').eq('id', 1).single();
       if (readErr) throw readErr;
       const change = bayChange(row, parsed, now, shiftBusinessDate(new Date(now)));
@@ -128,6 +129,11 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
     console.error('[api/lot]', e);
     res.status(500).json({ error: 'The board did not save. Try the tap again.' });
   }
+}
+
+/** Erin St's count: every action that writes lot_bay (the +1/−1, the typed dirties, and migration 156's quick taps). */
+function isBayRequest(r: LotRequest): r is BayRequest {
+  return (BAY_ACTIONS as readonly string[]).includes(r.action);
 }
 
 function safeJson(s: string): unknown {

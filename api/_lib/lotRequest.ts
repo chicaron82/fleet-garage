@@ -27,8 +27,16 @@ export type LotRequest =
   | { action: 'crew'; users: string[]; state: CrewState | 'clear'; by: string }
   | { action: 'leaveOff'; user: string; off: boolean; by: string };
 
-/** A typed dirty count at Erin St. A cap, so a fat-fingered 2300 is refused rather than shown. */
+/** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
 export const DIRTIES_MAX = 300;
+/** Drain / fill move one carload per driver on; more than this is not a crew, it's a bug. */
+const CREW_TAP_MAX = 20;
+
+/** A whole count 0..DIRTIES_MAX, from a number or a digits-only string; null otherwise. */
+function countOf(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= 0 && n <= DIRTIES_MAX ? n : null;
+}
 
 export function pinMatches(given: unknown, expected: string | undefined): boolean {
   if (!expected || typeof given !== 'string') return false;
@@ -89,9 +97,34 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };
       return { action: 'cleans', delta: b.delta, fix: b.delta === -1 && b.fix === true, by };
     case 'dirties': {
-      const n = typeof b.count === 'number' ? b.count : typeof b.count === 'string' && /^\d+$/.test(b.count.trim()) ? Number(b.count) : NaN;
-      if (!Number.isInteger(n) || n < 0 || n > DIRTIES_MAX) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };
+      const n = countOf(b.count);
+      if (n == null) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };
       return { action: 'dirties', count: n, by };
+    }
+    // The Erin pill's quick taps (migration 156).
+    case 'cleansSet': {
+      const n = countOf(b.count);
+      if (n == null) return { error: `Type the clean count as a number from 0 to ${DIRTIES_MAX}.` };
+      return { action: 'cleansSet', count: n, by };
+    }
+    case 'dirtiesStep':
+      if (b.delta !== 1 && b.delta !== -1) return { error: 'Dirties move one car at a time.' };
+      return { action: 'dirtiesStep', delta: b.delta, by };
+    case 'drain':
+    case 'fill': {
+      const n = b.n;
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > CREW_TAP_MAX) return { error: 'No drivers on to count.' };
+      return b.action === 'drain' ? { action: 'drain', n, by } : { action: 'fill', n, by };
+    }
+    case 'bayUndo': {
+      const t = (b.to ?? {}) as Record<string, unknown>;
+      const cleans = countOf(t.cleans);
+      const dirties = t.dirties == null ? null : countOf(t.dirties);
+      const used = typeof t.used === 'number' && Number.isInteger(t.used) && t.used >= 0 && t.used <= 999 ? t.used : null;
+      const usedOn = t.usedOn == null ? null : typeof t.usedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.usedOn) ? t.usedOn : undefined;
+      if (b.field !== 'cleans' && b.field !== 'dirties') return { error: 'Nothing to undo.' };
+      if (cleans == null || dirties === undefined || used == null || usedOn === undefined) return { error: 'Nothing to undo to.' };
+      return { action: 'bayUndo', field: b.field, to: { cleans, dirties, used, usedOn }, by };
     }
     // Today's crew (migration 154). Signed-in FG only; api/lot.ts enforces that, not the PIN.
     case 'crew': {
