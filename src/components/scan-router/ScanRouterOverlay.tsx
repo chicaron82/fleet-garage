@@ -19,6 +19,7 @@ import { VehicleLookup } from '../shared/VehicleLookup';
 import { useLookupRecents } from '../../hooks/useLookupRecents';
 import { ScanPlateWatch } from './ScanPlateWatch';
 import { ErinPill } from '../lot/ErinPill';
+import { useTapOutsideClose } from '../../hooks/useTapOutsideClose';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
 import { useScanPipeline } from '../../hooks/useScanPipeline';
@@ -240,6 +241,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   // The card's header opens the record through the SAME action as the menu's "View unit", so the
   // two can never route differently.
   const viewAction = actions.find(a => a.kind === 'view');
+  const backdrop = useTapOutsideClose(onClose, !reading);
 
   // Set only by the typed-plate path, and consumed at most once — by an action that implies he was
   // actually at the car. Closing the overlay without acting simply drops it, which is the point.
@@ -254,7 +256,9 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={mode === 'search' ? 'Find a car' : 'Scan a key tag'}>
+    // Tap the dimmed area to close (Aaron, 2026-10-16: *"tapping outside those two closes them out"*), but never
+    // while a tag is being read: the read he's waiting on would be lost. See useTapOutsideClose.
+    <div {...backdrop} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={mode === 'search' ? 'Find a car' : 'Scan a key tag'}>
       <div className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
         {/* ⭐ STICKY TOP: title, ✕ and the lookup. Aaron, 2026-09-10: on a damaged car he scrolls down
             to the damage map to copy it onto the paper inspection sheet, and the controls scrolled
