@@ -1,4 +1,5 @@
 import { TeamRoster } from './TeamRoster';
+import { useRosterCrew } from '../../hooks/useRosterCrew';
 import { useOpeningQuickStart } from '../../hooks/useOpeningQuickStart';
 import { shouldShowOpeningQuickStart } from '../../lib/openingQuickStart';
 import { useMyDay } from '../../hooks/useMyDay';
@@ -27,6 +28,8 @@ const CARD = 'rounded-xl border border-gray-200 dark:border-gray-800 bg-white da
 
 export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const day = useMyDay();
+  // The box on each VSA's and driver's pill is the crew line (2026-10-18): ticked = on their usual job.
+  const rosterCrew = useRosterCrew();
   const { peeking, toggle: togglePeek } = usePeekAtTheDay();
   // The day's cards open either because he is rostered, or because he asked to see it anyway.
   const openDay = day.working || peeking;
@@ -145,7 +148,9 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-2 mb-0.5">
               {day.working ? 'On with you today' : 'On shift now'} · {day.team.length}
             </p>
-            <TeamRoster team={day.team} setShiftAttendance={day.setShiftAttendance} />
+            <TeamRoster team={day.team} setShiftAttendance={day.setShiftAttendance}
+              crewOf={rosterCrew.crewOf} onCrew={(u, next) => void rosterCrew.write(u, next)} />
+            {rosterCrew.note && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-700 dark:text-red-400">{rosterCrew.note}</p>}
           </div>
         )}
       </section>

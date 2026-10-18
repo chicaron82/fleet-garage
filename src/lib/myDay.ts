@@ -33,6 +33,8 @@ export function carsCleaned(h: Pick<HandoffNote, 'fullPages' | 'lastPageEntries'
 
 export interface TeamMate {
   id: string; displayName: string; start: string; end: string;
+  /** The PERSON (profiles.id). `id` is the shift row; the crew line (lot_crew) keys on the person. */
+  userId?: string;
   attendance?: Attendance;
   /** Their roster role — what makes a driver a different kind of teammate than a VSA. */
   role: UserRole;
@@ -81,6 +83,7 @@ export function teammatesOnToday(shifts: ShiftWithUser[], userId: string, todayI
     const fn = s.user.name.split(' ')[0];
     return {
       id: s.id,
+      userId: s.userId,
       displayName: (firstNameCounts.get(fn) ?? 0) > 1 ? s.user.name : fn,
       start: fmtTime24(s.startTime),
       end: fmtTime24(s.endTime),

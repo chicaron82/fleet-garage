@@ -5,8 +5,8 @@ import { TeamRoster } from '../../src/components/my-day/TeamRoster';
 import type { TeamMate } from '../../src/lib/myDay';
 import type { UserRole } from '../../src/types';
 
-const mate = (displayName: string, start: string, end: string, role: UserRole = 'VSA'): TeamMate =>
-  ({ id: displayName, displayName, start, end, role });
+const mate = (displayName: string, start: string, end: string, role: UserRole = 'VSA', attendance?: TeamMate['attendance']): TeamMate =>
+  ({ id: displayName, userId: `u-${displayName}`, displayName, start, end, role, attendance });
 
 // Aaron's actual roster from the screenshot he sent (2026-08-26), trimmed.
 const TEAM = [
@@ -40,8 +40,8 @@ describe('TeamRoster', () => {
 
   it('dims the ended ones instead of removing them', () => {
     render(<TeamRoster team={TEAM} setShiftAttendance={vi.fn()} now="18:26" />);
-    expect(screen.getByRole('button', { name: /Geoff/ }).className).toContain('opacity-45');   // done
-    expect(screen.getByRole('button', { name: /Ray/ }).className).not.toContain('opacity-45'); // til 23:00
+    expect(screen.getByRole('button', { name: /Geoff/ }).closest('[data-pill]')!.className).toContain('opacity-45');   // done
+    expect(screen.getByRole('button', { name: /Ray/ }).closest('[data-pill]')!.className).not.toContain('opacity-45'); // →23:00
   });
 
   it('says how many of each group are on the floor right now', () => {
@@ -63,5 +63,57 @@ describe('TeamRoster', () => {
   it('says so plainly when nobody else is scheduled', () => {
     render(<TeamRoster team={[]} setShiftAttendance={vi.fn()} now="10:00" />);
     expect(screen.getByText('Nobody else scheduled.')).toBeInTheDocument();
+  });
+});
+
+// ⭐ 2026-10-18, his three rulings: a grid three across (*"what i wanted to tap next is moved because the first person's
+// pill grew"*), no ✓/✗ (*"the colour already signifies the status"*), and the box for VSAs and drivers.
+describe('TeamRoster — the grid and the box', () => {
+  const crewNone = () => undefined;
+  it('⭐ three across in a fixed grid, and a present pill adds nothing that could widen it', () => {
+    render(<TeamRoster team={[mate('Geoff', '06:45', '15:15', 'VSA', 'present'), mate('Krish', '11:30', '20:00')]} setShiftAttendance={vi.fn()} now="10:00" />);
+    const geoff = screen.getByRole('button', { name: /Geoff/ });
+    expect(geoff.closest('.grid')!.className).toContain('grid-cols-3');
+    expect(geoff.textContent).toBe('Geoff→15:15');   // no ✓, and "→END" not "til END"
+  });
+  it('a no-show reads by colour and strikethrough, no ✗', () => {
+    render(<TeamRoster team={[mate('Ray', '14:30', '23:00', 'Driver', 'absent')]} setShiftAttendance={vi.fn()} now="15:00" />);
+    expect(screen.getByRole('button', { name: /Ray/ }).textContent).not.toContain('✗');
+    expect(screen.getByText('Ray').className).toContain('line-through');
+  });
+  it('⭐ the box is empty until present, and present ticks it by itself', () => {
+    const team = [mate('Geoff', '06:45', '15:15'), mate('Erick', '06:45', '15:15', 'VSA', 'present')];
+    render(<TeamRoster team={team} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Geoff: mark present first' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /Erick on the usual job/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+  it('⭐ untick pulls them (VSA → moving, driver → other); tick again clears back to the default', async () => {
+    const onCrew = vi.fn();
+    const team = [mate('Erick', '06:45', '15:15', 'VSA', 'present'), mate('Carlos', '07:00', '15:30', 'Driver', 'present'), mate('Jose', '07:00', '15:30', 'Driver', 'present')];
+    const crewOf = (u: string) => (u === 'u-Jose' ? { state: 'other' as const, marked: true } : undefined);
+    render(<TeamRoster team={team} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewOf} onCrew={onCrew} />);
+    await userEvent.click(screen.getByRole('button', { name: /Erick on the usual job/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Carlos on the usual job/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Jose pulled/ }));
+    expect(onCrew.mock.calls).toEqual([['u-Erick', 'moving'], ['u-Carlos', 'other'], ['u-Jose', 'clear']]);
+  });
+  it('a box that is off writes nothing', async () => {
+    const onCrew = vi.fn();
+    render(<TeamRoster team={[mate('Geoff', '06:45', '15:15')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={onCrew} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Geoff: mark present first' }));
+    expect(onCrew).not.toHaveBeenCalled();
+  });
+  it('a name tap still sets attendance, and clears a pull so the new attendance shows on the crew line', async () => {
+    const setAttendance = vi.fn().mockResolvedValue(undefined);
+    const onCrew = vi.fn();
+    const crewOf = () => ({ state: 'moving' as const, marked: true });
+    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Erick→/ }));
+    expect(setAttendance).toHaveBeenCalledWith('Erick', 'absent');
+    expect(onCrew).toHaveBeenCalledWith('u-Erick', 'clear');
+  });
+  it('counter and HIR get the grid but no box', () => {
+    render(<TeamRoster team={[mate('Jagdeep', '06:45', '15:15', 'CSR', 'present')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 });
