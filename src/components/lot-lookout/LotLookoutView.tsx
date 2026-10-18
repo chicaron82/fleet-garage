@@ -1,22 +1,22 @@
 // Lot Lookout as its own FG module. Aaron, 2026-10-15: *"What do you think of having lot outlook as an FG
 // module?"* ... *"A now thing for us to polish"*.
 //
-// One full screen for what had been spread across a My Day card and three outside links: Erin St's count, today's
-// crew with the named list open (it had been squeezed into a fold), and the airport with live taps. Signed in
+// One full screen for what had been spread across a My Day card and three outside links: today's crew with the named
+// list open (it had been squeezed into a fold), and the airport with live taps. Signed in
 // to FG, so there is no PIN anywhere here — api/lot.ts takes the session for every action, and the crew ONLY from a
 // session. The drivers' /lot page, /lot/erin and /lot/view are untouched; this is another door to the same rows.
+//
+// ⭐ No Erin St section (2026-10-18): *"while we now have the header for erin st. how bout removing it from "my day" and
+// "lot loookout" modules"*. The Erin pill in the top bar opens the same count with more taps (ErinCountSheet).
 import { useCallback } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
 import { useLotAirport } from '../../hooks/useLotAirport';
 import { useAirportTaps } from '../../hooks/useAirportTaps';
 import { postLotSignedIn, type LotPost } from '../../hooks/useLotPin';
-import { useLotBay } from '../../hooks/useLotBay';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { useLotToast } from '../../hooks/useLotToast';
-import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
-import { LotBayStrip } from '../lot/LotBayStrip';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { AirportNotches } from '../lot/AirportNotches';
 import { LotToast } from '../lot/LotChrome';
@@ -27,26 +27,16 @@ const SECTION_HEAD = 'text-xs font-bold uppercase tracking-wide text-gray-500 da
 
 export function LotLookoutView() {
   const airport = useLotAirport('lot-airport-module');
-  const erin = useLotBay();
   const { crew, mark, leaveOff } = useLotCrew({ signedIn: true });
   const { user } = useAuth();
   const by = initialsOf(user?.name ?? null);
   const [toastMsg, toast] = useLotToast();
-  const bayTaps = useBayTapsSignedIn(erin, toast, by);
   const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
   const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24 space-y-6">
-      <ModuleHeader title="Lot Lookout" subtitle="Erin St, the airport and today's crew, live" />
-
-      {/* No heading of our own: the strip carries its own "Erin St". */}
-      <section aria-label="Erin St">
-        {erin.bay ? (
-          <LotBayStrip bay={erin.bay} nowMs={erin.nowMs}
-            controls={{ onCleans: d => void bayTaps.tapCleans(d), onDirties: bayTaps.setDirties }} />
-        ) : erin.loaded ? <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p> : null}
-      </section>
+      <ModuleHeader title="Lot Lookout" subtitle="The airport and today's crew, live" />
 
       {crew && (
         <section aria-label="Crew" className="space-y-2">

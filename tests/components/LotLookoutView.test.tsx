@@ -1,6 +1,6 @@
 // The Lot Lookout module. Aaron, 2026-10-15: *"What do you think of having lot outlook as an FG module?"* ...
-// *"A now thing for us to polish"*. One screen: Erin St's count, today's crew with the named list OPEN, the airport
-// readings with live taps (migration 157), and the links — all signed in, no PIN.
+// *"A now thing for us to polish"*. One screen: today's crew with the named list OPEN, the airport readings with live
+// taps (migration 157), and the links — all signed in, no PIN. Erin St's count moved to the top bar's pill (2026-10-18).
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { CrewMember } from '../../src/lib/lotCrew';
@@ -16,12 +16,6 @@ vi.mock('../../src/hooks/useLotAirport', () => ({
     loaded: true, error: null, nowMs: NOW, setLocal: () => {},
   }),
 }));
-vi.mock('../../src/hooks/useLotBay', () => ({
-  useLotBay: () => ({
-    bay: { cleans: 4, cleansBy: 'AS', cleansAt: new Date(NOW).toISOString(), dirties: 2, dirtiesBy: 'AS', dirtiesAt: new Date(NOW).toISOString(), used: 0, usedOn: null },
-    log: [], loaded: true, nowMs: NOW, setBay: () => {},
-  }),
-}));
 const mark = vi.fn(async () => null);
 vi.mock('../../src/hooks/useLotCrew', () => ({
   useLotCrew: () => ({
@@ -31,8 +25,6 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   }),
 }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
-const tapCleans = vi.fn();
-vi.mock('../../src/hooks/useBayTaps', () => ({ useBayTapsSignedIn: () => ({ tapCleans, setDirties: vi.fn(async () => true) }) }));
 const tap = vi.fn();
 let tapBy = '';
 vi.mock('../../src/hooks/useAirportTaps', () => ({
@@ -67,10 +59,10 @@ describe('LotLookoutView', () => {
     expect(screen.queryByRole('button', { name: /Who is where/ })).toBeNull();
   });
 
-  it('Erin St\'s steppers work here too', () => {
+  it('⭐ no Erin St section: the count lives in the top bar\'s pill now (2026-10-18)', () => {
     render(<LotLookoutView />);
-    fireEvent.click(screen.getByRole('button', { name: /Plus one clean/ }));
-    expect(tapCleans).toHaveBeenCalledWith(1);
+    expect(screen.queryByRole('region', { name: 'Erin St' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Plus one clean/ })).toBeNull();
   });
 
   it('every outside link opens and copies', () => {
