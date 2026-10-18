@@ -7,7 +7,7 @@
 // Erin pill, 2026-10-16). The top bar is mounted on every screen, beside whichever surface is open.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { EMPTY_READINGS, readingsFromRow, type AirportReadings, type AirportRowShape } from '../lib/lotAirport';
+import { AIRPORT_WRITTEN_EVENT, EMPTY_READINGS, readingsFromRow, type AirportReadings, type AirportRowShape } from '../lib/lotAirport';
 
 export interface LotAirport {
   readings: AirportReadings;
@@ -43,26 +43,33 @@ export function useLotAirport(channel: string): LotAirport {
 
   useEffect(() => {
     let cancelled = false;
-    void readRow().then(r => { if (!cancelled) apply(r); });
+    const read = () => { setNowMs(Date.now()); void readRow().then(r => { if (!cancelled) apply(r); }); };
+    read();
+    // ⚠️ A push sent while the socket was down is never replayed. Aaron, 2026-10-18, airplane-mode test on his own phone:
+    // his queued tap landed the moment signal came back, My Day (mounted fresh) showed it, and the top bar's squares,
+    // already mounted and still rejoining, stayed hollow. So read the row whenever the channel (re)subscribes and
+    // whenever the phone says it is back online, not only when the page comes back into view.
+    let joined = false;
     const ch = supabase
       .channel(channel)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lot_airport' }, payload => {
         setReadings(readingsFromRow(payload.new as AirportRowShape));
       })
-      .subscribe();
+      // The first SUBSCRIBED follows the read above; every later one is a rejoin after a drop.
+      .subscribe(status => { if (status === 'SUBSCRIBED') { if (joined) read(); joined = true; } });
     const tick = setInterval(() => setNowMs(Date.now()), 30_000);
     // A phone that slept in a pocket missed the pushes; read fresh when it wakes.
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      setNowMs(Date.now());
-      void readRow().then(r => { if (!cancelled) apply(r); });
-    };
+    const onVisible = () => { if (document.visibilityState === 'visible') read(); };
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', read);
+    window.addEventListener(AIRPORT_WRITTEN_EVENT, read);
     return () => {
       cancelled = true;
       void supabase.removeChannel(ch);
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', read);
+      window.removeEventListener(AIRPORT_WRITTEN_EVENT, read);
     };
   }, [apply, channel]);
 

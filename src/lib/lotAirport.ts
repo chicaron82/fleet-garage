@@ -12,6 +12,10 @@
 // reading matters, so the queue holds at most one entry per field, and the server keeps whichever is newest.
 
 export type AirportField = 'cleans' | 'returns' | 'aisle';
+
+/** Fired on `window` when this phone's tap is saved, so every reader on the phone (the top bar's squares included)
+ *  re-reads at once instead of waiting on a realtime push it may have missed while reconnecting. */
+export const AIRPORT_WRITTEN_EVENT = 'lot-airport-written';
 export type Notch = 0 | 1 | 2 | 3 | 4;
 
 /** What a driver sees on the lot, left (red) to right (green). */

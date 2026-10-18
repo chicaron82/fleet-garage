@@ -11,7 +11,7 @@
 // queue (a PIN taken on trust that turned out wrong; useLotPin forgets it and asks again); any other refusal drops that
 // tap and says why. No answer at all (status 0) or a server error (5xx) keeps everything for the next try.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { enqueueReading, parseQueue, readingsFromRow, settleReading, withQueued, type AirportField, type AirportRowShape, type QueuedReading } from '../lib/lotAirport';
+import { AIRPORT_WRITTEN_EVENT, enqueueReading, parseQueue, readingsFromRow, settleReading, withQueued, type AirportField, type AirportRowShape, type QueuedReading } from '../lib/lotAirport';
 import type { LotAirport } from './useLotAirport';
 import type { LotPost } from './useLotPin';
 
@@ -67,6 +67,7 @@ export function useAirportTaps({ airport, send, by, queueKey, onFail, onSent, to
         setQueue(cur => settleReading(cur, q));
         if (!r.ok) { onFail(r); continue; }
         onSent?.();
+        window.dispatchEvent(new Event(AIRPORT_WRITTEN_EVENT));
         const row = r.json.airport as AirportRowShape | null | undefined;
         if (row) setLocal(() => readingsFromRow(row));
       }
