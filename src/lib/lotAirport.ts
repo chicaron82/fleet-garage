@@ -61,10 +61,12 @@ export function readingsFromRow(r: AirportRowShape): AirportReadings {
 /** One tap waiting to be sent: the field, the notch (aisle 0/1) and when the finger hit the glass. */
 export interface QueuedReading { field: AirportField; value: number; at: string }
 
-/** Add a tap. The queue keeps one entry per field: the newest. An older tap for a field already queued is dropped. */
+/** Add a tap. The queue keeps one entry per field: the newest. An older tap for a field already queued is dropped.
+ *  ⚠️ A TIE goes to the tap being added: it was made after the one held (the pre-push gate caught two taps landing in
+ *  the same millisecond in a test and keeping the first, 2026-10-18). */
 export function enqueueReading(queue: readonly QueuedReading[], tap: QueuedReading): QueuedReading[] {
   const held = queue.find(q => q.field === tap.field);
-  if (held && Date.parse(held.at) >= Date.parse(tap.at)) return [...queue];
+  if (held && Date.parse(held.at) > Date.parse(tap.at)) return [...queue];
   return [...queue.filter(q => q.field !== tap.field), tap];
 }
 

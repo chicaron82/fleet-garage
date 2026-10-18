@@ -11,6 +11,10 @@ describe('enqueueReading — one waiting tap per reading, the newest', () => {
     q = enqueueReading(q, { field: 'cleans', value: 3, at: t(2) });
     expect(q).toEqual([{ field: 'returns', value: 0, at: t(1) }, { field: 'cleans', value: 3, at: t(2) }]);
   });
+  it('⚠️ two taps in the same millisecond: the later call wins', () => {
+    const q = enqueueReading([{ field: 'cleans', value: 1, at: t(0) }], { field: 'cleans', value: 3, at: t(0) });
+    expect(q).toEqual([{ field: 'cleans', value: 3, at: t(0) }]);
+  });
   it('⚠️ an OLDER tap never replaces a newer one already waiting', () => {
     const q = enqueueReading([{ field: 'aisle', value: 1, at: t(5) }], { field: 'aisle', value: 0, at: t(4) });
     expect(q).toEqual([{ field: 'aisle', value: 1, at: t(5) }]);
