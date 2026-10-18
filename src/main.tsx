@@ -10,10 +10,11 @@ import { PwaUpdatePrompt } from './components/shared/PwaUpdatePrompt.tsx'
 import { LotEntry } from './components/lot/LotEntry.tsx'
 import { lotPageOf } from './lib/lotLookout.ts'
 
-// ⭐ /lot is the PUBLIC airport stall board (Lot Lookout): a driver opens it with a shared PIN, no FG login,
+// ⭐ /lot is the PUBLIC airport page (Lot Lookout's readings): a driver opens it with a shared PIN, no FG login,
 // the way nanays serves /request. It renders ahead of every FG provider, and loads lazily so FG itself never
 // pays for it. The PIN is checked server-side in api/lot.ts, the board's only writer. /lot/erin (Erin St's count)
 // and /lot/view (read only, no PIN) ride the same door.
+// ⚠️ This branch has no PwaUpdatePrompt of its own: LotEntry mounts it (a /lot phone kept the old page without it).
 const lotPage = lotPageOf(window.location.pathname)
 
 createRoot(document.getElementById('root')!).render(
