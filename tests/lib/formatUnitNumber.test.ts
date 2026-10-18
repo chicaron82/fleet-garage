@@ -17,6 +17,10 @@ describe('formatUnitNumber', () => {
     expect(formatUnitNumber('HRZ-9001')).toBe('HRZ-9001');
   });
 
+  it('⚠️ a US tag that splits its seven digits elsewhere keeps its own shape (Ogden, Utah: 071520-1)', () => {
+    expect(formatUnitNumber('071520-1')).toBe('071520-1');
+  });
+
   it('a car with no unit number stays empty rather than becoming a placeholder', () => {
     expect(formatUnitNumber(null)).toBe('');
     expect(formatUnitNumber(undefined)).toBe('');

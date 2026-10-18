@@ -16,6 +16,9 @@
 export function formatUnitNumber(unit: string | null | undefined): string {
   const raw = (unit ?? '').trim();
   if (!raw) return '';
-  const digits = raw.replace(/\D/g, '');
-  return digits.length === 7 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : raw;
+  // Seven digits, with at most one separator at the tag's own 3|4 split. Stripping EVERY non-digit
+  // regrouped the Ogden, Utah tag's `071520-1` (2026-10-17, a 6|1 layout no Canadian tag prints) into
+  // `071 5201`, a number that appears on no tag at all.
+  const m = raw.match(/^(\d{3})[\s-]?(\d{4})$/);
+  return m ? `${m[1]} ${m[2]}` : raw;
 }
