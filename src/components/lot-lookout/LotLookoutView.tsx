@@ -16,6 +16,9 @@ import { postLotSignedIn, type LotPost } from '../../hooks/useLotPin';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { useLotToast } from '../../hooks/useLotToast';
 import { useAuth } from '../../context/AuthContext';
+import { useSchedule } from '../../context/ScheduleContext';
+import { attendanceForCrew, shiftsToMark } from '../../lib/rosterCrew';
+import type { CrewState } from '../../lib/lotCrew';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { AirportNotches } from '../lot/AirportNotches';
@@ -32,6 +35,17 @@ export function LotLookoutView() {
   const by = initialsOf(user?.name ?? null);
   const [toastMsg, toast] = useLotToast();
   const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
+  // ⭐ Lot Lookout → My Day (2026-10-18, his "triple yes" to "they should affect eachother"): a crew chip here also marks
+  // them on My Day: Out is a no-show, any job (or back to the default) is present. Through the schedule's own setter,
+  // so My Day shows it the moment he goes back, without a reload.
+  const { todayShifts, setShiftAttendance } = useSchedule();
+  // Attendance FIRST: the crew write answers with a fresh count, and "back to the default" is only counted as working
+  // once they are present. The other order showed them as "not marked yet" until the next minute's read.
+  const markAndAttend = useCallback(async (users: string[], next: CrewState | 'clear') => {
+    const to = attendanceForCrew(next);
+    await Promise.all(shiftsToMark(todayShifts, users, to).map(id => setShiftAttendance(id, to)));
+    return mark(users, next, by || 'FG');
+  }, [mark, by, todayShifts, setShiftAttendance]);
   const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });
 
   return (
@@ -42,7 +56,7 @@ export function LotLookoutView() {
         <section aria-label="Crew" className="space-y-2">
           <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />
           {crew.members && crew.members.length > 0 && (
-            <LotCrewPanel members={crew.members} mark={(u, st) => mark(u, st, by || 'FG')} toast={toast}
+            <LotCrewPanel members={crew.members} mark={markAndAttend} toast={toast}
               leftOff={crew.leftOff} leaveOff={(u, off) => leaveOff(u, off, by || 'FG')} />
           )}
         </section>

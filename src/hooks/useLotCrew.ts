@@ -21,8 +21,15 @@ async function fetchCrew(signedIn: boolean): Promise<CrewPayload | null> {
   }
 }
 
+/** The last answer, per door, for as long as the app is open: IN MEMORY ONLY, never on the phone (it holds names).
+ *  ⭐ Aaron, 2026-10-18 17:00: back on My Day after Lot Lookout, a pulled VSA showed "present/cleaning for a brief
+ *  second before correcting itself". Each screen remounts and fetched the crew afresh; now it starts from what the
+ *  app already knew, and the fetch only confirms it. */
+const lastCrew = new Map<boolean, CrewPayload>();
+
 export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
-  const [crew, setCrew] = useState<CrewPayload | null>(null);
+  const [crew, setCrewState] = useState<CrewPayload | null>(() => lastCrew.get(signedIn) ?? null);
+  const setCrew = useCallback((c: CrewPayload) => { lastCrew.set(signedIn, c); setCrewState(c); }, [signedIn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +39,7 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     const onVisible = () => { if (document.visibilityState === 'visible') read(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { cancelled = true; clearInterval(tick); document.removeEventListener('visibilitychange', onVisible); };
-  }, [signedIn]);
+  }, [signedIn, setCrew]);
 
   /** Set (or clear back to the default) the state for these people. Returns an error to show, or null. */
   const mark = useCallback(async (users: string[], state: CrewState | 'clear', by: string): Promise<string | null> => {
@@ -42,7 +49,7 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     if (!r.ok) return r.error ?? 'The crew did not save.';
     setCrew(r.json.crew as CrewPayload);
     return null;
-  }, []);
+  }, [setCrew]);
 
   /** Leave someone off the crew line, or bring them back (migration 155). Remembered across days. */
   const leaveOff = useCallback(async (user: string, off: boolean, by: string): Promise<string | null> => {
@@ -52,7 +59,7 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     if (!r.ok) return r.error ?? 'That did not save.';
     setCrew(r.json.crew as CrewPayload);
     return null;
-  }, []);
+  }, [setCrew]);
 
-  return { crew, mark, leaveOff };
+  return { crew, mark, leaveOff, loaded: crew != null };
 }

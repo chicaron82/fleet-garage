@@ -70,9 +70,10 @@ export function LotCrewPanel({ members, mark, toast, leftOff, leaveOff }: Props)
         <span className={`font-semibold ${m.state === 'out' ? 'line-through text-gray-500 dark:text-gray-400' : ''}`}>{m.name}</span>
         <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">{when(m)}</span>
       </label>
-      <div className="flex gap-1.5 pl-6" role="group" aria-label={`${m.name}: ${CREW_STATE_LABEL[m.state]}`}>
+      {/* Nothing picked until they are confirmed (2026-10-18): marked present on My Day, a no-show, or a chip here. */}
+      <div className="flex gap-1.5 pl-6" role="group" aria-label={`${m.name}: ${m.confirmed === false ? 'not marked yet' : CREW_STATE_LABEL[m.state]}`}>
         {CREW_STATES[role].map(st => {
-          const on = m.state === st;
+          const on = m.confirmed !== false && m.state === st;
           return (
             <button key={st} type="button" disabled={busy} aria-pressed={on}
               onClick={() => void run([m.userId], on ? 'clear' : st, on ? `${m.name}: back to the schedule` : `${m.name}: ${CREW_STATE_LABEL[st].toLowerCase()}`)}

@@ -19,7 +19,7 @@ import type { Attendance } from '../../types';
 // ⭐ THE BOX (VSAs and drivers, same day): ticked = on their usual job, unticked = pulled. It is the crew line
 // (lot_crew), so Lot Lookout reads the same thing. Empty until present (*"stay empty until marked present"*).
 // Its own tap target beside the name, so reaching for one never lands on the other.
-export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew }: {
+export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, crewKnown = true }: {
   team: TeamMate[];
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   /** Injectable for tests and for a deterministic render; defaults to the wall clock. */
@@ -27,6 +27,8 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
   /** The crew line, by person. Without it (and onCrew) there is no box. */
   crewOf?: (userId: string) => CrewEntry | undefined;
   onCrew?: (userId: string, next: CrewState | 'clear') => void;
+  /** False until the crew line has answered once: the box says "not known yet" rather than guess "on". */
+  crewKnown?: boolean;
 }) {
   if (team.length === 0) {
     return <p className="text-sm text-gray-400 dark:text-gray-500">Nobody else scheduled.</p>;
@@ -58,13 +60,13 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
                   key={mate.id}
                   mate={mate}
                   standing={standing}
-                  box={withBox ? boxOf(section.group, mate.attendance, crew) : null}
+                  box={withBox ? boxOf(section.group, mate.attendance, crew, crewKnown) : null}
                   onTap={() => {
                     void setShiftAttendance(mate.id, nextAttendance(mate.attendance) ?? null);
                     const w = withBox ? crewWriteForAttendance(section.group, crew) : null;
                     if (w) onCrew!(mate.userId!, w);
                   }}
-                  onBox={() => boxTap(section.group, mate, crew, onCrew)}
+                  onBox={() => boxTap(section.group, mate, crew, crewKnown, onCrew)}
                 />
               );
             })}
@@ -75,8 +77,8 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
   );
 }
 
-function boxTap(group: RoleGroup, mate: TeamMate, crew: CrewEntry | undefined, onCrew?: (u: string, s: CrewState | 'clear') => void) {
-  const w = crewWriteForBox(group, boxOf(group, mate.attendance, crew));
+function boxTap(group: RoleGroup, mate: TeamMate, crew: CrewEntry | undefined, known: boolean, onCrew?: (u: string, s: CrewState | 'clear') => void) {
+  const w = crewWriteForBox(group, boxOf(group, mate.attendance, crew, known));
   if (w && mate.userId) onCrew?.(mate.userId, w);
 }
 
@@ -113,10 +115,11 @@ function RosterPill({ mate, standing, box, onTap, onBox }: {
       </button>
       {box && (
         <button type="button" onClick={onBox} aria-pressed={box === 'on'}
-          aria-label={box === 'off' ? `${mate.displayName}: mark present first` : box === 'on' ? `${mate.displayName} on the usual job. Tap if pulled` : `${mate.displayName} pulled. Tap when back`}
+          aria-label={box === 'off' ? `${mate.displayName}: mark present first` : box === 'unknown' ? `${mate.displayName}: crew line loading` : box === 'on' ? `${mate.displayName} on the usual job. Tap if pulled` : `${mate.displayName} pulled. Tap when back`}
           className="shrink-0 w-6 h-7 grid place-items-center cursor-pointer">
           <span aria-hidden="true" className={`w-4 h-4 rounded grid place-items-center border-[1.5px] ${
-            box === 'on' ? 'bg-green-700 border-green-700' : box === 'pulled' ? 'bg-white dark:bg-gray-900 border-amber-700' : 'border-gray-300 dark:border-gray-600'}`}>
+            box === 'on' ? 'bg-green-700 border-green-700' : box === 'pulled' ? 'bg-white dark:bg-gray-900 border-amber-700'
+              : box === 'unknown' ? 'border-dashed border-gray-400 dark:border-gray-500' : 'border-gray-300 dark:border-gray-600'}`}>
             {box === 'on' && (
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             )}

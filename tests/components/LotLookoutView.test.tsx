@@ -2,7 +2,7 @@
 // *"A now thing for us to polish"*. One screen: today's crew with the named list OPEN, the airport readings with live
 // taps (migration 157), and the links — all signed in, no PIN. Erin St's count moved to the top bar's pill (2026-10-18).
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import type { CrewMember } from '../../src/lib/lotCrew';
 
 const NOW = Date.parse('2026-10-15T23:30:00Z');
@@ -25,6 +25,13 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   }),
 }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
+const setShiftAttendance = vi.fn(async () => {});
+vi.mock('../../src/context/ScheduleContext', () => ({
+  useSchedule: () => ({
+    todayShifts: [{ id: 's-tomek', userId: 'u1', shiftType: 'opening', attendance: undefined }, { id: 's-khaiat', userId: 'u2', shiftType: 'mid', attendance: 'present' }],
+    setShiftAttendance,
+  }),
+}));
 const tap = vi.fn();
 let tapBy = '';
 vi.mock('../../src/hooks/useAirportTaps', () => ({
@@ -69,5 +76,23 @@ describe('LotLookoutView', () => {
     render(<LotLookoutView />);
     expect(screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'))).toEqual(['/lot', '/lot/erin', '/lot/view']);
     expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(3);
+  });
+
+  it('⭐ a crew chip here marks them on My Day too: a job is present, Out is a no-show (2026-10-18)', async () => {
+    render(<LotLookoutView />);
+    fireEvent.click(within(screen.getByRole('group', { name: /^Tomek:/ })).getByRole('button', { name: 'Moving cars' }));
+    await waitFor(() => expect(mark).toHaveBeenCalledWith(['u1'], 'moving', 'AS'));
+    expect(setShiftAttendance).toHaveBeenCalledWith('s-tomek', 'present');
+    setShiftAttendance.mockClear();
+    fireEvent.click(within(screen.getByRole('group', { name: /^Khaiat:/ })).getByRole('button', { name: 'Out' }));
+    await waitFor(() => expect(setShiftAttendance).toHaveBeenCalledWith('s-khaiat', 'absent'));
+  });
+
+  it('someone already marked present is not written again', async () => {
+    setShiftAttendance.mockClear();
+    render(<LotLookoutView />);
+    fireEvent.click(within(screen.getByRole('group', { name: /^Khaiat:/ })).getByRole('button', { name: 'Moving cars' }));
+    await waitFor(() => expect(mark).toHaveBeenCalledWith(['u2'], 'moving', 'AS'));
+    expect(setShiftAttendance).not.toHaveBeenCalled();
   });
 });

@@ -26,11 +26,13 @@ export interface CrewMember {
   onNow: boolean;
   phase: 'later' | 'on' | 'done';
   marked: boolean;
+  /** Present, a no-show, or marked by hand (2026-10-18). Unconfirmed = "not marked yet". Absent on an older server. */
+  confirmed?: boolean;
 }
 
 export interface CrewSummary {
-  vsa: { cleaning: number; moving: number; out: number };
-  driver: { airport: number; other: number; out: number };
+  vsa: { cleaning: number; moving: number; out: number; unmarked?: number };
+  driver: { airport: number; other: number; out: number; unmarked?: number };
 }
 
 export interface CrewPayload {
@@ -41,22 +43,28 @@ export interface CrewPayload {
   leftOff?: { userId: string; name: string }[];
 }
 
-/** "Cleaning 1 of 2 · 1 moving cars · 1 out". The "of" counts who is working, so an out never reads as idle. */
+/** "Cleaning 1 of 2 · 1 moving cars · 1 out". The "of" counts who is working, so an out never reads as idle.
+ *  ⭐ "· 2 not marked yet" (2026-10-18): someone on now but not yet marked present is counted in the "of" and said
+ *  plainly, so an early-shift line reads as unconfirmed, never as nobody working. */
 export function vsaLine(s: CrewSummary['vsa']): string {
-  const working = s.cleaning + s.moving;
+  const unmarked = s.unmarked ?? 0;
+  const working = s.cleaning + s.moving + unmarked;
   if (working + s.out === 0) return 'No VSAs on right now';
   const parts = [`Cleaning ${s.cleaning} of ${working}`];
   if (s.moving) parts.push(`${s.moving} moving cars`);
+  if (unmarked) parts.push(`${unmarked} not marked yet`);
   if (s.out) parts.push(`${s.out} out`);
   return parts.join(' · ');
 }
 
 /** "To the airport 1 of 3 · 2 on another job". */
 export function driverLine(s: CrewSummary['driver']): string {
-  const working = s.airport + s.other;
+  const unmarked = s.unmarked ?? 0;
+  const working = s.airport + s.other + unmarked;
   if (working + s.out === 0) return 'No drivers on right now';
   const parts = [`To the airport ${s.airport} of ${working}`];
   if (s.other) parts.push(`${s.other} on another job`);
+  if (unmarked) parts.push(`${unmarked} not marked yet`);
   if (s.out) parts.push(`${s.out} out`);
   return parts.join(' · ');
 }

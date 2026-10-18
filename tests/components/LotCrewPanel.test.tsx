@@ -74,3 +74,12 @@ describe('LotCrewPanel — finished fold and leave off', () => {
     expect(screen.queryByText(/Leave someone off/)).toBeNull();
   });
 });
+
+describe('LotCrewPanel — nothing picked until confirmed (2026-10-18)', () => {
+  it('⭐ someone not yet marked present shows no state chip on, and says "not marked yet"', () => {
+    const unconfirmed = { ...m('b', 'Moaz', 'vsa', 'cleaning'), confirmed: false };
+    render(<LotCrewPanel members={[unconfirmed]} mark={vi.fn(async () => null)} toast={vi.fn()} />);
+    const group = screen.getByRole('group', { name: 'Moaz: not marked yet' });
+    for (const b of group.querySelectorAll('button')) expect(b).toHaveAttribute('aria-pressed', 'false');
+  });
+});

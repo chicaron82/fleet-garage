@@ -116,4 +116,12 @@ describe('TeamRoster — the grid and the box', () => {
     render(<TeamRoster team={[mate('Jagdeep', '06:45', '15:15', 'CSR', 'present')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
+  it('⭐ his flash (17:00): before the crew line answers, a present pill\'s box is "loading", never ticked, and writes nothing', async () => {
+    const onCrew = vi.fn();
+    render(<TeamRoster team={[mate('Moaz', '14:30', '23:00', 'VSA', 'present')]} setShiftAttendance={vi.fn()} now="16:00" crewOf={crewNone} onCrew={onCrew} crewKnown={false} />);
+    const box = screen.getByRole('button', { name: 'Moaz: crew line loading' });
+    expect(box).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(box);
+    expect(onCrew).not.toHaveBeenCalled();
+  });
 });

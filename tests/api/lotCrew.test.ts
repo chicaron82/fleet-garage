@@ -6,7 +6,9 @@ import { crewOf, crewRoleOf, crewSummary, stateFits, winnipegInstant, type CrewM
 
 const DAY = '2026-10-15';
 const at = (hhmm: string, day = DAY) => winnipegInstant(day, hhmm);
-const row = (userId: string, name: string, profileRole: string, start: string | null, end: string | null, shiftType = 'opening', attendance: string | null = null): RosterRow =>
+// Marked PRESENT unless a test says otherwise: since 2026-10-18 an unconfirmed person is "not marked yet", and these
+// scenarios (his own examples) are about people already working.
+const row = (userId: string, name: string, profileRole: string, start: string | null, end: string | null, shiftType = 'opening', attendance: string | null = 'present'): RosterRow =>
   ({ userId, name, profileRole, shiftType, start, end, attendance });
 const mark = (userId: string, state: CrewMark['state'], when: string, day = DAY): CrewMark => ({ userId, state, day, at: new Date(at(when)).toISOString() });
 
@@ -45,20 +47,20 @@ describe('crewRoleOf / stateFits', () => {
 describe('crewOf + crewSummary', () => {
   it('⭐ his example: he and Moaz on, he sends Moaz — one cleaning, one moving cars', () => {
     const members = crewOf(roster, [mark('moaz', 'moving', '11:00')], DAY, at('11:05'));
-    expect(crewSummary(members).vsa).toEqual({ cleaning: 1, moving: 1, out: 0 });
+    expect(crewSummary(members).vsa).toEqual({ cleaning: 1, moving: 1, out: 0, unmarked: 0 });
   });
 
   it('⭐ his drivers today: three on, two pulled to the auction run — one to the airport', () => {
     const members = crewOf(roster, [mark('larryc', 'other', '11:00'), mark('rey', 'other', '11:00')], DAY, at('11:05'));
-    expect(crewSummary(members).driver).toEqual({ airport: 1, other: 2, out: 0 });
+    expect(crewSummary(members).driver).toEqual({ airport: 1, other: 2, out: 0, unmarked: 0 });
   });
 
   it('counts only who is on right now: not in yet, or gone home, is not counted', () => {
     const s = crewSummary(crewOf(roster, [], DAY, at('09:30')));
-    expect(s.vsa).toEqual({ cleaning: 2, moving: 0, out: 0 }); // Khaiat starts 14:30
-    expect(s.driver).toEqual({ airport: 2, other: 0, out: 0 }); // Larry J starts 10:00
+    expect(s.vsa).toEqual({ cleaning: 2, moving: 0, out: 0, unmarked: 0 }); // Khaiat starts 14:30
+    expect(s.driver).toEqual({ airport: 2, other: 0, out: 0, unmarked: 0 }); // Larry J starts 10:00
     const late = crewSummary(crewOf(roster, [], DAY, at('16:00')));
-    expect(late.vsa).toEqual({ cleaning: 1, moving: 0, out: 0 }); // only Khaiat
+    expect(late.vsa).toEqual({ cleaning: 1, moving: 0, out: 0, unmarked: 0 }); // only Khaiat
   });
 
   it('day-off is not today\'s crew; CSRs and HIRs are never crew', () => {
@@ -71,7 +73,7 @@ describe('crewOf + crewSummary', () => {
     const r = [...roster, row('ray', 'Ray T.', 'VSA', null, null, 'sick'), row('tom', 'Tomek', 'VSA', '06:45:00', '15:15:00', 'opening', 'absent')];
     const members = crewOf(r, [], DAY, at('10:00'));
     expect(members.find(m => m.name === 'Ray T.')!.state).toBe('out');
-    expect(crewSummary(members).vsa).toEqual({ cleaning: 2, moving: 0, out: 2 });
+    expect(crewSummary(members).vsa).toEqual({ cleaning: 2, moving: 0, out: 2, unmarked: 0 });
   });
 
   it('⭐ overtime: marked after the shift ended means he stayed, so he counts', () => {
@@ -125,5 +127,20 @@ describe('left off the crew line', () => {
     const kept = crewOf(roster, [], DAY, now, new Set(['larryc']));
     expect(kept.map(m => m.userId)).not.toContain('larryc');
     expect(crewSummary(kept).driver.airport).toBe(crewSummary(crewOf(roster, [], DAY, now)).driver.airport - 1);
+  });
+});
+
+// ⭐ 2026-10-18, his "triple yes": the crew line waits for present, so it agrees with My Day's box.
+describe('confirmed — the crew line waits for present', () => {
+  const r = [row('moaz', 'Moaz', 'VSA', '06:45:00', '15:15:00', 'opening', null), row('erick', 'Erick', 'VSA', '06:45:00', '15:15:00', 'opening', 'present')];
+  it('⭐ on now but not marked present: counted as "not marked yet", never assumed cleaning', () => {
+    const members = crewOf(r, [], DAY, at('10:00'));
+    expect(members.find(m => m.userId === 'moaz')).toMatchObject({ confirmed: false, onNow: true });
+    expect(crewSummary(members).vsa).toEqual({ cleaning: 1, moving: 0, out: 0, unmarked: 1 });
+  });
+  it('a hand mark confirms them; so does a no-show', () => {
+    expect(crewOf(r, [mark('moaz', 'moving', '09:00')], DAY, at('10:00')).find(m => m.userId === 'moaz')!.confirmed).toBe(true);
+    const absent = [row('moaz', 'Moaz', 'VSA', '06:45:00', '15:15:00', 'opening', 'absent')];
+    expect(crewSummary(crewOf(absent, [], DAY, at('10:00'))).vsa).toEqual({ cleaning: 0, moving: 0, out: 1, unmarked: 0 });
   });
 });

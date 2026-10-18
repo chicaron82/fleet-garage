@@ -12,7 +12,7 @@ import type { CrewState } from '../lib/lotCrew';
 import type { CrewEntry } from '../lib/rosterCrew';
 
 export function useRosterCrew() {
-  const { crew, mark } = useLotCrew({ signedIn: true });
+  const { crew, mark, loaded } = useLotCrew({ signedIn: true });
   const { user } = useAuth();
   const by = initialsOf(user?.name ?? null) || 'FG';
   const [pending, setPending] = useState<Record<string, CrewEntry>>({});
@@ -36,5 +36,5 @@ export function useRosterCrew() {
     if (problem) setNote(`The crew line did not save: ${problem}`);
   }, [mark, by]);
 
-  return { crewOf, write, note };
+  return { crewOf, write, note, loaded };
 }

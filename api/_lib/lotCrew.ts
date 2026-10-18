@@ -6,7 +6,10 @@
 // 1 moving cars to the airport"*.
 //
 // The roster is FG's `shifts` for the shift-day; a mark (lot_crew) is only what he changed. Rules:
-//   • VSAs (and the Lead VSA) default to CLEANING; drivers to TO THE AIRPORT.
+//   • VSAs (and the Lead VSA) default to CLEANING; drivers to TO THE AIRPORT — but only once they are CONFIRMED
+//     (2026-10-18, his "triple yes" to the crew line waiting for present, so My Day's box and this line agree):
+//     marked present on My Day, marked no-show, or given a state here by hand. Until then they are counted as
+//     "not marked yet", never assumed to be working.
 //   • "Out" is one plain state. A shift typed `sick`, or attendance `absent`, reads as out; never with a reason.
 //   • Someone counts while their shift window covers now. A mark made AFTER their window ended means they stayed
 //     (overtime, like his today), so they count until the shift-day turns over.
@@ -84,6 +87,8 @@ export interface CrewMember {
   /** Not counted: not in yet, or their shift is over. */
   phase: 'later' | 'on' | 'done';
   marked: boolean;
+  /** Present, a no-show, or marked here by hand. Unconfirmed = "not marked yet": counted, never assumed. */
+  confirmed: boolean;
 }
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
@@ -119,22 +124,24 @@ export function crewOf(
     }
     const onNow = state === 'out' ? within : within || stayed;
     if (onNow && phase === 'done') phase = 'on';
-    out.push({ userId: r.userId, name: r.name, role, start: hhmm(start), end: hhmm(end), state, onNow, phase, marked: mark != null });
+    const confirmed = mark != null || absent || r.attendance === 'present';
+    out.push({ userId: r.userId, name: r.name, role, start: hhmm(start), end: hhmm(end), state, onNow, phase, marked: mark != null, confirmed });
   }
   return out.sort((a, b) => (a.start ?? '99').localeCompare(b.start ?? '99') || a.name.localeCompare(b.name));
 }
 
 export interface CrewSummary {
-  vsa: { cleaning: number; moving: number; out: number };
-  driver: { airport: number; other: number; out: number };
+  vsa: { cleaning: number; moving: number; out: number; unmarked: number };
+  driver: { airport: number; other: number; out: number; unmarked: number };
 }
 
 /** Numbers only: what the read-only view gets. */
 export function crewSummary(members: readonly CrewMember[]): CrewSummary {
-  const s: CrewSummary = { vsa: { cleaning: 0, moving: 0, out: 0 }, driver: { airport: 0, other: 0, out: 0 } };
+  const s: CrewSummary = { vsa: { cleaning: 0, moving: 0, out: 0, unmarked: 0 }, driver: { airport: 0, other: 0, out: 0, unmarked: 0 } };
   for (const m of members) {
     if (!m.onNow) continue;
-    if (m.role === 'vsa') s.vsa[m.state as 'cleaning' | 'moving' | 'out'] += 1;
+    if (!m.confirmed) s[m.role].unmarked += 1;
+    else if (m.role === 'vsa') s.vsa[m.state as 'cleaning' | 'moving' | 'out'] += 1;
     else s.driver[m.state as 'airport' | 'other' | 'out'] += 1;
   }
   return s;

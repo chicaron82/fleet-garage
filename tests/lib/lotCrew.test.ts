@@ -32,3 +32,13 @@ describe('splitFinished', () => {
     expect(finished.map(x => x.id)).toEqual(['done']);
   });
 });
+
+describe('"not marked yet" (2026-10-18: the crew line waits for present)', () => {
+  it('counted in the "of", said plainly, never read as nobody working', () => {
+    expect(vsaLine({ cleaning: 0, moving: 0, out: 0, unmarked: 3 })).toBe('Cleaning 0 of 3 · 3 not marked yet');
+    expect(driverLine({ airport: 2, other: 1, out: 0, unmarked: 1 })).toBe('To the airport 2 of 4 · 1 on another job · 1 not marked yet');
+  });
+  it('an older server with no count reads the way it always did', () => {
+    expect(vsaLine({ cleaning: 1, moving: 1, out: 0 })).toBe('Cleaning 1 of 2 · 1 moving cars');
+  });
+});
