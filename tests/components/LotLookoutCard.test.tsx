@@ -1,15 +1,16 @@
 // My Day's Lot Lookout card — a glance since Lot Lookout became its own module (2026-10-15). Erin St's count and its
-// steppers stay on the card (*"May I suggest adding the cleans steppers here"*); the map, the named crew list and the
-// links moved to the module, and the card's header opens it.
+// steppers stay on the card (*"May I suggest adding the cleans steppers here"*); the named crew list and the links
+// moved to the module, and the card's header opens it. The airport is two readings since 2026-10-18 (migration 157).
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { LotStall } from '../../src/lib/lotLookout';
 
 const NOW = Date.parse('2026-10-15T16:30:00Z');
-const stalls: LotStall[] = [{ stall: 'P3', run: 'P', num: 3, state: 'clean', tappedBy: 'AS', tappedAt: new Date(NOW).toISOString() }];
-
-vi.mock('../../src/hooks/useLotBoard', () => ({
-  useLotBoard: () => ({ stalls, aisle: { cars: 0, tappedBy: null, tappedAt: null }, loaded: true, error: null, nowMs: NOW }),
+vi.mock('../../src/hooks/useLotAirport', () => ({
+  useLotAirport: () => ({
+    readings: { cleans: 0, cleansBy: 'LC', cleansAt: new Date(NOW - 14 * 60000).toISOString(), returns: 1, returnsBy: 'LC',
+      returnsAt: new Date(NOW - 11 * 60000).toISOString(), aisle: true, aisleBy: 'LC', aisleAt: new Date(NOW - 11 * 60000).toISOString() },
+    loaded: true, error: null, nowMs: NOW, setLocal: () => {},
+  }),
 }));
 let bay: unknown = {
   cleans: 6, cleansBy: 'AS', cleansAt: new Date(NOW - 3 * 60000).toISOString(),
@@ -61,9 +62,9 @@ describe('LotLookoutCard', () => {
     await waitFor(() => expect(screen.queryByLabelText('New dirty count')).toBeNull());
   });
 
-  it('a glance: no map, no named crew list, no links — those live in the module', () => {
+  it('a glance: no notches, no named crew list, no links — those live in the module', () => {
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
-    expect(screen.queryByRole('button', { name: 'P3 clean' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Cleans on the lot/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Who is where/ })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open' })).toBeNull();
   });
@@ -78,6 +79,13 @@ describe('LotLookoutCard', () => {
     bay = null;
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     expect(screen.queryByText('Erin St')).toBeNull();
-    expect(screen.getByText(/Airport low on cleans/)).toBeTruthy();
+    expect(screen.getByText('Airport: Lots of room for cleans')).toBeTruthy();
+  });
+
+  it('⭐ the airport reads the way the bay needs it: room, returns, the aisle, each with its time', () => {
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
+    expect(screen.getByText('Lots of returns')).toBeTruthy();
+    expect(screen.getByText('Cars in the aisle')).toBeTruthy();
+    expect(screen.getAllByText(/· 1[14]m$/)).toHaveLength(3);
   });
 });

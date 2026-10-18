@@ -1,13 +1,14 @@
-// POST /api/lot — the ONE writer of the Lot Lookout board (lot_stalls, lot_aisle, lot_taps), of Erin St's
+// POST /api/lot — the ONE writer of the airport's readings (lot_airport, lot_airport_taps — migration 157), of Erin St's
 // count (lot_bay, lot_bay_taps — migration 153), and of today's crew marks (lot_crew — migration 154).
 // GET /api/lot — today's crew: numbers for anyone (the read-only /lot/view), names only for a signed-in FG session.
 //
 // The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
-// the three tables read-only to the browser's keys, so this function checks the PIN and writes with the
+// the lot tables read-only to the browser's keys, so this function checks the PIN and writes with the
 // service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
 import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
+import { readingChange } from './_lib/lotAirport.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew, markCrew } from './_lib/lotCrewDb.js';
@@ -69,19 +70,20 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true });
       return;
     }
-    if (parsed.action === 'stall' || parsed.action === 'undo') {
-      const { data: before, error: readErr } = await db.from('lot_stalls').select('state').eq('stall', parsed.stall).single();
+    if (parsed.action === 'reading') {
+      const { data: row, error: readErr } = await db.from('lot_airport')
+        .select('cleans, cleans_at, returns, returns_at, aisle, aisle_at').eq('id', 1).single();
       if (readErr) throw readErr;
-      const next = parsed.action === 'stall'
-        ? { state: parsed.state, tapped_by: parsed.by, tapped_at: now }
-        : { state: parsed.prev.state, tapped_by: parsed.prev.by, tapped_at: parsed.prev.at };
-      const { error } = await db.from('lot_stalls').update(next).eq('stall', parsed.stall);
-      if (error) throw error;
-      await db.from('lot_taps').insert({
-        stall: parsed.stall, state: next.state, prev_state: before?.state ?? null,
-        tapped_by: parsed.by, kind: parsed.action,
-      });
-      res.status(200).json({ ok: true, stall: parsed.stall, ...next });
+      const change = readingChange(row, parsed);
+      let airport: unknown = null;
+      if (change.patch) {
+        const { data: saved, error } = await db.from('lot_airport').update(change.patch).eq('id', 1).select().single();
+        if (error) throw error;
+        airport = saved;
+      }
+      await db.from('lot_airport_taps').insert(change.tap);
+      // applied = false is still a 200: the tap reached us, it was just older than what another phone had sent.
+      res.status(200).json({ ok: true, applied: change.tap.applied, airport });
       return;
     }
     if (parsed.action === 'crew' || parsed.action === 'leaveOff') {
@@ -117,14 +119,7 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true, bay: saved });
       return;
     }
-    // aisle
-    const { data: row, error: readErr } = await db.from('lot_aisle').select('cars').eq('id', 1).single();
-    if (readErr) throw readErr;
-    const cars = Math.max(0, (row?.cars ?? 0) + parsed.delta);
-    const { error } = await db.from('lot_aisle').update({ cars, tapped_by: parsed.by, tapped_at: now }).eq('id', 1);
-    if (error) throw error;
-    await db.from('lot_taps').insert({ stall: null, state: String(cars), prev_state: String(row?.cars ?? 0), tapped_by: parsed.by, kind: 'aisle' });
-    res.status(200).json({ ok: true, cars });
+    res.status(400).json({ error: 'Unknown action.' });
   } catch (e) {
     console.error('[api/lot]', e);
     res.status(500).json({ error: 'The board did not save. Try the tap again.' });

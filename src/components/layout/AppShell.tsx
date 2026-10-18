@@ -7,6 +7,7 @@ import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { usePreferences } from '../../context/PreferencesContext';
 import { ActiveSessionPill } from './ActiveSessionPill';
 import { ErinPill } from '../lot/ErinPill';
+import { AirPill } from '../lot/AirPill';
 import { useScanRouter } from '../../context/scanRouter';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
 import { BackdateApprovalSheet } from '../off-standard/BackdateApprovalSheet';
@@ -147,6 +148,8 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             <ActiveSessionPill activeModule={activeModule} onNavigate={handleNavigate} />
             {/* Erin St's count, "7/3", on every screen (2026-10-16): his updates had cost a trip to My Day after every car. */}
             <ErinPill />
+            {/* The airport beside it (2026-10-18): two squares, room for cleans and returns; tap for the times. */}
+            <AirPill where="topbar" />
             {/* 🔍 The typing door into the SAME scan sheet (2026-09-10): plate or unit, keyboard up,
                 no camera. Same card, same menu, same sighting rule — looking never counts as seen,
                 only a change does. Its room came from moving the bell + avatar into the drawer. */}

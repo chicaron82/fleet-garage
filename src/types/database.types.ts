@@ -999,6 +999,78 @@ export type Database = {
         }
         Relationships: []
       }
+      lot_airport: {
+        Row: {
+          aisle: boolean
+          aisle_at: string | null
+          aisle_by: string | null
+          cleans: number | null
+          cleans_at: string | null
+          cleans_by: string | null
+          id: number
+          returns: number | null
+          returns_at: string | null
+          returns_by: string | null
+        }
+        Insert: {
+          aisle?: boolean
+          aisle_at?: string | null
+          aisle_by?: string | null
+          cleans?: number | null
+          cleans_at?: string | null
+          cleans_by?: string | null
+          id?: number
+          returns?: number | null
+          returns_at?: string | null
+          returns_by?: string | null
+        }
+        Update: {
+          aisle?: boolean
+          aisle_at?: string | null
+          aisle_by?: string | null
+          cleans?: number | null
+          cleans_at?: string | null
+          cleans_by?: string | null
+          id?: number
+          returns?: number | null
+          returns_at?: string | null
+          returns_by?: string | null
+        }
+        Relationships: []
+      }
+      lot_airport_taps: {
+        Row: {
+          applied: boolean
+          field: string
+          id: number
+          prev: number | null
+          received_at: string
+          tapped_at: string
+          tapped_by: string | null
+          value: number
+        }
+        Insert: {
+          applied: boolean
+          field: string
+          id?: never
+          prev?: number | null
+          received_at?: string
+          tapped_at: string
+          tapped_by?: string | null
+          value: number
+        }
+        Update: {
+          applied?: boolean
+          field?: string
+          id?: never
+          prev?: number | null
+          received_at?: string
+          tapped_at?: string
+          tapped_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
       lot_aisle: {
         Row: {
           cars: number
@@ -1080,6 +1152,48 @@ export type Database = {
           tapped_at?: string
           tapped_by?: string | null
           value?: number
+        }
+        Relationships: []
+      }
+      lot_crew: {
+        Row: {
+          day: string
+          state: string
+          tapped_at: string
+          tapped_by: string | null
+          user_id: string
+        }
+        Insert: {
+          day: string
+          state: string
+          tapped_at?: string
+          tapped_by?: string | null
+          user_id: string
+        }
+        Update: {
+          day?: string
+          state?: string
+          tapped_at?: string
+          tapped_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lot_crew_left_off: {
+        Row: {
+          left_at: string
+          left_by: string | null
+          user_id: string
+        }
+        Insert: {
+          left_at?: string
+          left_by?: string | null
+          user_id: string
+        }
+        Update: {
+          left_at?: string
+          left_by?: string | null
+          user_id?: string
         }
         Relationships: []
       }

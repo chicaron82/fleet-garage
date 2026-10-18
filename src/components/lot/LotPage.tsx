@@ -3,55 +3,58 @@
 // gate, the way nanays serves /request (Aaron, 2026-10-14: *"can't it be a link through FG just like nanays'
 // public order form?"*). The only writer behind it is api/lot.ts.
 //
-// Erin St's count sits on top (migration 153), so a driver looking at "low on cleans" also sees what is waiting.
-import { useMemo } from 'react';
-import { lotTotals } from '../../lib/lotLookout';
-import { useLotBoard } from '../../hooks/useLotBoard';
+// ⭐ Since 2026-10-18 (migration 157) it is two readings and the aisle, not a stall map. His words: *"picking between
+// three states is a little much. especially when moving quickly. drivers picking up and going"*. One screen, one tap per
+// reading, and a tap with no signal waits on the phone (useAirportTaps) instead of being undone in front of the driver.
+//
+// Erin St's count sits on top (migration 153), so a driver also sees what is waiting at the bay.
+import { useCallback } from 'react';
+import { useLotAirport } from '../../hooks/useLotAirport';
 import { useLotBay } from '../../hooks/useLotBay';
-import { useLotTaps } from '../../hooks/useLotTaps';
+import { useLotPin, postLot, type LotPost } from '../../hooks/useLotPin';
 import { useLotToast } from '../../hooks/useLotToast';
-import { LotSummary } from './LotSummary';
-import { LotMap } from './LotMap';
+import { useAirportTaps } from '../../hooks/useAirportTaps';
+import { AirportNotches } from './AirportNotches';
 import { LotBayStrip } from './LotBayStrip';
 import { LotPinGate, LotTapperBar, LotToast } from './LotChrome';
 
 export function LotPage() {
-  const board = useLotBoard();
+  const airport = useLotAirport('lot-airport-drivers');
   const erin = useLotBay();
   const [toastMsg, toast] = useLotToast();
-  const taps = useLotTaps(board, toast);
-  const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
+  const { pin, by, setBy, unlock, fail, pinUnchecked, pinWorked } = useLotPin(toast);
+  const send = useCallback((body: Record<string, unknown>): Promise<LotPost> => postLot({ pin, ...body }), [pin]);
+  const taps = useAirportTaps({ airport, send, by, queueKey: 'lot_airport_queue', onFail: fail, onSent: pinWorked, toast });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <div className="mx-auto max-w-[460px] px-4 pb-24">
-        {!taps.pin ? <LotPinGate onUnlock={taps.unlock} blurb="The airport stall board." /> : (
+        {!pin ? <LotPinGate onUnlock={unlock} blurb="The airport readings." /> : (
           <>
-            {/* Not sticky: pinned, the counts and legend took half a phone and left the map a slot. */}
             <header className="pt-3 pb-2.5 space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <h1 className="text-xl font-extrabold">Lot Lookout</h1>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Airport · 1965 Wellington</span>
+                <h1 className="text-xl font-extrabold">Airport lot</h1>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Tap what you see</span>
               </div>
               {erin.bay && <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} />}
-              <LotSummary totals={totals} aisleCars={board.aisle.cars} />
             </header>
-            {board.error && <p className="my-2 text-sm text-red-700 dark:text-red-400">{board.error}</p>}
-            {!board.loaded ? <p className="mt-8 text-center text-sm text-gray-500">Loading the lot…</p> : (
-              <LotMap stalls={board.stalls} aisle={board.aisle} nowMs={board.nowMs} nPulse={totals.nPulse}
-                onTap={(stall, state) => void taps.tapStall(stall, state)} onAisle={d => void taps.tapAisle(d)} />
+            {(pinUnchecked || taps.waiting > 0) && (
+              <p role="status" className="mb-2 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {taps.waiting > 0 ? `${taps.waiting} ${taps.waiting === 1 ? 'tap' : 'taps'} waiting for signal. They send by themselves.` : 'No signal yet: your PIN is checked when there is.'}
+              </p>
             )}
+            {airport.error && <p className="my-2 text-sm text-red-700 dark:text-red-400">{airport.error}</p>}
+            {/* Taps work before the first read lands (a dead zone may never let it): they wait like any other. */}
+            <AirportNotches shown={taps.shown} nowMs={airport.nowMs} onTap={(f, v) => void taps.tap(f, v)} />
             <p className="mt-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-              Tap a colour on a stall: white open, green clean, red dirty. Tap the same colour again within 5 seconds to
-              undo. Hold a stall to grey it out as taken, when a customer's or a staff car is parked in it; hold it
-              again to free it. Tapping the colour a stall already shows tells
-              everyone you looked and it is still true. Every tap shows on every phone.
+              One tap saves. Tap again any time; the newest reading wins. No signal? Your tap waits on this phone with the
+              time you made it, and sends when signal comes back. Every reading shows on every phone and in FG.
             </p>
           </>
         )}
       </div>
 
-      {taps.pin && <LotTapperBar by={taps.by} setBy={taps.setBy} hint="Tap a colour on any stall" />}
+      {pin && <LotTapperBar by={by} setBy={setBy} hint="Tap what you see" />}
       <LotToast msg={toastMsg} />
     </div>
   );

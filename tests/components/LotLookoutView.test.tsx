@@ -1,18 +1,20 @@
 // The Lot Lookout module. Aaron, 2026-10-15: *"What do you think of having lot outlook as an FG module?"* ...
 // *"A now thing for us to polish"*. One screen: Erin St's count, today's crew with the named list OPEN, the airport
-// board with live taps, and the links — all signed in, no PIN.
+// readings with live taps (migration 157), and the links — all signed in, no PIN.
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { LotStall } from '../../src/lib/lotLookout';
 import type { CrewMember } from '../../src/lib/lotCrew';
 
 const NOW = Date.parse('2026-10-15T23:30:00Z');
-const stalls: LotStall[] = [{ stall: 'P3', run: 'P', num: 3, state: 'clean', tappedBy: 'LC', tappedAt: new Date(NOW).toISOString() }];
 const member = (userId: string, name: string, role: CrewMember['role'], state: CrewMember['state']): CrewMember =>
   ({ userId, name, role, start: '16:00', end: '22:00', state, onNow: true, phase: 'on', marked: false });
 
-vi.mock('../../src/hooks/useLotBoard', () => ({
-  useLotBoard: () => ({ stalls, aisle: { cars: 0, tappedBy: null, tappedAt: null }, loaded: true, error: null, nowMs: NOW }),
+vi.mock('../../src/hooks/useLotAirport', () => ({
+  useLotAirport: () => ({
+    readings: { cleans: 0, cleansBy: 'LC', cleansAt: new Date(NOW - 14 * 60000).toISOString(), returns: 1, returnsBy: 'LC',
+      returnsAt: new Date(NOW - 11 * 60000).toISOString(), aisle: true, aisleBy: 'LC', aisleAt: new Date(NOW - 11 * 60000).toISOString() },
+    loaded: true, error: null, nowMs: NOW, setLocal: () => {},
+  }),
 }));
 vi.mock('../../src/hooks/useLotBay', () => ({
   useLotBay: () => ({
@@ -31,24 +33,31 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const tapCleans = vi.fn();
 vi.mock('../../src/hooks/useBayTaps', () => ({ useBayTapsSignedIn: () => ({ tapCleans, setDirties: vi.fn(async () => true) }) }));
-const tapStall = vi.fn();
-const tapAisle = vi.fn();
-let stallBy = '';
-vi.mock('../../src/hooks/useLotTaps', () => ({
-  useLotTapsSignedIn: (_b: unknown, _t: unknown, by: string) => { stallBy = by; return { tapStall, tapAisle }; },
+const tap = vi.fn();
+let tapBy = '';
+vi.mock('../../src/hooks/useAirportTaps', () => ({
+  useAirportTaps: (o: { by: string; airport: { readings: unknown } }) => { tapBy = o.by; return { shown: o.airport.readings, waiting: 0, tap }; },
 }));
 
 const { LotLookoutView } = await import('../../src/components/lot-lookout/LotLookoutView');
 
 describe('LotLookoutView', () => {
-  it('⭐ the airport board takes taps here, signed in as him (no PIN gate)', () => {
+  it('⭐ the airport readings take taps here, signed in as him (no PIN gate)', () => {
     render(<LotLookoutView />);
     expect(screen.queryByLabelText(/PIN/i)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'P3 dirty' }));
-    expect(tapStall).toHaveBeenCalledWith('P3', 'dirty');
-    fireEvent.click(screen.getByRole('button', { name: 'One more in the aisle' }));
-    expect(tapAisle).toHaveBeenCalledWith(1);
-    expect(stallBy).toBe('AS');
+    fireEvent.click(screen.getByRole('button', { name: 'Cleans on the lot: Full' }));
+    expect(tap).toHaveBeenCalledWith('cleans', 4);
+    fireEvent.click(screen.getByRole('button', { name: 'Returns waiting: Clear' }));
+    expect(tap).toHaveBeenCalledWith('returns', 4);
+    fireEvent.click(screen.getByRole('button', { name: /Cars in the aisle/ }));
+    expect(tap).toHaveBeenCalledWith('aisle', 0);
+    expect(tapBy).toBe('AS');
+  });
+
+  it('no stall map anywhere (his ruling, 2026-10-18)', () => {
+    render(<LotLookoutView />);
+    expect(screen.queryByRole('button', { name: /^P3 / })).toBeNull();
+    expect(screen.queryByText(/Hold a stall/)).toBeNull();
   });
 
   it('⭐ the named crew list is OPEN — no fold to find it behind', () => {

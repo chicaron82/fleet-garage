@@ -2,23 +2,23 @@
 // module?"* ... *"A now thing for us to polish"*.
 //
 // One full screen for what had been spread across a My Day card and three outside links: Erin St's count, today's
-// crew with the named list open (it had been squeezed into a fold), and the airport board with live taps. Signed in
+// crew with the named list open (it had been squeezed into a fold), and the airport with live taps. Signed in
 // to FG, so there is no PIN anywhere here — api/lot.ts takes the session for every action, and the crew ONLY from a
 // session. The drivers' /lot page, /lot/erin and /lot/view are untouched; this is another door to the same rows.
-import { useMemo } from 'react';
-import { initialsOf, lotTotals } from '../../lib/lotLookout';
-import { useLotBoard } from '../../hooks/useLotBoard';
+import { useCallback } from 'react';
+import { initialsOf } from '../../lib/lotLookout';
+import { useLotAirport } from '../../hooks/useLotAirport';
+import { useAirportTaps } from '../../hooks/useAirportTaps';
+import { postLotSignedIn, type LotPost } from '../../hooks/useLotPin';
 import { useLotBay } from '../../hooks/useLotBay';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { useLotToast } from '../../hooks/useLotToast';
 import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
-import { useLotTapsSignedIn } from '../../hooks/useLotTaps';
 import { useAuth } from '../../context/AuthContext';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotBayStrip } from '../lot/LotBayStrip';
 import { LotCrewLine } from '../lot/LotCrewLine';
-import { LotSummary } from '../lot/LotSummary';
-import { LotMap } from '../lot/LotMap';
+import { AirportNotches } from '../lot/AirportNotches';
 import { LotToast } from '../lot/LotChrome';
 import { LotCrewPanel } from '../my-day/LotCrewPanel';
 import { LotLinks } from './LotLinks';
@@ -26,19 +26,18 @@ import { LotLinks } from './LotLinks';
 const SECTION_HEAD = 'text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400';
 
 export function LotLookoutView() {
-  const board = useLotBoard();
+  const airport = useLotAirport('lot-airport-module');
   const erin = useLotBay();
   const { crew, mark, leaveOff } = useLotCrew({ signedIn: true });
   const { user } = useAuth();
   const by = initialsOf(user?.name ?? null);
   const [toastMsg, toast] = useLotToast();
   const bayTaps = useBayTapsSignedIn(erin, toast, by);
-  const stallTaps = useLotTapsSignedIn(board, toast, by);
-  const totals = useMemo(() => lotTotals(board.stalls, board.aisle, board.nowMs), [board.stalls, board.aisle, board.nowMs]);
+  const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
+  const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24 space-y-6">
-      {/* The airport's verdict is NOT repeated up here: LotSummary says it in its own box a screen below. */}
       <ModuleHeader title="Lot Lookout" subtitle="Erin St, the airport and today's crew, live" />
 
       {/* No heading of our own: the strip carries its own "Erin St". */}
@@ -64,15 +63,17 @@ export function LotLookoutView() {
           <h2 className={SECTION_HEAD}>Airport</h2>
           <span className="text-xs text-gray-500 dark:text-gray-400">1965 Wellington</span>
         </div>
-        {board.error && <p className="text-sm text-red-700 dark:text-red-400">{board.error}</p>}
-        {board.loaded && !board.error && (
+        {airport.error && <p className="text-sm text-red-700 dark:text-red-400">{airport.error}</p>}
+        {airport.loaded && !airport.error && (
           <>
-            <LotSummary totals={totals} aisleCars={board.aisle.cars} />
-            <LotMap stalls={board.stalls} aisle={board.aisle} nowMs={board.nowMs} nPulse={totals.nPulse}
-              onTap={(stall, state) => void stallTaps.tapStall(stall, state)} onAisle={d => void stallTaps.tapAisle(d)} />
+            {airTaps.waiting > 0 && (
+              <p role="status" className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {airTaps.waiting} {airTaps.waiting === 1 ? 'tap' : 'taps'} waiting for signal. They send by themselves.
+              </p>
+            )}
+            <AirportNotches shown={airTaps.shown} nowMs={airport.nowMs} onTap={(f, v) => void airTaps.tap(f, v)} />
             <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-              Tap a colour on a stall: white open, green clean, red dirty. Tap the same colour again within 5 seconds to
-              undo. Hold a stall to grey it out as taken; hold it again to free it. Your taps show as {by || 'FG'}.
+              Normally the drivers' readings. One tap saves, the newest reading wins. Your taps show as {by || 'FG'}.
             </p>
           </>
         )}
