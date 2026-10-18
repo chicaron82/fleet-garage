@@ -24,6 +24,12 @@ interface VehicleIdentityFieldsProps {
 export function VehicleIdentityFields({
   make, model, year, color, onMake, onModel, onYear, onColor, isHybrid, onHybrid,
 }: VehicleIdentityFieldsProps) {
+  // ⭐ YEAR 0 = NOT KNOWN, shown as such (2026-10-17). The edit modal used to seed a blank year to the
+  // current year, so saving a model he DID know wrote a year he never chose — SB183H, a 2022 Tesla
+  // whose tag reads "CM3L 22", was saved as 2026 and locked. Now an unknown year stays unknown until
+  // he steps it; the first step lands on this year, a starting point he moves from, never a guess saved.
+  const unknownYear = !year;
+  const step = (d: 1 | -1) => onYear(unknownYear ? new Date().getFullYear() : year + d);
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
@@ -59,21 +65,23 @@ export function VehicleIdentityFields({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => { if (year > YEAR_MIN) onYear(year - 1); }}
-              disabled={year <= YEAR_MIN}
+              onClick={() => { if (unknownYear || year > YEAR_MIN) step(-1); }}
+              disabled={!unknownYear && year <= YEAR_MIN}
+              aria-label="Year down"
               className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
               −
             </button>
             <div className="flex-1 text-center">
-              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                {year}
-              </span>
+              {unknownYear
+                ? <span className="text-sm font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap">Not known</span>
+                : <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{year}</span>}
             </div>
             <button
               type="button"
-              onClick={() => { if (year < YEAR_MAX) onYear(year + 1); }}
-              disabled={year >= YEAR_MAX}
+              onClick={() => { if (unknownYear || year < YEAR_MAX) step(1); }}
+              disabled={!unknownYear && year >= YEAR_MAX}
+              aria-label="Year up"
               className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
               +

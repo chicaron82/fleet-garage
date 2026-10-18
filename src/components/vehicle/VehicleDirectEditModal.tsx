@@ -73,8 +73,14 @@ export function VehicleDirectEditModal({
   const [editPlate, setEditPlate] = useState(initialLicensePlate);
   const [editMake, setEditMake] = useState(initialMake);
   const [editModel, setEditModel] = useState(initialModel);
-  // Seed a blank/unknown/mis-read year to the current year so the stepper starts in range.
-  const [editYear, setEditYear] = useState(plausibleYearOr(initialYear, new Date().getFullYear()));
+  // ⚠️ A blank or mis-read year stays NOT KNOWN (0) — it used to seed to the current year, and a save
+  // then wrote and LOCKED a year he never chose (SB183H: a 2022 saved as 2026, 2026-10-15). The
+  // stepper shows "Not known" until he moves it. docs/ticket-vehicle-edit-partial-save.md
+  // (Not `plausibleYearOr(initialYear, 0)`: its upper bound is the fallback + 1, so 0 would blank every real year.)
+  const [editYear, setEditYear] = useState(() => {
+    const thisYear = new Date().getFullYear();
+    return plausibleYearOr(initialYear, thisYear) === initialYear ? initialYear : 0;
+  });
   const [editColor, setEditColor] = useState(initialColor);
   const [editHybrid, setEditHybrid] = useState(!!initialIsHybrid);
   // Rental class (Q4, E6, P4, R…). Editing it here LOCKS it against future tag reads — the fix for
@@ -89,7 +95,11 @@ export function VehicleDirectEditModal({
   // Which field's unlock is in flight — disables just that badge, not the whole modal.
   const [unlockingField, setUnlockingField] = useState<string | null>(null);
 
-  const canSave = !!editPlate.trim() && !!editMake && !!editModel && editYear > 1999 && !!editColor && !editSaving;
+  // ⭐ PARTIAL IS ALLOWED (Aaron, 2026-10-15, on LJF692: he knew make, model, code and class from the
+  // Taos block around it, but not the colour, and Save stayed greyed with no reason given). A plate, a
+  // make and a model are enough; the year and colour can stay unknown for the tag to fill — and only
+  // what he filled gets locked (vehicleIdentityWrite).
+  const canSave = !!editPlate.trim() && !!editMake && !!editModel && !editSaving;
 
   const unlock = async (field: string) => {
     setUnlockingField(field);

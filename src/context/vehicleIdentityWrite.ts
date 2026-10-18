@@ -48,7 +48,14 @@ export async function writeVehicleIdentity(
     const stamps: Record<string, FieldSource> = {};
     if (unit) stamps.unitNumber = 'manual';
     if (identity) {
-      stamps.make = 'manual'; stamps.model = 'manual'; stamps.year = 'manual'; stamps.color = 'manual';
+      // ⚠️ ONLY WHAT HE FILLED (2026-10-17). A year or colour he left unknown is not a confirmation:
+      // stamping it 'manual' locked a blank (or the old seeded year) against the very tag read that
+      // would have filled it. Unknown = 0 / '' / the "Unknown" placeholder.
+      const known = (v: string) => !!v.trim() && v.trim().toLowerCase() !== 'unknown';
+      if (known(identity.make)) stamps.make = 'manual';
+      if (known(identity.model)) stamps.model = 'manual';
+      if (identity.year > 0) stamps.year = 'manual';
+      if (known(identity.color)) stamps.color = 'manual';
       stamps.isHybrid = 'manual';  // a human's hybrid call outranks a later tag read
       if (identity.rentalClass && identity.rentalClass.trim() !== '') stamps.rentalClass = 'manual';
       // ⚠️ A hand-corrected class code must outrank BOTH a later tag read and the migration-121
