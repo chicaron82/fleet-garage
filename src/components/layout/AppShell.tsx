@@ -121,19 +121,24 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
             building one method for mobile and another method for desktop the same flow should work
             for both."* Only ☰ is phone-only, because only the phone has a drawer to open. */}
         <div className="relative flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 transition-colors">
-          {/* The logo and the name live in the drawer now (2026-10-18). At 412 px the top bar read "Fleet G…" once the
-              airport squares joined the Erin pill, and the drawer's header already carried both. Aaron: *"to free up
-              space in the header move the logo and app name into the sidebar."* The online dot STAYS up here on its
-              own: the drawer is shut most of the time on a phone, and the parkade is where "offline" has to show. */}
+          {/* min-w-0 + truncate (2026-10-16): with the Erin pill and a trip pill both up, the title gives way with an
+              ellipsis instead of wrapping to two lines and squeezing the pills on the right (measured at 412).
+              ⭐ 2026-10-18: on a PHONE the name is gone from here altogether. Once the airport squares joined the Erin
+              pill it read "Fleet G…" at 412, and the drawer carries the name. Aaron: *"keep the dot with the logo in
+              the header and just have the app name in the sidebar"* · *"leave the desktop sidebar untouched since it
+              has plenty of room. we were only fixing the layout for mobile"*. So the logo and its online dot stay at
+              every size (the parkade is where "offline" has to show), and from `md` up the name is back as it was. */}
           <div className="flex items-center gap-2 min-w-0">
-            <span
-              role="status"
-              aria-label={isOnline ? 'Online' : 'Offline'}
-              className={`w-2.5 h-2.5 shrink-0 rounded-full transition-colors ${
-                isOnline ? 'bg-green-500' : 'bg-amber-500 motion-safe:animate-pulse'
-              }`}
-              title={isOnline ? 'Online' : 'Offline'}
-            />
+            <div className="w-6 h-6 shrink-0 rounded overflow-hidden flex items-center justify-center relative">
+              <img src="/FG.webp" alt="Fleet Garage" className="w-full h-full object-cover" />
+              <span
+                className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white transition-colors ${
+                  isOnline ? 'bg-green-500' : 'bg-amber-500 motion-safe:animate-pulse'
+                }`}
+                title={isOnline ? 'Online' : 'Offline'}
+              />
+            </div>
+            <span className="max-md:hidden font-semibold text-gray-900 dark:text-gray-100 text-sm transition-colors truncate">Fleet Garage</span>
             {guidesOn && (
               <button
                 onClick={() => { hapticLight(); setGuideModule(activeModule); }}
