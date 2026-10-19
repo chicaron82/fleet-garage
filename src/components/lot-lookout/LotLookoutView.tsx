@@ -43,7 +43,13 @@ export function LotLookoutView() {
   // once they are present. The other order showed them as "not marked yet" until the next minute's read.
   const markAndAttend = useCallback(async (users: string[], next: CrewState | 'clear') => {
     const to = attendanceForCrew(next);
-    await Promise.all(shiftsToMark(todayShifts, users, to).map(id => setShiftAttendance(id, to)));
+    // The panel expects a message back, never a throw: the schedule's setter THROWS when it can't save, and a throw
+    // here skipped the panel's own "done", leaving every chip disabled with nothing said (line-check, 2026-10-18).
+    try {
+      await Promise.all(shiftsToMark(todayShifts, users, to).map(id => setShiftAttendance(id, to)));
+    } catch {
+      return 'No signal. Nobody was marked.';
+    }
     return mark(users, next, by || 'FG');
   }, [mark, by, todayShifts, setShiftAttendance]);
   const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });

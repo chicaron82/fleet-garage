@@ -88,6 +88,17 @@ describe('LotLookoutView', () => {
     await waitFor(() => expect(setShiftAttendance).toHaveBeenCalledWith('s-khaiat', 'absent'));
   });
 
+  it('⚠️ My Day\'s write failing (no signal) says so and frees the chips — it never leaves them locked', async () => {
+    setShiftAttendance.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    mark.mockClear();
+    render(<LotLookoutView />);
+    const moving = () => within(screen.getByRole('group', { name: /^Tomek:/ })).getByRole('button', { name: 'Moving cars' });
+    fireEvent.click(moving());
+    expect(await screen.findByText('No signal. Nobody was marked.')).toBeTruthy();
+    expect(mark).not.toHaveBeenCalled();
+    expect((moving() as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('someone already marked present is not written again', async () => {
     setShiftAttendance.mockClear();
     render(<LotLookoutView />);
