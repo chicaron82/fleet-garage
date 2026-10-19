@@ -3,6 +3,7 @@
 // one PIN and one set of initials cover both pages on a phone.
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { isNetworkBlip } from '../lib/networkBlip';
 
 const PIN_KEY = 'lot_pin';
 const BY_KEY = 'lot_by';
@@ -33,9 +34,18 @@ export async function postLot(body: Record<string, unknown>, token?: string): Pr
 
 /** The FG door: the signed-in session stands in for the PIN (My Day's card and the Lot Lookout module). */
 export async function postLotSignedIn(body: Record<string, unknown>): Promise<LotPost> {
-  const { data } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession().catch((e: unknown) => ({ data: { session: null }, error: e }));
   const token = data.session?.access_token;
-  if (!token) return { ok: false, status: 401, error: 'Sign in to FG again.', json: {} };
+  // ⚠️ NO TOKEN WITH NO SIGNAL IS NOT A WRONG SIGN-IN (Reflection 87, 2026-10-18). A session that needs its hourly
+  // refresh can't get one offline, so there is no token; answering 401 made the airport queue DROP every waiting tap,
+  // in the one place the queue exists for (the parkade). Offline, or a refresh that failed on the network, answers like
+  // no signal (status 0): the taps wait, and the next try has signal to refresh with.
+  if (!token) {
+    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false) || isNetworkBlip(error);
+    return offline
+      ? { ok: false, status: 0, error: 'No signal. The tap did not save.', json: {} }
+      : { ok: false, status: 401, error: 'Sign in to FG again.', json: {} };
+  }
   return postLot(body, token);
 }
 

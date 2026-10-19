@@ -117,8 +117,14 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
 
 /** The public /lot/erin page: the shared PIN and the initials this phone remembers. */
 export function useBayTaps(state: LotBayState, toast: BayToast) {
-  const { pin, by, setBy, unlock, forgetPin, fail } = useLotPin(toast);
-  const send = useCallback<Send>(body => postLot({ pin, ...body }), [pin]);
+  const { pin, by, setBy, unlock, forgetPin, fail, pinWorked } = useLotPin(toast);
+  // Any write that gets through proves a PIN taken on trust (Reflection 87): before, only an AIRPORT tap cleared it, so
+  // a driver who only tapped Erin's count kept seeing "your PIN is checked when there is" on the airport page.
+  const send = useCallback<Send>(async body => {
+    const r = await postLot({ pin, ...body });
+    if (r.ok) pinWorked();
+    return r;
+  }, [pin, pinWorked]);
   const writer = useBayWriter(state, toast, send, by || 'Lot', fail);
   return { pin, by, setBy, unlock, forgetPin, ...writer };
 }

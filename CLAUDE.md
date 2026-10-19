@@ -895,6 +895,14 @@ and will **not** catch a prod-only header gap. (PWA caveat: the SW caches the sh
 so a returning client serves the old headers until the SW updates — hard-refresh to
 verify now.)
 
+## A Playwright trap: `setOffline` does not stop your own routes (found 2026-10-18)
+
+`context.setOffline(true)` blocks the NETWORK, but a `page.route`/`context.route` handler still answers the request
+before it gets there. Simulating the parkade (offline taps that must queue) with a route that fulfils, plus setOffline,
+made every tap "succeed" and the queue look broken. **To kill a request you intercept, abort it in the handler**
+(`route.abort('internetdisconnected')`) behind your own offline flag. A harness that lacks the ingredient (here, a dead
+network) cannot cook the bug, and one that fakes it wrongly cooks a different one.
+
 ## Stack
 
 - React + TypeScript (strict) + Vite + Tailwind
