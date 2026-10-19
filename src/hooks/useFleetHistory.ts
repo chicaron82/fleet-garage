@@ -7,6 +7,7 @@
 //      credentials to when he showed FG to the GM and AGM.
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { outsideOdoSightings, type OdoChangeRow } from '../lib/outsideOdoSightings';
 
 /** FG's first real record. Anything earlier was seeded during the build. */
 export const FG_RECORD_START = '2026-04-05';
@@ -78,7 +79,7 @@ export function useFleetHistory(): FleetHistoryRows {
         // sightings + holds and would have archived LUR310 — written on the Sep 8 closing sheet and
         // on the dirty ring that very night. A failed fetch sets `error`, which stands the
         // auto-archive down rather than letting it read absence as silence.
-        const [holds, sightings, trips, sheets] = await Promise.all([
+        const [holds, sightings, trips, sheets, odo] = await Promise.all([
           fetchAll((from, to) => supabase.from('holds')
             .select('vehicle_id, flagged_at, flagged_by_name')
             .gte('flagged_at', FG_RECORD_START)
@@ -96,9 +97,16 @@ export function useFleetHistory(): FleetHistoryRows {
             .order('id')
             .range(from, to)),
           supabase.from('closing_inventories').select('sheet').limit(1000),
+          // ⭐ Odometers read from OUTSIDE the app (my gas-card entries) are sightings too; see lib/outsideOdoSightings.
+          fetchAll<OdoChangeRow>((from, to) => supabase.from('vehicle_changes')
+            .select('vehicle_id, changed_at, actor')
+            .not('changed->odometer', 'is', null)
+            .not('actor', 'is', null)
+            .order('id')
+            .range(from, to)),
         ]);
         if (cancelled) return;
-        if (holds.error || sightings.error || trips.error || sheets.error) { setRows(r => ({ ...r, loading: false, error: true })); return; }
+        if (holds.error || sightings.error || trips.error || sheets.error || odo.error) { setRows(r => ({ ...r, loading: false, error: true })); return; }
 
         const holdDates: string[] = [];
         const flaggedVehicleIds = new Set<string>();
@@ -113,7 +121,7 @@ export function useFleetHistory(): FleetHistoryRows {
         const sightingsWeekAgo = new Map<string, number>();
         const lastSeenByVehicle = new Map<string, string>();
         let first = '', last = '';
-        for (const s of sightings.data) {
+        for (const s of [...sightings.data, ...outsideOdoSightings(odo.data)]) {
           if (s.vehicle_id) {
             sightingsByVehicle.set(s.vehicle_id, (sightingsByVehicle.get(s.vehicle_id) ?? 0) + 1);
             const at = s.seen_at ?? '';

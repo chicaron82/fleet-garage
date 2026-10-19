@@ -5,6 +5,11 @@
 // hands. Nothing else in FG means that: a trip means someone drove it, a hold means someone flagged
 // it, but only a scan means *he was standing at it with the tag*.
 //
+// ⚠️ OUTGROWN (2026-10-18): he RARELY scans (*"i really only reserve the scan for if i come across something FG
+// hasn't seen before"*). Most `vehicle_sightings` rows are a typed lookup's HELD sighting, committed by his first
+// change (useVehicleSightings). And the Fleet cards add odometers written from outside the app
+// (lib/outsideOdoSightings). Read "scan" below as "a sighting row".
+//
 // ⚠️ SCANS are going-forward only. They were never logged before 2026-08-16 (migrations/114).
 //
 // ⭐ BUT THE CHANGE LOG REMEMBERS MORE THAN THE SCAN LOG DOES. Aaron, 2026-08-28, looking at a Jetta
