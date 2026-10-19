@@ -1,6 +1,7 @@
 // The three outside ways into Lot Lookout, each with Open and Copy: the drivers' board (PIN), Erin St's count (PIN),
 // and the read-only view (no PIN). Moved off the My Day card into the module, 2026-10-15.
 import { useState } from 'react';
+import { LOT_OFFLINE_SIZE } from '../../lib/lotOffline';
 
 const LINKS = [
   { path: '/lot', label: 'Driver link' },
@@ -30,6 +31,10 @@ export function LotLinks() {
           </div>
         );
       })}
+      {/* Said where the link is shared (2026-10-18): whoever sends it can tell a driver what the button costs. */}
+      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+        The driver link downloads nothing extra. The page offers to save itself for no-signal use ({LOT_OFFLINE_SIZE}, once), only if the driver taps it.
+      </p>
     </section>
   );
 }

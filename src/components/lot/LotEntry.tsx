@@ -6,21 +6,35 @@
 // it: Aaron opened the drivers' link after the pivot shipped and got the retired stall map (*"the drivers' lot page is
 // still showing the stall map instead of the pivot we built"*). Mounting it also REGISTERS the worker from /lot, so a
 // driver who has opened the page once can reopen it with no signal (the precached shell).
-import { Suspense, lazy } from 'react';
+// ⚠️⚠️ BUT ONLY WHEN ASKED (same day, Reflection 87 → his call): registering downloads FG's whole copy (~6 MB). So the
+// prompt mounts only on a phone that already has a copy, or whose driver tapped "save for no-signal use" (lib/lotOffline).
+import { Suspense, lazy, useState } from 'react';
 import type { LotPageKind } from '../../lib/lotLookout';
+import { LOT_OFFLINE_KEY, lotOfflineState, registersWorker } from '../../lib/lotOffline';
 import { PwaUpdatePrompt } from '../shared/PwaUpdatePrompt';
 
 const LotPage = lazy(() => import('./LotPage').then(m => ({ default: m.LotPage })));
 const LotBayPage = lazy(() => import('./LotBayPage').then(m => ({ default: m.LotBayPage })));
 const LotViewPage = lazy(() => import('./LotViewPage').then(m => ({ default: m.LotViewPage })));
 
+function optedInBefore(): boolean {
+  try { return localStorage.getItem(LOT_OFFLINE_KEY) === '1'; } catch { return false; }
+}
+
 export function LotEntry({ page }: { page: LotPageKind }) {
+  const [optedIn, setOptedIn] = useState(optedInBefore);
+  const hasCopy = typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller;
+  const state = lotOfflineState(hasCopy, optedIn);
+  const save = () => {
+    try { localStorage.setItem(LOT_OFFLINE_KEY, '1'); } catch { /* private mode: it still registers for this visit */ }
+    setOptedIn(true);
+  };
   return (
     <>
       <Suspense fallback={null}>
-        {page === 'erin' ? <LotBayPage /> : page === 'view' ? <LotViewPage /> : <LotPage />}
+        {page === 'erin' ? <LotBayPage /> : page === 'view' ? <LotViewPage /> : <LotPage offline={{ state, save }} />}
       </Suspense>
-      <PwaUpdatePrompt />
+      {registersWorker(state) && <PwaUpdatePrompt />}
     </>
   );
 }

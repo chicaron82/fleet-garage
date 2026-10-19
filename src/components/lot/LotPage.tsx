@@ -17,8 +17,9 @@ import { useAirportTaps } from '../../hooks/useAirportTaps';
 import { AirportNotches } from './AirportNotches';
 import { LotBayStrip } from './LotBayStrip';
 import { LotPinGate, LotTapperBar, LotToast } from './LotChrome';
+import { LOT_OFFLINE_SIZE, type LotOfflineState } from '../../lib/lotOffline';
 
-export function LotPage() {
+export function LotPage({ offline }: { offline?: { state: LotOfflineState; save: () => void } }) {
   const airport = useLotAirport('lot-airport-drivers');
   const erin = useLotBay();
   const [toastMsg, toast] = useLotToast();
@@ -50,6 +51,15 @@ export function LotPage() {
               One tap saves. Tap again any time; the newest reading wins. No signal? Your tap waits on this phone with the
               time you made it, and sends when signal comes back. Every reading shows on every phone and in FG.
             </p>
+            {/* The offline copy is opt-in (2026-10-18, his call): nothing is downloaded until this is tapped. */}
+            {offline?.state === 'offer' && (
+              <button type="button" onClick={offline.save}
+                className="mt-3 w-full rounded-xl border border-gray-300 dark:border-gray-600 px-3 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
+                Save this page for no-signal use ({LOT_OFFLINE_SIZE}, once)
+              </button>
+            )}
+            {offline?.state === 'saving' && <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Saving for no-signal use in the background. Next time, this page opens without signal.</p>}
+            {offline?.state === 'saved' && <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Saved on this phone: this page opens without signal.</p>}
           </>
         )}
       </div>
