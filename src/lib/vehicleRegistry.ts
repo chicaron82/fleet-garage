@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from './supabase';
 import { withKeyedQueue } from './keyedQueue';
+import { readOnce } from './networkBlip';
 import { localDateStr } from '../hooks/useFleetBalance';
 import type { VehicleRegistryEntry, RegistryLookupResult } from '../types';
 import type { Database } from '../types/database.types';
@@ -181,14 +182,17 @@ export async function lookupRegistryAnyDate(
   branchId: string,
 ): Promise<VehicleRegistryEntry | null> {
   if (!plate) return null;
-  const { data } = await supabase
+  // Waited on (2026-10-18): Lost & Found awaits it on Save, and Register's plate hint as he types. The fast path makes a
+  // dead network cost under a second, not seven. A failure stays null: callers use this as a HINT (a remembered
+  // sighting), never as "this plate is new" (the duplicate guard reads the fleet in memory), so null claims nothing.
+  const { data } = await readOnce(() => supabase
     .from('vehicle_registry')
     .select('*')
     .eq('branch_id', branchId)
     .eq('plate', plate)
     .order('date', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   return data ? mapEntry(data as Row) : null;
 }
 

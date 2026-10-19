@@ -5,6 +5,7 @@ import { usePreferences } from '../../context/PreferencesContext';
 import { ratesForBasis } from '../../lib/carsTouchedQuery';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabase';
+import { readOnce, throwIfAnyFailed } from '../../lib/networkBlip';
 import { hapticMedium } from '../../lib/haptics';
 import { useShareText } from '../../hooks/useShareText';
 import { ShareTextButton } from '../shared/ShareTextButton';
@@ -43,6 +44,7 @@ export function ShiftReportExport({ date }: { date: string }) {
   const airportFlipCount = date === businessDateOf(new Date()) ? flipRows : 0;
   const [loading,    setLoading]    = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [failed, setFailed] = useState('');
   const { copied, share }           = useShareText();
 
   if (!user) return null;
@@ -62,99 +64,101 @@ export function ShiftReportExport({ date }: { date: string }) {
       fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes,
       fuelRes,
     ] = await Promise.all([
-      supabase.from('off_standard_entries')
+      readOnce(() => supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip, preset_reason')
         .eq('user_id', user.id).eq('status', 'complete')
         // Match the live ShiftRatesCard: exclude backdated entries that aren't yet
         // approved, so the report's OTH total and personal rate agree with the card.
         .or('is_backdated.is.null,is_backdated.eq.false,edit_status.eq.approved')
         .gte('start_time', dayStartISO).lt('start_time', dayEndISO)
-        .order('start_time', { ascending: true }),
+        .order('start_time', { ascending: true })),
 
-      supabase.from('vsa_trips')
+      readOnce(() => supabase.from('vsa_trips')
         .select('depart_time, arrive_time, is_shuttle, reason, is_vsa_interruption, queue_at_departure')
         .is('voided_at', null)   // a voided send did not happen
         .eq('driver_id', user.id)
         .gte('depart_time', dayStartISO).lt('depart_time', dayEndISO)
         .not('arrive_time', 'is', null)
-        .order('depart_time', { ascending: true }),
+        .order('depart_time', { ascending: true })),
 
-      supabase.from('holds')
+      readOnce(() => supabase.from('holds')
         .select('flagged_at, hold_types, damage_description, photos, vehicles(unit_number, license_plate)')
         .eq('flagged_by_id', user.id)
         .gte('flagged_at', dayStartISO).lt('flagged_at', dayEndISO)
-        .order('flagged_at', { ascending: true }),
+        .order('flagged_at', { ascending: true })),
 
-      supabase.from('vehicle_checkins')
+      readOnce(() => supabase.from('vehicle_checkins')
         .select('checked_in_at, vehicle_unit, vehicle_plate')
         .eq('checked_in_by_id', user.id)
         .gte('checked_in_at', dayStartISO).lt('checked_in_at', dayEndISO)
-        .order('checked_in_at', { ascending: true }),
+        .order('checked_in_at', { ascending: true })),
 
-      supabase.from('lost_found')
+      readOnce(() => supabase.from('lost_found')
         .select('found_at, description, location, unit_number')
         .eq('found_by', user.id)
         .gte('found_at', dayStartISO).lt('found_at', dayEndISO)
-        .order('found_at', { ascending: true }),
+        .order('found_at', { ascending: true })),
 
-      supabase.from('audits')
+      readOnce(() => supabase.from('audits')
         .select('created_at, vehicle_number, status')
         .eq('auditor_id', user.id)
         .eq('date', date)
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })),
 
       // New issues AND reopens — lib/fetchShiftIssueLines (a reopen never changes reported_at).
       fetchShiftIssueLines(user.id, dayStartISO, dayEndISO),
 
       // Fleet balance — 90 days for projection fallback
-      supabase.from('fleet_balance')
+      readOnce(() => supabase.from('fleet_balance')
         .select('out_count, in_count, date')
         .gte('date', fbLookbackDate)
         .lte('date', date)
-        .order('date', { ascending: false }),
+        .order('date', { ascending: false })),
 
       // Handoff note for the day
-      supabase.from('handoff_notes')
+      readOnce(() => supabase.from('handoff_notes')
         .select('full_pages, last_page_entries, lot_status, logged_at, morning_hours, airport_flipping')
         .gte('logged_at', dayStartISO)
         .lt('logged_at', dayEndISO)
         .order('logged_at', { ascending: false })
-        .limit(1),
+        .limit(1)),
 
       // Washbay log for the day
-      supabase.from('washbay_logs')
+      readOnce(() => supabase.from('washbay_logs')
         .select('full_pages, last_page_entries, cars_remaining, overtime_hours, lot_status, carry_over, airport_flipping')
         .eq('date', date)
-        .limit(1),
+        .limit(1)),
 
       // Closing arrival checkpoint
-      supabase.from('shift_checkpoints')
+      readOnce(() => supabase.from('shift_checkpoints')
         .select('full_pages, last_page_entries')
         .eq('date', date)
         .eq('checkpoint_type', 'closing_arrival')
-        .limit(1),
+        .limit(1)),
 
       // Mid shift checkpoints
-      supabase.from('shift_checkpoints')
+      readOnce(() => supabase.from('shift_checkpoints')
         .select('full_pages, last_page_entries, logged_at')
         .eq('date', date)
         .eq('checkpoint_type', 'mid_arrival')
-        .limit(1),
+        .limit(1)),
 
-      supabase.from('shift_checkpoints')
+      readOnce(() => supabase.from('shift_checkpoints')
         .select('full_pages, last_page_entries, logged_at')
         .eq('date', date)
         .eq('checkpoint_type', 'mid_departure')
-        .limit(1),
+        .limit(1)),
 
-      supabase.from('fuel_pump_readings')
+      readOnce(() => supabase.from('fuel_pump_readings')
         .select('pump1_open, pump1_close, pump2_open, pump2_close, digital_open, digital_close, topup_note')
         .eq('branch_id', user.branchId)
         .eq('date', date)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle(),
+        .maybeSingle()),
     ]);
+    // One failed read makes the whole report untrue (2026-10-18): a dead network used to build a report of zeros.
+    throwIfAnyFailed([othRes, tripRes, holdRes, ciRes, lfRes, auditRes, fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes, fuelRes], "Couldn't load your whole shift. Check the signal and try again.");
 
     // Shift type + actual hours worked (drives the window when logged)
     const myShift = deriveUserShift(shifts, user.id, date);
@@ -342,10 +346,11 @@ export function ShiftReportExport({ date }: { date: string }) {
   const handleExport = async () => {
     hapticMedium();
     setLoading(true);
+    setFailed('');
     try {
       const data = await fetchReportData();
       await share({ title: `Shift Report — ${user.name} · ${formatDateStr(date)}`, text: buildReport(data) });
-    } finally {
+    } catch (e) { setFailed(e instanceof Error ? e.message : 'The report did not build.'); } finally {
       setLoading(false);
     }
   };
@@ -353,6 +358,7 @@ export function ShiftReportExport({ date }: { date: string }) {
   const handlePDFExport = async () => {
     hapticMedium();
     setPdfLoading(true);
+    setFailed('');
     try {
       const data = await fetchReportData();
       const [{ pdf }, { ShiftReportPDF }] = await Promise.all([
@@ -368,12 +374,12 @@ export function ShiftReportExport({ date }: { date: string }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } finally {
+    } catch (e) { setFailed(e instanceof Error ? e.message : 'The PDF did not build.'); } finally {
       setPdfLoading(false);
     }
   };
 
-  return (
+  return (<>
     <div className="flex gap-2">
       <ShareTextButton onClick={handleExport} disabled={busy} copied={copied} loading={loading} />
       <button
@@ -389,5 +395,6 @@ export function ShiftReportExport({ date }: { date: string }) {
         {pdfLoading ? 'Building PDF…' : 'Download PDF ↓'}
       </button>
     </div>
-  );
+    {failed && <p role="alert" className="mt-2 text-sm font-semibold text-red-700 dark:text-red-400">{failed}</p>}
+  </>);
 }

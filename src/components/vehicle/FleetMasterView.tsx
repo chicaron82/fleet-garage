@@ -77,6 +77,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [search, setSearch] = useState('');
   const [cohort, setCohort] = useState<FleetCohortId | null>(null);
   const [classFilter, setClassFilter] = useState<string | null>(null);
@@ -125,11 +127,13 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
     if (!user?.branchId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    loadFleet(user.branchId).then(data => {
-      setVehicles(data);
-      setLoading(false);
-    });
-  }, [user?.branchId, refreshKey]);
+    setLoadFailed(false);
+    // A failed load SAYS so (2026-10-18): it used to resolve to an empty fleet, which read as "no cars".
+    loadFleet(user.branchId).then(
+      data => { setVehicles(data); setLoading(false); },
+      () => { setLoadFailed(true); setLoading(false); },
+    );
+  }, [user?.branchId, refreshKey, retryKey]);
 
   const term = search.trim().toUpperCase();
   // Cohort counts are the whole-fleet PULSE — always over the full loaded set, never narrowed by
@@ -163,6 +167,15 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
       return next;
     });
   };
+
+  if (loadFailed) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-400">The fleet couldn't load. Check the signal.</p>
+        <button type="button" onClick={() => setRetryKey(k => k + 1)} className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold cursor-pointer">Try again</button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

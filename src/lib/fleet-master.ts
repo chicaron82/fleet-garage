@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { readOnce } from './networkBlip';
 import { deriveWithWinner, factsFromRow, type HoldDerivedStatus } from './vehicle-status';
 
 export type FleetStatus =
@@ -241,24 +242,30 @@ export function buildFleetView(
   });
 }
 
+/** ⚠️ THROWS when the fleet could not be read (2026-10-18). It used to hand back an EMPTY fleet on a failed read, so a
+ *  dead network showed "no cars" instead of "couldn't load". The screen is waited on, so both reads take the fast
+ *  path (`readOnce`): a dead network says so in under a second instead of seven. */
+export class FleetLoadError extends Error {}
+
 export async function loadFleet(branchId: string): Promise<FleetVehicle[]> {
   const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
   const [vehiclesRes, holdsRes] = await Promise.all([
-    supabase
+    readOnce(() => supabase
       .from('vehicles')
       .select('id, unit_number, license_plate, make, model, year, color, branch_id, is_tesla, is_hybrid, has_mobile_cable, has_j1772_adapter, rental_class, key_count, keytag_photo_url, created_at, odometer_at')
       .eq('branch_id', branchId)
       // Archived (sold/auctioned) cars are a separate concern everywhere else in the app
       // (VehicleHoldContext filters `!v.archivedAt`); the master view + its health counts
       // are the LIVE fleet, so exclude them here too.
-      .is('archived_at', null),
-    supabase
+      .is('archived_at', null)),
+    readOnce(() => supabase
       .from('holds')
       .select('id, vehicle_id, hold_types, status, created_at, releases(release_type, actual_return, created_at)')
       .eq('branch_id', branchId)
-      .in('status', ['ACTIVE', 'RELEASED']),
+      .in('status', ['ACTIVE', 'RELEASED'])),
   ]);
+  if (vehiclesRes.error || holdsRes.error) throw new FleetLoadError('The fleet could not load.');
 
   const vehicles = (vehiclesRes.data ?? []) as unknown as FleetVehicleRow[];
   const holds = (holdsRes.data ?? []) as unknown as HoldRow[];
