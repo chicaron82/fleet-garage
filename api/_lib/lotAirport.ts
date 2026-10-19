@@ -63,3 +63,11 @@ export function readingChange(row: AirportRow, req: AirportRequest): AirportChan
     tap: { field: req.field, value: req.value, prev: prevOf(row, req.field), tapped_by: req.by, tapped_at: req.at, applied },
   };
 }
+
+/** The same newer-wins rule as a PostgREST filter, for the UPDATE itself (api/lot.ts). Checking only the row read first
+ *  leaves a gap: two phones read the same old row, both decide they are newer, and the older write can land last.
+ *  With this on the update, the database refuses a write that is no longer newer. (Line-check, 2026-10-18.)
+ *  The time is quoted because `.` and `:` are reserved inside PostgREST's or(). */
+export function newerThanHeld(field: AirportField, at: string): string {
+  return `${field}_at.is.null,${field}_at.lt."${at}"`;
+}

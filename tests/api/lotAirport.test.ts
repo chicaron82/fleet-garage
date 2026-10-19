@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseReading, readingChange, READING_MAX_AGE_MS, type AirportRow } from '../../api/_lib/lotAirport';
+import { parseReading, readingChange, READING_MAX_AGE_MS, type AirportRow, newerThanHeld } from '../../api/_lib/lotAirport';
 
 const NOW = Date.parse('2026-10-18T17:00:00Z');
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
@@ -55,5 +55,15 @@ describe('readingChange — newer wins, by the phone\'s clock', () => {
   });
   it('each field keeps its own clock: an old cleans tap does not block a new returns tap', () => {
     expect(readingChange(ROW, { action: 'reading', field: 'returns', value: 3, at: iso(60 * 60_000), by: 'AS' }).tap.applied).toBe(true);
+  });
+});
+
+describe('newerThanHeld — the newer-wins rule inside the UPDATE', () => {
+  it('⭐ writes only over a reading that is older, or a field never read', () => {
+    expect(newerThanHeld('cleans', '2026-10-18T19:00:00.000Z'))
+      .toBe('cleans_at.is.null,cleans_at.lt."2026-10-18T19:00:00.000Z"');
+  });
+  it('each field checks its own clock', () => {
+    expect(newerThanHeld('aisle', '2026-10-18T19:00:00.000Z')).toMatch(/^aisle_at\.is\.null,aisle_at\.lt\./);
   });
 });

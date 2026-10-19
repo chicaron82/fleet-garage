@@ -8,7 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
-import { readingChange } from './_lib/lotAirport.js';
+import { newerThanHeld, readingChange } from './_lib/lotAirport.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew, markCrew } from './_lib/lotCrewDb.js';
@@ -77,9 +77,18 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       const change = readingChange(row, parsed);
       let airport: unknown = null;
       if (change.patch) {
-        const { data: saved, error } = await db.from('lot_airport').update(change.patch).eq('id', 1).select().single();
+        // The newer-wins check rides IN the update, not only in the read above: two phones out of the parkade at
+        // once both read the old row, and without it the older tap could land last and win.
+        const { data: saved, error } = await db.from('lot_airport').update(change.patch).eq('id', 1)
+          .or(newerThanHeld(parsed.field, change.tap.tapped_at)).select().maybeSingle();
         if (error) throw error;
-        airport = saved;
+        if (saved) airport = saved;
+        else {
+          // Another phone's fresher reading landed between our read and this write: logged, not written.
+          change.tap.applied = false;
+          const { data: fresh } = await db.from('lot_airport').select().eq('id', 1).single();
+          airport = fresh;
+        }
       }
       await db.from('lot_airport_taps').insert(change.tap);
       // applied = false is still a 200: the tap reached us, it was just older than what another phone had sent.
