@@ -223,15 +223,20 @@ async function finalizeRepairedHold(
   // Only an issue resolved by THIS call: a mechanical tick made earlier already wrote its own observation.
   await recordSwapTires(setAllVehicles, hold, resolvedTypes.filter(t => !(hold.resolvedTypes ?? []).includes(t)), repair.repairedAt);
 
-  // Repairing the "Geotab not installed" hold MEANS the unit got installed — so drop the car off
-  // the install watchlist too, keeping the scanners + Effie in lockstep. The dedicated
-  // GeotabReturnCard already stamps the watchlist; the GENERIC repair path (this one) forgot to, so
-  // clearing the hold from the vehicle's history left the car flagged "on the install list" forever
-  // (found 2026-07-21: Aaron cleared LZM531's geotab hold, the scanner still said pending).
-  if (hold.damageDescription === GEOTAB_HOLD_DESC) {
-    const plate = allVehicles.find(v => v.id === hold.vehicleId)?.licensePlate;
-    if (plate) void markGeotabInstalled(plate, repair.repairedById);
-  }
+  stampGeotabInstalled(hold, allVehicles, repair.repairedById);
+}
+
+// Repairing the "Geotab not installed" hold MEANS the unit got installed — so drop the car off
+// the install watchlist too, keeping the scanners + Effie in lockstep. The dedicated
+// GeotabReturnCard already stamps the watchlist; the GENERIC repair path forgot to, so
+// clearing the hold from the vehicle's history left the car flagged "on the install list" forever
+// (found 2026-07-21: Aaron cleared LZM531's geotab hold, the scanner still said pending).
+// ⚠️ And the BATCH forgot it a second time: one helper now, called by both, so the two repair paths
+// can't drift apart again (found 2026-10-18 while teaching both to mark winter tires).
+function stampGeotabInstalled(hold: Hold, allVehicles: Vehicle[], repairedById: string) {
+  if (hold.damageDescription !== GEOTAB_HOLD_DESC) return;
+  const plate = allVehicles.find(v => v.id === hold.vehicleId)?.licensePlate;
+  if (plate) void markGeotabInstalled(plate, repairedById);
 }
 
 export function makeMarkRepaired(deps: ResolutionDeps) {
@@ -337,7 +342,7 @@ export function makeCloseException({ holds, allVehicles, setAllHolds, setAllVehi
 // exactly what's checked", which was true while the picker listed a re-hold and its earlier release
 // as two rows. They are ONE row now (`collapseRepairable`), so a re-hold picked alongside an
 // unrelated hold comes through here — and without the close its earlier exception stayed open.
-export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: ResolutionDeps) {
+export function makeMarkRepairedBatch({ holds, allVehicles, setAllHolds, setAllVehicles }: ResolutionDeps) {
   return async (holdIds: string[], repair: Omit<Repair, 'id'>) => {
     const targets = holds.filter(h => holdIds.includes(h.id));
     if (targets.length === 0) throw new Error('No holds to repair');
@@ -392,7 +397,10 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
       if (r) return { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r };
       return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
     }));
-    for (const t of targets) await recordSwapTires(setAllVehicles, t, t.holdTypes, repair.repairedAt);
+    for (const t of targets) {
+      await recordSwapTires(setAllVehicles, t, t.holdTypes, repair.repairedAt);
+      stampGeotabInstalled(t, allVehicles, repair.repairedById);
+    }
     });
   };
 }

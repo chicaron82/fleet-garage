@@ -230,6 +230,16 @@ describe('geotab watchlist sync on repair', () => {
     expect(chain.update).not.toHaveBeenCalledWith(expect.objectContaining({ installed_at: expect.any(String) }));
   });
 
+  // docs/ticket-batch-repair-skips-geotab.md: "repair all" was a second path that never learned the stamp.
+  it('⭐ the batch "repair all" stamps it too', async () => {
+    geotab.pending = ['LZM531'];
+    const hold = makeHold('h-1', 'v-1', { damageDescription: GEOTAB_HOLD_DESC });
+    const other = makeHold('h-2', 'v-1');
+    await makeMarkRepairedBatch(deps([hold, other], [{ id: 'v-1', licensePlate: 'LZM531' }]))(['h-1', 'h-2'], REPAIR);
+    await Promise.resolve();
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({ installed_at: expect.any(String) }));
+  });
+
   it('repairing a NON-geotab hold never touches the watchlist', async () => {
     const hold = makeHold('h-1', 'v-1', { damageDescription: 'scrape' });
     await makeMarkRepaired(deps([hold], [{ id: 'v-1', licensePlate: 'LZM531' }]))('h-1', REPAIR);
