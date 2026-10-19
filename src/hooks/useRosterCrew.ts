@@ -36,5 +36,5 @@ export function useRosterCrew() {
     if (problem) setNote(`The crew line did not save: ${problem}`);
   }, [mark, by]);
 
-  return { crewOf, write, note, loaded };
+  return { crewOf, write, note, say: setNote, loaded };
 }

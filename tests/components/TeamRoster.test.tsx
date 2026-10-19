@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TeamRoster } from '../../src/components/my-day/TeamRoster';
 import type { TeamMate } from '../../src/lib/myDay';
@@ -111,6 +111,16 @@ describe('TeamRoster — the grid and the box', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Erick→/ }));
     expect(setAttendance).toHaveBeenCalledWith('Erick', 'absent');
     expect(onCrew).toHaveBeenCalledWith('u-Erick', 'clear');
+  });
+  it('⚠️ a name tap with no signal says so, and the crew line is NOT written (they would disagree)', async () => {
+    const setAttendance = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    const onCrew = vi.fn();
+    const onFail = vi.fn();
+    const crewOf = () => ({ state: 'moving' as const, marked: true });
+    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew} onFail={onFail} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Erick→/ }));
+    await waitFor(() => expect(onFail).toHaveBeenCalledWith('No signal. Nobody was marked.'));
+    expect(onCrew).not.toHaveBeenCalled();
   });
   it('counter and HIR get the grid but no box', () => {
     render(<TeamRoster team={[mate('Jagdeep', '06:45', '15:15', 'CSR', 'present')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);

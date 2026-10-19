@@ -19,7 +19,7 @@ import type { Attendance } from '../../types';
 // ⭐ THE BOX (VSAs and drivers, same day): ticked = on their usual job, unticked = pulled. It is the crew line
 // (lot_crew), so Lot Lookout reads the same thing. Empty until present (*"stay empty until marked present"*).
 // Its own tap target beside the name, so reaching for one never lands on the other.
-export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, crewKnown = true }: {
+export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, crewKnown = true, onFail }: {
   team: TeamMate[];
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   /** Injectable for tests and for a deterministic render; defaults to the wall clock. */
@@ -29,12 +29,27 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
   onCrew?: (userId: string, next: CrewState | 'clear') => void;
   /** False until the crew line has answered once: the box says "not known yet" rather than guess "on". */
   crewKnown?: boolean;
+  /** A name tap that could not save says so here. */
+  onFail?: (message: string) => void;
 }) {
   if (team.length === 0) {
     return <p className="text-sm text-gray-400 dark:text-gray-500">Nobody else scheduled.</p>;
   }
   const sections = groupRoster(team, now);
   const boxes = !!onCrew;
+
+  // Attendance FIRST, the crew line only once it saved, the same order as Lot Lookout's chips. The schedule's setter
+  // THROWS when it can't save; fired and forgotten, a tap with no signal left My Day unmarked while the crew line
+  // said they were working, with nothing said (line-check, 2026-10-18).
+  const tapName = async (mate: TeamMate, crewWrite: CrewState | 'clear' | null) => {
+    try {
+      await setShiftAttendance(mate.id, nextAttendance(mate.attendance) ?? null);
+    } catch {
+      onFail?.('No signal. Nobody was marked.');
+      return;
+    }
+    if (crewWrite) onCrew!(mate.userId!, crewWrite);
+  };
 
   return (
     <div className="space-y-2.5">
@@ -61,11 +76,7 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
                   mate={mate}
                   standing={standing}
                   box={withBox ? boxOf(section.group, mate.attendance, crew, crewKnown) : null}
-                  onTap={() => {
-                    void setShiftAttendance(mate.id, nextAttendance(mate.attendance) ?? null);
-                    const w = withBox ? crewWriteForAttendance(section.group, crew) : null;
-                    if (w) onCrew!(mate.userId!, w);
-                  }}
+                  onTap={() => void tapName(mate, withBox ? crewWriteForAttendance(section.group, crew) : null)}
                   onBox={() => boxTap(section.group, mate, crew, crewKnown, onCrew)}
                 />
               );
