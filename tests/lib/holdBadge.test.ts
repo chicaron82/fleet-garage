@@ -46,6 +46,13 @@ describe('getTireSwapSeason', () => {
       expect(getTireSwapSeason()).toBe(expected);
     },
   );
+
+  // A repaired swap asks about ITS repair time, not today (docs/ticket-tire-swap-marks-winters.md).
+  it('reads the date it is given, not the clock', () => {
+    atMonth(6);
+    expect(getTireSwapSeason(new Date(2026, 10, 2))).toBe('❄️');
+    expect(getTireSwapSeason(new Date(2027, 4, 1))).toBe('☀️');
+  });
 });
 
 // ── holdBadgeConfig ───────────────────────────────────────────────────────────

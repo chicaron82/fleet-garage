@@ -17,8 +17,10 @@ export function unresolvedHoldTypes(hold: { holdTypes: HoldType[]; resolvedTypes
   return hold.holdTypes.filter(t => !resolved.includes(t));
 }
 
-export function getTireSwapSeason(): '☀️' | '❄️' {
-  const month = new Date().getMonth() + 1; // 1–12
+/** `at` defaults to now (the pill on an open hold). A repaired swap passes its repair time, so the winter-tires
+ *  flag it writes follows the same rule the pill showed (docs/ticket-tire-swap-marks-winters.md). */
+export function getTireSwapSeason(at: Date = new Date()): '☀️' | '❄️' {
+  const month = at.getMonth() + 1; // 1–12
   return (month >= 5 && month <= 8) ? '☀️' : '❄️';
 }
 

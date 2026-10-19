@@ -5,6 +5,7 @@ import { linkedOpenExceptionChain } from '../lib/repairChains';
 import { withSubmitLock } from '../lib/submitLock';
 import { markGeotabInstalled } from '../hooks/useGeotabPending';
 import { GEOTAB_HOLD_DESC } from '../lib/hold-presets';
+import { recordSwapTires } from './tireSwapWinters';
 import type { Hold, HoldType, Vehicle, Repair } from '../types';
 
 // Hold-resolution ops that move a hold out of ACTIVE and reconcile the vehicle
@@ -219,6 +220,8 @@ async function finalizeRepairedHold(
     if (h.id === hold.id) return { ...h, status: 'REPAIRED', resolvedTypes, repair: newRepair };
     return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
   }));
+  // Only an issue resolved by THIS call: a mechanical tick made earlier already wrote its own observation.
+  await recordSwapTires(setAllVehicles, hold, resolvedTypes.filter(t => !(hold.resolvedTypes ?? []).includes(t)), repair.repairedAt);
 
   // Repairing the "Geotab not installed" hold MEANS the unit got installed — so drop the car off
   // the install watchlist too, keeping the scanners + Effie in lockstep. The dedicated
@@ -273,6 +276,7 @@ export function makeMarkIssueRepaired(deps: ResolutionDeps) {
       );
       if (error) throw new Error(`Failed to resolve issue: ${(error as { message?: string }).message}`);
       setAllHolds(prev => prev.map(h => h.id !== holdId ? h : { ...h, resolvedTypes: next }));
+      if (type === 'mechanical' && !hold.resolvedTypes.includes(type)) await recordSwapTires(deps.setAllVehicles, hold, next, new Date().toISOString());
     });
 }
 
@@ -388,6 +392,7 @@ export function makeMarkRepairedBatch({ holds, setAllHolds, setAllVehicles }: Re
       if (r) return { ...h, status: 'REPAIRED' as const, resolvedTypes: h.holdTypes, repair: r };
       return closed.has(h.id) ? asReturned(h, repair.repairedAt) : h;
     }));
+    for (const t of targets) await recordSwapTires(setAllVehicles, t, t.holdTypes, repair.repairedAt);
     });
   };
 }

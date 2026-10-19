@@ -380,3 +380,57 @@ describe('repairing a re-hold closes every earlier open exception in its chain',
     expect(next.map(h => h.status)).toEqual(['REPAIRED', 'REPAIRED']);
   });
 });
+
+// ── A finished tire swap marks the car's winter tires (docs/ticket-tire-swap-marks-winters.md) ──────────
+// Aaron, 2026-10-18: winters are an extra charge in season, so the inspection slip must say so, and he reads it
+// off FG's ❄️. The swap hold does double duty: closing it IS the observation.
+describe('a repaired tire swap marks winter tires', () => {
+  const NOV = '2026-11-02T15:00:00.000Z';
+  const JUN = '2026-06-11T15:00:00.000Z';
+  const swap = (id: string, o: Partial<Hold> = {}) =>
+    makeHold(id, 'v-1', { holdTypes: ['mechanical'], holdType: 'mechanical', mechanicalSubType: 'tire-swap', ...o });
+  const winterWrites = () => chain.update.mock.calls
+    .map(c => (c as unknown[])[0] as Record<string, unknown>)
+    .filter(p => 'winter_tires' in p);
+
+  it('⭐ a swap closed in November puts winters ON, dated the repair', async () => {
+    const hold = swap('h-1');
+    await makeMarkRepaired(deps([hold]))('h-1', { ...REPAIR, repairedAt: NOV });
+    expect(winterWrites()).toEqual([{ winter_tires: true, winter_tires_at: NOV }]);
+  });
+
+  it('a swap closed in June takes them OFF (the same rule the ☀️ pill shows)', async () => {
+    const hold = swap('h-1');
+    await makeMarkRepaired(deps([hold]))('h-1', { ...REPAIR, repairedAt: JUN });
+    expect(winterWrites()).toEqual([{ winter_tires: false, winter_tires_at: JUN }]);
+  });
+
+  it('a tire REPAIR (a patch) is not a swap and never touches the flag', async () => {
+    const hold = swap('h-1', { mechanicalSubType: 'tire-repair' });
+    await makeMarkRepaired(deps([hold]))('h-1', { ...REPAIR, repairedAt: NOV });
+    expect(winterWrites()).toEqual([]);
+  });
+
+  it('⭐ the batch "repair all" marks it too', async () => {
+    const hold = swap('h-1');
+    const other = makeHold('h-2', 'v-1');
+    await makeMarkRepairedBatch(deps([hold, other]))(['h-1', 'h-2'], { ...REPAIR, repairedAt: NOV });
+    expect(winterWrites()).toEqual([{ winter_tires: true, winter_tires_at: NOV }]);
+  });
+
+  it('multi-type: ticking the mechanical issue marks it; closing the damage later does not restamp', async () => {
+    const hold = swap('h-1', { holdTypes: ['damage', 'mechanical'], holdType: 'damage' });
+    await makeMarkIssueRepaired(deps([hold]))('h-1', 'mechanical');
+    expect(winterWrites()).toHaveLength(1);
+    chain.update.mockClear();
+    const ticked = { ...hold, resolvedTypes: ['mechanical'] as HoldType[] };
+    await makeMarkIssueRepaired(deps([ticked]))('h-1', 'damage', { ...REPAIR, repairedAt: NOV });
+    expect(winterWrites()).toEqual([]);
+  });
+
+  it('multi-type: closing the damage first marks nothing until the swap is done', async () => {
+    const hold = swap('h-1', { holdTypes: ['damage', 'mechanical'], holdType: 'damage' });
+    await makeMarkIssueRepaired(deps([hold]))('h-1', 'damage');
+    expect(winterWrites()).toEqual([]);
+  });
+});

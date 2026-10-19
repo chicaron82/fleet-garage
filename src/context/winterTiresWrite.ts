@@ -22,8 +22,8 @@ export function makeRecordWinterTires(deps: {
 }) {
   const { setAllVehicles } = deps;
 
-  return async (vehicleId: string, fitted: boolean): Promise<boolean> => {
-    const at = new Date().toISOString();
+  // `at` is the moment of the observation: now for his tap, the repair's time for a closed tire swap.
+  return async (vehicleId: string, fitted: boolean, at = new Date().toISOString()): Promise<boolean> => {
     const { data, error } = await writeWithRefresh(() =>
       supabase.from('vehicles')
         .update({ winter_tires: fitted, winter_tires_at: at })
