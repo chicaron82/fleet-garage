@@ -4,7 +4,7 @@ import { FG_RECORD_START, type FleetHistoryRows } from '../../hooks/useFleetHist
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticLight } from '../../lib/haptics';
 import {
-  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, dormantClasses, projectSightings, mostSeen,
+  liveFleet, monthlyHolds, damageByClass, seenSpread, classCoverage, dormantClasses, projectSightings, mostSeen, newestSighting,
 } from '../../lib/fleetHistory';
 import { TopSeenCard } from './TopSeenCard';
 import { FleetOriginCard } from './FleetOriginCard';
@@ -291,7 +291,8 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
       </div>
 
       {/* ── 4 · the cars that keep coming back ─────────────────────────────── */}
-      <TopSeenCard ranking={model.ranking} vehiclesById={model.vehiclesById} since={win?.first ?? null} onOpen={onOpenVehicle} />
+      <TopSeenCard ranking={model.ranking} vehiclesById={model.vehiclesById} since={win?.first ?? null}
+        latest={newestSighting(lastSeenByVehicle)} onOpen={onOpenVehicle} />
 
       {/* ── 5 · what's in our fleet, by origin (2026-09-17) ─────────────────── */}
       <FleetOriginCard vehicles={vehicles} onOpenVehicle={onOpenVehicle} />

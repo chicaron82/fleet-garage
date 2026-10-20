@@ -336,3 +336,12 @@ export function movement(row: Pick<MostSeenRow, 'rank' | 'prevRank'>): Movement 
   if (d === 0) return { kind: 'same' };
   return d > 0 ? { kind: 'up', by: d } : { kind: 'down', by: -d };
 }
+
+/** The newest sighting the board counted (sightings + outside odometers), or null. ⭐ Aaron, 2026-10-20: the card's
+ *  "since 2026-08-16" read like a last-updated date; *"i'd prefer it updated just now. so i know the changes were seen"*.
+ *  Taken from the counted sightings themselves, not the page load, so a write that was NOT counted can't read as new. */
+export function newestSighting(lastSeen: ReadonlyMap<string, string>): string | null {
+  let newest: string | null = null;
+  for (const at of lastSeen.values()) if (at && (!newest || Date.parse(at) > Date.parse(newest))) newest = at;
+  return newest;
+}

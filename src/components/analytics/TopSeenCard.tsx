@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { movement, type MostSeen } from '../../lib/fleetHistory';
+import { agoLabel, minutesAgo } from '../../lib/lotLookout';
 import { VehicleName } from '../shared/VehicleName';
 import type { Vehicle } from '../../types';
 
@@ -21,20 +23,29 @@ function MoveChip({ rank, prevRank }: { rank: number; prevRank: number | null })
   );
 }
 
-export function TopSeenCard({ ranking, vehiclesById, since, onOpen }: {
+export function TopSeenCard({ ranking, vehiclesById, since, latest = null, onOpen }: {
   ranking: MostSeen;
   vehiclesById: ReadonlyMap<string, Vehicle>;
   since: string | null;
+  /** The newest counted sighting (lib/fleetHistory `newestSighting`): what "updated" means here. */
+  latest?: string | null;
   onOpen: (vehicleId: string) => void;
 }) {
+  // The clock for "updated N min ago", read when the card mounts and once a minute after, never during render.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t); }, []);
   if (ranking.rows.length === 0) return null;
   const last = ranking.rows[ranking.rows.length - 1];
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Top 10 · most seen</p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Top 10 · most seen</p>
+        {/* The newest sighting it counted, so a change he just made shows it was seen (2026-10-20). */}
+        {latest && <span className="shrink-0 text-[11px] font-semibold text-green-700 dark:text-green-400">Updated {agoLabel(minutesAgo(latest, nowMs))}</span>}
+      </div>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-        Every sighting{since ? ` since ${since}` : ''}. The arrow is the change since a week ago. Cars
+        Counting every sighting{since ? ` since ${since}` : ''}. The arrow is the change since a week ago. Cars
         with the same count <b>share a place</b>.
       </p>
 
