@@ -49,11 +49,25 @@ export function ScanNotices({ scanRead, vehicle, codexToast, photographed, scanI
               at him about a photo he had just taken. The typed door is the only place this belongs.
 
               ⚠️ It REPORTS AND DOES NOT ACT, per this file's rule — the 📷 Scan a tag button is
-              already on the sheet. No second way to do the same thing. */}
+              already on the sheet. No second way to do the same thing.
+
+              ⭐ THE BIG BOX (2026-10-21). It was an 11px line; the 📋 errand watch landed above it and he
+              saw the difference at once: *"I like the big in your face hard to miss notice… the no keytag
+              should get the same treatment too"*. Same amber box, same family: a job at the car. Still no
+              button of its own — his call: *"Without the button. I can use what we already have"* — so it
+              NAMES the one at the foot of the sheet instead. Loud is affordable because it's rare: 43 of
+              862 live cars, and every scan shrinks it. */}
           {!photographed && vehicle && !vehicle.keytagPhotoUrl && (
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-              🏷️ No key tag photo on file — scan the tag while you have it.
-            </p>
+            <div
+              className="mt-2 rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2.5 dark:border-amber-600 dark:bg-amber-950/40"
+              role="status"
+              data-testid="scan-keytag-missing"
+            >
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">🏷️ No key tag photo on file</p>
+              <p className="mt-0.5 text-xs text-amber-900 dark:text-amber-200">
+                Scan the tag while you have it — 📷 Scan a tag, at the bottom.
+              </p>
+            </div>
           )}
           {/* Say WHY registration degraded. Before this the scan just quietly offered less
               and the operator had to infer the cause from the shape of the failure.

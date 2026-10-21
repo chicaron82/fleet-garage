@@ -58,4 +58,20 @@ describe('ScanIdentityCard — the tag notice is seen before the holds', () => {
     renderCard(rogue);
     expect(screen.getAllByText(/no key tag photo on file/i)).toHaveLength(1);
   });
+
+  // ⭐ 2026-10-21: *"I like the big in your face hard to miss notice… the no keytag should get the same treatment
+  // too"*, and *"Without the button. I can use what we already have"*. A box, not an 11px line, and it points at
+  // the sheet's own 📷 Scan a tag rather than adding a second one.
+  it('⭐ is a box you cannot miss, pointing at the Scan a tag button — with no button of its own', () => {
+    renderCard(rogue);
+    const box = screen.getByTestId('scan-keytag-missing');
+    expect(box).toHaveTextContent(/no key tag photo on file/i);
+    expect(box).toHaveTextContent('📷 Scan a tag');
+    expect(box.querySelector('button')).toBeNull();
+  });
+
+  it('is not there when the car already has its tag photo', () => {
+    renderCard({ ...rogue, keytagPhotoUrl: 'https://x/tag.jpg' } as Vehicle);
+    expect(screen.queryByTestId('scan-keytag-missing')).toBeNull();
+  });
 });
