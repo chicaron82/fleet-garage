@@ -65,6 +65,7 @@ const INSERT_CENSUS: Record<string, number> = {
   'src/context/evAssetWrite.ts':        1, // EXEMPT: timeline append (see above)
   'src/context/holdResolution.ts':      2, // finalizeRepairedHold + batch — reached only via locked fns
   'src/context/holdWrite.ts':           2, // makeAddHold / makeAddRelease — locked
+  'src/context/panelRepair.ts':         2, // makeMarkPanelsRepaired (split row + its repair) — locked
   'src/context/useIssues.ts':           5, // addIssue / reopenIssue / addFault locked (faults, mig 150); resolved-event append EXEMPT
   'src/context/useLostFound.ts':        1, // addLostFoundItem — locked
   'src/context/useVehicleOperations.ts':1, // addVehicle — locked
@@ -121,6 +122,7 @@ const GUARDED_FNS: GuardedFn[] = [
   { file: 'src/context/holdResolution.ts',         fn: 'makeMarkRepaired' },
   { file: 'src/context/holdResolution.ts',         fn: 'makeMarkIssueRepaired' },
   { file: 'src/context/holdResolution.ts',         fn: 'makeMarkRepairedBatch' },
+  { file: 'src/context/panelRepair.ts',            fn: 'makeMarkPanelsRepaired' },
   { file: 'src/context/ProfilesContext.tsx',       fn: 'addRosterStaff' },
   { file: 'src/context/useIssues.ts',              fn: 'addIssue' },
   { file: 'src/context/useIssues.ts',              fn: 'reopenIssue' },

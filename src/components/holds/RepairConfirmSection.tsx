@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { REPAIR_OUTCOME_LABELS } from '../../types';
 import type { Hold, RepairOutcome } from '../../types';
@@ -16,6 +17,10 @@ export interface RepairConfirmSectionProps {
   error?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  /** A part repair (PanelRepairSection) says what it does in its own words, and asks which panels above the notes. */
+  summary?: ReactNode;
+  actionLabel?: string;
+  children?: ReactNode;
 }
 
 function holdActionLabel(holdTypes: string[]): string {
@@ -68,10 +73,13 @@ export function RepairConfirmSection({
   error,
   onCancel,
   onConfirm,
+  summary,
+  actionLabel: labelOverride,
+  children,
 }: RepairConfirmSectionProps) {
   if (holds.length === 0) return null;
   const count = holds.length;
-  const actionLabel = count > 1 ? `Mark ${count} as Done` : holdActionLabel(holds[0].holdTypes);
+  const actionLabel = labelOverride ?? (count > 1 ? `Mark ${count} as Done` : holdActionLabel(holds[0].holdTypes));
 
   return (
     <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800/40 p-5 space-y-4">
@@ -79,12 +87,13 @@ export function RepairConfirmSection({
         Confirm
       </h2>
       <p className="text-sm text-green-900 dark:text-green-200">
-        {count > 1 ? (
+        {summary ?? (count > 1 ? (
           <>Resolves <strong>{count} holds</strong> on this vehicle (same notes &amp; outcome for all). <LandingLine landing={landing} /></>
         ) : (
           <>{holdConfirmBody(holds[0].holdTypes)} <LandingLine landing={landing} /></>
-        )}
+        ))}
       </p>
+      {children}
       <div>
         <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">
           Notes (optional)

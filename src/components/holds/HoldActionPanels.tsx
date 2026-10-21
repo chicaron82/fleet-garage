@@ -47,6 +47,7 @@ export function HoldActionPanels({ h, vehicleId, streak }: Props) {
             vehicleHolds={h.holds}
             userId={h.user.id}
             markIssueRepaired={h.markIssueRepaired}
+            markPanelsRepaired={h.markPanelsRepaired}
             confirm={{
               repairNotes: h.repairNotes,
               setRepairNotes: h.setRepairNotes,

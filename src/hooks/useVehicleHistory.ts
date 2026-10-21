@@ -12,7 +12,7 @@ export function useVehicleHistory(vehicleId: string) {
   // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
   const { photoError, takeMany, reportPhotoError } = usePhotoIntake();
   const { user } = useAuth();
-  const { getAnyVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
+  const { getAnyVehicle, getHoldsForVehicle, getActiveHold, getActiveHolds, addPhotosToHold, markRepaired, markRepairedBatch, markIssueRepaired, markPanelsRepaired, clearSaleHold, syncVehicleStatus } = useVehicleHoldContext();
   const [showReleaseForm, setShowReleaseForm] = useState<string | null>(null);
   const [showVerbalOverride, setShowVerbalOverride] = useState<string | null>(null);
   // The hold(s) being repaired in the confirm step — an array so one confirm can
@@ -227,7 +227,7 @@ export function useVehicleHistory(vehicleId: string) {
     confirmClearSale, setConfirmClearSale, clearingSale, clearSaleError, handleClearSale,
     showReleaseForm, openReleaseForm, closeReleaseForm,
     showVerbalOverride, openVerbalOverride, closeVerbalOverride,
-    showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair, markIssueRepaired,
+    showRepairConfirm, openRepairConfirm, cancelRepair, handleRepair, markIssueRepaired, markPanelsRepaired,
     showHoldPicker, openRepairAction, toggleRepairPick, pickedForRepair, confirmRepairSelection, closeHoldPicker,
     showReleasePicker, openReleaseAction, pickHoldForRelease, closeReleasePicker,
     repairNotes, setRepairNotes, repairOutcome, setRepairOutcome, repairing, repairError,

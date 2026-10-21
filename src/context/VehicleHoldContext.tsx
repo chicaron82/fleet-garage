@@ -13,6 +13,7 @@ import { releaseStreak as computeReleaseStreak } from '../lib/chronicIssues';
 import { makeEvAssetLoanOps, loadOpenLoans, type EvLoanReturnOutcome } from './evAssetLoanWrite';
 import type { KeytagFill } from '../lib/resolveKeytag';
 import type { OnLotObservation } from '../lib/onLotObservation';
+import type { PanelSide } from '../lib/panelRepair';
 
 export interface VehicleHoldContextValue {
   vehicles: Vehicle[];
@@ -102,6 +103,8 @@ export interface VehicleHoldContextValue {
   markRepaired: (holdId: string, repair: Omit<Repair, 'id'>) => Promise<void>;
   markRepairedBatch: (holdIds: string[], repair: Omit<Repair, 'id'>) => Promise<void>;
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;
+  /** Repair SOME of a hold's panels: the fixed ones split onto a new REPAIRED row (context/panelRepair). */
+  markPanelsRepaired: (holdId: string, fixed: PanelSide, standing: PanelSide, repair: Omit<Repair, 'id' | 'holdId'>) => Promise<void>;
   markReturned: (holdId: string) => Promise<void>;
   clearSaleHold: (holdId: string, clearedByName: string) => Promise<void>;
   /** Accept an open exception as pre-existing in place (re-types the release EXCEPTION→PRE_EXISTING),
