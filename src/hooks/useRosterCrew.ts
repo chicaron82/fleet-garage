@@ -27,6 +27,12 @@ export function useRosterCrew() {
   const crewOf = useCallback((userId: string): CrewEntry | undefined => pending[userId] ?? fromServer.get(userId),
     [pending, fromServer]);
 
+  // Left off the crew line (migration 155) = no box on My Day either. Aaron, 2026-10-21: *"Larry C isn't driving. So
+  // may need to remove the driving check on the my day pill."* The same switch Lot Lookout reads, so one flip covers
+  // both screens.
+  const leftOff = useMemo(() => new Set((crew?.leftOff ?? []).map(o => o.userId)), [crew]);
+  const offLine = useCallback((userId: string) => leftOff.has(userId), [leftOff]);
+
   const write = useCallback(async (userId: string, next: CrewState | 'clear') => {
     setNote('');
     // 'clear' shows as "no mark": the default for their role, which is what the box reads as ticked.
@@ -36,5 +42,5 @@ export function useRosterCrew() {
     if (problem) setNote(`The crew line did not save: ${problem}`);
   }, [mark, by]);
 
-  return { crewOf, write, note, say: setNote, loaded };
+  return { crewOf, offLine, write, note, say: setNote, loaded };
 }

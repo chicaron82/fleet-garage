@@ -134,4 +134,18 @@ describe('TeamRoster — the grid and the box', () => {
     await userEvent.click(box);
     expect(onCrew).not.toHaveBeenCalled();
   });
+  // Aaron, 2026-10-21: *"Larry C isn't driving. So may need to remove the driving check on the my day pill."*
+  it('⭐ someone left off the crew line (Larry C, utility) keeps the pill but gets no box, and a name tap writes no crew', async () => {
+    const setAttendance = vi.fn().mockResolvedValue(undefined);
+    const onCrew = vi.fn();
+    const crewOf = () => ({ state: 'other' as const, marked: true });
+    const team = [mate('Larry C', '07:00', '15:30', 'Driver', 'present'), mate('John', '07:00', '15:30', 'Driver', 'present')];
+    render(<TeamRoster team={team} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew}
+      offLine={u => u === 'u-Larry C'} />);
+    expect(screen.queryByRole('button', { name: /Larry C (on the usual job|pulled)/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /John pulled/ })).toBeInTheDocument();   // control: John keeps his box
+    await userEvent.click(screen.getByRole('button', { name: /^Larry C→/ }));
+    expect(setAttendance).toHaveBeenCalledWith('Larry C', 'absent');
+    expect(onCrew).not.toHaveBeenCalled();
+  });
 });

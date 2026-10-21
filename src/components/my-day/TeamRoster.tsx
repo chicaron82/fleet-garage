@@ -19,7 +19,7 @@ import type { Attendance } from '../../types';
 // ⭐ THE BOX (VSAs and drivers, same day): ticked = on their usual job, unticked = pulled. It is the crew line
 // (lot_crew), so Lot Lookout reads the same thing. Empty until present (*"stay empty until marked present"*).
 // Its own tap target beside the name, so reaching for one never lands on the other.
-export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, crewKnown = true, onFail }: {
+export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, offLine, crewKnown = true, onFail }: {
   team: TeamMate[];
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   /** Injectable for tests and for a deterministic render; defaults to the wall clock. */
@@ -27,6 +27,8 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
   /** The crew line, by person. Without it (and onCrew) there is no box. */
   crewOf?: (userId: string) => CrewEntry | undefined;
   onCrew?: (userId: string, next: CrewState | 'clear') => void;
+  /** Left off the crew line (Larry C, utility): no box, and a name tap writes nothing to the line. */
+  offLine?: (userId: string) => boolean;
   /** False until the crew line has answered once: the box says "not known yet" rather than guess "on". */
   crewKnown?: boolean;
   /** A name tap that could not save says so here. */
@@ -69,7 +71,7 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
           <div className="grid grid-cols-3 gap-1.5">
             {section.mates.map(({ mate, standing }) => {
               const crew = mate.userId ? crewOf?.(mate.userId) : undefined;
-              const withBox = boxes && hasBox(section.group) && !!mate.userId;
+              const withBox = boxes && hasBox(section.group) && !!mate.userId && !offLine?.(mate.userId);
               return (
                 <RosterPill
                   key={mate.id}

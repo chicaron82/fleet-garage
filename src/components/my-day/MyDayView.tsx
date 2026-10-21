@@ -150,6 +150,7 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
             </p>
             <TeamRoster team={day.team} setShiftAttendance={day.setShiftAttendance}
               crewOf={rosterCrew.crewOf} crewKnown={rosterCrew.loaded} onCrew={(u, next) => void rosterCrew.write(u, next)}
+              offLine={rosterCrew.offLine}
               onFail={rosterCrew.say} />
             {rosterCrew.note && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-700 dark:text-red-400">{rosterCrew.note}</p>}
           </div>
