@@ -69,7 +69,8 @@ export interface RosterSection {
   group: RoleGroup;
   label: string;
   mates: { mate: TeamMate; standing: ShiftStanding }[];
-  /** How many of this group are on the floor right now — the number he scans for. */
+  /** How many of this group are on the floor right now — the number he scans for. A no-show (absent) is in their
+   *  window but not on the floor, so they don't count: 10-21, Grant sick read "Drivers · 3 on now" with two there. */
   onNow: number;
 }
 
@@ -93,7 +94,7 @@ export function groupRoster(team: readonly TeamMate[], nowHHMM: string): RosterS
     if (mates.length === 0) return [];
     return [{
       group, label: ROLE_GROUP_LABEL[group], mates,
-      onNow: mates.filter(m => m.standing === 'now').length,
+      onNow: mates.filter(m => m.standing === 'now' && m.mate.attendance !== 'absent').length,
     }];
   });
 }

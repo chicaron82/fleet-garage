@@ -85,6 +85,18 @@ describe('groupRoster', () => {
     expect(at2100.find(s => s.group === 'driver')!.onNow).toBe(1);   // Ray til 23:00
   });
 
+  // 10-21: Grant was out sick and the heading read "Drivers · 3 on now" with two on the floor.
+  it('⭐ a no-show is in their window but not on the floor: left out of the count, pill kept in place', () => {
+    const drivers = [
+      { ...mate('Grant', '07:00', '15:30', 'Driver'), attendance: 'absent' as const },
+      { ...mate('John', '07:00', '15:30', 'Driver'), attendance: 'present' as const },
+      mate('Larry C', '07:00', '15:30', 'Driver'),                       // unmarked yet: still counts
+    ];
+    const d = groupRoster(drivers, '08:00').find(s => s.group === 'driver')!;
+    expect(d.onNow).toBe(2);
+    expect(d.mates.map(m => [m.mate.displayName, m.standing])).toEqual([['Grant', 'now'], ['John', 'now'], ['Larry C', 'now']]);
+  });
+
   it('holds a fixed group order so the list does not reshuffle under his thumb', () => {
     expect(groupRoster(team, '10:00').map(s => s.group)).toEqual(['vsa', 'driver', 'counter']);
     expect(groupRoster(team, '22:00').map(s => s.group)).toEqual(['vsa', 'driver', 'counter']);
