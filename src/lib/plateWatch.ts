@@ -12,13 +12,22 @@ import { normalizePlate } from './fleetAudit';
 // objects. So the moment a watch matters most is the moment FG otherwise has the least to say.
 // That is also why this is keyed on the PLATE and never on a vehicle id.
 
+/** hold = stop the car. errand = something to do at the car, which stays rentable — the 2026-10-21 registration
+ *  swaps (migration 158): a banner shouting HOLD over a glovebox card swap would be the surface lying. */
+export type PlateWatchKind = 'hold' | 'errand';
+
 export interface PlateWatch {
   id: string;
   plate: string;
   reason: string;
+  /** Optional so a row from before migration 158 reads as what it was: a hold. */
+  kind?: PlateWatchKind;
   createdAt: string;
   resolvedAt: string | null;
 }
+
+/** Anything that isn't explicitly an errand is a hold — the safe reading for a watch, and what every pre-158 row was. */
+export const isErrand = (w: Pick<PlateWatch, 'kind'>): boolean => w.kind === 'errand';
 
 /**
  * The watch a scanned plate hits, or null.

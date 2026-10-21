@@ -1427,6 +1427,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          kind: string
           plate: string
           reason: string
           resolved_at: string | null
@@ -1437,6 +1438,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          kind?: string
           plate: string
           reason?: string
           resolved_at?: string | null
@@ -1447,6 +1449,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          kind?: string
           plate?: string
           reason?: string
           resolved_at?: string | null

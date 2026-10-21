@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { normalizeWatchPlate, type PlateWatch } from '../lib/plateWatch';
+import { normalizeWatchPlate, type PlateWatch, type PlateWatchKind } from '../lib/plateWatch';
 
 // Plates to stop on at scan time (migration 128) — including cars FG has no record of.
 //
@@ -14,12 +14,12 @@ import { normalizeWatchPlate, type PlateWatch } from '../lib/plateWatch';
 // path must not wait on a round-trip to decide whether to shout.
 
 interface Row {
-  id: string; plate: string; reason: string;
+  id: string; plate: string; reason: string; kind: string | null;
   created_at: string; resolved_at: string | null;
 }
 
 const toWatch = (r: Row): PlateWatch => ({
-  id: r.id, plate: r.plate, reason: r.reason,
+  id: r.id, plate: r.plate, reason: r.reason, kind: r.kind === 'errand' ? 'errand' : 'hold',
   createdAt: r.created_at, resolvedAt: r.resolved_at,
 });
 
@@ -36,7 +36,7 @@ export function usePlateWatches() {
     async function load() {
       const { data } = await supabase
         .from('plate_watches')
-        .select('id, plate, reason, created_at, resolved_at')
+        .select('id, plate, reason, kind, created_at, resolved_at')
         .is('resolved_at', null)
         .order('created_at', { ascending: false });
       if (cancelled) return;
@@ -51,12 +51,12 @@ export function usePlateWatches() {
   const reload = useCallback(() => { setReloads(n => n + 1); }, []);
 
   /** Put a plate on the board. Returns false when it didn't land, so nothing can claim it did. */
-  const addWatch = useCallback(async (rawPlate: string, reason: string): Promise<boolean> => {
+  const addWatch = useCallback(async (rawPlate: string, reason: string, kind: PlateWatchKind = 'hold'): Promise<boolean> => {
     const plate = normalizeWatchPlate(rawPlate);
     if (!plate) return false;
     const { data: who } = await supabase.auth.getUser();
     const { error } = await supabase.from('plate_watches').insert({
-      plate, reason: reason.trim(), created_by: who?.user?.id ?? null,
+      plate, reason: reason.trim(), kind, created_by: who?.user?.id ?? null,
     });
     if (error) return false;
     reload();

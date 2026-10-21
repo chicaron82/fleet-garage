@@ -56,4 +56,36 @@ describe('ScanPlateWatch', () => {
     render(<ScanPlateWatch watch={{ ...watch, reason: '' }} onClear={onClear} />);
     expect(screen.getByTestId('scan-plate-watch')).toHaveTextContent('HOLD THIS CAR');
   });
+
+  // ⭐ 2026-10-21 (migration 158): the new MPI cards for eight cars carrying expired registrations. "wanna create a
+  // flag for them… When I scan/look up a vehicle. Like how geotab cars work". The car stays rentable, so the banner
+  // must NOT tell him to hold it — that would be the surface lying over a glovebox card swap.
+  describe('an errand watch', () => {
+    const errand: PlateWatch = {
+      ...watch, plate: 'LUR172', kind: 'errand',
+      reason: 'Registration in the glovebox expired Feb 28 2026 — swap in the new MPI card',
+    };
+
+    it('says what to do at the car and never says HOLD', () => {
+      render(<ScanPlateWatch watch={errand} onClear={onClear} />);
+      const banner = screen.getByTestId('scan-plate-watch');
+      expect(banner).toHaveTextContent('TO DO AT THIS CAR');
+      expect(banner).toHaveTextContent('LUR172');
+      expect(banner).not.toHaveTextContent(/HOLD/);
+      expect(screen.getByText(errand.reason)).toBeInTheDocument();
+    });
+
+    it('still stops him at the sheet, and still clears from right here', () => {
+      render(<ScanPlateWatch watch={errand} onClear={onClear} />);
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /take it off watch/i }));
+      expect(onClear).toHaveBeenCalledTimes(1);
+    });
+
+    // A row from before 158 has no kind — it was a hold, and it must still read as one.
+    it('a watch with no kind is a hold', () => {
+      render(<ScanPlateWatch watch={{ ...watch, kind: undefined }} onClear={onClear} />);
+      expect(screen.getByTestId('scan-plate-watch')).toHaveTextContent('HOLD THIS CAR');
+    });
+  });
 });

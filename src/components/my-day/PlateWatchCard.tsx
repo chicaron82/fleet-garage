@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
-import { normalizeWatchPlate } from '../../lib/plateWatch';
+import { isErrand, normalizeWatchPlate, type PlateWatchKind } from '../../lib/plateWatch';
 
 // The board, in FG. Plates to stop on — including cars FG has no record of.
 //
@@ -18,6 +18,8 @@ export function PlateWatchCard() {
   const { watches, loading, addWatch, clearWatch } = usePlateWatches();
   const [plate, setPlate] = useState('');
   const [reason, setReason] = useState('');
+  // Hold is the default — what the board was built for, and the safe reading if he doesn't touch it.
+  const [kind, setKind] = useState<PlateWatchKind>('hold');
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -28,13 +30,13 @@ export function PlateWatchCard() {
     if (!canAdd) return;
     setBusy(true);
     setFailed(false);
-    const ok = await addWatch(plate, reason);
+    const ok = await addWatch(plate, reason, kind);
     setBusy(false);
     // ⚠️ Only clear the fields when the write actually landed — wiping them on a failure would
     // throw away what he typed and report it as done. And SAY that it failed: leaving the fields
     // populated with no explanation is honest but useless, and the likeliest cause is benign
     // (that plate is already on the board — migration 128's partial unique index).
-    if (ok) { setPlate(''); setReason(''); setAdding(false); }
+    if (ok) { setPlate(''); setReason(''); setKind('hold'); setAdding(false); }
     else setFailed(true);
   };
 
@@ -60,7 +62,9 @@ export function PlateWatchCard() {
 
       {watches.map(w => (
         <div key={w.id} className="flex items-start gap-2.5">
-          <span className="font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">{w.plate}</span>
+          <span className="font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <span aria-label={isErrand(w) ? 'To do' : 'Hold'}>{isErrand(w) ? '📋' : '✋'}</span> {w.plate}
+          </span>
           <span className="flex-1 min-w-0 text-xs text-gray-600 dark:text-gray-400">{w.reason}</span>
           <button
             type="button"
@@ -74,6 +78,19 @@ export function PlateWatchCard() {
 
       {adding ? (
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {/* Hold stops the car; To do is an errand at a car that stays rentable (migration 158). */}
+          <div className="flex w-full gap-1.5" role="group" aria-label="Kind of watch">
+            {(['hold', 'errand'] as const).map(k => (
+              <button
+                key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
+                className={`h-9 rounded-lg border px-3 text-xs font-semibold cursor-pointer transition ${kind === k
+                  ? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900'
+                  : 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-400'}`}
+              >
+                {k === 'hold' ? '✋ Hold it' : '📋 To do'}
+              </button>
+            ))}
+          </div>
           <input
             value={plate}
             onChange={e => setPlate(e.target.value.toUpperCase())}

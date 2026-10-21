@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { watchFor, liveWatches, normalizeWatchPlate, type PlateWatch } from '../../src/lib/plateWatch';
+import { watchFor, liveWatches, normalizeWatchPlate, isErrand, type PlateWatch } from '../../src/lib/plateWatch';
 
 // Aaron, 2026-08-26, off a whiteboard: "can I add a license plate to watch for? it doesn't exist in
 // FG. so if I scanned it, it would tell me to hold it."
@@ -82,5 +82,14 @@ describe('normalizeWatchPlate', () => {
 
   it('returns empty for nothing usable', () => {
     for (const p of [null, undefined, '', '  ', '-- --']) expect(normalizeWatchPlate(p)).toBe('');
+  });
+});
+
+describe('isErrand', () => {
+  // Only an explicit errand is one; everything else — including a pre-158 row with no kind — is a hold.
+  it('reads a missing or hold kind as a hold', () => {
+    expect(isErrand(w())).toBe(false);
+    expect(isErrand(w({ kind: 'hold' }))).toBe(false);
+    expect(isErrand(w({ kind: 'errand' }))).toBe(true);
   });
 });
