@@ -41,9 +41,14 @@ describe('cleanBy', () => {
 
 describe('parseLotRequest — Erin St count (migration 153)', () => {
   it('+1 and −1 on cleans; fix only rides a −1', () => {
-    expect(parseLotRequest({ action: 'cleans', delta: 1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: 1, fix: false, by: 'AS' });
-    expect(parseLotRequest({ action: 'cleans', delta: -1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: true, by: 'AS' });
-    expect(parseLotRequest({ action: 'cleans', delta: -1, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: false, by: 'AS' });
+    expect(parseLotRequest({ action: 'cleans', delta: 1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: 1, fix: false, giveDirty: false, by: 'AS' });
+    expect(parseLotRequest({ action: 'cleans', delta: -1, fix: true, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: true, giveDirty: false, by: 'AS' });
+    expect(parseLotRequest({ action: 'cleans', delta: -1, by: 'AS' })).toEqual({ action: 'cleans', delta: -1, fix: false, giveDirty: false, by: 'AS' });
+  });
+  it('giveDirty only rides a slip fix (ticket-erin-clean-plus-takes-a-dirty)', () => {
+    expect(parseLotRequest({ action: 'cleans', delta: -1, fix: true, giveDirty: true, by: 'AS' })).toMatchObject({ giveDirty: true });
+    expect(parseLotRequest({ action: 'cleans', delta: -1, fix: false, giveDirty: true, by: 'AS' })).toMatchObject({ giveDirty: false });
+    expect(parseLotRequest({ action: 'cleans', delta: 1, giveDirty: true, by: 'AS' })).toMatchObject({ giveDirty: false });
   });
   it('cleans move one car at a time', () => {
     for (const delta of [2, -2, 0, '1', null]) expect(parseLotRequest({ action: 'cleans', delta })).toHaveProperty('error');

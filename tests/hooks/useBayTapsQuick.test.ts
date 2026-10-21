@@ -33,11 +33,25 @@ function setup() {
 beforeEach(() => { sent.length = 0; });
 
 describe('useBayTapsSignedIn — quick taps', () => {
-  it('⭐ +1 says the count and nothing else (no slip lecture)', async () => {
-    reply = () => row({ cleans: 10 });
+  it('⭐ +1 says the counts and nothing else (no slip lecture): both, since a clean takes a dirty', async () => {
+    reply = () => row({ cleans: 10, dirties: 2 });
     const { result, notes } = setup();
     await act(() => result.current.tapCleans(1));
-    expect(notes.map(n => n.msg)).toEqual(['10 cleans']);
+    expect(notes.map(n => n.msg)).toEqual(['10 cleans · 2 dirties']);
+  });
+
+  // 2026-10-21 (ticket-erin-clean-plus-takes-a-dirty): the slip fix gives the dirty back only if the +1 took one.
+  it('⭐ a slip fix after a +1 that took a dirty sends giveDirty; after one that took none, it does not', async () => {
+    reply = b => (b.delta === 1 ? row({ cleans: 10, dirties: 2 }) : row({ cleans: 9, dirties: 3 }));
+    const { result } = setup();                                   // starts at 9 / 3
+    await act(() => result.current.tapCleans(1));
+    await act(() => result.current.tapCleans(-1));
+    expect(sent.slice(-2)).toMatchObject([{ action: 'cleans', delta: 1, giveDirty: false }, { action: 'cleans', delta: -1, fix: true, giveDirty: true }]);
+
+    reply = b => (b.delta === 1 ? row({ cleans: 10, dirties: 3 }) : row({ cleans: 9, dirties: 3 }));  // server took none
+    await act(() => result.current.tapCleans(1));
+    await act(() => result.current.tapCleans(-1));
+    expect(sent.slice(-1)).toMatchObject([{ delta: -1, fix: true, giveDirty: false }]);
   });
 
   it('⭐ drain sends the driver count and offers Undo; Undo restores the row as it was, used included', async () => {

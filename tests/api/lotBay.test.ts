@@ -10,9 +10,34 @@ const row = (over: Partial<BayRow> = {}): BayRow => ({ cleans: 6, dirties: 23, u
 
 describe('bayChange', () => {
   it('+1 is a clean parked ready: the count and its time move, used does not', () => {
-    expect(bayChange(row(), { action: 'cleans', delta: 1, fix: false, by: 'AS' }, NOW, TODAY)).toEqual({
+    expect(bayChange(row({ dirties: 0 }), { action: 'cleans', delta: 1, fix: false, by: 'AS' }, NOW, TODAY)).toEqual({
       patch: { cleans: 7, cleans_by: 'AS', cleans_at: NOW },
       tap: { kind: 'ready', value: 7, prev: 6, tapped_by: 'AS' },
+    });
+  });
+
+  // 2026-10-21: *"I finish cleaning 1 so that means 1 less dirty on the board"* (ticket-erin-clean-plus-takes-a-dirty).
+  describe('⭐ a clean +1 takes a dirty', () => {
+    it('one save moves both pools, both stamped', () => {
+      expect(bayChange(row(), { action: 'cleans', delta: 1, fix: false, by: 'AS' }, NOW, TODAY)).toEqual({
+        patch: { cleans: 7, cleans_by: 'AS', cleans_at: NOW, dirties: 22, dirties_by: 'AS', dirties_at: NOW },
+        tap: { kind: 'ready', value: 7, prev: 6, tapped_by: 'AS' },
+      });
+    });
+    it('dirties at 0 (or never counted) stay put: the clean still counts', () => {
+      expect(bayChange(row({ dirties: 0 }), { action: 'cleans', delta: 1, fix: false, by: 'AS' }, NOW, TODAY)).not.toHaveProperty('patch.dirties');
+      expect(bayChange(row({ dirties: null }), { action: 'cleans', delta: 1, fix: false, by: 'AS' }, NOW, TODAY)).not.toHaveProperty('patch.dirties');
+    });
+    it('a slip fix gives the dirty back only when told its +1 took one', () => {
+      const back = bayChange(row({ cleans: 7, dirties: 22 }), { action: 'cleans', delta: -1, fix: true, giveDirty: true, by: 'AS' }, NOW, TODAY);
+      expect(back).toMatchObject({ patch: { cleans: 6, dirties: 23, dirties_at: NOW } });
+      const none = bayChange(row({ cleans: 7, dirties: 0 }), { action: 'cleans', delta: -1, fix: true, by: 'AS' }, NOW, TODAY);
+      expect(none).not.toHaveProperty('patch.dirties');
+    });
+    it('a real −1 (a clean used) never touches dirties, even if the phone says giveDirty', () => {
+      const used = bayChange(row(), { action: 'cleans', delta: -1, fix: false, giveDirty: true, by: 'AS' }, NOW, TODAY);
+      expect(used).not.toHaveProperty('patch.dirties');
+      expect(used).toMatchObject({ patch: { used: 5 } });
     });
   });
 

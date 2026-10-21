@@ -14,6 +14,11 @@
 //   • FILL: plus the same drivers' dirties (*"the same 3 drivers arrive back at the bay with dirties"*).
 //   • ±1 on dirties, like the cleans. Zero is a SET to 0, on either.
 //   • UNDO: a quick tap put back from its 5-second Undo; the row returns to what the phone saw before it.
+//
+// ⭐ A clean +1 takes a dirty (Aaron, 2026-10-21: *"I finish cleaning 1 so that means 1 less dirty on the board"*;
+// docs/ticket-erin-clean-plus-takes-a-dirty.md). One car changes pools, so one save moves both. Dirties at 0 stay 0 (a
+// car cleaned before anyone counted it dirty). The slip fix gives the dirty back only when the phone says its +1
+// took one (`giveDirty`), so a fix never invents a dirty. A real −1 (a clean used) never touches dirties.
 
 export interface BayRow {
   cleans: number;
@@ -28,7 +33,7 @@ export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' 
 export interface BaySnapshot { cleans: number; dirties: number | null; used: number; usedOn: string | null }
 
 export type BayRequest =
-  | { action: 'cleans'; delta: 1 | -1; fix: boolean; by: string }
+  | { action: 'cleans'; delta: 1 | -1; fix: boolean; giveDirty?: boolean; by: string }
   | { action: 'dirties'; count: number; by: string }
   | { action: 'cleansSet'; count: number; by: string }
   | { action: 'drain'; n: number; by: string }
@@ -93,8 +98,10 @@ export function bayChange(row: BayRow, req: BayRequest, nowIso: string, today: s
       const cleans = row.cleans + req.delta;
       const patch: BayChange['patch'] = { cleans, ...cleansStamp };
       let kind: BayTapKind = 'ready';
+      if (req.delta === 1 && (row.dirties ?? 0) > 0) Object.assign(patch, { dirties: row.dirties! - 1, ...dirtiesStamp });
       if (req.delta === -1) {
         kind = req.fix ? 'fix' : 'used';
+        if (req.fix && req.giveDirty) Object.assign(patch, { dirties: Math.min(COUNT_MAX, (row.dirties ?? 0) + 1), ...dirtiesStamp });
         if (!req.fix) {
           patch.used = usedSoFar(row, today) + 1;
           patch.used_on = today;

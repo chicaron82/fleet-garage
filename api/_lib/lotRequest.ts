@@ -66,7 +66,11 @@ export function parseLotRequest(body: unknown, nowMs = Date.now()): LotRequest |
     // Erin St's count (migration 153).
     case 'cleans':
       if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };
-      return { action: 'cleans', delta: b.delta, fix: b.delta === -1 && b.fix === true, by };
+      return {
+        action: 'cleans', delta: b.delta, fix: b.delta === -1 && b.fix === true,
+        // Only a slip fix can give a dirty back (ticket-erin-clean-plus-takes-a-dirty).
+        giveDirty: b.delta === -1 && b.fix === true && b.giveDirty === true, by,
+      };
     case 'dirties': {
       const n = countOf(b.count);
       if (n == null) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };

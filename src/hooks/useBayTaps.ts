@@ -23,6 +23,7 @@ export type BayField = 'cleans' | 'dirties';
 
 function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: string, fail: (r: LotPost) => void) {
   const lastPlusAt = useRef<number | null>(null);
+  const plusTookDirty = useRef(false);
   // Quick taps answer out of order over a bad signal; only the newest tap's answer may set the number.
   const seq = useRef(0);
 
@@ -55,14 +56,22 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     if (delta === -1 && before.cleans === 0) { toast('Already at 0 cleans'); return; }
     const now = Date.now();
     const fix = delta === -1 && isCleansFix(lastPlusAt.current, now);
+    // A clean +1 takes a dirty (2026-10-21, ticket-erin-clean-plus-takes-a-dirty); the slip fix gives it back only if
+    // that +1 really took one, so a fix never invents a dirty.
+    const giveDirty = fix && plusTookDirty.current;
     lastPlusAt.current = delta === 1 ? now : null;
+    plusTookDirty.current = false;
     const counted = delta === -1 && !fix;
-    const saved = await write({ action: 'cleans', delta, fix }, (b, at) => ({
+    const dirtyMove = delta === 1 ? ((before.dirties ?? 0) > 0 ? -1 : 0) : giveDirty ? 1 : 0;
+    const saved = await write({ action: 'cleans', delta, fix, giveDirty }, (b, at) => ({
       ...b, cleans: b.cleans + delta, cleansBy: by, cleansAt: at,
+      ...(dirtyMove ? { dirties: (b.dirties ?? 0) + dirtyMove, dirtiesBy: by, dirtiesAt: at } : {}),
       ...(counted ? { used: usedToday(b, now) + 1, usedOn: businessDateOf(new Date(now)) } : {}),
     }));
     if (!saved) { lastPlusAt.current = null; return; }
-    toast(`${saved.cleans} cleans`);
+    if (delta === 1) plusTookDirty.current = (saved.dirties ?? 0) < (before.dirties ?? 0);
+    // Both numbers, so he sees the dirty moved without his touching it.
+    toast(saved.dirties == null ? `${saved.cleans} cleans` : `${saved.cleans} cleans · ${saved.dirties} dirties`);
   }, [state, write, by, toast]);
 
   const stepDirties = useCallback(async (delta: 1 | -1) => {
