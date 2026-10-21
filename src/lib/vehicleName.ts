@@ -175,6 +175,8 @@ export interface CodedVehicle {
    *  with model year (the Kicks went B4→B5 for 2026), so inferring one across a year boundary is
    *  how a slip gets the wrong class. A wrong value is a record to fix, not a number to compute. */
   rentalClass?: string | null;
+  /** A US car has no Canadian model code to fill, so its empty code slot is an answer, not a gap. */
+  isUs?: boolean;
 }
 
 /** Placeholder for a code FG does not have. An em dash, so a gap is visibly a gap on a line being
@@ -200,7 +202,9 @@ export const CODE_GAP = '—';
  * stay short — so the label goes on the one that needs disambiguating.
  */
 export function vehicleCodesLine(v: CodedVehicle): string {
-  const code = missing(v.classCode) ? CODE_GAP : v.classCode!.trim().toUpperCase();
+  // ⭐ A US car with no code reads "US" (Aaron, 2026-10-21: *"Yes I'd write "US" on the slip"*). The gap exists to
+  // prompt a fix, and there is no Canadian code to fix it with (docs/ticket-us-car-code-reads-us.md).
+  const code = !missing(v.classCode) ? v.classCode!.trim().toUpperCase() : v.isUs ? 'US' : CODE_GAP;
   const cls  = missing(v.rentalClass) ? CODE_GAP : v.rentalClass!.trim().toUpperCase();
   return `${code} · class ${cls}`;
 }

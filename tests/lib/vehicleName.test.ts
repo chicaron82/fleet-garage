@@ -199,6 +199,13 @@ describe('vehicleCodesLine', () => {
     expect(vehicleCodesLine({ classCode: 'unknown', rentalClass: 'Unknown' })).toBe('— · class —');
   });
 
+  // 2026-10-21, the US Compass 071520-1: *"Yes I'd write "US" on the slip"*.
+  it('⭐ a US car with no code reads US, what he writes on the slip; a Canadian gap stays a gap; a real code wins', () => {
+    expect(vehicleCodesLine({ isUs: true, rentalClass: 'Q4' })).toBe('US · class Q4');
+    expect(vehicleCodesLine({ isUs: false, rentalClass: 'Q4' })).toBe('— · class Q4');
+    expect(vehicleCodesLine({ isUs: true, classCode: 'CKSE', rentalClass: 'B5' })).toBe('CKSE · class B5');
+  });
+
   it('normalises what it prints — the paper wants one canonical form', () => {
     expect(vehicleCodesLine({ classCode: ' ckse ', rentalClass: ' b5 ' })).toBe('CKSE · class B5');
   });
