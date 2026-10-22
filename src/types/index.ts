@@ -650,6 +650,7 @@ export interface Shift {
   notes?: string;
   actualStartTime?: string; // actual hours worked
   actualEndTime?: string;
+  breakMinutes?: number;    // unpaid break actually taken; undefined = the standard 30 min past 5h (ot.ts)
   isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
   attendance?: Attendance;  // who actually showed — undefined = scheduled (unmarked)
   ptoApproved?: boolean;    // for shiftType 'pto': false = requested, true = boss-approved

@@ -237,7 +237,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                                 )}
                                 {calcOT(shift) === 0 && shift.actualStartTime && shift.actualEndTime && (
                                   <span className="block text-gray-500 dark:text-gray-400 text-[10px] leading-tight">
-                                    {fmtHours(netActualHours(calcHours(shift.actualStartTime, shift.actualEndTime)))}
+                                    {fmtHours(netActualHours(calcHours(shift.actualStartTime, shift.actualEndTime), shift.breakMinutes))}
                                   </span>
                                 )}
                               </>

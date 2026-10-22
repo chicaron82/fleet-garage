@@ -35,26 +35,39 @@ describe('FlipShiftSheet — a day flipped to not worked', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sick' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(updateShift).toHaveBeenCalledWith('s1', expect.objectContaining({ shiftType: 'sick' })));
-    expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean));
+    expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null);
   });
 
   it('the same for PTO — it is the same trap', async () => {
     render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'PTO' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean)));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null));
   });
 
   it('⚠️ hours already LOGGED survive the flip — the called-in-on-a-day-off case', async () => {
     render(<FlipShiftSheet shift={{ ...mid, actualStartTime: '09:30', actualEndTime: '12:00' }} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sick' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '12:00', expect.any(Boolean)));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '12:00', expect.any(Boolean), null));
   });
 
   it('a working day saved untouched still logs "as scheduled"', async () => {
     render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean)));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), null));
+  });
+
+  it('⭐ a break he picks rides along with the hours (Aaron, 2026-10-22: a 15m break instead of 30m)', async () => {
+    render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: '15m' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 15));
+  });
+
+  it('a break already logged on the row is what the sheet saves back', async () => {
+    render(<FlipShiftSheet shift={{ ...mid, actualStartTime: '09:30', actualEndTime: '18:00', breakMinutes: 0 }} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 0));
   });
 });

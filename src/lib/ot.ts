@@ -22,9 +22,13 @@ export function calcHours(start?: string, end?: string): number {
   return Math.max(0, e - s);
 }
 
-// Deducts the unpaid break from gross clock hours when the span qualifies.
-// MB standard: break owed *after* 5h (strictly >), matching shift-metrics.ts.
-export function netActualHours(grossHrs: number): number {
+// Deducts the unpaid break from gross clock hours. The ONE break rule: OT, pay and the shift rate
+// (shift-metrics.ts) all net their hours through here.
+// No break logged → MB standard: 30 min, owed *after* 5h (strictly >).
+// A logged break → exactly that, whatever the span. Aaron, 2026-10-22: *"0630-1636 with a shortened
+// break of 15m instead of 30m"*. The fixed 30 read that day as 9h36m when he worked 9h51m.
+export function netActualHours(grossHrs: number, breakMinutes?: number | null): number {
+  if (breakMinutes != null) return Math.max(0, grossHrs - breakMinutes / 60);
   return grossHrs > BREAK_THRESHOLD_HRS ? grossHrs - UNPAID_BREAK_HRS : grossHrs;
 }
 
@@ -35,7 +39,7 @@ export function netActualHours(grossHrs: number): number {
 export function calcOT(shift: Shift): number {
   const gross = calcHours(shift.actualStartTime, shift.actualEndTime);
   if (gross <= 0) return 0;
-  const net = netActualHours(gross);
+  const net = netActualHours(gross, shift.breakMinutes);
   if (isFullDayShift(shift.shiftType) || shift.isStat) return net;
   return Math.max(0, net - 8);
 }

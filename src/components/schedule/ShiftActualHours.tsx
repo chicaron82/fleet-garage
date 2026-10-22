@@ -4,6 +4,7 @@ import { getStatName } from '../../lib/stats';
 import { fmtHours } from '../../lib/ot';
 import type { ShiftWithUser } from '../../types';
 import type { ActualHours } from '../../hooks/useActualHours';
+import { ShiftBreakChips } from './ShiftBreakChips';
 
 interface Props {
   shift: ShiftWithUser;
@@ -21,7 +22,7 @@ interface Props {
  */
 export function ShiftActualHours({ shift, actual, onClose }: Props) {
   const { logActualHours } = useSchedule();
-  const { actualStart, actualEnd, isStat, setActualStart, setActualEnd, setIsStat, netHrs, previewOT, breakDeducted } = actual;
+  const { actualStart, actualEnd, isStat, breakMinutes, setActualStart, setActualEnd, setIsStat, setBreakMinutes, netHrs, previewOT, breakDeducted } = actual;
 
   const [clearing,     setClearing]     = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -71,6 +72,8 @@ export function ShiftActualHours({ shift, actual, onClose }: Props) {
           </div>
         </div>
 
+        <ShiftBreakChips breakMinutes={breakMinutes} onChange={setBreakMinutes} />
+
         {/* Stat checkbox */}
         <label className="flex items-center gap-2.5 cursor-pointer">
           <input
@@ -89,7 +92,7 @@ export function ShiftActualHours({ shift, actual, onClose }: Props) {
         {actualStart && actualEnd && (
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
             {fmtHours(netHrs)} actual
-            {breakDeducted && <span className="ml-1 text-gray-400 dark:text-gray-500">· −30m break</span>}
+            {breakDeducted && <span className="ml-1 text-gray-400 dark:text-gray-500">· −{breakMinutes ?? 30}m break</span>}
             {previewOT > 0
               ? <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">· {fmtHours(previewOT)} OT</span>
               : <span className="ml-2 text-green-600 dark:text-green-400">· No OT</span>

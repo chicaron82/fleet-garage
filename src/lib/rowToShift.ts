@@ -17,6 +17,7 @@ export function rowToShiftBase(row: Record<string, unknown>): Shift {
     notes:           (row.notes             as string | null) ?? undefined,
     actualStartTime: (row.actual_start_time as string | null) ?? undefined,
     actualEndTime:   (row.actual_end_time   as string | null) ?? undefined,
+    breakMinutes:    (row.break_minutes     as number | null) ?? undefined,
     isStat:          (row.is_stat as boolean | null) ?? false,
     attendance:      (row.attendance as Attendance | null) ?? undefined,
     ptoApproved:     (row.pto_approved as boolean | null) ?? false,

@@ -145,7 +145,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       // or before today — the actual hours (defaulted to the schedule, so an
       // untouched normal day logs "worked as scheduled" with no extra taps).
       if (showActual) {
-        await logActualHours(shift.id, actual.actualStart, actual.actualEnd, actual.isStat);
+        await logActualHours(shift.id, actual.actualStart, actual.actualEnd, actual.isStat, actual.breakMinutes);
       }
       onClose();
     } catch {

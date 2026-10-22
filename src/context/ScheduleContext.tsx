@@ -50,7 +50,7 @@ interface ScheduleContextValue {
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
   setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
-  logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) => Promise<void>;
+  logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null) => Promise<void>;
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
   refresh: () => void;
@@ -140,6 +140,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           notes: shift.notes,
           actual_start_time: shift.actualStartTime,
           actual_end_time: shift.actualEndTime,
+          break_minutes: shift.breakMinutes,
           is_stat: shift.isStat,
         }).select().single()
       );
@@ -334,8 +335,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     patchShift(id, rowToShift(data as Record<string, unknown>));
   };
 
-  const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean) =>
-    updateShiftRow(id, { actual_start_time: actualStartTime || null, actual_end_time: actualEndTime || null, is_stat: isStat });
+  // A break only means something with hours to take it from: clearing the hours clears it too.
+  const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null) =>
+    updateShiftRow(id, {
+      actual_start_time: actualStartTime || null, actual_end_time: actualEndTime || null, is_stat: isStat,
+      break_minutes: actualStartTime && actualEndTime ? (breakMinutes ?? null) : null,
+    });
 
   // Layer attendance on top of the roster — tapped from the My-Day pills
   // (scheduled → present → absent → scheduled). null clears it back to scheduled.

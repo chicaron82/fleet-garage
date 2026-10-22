@@ -1,6 +1,6 @@
 import type { Shift } from '../types';
 import { isFullDayShift } from '../types';
-import { calcHours, calcOT, netActualHours, timeToDec } from './ot';
+import { calcHours, calcOT, netActualHours, timeToDec, UNPAID_BREAK_HRS } from './ot';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 // Rates and deduction parameters sourced from paystub (PP ending 2026-05-07).
@@ -126,6 +126,8 @@ export interface PayEstimate {
 export function isZeroDeviation(shift: Shift): boolean {
   if (!shift.startTime || !shift.endTime) return false;
   if (!shift.actualStartTime || !shift.actualEndTime) return false;
+  // A break shorter or longer than the standard changes the hours worked, so it is a deviation too.
+  if (shift.breakMinutes != null && shift.breakMinutes !== UNPAID_BREAK_HRS * 60) return false;
   return timeToDec(shift.actualStartTime) === timeToDec(shift.startTime)
       && timeToDec(shift.actualEndTime)   === timeToDec(shift.endTime);
 }
@@ -160,7 +162,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       // projected.
       if (isZeroDeviation(shift)) daysConfirmed++; else daysLogged++;
       const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
-      const net      = netActualHours(grossHrs);
+      const net      = netActualHours(grossHrs, shift.breakMinutes);
       if (shift.isStat) {
         // Worked stat: Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)
         // — the premium for working a holiday. (Fix 2026-08-04: was a flat 8h×regularRate, which

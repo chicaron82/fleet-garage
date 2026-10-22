@@ -1,6 +1,7 @@
 import type { Shift, ShiftType, ShiftWithUser } from '../types';
 import { localDateStr } from '../hooks/useFleetBalance';
 import { businessDateOf } from './shiftDay';
+import { netActualHours } from './ot';
 
 // Structural minimal inputs — the live card passes full HandoffNote/ShiftCheckpoint
 // objects (which satisfy these), and the report fetcher passes mapped DB rows.
@@ -182,13 +183,10 @@ export function creditFlipsToRate(snapshot: ShiftSnapshot, flipCount: number): S
   return computeShiftRates({ ...snapshot, cleaned: snapshot.cleaned + flipCount });
 }
 
-// The standard unpaid lunch, subtracted from a clock window to get productive
-// hours — consistent with how morningHours is defined (06:45–15:15 = 8.5h clock,
-// 8.0h productive). Aaron treats a rare second break as a manual one-off.
-export const UNPAID_BREAK_HOURS = 0.5;
-// No unpaid lunch is taken on a short call-in; the break is only deducted once
-// the shift runs long enough to include one (MB: a break is owed after 5h).
-const BREAK_MIN_SPAN_HOURS = 5;
+// The unpaid lunch comes off the clock window through ot.ts `netActualHours`, the same rule OT and
+// pay use: a logged break exactly, else the standard 30 min once the span passes 5h (none on a short
+// call-in). Consistent with morningHours (06:45–15:15 = 8.5h clock, 8.0h productive). This file kept
+// its own copy of the rule until 2026-10-22, when a logged break had to reach the rate too.
 
 // The throughput window AND the off-standard scope derive from the best clock
 // window we have for the shift: actual hours worked when logged (called in
@@ -239,15 +237,15 @@ export function applyShiftWindow(
     plannedStart?: string | null;       // scheduled times — fallback when no actual
     plannedEnd?: string | null;
     offStandardEntries: ReadonlyArray<OffStandardMinutes>;
-    breakHours?: number;
+    breakMinutes?: number | null;       // the break he logged; null/undefined = the standard rule
   },
 ): ShiftSnapshot {
-  const { date, actualStart, actualEnd, plannedStart, plannedEnd, offStandardEntries, breakHours = UNPAID_BREAK_HOURS } = args;
+  const { date, actualStart, actualEnd, plannedStart, plannedEnd, offStandardEntries, breakMinutes } = args;
   const bounds = shiftWindowBounds({ date, actualStart, actualEnd, plannedStart, plannedEnd });
   if (!bounds) return snapshot;
   const { startMs, endMs } = bounds;
   const span = (endMs - startMs) / 3_600_000;
-  const hours = Math.max(0.1, span - (span > BREAK_MIN_SPAN_HOURS ? breakHours : 0));
+  const hours = Math.max(0.1, netActualHours(span, breakMinutes));
   const oth = offStandardEntries
     .filter(reducesDenominator)
     .filter(e => { const t = new Date(e.startTime).getTime(); return t >= startMs && t < endMs; })
@@ -295,7 +293,7 @@ export interface UserShiftRates {
 // function so the two surfaces cannot drift apart — the 540/hr lesson, locked.
 export function resolveShiftRates(args: {
   partition: ShiftPartition;
-  shift: Pick<Shift, 'shiftType' | 'startTime' | 'endTime' | 'actualStartTime' | 'actualEndTime'> | null;
+  shift: Pick<Shift, 'shiftType' | 'startTime' | 'endTime' | 'actualStartTime' | 'actualEndTime' | 'breakMinutes'> | null;
   date: string;
   offStandardEntries: ReadonlyArray<OffStandardMinutes>;
 }): UserShiftRates {
@@ -308,6 +306,7 @@ export function resolveShiftRates(args: {
     plannedStart: shift?.startTime,
     plannedEnd:   shift?.endTime,
     offStandardEntries,
+    breakMinutes: shift?.breakMinutes,
   });
   const { baseline, yourEffort } = computeShiftRates(snapshot);
   return { snapshot, baseline, yourEffort };

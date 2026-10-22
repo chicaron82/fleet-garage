@@ -1698,6 +1698,7 @@ export type Database = {
           actual_start_time: string | null
           attendance: string | null
           branch_id: string | null
+          break_minutes: number | null
           created_at: string
           date: string
           end_time: string | null
@@ -1716,6 +1717,7 @@ export type Database = {
           actual_start_time?: string | null
           attendance?: string | null
           branch_id?: string | null
+          break_minutes?: number | null
           created_at?: string
           date: string
           end_time?: string | null
@@ -1734,6 +1736,7 @@ export type Database = {
           actual_start_time?: string | null
           attendance?: string | null
           branch_id?: string | null
+          break_minutes?: number | null
           created_at?: string
           date?: string
           end_time?: string | null
@@ -2474,6 +2477,7 @@ export type Database = {
           actual_start_time: string | null
           attendance: string | null
           branch_id: string | null
+          break_minutes: number | null
           created_at: string
           date: string
           end_time: string | null
@@ -2527,6 +2531,7 @@ export type Database = {
           actual_start_time: string | null
           attendance: string | null
           branch_id: string | null
+          break_minutes: number | null
           created_at: string
           date: string
           end_time: string | null

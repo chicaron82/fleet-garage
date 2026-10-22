@@ -15,6 +15,9 @@ export interface ActualHours {
   actualStart: string;
   actualEnd: string;
   isStat: boolean;
+  /** The unpaid break he logged, in minutes; null = the standard rule (ot.ts `netActualHours`). */
+  breakMinutes: number | null;
+  setBreakMinutes: (v: number | null) => void;
   setActualStart: (v: string) => void;
   setActualEnd: (v: string) => void;
   setIsStat: (v: boolean) => void;
@@ -35,6 +38,7 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
   const [actualStart, setActualStart] = useState(shift.actualStartTime ?? shift.startTime ?? '');
   const [actualEnd,   setActualEnd]   = useState(shift.actualEndTime   ?? shift.endTime   ?? '');
   const [isStat,      setIsStat]      = useState(shift.isStat ?? isStatDay(shift.date));
+  const [breakMinutes, setBreakMinutes] = useState<number | null>(shift.breakMinutes ?? null);
 
   const syncToScheduled = (start: string, end: string) => {
     setActualStart(start);
@@ -62,15 +66,16 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
     shiftType: shiftType ?? shift.shiftType,
     actualStartTime: actualStart || undefined,
     actualEndTime:   actualEnd   || undefined,
+    breakMinutes:    breakMinutes ?? undefined,
     isStat,
   });
   const grossHrs      = calcHours(actualStart, actualEnd);
-  const netHrs        = netActualHours(grossHrs);
+  const netHrs        = netActualHours(grossHrs, breakMinutes);
   const breakDeducted = grossHrs > 0 && netHrs < grossHrs;
 
   return {
-    actualStart, actualEnd, isStat,
-    setActualStart, setActualEnd, setIsStat,
+    actualStart, actualEnd, isStat, breakMinutes,
+    setActualStart, setActualEnd, setIsStat, setBreakMinutes,
     syncToScheduled, clearUnloggedPrefill,
     netHrs, previewOT, breakDeducted,
   };

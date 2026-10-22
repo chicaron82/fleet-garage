@@ -296,6 +296,12 @@ describe('isZeroDeviation', () => {
     }))).toBe(false);
   });
 
+  it('a shortened break is a deviation even when the clock times match', () => {
+    const exact = { startTime: '13:30', endTime: '23:00', actualStartTime: '13:30', actualEndTime: '23:00' };
+    expect(isZeroDeviation(makeShift({ ...exact, breakMinutes: 15 }))).toBe(false);
+    expect(isZeroDeviation(makeShift({ ...exact, breakMinutes: 30 }))).toBe(true);   // the standard, logged
+  });
+
   it('⚠️ a day-off row has no schedule to match, so it stays a deviation', () => {
     expect(isZeroDeviation(makeShift({
       shiftType: 'day-off', startTime: undefined, endTime: undefined,

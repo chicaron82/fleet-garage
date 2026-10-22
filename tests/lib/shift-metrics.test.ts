@@ -356,6 +356,14 @@ describe('applyShiftWindow', () => {
     expect(out.hours).toBeCloseTo(9.0);
   });
 
+  it('⭐ a logged break reaches the rate too, through the same rule as OT', () => {
+    // 10:30 → 20:00 = 9.5h clock − a logged 15m = 9.25h (the fixed 30 would give 9.0h)
+    const out = applyShiftWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [], breakMinutes: 15 });
+    expect(out.hours).toBeCloseTo(9.25);
+    const none = applyShiftWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: [], breakMinutes: null });
+    expect(none.hours).toBeCloseTo(9.0);
+  });
+
   it('scopes off-standard to the window and leaves cars untouched', () => {
     const out = applyShiftWindow(baseSnap, { date, actualStart: '10:30', actualEnd: '20:00', offStandardEntries: entries });
     expect(out.oth).toBe(150); // 90 + 60; the 09:00 entry is before the window

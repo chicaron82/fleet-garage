@@ -50,9 +50,36 @@ describe('netActualHours', () => {
     // 9.5h actual: 9.5 − 0.5 = 9h net
     expect(netActualHours(9.5)).toBe(9);
   });
+
+  // ⭐ Aaron, 2026-10-22: "0630-1636 with a shortened break of 15m instead of 30m".
+  it('a logged break replaces the standard 30 min', () => {
+    expect(netActualHours(10.1, 15)).toBeCloseTo(9.85);   // his day: 9h51m, not 9h36m
+    expect(netActualHours(10.1, 45)).toBeCloseTo(9.35);
+  });
+  it('a logged break of 0 means no deduction at all', () => {
+    expect(netActualHours(9.5, 0)).toBe(9.5);
+  });
+  it('a logged break applies under 5h too: he said he took it', () => {
+    expect(netActualHours(4, 15)).toBe(3.75);
+  });
+  it('null or undefined is the standard rule, so every old row reads the same', () => {
+    expect(netActualHours(9.5, null)).toBe(9);
+    expect(netActualHours(9.5, undefined)).toBe(9);
+    expect(netActualHours(4, null)).toBe(4);
+  });
+  it('never goes negative', () => {
+    expect(netActualHours(0.5, 60)).toBe(0);
+  });
 });
 
 describe('calcOT', () => {
+  it('⭐ counts the OT a shortened break earned (his 2026-10-22 opening)', () => {
+    // 06:30–16:36 = 10.1h; 15m break → 9.85h net → 1.85h OT. The fixed 30 gave 1.6h.
+    const shift = makeShift({ actualStartTime: '06:30', actualEndTime: '16:36', breakMinutes: 15 });
+    expect(calcOT(shift)).toBeCloseTo(1.85);
+    expect(calcOT({ ...shift, breakMinutes: undefined })).toBeCloseTo(1.6);
+  });
+
   it('returns 0 when no actual hours logged', () => {
     const shift = makeShift();
     expect(calcOT(shift)).toBe(0);
