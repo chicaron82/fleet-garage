@@ -1,6 +1,6 @@
 import type { Shift } from '../types';
 import { isFullDayShift } from '../types';
-import { calcHours, calcOT, netActualHours, timeToDec, UNPAID_BREAK_HRS } from './ot';
+import { calcHours, calcOT, calcPlannedOT, netActualHours, timeToDec, UNPAID_BREAK_HRS } from './ot';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 // Rates and deduction parameters sourced from paystub (PP ending 2026-05-07).
@@ -188,11 +188,13 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       holidayHours += net;
       holPremGross += net * PAY_CONFIG.otRate;
     } else if (!isFullDayShift(shift.shiftType) && !shift.isStat) {
-      // Unlogged working day — scheduled hours (no OT assumed); confirmed if past
+      // Unlogged working day — scheduled hours; confirmed if past. A shift scheduled past 8h net projects
+      // its OT too (Aaron, 2026-10-22: a 12:00–22:00 used to lose its 1.5h here, capped at 8).
       bumpUnlogged(shift.date);
       const scheduled = calcHours(shift.startTime, shift.endTime);
       const net       = netActualHours(scheduled);
       regularHours   += Math.min(net, 8);
+      otHours        += calcPlannedOT(shift);
     } else if (shift.isStat) {
       // Unworked stat (day-off / full-day type): flat 8h entitlement at regularRate (Holiday = $0)
       holPremGross += 8 * PAY_CONFIG.regularRate;

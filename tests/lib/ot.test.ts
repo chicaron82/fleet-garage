@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, netActualHours, calcOT, fmtHours, invalidTimeSpan, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
+import { calcHours, netActualHours, calcOT, calcPlannedOT, fmtHours, invalidTimeSpan, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -195,5 +195,25 @@ describe('invalidTimeSpan — the midnight bug', () => {
   it('⚠️ does not reject an implausibly long span — that is the summary\'s job to show', () => {
     expect(invalidTimeSpan('09:00', '08:00')).toBe(false);
     expect(calcHours('09:00', '08:00')).toBe(23);
+  });
+});
+
+// ⭐ Aaron, 2026-10-22, about Friday's 12:00–22:00: "shouldn't it display how much OT it has?"
+describe('calcPlannedOT', () => {
+  it('a scheduled 12:00–22:00 promises 1h 30m (10h − 30m break − 8h)', () => {
+    expect(calcPlannedOT(makeShift({ shiftType: 'closing', startTime: '12:00', endTime: '22:00' }))).toBe(1.5);
+  });
+  it('an ordinary 8.5h opening promises none', () => {
+    expect(calcPlannedOT(makeShift({ shiftType: 'opening', startTime: '06:45', endTime: '15:15' }))).toBe(0);
+  });
+  it('steps aside once actuals exist: calcOT owns the number then', () => {
+    expect(calcPlannedOT(makeShift({ startTime: '12:00', endTime: '22:00', actualStartTime: '12:00', actualEndTime: '22:00' }))).toBe(0);
+  });
+  it('a full-day type or a stat promises none (pay books a stat as holiday hours)', () => {
+    expect(calcPlannedOT(makeShift({ shiftType: 'day-off' }))).toBe(0);
+    expect(calcPlannedOT(makeShift({ startTime: '12:00', endTime: '22:00', isStat: true }))).toBe(0);
+  });
+  it('crosses midnight like everything else', () => {
+    expect(calcPlannedOT(makeShift({ startTime: '15:00', endTime: '01:00' }))).toBe(1.5);
   });
 });

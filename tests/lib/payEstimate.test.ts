@@ -103,12 +103,13 @@ describe('calcPayEstimate', () => {
     expect(est.ptoDays).toBe(0);
   });
 
-  it('projects scheduled hours for unlogged working days', () => {
-    // 13:30–23:00 = 9.5h gross, net = 9h, capped at 8h regular
+  it('projects scheduled hours for unlogged working days, OT included', () => {
+    // 13:30–23:00 = 9.5h gross, net = 9h → 8h regular + 1h planned OT. Until 2026-10-22 the OT was
+    // dropped ("no OT projected for unlogged"); Aaron asked for the schedule's OT to show.
     const shift = makeShift({ date: '2026-06-06' });
     const est = calcPayEstimate([shift], today);
     expect(est.regularHours).toBe(8);
-    expect(est.otHours).toBe(0); // no OT projected for unlogged
+    expect(est.otHours).toBe(1);
     expect(est.daysProjected).toBe(1);
     expect(est.daysLogged).toBe(0);
   });

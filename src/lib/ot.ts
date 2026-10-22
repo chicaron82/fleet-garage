@@ -45,6 +45,20 @@ export function calcOT(shift: Shift): number {
 }
 
 /**
+ * OT the SCHEDULE already promises, before anything is logged. Aaron, 2026-10-22, about Friday's 12:00–22:00:
+ * *"tomorrow's shift is over 8h right? so shouldn't it display how much OT it has?"* `calcOT` reads only
+ * actual hours, so a long scheduled shift showed nothing until it had been worked.
+ *
+ * 0 once actuals exist (then `calcOT` owns the number), and 0 for a full-day type or a stat: the pay
+ * estimate books a scheduled stat as holiday hours, not OT, and this must not tell a different story.
+ */
+export function calcPlannedOT(shift: Shift): number {
+  if (shift.actualStartTime && shift.actualEndTime) return 0;
+  if (isFullDayShift(shift.shiftType) || shift.isStat) return 0;
+  return Math.max(0, netActualHours(calcHours(shift.startTime, shift.endTime), shift.breakMinutes) - 8);
+}
+
+/**
  * Is this a time span a person could not have worked? — the ONE definition, beside `calcHours`.
  *
  * ⚠️⚠️ THE BUG THIS REPLACES (Aaron, 2026-09-14, 00:31, logging the night he came in to lock up).

@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { DayDetailModal } from './DayDetailModal';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
-import { calcOT, fmtHours } from '../../lib/ot';
+import { calcOT, calcPlannedOT, fmtHours } from '../../lib/ot';
 import { fmtTime24 } from '../../lib/shiftTypeMeta';
 import type { ShiftType, ShiftWithUser } from '../../types';
 
@@ -113,6 +113,11 @@ export function CalendarView({ today, visibleUserIds }: Props) {
                     {calcOT(myShift) > 0 && (
                       <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 px-1 leading-none">
                         +{fmtHours(calcOT(myShift))}
+                      </span>
+                    )}
+                    {calcPlannedOT(myShift) > 0 && (
+                      <span className="text-[10px] font-medium text-amber-600/70 dark:text-amber-400/70 px-1 leading-none" title="Planned OT, from the schedule">
+                        ~{fmtHours(calcPlannedOT(myShift))}
                       </span>
                     )}
                   </>

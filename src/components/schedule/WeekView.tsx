@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
-import { calcOT, calcHours, netActualHours, fmtHours } from '../../lib/ot';
+import { calcOT, calcPlannedOT, calcHours, netActualHours, fmtHours } from '../../lib/ot';
 import { fmtOverlap } from '../../lib/shiftOverlap';
 import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
@@ -233,6 +233,13 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                                 {calcOT(shift) > 0 && (
                                   <span className="block text-amber-600 dark:text-amber-400 font-semibold text-[10px] leading-tight">
                                     +{fmtHours(calcOT(shift))} OT
+                                  </span>
+                                )}
+                                {/* Planned OT: what the schedule promises, lighter and "~" until it is worked.
+                                    His row only: FG does not track anyone else's hours or pay. */}
+                                {isMe && calcPlannedOT(shift) > 0 && (
+                                  <span className="block text-amber-600/70 dark:text-amber-400/70 font-medium text-[10px] leading-tight" title="Planned OT, from the schedule">
+                                    ~{fmtHours(calcPlannedOT(shift))} OT
                                   </span>
                                 )}
                                 {calcOT(shift) === 0 && shift.actualStartTime && shift.actualEndTime && (
