@@ -122,6 +122,14 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
   });
 
+  it('⭐ a logged short break reaches the pay estimate (Aaron 2026-10-22: 15m instead of 30m)', () => {
+    // 10:30–20:00 = 9.5h gross − 15m = 9.25h net → 8h regular + 1.25h OT (the fixed 30 gave 1h)
+    const shift = makeShift({ date: '2026-06-06', actualStartTime: '10:30', actualEndTime: '20:00', breakMinutes: 15 });
+    const est = calcPayEstimate([shift], today);
+    expect(est.regularHours).toBe(8);
+    expect(est.otHours).toBeCloseTo(1.25);
+  });
+
   it('uses actual hours when logged — regular shift', () => {
     // 10:30–20:00 = 9.5h gross, net = 9h, 8h regular + 1h OT
     const shift = makeShift({ date: '2026-06-06', actualStartTime: '10:30', actualEndTime: '20:00' });
