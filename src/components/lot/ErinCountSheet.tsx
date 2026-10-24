@@ -12,12 +12,13 @@
 // read from the crew line only while this sheet is open. Copy is exactly "7/3": *"when asked what the count is, i
 // reply with "7/3""*. Set, 0, drain and fill carry an Undo on the note for 5 s. Ticket:
 // docs/ticket-lot-lookout-too-slow-on-the-fly.md.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BAY_DIRTIES_MAX, clockOf, isBayStale } from '../../lib/lotBay';
 import { hapticLight } from '../../lib/haptics';
 import type { LotBayState } from '../../hooks/useLotBay';
 import { useBayTapsSignedIn, type BayField } from '../../hooks/useBayTaps';
 import { useLotCrew } from '../../hooks/useLotCrew';
+import { useUndoNote } from '../../hooks/useUndoNote';
 
 const STEP = 'w-14 h-14 shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-2xl font-bold text-gray-900 dark:text-gray-100 cursor-pointer touch-manipulation active:scale-95 transition';
 const SMALL = 'h-11 shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-bold text-gray-900 dark:text-gray-100 cursor-pointer touch-manipulation active:scale-95 transition disabled:opacity-40 disabled:cursor-default';
@@ -25,19 +26,6 @@ const TONE = {
   cleans: { box: 'bg-green-50 dark:bg-green-900/20', label: 'text-green-800 dark:text-green-300', quick: 'text-green-700 dark:text-green-400' },
   dirties: { box: 'bg-red-50 dark:bg-red-900/20', label: 'text-red-800 dark:text-red-300', quick: 'text-red-700 dark:text-red-400' },
 } as const;
-
-/** A note with an optional Undo: 5 s when it can be undone, otherwise gone quickly. */
-function useSheetNote() {
-  const [note, setNote] = useState<{ msg: string; undo?: () => void } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = useCallback((msg: string, undo?: () => void) => {
-    setNote({ msg, undo });
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setNote(null), undo ? 5000 : 1800);
-  }, []);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  return [note, show, () => setNote(null)] as const;
-}
 
 function Quick({ n, word, sign, tone, onTap }: { n: number; word: string; sign: '−' | '+'; tone: string; onTap: () => void }) {
   return (
@@ -89,7 +77,7 @@ function CountBlock({ field, value, at, nowMs, onStep, onSet, onZero, quick }: {
 }
 
 export function ErinCountSheet({ erin, by, onClose }: { erin: LotBayState; by: string; onClose: () => void }) {
-  const [note, show, clearNote] = useSheetNote();
+  const [note, show, clearNote] = useUndoNote();
   const taps = useBayTapsSignedIn(erin, show, by);
   const { crew } = useLotCrew({ signedIn: true });
   const drivers = crew?.summary.driver.airport ?? 0;

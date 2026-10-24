@@ -13,6 +13,7 @@ import { useKeytagScan } from '../../hooks/useKeytagScan';
 import { usePhotoIntake } from '../../hooks/usePhotoIntake';
 import { useClosingInventory } from '../../hooks/useClosingInventory';
 import { useShareText } from '../../hooks/useShareText';
+import { useErinFromInventory } from '../../hooks/useErinFromInventory';
 import { PhotoError } from '../shared/PhotoError';
 import { ScanButton } from '../shared/ScanButton';
 import { Toast } from '../shared/Toast';
@@ -70,6 +71,7 @@ export function ClosingInventorySection() {
   const committing = useRef(false);
 
   const { copied, share } = useShareText();
+  const erinSync = useErinFromInventory();
   const { user } = useAuth();
   const { getActiveHolds, vehicles, addVehicle, updateVehicleFields, attachKeytagPhotoIfMissing } = useVehicleHoldContext();
   /**
@@ -268,16 +270,26 @@ export function ClosingInventorySection() {
             <>
               {/* ⭐⭐ THE WAY OUT, and the only one he asked for: *"how bout a simpler copy to paste
                   into an email? much like the airport flips for the counter."* Amber is FG's SHARE
-                  lane, and this is the same gesture the flip's counter copy already uses. */}
+                  lane, and this is the same gesture the flip's counter copy already uses.
+                  It also sets Erin's count to the sheet's A/D (useErinFromInventory), with an Undo. */}
               <div className="flex gap-2">
                 <ShareTextButton
                   onClick={() => void share({
                     title: 'Closing inventory',
                     text: buildInventoryReport(entries, { location: LOT_NAME, dateLabel: shortDate() }),
-                  })}
+                  }).then(() => erinSync.syncErin(counts.byStatus))}
                   copied={copied}
                 />
               </div>
+              {erinSync.note && (
+                <p role="status" className="flex items-center gap-3 text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                  <span>{erinSync.note.msg}</span>
+                  {erinSync.note.undo && (
+                    <button type="button" onClick={() => { const u = erinSync.note?.undo; erinSync.clearNote(); u?.(); }}
+                      className="underline font-bold cursor-pointer">Undo</button>
+                  )}
+                </p>
+              )}
               <button type="button" onClick={clear}
                 className="text-[11px] text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition">
                 Clear the sheet

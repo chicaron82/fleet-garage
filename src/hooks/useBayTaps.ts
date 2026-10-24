@@ -8,6 +8,8 @@
 // The quick taps (2026-10-16, his layout for the Erin pill's sheet; ticket-lot-lookout-too-slow-on-the-fly.md): set,
 // zero, drain, fill and dirties ±1. Set, zero, drain and fill hand the note an Undo, which puts the row back.
 //
+// And setBoth, for the closing inventory: copying the sheet out sets Erin's count to its A/D (useErinFromInventory).
+//
 // Two ways in, one writer: the public /lot/erin page sends the shared PIN (useBayTaps); FG sends the signed-in
 // session instead (useBayTapsSignedIn — Aaron, 2026-10-15: *"May I suggest adding the cleans steppers here"*).
 import { useCallback, useRef } from 'react';
@@ -121,7 +123,20 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     if (saved) toast(`Filled ${n} · ${saved.dirties ?? 0} dirties`, undoTo(before, 'dirties'));
   }, [state, write, by, toast, undoTo]);
 
-  return { tapCleans, stepDirties, setCount, setDirties, drain, fill };
+  /**
+   * Both counts at once, from a closing inventory he just copied out (2026-10-23). A correction like `setCount`, never
+   * counted as used. One Undo puts both back: `bayUndo` restores the whole row, not just the field it names.
+   */
+  const setBoth = useCallback(async (cleans: number, dirties: number) => {
+    const before = state.bay;
+    if (!before || (before.cleans === cleans && before.dirties === dirties)) return;
+    const next = (b: LotBay, at: string): LotBay => ({ ...b, cleans, cleansBy: by, cleansAt: at, dirties, dirtiesBy: by, dirtiesAt: at });
+    if (before.cleans !== cleans && !(await write({ action: 'cleansSet', count: cleans }, next))) return;
+    if (before.dirties !== dirties && !(await write({ action: 'dirties', count: dirties }, next))) return;
+    toast(`Erin set to ${cleans}/${dirties}`, undoTo(before, 'cleans'));
+  }, [state, write, by, toast, undoTo]);
+
+  return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth };
 }
 
 /** The public /lot/erin page: the shared PIN and the initials this phone remembers. */

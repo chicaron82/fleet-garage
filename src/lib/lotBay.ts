@@ -67,6 +67,15 @@ export function usedToday(bay: Pick<LotBay, 'used' | 'usedOn'>, nowMs: number): 
   return bay.usedOn === businessDateOf(new Date(nowMs)) ? bay.used : 0;
 }
 
+/**
+ * Erin's count from a closing inventory: Available are the cleans, Dirty the dirties. Body, Mechanical and Foreign
+ * are in neither. Aaron, 2026-10-23, after the pill sat at 22/0 from a 20:48 tap while his inventory said 18 A / 6 D:
+ * *"just A/D for clean/dirty"*.
+ */
+export function bayFromInventory(byStatus: { A: number; D: number }): { cleans: number; dirties: number } {
+  return { cleans: byStatus.A, dirties: byStatus.D };
+}
+
 /** A count goes amber when it is over 30 min old, or was never set. */
 export function isBayStale(at: string | null, nowMs: number): boolean {
   if (!at) return true;

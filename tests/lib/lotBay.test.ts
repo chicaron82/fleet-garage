@@ -3,7 +3,7 @@
 // stuck waiting at the airport"*); −1 is "used".
 import { describe, it, expect } from 'vitest';
 import {
-  BAY_STALE_MIN, bayFromRow, bayTapLine, clockOf, isBayStale, isCleansFix, usedToday,
+  BAY_STALE_MIN, bayFromInventory, bayFromRow, bayTapLine, clockOf, isBayStale, isCleansFix, usedToday,
 } from '../../src/lib/lotBay';
 import { UNDO_MS } from '../../src/lib/lotLookout';
 import { businessDateOf } from '../../src/lib/shiftDay';
@@ -69,5 +69,13 @@ describe('bayFromRow', () => {
   it('maps the row', () => {
     expect(bayFromRow({ cleans: 6, cleans_by: 'AS', cleans_at: 'x', dirties: null, dirties_by: null, dirties_at: null, used: 2, used_on: '2026-10-15' }))
       .toEqual({ cleans: 6, cleansBy: 'AS', cleansAt: 'x', dirties: null, dirtiesBy: null, dirtiesAt: null, used: 2, usedOn: '2026-10-15' });
+  });
+});
+
+describe('bayFromInventory', () => {
+  it('cleans are the A rows, dirties the D rows; Body, Mechanical and Foreign count as neither', () => {
+    // His 2026-10-23 close: 18 A, 6 D, 4 B. The pill read 22/0 from a 20:48 tap.
+    expect(bayFromInventory({ A: 18, D: 6, B: 4, M: 0, F: 0 } as { A: number; D: number })).toEqual({ cleans: 18, dirties: 6 });
+    expect(bayFromInventory({ A: 0, D: 0 })).toEqual({ cleans: 0, dirties: 0 });
   });
 });
