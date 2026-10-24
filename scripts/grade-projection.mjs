@@ -56,6 +56,43 @@ const newRule = (target, history) => {
   return p && { out: p.avgOut, in: p.avgIn };
 };
 
+// ── CANDIDATE: the Monday line (docs/ticket-projection-monday-line.md, 2026-10-24) ─────────────
+// Bid Night's instrument: late-week IN is Monday's renters coming home, so it tracks that week's
+// Monday OUT. It only answers IN on Tue–Fri; OUT, Mondays and weekends fall through to the blend.
+// ⚠️ IN-SAMPLE: the line was noticed on these same weeks. A win here earns fresh-week watching, not
+// a ship. Both variants were declared in the ticket BEFORE this was run.
+const shift = (date, n) => {
+  const t = new Date(date + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+};
+/** Past weeks with both a Monday and a `d` entry, oldest first: { mon, in }. */
+function mondayPairs(d, history) {
+  const byDate = new Map(history.map(e => [e.date, e]));
+  return history.filter(e => dayOfWeek(e.date) === d)
+    .map(e => ({ mon: byDate.get(shift(e.date, 1 - d))?.outCount, in: e.inCount }))
+    .filter(p => p.mon != null);
+}
+function mondayLine(variant, target, history) {
+  const base = newRule(target, history);
+  const d = dayOfWeek(target);
+  if (!base || d < 2 || d > 5) return base;
+  const mon = history.find(e => e.date === shift(target, 1 - d))?.outCount;
+  if (mon == null) return base;
+  const pairs = mondayPairs(d, history);
+  if (variant === 'ratio') {
+    const last = pairs.slice(-PROJECTION_WINDOW);
+    if (last.length < 2) return base;
+    return { out: base.out, in: Math.round(mon * mean(last.map(p => p.in / p.mon))) };
+  }
+  if (pairs.length < 3) return base;
+  const mx = mean(pairs.map(p => p.mon)), my = mean(pairs.map(p => p.in));
+  const sxx = pairs.reduce((s, p) => s + (p.mon - mx) ** 2, 0);
+  if (!sxx) return base;
+  const b = pairs.reduce((s, p) => s + (p.mon - mx) * (p.in - my), 0) / sxx;
+  return { out: base.out, in: Math.round(my + b * (mon - mx)) };
+}
+const CANDIDATES = { 'mon-ratio': (t, h) => mondayLine('ratio', t, h), 'mon-fit': (t, h) => mondayLine('fit', t, h) };
+
 // ── History, straight from the DB via the Supabase Management API ─────────────
 const root = fileURLToPath(new URL('../', import.meta.url));
 const env  = readFileSync(root + '.env.local', 'utf8');
@@ -84,7 +121,8 @@ for (let i = 0; i < H.length; i++) {
   const hist = H.slice(0, i);
   const a = newRule(t.date, hist), b = oldRule(t.date, hist);
   if (!a || !b) continue;                       // common subset only — a fair pairing or none
-  rows.push({ date: t.date, dow: DAY[dayOfWeek(t.date)].slice(0, 3), t, a, b });
+  const c = Object.fromEntries(Object.entries(CANDIDATES).map(([k, f]) => [k, f(t.date, hist)]));
+  rows.push({ date: t.date, dow: DAY[dayOfWeek(t.date)].slice(0, 3), t, a, b, c });
 }
 
 if (!rows.length) {
@@ -113,6 +151,27 @@ const line = (name, e) => console.log(`${name.padEnd(6)} OUT mae ${String(R(mean
 line('new', eN); line('old', eO);
 console.log(`\n⚠️ On a small sample read the WIN COUNT, not the means — see the header. A coin flip at
    n=${rows.length} lands near ${Math.round(rows.length / 2)}-${Math.round(rows.length / 2)}, so only a lopsided split says anything.`);
+
+// ── Candidates, paired against BOTH rules on the same days ──────────────────────────────────────
+const miss = (p, t) => Math.abs(p.out - t.outCount) + Math.abs(p.in - t.inCount);
+for (const name of Object.keys(CANDIDATES)) {
+  const tally = { new: [0, 0, 0], old: [0, 0, 0] };   // [candidate won, rule won, tied]
+  const e = { o: [], i: [] };
+  const touched = [];
+  for (const r of rows) {
+    const p = r.c[name];
+    for (const [k, q] of [['new', r.a], ['old', r.b]]) {
+      const dc = miss(p, r.t), dq = miss(q, r.t);
+      tally[k][dc < dq ? 0 : dc > dq ? 1 : 2]++;
+    }
+    e.o.push(p.out - r.t.outCount); e.i.push(p.in - r.t.inCount);
+    if (p.in !== r.a.in) touched.push(`${r.date.slice(5)} ${r.dow} ${r.t.inCount} in: ${r.a.in}→${p.in}`);
+  }
+  console.log(`\n🧪 CANDIDATE ${name} — vs new: won ${tally.new[0]}, lost ${tally.new[1]}, tied ${tally.new[2]} · ` +
+              `vs old: won ${tally.old[0]}, lost ${tally.old[1]}, tied ${tally.old[2]}`);
+  line(name, e);
+  console.log(`   IN it changed (actual: blend→candidate): ${touched.length ? '\n     ' + touched.join('\n     ') : 'none'}`);
+}
 
 // A changed rule invalidates the comparison silently, so say which code was graded.
 try {
