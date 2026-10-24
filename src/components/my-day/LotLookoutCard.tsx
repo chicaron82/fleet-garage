@@ -32,7 +32,7 @@ export function LotLookoutCard({ cardClass, onOpen }: { cardClass: string; onOpe
         <span className="shrink-0 text-xs font-semibold text-gray-700 dark:text-gray-200">Open Lot Lookout ›</span>
       </button>
 
-      {crew && <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />}
+      {crew && <LotCrewLine summary={crew.summary} />}
 
       <AirportReadout r={airport.readings} nowMs={airport.nowMs} />
     </section>

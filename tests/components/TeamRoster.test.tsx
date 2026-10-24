@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TeamRoster } from '../../src/components/my-day/TeamRoster';
 import type { TeamMate } from '../../src/lib/myDay';
@@ -66,10 +66,10 @@ describe('TeamRoster', () => {
   });
 });
 
-// ⭐ 2026-10-18, his three rulings: a grid three across (*"what i wanted to tap next is moved because the first person's
-// pill grew"*), no ✓/✗ (*"the colour already signifies the status"*), and the box for VSAs and drivers.
-describe('TeamRoster — the grid and the box', () => {
-  const crewNone = () => undefined;
+// ⭐ 2026-10-18, his rulings: a grid three across (*"what i wanted to tap next is moved because the first person's pill
+// grew"*) and no ✓/✗ (*"the colour already signifies the status"*). ⭐ 2026-10-24: no box (the crew line is the
+// schedule, *"Keeping track is too much"*), so a pill is one button: attendance.
+describe('TeamRoster — the grid', () => {
   it('⭐ three across in a fixed grid, and a present pill adds nothing that could widen it', () => {
     render(<TeamRoster team={[mate('Geoff', '06:45', '15:15', 'VSA', 'present'), mate('Krish', '11:30', '20:00')]} setShiftAttendance={vi.fn()} now="10:00" />);
     const geoff = screen.getByRole('button', { name: /Geoff/ });
@@ -81,71 +81,22 @@ describe('TeamRoster — the grid and the box', () => {
     expect(screen.getByRole('button', { name: /Ray/ }).textContent).not.toContain('✗');
     expect(screen.getByText('Ray').className).toContain('line-through');
   });
-  it('⭐ the box is empty until present, and present ticks it by itself', () => {
-    const team = [mate('Geoff', '06:45', '15:15'), mate('Erick', '06:45', '15:15', 'VSA', 'present')];
-    render(<TeamRoster team={team} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Geoff: mark present first' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: /Erick on the usual job/ })).toHaveAttribute('aria-pressed', 'true');
+  it('⭐ no box on anyone: VSAs and drivers get one button each, same as the counter', () => {
+    const team = [mate('Erick', '06:45', '15:15', 'VSA', 'present'), mate('Carlos', '07:00', '15:30', 'Driver', 'present'), mate('Jagdeep', '06:45', '15:15', 'CSR')];
+    render(<TeamRoster team={team} setShiftAttendance={vi.fn()} now="10:00" />);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.queryByText(/usual job/)).toBeNull();
   });
-  it('⭐ untick pulls them (VSA → moving, driver → other); tick again clears back to the default', async () => {
-    const onCrew = vi.fn();
-    const team = [mate('Erick', '06:45', '15:15', 'VSA', 'present'), mate('Carlos', '07:00', '15:30', 'Driver', 'present'), mate('Jose', '07:00', '15:30', 'Driver', 'present')];
-    const crewOf = (u: string) => (u === 'u-Jose' ? { state: 'other' as const, marked: true } : undefined);
-    render(<TeamRoster team={team} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewOf} onCrew={onCrew} />);
-    await userEvent.click(screen.getByRole('button', { name: /Erick on the usual job/ }));
-    await userEvent.click(screen.getByRole('button', { name: /Carlos on the usual job/ }));
-    await userEvent.click(screen.getByRole('button', { name: /Jose pulled/ }));
-    expect(onCrew.mock.calls).toEqual([['u-Erick', 'moving'], ['u-Carlos', 'other'], ['u-Jose', 'clear']]);
-  });
-  it('a box that is off writes nothing', async () => {
-    const onCrew = vi.fn();
-    render(<TeamRoster team={[mate('Geoff', '06:45', '15:15')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={onCrew} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Geoff: mark present first' }));
-    expect(onCrew).not.toHaveBeenCalled();
-  });
-  it('a name tap still sets attendance, and clears a pull so the new attendance shows on the crew line', async () => {
+  it('a name tap sets attendance', async () => {
     const setAttendance = vi.fn().mockResolvedValue(undefined);
-    const onCrew = vi.fn();
-    const crewOf = () => ({ state: 'moving' as const, marked: true });
-    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew} />);
+    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" />);
     await userEvent.click(screen.getByRole('button', { name: /^Erick→/ }));
     expect(setAttendance).toHaveBeenCalledWith('Erick', 'absent');
-    expect(onCrew).toHaveBeenCalledWith('u-Erick', 'clear');
   });
-  it('⚠️ a name tap with no signal says so, and the crew line is NOT written (they would disagree)', async () => {
+  it('⚠️ a name tap with no signal says so', async () => {
     const setAttendance = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
-    const onCrew = vi.fn();
-    const onFail = vi.fn();
-    const crewOf = () => ({ state: 'moving' as const, marked: true });
-    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew} onFail={onFail} />);
+    render(<TeamRoster team={[mate('Erick', '06:45', '15:15', 'VSA', 'present')]} setShiftAttendance={setAttendance} now="10:00" />);
     await userEvent.click(screen.getByRole('button', { name: /^Erick→/ }));
-    await waitFor(() => expect(onFail).toHaveBeenCalledWith('No signal. Nobody was marked.'));
-    expect(onCrew).not.toHaveBeenCalled();
-  });
-  it('counter and HIR get the grid but no box', () => {
-    render(<TeamRoster team={[mate('Jagdeep', '06:45', '15:15', 'CSR', 'present')]} setShiftAttendance={vi.fn()} now="10:00" crewOf={crewNone} onCrew={vi.fn()} />);
-    expect(screen.getAllByRole('button')).toHaveLength(1);
-  });
-  it('⭐ his flash (17:00): before the crew line answers, a present pill\'s box is "loading", never ticked, and writes nothing', async () => {
-    const onCrew = vi.fn();
-    render(<TeamRoster team={[mate('Moaz', '14:30', '23:00', 'VSA', 'present')]} setShiftAttendance={vi.fn()} now="16:00" crewOf={crewNone} onCrew={onCrew} crewKnown={false} />);
-    const box = screen.getByRole('button', { name: 'Moaz: crew line loading' });
-    expect(box).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(box);
-    expect(onCrew).not.toHaveBeenCalled();
-  });
-  // Aaron, 2026-10-21: *"Larry C isn't driving. So may need to remove the driving check on the my day pill."*
-  it('⭐ someone left off the crew line (Larry C, utility) keeps the pill but gets no box, and a name tap writes no crew', async () => {
-    const setAttendance = vi.fn().mockResolvedValue(undefined);
-    const onCrew = vi.fn();
-    const crewOf = () => ({ state: 'other' as const, marked: true });
-    const team = [mate('Larry C', '07:00', '15:30', 'Driver', 'present'), mate('John', '07:00', '15:30', 'Driver', 'present')];
-    render(<TeamRoster team={team} setShiftAttendance={setAttendance} now="10:00" crewOf={crewOf} onCrew={onCrew}
-      offLine={u => u === 'u-Larry C'} />);
-    expect(screen.queryByRole('button', { name: /Larry C (on the usual job|pulled)/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /John pulled/ })).toBeInTheDocument();   // control: John keeps his box
-    await userEvent.click(screen.getByRole('button', { name: /^Larry C→/ }));
-    expect(setAttendance).toHaveBeenCalledWith('Larry C', 'absent');
-    expect(onCrew).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('No signal. Nobody was marked.');
   });
 });

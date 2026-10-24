@@ -7,9 +7,9 @@
 //   [ - ]     9     [ + ]
 //   [0][input][set][fill]           ← dirties
 //
-// *"no need for the text hint in the input boxes"*. DRAIN and FILL move one car per driver on right now running to the
-// airport (*"saw eugene, john and robert all are working and in their shift window. tap the drain and removes 3"*),
-// read from the crew line only while this sheet is open. Copy is exactly "7/3": *"when asked what the count is, i
+// *"no need for the text hint in the input boxes"*. DRAIN and FILL move one car per driver on right now (*"saw eugene,
+// john and robert all are working and in their shift window. tap the drain and removes 3"*), read from the crew line
+// only while this sheet is open. Since 2026-10-24 that is the schedule: no present tap needed. Copy is exactly "7/3": *"when asked what the count is, i
 // reply with "7/3""*. Set, 0, drain and fill carry an Undo on the note for 5 s. Ticket:
 // docs/ticket-lot-lookout-too-slow-on-the-fly.md.
 import { useEffect, useState } from 'react';
@@ -80,7 +80,7 @@ export function ErinCountSheet({ erin, by, onClose }: { erin: LotBayState; by: s
   const [note, show, clearNote] = useUndoNote();
   const taps = useBayTapsSignedIn(erin, show, by);
   const { crew } = useLotCrew({ signedIn: true });
-  const drivers = crew?.summary.driver.airport ?? 0;
+  const drivers = crew?.summary.driver.on ?? 0;
   const bay = erin.bay;
 
   useEffect(() => {

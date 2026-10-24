@@ -10,9 +10,9 @@ let bay: unknown = {
 };
 vi.mock('../../src/hooks/useLotBay', () => ({ useLotBay: () => ({ bay, log: [], loaded: true, nowMs: NOW, setBay: () => {} }) }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
-let airport = 3;
+let driversOn = 3;
 vi.mock('../../src/hooks/useLotCrew', () => ({
-  useLotCrew: () => ({ crew: { summary: { vsa: { cleaning: 1, moving: 0, out: 0 }, driver: { airport, other: 1, out: 0 } }, changedAt: null } }),
+  useLotCrew: () => ({ crew: { summary: { vsa: { on: 1, out: 0 }, driver: { on: driversOn, out: 0 } } } }),
 }));
 const taps = { tapCleans: vi.fn(), stepDirties: vi.fn(), setCount: vi.fn(async () => true), drain: vi.fn(), fill: vi.fn() };
 let toastFn: (msg: string, undo?: () => void) => void = () => {};
@@ -23,7 +23,7 @@ vi.mock('../../src/hooks/useBayTaps', () => ({
 const { ErinPill } = await import('../../src/components/lot/ErinPill');
 
 const open = () => { render(<ErinPill />); fireEvent.click(screen.getByRole('button', { name: /Erin St: 7 cleans, 3 dirties/ })); };
-beforeEach(() => { Object.values(taps).forEach(f => f.mockClear()); airport = 3; });
+beforeEach(() => { Object.values(taps).forEach(f => f.mockClear()); driversOn = 3; });
 
 describe('ErinPill', () => {
   it('⭐ reads the way he says it: Erin 7/3', () => {
@@ -56,7 +56,7 @@ describe('ErinPill', () => {
   });
 
   it('no drivers on: drain and fill sit out', () => {
-    airport = 0;
+    driversOn = 0;
     open();
     expect(screen.getByRole('button', { name: /drain: no drivers on/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: /fill: no drivers on/ })).toHaveProperty('disabled', true);

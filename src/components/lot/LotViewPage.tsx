@@ -30,7 +30,7 @@ export function LotViewPage() {
           <>
             {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} />
               : <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p>}
-            {crew && <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />}
+            {crew && <LotCrewLine summary={crew.summary} />}
             <section aria-label="Airport" className="space-y-1">
               <h2 className="px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Airport</h2>
               {airport.error ? <p className="text-sm text-red-700 dark:text-red-400">{airport.error}</p>

@@ -14,7 +14,7 @@ vi.mock('../../src/hooks/useLotAirport', () => ({
   }),
 }));
 vi.mock('../../src/hooks/useLotCrew', () => ({
-  useLotCrew: () => ({ crew: { summary: { vsa: { cleaning: 1, moving: 1, out: 0 }, driver: { airport: 1, other: 2, out: 0 } }, changedAt: null, members: [] }, mark: vi.fn() }),
+  useLotCrew: () => ({ crew: { summary: { vsa: { on: 2, out: 0 }, driver: { on: 3, out: 1 } }, members: [] } }),
 }));
 const { LotLookoutCard } = await import('../../src/components/my-day/LotLookoutCard');
 
@@ -42,8 +42,8 @@ describe('LotLookoutCard', () => {
 
   it('shows the crew as numbers on the card', () => {
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
-    expect(screen.getByText('Cleaning 1 of 2 · 1 moving cars')).toBeTruthy();
-    expect(screen.getByText('To the airport 1 of 3 · 2 on another job')).toBeTruthy();
+    expect(screen.getByText('2 on')).toBeTruthy();
+    expect(screen.getByText('3 on · 1 out')).toBeTruthy();
   });
 
   it('⭐ the airport reads the way the bay needs it: room, returns, the aisle, each with its time', () => {

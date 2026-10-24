@@ -76,18 +76,12 @@ describe('bearerOf — the second door (FG\'s My Day card, 2026-10-15)', () => {
   });
 });
 
-describe('parseLotRequest — crew (migration 154)', () => {
-  const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-  it('a state for one or many people, de-duplicated', () => {
-    expect(parseLotRequest({ action: 'crew', users: [id(1), id(2), id(1)], state: 'moving', by: 'AS' }))
-      .toEqual({ action: 'crew', users: [id(1), id(2)], state: 'moving', by: 'AS' });
-    expect(parseLotRequest({ action: 'crew', users: [id(3)], state: 'clear' })).toMatchObject({ state: 'clear' });
-  });
-  it('refuses nobody, non-ids, too many, or a made-up state', () => {
-    expect(parseLotRequest({ action: 'crew', users: [], state: 'out' })).toHaveProperty('error');
-    expect(parseLotRequest({ action: 'crew', users: ['moaz'], state: 'out' })).toHaveProperty('error');
-    expect(parseLotRequest({ action: 'crew', users: Array.from({ length: 41 }, (_, i) => id(i)), state: 'out' })).toHaveProperty('error');
-    expect(parseLotRequest({ action: 'crew', users: [id(1)], state: 'sick' })).toHaveProperty('error');
+// The per-person crew state (migration 154) was retired 2026-10-24: the crew line is the schedule now
+// (docs/ticket-crew-line-is-the-schedule.md). A stale client that still sends it gets a plain refusal.
+describe('parseLotRequest — crew (retired 2026-10-24)', () => {
+  it('a crew state is an unknown action now', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(parseLotRequest({ action: 'crew', users: [id], state: 'moving', by: 'AS' })).toEqual({ error: 'Unknown action.' });
   });
 });
 

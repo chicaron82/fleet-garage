@@ -1,7 +1,6 @@
-import { groupRoster, hhmm, type RoleGroup, type ShiftStanding } from '../../lib/rosterGrouping';
+import { useState } from 'react';
+import { groupRoster, hhmm, type ShiftStanding } from '../../lib/rosterGrouping';
 import { nextAttendance, type TeamMate } from '../../lib/myDay';
-import { boxOf, crewWriteForAttendance, crewWriteForBox, hasBox, type BoxState, type CrewEntry } from '../../lib/rosterCrew';
-import type { CrewState } from '../../lib/lotCrew';
 import type { Attendance } from '../../types';
 
 // "On with you today", grouped the way he thinks about his floor — Aaron, 2026-08-26:
@@ -16,47 +15,36 @@ import type { Attendance } from '../../types';
 // wrapping row, so every pill after it shifted. Every pill now fills a fixed cell, and his next ruling took the marks
 // out entirely: *"the colour already signifies the status"*. Present reads "→END".
 //
-// ⭐ THE BOX (VSAs and drivers, same day): ticked = on their usual job, unticked = pulled. It is the crew line
-// (lot_crew), so Lot Lookout reads the same thing. Empty until present (*"stay empty until marked present"*).
-// Its own tap target beside the name, so reaching for one never lands on the other.
-export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onCrew, offLine, crewKnown = true, onFail }: {
+// ⭐ NO BOX (2026-10-24): the crew line is the schedule now (docs/ticket-crew-line-is-the-schedule.md: *"Keeping track is
+// too much"*). The box beside each VSA's and driver's name (on their usual job / pulled) is gone; a name tap is
+// attendance and nothing else.
+export function TeamRoster({ team, setShiftAttendance, now = hhmm() }: {
   team: TeamMate[];
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   /** Injectable for tests and for a deterministic render; defaults to the wall clock. */
   now?: string;
-  /** The crew line, by person. Without it (and onCrew) there is no box. */
-  crewOf?: (userId: string) => CrewEntry | undefined;
-  onCrew?: (userId: string, next: CrewState | 'clear') => void;
-  /** Left off the crew line (Larry C, utility): no box, and a name tap writes nothing to the line. */
-  offLine?: (userId: string) => boolean;
-  /** False until the crew line has answered once: the box says "not known yet" rather than guess "on". */
-  crewKnown?: boolean;
-  /** A name tap that could not save says so here. */
-  onFail?: (message: string) => void;
 }) {
+  const [note, setNote] = useState('');
   if (team.length === 0) {
     return <p className="text-sm text-gray-400 dark:text-gray-500">Nobody else scheduled.</p>;
   }
   const sections = groupRoster(team, now);
-  const boxes = !!onCrew;
 
-  // Attendance FIRST, the crew line only once it saved, the same order as Lot Lookout's chips. The schedule's setter
-  // THROWS when it can't save; fired and forgotten, a tap with no signal left My Day unmarked while the crew line
-  // said they were working, with nothing said (line-check, 2026-10-18).
-  const tapName = async (mate: TeamMate, crewWrite: CrewState | 'clear' | null) => {
+  // The schedule's setter THROWS when it can't save; fired and forgotten, a tap with no signal left the pill unmarked
+  // with nothing said (line-check, 2026-10-18). So it is caught and said here.
+  const tapName = async (mate: TeamMate) => {
+    setNote('');
     try {
       await setShiftAttendance(mate.id, nextAttendance(mate.attendance) ?? null);
     } catch {
-      onFail?.('No signal. Nobody was marked.');
-      return;
+      setNote('No signal. Nobody was marked.');
     }
-    if (crewWrite) onCrew!(mate.userId!, crewWrite);
   };
 
   return (
     <div className="space-y-2.5">
       <p className="text-[11px] text-gray-400 dark:text-gray-500">
-        Tap a name: scheduled → present → no-show.{boxes && ' The box: on their usual job.'}
+        Tap a name: scheduled → present → no-show.
       </p>
       {sections.map(section => (
         <div key={section.group}>
@@ -69,39 +57,20 @@ export function TeamRoster({ team, setShiftAttendance, now = hhmm(), crewOf, onC
             </span>
           </p>
           <div className="grid grid-cols-3 gap-1.5">
-            {section.mates.map(({ mate, standing }) => {
-              const crew = mate.userId ? crewOf?.(mate.userId) : undefined;
-              const withBox = boxes && hasBox(section.group) && !!mate.userId && !offLine?.(mate.userId);
-              return (
-                <RosterPill
-                  key={mate.id}
-                  mate={mate}
-                  standing={standing}
-                  box={withBox ? boxOf(section.group, mate.attendance, crew, crewKnown) : null}
-                  onTap={() => void tapName(mate, withBox ? crewWriteForAttendance(section.group, crew) : null)}
-                  onBox={() => boxTap(section.group, mate, crew, crewKnown, onCrew)}
-                />
-              );
-            })}
+            {section.mates.map(({ mate, standing }) => (
+              <RosterPill key={mate.id} mate={mate} standing={standing} onTap={() => void tapName(mate)} />
+            ))}
           </div>
         </div>
       ))}
+      {note && <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">{note}</p>}
     </div>
   );
 }
 
-function boxTap(group: RoleGroup, mate: TeamMate, crew: CrewEntry | undefined, known: boolean, onCrew?: (u: string, s: CrewState | 'clear') => void) {
-  const w = crewWriteForBox(group, boxOf(group, mate.attendance, crew, known));
-  if (w && mate.userId) onCrew?.(mate.userId, w);
-}
-
-function RosterPill({ mate, standing, box, onTap, onBox }: {
-  mate: TeamMate; standing: ShiftStanding; box: BoxState | null; onTap: () => void; onBox: () => void;
-}) {
+function RosterPill({ mate, standing, onTap }: { mate: TeamMate; standing: ShiftStanding; onTap: () => void }) {
   const att = mate.attendance;
-  const tone = box === 'pulled'
-    ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800'
-    : att === 'present'
+  const tone = att === 'present'
       ? 'bg-green-100 text-green-800 ring-1 ring-green-300 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
       : att === 'absent'
         ? 'bg-red-100 text-red-700 ring-1 ring-red-300 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800'
@@ -126,19 +95,6 @@ function RosterPill({ mate, standing, box, onTap, onBox }: {
           {att === 'present' || standing === 'done' ? `→${mate.end}` : mate.start}
         </span>
       </button>
-      {box && (
-        <button type="button" onClick={onBox} aria-pressed={box === 'on'}
-          aria-label={box === 'off' ? `${mate.displayName}: mark present first` : box === 'unknown' ? `${mate.displayName}: crew line loading` : box === 'on' ? `${mate.displayName} on the usual job. Tap if pulled` : `${mate.displayName} pulled. Tap when back`}
-          className="shrink-0 w-6 h-7 grid place-items-center cursor-pointer">
-          <span aria-hidden="true" className={`w-4 h-4 rounded grid place-items-center border-[1.5px] ${
-            box === 'on' ? 'bg-green-700 border-green-700' : box === 'pulled' ? 'bg-white dark:bg-gray-900 border-amber-700'
-              : box === 'unknown' ? 'border-dashed border-gray-400 dark:border-gray-500' : 'border-gray-300 dark:border-gray-600'}`}>
-            {box === 'on' && (
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-            )}
-          </span>
-        </button>
-      )}
     </div>
   );
 }

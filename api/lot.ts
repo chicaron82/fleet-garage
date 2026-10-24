@@ -1,5 +1,5 @@
 // POST /api/lot — the ONE writer of the airport's readings (lot_airport, lot_airport_taps — migration 157), of Erin St's
-// count (lot_bay, lot_bay_taps — migration 153), and of today's crew marks (lot_crew — migration 154).
+// count (lot_bay, lot_bay_taps — migration 153), and of who is left off the crew line (migration 155).
 // GET /api/lot — today's crew: numbers for anyone (the read-only /lot/view), names only for a signed-in FG session.
 //
 // The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
@@ -11,7 +11,7 @@ import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
 import { newerThanHeld, readingChange } from './_lib/lotAirport.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
-import { leaveOff, loadCrew, markCrew } from './_lib/lotCrewDb.js';
+import { leaveOff, loadCrew } from './_lib/lotCrewDb.js';
 
 interface LotHttpRequest {
   method?: string;
@@ -95,22 +95,13 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true, applied: change.tap.applied, airport });
       return;
     }
-    if (parsed.action === 'crew' || parsed.action === 'leaveOff') {
-      // People, not cars: only a signed-in FG session may change the crew. The PIN never could.
+    if (parsed.action === 'leaveOff') {
+      // People, not cars: only a signed-in FG session may change the crew line. The PIN never could.
       if (!signedIn) {
         res.status(403).json({ error: 'Sign in to FG to change the crew.' });
         return;
       }
-      if (parsed.action === 'leaveOff') {
-        await leaveOff(db, parsed.user, parsed.off, parsed.by, now);
-        res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
-        return;
-      }
-      const problem = await markCrew(db, parsed.users, parsed.state, parsed.by, now);
-      if (problem) {
-        res.status(409).json({ error: problem });
-        return;
-      }
+      await leaveOff(db, parsed.user, parsed.off, parsed.by, now);
       res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
       return;
     }

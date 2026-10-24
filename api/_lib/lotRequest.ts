@@ -7,10 +7,8 @@
 // The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
 import { timingSafeEqual } from 'node:crypto';
 import type { BayRequest } from './lotBay.js';
-import type { CrewState } from './lotCrew.js';
 import { parseReading, type AirportRequest } from './lotAirport.js';
 
-const CREW_SET = ['cleaning', 'moving', 'airport', 'other', 'out', 'clear'] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The airport's stall / undo / aisle actions (151, 152) were retired with the stall map on 2026-10-18 (migration 157):
@@ -19,7 +17,6 @@ export type LotRequest =
   | { action: 'check'; by: string }
   | AirportRequest
   | BayRequest
-  | { action: 'crew'; users: string[]; state: CrewState | 'clear'; by: string }
   | { action: 'leaveOff'; user: string; off: boolean; by: string };
 
 /** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
@@ -101,16 +98,8 @@ export function parseLotRequest(body: unknown, nowMs = Date.now()): LotRequest |
       if (cleans == null || dirties === undefined || used == null || usedOn === undefined) return { error: 'Nothing to undo to.' };
       return { action: 'bayUndo', field: b.field, to: { cleans, dirties, used, usedOn }, by };
     }
-    // Today's crew (migration 154). Signed-in FG only; api/lot.ts enforces that, not the PIN.
-    case 'crew': {
-      const users = Array.isArray(b.users) ? b.users : [];
-      if (users.length === 0 || users.length > 40 || !users.every(u => typeof u === 'string' && UUID.test(u))) {
-        return { error: 'Pick who this is for.' };
-      }
-      if (!(CREW_SET as readonly unknown[]).includes(b.state)) return { error: 'Not a crew state.' };
-      return { action: 'crew', users: [...new Set(users as string[])], state: b.state as CrewState | 'clear', by };
-    }
-    // Left off the crew line (migration 155). Signed-in FG only, like 'crew'.
+    // Left off the crew line (migration 155). Signed-in FG only; api/lot.ts enforces that, not the PIN.
+    // (The per-person 'crew' state action was retired 2026-10-24: the crew line is the schedule now.)
     case 'leaveOff':
       if (typeof b.user !== 'string' || !UUID.test(b.user)) return { error: 'Pick who this is for.' };
       if (typeof b.off !== 'boolean') return { error: 'Leave off, or bring back?' };

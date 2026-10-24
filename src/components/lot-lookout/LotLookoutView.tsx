@@ -16,9 +16,6 @@ import { postLotSignedIn, type LotPost } from '../../hooks/useLotPin';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { useLotToast } from '../../hooks/useLotToast';
 import { useAuth } from '../../context/AuthContext';
-import { useSchedule } from '../../context/ScheduleContext';
-import { attendanceForCrew, shiftsToMark } from '../../lib/rosterCrew';
-import type { CrewState } from '../../lib/lotCrew';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { AirportNotches } from '../lot/AirportNotches';
@@ -30,28 +27,11 @@ const SECTION_HEAD = 'text-xs font-bold uppercase tracking-wide text-gray-500 da
 
 export function LotLookoutView() {
   const airport = useLotAirport('lot-airport-module');
-  const { crew, mark, leaveOff } = useLotCrew({ signedIn: true });
+  const { crew, leaveOff } = useLotCrew({ signedIn: true });
   const { user } = useAuth();
   const by = initialsOf(user?.name ?? null);
   const [toastMsg, toast] = useLotToast();
   const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
-  // ⭐ Lot Lookout → My Day (2026-10-18, his "triple yes" to "they should affect eachother"): a crew chip here also marks
-  // them on My Day: Out is a no-show, any job (or back to the default) is present. Through the schedule's own setter,
-  // so My Day shows it the moment he goes back, without a reload.
-  const { todayShifts, setShiftAttendance } = useSchedule();
-  // Attendance FIRST: the crew write answers with a fresh count, and "back to the default" is only counted as working
-  // once they are present. The other order showed them as "not marked yet" until the next minute's read.
-  const markAndAttend = useCallback(async (users: string[], next: CrewState | 'clear') => {
-    const to = attendanceForCrew(next);
-    // The panel expects a message back, never a throw: the schedule's setter THROWS when it can't save, and a throw
-    // here skipped the panel's own "done", leaving every chip disabled with nothing said (line-check, 2026-10-18).
-    try {
-      await Promise.all(shiftsToMark(todayShifts, users, to).map(id => setShiftAttendance(id, to)));
-    } catch {
-      return 'No signal. Nobody was marked.';
-    }
-    return mark(users, next, by || 'FG');
-  }, [mark, by, todayShifts, setShiftAttendance]);
   const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });
 
   return (
@@ -60,9 +40,9 @@ export function LotLookoutView() {
 
       {crew && (
         <section aria-label="Crew" className="space-y-2">
-          <LotCrewLine summary={crew.summary} changedAt={crew.changedAt} />
+          <LotCrewLine summary={crew.summary} />
           {crew.members && crew.members.length > 0 && (
-            <LotCrewPanel members={crew.members} mark={markAndAttend} toast={toast}
+            <LotCrewPanel members={crew.members} toast={toast}
               leftOff={crew.leftOff} leaveOff={(u, off) => leaveOff(u, off, by || 'FG')} />
           )}
         </section>

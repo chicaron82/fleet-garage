@@ -1,9 +1,9 @@
 // Lot Lookout crew: today's crew from GET /api/lot, refreshed every minute (shift windows open and close on their
-// own) and when the phone wakes. `signedIn` sends the FG session, which is what gets names back and lets `mark`
-// change anyone's state; without it the page gets numbers only (the read-only /lot/view).
+// own) and when the phone wakes. `signedIn` sends the FG session, which is what gets names back; without it the page
+// gets numbers only (the read-only /lot/view). Since 2026-10-24 the crew is the schedule: nothing here marks anyone.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { CrewPayload, CrewState } from '../lib/lotCrew';
+import type { CrewPayload } from '../lib/lotCrew';
 import { postLot } from './useLotPin';
 
 async function sessionToken(): Promise<string | undefined> {
@@ -22,9 +22,8 @@ async function fetchCrew(signedIn: boolean): Promise<CrewPayload | null> {
 }
 
 /** The last answer, per door, for as long as the app is open: IN MEMORY ONLY, never on the phone (it holds names).
- *  ⭐ Aaron, 2026-10-18 17:00: back on My Day after Lot Lookout, a pulled VSA showed "present/cleaning for a brief
- *  second before correcting itself". Each screen remounts and fetched the crew afresh; now it starts from what the
- *  app already knew, and the fetch only confirms it. */
+ *  ⭐ Aaron, 2026-10-18 17:00: each screen remounted and fetched the crew afresh, so it flickered for a second; now it
+ *  starts from what the app already knew, and the fetch only confirms it. */
 const lastCrew = new Map<boolean, CrewPayload>();
 
 export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
@@ -41,16 +40,6 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     return () => { cancelled = true; clearInterval(tick); document.removeEventListener('visibilitychange', onVisible); };
   }, [signedIn, setCrew]);
 
-  /** Set (or clear back to the default) the state for these people. Returns an error to show, or null. */
-  const mark = useCallback(async (users: string[], state: CrewState | 'clear', by: string): Promise<string | null> => {
-    const token = await sessionToken();
-    if (!token) return 'Sign in to FG again.';
-    const r = await postLot({ action: 'crew', users, state, by }, token);
-    if (!r.ok) return r.error ?? 'The crew did not save.';
-    setCrew(r.json.crew as CrewPayload);
-    return null;
-  }, [setCrew]);
-
   /** Leave someone off the crew line, or bring them back (migration 155). Remembered across days. */
   const leaveOff = useCallback(async (user: string, off: boolean, by: string): Promise<string | null> => {
     const token = await sessionToken();
@@ -61,5 +50,5 @@ export function useLotCrew({ signedIn = false }: { signedIn?: boolean } = {}) {
     return null;
   }, [setCrew]);
 
-  return { crew, mark, leaveOff, loaded: crew != null };
+  return { crew, leaveOff, loaded: crew != null };
 }
