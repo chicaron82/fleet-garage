@@ -16,7 +16,7 @@ import { toISO, getWeekBounds, formatShiftLabel, isManagerEditingOtherUser, buil
 import { shiftDateStr } from '../lib/shiftDay';
 import { PROTECTED_IMPORT_TYPES, dropProtectedDays, type ImportOutcome, type PreservedDay } from '../lib/scheduleImportBuild';
 import { canManageSchedule } from '../types';
-import type { Attendance, Shift, ShiftType, ShiftWithUser } from '../types';
+import type { Attendance, ExtraBlock, Shift, ShiftType, ShiftWithUser } from '../types';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ interface ScheduleContextValue {
   updateShift: (id: string, updates: Partial<Omit<Shift, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>>) => Promise<void>;
   setPtoApproved: (id: string, approved: boolean) => Promise<void>;
   deleteShift: (id: string) => Promise<void>;
-  logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null) => Promise<void>;
+  logActualHours: (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null, extraBlocks?: ExtraBlock[]) => Promise<void>;
   setShiftAttendance: (id: string, attendance: Attendance | null) => Promise<void>;
   canEditShift: (shift: Shift) => boolean;
   refresh: () => void;
@@ -336,11 +336,17 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   };
 
   // A break only means something with hours to take it from: clearing the hours clears it too.
-  const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null) =>
-    updateShiftRow(id, {
+  // The [+] blocks ride the same rule — they are more of the day's actuals, so clearing clears them — and
+  // a block with a blank time is dropped rather than saved half-typed.
+  const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null, extraBlocks?: ExtraBlock[]) => {
+    const hasMain = !!(actualStartTime && actualEndTime);
+    const blocks  = hasMain ? (extraBlocks ?? []).filter(b => b.start && b.end) : [];
+    return updateShiftRow(id, {
       actual_start_time: actualStartTime || null, actual_end_time: actualEndTime || null, is_stat: isStat,
-      break_minutes: actualStartTime && actualEndTime ? (breakMinutes ?? null) : null,
+      break_minutes: hasMain ? (breakMinutes ?? null) : null,
+      extra_blocks: blocks.length ? blocks : null,
     });
+  };
 
   // Layer attendance on top of the roster — tapped from the My-Day pills
   // (scheduled → present → absent → scheduled). null clears it back to scheduled.

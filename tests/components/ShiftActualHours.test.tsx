@@ -31,8 +31,8 @@ const savedShift: ShiftWithUser = { ...baseShift, actualStartTime: '08:57', actu
  *  component just renders from it, so a literal is enough to exercise the clear path. */
 function stubActual(start = '', end = ''): ActualHours {
   return {
-    actualStart: start, actualEnd: end, isStat: false, breakMinutes: null,
-    setActualStart: vi.fn(), setActualEnd: vi.fn(), setIsStat: vi.fn(), setBreakMinutes: vi.fn(),
+    actualStart: start, actualEnd: end, isStat: false, breakMinutes: null, extraBlocks: [],
+    setActualStart: vi.fn(), setActualEnd: vi.fn(), setIsStat: vi.fn(), setBreakMinutes: vi.fn(), setExtraBlocks: vi.fn(),
     syncToScheduled: vi.fn(),
     clearUnloggedPrefill: vi.fn(),
     netHrs: 0, previewOT: 0, breakDeducted: false,

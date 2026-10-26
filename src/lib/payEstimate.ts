@@ -1,6 +1,6 @@
 import type { Shift } from '../types';
 import { isFullDayShift } from '../types';
-import { calcHours, calcOT, calcPlannedOT, netActualHours, timeToDec, UNPAID_BREAK_HRS } from './ot';
+import { calcHours, calcOT, calcPlannedOT, extraBlocksHours, netActualHours, timeToDec, UNPAID_BREAK_HRS, workedHours } from './ot';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 // Rates and deduction parameters sourced from paystub (PP ending 2026-05-07).
@@ -128,6 +128,8 @@ export function isZeroDeviation(shift: Shift): boolean {
   if (!shift.actualStartTime || !shift.actualEndTime) return false;
   // A break shorter or longer than the standard changes the hours worked, so it is a deviation too.
   if (shift.breakMinutes != null && shift.breakMinutes !== UNPAID_BREAK_HRS * 60) return false;
+  // Hours on top of the schedule ([+] blocks, migration 160) are a deviation by definition: "over".
+  if (extraBlocksHours(shift.extraBlocks) > 0) return false;
   return timeToDec(shift.actualStartTime) === timeToDec(shift.startTime)
       && timeToDec(shift.actualEndTime)   === timeToDec(shift.endTime);
 }
@@ -153,7 +155,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   const bumpUnlogged = (date: string) => { if (date < now) daysConfirmed++; else daysProjected++; };
 
   for (const shift of periodShifts) {
-    const hasActual = !!(shift.actualStartTime && shift.actualEndTime);
+    const hasActual = !!(shift.actualStartTime && shift.actualEndTime) || extraBlocksHours(shift.extraBlocks) > 0;
 
     if (hasActual) {
       // Worked either way — the hours below still come from the ACTUALS. Only the bucket changes:
@@ -161,8 +163,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       // than via bumpUnlogged(), because a shift logged on the day it happened is worked, not
       // projected.
       if (isZeroDeviation(shift)) daysConfirmed++; else daysLogged++;
-      const grossHrs = calcHours(shift.actualStartTime, shift.actualEndTime);
-      const net      = netActualHours(grossHrs, shift.breakMinutes);
+      const net = workedHours(shift);   // main actuals after the break, plus any [+] blocks
       if (shift.isStat) {
         // Worked stat: Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)
         // — the premium for working a holiday. (Fix 2026-08-04: was a flat 8h×regularRate, which

@@ -1,4 +1,4 @@
-import type { Shift } from '../types';
+import type { ExtraBlock, Shift } from '../types';
 import { isFullDayShift } from '../types';
 
 // Manitoba labour standard: one unpaid 30-min break owed on shifts ≥ 5h.
@@ -32,14 +32,30 @@ export function netActualHours(grossHrs: number, breakMinutes?: number | null): 
   return grossHrs > BREAK_THRESHOLD_HRS ? grossHrs - UNPAID_BREAK_HRS : grossHrs;
 }
 
+// The [+] blocks (migration 160): more hours on the same day, after going home and being asked back.
+// Aaron, 2026-10-26: 06:45–15:15, then 17:00–21:00 when the closer called in sick. Each block nets on its
+// OWN through the standard rule, so a 4h block owes no break and the logged `breakMinutes` stays the
+// main block's. An unfinished block (a time still blank) counts nothing.
+export function extraBlocksHours(blocks?: ReadonlyArray<ExtraBlock> | null): number {
+  return (blocks ?? []).reduce((sum, b) => sum + netActualHours(calcHours(b.start, b.end)), 0);
+}
+
+// Net hours worked that day: the main actuals after their break, plus every [+] block.
+// The ONE total that OT, the pay estimate and the week cell all read.
+export function workedHours(shift: Shift): number {
+  const gross = calcHours(shift.actualStartTime, shift.actualEndTime);
+  const main  = gross > 0 ? netActualHours(gross, shift.breakMinutes) : 0;
+  return main + extraBlocksHours(shift.extraBlocks);
+}
+
 // Returns OT hours for a shift. Rules:
 //   day-off + actual hours logged  → all net hours are OT
 //   isStat                         → all net hours are OT
 //   regular shift                  → max(0, netHours - 8)
+// Net hours include the [+] blocks: a day is one day for the 8h line, however many stretches it took.
 export function calcOT(shift: Shift): number {
-  const gross = calcHours(shift.actualStartTime, shift.actualEndTime);
-  if (gross <= 0) return 0;
-  const net = netActualHours(gross, shift.breakMinutes);
+  const net = workedHours(shift);
+  if (net <= 0) return 0;
   if (isFullDayShift(shift.shiftType) || shift.isStat) return net;
   return Math.max(0, net - 8);
 }

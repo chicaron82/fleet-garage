@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ShiftWithUser } from '../../src/types';
 
@@ -35,39 +35,59 @@ describe('FlipShiftSheet — a day flipped to not worked', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sick' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(updateShift).toHaveBeenCalledWith('s1', expect.objectContaining({ shiftType: 'sick' })));
-    expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null);
+    expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null, []);
   });
 
   it('the same for PTO — it is the same trap', async () => {
     render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'PTO' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '', '', expect.any(Boolean), null, []));
   });
 
   it('⚠️ hours already LOGGED survive the flip — the called-in-on-a-day-off case', async () => {
     render(<FlipShiftSheet shift={{ ...mid, actualStartTime: '09:30', actualEndTime: '12:00' }} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sick' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '12:00', expect.any(Boolean), null));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '12:00', expect.any(Boolean), null, []));
   });
 
   it('a working day saved untouched still logs "as scheduled"', async () => {
     render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), null));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), null, []));
   });
 
   it('⭐ a break he picks rides along with the hours (Aaron, 2026-10-22: a 15m break instead of 30m)', async () => {
     render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: '15m' }));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 15));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 15, []));
   });
 
   it('a break already logged on the row is what the sheet saves back', async () => {
     render(<FlipShiftSheet shift={{ ...mid, actualStartTime: '09:30', actualEndTime: '18:00', breakMinutes: 0 }} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 0));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith('s1', '09:30', '18:00', expect.any(Boolean), 0, []));
+  });
+
+  it('⭐ [+] Add hours rides along too (Aaron, 2026-10-26: home at 15:15, back 17:00–21:00)', async () => {
+    render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: '+ Add hours' }));
+    fireEvent.change(screen.getByLabelText('More hours 1 start'), { target: { value: '17:00' } });
+    fireEvent.change(screen.getByLabelText('More hours 1 end'),   { target: { value: '21:00' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(logActualHours).toHaveBeenCalledWith(
+      's1', '09:30', '18:00', expect.any(Boolean), null, [{ start: '17:00', end: '21:00' }]));
+  });
+
+  it('a [+] block with the same start and end is refused, not saved', async () => {
+    render(<FlipShiftSheet shift={mid} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: '+ Add hours' }));
+    fireEvent.change(screen.getByLabelText('More hours 1 start'), { target: { value: '17:00' } });
+    fireEvent.change(screen.getByLabelText('More hours 1 end'),   { target: { value: '17:00' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(/more hours: start and end/i)).toBeInTheDocument();
+    expect(logActualHours).not.toHaveBeenCalled();
   });
 });

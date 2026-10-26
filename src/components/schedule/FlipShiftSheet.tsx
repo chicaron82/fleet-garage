@@ -131,6 +131,10 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       setError('Actual start and end time can’t be the same.');
       return;
     }
+    if (showActual && actual.extraBlocks.some(b => invalidTimeSpan(b.start, b.end))) {
+      setError('More hours: start and end time can’t be the same.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -145,7 +149,7 @@ export function FlipShiftSheet({ shift, onClose }: Props) {
       // or before today — the actual hours (defaulted to the schedule, so an
       // untouched normal day logs "worked as scheduled" with no extra taps).
       if (showActual) {
-        await logActualHours(shift.id, actual.actualStart, actual.actualEnd, actual.isStat, actual.breakMinutes);
+        await logActualHours(shift.id, actual.actualStart, actual.actualEnd, actual.isStat, actual.breakMinutes, actual.extraBlocks);
       }
       onClose();
     } catch {

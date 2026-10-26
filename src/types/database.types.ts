@@ -1702,6 +1702,7 @@ export type Database = {
           created_at: string
           date: string
           end_time: string | null
+          extra_blocks: Json | null
           id: string
           is_stat: boolean
           notes: string | null
@@ -1721,6 +1722,7 @@ export type Database = {
           created_at?: string
           date: string
           end_time?: string | null
+          extra_blocks?: Json | null
           id?: string
           is_stat?: boolean
           notes?: string | null
@@ -1740,6 +1742,7 @@ export type Database = {
           created_at?: string
           date?: string
           end_time?: string | null
+          extra_blocks?: Json | null
           id?: string
           is_stat?: boolean
           notes?: string | null

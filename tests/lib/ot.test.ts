@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcHours, netActualHours, calcOT, calcPlannedOT, fmtHours, invalidTimeSpan, BREAK_THRESHOLD_HRS } from '../../src/lib/ot';
+import { calcHours, netActualHours, calcOT, calcPlannedOT, fmtHours, invalidTimeSpan, BREAK_THRESHOLD_HRS, extraBlocksHours, workedHours } from '../../src/lib/ot';
 import type { Shift } from '../../src/types';
 
 function makeShift(overrides: Partial<Shift> = {}): Shift {
@@ -215,5 +215,45 @@ describe('calcPlannedOT', () => {
   });
   it('crosses midnight like everything else', () => {
     expect(calcPlannedOT(makeShift({ startTime: '15:00', endTime: '01:00' }))).toBe(1.5);
+  });
+});
+
+// Aaron, 2026-10-26: opened 06:45–15:15, went home, back for 17:00–21:00 when the closer called in sick.
+describe('[+] blocks — more hours the same day', () => {
+  const hisMonday = makeShift({
+    startTime: '06:45', endTime: '15:15',
+    actualStartTime: '06:45', actualEndTime: '15:15',
+    extraBlocks: [{ start: '17:00', end: '21:00' }],
+  });
+
+  it('nets each block on its own: a 4h block owes no break', () => {
+    expect(extraBlocksHours([{ start: '17:00', end: '21:00' }])).toBe(4);
+  });
+
+  it('a block past 5h takes the standard 30', () => {
+    expect(extraBlocksHours([{ start: '15:00', end: '21:00' }])).toBe(5.5);
+  });
+
+  it('a half-typed block counts nothing', () => {
+    expect(extraBlocksHours([{ start: '17:00', end: '' }])).toBe(0);
+    expect(extraBlocksHours(undefined)).toBe(0);
+  });
+
+  it('his Monday is 8h + 4h = 12h worked, not the 14h15 span of 06:45–21:00', () => {
+    expect(workedHours(hisMonday)).toBe(12);
+  });
+
+  it('the 4h on top is all OT, because the day already hit 8', () => {
+    expect(calcOT(hisMonday)).toBe(4);
+  });
+
+  it('the block keeps the main break separate: a logged 15m comes off the main only', () => {
+    expect(workedHours({ ...hisMonday, breakMinutes: 15 })).toBe(12.25);
+  });
+
+  it('no blocks reads exactly as before', () => {
+    const plain = makeShift({ actualStartTime: '06:45', actualEndTime: '15:15' });
+    expect(workedHours(plain)).toBe(8);
+    expect(calcOT(plain)).toBe(0);
   });
 });

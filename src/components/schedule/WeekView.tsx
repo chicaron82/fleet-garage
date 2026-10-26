@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTeamMembers } from '../../hooks/useTeamMembers';
 import { ShiftForm } from './ShiftForm';
 import { FlipShiftSheet } from './FlipShiftSheet';
-import { calcOT, calcPlannedOT, calcHours, netActualHours, fmtHours } from '../../lib/ot';
+import { calcOT, calcPlannedOT, workedHours, fmtHours } from '../../lib/ot';
 import { fmtOverlap } from '../../lib/shiftOverlap';
 import { resolveWeekSwipe } from '../../lib/weekSwipe';
 import { isFullDayShift, canManageSchedule } from '../../types';
@@ -229,6 +229,9 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                             ) : (
                               <>
                                 {fmtTime(shift.startTime)}<br />{fmtTime(shift.endTime)}
+                                {shift.extraBlocks?.map((b, k) => (
+                                  <span key={k} className="block text-[10px] leading-tight">+{fmtTime(b.start)}–{fmtTime(b.end)}</span>
+                                ))}
                                 {shift.isStat && <span className="block text-amber-500 text-[10px] leading-tight mt-0.5">★ stat</span>}
                                 {calcOT(shift) > 0 && (
                                   <span className="block text-amber-600 dark:text-amber-400 font-semibold text-[10px] leading-tight">
@@ -244,7 +247,7 @@ export function WeekView({ today, visibleUserIds, overlaps }: Props) {
                                 )}
                                 {calcOT(shift) === 0 && shift.actualStartTime && shift.actualEndTime && (
                                   <span className="block text-gray-500 dark:text-gray-400 text-[10px] leading-tight">
-                                    {fmtHours(netActualHours(calcHours(shift.actualStartTime, shift.actualEndTime), shift.breakMinutes))}
+                                    {fmtHours(workedHours(shift))}
                                   </span>
                                 )}
                               </>

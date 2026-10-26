@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { isStatDay } from '../lib/stats';
-import { calcOT, calcHours, netActualHours } from '../lib/ot';
-import type { ShiftType, ShiftWithUser } from '../types';
+import { calcOT, calcHours, extraBlocksHours, netActualHours } from '../lib/ot';
+import type { ExtraBlock, ShiftType, ShiftWithUser } from '../types';
 
 /**
  * Actual-hours state for the shift sheet, pre-filled from the scheduled preset so
@@ -18,6 +18,9 @@ export interface ActualHours {
   /** The unpaid break he logged, in minutes; null = the standard rule (ot.ts `netActualHours`). */
   breakMinutes: number | null;
   setBreakMinutes: (v: number | null) => void;
+  /** The [+] blocks: more hours the same day (migration 160). Empty = none. */
+  extraBlocks: ExtraBlock[];
+  setExtraBlocks: (v: ExtraBlock[]) => void;
   setActualStart: (v: string) => void;
   setActualEnd: (v: string) => void;
   setIsStat: (v: boolean) => void;
@@ -26,6 +29,7 @@ export interface ActualHours {
   /** A flip to a day NOT worked (sick / pto / day-off): drop the schedule-derived pre-fill so the
    *  default is "didn't work". No-op when the shift already has hours LOGGED — see below. */
   clearUnloggedPrefill: () => void;
+  /** Net hours for the whole day: the main actuals after the break, plus the [+] blocks. */
   netHrs: number;
   previewOT: number;
   breakDeducted: boolean;
@@ -39,6 +43,7 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
   const [actualEnd,   setActualEnd]   = useState(shift.actualEndTime   ?? shift.endTime   ?? '');
   const [isStat,      setIsStat]      = useState(shift.isStat ?? isStatDay(shift.date));
   const [breakMinutes, setBreakMinutes] = useState<number | null>(shift.breakMinutes ?? null);
+  const [extraBlocks,  setExtraBlocks]  = useState<ExtraBlock[]>(shift.extraBlocks ?? []);
 
   const syncToScheduled = (start: string, end: string) => {
     setActualStart(start);
@@ -67,15 +72,17 @@ export function useActualHours(shift: ShiftWithUser, shiftType: ShiftType | null
     actualStartTime: actualStart || undefined,
     actualEndTime:   actualEnd   || undefined,
     breakMinutes:    breakMinutes ?? undefined,
+    extraBlocks,
     isStat,
   });
   const grossHrs      = calcHours(actualStart, actualEnd);
-  const netHrs        = netActualHours(grossHrs, breakMinutes);
-  const breakDeducted = grossHrs > 0 && netHrs < grossHrs;
+  const mainNet       = netActualHours(grossHrs, breakMinutes);
+  const netHrs        = mainNet + extraBlocksHours(extraBlocks);
+  const breakDeducted = grossHrs > 0 && mainNet < grossHrs;
 
   return {
-    actualStart, actualEnd, isStat, breakMinutes,
-    setActualStart, setActualEnd, setIsStat, setBreakMinutes,
+    actualStart, actualEnd, isStat, breakMinutes, extraBlocks,
+    setActualStart, setActualEnd, setIsStat, setBreakMinutes, setExtraBlocks,
     syncToScheduled, clearUnloggedPrefill,
     netHrs, previewOT, breakDeducted,
   };

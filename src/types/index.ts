@@ -640,6 +640,12 @@ export function isFullDayShift(t: ShiftType): boolean {
   return t === 'day-off' || t === 'pto' || t === 'sick';
 }
 
+/** A second stretch worked on the same day — 24hr 'HH:MM' like the actual times (migration 160). */
+export interface ExtraBlock {
+  start: string;
+  end: string;
+}
+
 export interface Shift {
   id: string;
   userId: string;
@@ -651,7 +657,8 @@ export interface Shift {
   actualStartTime?: string; // actual hours worked
   actualEndTime?: string;
   breakMinutes?: number;    // unpaid break actually taken; undefined = the standard 30 min past 5h (ot.ts)
-  isStat?: boolean;         // Manitoba stat holiday — all actual hours = OT
+  extraBlocks?: ExtraBlock[]; // more hours the same day (asked back after going home); undefined = none
+  isStat?: boolean;        // Manitoba stat holiday — all actual hours = OT
   attendance?: Attendance;  // who actually showed — undefined = scheduled (unmarked)
   ptoApproved?: boolean;    // for shiftType 'pto': false = requested, true = boss-approved
   ptoAlternateDate?: string; // ISO date — optional backup, only set when 'pto' falls on a stat

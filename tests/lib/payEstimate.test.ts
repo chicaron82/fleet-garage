@@ -365,3 +365,23 @@ describe('calcPayEstimate — confirmed vs logged', () => {
     expect(est.daysProjected).toBe(0);
   });
 });
+
+// Aaron, 2026-10-26: 06:45–15:15, home, then back 17:00–21:00 ([+] blocks, migration 160).
+describe('calcPayEstimate — [+] blocks', () => {
+  const hisMonday = makeShift({
+    date: '2026-06-06', shiftType: 'opening', startTime: '06:45', endTime: '15:15',
+    actualStartTime: '06:45', actualEndTime: '15:15',
+    extraBlocks: [{ start: '17:00', end: '21:00' }],
+  });
+
+  it('pays 8 regular + 4 OT', () => {
+    const est = calcPayEstimate([hisMonday], '2026-06-10');
+    expect(est.regularHours).toBe(8);
+    expect(est.otHours).toBe(4);
+  });
+
+  it('is a deviation even when the main block ran to schedule', () => {
+    expect(isZeroDeviation(hisMonday)).toBe(false);
+    expect(calcPayEstimate([hisMonday], '2026-06-10').daysLogged).toBe(1);
+  });
+});

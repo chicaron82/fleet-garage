@@ -5,6 +5,7 @@ import { fmtHours } from '../../lib/ot';
 import type { ShiftWithUser } from '../../types';
 import type { ActualHours } from '../../hooks/useActualHours';
 import { ShiftBreakChips } from './ShiftBreakChips';
+import { ShiftExtraBlocks } from './ShiftExtraBlocks';
 
 interface Props {
   shift: ShiftWithUser;
@@ -22,7 +23,7 @@ interface Props {
  */
 export function ShiftActualHours({ shift, actual, onClose }: Props) {
   const { logActualHours } = useSchedule();
-  const { actualStart, actualEnd, isStat, breakMinutes, setActualStart, setActualEnd, setIsStat, setBreakMinutes, netHrs, previewOT, breakDeducted } = actual;
+  const { actualStart, actualEnd, isStat, breakMinutes, extraBlocks, setActualStart, setActualEnd, setIsStat, setBreakMinutes, setExtraBlocks, netHrs, previewOT, breakDeducted } = actual;
 
   const [clearing,     setClearing]     = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -73,6 +74,8 @@ export function ShiftActualHours({ shift, actual, onClose }: Props) {
         </div>
 
         <ShiftBreakChips breakMinutes={breakMinutes} onChange={setBreakMinutes} />
+
+        <ShiftExtraBlocks blocks={extraBlocks} onChange={setExtraBlocks} />
 
         {/* Stat checkbox */}
         <label className="flex items-center gap-2.5 cursor-pointer">
