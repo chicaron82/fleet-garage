@@ -156,6 +156,15 @@ describe('deriveMyDay', () => {
     expect(m.firstName).toBe('Aaron');
     expect(m.greeting).toBe('Good morning');
     expect(m.team.map(t => t.displayName)).toEqual(['CJ']);
+    expect(m.moreHours).toEqual([]);
+  });
+
+  it('⭐ the [+] hours show under the shift (Aaron, 2026-10-26: back 17:00–21:00 the same day)', () => {
+    const shifts = [shift({ userId: 'me', date: today, shiftType: 'opening', startTime: '06:45:00', endTime: '15:15:00',
+      actualStartTime: '06:45:00', actualEndTime: '15:15:00', extraBlocks: [{ start: '17:00', end: '21:00' }], name: 'Aaron S' })];
+    const m = deriveMyDay({ ...base, shifts });
+    expect(m.shiftTime).toBe('06:45 – 15:15');
+    expect(m.moreHours).toEqual(['17:00 – 21:00']);
   });
 
   it('day-off → working false (no fleet-balance prompt on a day off)', () => {

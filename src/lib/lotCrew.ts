@@ -13,6 +13,8 @@ export interface CrewMember {
   role: CrewRole;
   start: string | null;
   end: string | null;
+  /** The [+] blocks under Actual Hours (migration 160): more hours the same day. Empty = none. */
+  more: { start: string; end: string }[];
   /** Sick on the schedule, or marked a no-show. */
   out: boolean;
   onNow: boolean;

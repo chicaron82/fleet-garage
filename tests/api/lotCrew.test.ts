@@ -94,6 +94,35 @@ describe('logged hours win (shifts.actual_*)', () => {
   });
 });
 
+// ⭐ Aaron, 2026-10-26: opened 06:45–15:15, went home, and came back 17:00–21:00 so Erick wasn't cleaning solo. The [+]
+// block (migration 160) is logged hours too. docs/ticket-more-hours-reach-crew-and-my-day.md.
+describe('more hours the same day ([+] blocks)', () => {
+  const asked = { ...row('aaron', 'Aaron S.', 'VSA', '06:45:00', '15:15:00'), actualStart: '06:45:00', actualEnd: '15:15:00', extraBlocks: [{ start: '17:00', end: '21:00' }] };
+  const at1 = (t: string) => crewOf([asked], DAY, at(t))[0];
+
+  it('⭐ inside the block he is ON, and counted', () => {
+    expect(at1('18:00')).toMatchObject({ onNow: true, phase: 'on', more: [{ start: '17:00', end: '21:00' }] });
+    expect(crewSummary(crewOf([asked], DAY, at('18:00'))).vsa.on).toBe(1);
+  });
+  it('home between the two: not on, and coming back (later), so never folded away as finished', () => {
+    expect(at1('16:00')).toMatchObject({ onNow: false, phase: 'later' });
+  });
+  it('after the last block: done', () => {
+    expect(at1('21:30')).toMatchObject({ onNow: false, phase: 'done' });
+  });
+  it('a block past midnight belongs to that night', () => {
+    const late = { ...asked, extraBlocks: [{ start: '23:00', end: '01:00' }] };
+    expect(crewOf([late], DAY, at('00:30', '2026-10-16'))[0].onNow).toBe(true);
+    const after = { ...asked, extraBlocks: [{ start: '00:30', end: '02:00' }] };
+    expect(crewOf([after], DAY, at('01:00', '2026-10-16'))[0].onNow).toBe(true);
+    expect(crewOf([after], DAY, at('16:00'))[0].phase).toBe('later');
+  });
+  it('a half-typed block counts nothing', () => {
+    const half = { ...asked, extraBlocks: [{ start: '17:00', end: '' }] };
+    expect(crewOf([half], DAY, at('18:00'))[0]).toMatchObject({ onNow: false, phase: 'done', more: [] });
+  });
+});
+
 // Aaron, 2026-10-15 21:03: *"removing Larry C from being displayed as a driver. even though he's on the driver
 // schedule, he's our in-house utility guy doing vehicle maintenence"* (migration 155).
 describe('left off the crew line', () => {

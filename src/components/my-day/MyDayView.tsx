@@ -114,6 +114,9 @@ export function MyDayView({ onNavigate }: { onNavigate: (screen: Screen) => void
             </p>
             {/* The roster's word for the day, kept visible on an overtime day: being OFF is what
                 makes every logged hour time-and-a-half, so the headline must not swallow it. */}
+            {day.moreHours.length > 0 && (
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">More hours {day.moreHours.join(' · ')}</p>
+            )}
             {day.shiftSubLabel && (
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{day.shiftSubLabel} · every hour at 1.5x</p>
             )}

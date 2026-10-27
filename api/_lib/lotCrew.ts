@@ -10,6 +10,9 @@
 //     no-show dropping off the count, 2026-10-24.)
 //   • LOGGED HOURS WIN (2026-10-15, his overtime): actual start/end, where logged, replace the scheduled ones, so
 //     staying late is just logging it.
+//   • MORE HOURS COUNT (migration 160, 2026-10-26): a [+] block is logged hours too. He opened, went home, and came
+//     back 17:00–21:00 so Erick wasn't cleaning solo; the line read him as finished. Inside a block = on; between
+//     the shift and a block = later (coming back, so not folded away as finished); after the last one = done.
 //   • Day-off and PTO are not today's crew at all.
 //   • LEFT OFF (migration 155): someone on a crew schedule who isn't part of this line (Larry C, the in-house
 //     utility man on the driver schedule) is not a member at all, so never counted. No reason is kept.
@@ -54,6 +57,8 @@ export interface RosterRow {
   /** Logged actual hours (shifts.actual_start_time / actual_end_time). Each one, where present, wins. */
   actualStart?: string | null;
   actualEnd?: string | null;
+  /** The [+] blocks (shifts.extra_blocks): more hours the same day, each its own window. */
+  extraBlocks?: ReadonlyArray<{ start: string; end: string }> | null;
   attendance: string | null;
 }
 
@@ -64,6 +69,8 @@ export interface CrewMember {
   /** "06:45"–"15:15", or null when the shift has no times. Logged actual hours where there are any. */
   start: string | null;
   end: string | null;
+  /** The [+] blocks, "17:00"–"21:00". Empty = none. */
+  more: { start: string; end: string }[];
   /** Sick on the schedule, or marked a no-show. */
   out: boolean;
   /** On right now: a working shift whose window covers now, and not out. */
@@ -73,6 +80,16 @@ export interface CrewMember {
 }
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
+
+/** One window as instants. The end crosses midnight when it isn't after the start (a 16:30–01:00 close); a window
+ *  that starts before the 04:00 cutover belongs to the night after `day` (the business day runs to 04:00). */
+function windowOf(day: string, start: string, end: string, afterMidnight: boolean): [number, number] {
+  const bump = afterMidnight ? 24 * 3600_000 : 0;
+  const startMs = winnipegInstant(day, start) + bump;
+  let endMs = winnipegInstant(day, end) + bump;
+  if (endMs <= startMs) endMs += 24 * 3600_000;
+  return [startMs, endMs];
+}
 
 export function crewOf(
   rows: readonly RosterRow[], day: string, nowMs: number, leftOff: ReadonlySet<string> = new Set(),
@@ -85,14 +102,15 @@ export function crewOf(
     if (!WORKING.has(r.shiftType) && !out) continue;
     const start = r.actualStart || r.start;
     const end = r.actualEnd || r.end;
+    const more = (r.extraBlocks ?? []).filter(b => b.start && b.end).map(b => ({ start: b.start.slice(0, 5), end: b.end.slice(0, 5) }));
     let phase: CrewMember['phase'] = out ? 'on' : 'later';
     if (!out && start && end) {
-      const startMs = winnipegInstant(day, start);
-      let endMs = winnipegInstant(day, end);
-      if (endMs <= startMs) endMs += 24 * 3600_000;
-      phase = nowMs < startMs ? 'later' : nowMs >= endMs ? 'done' : 'on';
+      const windows = [windowOf(day, start, end, false), ...more.map(b => windowOf(day, b.start, b.end, b.start < '04:00'))];
+      phase = windows.some(([s, e]) => nowMs >= s && nowMs < e) ? 'on'
+        : windows.every(([, e]) => nowMs >= e) ? 'done'
+        : 'later';
     }
-    members.push({ userId: r.userId, name: r.name, role, start: hhmm(start), end: hhmm(end), out, onNow: !out && phase === 'on', phase });
+    members.push({ userId: r.userId, name: r.name, role, start: hhmm(start), end: hhmm(end), more, out, onNow: !out && phase === 'on', phase });
   }
   return members.sort((a, b) => (a.start ?? '99').localeCompare(b.start ?? '99') || a.name.localeCompare(b.name));
 }

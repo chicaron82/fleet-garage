@@ -23,7 +23,9 @@ const TITLE: Record<CrewRole, string> = { vsa: 'VSAs', driver: 'Drivers' };
 
 function when(m: CrewMember): string {
   if (m.out) return 'out';
-  const times = m.start && m.end ? `${m.start}–${m.end}` : '';
+  // The [+] hours ride along: "06:45–15:15 +17:00–21:00" (asked back the same day).
+  const times = [m.start && m.end ? `${m.start}–${m.end}` : '', ...(m.more ?? []).map(b => `+${b.start}–${b.end}`)]
+    .filter(Boolean).join(' ');
   if (m.phase === 'later') return `${times} · later`;
   if (m.phase === 'done') return `${times} · done`;
   return times;

@@ -109,6 +109,9 @@ export interface MyDayModel {
   isMid: boolean;
   shiftLabel: string | null;
   shiftTime: string | null;
+  /** The [+] blocks under Actual Hours (migration 160), "17:00 – 21:00" each: asked back the same day
+   *  (Aaron, 2026-10-26: opened, went home, back 17:00–21:00 so Erick wasn't cleaning solo). Empty = none. */
+  moreHours: string[];
   team: TeamMate[];
   /** Cars cleaned this shift, or null when no handoff was logged today. */
   carsCleanedThisShift: number | null;
@@ -158,6 +161,7 @@ export function deriveMyDay(input: {
     shiftTime: overtime && myShift
       ? shiftTimeRange(myShift.actualStartTime, myShift.actualEndTime)
       : myShift ? shiftTimeRange(myShift.startTime, myShift.endTime) : null,
+    moreHours: (myShift?.extraBlocks ?? []).map(b => shiftTimeRange(b.start, b.end)).filter((t): t is string => !!t),
     team: teammatesOnToday(shifts, userId, todayISO),
     carsCleanedThisShift: handoff && handoffIsToday ? carsCleaned(handoff) : null,
     insights: deriveScheduleInsights({ todayShifts: shifts, myYesterdayShiftType, myTomorrowShiftType, myTomorrowStart, userId }),

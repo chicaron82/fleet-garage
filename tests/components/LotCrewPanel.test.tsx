@@ -6,7 +6,7 @@ import { LotCrewPanel } from '../../src/components/my-day/LotCrewPanel';
 import type { CrewMember } from '../../src/lib/lotCrew';
 
 const m = (userId: string, name: string, role: CrewMember['role'], over: Partial<CrewMember> = {}): CrewMember =>
-  ({ userId, name, role, start: '06:45', end: '15:15', out: false, onNow: true, phase: 'on', ...over });
+  ({ userId, name, role, start: '06:45', end: '15:15', more: [], out: false, onNow: true, phase: 'on', ...over });
 
 describe('LotCrewPanel', () => {
   it('⭐ lists who is scheduled, by role, with their times, and offers no job chips or pull buttons', () => {
@@ -15,6 +15,11 @@ describe('LotCrewPanel', () => {
     expect(screen.getByRole('region', { name: 'Drivers' })).toHaveTextContent('Rey');
     expect(screen.queryByRole('button', { name: /All to|Send|Cleaning|Moving cars|To the airport/ })).toBeNull();
     expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('⭐ the [+] hours show with the shift (asked back the same day, 2026-10-26)', () => {
+    render(<LotCrewPanel members={[m('a', 'Aaron S.', 'vsa', { more: [{ start: '17:00', end: '21:00' }] })]} toast={vi.fn()} />);
+    expect(screen.getByRole('region', { name: 'VSAs' })).toHaveTextContent('Aaron S.06:45–15:15 +17:00–21:00');
   });
 
   it('out is crossed off and says out', () => {

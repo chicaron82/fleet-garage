@@ -21,7 +21,7 @@ interface Loaded { members: CrewMember[]; leftOff: { userId: string; name: strin
 async function loadMembers(db: SupabaseClient, nowMs: number): Promise<Loaded> {
   const day = shiftBusinessDate(new Date(nowMs));
   const { data: shifts, error: sErr } = await db.from('shifts')
-    .select('user_id, shift_type, start_time, end_time, actual_start_time, actual_end_time, attendance').eq('date', day);
+    .select('user_id, shift_type, start_time, end_time, actual_start_time, actual_end_time, extra_blocks, attendance').eq('date', day);
   if (sErr) throw sErr;
   const { data: offRows, error: oErr } = await db.from('lot_crew_left_off').select('user_id');
   if (oErr) throw oErr;
@@ -38,6 +38,7 @@ async function loadMembers(db: SupabaseClient, nowMs: number): Promise<Loaded> {
       userId: String(s.user_id), name: (p?.name as string) ?? '', profileRole: (p?.role as string) ?? null,
       shiftType: s.shift_type as string, start: s.start_time as string | null, end: s.end_time as string | null,
       actualStart: s.actual_start_time as string | null, actualEnd: s.actual_end_time as string | null,
+      extraBlocks: Array.isArray(s.extra_blocks) ? s.extra_blocks as { start: string; end: string }[] : null,
       attendance: s.attendance as string | null,
     };
   });

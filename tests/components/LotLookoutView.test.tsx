@@ -7,7 +7,7 @@ import type { CrewMember } from '../../src/lib/lotCrew';
 
 const NOW = Date.parse('2026-10-15T23:30:00Z');
 const member = (userId: string, name: string, role: CrewMember['role']): CrewMember =>
-  ({ userId, name, role, start: '16:00', end: '22:00', out: false, onNow: true, phase: 'on' });
+  ({ userId, name, role, start: '16:00', end: '22:00', more: [], out: false, onNow: true, phase: 'on' });
 
 vi.mock('../../src/hooks/useLotAirport', () => ({
   useLotAirport: () => ({
