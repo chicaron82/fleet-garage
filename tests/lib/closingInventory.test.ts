@@ -66,12 +66,28 @@ describe('deriveStatus', () => {
 
   it('a mechanical hold is an M on the first car', () => {
     expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical', damageDescription: 'PM due' }], null))
-      .toMatchObject({ status: 'M', note: 'PM — PM due' });
+      .toMatchObject({ status: 'M', note: 'PM due' });
+  });
+
+  // ⚠️ Aaron, 2026-10-26: LUR491 read "PM — Low tread". *"Someone else reading this would see it as held for low
+  // tread and oil change, instead of just low tread."* PM is one KIND of mechanical, never the word for all.
+  it('a mechanical hold brings its own words, with no "PM" stamped in front', () => {
+    const tread: ActiveHold[] = [{ holdType: 'mechanical', mechanicalSubType: 'tire-replacement', damageDescription: 'Low tread' }];
+    expect(deriveStatus({ isUs: false }, tread, null).note).toBe('Low tread');
+    expect(deriveStatus({ isUs: false }, tread, 'M').note).toBe('Low tread');
+  });
+
+  it('with no words, the label is the hold\'s actual kind', () => {
+    const mech = (sub: string | null) => deriveStatus({ isUs: false }, [{ holdType: 'mechanical', mechanicalSubType: sub }], null).note;
+    expect(mech('pm-due')).toBe('PM');
+    expect(mech('tire-repair')).toBe('tires');
+    expect(mech('safety-recall')).toBe('recall');
+    expect(mech(null)).toBe('mechanical');
   });
 
   it('names the flag even with no description, in his words', () => {
     expect(deriveStatus({ isUs: false }, [{ holdType: 'hail' }], null).note).toBe('damaged');
-    expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical' }], null).note).toBe('PM');
+    expect(deriveStatus({ isUs: false }, [{ holdType: 'mechanical' }], null).note).toBe('mechanical');
   });
 
   // ⚠️⚠️ F IS THE PLATE, NOT THE OWNING BRANCH. Aaron: "foreign are vehicles with US plates on."

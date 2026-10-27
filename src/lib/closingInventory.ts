@@ -90,6 +90,25 @@ export interface ActiveHold {
   holdType: string;
   damageDescription?: string | null;
   disposition?: string | null;
+  /** Which KIND of mechanical ('pm-due', 'tire-repair', 'safety-recall', …); null on everything else. */
+  mechanicalSubType?: string | null;
+}
+
+/**
+ * ⚠️ "PM" IS ONE KIND OF MECHANICAL, NOT THE WORD FOR ALL OF THEM. Aaron, 2026-10-26, on the closing
+ * sheet: *"every mechanical was attaching "PM" to the description/notes. Someone else reading this
+ * would see it as held for low tread and oil change, instead of just low tread"*. LUR491 (low tread)
+ * read "PM — Low tread". The hold's own words say what is wrong; a label only fills in when there are
+ * none, and then it names the actual kind.
+ */
+function mechanicalNote(hold: ActiveHold): string {
+  const desc = (hold.damageDescription ?? '').trim();
+  if (desc) return desc;
+  const sub = hold.mechanicalSubType ?? '';
+  if (sub === 'pm-due') return 'PM';
+  if (sub === 'safety-recall') return 'recall';
+  if (sub.startsWith('tire-')) return 'tires';
+  return 'mechanical';
 }
 
 /**
@@ -172,7 +191,7 @@ export function deriveStatus(
 ): DerivedStatus {
   const damage = holds.find(h => h.holdType === 'damage' || h.holdType === 'hail');
   const mech = holds.find(h => h.holdType === 'mechanical');
-  /** A note in HIS words — "damaged" / "PM" — with the hold's description when there is one. */
+  /** A damage note in HIS words — "damaged" — with the hold's description when there is one. */
   const withDesc = (label: string, desc: string | null | undefined): string => {
     const d = (desc ?? '').trim();
     return d ? `${label} — ${d}` : label;
@@ -180,7 +199,7 @@ export function deriveStatus(
 
   const flag: DerivedStatus | null =
       damage ? { status: 'B', note: withDesc('damaged', damage.damageDescription), why: 'on a damage hold' }
-    : mech   ? { status: 'M', note: withDesc('PM', mech.damageDescription),        why: 'on a mechanical hold' }
+    : mech   ? { status: 'M', note: mechanicalNote(mech),                          why: 'on a mechanical hold' }
     : vehicle.isUs ? { status: 'F', note: 'US plate', why: 'US plate' }
     : null;
 
