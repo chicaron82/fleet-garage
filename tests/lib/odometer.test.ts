@@ -55,6 +55,16 @@ describe('describeOdometer — never the number alone', () => {
     expect(describeOdometer(47200, new Date(2026, 7, 20).toISOString(), now)).toBe('47,200 km · today');
   });
 
+  it('⭐ counts CALENDAR days, like "last seen", not 24-hour periods', () => {
+    // Aaron, 2026-10-28: the lookup said "today" while the record's history said "yesterday" for the same
+    // write. Yesterday's gas sheet, stamped 22:00, is 14½ hours old at 12:37: under a day, but yesterday.
+    const lunch = new Date(2026, 9, 28, 12, 37);
+    expect(describeOdometerAge(new Date(2026, 9, 27, 22, 0).toISOString(), lunch)).toBe('yesterday');
+    // And the other way: 47 hours is "1" by the 24-hour count, but the 26th is two days back.
+    expect(describeOdometerAge(new Date(2026, 9, 26, 9, 0).toISOString(), new Date(2026, 9, 28, 8, 0))).toBe('2d ago');
+    expect(describeOdometerAge(new Date(2026, 9, 28, 0, 5).toISOString(), lunch)).toBe('today');
+  });
+
   it('falls back to a dated stamp once it is genuinely old', () => {
     expect(describeOdometerAge(new Date(2026, 3, 12).toISOString(), now)).toBe('Apr 12');
   });

@@ -144,12 +144,19 @@ export function parseOdometer(raw: string | null | undefined): number | null {
   return n > 0 ? n : null;
 }
 
-/** How stale is this reading? Coarse on purpose — the point is "can I trust it", not precision. */
+/** How stale is this reading? Coarse on purpose — the point is "can I trust it", not precision.
+ *
+ *  ⚠️ CALENDAR DAYS, not 24-hour periods (2026-10-28). It used to floor the elapsed hours, so yesterday's gas sheet,
+ *  stamped 22:00, read "today" on the lookup at lunch while the record's history said "yesterday 22:00" for the same
+ *  write. Aaron: *"Are they running different times?"* Same clock, two ways of counting. Now it counts the way
+ *  `describeLastSeen` does (a car scanned at 11pm says "yesterday" at 7am). Rounding the midnight-to-midnight gap
+ *  absorbs a 23- or 25-hour DST day. */
 export function describeOdometerAge(iso: string | null | undefined, now: Date = new Date()): string {
   if (!iso) return '';
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return '';
-  const days = Math.floor((now.getTime() - then.getTime()) / 86_400_000);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 30) return `${days}d ago`;
