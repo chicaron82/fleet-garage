@@ -22,9 +22,12 @@ const roster: RosterRow[] = [
 ];
 
 describe('winnipegInstant', () => {
+  // ⚠️ The winter side is DECEMBER 2025, not 2026. Manitoba is permanent UTC−5 from 2026-10-31 (tzdata 2026e), so it has
+  // no winter offset after that. A Dec 2026 assertion is true under one tz data version and false under the next, and
+  // that's how CI went red while the local gate stayed green (docs/ticket-manitoba-permanent-utc5-tests.md).
   it('reads a Winnipeg wall clock through both sides of daylight saving', () => {
     expect(new Date(winnipegInstant('2026-10-15', '14:30:00')).toISOString()).toBe('2026-10-15T19:30:00.000Z'); // CDT
-    expect(new Date(winnipegInstant('2026-12-15', '14:30:00')).toISOString()).toBe('2026-12-15T20:30:00.000Z'); // CST
+    expect(new Date(winnipegInstant('2025-12-15', '14:30:00')).toISOString()).toBe('2025-12-15T20:30:00.000Z'); // CST, the last winter
   });
 });
 

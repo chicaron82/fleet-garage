@@ -45,7 +45,8 @@ describe('clockOf', () => {
   it('Winnipeg time, 24-hour, whatever the phone\'s zone', () => {
     expect(clockOf('2026-10-15T16:58:00Z')).toBe('11:58'); // CDT, UTC−5
     expect(clockOf('2026-10-16T05:05:00Z')).toBe('00:05'); // midnight reads 00, never 24
-    expect(clockOf('2026-12-15T16:58:00Z')).toBe('10:58'); // CST, UTC−6
+    // CST, UTC−6: Dec 2025, the last winter Manitoba fell back (permanent UTC−5 from 2026-10-31, tzdata 2026e).
+    expect(clockOf('2025-12-15T16:58:00Z')).toBe('10:58');
   });
 });
 
