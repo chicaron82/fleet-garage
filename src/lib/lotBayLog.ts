@@ -8,6 +8,7 @@
 //     so no screen can be used to work out minutes per car, not even from two stamps side by side.
 //   • A skip is a bump, not a verdict: *"skip to do later"*. It reads "still to do" until the car comes back in.
 import { clockOf } from './lotBay';
+import { foldOZero } from './plateFold';
 
 export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip';
 
@@ -88,3 +89,22 @@ export function startBlock(open: BayLogRow | null, vehicleId: string): { plate: 
   if (!open) return null;
   return { plate: open.plate, since: clockOf(open.started_at), same: open.vehicle_id === vehicleId };
 }
+
+/**
+ * The bay card's own Find a car (Aaron, 2026-10-29: *"i'm already in the module ... that button should be the input
+ * search box"*; docs/ticket-bay-find-a-car-inline-search.md): the FG record behind what he picked or typed. A picked
+ * suggestion is matched on plate AND unit (a mock can share a real car's plate). A typed key must be a WHOLE plate
+ * (O read as 0) or a whole unit; a fragment is a search, not a car, so it is null and the list does the finding.
+ */
+export function vehicleForPick<V extends { licensePlate: string; unitNumber: string | null }>(
+  vehicles: readonly V[],
+  choice: { plate: string; unit: string | null } | { typed: string },
+): V | null {
+  if ('plate' in choice) {
+    return vehicles.find(v => v.licensePlate === choice.plate && (v.unitNumber ?? null) === (choice.unit ?? null)) ?? null;
+  }
+  const key = foldOZero(choice.typed.trim());
+  if (!key) return null;
+  return vehicles.find(v => foldOZero(v.licensePlate) === key || (v.unitNumber ?? '') === key) ?? null;
+}
+

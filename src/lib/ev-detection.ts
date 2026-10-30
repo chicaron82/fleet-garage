@@ -1,5 +1,6 @@
 import { supabase, writeWithRefresh } from './supabase';
 import { isNetworkBlip, BLIP_RETRY_MS, READ_TIMEOUT_MS } from './networkBlip';
+import { foldOZero, oZeroVariants } from './plateFold';
 import type { EvAssetStatus } from '../types';
 
 export interface TeslaDetectionResult {
@@ -178,9 +179,9 @@ export function rankVehicleMatches(
    *  so widening the filter to a contains-match (2026-09-29) cannot demote the obvious answer. */
   query = '',
 ): VehicleSearchResult[] {
-  const q = query.trim().toUpperCase();
+  const q = foldOZero(query.trim());
   const startsWith = (v: VehicleSearchResult) =>
-    !!q && (v.license_plate.toUpperCase().startsWith(q) || (v.unit_number ?? '').toUpperCase().startsWith(q));
+    !!q && (foldOZero(v.license_plate).startsWith(q) || foldOZero(v.unit_number ?? '').startsWith(q));
   return rows
     .filter(v => !(v.unit_number ?? '').startsWith(MOCK_UNIT_PREFIX))
     .slice()
@@ -249,7 +250,8 @@ export async function searchVehicles(query: string): Promise<VehicleSearch> {
   const run = () => supabase
     .from('vehicles')
     .select('license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at')
-    .or(`license_plate.ilike.%${trimmed}%,unit_number.ilike.%${trimmed}%`)
+    // O and 0 are one key (oZeroVariants): OGK487 finds 0GK487.
+    .or(oZeroVariants(trimmed).flatMap(t => [`license_plate.ilike.%${t}%`, `unit_number.ilike.%${t}%`]).join(','))
     .order('license_plate')
     .limit(60)
     // ⭐ postgrest-js's own retry is OFF here: it is three attempts with 1s/2s/4s backoff, which made

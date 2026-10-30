@@ -22,6 +22,7 @@
 // instead of typing. It costs one line of screen and removes a whole failure mode.
 import { useEffect, useRef, useState } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
+import { foldOZero } from '../../lib/plateFold';
 import { VehicleName } from './VehicleName';
 
 export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults, recents }: {
@@ -183,7 +184,8 @@ function LookupRow({ v, query, onChoose }: { v: VehicleSearchResult; query: stri
   // scan card already follows with `matchedByUnit`. If the plate does not start with what he typed,
   // the unit is what found this car, and he should see that. (A recent passes an empty query, which
   // every plate starts with, so it never claims a unit match it did not make.)
-  const byUnit = !v.license_plate.toUpperCase().startsWith(query);
+  // Folded, so OGK487 typed for 0GK487 is a plate match, not a unit one.
+  const byUnit = !foldOZero(v.license_plate).startsWith(foldOZero(query));
   return (
     <button type="button" onMouseDown={e => e.preventDefault()}
       onClick={() => onChoose(v)}

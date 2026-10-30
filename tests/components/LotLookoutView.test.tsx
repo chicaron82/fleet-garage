@@ -16,9 +16,22 @@ const row = (over: Partial<BayLogRow>): BayLogRow => ({
 let rows: BayLogRow[] = [];
 const exit = vi.fn(async () => null as string | null);
 const undoExit = vi.fn(async () => null as string | null);
+const start = vi.fn(async () => null as string | null);
 vi.mock('../../src/hooks/useBayLog', () => ({
-  useBayLog: () => ({ rows, loaded: true, error: null, start: vi.fn(), exit, undoExit }),
+  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit }),
 }));
+// The empty bay's own Find a car (ticket-bay-find-a-car-inline-search): the lookup's network search and its recents.
+const hit = { license_plate: '0GK487', unit_number: '5429550', make: 'Kia', model: 'Seltos', year: 2026, color: 'Gray', is_hybrid: false, is_tesla: false, archived_at: null };
+const searchVehicles = vi.fn(async (_q: string) => ({ matches: [hit], failed: false }));
+vi.mock('../../src/lib/ev-detection', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/lib/ev-detection')>()), searchVehicles: (q: string) => searchVehicles(q),
+}));
+const recordLookup = vi.fn();
+vi.mock('../../src/hooks/useLookupRecents', () => ({ useLookupRecents: () => ({ recents: [], record: recordLookup }) }));
+const seltos = {
+  id: 'v-487', licensePlate: '0GK487', unitNumber: '5429550', year: 2026, make: 'Kia', model: 'Seltos', color: 'Gray',
+  isHybrid: false, isTesla: false, isUs: false, odometer: 14315, odometerAt: new Date().toISOString(),
+};
 vi.mock('../../src/hooks/useLotBay', () => ({
   useLotBay: () => ({ bay: { cleans: 12, cleansBy: 'AS', cleansAt: null, dirties: 9, dirtiesBy: 'AS', dirtiesAt: null, used: 0, usedOn: null },
     log: [], loaded: true, nowMs: Date.parse('2026-10-29T16:30:00Z'), setBay: () => {} }),
@@ -34,14 +47,16 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   }),
 }));
 let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[] }[] = [];
-vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ holds }) }));
+vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({
+  holds, vehicles: [seltos], archivedVehicles: [], recordOdometer: vi.fn(async () => {}), clearOdometer: vi.fn(), correctOdometer: vi.fn(),
+}) }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const search = vi.fn();
 vi.mock('../../src/context/scanRouter', () => ({ useScanRouter: () => ({ search }) }));
 
 const { LotLookoutView } = await import('../../src/components/lot-lookout/LotLookoutView');
 
-beforeEach(() => { rows = []; holds = []; exit.mockClear(); undoExit.mockClear(); search.mockClear(); });
+beforeEach(() => { rows = []; holds = []; vi.clearAllMocks(); });
 
 describe('LotLookoutView — the bay log', () => {
   it('⭐ strictly Erin St: no airport anywhere', () => {
@@ -50,10 +65,38 @@ describe('LotLookoutView — the bay log', () => {
     expect(screen.queryByRole('button', { name: /Cleans on the lot:/ })).toBeNull();
   });
 
-  it('an empty bay leads with Find a car', () => {
+  // ⭐ Aaron, 2026-10-29: *"i'm already in the module ... that button should be the input search box"*.
+  it('⭐ an empty bay leads with the search box itself, in the card: nothing floats, and no keyboard on load', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    expect(screen.getByText("The bay's empty.")).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Find a car/ }));
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent("The bay's empty.");
+    const box = screen.getByRole('textbox', { name: /Look up a vehicle/ });
+    expect(card.contains(box)).toBe(true);
+    expect(document.activeElement).not.toBe(box);
+    expect(screen.queryByRole('button', { name: /🔍 Find a car/ })).toBeNull();
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('⭐ OGK487 finds 0GK487 in the card, and picking it goes straight to its odo and Start cleaning', async () => {
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: 'OGK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent('0GK487');
+    expect(screen.getByRole('textbox', { name: 'Odometer reading' })).toBeTruthy();
+    expect(recordLookup).toHaveBeenCalledWith('v-487');
+    fireEvent.click(screen.getByRole('button', { name: /Start cleaning/ }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('v-487'));
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('a key FG cannot place hands off to the full 🔍 popup, never a dead end', async () => {
+    searchVehicles.mockResolvedValueOnce({ matches: [], failed: false });
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    const box = screen.getByRole('textbox', { name: /Look up a vehicle/ });
+    fireEvent.change(box, { target: { value: 'ZZZ999' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('button', { name: /isn't a car in FG/ }));
     expect(search).toHaveBeenCalled();
   });
 

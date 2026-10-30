@@ -6,7 +6,7 @@
 // is "Finish <plate> first", and that gate is also the forgotten-close fix. Start also needs today's odo, so a car never
 // enters the bay without the reading he already takes at every car.
 import { useState } from 'react';
-import { useBayLog } from '../../hooks/useBayLog';
+import { useBayLog, type BayLogState } from '../../hooks/useBayLog';
 import { useAuth } from '../../context/AuthContext';
 import { initialsOf } from '../../lib/lotLookout';
 import { hapticMedium } from '../../lib/haptics';
@@ -14,9 +14,12 @@ import { startBlock, inTheBay } from '../../lib/lotBayLog';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { Vehicle } from '../../types';
 
-export function ScanBayStart({ vehicle, onOpenBay }: { vehicle: Vehicle; onOpenBay: (started: boolean) => void }) {
+/** `bayLog`: the host's own bay log, when it already has one (the bay card's Find a car), so the Start lands in the list
+ *  the host is showing instead of waiting on a second subscription's realtime. */
+export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle; onOpenBay: (started: boolean) => void; bayLog?: BayLogState }) {
   const { user } = useAuth();
-  const bay = useBayLog(initialsOf(user?.name ?? null) || 'FG');
+  const own = useBayLog(initialsOf(user?.name ?? null) || 'FG');
+  const bay = bayLog ?? own;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   if (!bay.loaded) return null;

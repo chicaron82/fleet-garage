@@ -66,3 +66,21 @@ describe('searchVehicles — one retry of our own', () => {
     expect(from).toHaveBeenCalledTimes(2);
   });
 });
+
+// docs/ticket-bay-find-a-car-inline-search.md: 0GK487 is typed OGK487. The query asks for both spellings.
+describe('searchVehicles — O and 0 are one key', () => {
+  it('OGK487 asks for 0GK487 too, on the plate and the unit', async () => {
+    answers.push({ data: [], error: null });
+    await searchVehicles('OGK487');
+    const filter = (builder.or.mock.calls[0] as unknown[])[0] as string;
+    expect(filter.split(',').sort()).toEqual([
+      'license_plate.ilike.%0GK487%', 'license_plate.ilike.%OGK487%', 'unit_number.ilike.%0GK487%', 'unit_number.ilike.%OGK487%',
+    ]);
+  });
+  it('a query with no O or 0 asks once, as before', async () => {
+    answers.push({ data: [], error: null });
+    await searchVehicles('GK48');
+    expect(builder.or).toHaveBeenCalledWith('license_plate.ilike.%GK48%,unit_number.ilike.%GK48%');
+  });
+});
+

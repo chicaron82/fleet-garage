@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bayLines, baySummary, inTheBay, startBlock, type BayLogRow } from '../../src/lib/lotBayLog';
+import { bayLines, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -69,3 +69,27 @@ describe('the one-car gate', () => {
     expect(startBlock(DAY[5], 'v-LZM536')).toMatchObject({ same: true });
   });
 });
+
+// The bay card's own Find a car (docs/ticket-bay-find-a-car-inline-search.md): which FG record did he pick or type?
+describe('vehicleForPick', () => {
+  const fleet = [
+    { id: 'a', licensePlate: '0GK487', unitNumber: '5429550' },
+    { id: 'b', licensePlate: 'LUR486', unitNumber: '5429592' },
+    { id: 'c', licensePlate: 'LUR486', unitNumber: 'HRZ-3307' }, // a mock beside the real car shares the plate
+  ];
+  it('a picked suggestion is that record, plate AND unit, never the mock that shares its plate', () => {
+    expect(vehicleForPick(fleet, { plate: 'LUR486', unit: '5429592' })?.id).toBe('b');
+  });
+  it('⭐ typed and committed: the whole plate, O read as 0', () => {
+    expect(vehicleForPick(fleet, { typed: 'OGK487' })?.id).toBe('a');
+    expect(vehicleForPick(fleet, { typed: '0gk487' })?.id).toBe('a');
+  });
+  it('typed: the whole unit number finds its car', () => {
+    expect(vehicleForPick(fleet, { typed: '5429550' })?.id).toBe('a');
+  });
+  it('a fragment typed and committed is not a car: it needs the list, so null', () => {
+    expect(vehicleForPick(fleet, { typed: 'GK48' })).toBeNull();
+    expect(vehicleForPick(fleet, { typed: 'ZZZ999' })).toBeNull();
+  });
+});
+

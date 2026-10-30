@@ -7,12 +7,15 @@
 //   If that close failed (a dropped signal after the save), the hold is already on the car: the button becomes
 //   "Close as held" and closes it without a second hold.
 // • Skip is a bump, not a verdict: *"a vehicle in the queue needed to be done ASAP ... skip to do later"*. The empty
-//   bay that follows leads with Find a car, because the ASAP car is the next thing he does.
+//   bay that follows leads with Find a car, because the ASAP car is the next thing he does. Since 2026-10-29 that is
+//   the search box itself, in the card (BayFindCar): *"i'm already in the module"*.
 // • Every exit is one tap; Clean and Skip carry a 5-second Undo on the note (a wet thumb lands on the neighbour).
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { hapticLight, hapticMedium } from '../../lib/haptics';
+import { hapticMedium } from '../../lib/haptics';
 import { clockOf } from '../../lib/lotBay';
 import type { BayExit, BayLogRow } from '../../lib/lotBayLog';
+import type { BayLogState } from '../../hooks/useBayLog';
+import { BayFindCar } from './BayFindCar';
 
 const EXIT_BTN = 'min-h-16 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 grid justify-items-center content-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 transition disabled:opacity-40';
 
@@ -25,22 +28,22 @@ export interface BayInTheBayProps {
   onHold: (kind: 'mhold' | 'bhold') => void;
   /** The hold already saved: close the car as held without a second hold. */
   onCloseHeld: (kind: 'mhold' | 'bhold') => void;
+  /** The full 🔍 popup, for a key FG cannot place (register it, Lost & Found). */
   onFindCar: () => void;
+  /** The module's bay log: the empty card's Start lands in it. */
+  bay: BayLogState;
   /** Set right after a Skip: the empty bay says what comes next. */
   bumped: boolean;
 }
 
-export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar, bumped }: BayInTheBayProps) {
+export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar, bay, bumped }: BayInTheBayProps) {
   const { holds } = useVehicleHoldContext();
   if (!open) {
     return (
       <section aria-label="In the bay" className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 px-4 py-4 space-y-3 text-center">
         <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bumped ? 'Bumped. Bring the ASAP car in.' : "The bay's empty."}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up, log its odo, and tap Start cleaning.</p>
-        <button type="button" onClick={() => { hapticLight(); onFindCar(); }}
-          className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-bold text-black cursor-pointer">
-          🔍 Find a car
-        </button>
+        <BayFindCar bay={bay} onMore={onFindCar} />
       </section>
     );
   }
